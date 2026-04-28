@@ -1390,11 +1390,11 @@ async function setBusinessLocation() {
                 currentGroup.location_lat = lat; 
                 currentGroup.location_lng = lng;
                 
-                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף עם הצגת הקואורדינטות
+                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף 
                 const locEl = document.getElementById('tc-location-status');
                 if(locEl) {
-                    locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
-                    locEl.innerText = `✓ מיקום נשמר (נ.צ: ${lat.toFixed(5)}, ${lng.toFixed(5)}). ה-GPS פעיל.`;
+                    locEl.className = 'text-xs font-bold text-green-600 mt-1 block bg-green-50 p-1.5 rounded-lg';
+                    locEl.innerText = `✓ המיקום ננעל בהצלחה. מערכת ה-GPS פעילה למעקב.`;
                 }
             } else {
                 showToast('error', data.error || 'שגיאה בשמירת המיקום');
@@ -1413,13 +1413,13 @@ async function setBusinessLocation() {
 
 let liveTimeclockInterval = null;
 
-async function checkTimeclockStatus() {
+window.checkTimeclockStatus = async function() {
     try {
         // עדכון חזותי של סטטוס המיקום אם הוא קיים בשרת, בעת טעינת הטאב
         const locEl = document.getElementById('tc-location-status');
         if (locEl && currentGroup.location_lat) {
-            locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
-            locEl.innerText = `✓ מיקום נשמר (נ.צ: ${parseFloat(currentGroup.location_lat).toFixed(5)}, ${parseFloat(currentGroup.location_lng).toFixed(5)}). ה-GPS פעיל.`;
+            locEl.className = 'text-xs font-bold text-green-600 mt-1 block bg-green-50 p-1.5 rounded-lg';
+            locEl.innerText = `✓ המיקום ננעל בהצלחה. מערכת ה-GPS פעילה למעקב.`;
         } else if (locEl) {
             locEl.className = 'text-[10px] text-slate-400 mt-1 block';
             locEl.innerText = 'לא הוגדר — עובדים יוכלו להחתים מכל מקום';
@@ -1429,7 +1429,11 @@ async function checkTimeclockStatus() {
         if (!res.ok) return;
         const data = await res.json();
         
-        const btn = getEl('btn-punch'); const icon = getEl('tc-icon'); const text = getEl('tc-btn-text'); const info = getEl('tc-active-info'); const startTime = getEl('tc-start-time');
+        const btn = document.getElementById('btn-punch'); 
+        const icon = document.getElementById('tc-icon'); 
+        const text = document.getElementById('tc-btn-text'); 
+        const info = document.getElementById('tc-active-info'); 
+        const startTime = document.getElementById('tc-start-time');
         
         if(!btn) return;
         isPunchedIn = data.isPunchedIn;
@@ -1463,18 +1467,19 @@ async function checkTimeclockStatus() {
             if (info) info.classList.add('hidden');
         }
         
-        fetchTimeclockReport();
+        window.fetchTimeclockReport();
     } catch(e) {
         console.error("Status error:", e);
     }
-}
+};
 
-async function handlePunch() {
-    const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
+window.handlePunch = async function() {
+    const btn = document.getElementById('btn-punch'); if(!btn || btn.disabled) return;
     if (!navigator.geolocation) return showToast('error', 'הדפדפן או הטאבלט לא תומכים בשירותי מיקום');
     
     btn.disabled = true; 
-    const icon = getEl('tc-icon'); const text = getEl('tc-btn-text');
+    const icon = document.getElementById('tc-icon'); 
+    const text = document.getElementById('tc-btn-text');
     if (icon && text) {
         icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
         text.innerText = 'מאתר מיקום...';
@@ -1500,7 +1505,7 @@ async function handlePunch() {
                     errMsg = `קוד שגיאה: ${res.status}`;
                 }
                 showToast('error', errMsg);
-                checkTimeclockStatus();
+                window.checkTimeclockStatus();
                 btn.disabled = false;
                 return;
             }
@@ -1508,7 +1513,6 @@ async function handlePunch() {
             const data = await res.json();
             
             if(data.success) { 
-                // מנגנון הגנה לקונפטי - אם הספרייה חסרה או תקולה, העסק ימשיך כרגיל
                 try { 
                     if(typeof triggerConfetti === 'function') {
                         triggerConfetti(); 
@@ -1518,16 +1522,16 @@ async function handlePunch() {
                 }
                 
                 showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-                await checkTimeclockStatus(); 
+                await window.checkTimeclockStatus(); 
                 fetchData(); 
             } else { 
                 showToast('error', data.error || 'שגיאה בדיווח'); 
-                checkTimeclockStatus(); 
+                window.checkTimeclockStatus(); 
             }
         } catch(e) { 
             console.error("Punch error:", e);
             showToast('error', 'שגיאת רשת בדיווח: ' + e.message); 
-            checkTimeclockStatus(); 
+            window.checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
         }
@@ -1537,60 +1541,68 @@ async function handlePunch() {
         if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע במכשיר.';
         if (error.code === 3) errMsg = 'איתור המיקום ארך זמן רב מדי.';
         showToast('error', errMsg);
-        checkTimeclockStatus();
+        window.checkTimeclockStatus();
         btn.disabled = false;
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-}
+};
 
-function openManualPunchModal() {
-    getEl('manual-punch-modal').classList.remove('hidden');
-    const uSelect = getEl('mp-user'); uSelect.innerHTML = '';
+window.openManualPunchModal = function() {
+    document.getElementById('manual-punch-modal').classList.remove('hidden');
+    const uSelect = document.getElementById('mp-user'); uSelect.innerHTML = '';
     membersCache.forEach(m => { if(m.role !== 'ADMIN') uSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; });
-}
+};
 
-async function submitManualPunch() {
-    const uid = val('mp-user'); const date = val('mp-date'); const start = val('mp-start'); const end = val('mp-end');
+window.submitManualPunch = async function() {
+    const uid = document.getElementById('mp-user').value; 
+    const date = document.getElementById('mp-date').value; 
+    const start = document.getElementById('mp-start').value; 
+    const end = document.getElementById('mp-end').value;
+    
     if(!uid || !date || !start || !end) return showToast('error', 'נא למלא את כל השדות');
     
     const punchIn = `${date}T${start}:00`; const punchOut = `${date}T${end}:00`;
     const diffMins = Math.round((new Date(punchOut) - new Date(punchIn)) / 60000);
     if(diffMins <= 0) return showToast('error', 'שעת יציאה חייבת להיות אחרי שעת כניסה');
     
-    getEl('btn-submit-mp').disabled = true;
+    const btn = document.getElementById('btn-submit-mp');
+    btn.disabled = true;
+    
     try {
         const res = await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         
         if (!res.ok) {
             const errData = await res.json();
             showToast('error', errData.error || 'שגיאה בהזנה ידנית');
-            getEl('btn-submit-mp').disabled = false;
+            btn.disabled = false;
             return;
         }
 
         const data = await res.json();
         if(data.success) {
             showToast('success', 'דווח בהצלחה!');
-            getEl('manual-punch-modal').classList.add('hidden');
-            fetchTimeclockReport();
+            document.getElementById('manual-punch-modal').classList.add('hidden');
+            window.fetchTimeclockReport();
         } else {
             showToast('error', data.error || 'שגיאה בהזנה ידנית');
         }
     } catch(e) {
         showToast('error', 'שגיאת רשת מול השרת');
-    } finally { getEl('btn-submit-mp').disabled = false; }
-}
+    } finally { btn.disabled = false; }
+};
 
 window.fetchTimeclockReport = async function() {
     try {
         const filterEl = document.getElementById('tc-user-filter');
-        const monthFilter = document.getElementById('tc-month-filter') ? document.getElementById('tc-month-filter').value : 'all';
+        let monthFilter = 'all';
+        const mFilterEl = document.getElementById('tc-month-filter');
+        if (mFilterEl) monthFilter = mFilterEl.value;
         
         if(filterEl && filterEl.options.length === 0) { 
             filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; 
             membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); 
         }
         
-        const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
+        const userFilter = (currentUser.role === 'ADMIN' && filterEl) ? filterEl.value : currentUser.id;
         
         const reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
         const res = await fetch(reqUrl); 
@@ -1599,7 +1611,7 @@ window.fetchTimeclockReport = async function() {
         let rawData = await res.json();
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
-        if (monthFilter !== 'all') {
+        if (monthFilter !== 'all' && monthFilter.includes('-')) {
             const [y, m] = monthFilter.split('-');
             data = data.filter(r => { 
                 if(!r.punch_in) return false;
@@ -1613,10 +1625,10 @@ window.fetchTimeclockReport = async function() {
         
         let html = ''; 
         let userSummaries = {};
+        let totalMinutesGlobal = 0;
+        let totalCostGlobal = 0;
         
-        if(data.length === 0) {
-            html = '<p class="text-center text-slate-400 text-sm py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50 mt-4">אין דיווחי נוכחות לתקופה זו</p>';
-        } else {
+        if(data.length > 0) {
             data.forEach(r => {
                 try {
                     const inTime = new Date(r.punch_in); 
@@ -1629,25 +1641,31 @@ window.fetchTimeclockReport = async function() {
                     const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
                     const hourlyRate = parseFloat(user.allowance_amount) || 0;
                     
-                    let actualMins = r.total_minutes || 0;
+                    if(!userSummaries[r.nickname]) {
+                        userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
+                    }
+
+                    let actualMins = 0;
+                    let cost = 0;
+
                     if(r.punch_out) { 
-                        // מנגנון הגנה לבדיקות: עיגול של משמרות קצרות מאוד ל-1 דקה כדי להציג ערכים
-                        const msDiff = new Date(r.punch_out) - inTime;
-                        actualMins = Math.max(1, Math.round(msDiff / 60000));
-                        
                         const outTime = new Date(r.punch_out); 
+                        const msDiff = outTime.getTime() - inTime.getTime();
+                        actualMins = Math.max(1, Math.round(msDiff / 60000)); // לפחות דקה
+                        
                         outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
                         
                         const hours = Math.floor(actualMins / 60); 
                         const mins = actualMins % 60; 
                         totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
-                        const cost = (actualMins / 60) * hourlyRate;
                         
+                        cost = (actualMins / 60) * hourlyRate;
                         costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(2)}</span>`;
                         
-                        if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
                         userSummaries[r.nickname].minutes += actualMins; 
                         userSummaries[r.nickname].cost += cost;
+                        totalMinutesGlobal += actualMins;
+                        totalCostGlobal += cost;
                     } else {
                         outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
                     }
@@ -1669,19 +1687,14 @@ window.fetchTimeclockReport = async function() {
             });
         }
         
-        let totalMinutes = 0, totalCost = 0;
-        for(let name in userSummaries) { 
-            totalMinutes += userSummaries[name].minutes; 
-            totalCost += userSummaries[name].cost; 
-        }
-        
-        const sh = Math.floor(totalMinutes / 60);
-        const sm = totalMinutes % 60;
+        // עדכון הקוביות הראשיות למעלה (אם קיימות)
+        const sh = Math.floor(totalMinutesGlobal / 60);
+        const sm = totalMinutesGlobal % 60;
         const sumHEl = document.getElementById('tc-summary-hours'); 
         if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
         
         const sumWEl = document.getElementById('tc-summary-wage'); 
-        if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(2)}`;
+        if(sumWEl) sumWEl.innerText = `₪${totalCostGlobal.toFixed(2)}`;
 
         let summaryHtml = '';
         if(Object.keys(userSummaries).length > 0) {
@@ -1695,12 +1708,14 @@ window.fetchTimeclockReport = async function() {
                 summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(2)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
-        } else if (data.length > 0) {
-            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">משמרת פעילה כעת. סיכום יופיע לאחר יציאה.</p></div>`;
         } else {
-            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה לתקופה זו.</p></div>`;
         }
         
+        if(data.length === 0) {
+            html = '<p class="text-center text-slate-400 text-sm py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50 mt-4">אין דיווחי נוכחות לתקופה זו</p>';
+        }
+
         list.innerHTML = `
             ${summaryHtml}
             <div id="pdf-report-content" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
