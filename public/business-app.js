@@ -1386,16 +1386,16 @@ async function setBusinessLocation() {
             if(data.success) {
                 showToast('success', 'מיקום העסק נשמר בהצלחה בהנהלה!');
                 
-                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף
-                const locEl = document.getElementById('tc-location-status');
-                if(locEl) {
-                    locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
-                    locEl.innerText = '✓ מיקום העסק הוגדר בהצלחה. מערכת ה-GPS פעילה.';
-                }
-                
                 // שמירה מקומית כדי שהדפיקות של הלקוח מיד אחרי השמירה יעברו במנגנון בלי קריסה
                 currentGroup.location_lat = lat; 
                 currentGroup.location_lng = lng;
+                
+                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף עם הצגת הקואורדינטות
+                const locEl = document.getElementById('tc-location-status');
+                if(locEl) {
+                    locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
+                    locEl.innerText = `✓ מיקום נשמר (נ.צ: ${lat.toFixed(5)}, ${lng.toFixed(5)}). ה-GPS פעיל.`;
+                }
             } else {
                 showToast('error', data.error || 'שגיאה בשמירת המיקום');
             }
@@ -1419,7 +1419,7 @@ async function checkTimeclockStatus() {
         const locEl = document.getElementById('tc-location-status');
         if (locEl && currentGroup.location_lat) {
             locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
-            locEl.innerText = '✓ מיקום העסק הוגדר במערכת. מערכת ה-GPS פעילה.';
+            locEl.innerText = `✓ מיקום נשמר (נ.צ: ${parseFloat(currentGroup.location_lat).toFixed(5)}, ${parseFloat(currentGroup.location_lng).toFixed(5)}). ה-GPS פעיל.`;
         } else if (locEl) {
             locEl.className = 'text-[10px] text-slate-400 mt-1 block';
             locEl.innerText = 'לא הוגדר — עובדים יוכלו להחתים מכל מקום';
@@ -1492,7 +1492,6 @@ async function handlePunch() {
             });
             
             if (!res.ok) {
-                // המטרה: לקרוא את השגיאה שהשרת זרק (כמו "מרחק נוכחי 300 מטר") במקום לקרוס
                 let errMsg = "שגיאת שרת לא מזוהה";
                 try {
                     const errorData = await res.json();
@@ -1509,7 +1508,15 @@ async function handlePunch() {
             const data = await res.json();
             
             if(data.success) { 
-                triggerConfetti(); 
+                // מנגנון הגנה לקונפטי - אם הספרייה חסרה או תקולה, העסק ימשיך כרגיל
+                try { 
+                    if(typeof triggerConfetti === 'function') {
+                        triggerConfetti(); 
+                    }
+                } catch(confettiErr) { 
+                    console.warn("Confetti ignored safely", confettiErr); 
+                }
+                
                 showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
                 await checkTimeclockStatus(); 
                 fetchData(); 
