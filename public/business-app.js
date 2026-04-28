@@ -8270,30 +8270,38 @@ window.openRecipeBuilder = function(catalogId = null) {
     const modal = document.getElementById('recipe-builder-modal');
     if(!modal) return;
 
-    // 1. תיקון המסך השחור: שינוי יישור החלון כדי שלא ידחף החוצה בפתיחת מקלדת
-    modal.classList.remove('items-center');
-    modal.classList.add('items-start', 'pt-8', 'pb-8');
+    // ביטול יישור שמאל-למעלה שגרם למסך השחור, וחזרה למרכוז טבעי כמו שאר המודאלים
+    modal.classList.remove('items-start', 'pt-8', 'pb-8');
+    modal.classList.add('items-center');
     
     const headerDiv = modal.querySelector('.p-5.border-b');
     if(headerDiv) {
-        headerDiv.classList.remove('items-center');
-        headerDiv.classList.add('items-start');
+        headerDiv.classList.remove('items-start');
+        headerDiv.classList.add('items-center');
     }
 
-    // 2. שאיבת הקטגוריות לחלון הפוד-קוסט (מבוסס על קטלוג החנות)
-    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    // שאיבת הקטגוריות לחלון הפוד-קוסט (גם מהפוד-קוסט וגם מהקטלוג כדי להבטיח שלא יהיה ריק)
+    let catsSet = new Set();
+    if (typeof foodCostData !== 'undefined' && foodCostData) {
+        foodCostData.forEach(p => { if (p.category && p.category.trim() !== '') catsSet.add(p.category.trim()); });
+    }
+    if (typeof storeCatalogCache !== 'undefined' && storeCatalogCache) {
+        storeCatalogCache.forEach(p => { if (p.category && p.category.trim() !== '') catsSet.add(p.category.trim()); });
+    }
+    
+    const cats = [...catsSet];
     let dataListHtml = `<datalist id="fc-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
     
-    if (!document.getElementById('fc-category-list')) {
+    let existingDatalist = document.getElementById('fc-category-list');
+    if (!existingDatalist) {
         document.body.insertAdjacentHTML('beforeend', dataListHtml);
     } else {
-        document.getElementById('fc-category-list').outerHTML = dataListHtml;
+        existingDatalist.outerHTML = dataListHtml;
     }
     
     if (!catalogId) {
         rbCurrentItem = { id: null, name: '', price: '', category: '' };
         
-        // בניית מבנה יציב שלא שובר את ההדר (Header)
         getEl('rb-title').innerHTML = `
             <div class="flex flex-col gap-2 w-full max-w-[200px] pb-1">
                 <span class="text-xs font-bold text-slate-500 mb-1">הקמת מנה חדשה:</span>
