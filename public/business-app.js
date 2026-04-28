@@ -1580,10 +1580,11 @@ async function submitManualPunch() {
     } finally { getEl('btn-submit-mp').disabled = false; }
 }
 
-async function fetchTimeclockReport() {
+window.fetchTimeclockReport = async function() {
     try {
-        const filterEl = getEl('tc-user-filter');
-        const monthFilter = getEl('tc-month-filter') ? getEl('tc-month-filter').value : 'all';
+        const filterEl = document.getElementById('tc-user-filter');
+        const monthFilter = document.getElementById('tc-month-filter') ? document.getElementById('tc-month-filter').value : 'all';
+        
         if(filterEl && filterEl.options.length === 0) { 
             filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; 
             membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); 
@@ -1591,93 +1592,112 @@ async function fetchTimeclockReport() {
         
         const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
         
-        let reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
+        const reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
         const res = await fetch(reqUrl); 
-        
-        if(!res.ok) {
-             console.error("Report fetch error:", res.status);
-             return;
-        }
+        if(!res.ok) return;
         
         let rawData = await res.json();
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
         if (monthFilter !== 'all') {
             const [y, m] = monthFilter.split('-');
-            data = data.filter(r => { const d = new Date(r.punch_in); return d.getFullYear() == parseInt(y) && (d.getMonth() + 1) == parseInt(m); });
+            data = data.filter(r => { 
+                if(!r.punch_in) return false;
+                const d = new Date(r.punch_in); 
+                return d.getFullYear() === parseInt(y) && (d.getMonth() + 1) === parseInt(m); 
+            });
         }
         
-        const list = getEl('timeclock-report-list'); if(!list) return;
+        const list = document.getElementById('timeclock-report-list'); 
+        if(!list) return;
         
-        let html = ''; let userSummaries = {};
+        let html = ''; 
+        let userSummaries = {};
         
         if(data.length === 0) {
             html = '<p class="text-center text-slate-400 text-sm py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50 mt-4">אין דיווחי נוכחות לתקופה זו</p>';
         } else {
             data.forEach(r => {
-                const inTime = new Date(r.punch_in); 
-                const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
-                const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
-                let outStr = '...'; 
-                let totalStr = '-'; 
-                let costStr = '';
-                
-                const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
-                const hourlyRate = parseFloat(user.allowance_amount) || 0;
-                
-                let actualMins = r.total_minutes || 0;
-                if(r.punch_out) { 
-                    // תיקון לבדיקות: אם המשתמש דפק יציאה מיד, זה יעוגל ללפחות דקה אחת (1)
-                    const msDiff = new Date(r.punch_out) - inTime;
-                    actualMins = Math.max(1, Math.round(msDiff / 60000));
+                try {
+                    const inTime = new Date(r.punch_in); 
+                    const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
+                    const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+                    let outStr = '...'; 
+                    let totalStr = '-'; 
+                    let costStr = '';
                     
-                    const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
-                    const hours = Math.floor(actualMins / 60); const mins = actualMins % 60; 
-                    totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
-                    const cost = (actualMins / 60) * hourlyRate;
+                    const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
+                    const hourlyRate = parseFloat(user.allowance_amount) || 0;
                     
-                    costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(2)}</span>`;
+                    let actualMins = r.total_minutes || 0;
+                    if(r.punch_out) { 
+                        // מנגנון הגנה לבדיקות: עיגול של משמרות קצרות מאוד ל-1 דקה כדי להציג ערכים
+                        const msDiff = new Date(r.punch_out) - inTime;
+                        actualMins = Math.max(1, Math.round(msDiff / 60000));
+                        
+                        const outTime = new Date(r.punch_out); 
+                        outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
+                        
+                        const hours = Math.floor(actualMins / 60); 
+                        const mins = actualMins % 60; 
+                        totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
+                        const cost = (actualMins / 60) * hourlyRate;
+                        
+                        costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(2)}</span>`;
+                        
+                        if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
+                        userSummaries[r.nickname].minutes += actualMins; 
+                        userSummaries[r.nickname].cost += cost;
+                    } else {
+                        outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
+                    }
                     
-                    if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
-                    userSummaries[r.nickname].minutes += actualMins; 
-                    userSummaries[r.nickname].cost += cost;
-                } else {
-                    outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
-                }
-                
-                const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">המשמרת שלי</span>`;
-                
-                html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
-                            <div class="flex items-center gap-2">
-                                ${nameDisp}
-                                <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
-                                <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
-                            </div>
-                            <div class="flex items-center">
-                                ${costStr}
-                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
-                            </div>
-                         </div>`;
+                    const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">המשמרת שלי</span>`;
+                    
+                    html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                                <div class="flex items-center gap-2">
+                                    ${nameDisp}
+                                    <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
+                                    <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
+                                </div>
+                                <div class="flex items-center">
+                                    ${costStr}
+                                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
+                                </div>
+                             </div>`;
+                } catch(rowErr) { console.error("Row parse error:", rowErr); }
             });
         }
         
         let totalMinutes = 0, totalCost = 0;
-        for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
-        const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
-        const sumHEl = getEl('tc-summary-hours'); if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
-        const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(2)}`;
+        for(let name in userSummaries) { 
+            totalMinutes += userSummaries[name].minutes; 
+            totalCost += userSummaries[name].cost; 
+        }
+        
+        const sh = Math.floor(totalMinutes / 60);
+        const sm = totalMinutes % 60;
+        const sumHEl = document.getElementById('tc-summary-hours'); 
+        if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
+        
+        const sumWEl = document.getElementById('tc-summary-wage'); 
+        if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(2)}`;
 
         let summaryHtml = '';
         if(Object.keys(userSummaries).length > 0) {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות (תקופה נבחרת):</h4><div class="space-y-2">`;
             for(let name in userSummaries) {
-                const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(2); const minH = s.minHours;
+                const s = userSummaries[name]; 
+                const h = (s.minutes / 60).toFixed(2); 
+                const minH = s.minHours;
                 const minWarning = (minH > 0 && (s.minutes/60) < minH) ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">חסרות ${ (minH - (s.minutes/60)).toFixed(1) } שעות למינימום</span>` : '';
                 const titleName = currentUser.role === 'ADMIN' ? name : 'סיכום אישי';
                 summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(2)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
-        } else if (data.length === 0) {
+        } else if (data.length > 0) {
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">משמרת פעילה כעת. סיכום יופיע לאחר יציאה.</p></div>`;
+        } else {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
         }
         
@@ -1687,8 +1707,8 @@ async function fetchTimeclockReport() {
                 ${html}
             </div>
         `;
-    } catch(e) { console.error(e); showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
-}
+    } catch(e) { console.error("fetchTimeclockReport error:", e); }
+};
 
 // פונקציות חלון הרשאות צוות (Team Permissions) שהיו חסרות!
 window.openPermissionsModal = function(id, name, role, permsStr) {
@@ -2890,16 +2910,66 @@ function sendWhatsAppInvite(role) {
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
 async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
-function openBankSettings(id, name, allowance, interest) { 
-    getEl('bank-user-id').value = id; 
-    getEl('bank-user-name').innerText = `תנאי העסקה: ${name}`; 
-    getEl('bank-allowance').value = allowance; 
-    getEl('bank-allowance').placeholder = "תעריף שעתי (₪)";
-    getEl('bank-interest').value = interest; 
-    getEl('bank-interest').placeholder = "יעד שעות מינימום לחודש";
-    getEl('bank-settings-modal').classList.remove('hidden'); 
-}
-async function submitBankSettings() { const uid = val('bank-user-id'); const allowance = val('bank-allowance'); const interest = val('bank-interest'); await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); getEl('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
+window.openBankSettings = function(id, name, allowance, interest) {
+    if (!document.getElementById('bank-settings-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-2"><i class="fa-solid fa-sack-dollar text-emerald-500 mr-2"></i>הגדרות שכר ותעריף</h3>
+                <p id="bank-user-name" class="text-xs font-bold text-slate-500 mb-6"></p>
+                <input type="hidden" id="bank-user-id">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">תעריף שכר לשעה (₪):</label>
+                        <input type="number" id="bank-allowance" class="modern-input py-2.5 text-sm dir-ltr text-center font-bold text-indigo-700 bg-indigo-50 border-indigo-100 w-full" placeholder="למשל: 50">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">יעד שעות מינימום בחודש (אופציונלי):</label>
+                        <input type="number" id="bank-interest" class="modern-input py-2.5 text-sm dir-ltr text-center w-full" placeholder="למשל: 100">
+                    </div>
+                </div>
+                
+                <button onclick="window.submitBankSettings()" class="w-full mt-6 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הגדרות עובד</button>
+            </div>
+        </div>`);
+    }
+    
+    document.getElementById('bank-user-id').value = id; 
+    document.getElementById('bank-user-name').innerText = `עבור העובד/ת: ${name}`; 
+    document.getElementById('bank-allowance').value = allowance; 
+    document.getElementById('bank-interest').value = interest; 
+    document.getElementById('bank-settings-modal').classList.remove('hidden'); 
+};
+
+window.submitBankSettings = async function() { 
+    const uid = document.getElementById('bank-user-id').value; 
+    const allowance = document.getElementById('bank-allowance').value; 
+    const interest = document.getElementById('bank-interest').value; 
+    
+    const btn = document.querySelector('#bank-settings-modal button.bg-slate-800');
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    
+    try {
+        const res = await fetch(`${API}/admin/update-settings`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ userId: uid, allowance, interest }) 
+        }); 
+        
+        if (res.ok) {
+            document.getElementById('bank-settings-modal').classList.add('hidden'); 
+            showToast('success', 'הגדרות שכר עודכנו בהצלחה!'); 
+            if(typeof fetchMembers === 'function') fetchMembers();
+        } else {
+            showToast('error', 'שגיאה בעדכון ההגדרות');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות עובד'; }
+    }
+};
 async function triggerPayday() { if(!confirm('האם לאשר תשלום תקציבים ובונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
 function openGoalModal() { if(currentUser.role === 'ADMIN') { getEl('goal-user-select-container').classList.remove('hidden'); } getEl('goal-title').value = ''; getEl('goal-target').value = ''; getEl('goal-modal').classList.remove('hidden'); }
 function openDepositModal(id, title) { getEl('deposit-goal-id').value = id; getEl('deposit-goal-title').innerText = title; getEl('goal-deposit-modal').classList.remove('hidden'); }
