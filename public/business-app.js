@@ -4892,95 +4892,6 @@ window.switchCustomerTab = function(tab) {
     }
 };
 
-window.fetchStorePromotions = async function() {
-    try {
-        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            storePromotionsCache = data.promotions || [];
-            window.renderStorePromotions();
-        }
-    } catch(e) {}
-};
-
-window.renderStorePromotions = function() {
-    const list = document.getElementById('store-promotions-list');
-    if (!list) return;
-    if (!storePromotionsCache || storePromotionsCache.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא הוגדרו מבצעים פעילים.</p>';
-        return;
-    }
-    let html = '';
-    storePromotionsCache.forEach(p => {
-        const isActive = p.is_active;
-        const activeClass = isActive ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-100 text-slate-400 border-slate-200';
-        const activeText = isActive ? 'פעיל' : 'מושהה';
-        html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3 transition hover:shadow-md">
-            <div>
-                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-gift text-pink-500"></i> ${safeStr(p.title)}</h4>
-                <p class="text-[10px] text-slate-500 mt-1">הטבה: ${p.promo_value} | ${p.target_type === 'all' ? 'כל החנות' : 'קטגוריה ספציפית'}</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="window.toggleStorePromotion(${p.id}, ${!isActive})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeClass}">${activeText}</button>
-                <button onclick="window.openPromotionModal(${p.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="window.deleteStorePromotion(${p.id})" class="text-slate-400 hover:text-red-500 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-trash text-xs"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-};
-
-async function submitPromotion() {
-    const id = val('promo-id');
-    const title = val('promo-title');
-    const promoType = val('promo-type');
-    const promoValue = val('promo-value');
-    const targetType = val('promo-target-type');
-    const targetCategory = val('promo-target-category');
-    
-    if (!title) return showToast('error', 'נא להזין שם למבצע');
-    if (!promoValue) return showToast('error', 'נא להזין את ערך המבצע');
-    if (targetType === 'category' && !targetCategory) return showToast('error', 'נא להזין את שם הקטגוריה');
-
-    const btn = getEl('btn-submit-promo'); btn.disabled = true; btn.innerText = 'שומר...';
-    try {
-        const showBanner = getEl('promo-show-banner') ? getEl('promo-show-banner').checked : true;
-        const showTab = getEl('promo-show-tab') ? getEl('promo-show-tab').checked : true;
-        const bgColor = getEl('promo-bg-color') ? val('promo-bg-color') : 'pink';
-
-        const payload = { 
-            groupId: currentGroup.id, title, promoType, promoValue, targetType, 
-            targetIds: targetType === 'category' ? [targetCategory] : [],
-            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null,
-            showInBanner: showBanner, showInTab: showTab, bgColor: bgColor
-        };
-        
-        const url = id ? `${API}/store/promotions/${id}` : `${API}/store/promotions`;
-        const method = id ? 'PUT' : 'POST';
-        
-        const res = await fetch(url, {
-            method: method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', id ? 'המבצע עודכן בהצלחה!' : 'המבצע נוצר ופעיל!');
-            getEl('promotion-modal').classList.add('hidden');
-            fetchStorePromotions();
-        } else { showToast('error', data.error || 'שגיאה בשמירת המבצע'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור והפעל'; }
-}
-
-async function deleteStorePromotion(id) {
-    if(!confirm('האם למחוק מבצע זה?')) return;
-    try { await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchStorePromotions(); } catch(e) {}
-}
-
-async function toggleStorePromotion(id, isActive) {
-    try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
-}
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -5215,15 +5126,6 @@ function renderModifiersUI() {
         </div>`;
     }); container.innerHTML = html;
 }
-
-function addModifierGroup() { currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); renderModifiersUI(); }
-function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
-function updateModName(index, v) { currentModifiersUI[index].name = v; }
-function updateModType(index, v) { currentModifiersUI[index].type = v; }
-function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); renderModifiersUI(); }
-function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
-function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
-function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 
 let currentBundleStepsUI = [];
 let currentPizzaToppingsUI = [];
