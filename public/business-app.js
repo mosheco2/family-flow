@@ -8267,20 +8267,13 @@ window.openRecipeBuilder = function(catalogId = null) {
     rbIngredients = [];
     rbOverheads = [];
     
-    const modal = document.getElementById('recipe-builder-modal');
-    if(!modal) return;
-
-    // ביטול יישור שמאל-למעלה שגרם למסך השחור, וחזרה למרכוז טבעי כמו שאר המודאלים
-    modal.classList.remove('items-start', 'pt-8', 'pb-8');
-    modal.classList.add('items-center');
-    
-    const headerDiv = modal.querySelector('.p-5.border-b');
-    if(headerDiv) {
-        headerDiv.classList.remove('items-start');
-        headerDiv.classList.add('items-center');
+    // מחיקת החלון הבעייתי והישן (אם הוא קיים)
+    let modal = document.getElementById('recipe-builder-modal');
+    if (modal) {
+        modal.remove();
     }
 
-    // שאיבת הקטגוריות לחלון הפוד-קוסט (גם מהפוד-קוסט וגם מהקטלוג כדי להבטיח שלא יהיה ריק)
+    // בניית רשימת קטגוריות חכמה מתוך נתוני העסק
     let catsSet = new Set();
     if (typeof foodCostData !== 'undefined' && foodCostData) {
         foodCostData.forEach(p => { if (p.category && p.category.trim() !== '') catsSet.add(p.category.trim()); });
@@ -8288,34 +8281,111 @@ window.openRecipeBuilder = function(catalogId = null) {
     if (typeof storeCatalogCache !== 'undefined' && storeCatalogCache) {
         storeCatalogCache.forEach(p => { if (p.category && p.category.trim() !== '') catsSet.add(p.category.trim()); });
     }
-    
     const cats = [...catsSet];
-    let dataListHtml = `<datalist id="fc-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    const dataListHtml = `<datalist id="fc-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
     
     let existingDatalist = document.getElementById('fc-category-list');
-    if (!existingDatalist) {
-        document.body.insertAdjacentHTML('beforeend', dataListHtml);
-    } else {
-        existingDatalist.outerHTML = dataListHtml;
-    }
+    if (!existingDatalist) { document.body.insertAdjacentHTML('beforeend', dataListHtml); } 
+    else { existingDatalist.outerHTML = dataListHtml; }
+
+    // בנייה מחדש של המודאל נקי לחלוטין וללא עיצובים בעייתיים
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="recipe-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
+                <h3 class="text-xl font-black text-slate-800" id="rb-modal-main-title"><i class="fa-solid fa-chart-pie text-emerald-500 mr-2"></i> תמחור מנה ועץ מוצר</h3>
+                <button onclick="window.closeRecipeBuilder()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll bg-slate-50/50">
+                <input type="hidden" id="rb-catalog-id">
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם המנה/מוצר:</label>
+                        <input type="text" id="rb-edit-name" class="modern-input py-2.5 px-3 text-sm font-black text-slate-800 shadow-sm border-slate-200 bg-slate-50 focus:bg-white" placeholder="למשל: סלט קינואה">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר מכירה (₪):</label>
+                            <input type="number" id="rb-edit-price" oninput="window.refreshRBUI()" class="modern-input py-2.5 px-3 text-sm font-black text-indigo-600 text-center dir-ltr shadow-sm border-slate-200 bg-slate-50 focus:bg-white" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="rb-edit-category" list="fc-category-list" class="modern-input py-2.5 px-3 text-sm text-slate-600 shadow-sm border-slate-200 bg-slate-50 focus:bg-white" placeholder="בחר מקטגוריה...">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-carrot text-orange-500 mr-1"></i> חומרי גלם</h4>
+                    <div id="rb-ingredients-list" class="space-y-2 mb-3 min-h-[50px]"></div>
+                    
+                    <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
+                        <input type="text" id="rb-add-ing-name" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="שם חומר גלם">
+                        <input type="number" id="rb-add-ing-qty" class="modern-input py-2 px-2 text-xs flex-1 text-center" placeholder="כמות" min="0.01" step="0.01">
+                        <select id="rb-add-ing-unit" class="modern-input py-2 px-1 text-xs bg-white w-16 text-center">
+                            <option value="קג">ק"ג</option>
+                            <option value="גרם">גרם</option>
+                            <option value="יח'">יח'</option>
+                            <option value="ליטר">ליטר</option>
+                            <option value="מארז">מארז</option>
+                        </select>
+                        <button onclick="window.addRBIngredient()" class="bg-orange-100 text-orange-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-orange-200 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-file-invoice-dollar text-blue-500 mr-1"></i> הוצאות נלוות (אריזה, תפעול)</h4>
+                    <div id="rb-overhead-list" class="space-y-2 mb-3 min-h-[50px]"></div>
+                    
+                    <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
+                        <input type="text" id="rb-add-ovh-name" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="למשל: קופסת קרטון">
+                        <input type="number" id="rb-add-ovh-cost" class="modern-input py-2 px-2 text-xs flex-1 text-center" placeholder="עלות ב-₪" min="0.01" step="0.01">
+                        <button onclick="window.addRBOverhead()" class="bg-blue-100 text-blue-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-blue-200 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 z-10 shadow-[0_-4px_15px_rgba(0,0,0,0.02)]">
+                <div class="flex justify-between items-center mb-1 text-xs font-bold text-slate-500">
+                    <span>סה"כ עלות יצור (Cost):</span>
+                    <span id="rb-total-cost" class="text-red-500 text-sm">₪0.00</span>
+                </div>
+                <div class="flex justify-between items-center mb-4 text-xs font-bold text-slate-500">
+                    <span>רווח גולמי:</span>
+                    <span id="rb-gross-profit" class="text-green-600 text-sm">₪0.00</span>
+                </div>
+                
+                <div class="w-full bg-slate-200 rounded-full h-3 mb-4 overflow-hidden shadow-inner flex relative">
+                    <div id="rb-fc-bar" class="h-3 transition-all duration-500 bg-emerald-500"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-800 drop-shadow-sm pointer-events-none">
+                        Food Cost: <span id="rb-fc-pct" class="ml-1">0%</span>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="window.closeRecipeBuilder()" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition text-sm">ביטול</button>
+                    <button type="button" id="btn-submit-rb" onclick="window.saveRecipeBuilder()" class="flex-[1.2] bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition text-base flex justify-center items-center gap-2"><i class="fa-solid fa-save"></i> שמור מנה לחנות</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    `);
+    
+    modal = document.getElementById('recipe-builder-modal');
     
     if (!catalogId) {
         rbCurrentItem = { id: null, name: '', price: '', category: '' };
+        document.getElementById('rb-catalog-id').value = '';
+        document.getElementById('rb-edit-name').value = '';
+        document.getElementById('rb-edit-price').value = '';
+        document.getElementById('rb-edit-category').value = '';
         
-        getEl('rb-title').innerHTML = `
-            <div class="flex flex-col gap-2 w-full max-w-[200px] pb-1">
-                <span class="text-xs font-bold text-slate-500 mb-1">הקמת מנה חדשה:</span>
-                <input type="text" id="rb-edit-name" class="modern-input py-2 px-3 text-sm font-black text-slate-800 shadow-sm border-slate-200 bg-white" placeholder="שם המנה/מוצר">
-                <input type="text" id="rb-edit-category" list="fc-category-list" class="modern-input py-2 px-3 text-xs text-slate-600 shadow-sm border-slate-200 bg-white" placeholder="בחר/הקלד קטגוריה...">
-            </div>`;
-            
-        getEl('rb-sale-price').innerHTML = `
-            <div class="flex items-center gap-1 mt-2">
-                <span class="text-slate-500 font-bold text-sm">₪</span>
-                <input type="number" id="rb-edit-price" oninput="window.refreshRBUI()" class="modern-input py-1.5 px-2 text-sm w-20 font-black text-indigo-600 text-center dir-ltr shadow-sm border-indigo-200 bg-white" placeholder="0">
-            </div>`;
-        
-        getEl('rb-catalog-id').value = '';
+        // מנה חדשה: פותח לשדות לעריכה
+        document.getElementById('rb-edit-name').disabled = false;
+        document.getElementById('rb-edit-category').disabled = false;
+        document.getElementById('rb-modal-main-title').innerHTML = '<i class="fa-solid fa-wand-magic-sparkles text-emerald-500 mr-2"></i> מנה חדשה לתפריט';
     } else {
         const item = foodCostData.find(i => i.id === catalogId);
         if(!item) return;
@@ -8324,33 +8394,38 @@ window.openRecipeBuilder = function(catalogId = null) {
         rbIngredients = JSON.parse(JSON.stringify(item.ingredients || []));
         rbOverheads = JSON.parse(JSON.stringify(item.overheads || []));
         
-        getEl('rb-title').innerHTML = `עץ מוצר:<br><span class="text-indigo-700 text-base mt-1 block">${safeStr(item.name)}</span>`;
-        getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
-        getEl('rb-catalog-id').value = item.id;
+        document.getElementById('rb-catalog-id').value = item.id;
+        document.getElementById('rb-edit-name').value = item.name;
+        document.getElementById('rb-edit-price').value = item.price;
+        document.getElementById('rb-edit-category').value = item.category || 'כללי';
+        
+        // בעריכת מוצר קיים, נעילת שדות המידע כדי שייערכו בקטלוג החנות, פרט למחיר
+        document.getElementById('rb-edit-name').disabled = true;
+        document.getElementById('rb-edit-category').disabled = true;
+        document.getElementById('rb-modal-main-title').innerHTML = `<i class="fa-solid fa-chart-pie text-emerald-500 mr-2"></i> תמחור מנה קיים`;
     }
     
     modal.classList.remove('hidden');
     window.refreshRBUI();
 };
 
-// פונקציה לבדיקת הזרקת הכפתור ל-DOM
 function injectCreateRecipeBtn() {
     const headerDiv = document.querySelector('#content-foodcost .flex.justify-between.items-center.mb-3.px-2');
     if (headerDiv && !document.getElementById('btn-create-recipe-from-fc')) {
         headerDiv.insertAdjacentHTML('afterend', `
             <div class="px-2 mb-4">
-                <button id="btn-create-recipe-from-fc" onclick="window.openRecipeBuilder()" class="w-full bg-emerald-50 text-emerald-600 py-2.5 rounded-xl text-xs font-bold border border-emerald-200 shadow-sm hover:bg-emerald-100 transition flex items-center justify-center gap-2">
+                <button id="btn-create-recipe-from-fc" onclick="window.openRecipeBuilder()" class="w-full bg-emerald-50 text-emerald-600 py-3 rounded-xl text-sm font-bold border border-emerald-200 shadow-sm hover:bg-emerald-100 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> הוסף מנה חדשה לחנות ותמחר מאפס
                 </button>
             </div>
         `);
     }
 }
-// כדי להבטיח שהכפתור קיים בטעינת הטאב
 setInterval(injectCreateRecipeBtn, 2000);
 
 window.closeRecipeBuilder = function() {
-    getEl('recipe-builder-modal').classList.add('hidden');
+    const modal = document.getElementById('recipe-builder-modal');
+    if (modal) modal.classList.add('hidden');
     rbCurrentItem = null;
 };
 
@@ -8358,21 +8433,13 @@ window.addRBIngredient = function() {
     const name = val('rb-add-ing-name');
     const qty = parseFloat(val('rb-add-ing-qty'));
     const unit = val('rb-add-ing-unit');
-    
     if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
+    const knownPrice = (typeof foodCostPrices !== 'undefined' && foodCostPrices[name]) ? foodCostPrices[name].price : 0;
     
-    const knownPrice = (foodCostPrices && foodCostPrices[name]) ? foodCostPrices[name].price : 0;
+    rbIngredients.push({ ingredient_name: name, quantity: qty, unit: unit, calculated_cost: knownPrice * qty, known_price: knownPrice });
     
-    rbIngredients.push({
-        ingredient_name: name,
-        quantity: qty,
-        unit: unit,
-        calculated_cost: knownPrice * qty,
-        known_price: knownPrice
-    });
-    
-    getEl('rb-add-ing-name').value = '';
-    getEl('rb-add-ing-qty').value = '';
+    document.getElementById('rb-add-ing-name').value = '';
+    document.getElementById('rb-add-ing-qty').value = '';
     window.refreshRBUI();
 };
 
@@ -8384,13 +8451,12 @@ window.removeRBIngredient = function(index) {
 window.addRBOverhead = function() {
     const name = val('rb-add-ovh-name');
     const cost = parseFloat(val('rb-add-ovh-cost'));
-    
-    if(!name || !cost || cost <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
+    if(!name || !cost || cost <= 0) return showToast('error', 'הכנס שם ועלות תקינה');
     
     rbOverheads.push({ name: name, cost: cost });
     
-    getEl('rb-add-ovh-name').value = '';
-    getEl('rb-add-ovh-cost').value = '';
+    document.getElementById('rb-add-ovh-name').value = '';
+    document.getElementById('rb-add-ovh-cost').value = '';
     window.refreshRBUI();
 };
 
@@ -8400,59 +8466,54 @@ window.removeRBOverhead = function(index) {
 };
 
 window.refreshRBUI = function() {
-    const ingList = getEl('rb-ingredients-list');
-    const ovhList = getEl('rb-overhead-list');
+    const ingList = document.getElementById('rb-ingredients-list');
+    const ovhList = document.getElementById('rb-overhead-list');
     
     let ingTotal = 0;
     if (rbIngredients.length === 0) {
-        ingList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">לא הוזנו חומרי גלם.</p>';
+        ingList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center border border-dashed border-slate-200">לא הוזנו חומרי גלם.</p>';
     } else {
         ingList.innerHTML = rbIngredients.map((ing, idx) => {
             ingTotal += ing.calculated_cost;
             const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
-                <div class="font-mono text-slate-600">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
+                <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
+                <div class="font-mono text-slate-600 font-bold">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
             </div>`;
         }).join('');
     }
     
     let ovhTotal = 0;
     if (rbOverheads.length === 0) {
-        ovhList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">אין הוצאות נלוות למנה זו.</p>';
+        ovhList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center border border-dashed border-slate-200">אין הוצאות נלוות.</p>';
     } else {
         ovhList.innerHTML = rbOverheads.map((ovh, idx) => {
             ovhTotal += parseFloat(ovh.cost);
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="window.removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
-                <div class="font-mono text-slate-600">₪${parseFloat(ovh.cost).toFixed(2)}</div>
+                <div class="flex items-center gap-2"><button onclick="window.removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
+                <div class="font-mono text-slate-600 font-bold">₪${parseFloat(ovh.cost).toFixed(2)}</div>
             </div>`;
         }).join('');
     }
     
     const totalCost = ingTotal + ovhTotal;
     
-    // משיכת מחיר גם אם זה מצב עריכה קיים וגם אם זו הקלדה דינמית
     let salePrice = 0;
-    const dynamicPriceInput = getEl('rb-edit-price');
-    if (dynamicPriceInput) {
-        salePrice = parseFloat(dynamicPriceInput.value) || 0;
-    } else if (rbCurrentItem) {
-        salePrice = parseFloat(rbCurrentItem.price) || 0;
-    }
+    const dynamicPriceInput = document.getElementById('rb-edit-price');
+    if (dynamicPriceInput) { salePrice = parseFloat(dynamicPriceInput.value) || 0; } 
+    else if (rbCurrentItem) { salePrice = parseFloat(rbCurrentItem.price) || 0; }
     
     const profit = salePrice - totalCost;
     const fcPct = salePrice > 0 ? (totalCost / salePrice) * 100 : 0;
     
-    getEl('rb-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
-    getEl('rb-gross-profit').innerText = `₪${profit.toFixed(2)}`;
-    getEl('rb-gross-profit').className = profit >= 0 ? 'text-green-600 font-black' : 'text-red-600 font-black';
+    document.getElementById('rb-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
+    document.getElementById('rb-gross-profit').innerText = `₪${profit.toFixed(2)}`;
+    document.getElementById('rb-gross-profit').className = profit >= 0 ? 'text-green-600 text-sm font-black' : 'text-red-600 text-sm font-black';
+    document.getElementById('rb-fc-pct').innerText = fcPct.toFixed(1) + '%';
     
-    getEl('rb-fc-pct').innerText = fcPct.toFixed(1) + '%';
-    
-    const bar = getEl('rb-fc-bar');
+    const bar = document.getElementById('rb-fc-bar');
     bar.style.width = `${Math.min(100, fcPct)}%`;
     if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
     else if (fcPct > 30) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
