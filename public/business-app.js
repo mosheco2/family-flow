@@ -11234,3 +11234,255 @@ document.addEventListener('fullscreenchange', () => {
         if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     }
 });
+
+// ==========================================
+// MASTER FIX BLOCK - OVERRIDES AND RESTORES UI
+// ==========================================
+
+// 1. תיקון כפתור "הוסף קבוצה" במאפייני מוצר (Issue 6)
+window.addModifierGroup = function() { 
+    if(!window.currentModifiersUI) window.currentModifiersUI = [];
+    window.currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
+    window.renderModifiersUI(); 
+};
+window.removeModifierGroup = function(index) { window.currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
+window.updateModName = function(index, v) { window.currentModifiersUI[index].name = v; };
+window.updateModType = function(index, v) { window.currentModifiersUI[index].type = v; };
+window.addModifierOption = function(gIndex) { window.currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
+window.removeModifierOption = function(gIndex, optIndex) { window.currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
+window.updateModOptionName = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].name = v; };
+window.updateModOptionPrice = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
+
+window.renderModifiersUI = function() {
+    const container = document.getElementById('modifiers-builder-container');
+    if (!container) return;
+    if (!window.currentModifiersUI || window.currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות להרכבה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentModifiersUI.forEach((mod, groupIndex) => {
+        const typeSingle = mod.type === 'single' ? 'selected' : ''; 
+        const typeMulti = mod.type === 'multiple' ? 'selected' : '';
+        
+        let optionsHtml = '';
+        mod.options.forEach((opt, optIndex) => {
+            optionsHtml += `
+            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="window.updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
+                <div class="w-20 relative">
+                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="window.updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
+                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                </div>
+                <button type="button" onclick="window.removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            </div>`;
+        });
+
+        html += `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in mt-3">
+            <div class="absolute top-2 left-2 flex gap-2">
+                <button type="button" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button type="button" onclick="window.removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
+                    <input type="text" class="modern-input py-1.5 text-xs w-full bg-slate-50" value="${safeStr(mod.name)}" onchange="window.updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
+                </div>
+                <div class="w-[45%]">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
+                    <select onchange="window.updateModType(${groupIndex}, this.value)" class="modern-input py-1.5 text-xs w-full bg-white">
+                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
+                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
+                    </select>
+                </div>
+            </div>
+            <div class="space-y-1">
+                ${optionsHtml}
+                <button type="button" onclick="window.addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
+            </div>
+        </div>`;
+    }); 
+    container.innerHTML = html;
+};
+
+// 2. תיקון כפתורי יצירה/עריכה של מבצעים (Issues 7 & 8)
+window.openPromotionModal = function(id = null) {
+    let modal = document.getElementById('promotion-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע חדש</h3>
+                <input type="hidden" id="promo-id">
+                <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
+                    <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white font-bold"></div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option></select></div>
+                        <div><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-xs font-bold text-slate-500">חל על:</label><select id="promo-target-type" onchange="window.togglePromoTargetInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="all">כל החנות</option><option value="category">קטגוריה ספציפית</option></select></div>
+                        <div id="promo-target-category-container" class="hidden"><label class="text-xs font-bold text-slate-500">שם הקטגוריה:</label><input type="text" id="promo-target-category" class="modern-input py-2 text-sm w-full bg-white"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div><label class="text-xs font-bold text-slate-500">בתוקף מ:</label><input type="date" id="promo-start-date" class="modern-input py-2 text-sm w-full bg-white"></div>
+                        <div><label class="text-xs font-bold text-slate-500">בתוקף עד:</label><input type="date" id="promo-end-date" class="modern-input py-2 text-sm w-full bg-white"></div>
+                    </div>
+                    <div class="mt-4 p-3 bg-pink-50 rounded-xl border border-pink-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-pink-800">הצג באנר קופץ בחנות?</span>
+                        <input type="checkbox" id="promo-show-banner" class="w-4 h-4 accent-pink-600" checked>
+                    </div>
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex gap-2 shrink-0">
+                    <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ביטול</button>
+                    <button type="button" id="btn-submit-promo" onclick="window.submitPromotion()" class="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold hover:bg-pink-700 shadow-md transition">שמור והפעל</button>
+                </div>
+            </div>
+        </div>`);
+        modal = document.getElementById('promotion-modal');
+    }
+    
+    document.getElementById('promo-id').value = id || '';
+    document.getElementById('promo-title').value = '';
+    document.getElementById('promo-type').value = 'discount_pct';
+    document.getElementById('promo-value').value = '';
+    document.getElementById('promo-target-type').value = 'all';
+    document.getElementById('promo-target-category').value = '';
+    document.getElementById('promo-start-date').value = '';
+    document.getElementById('promo-end-date').value = '';
+    if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
+    if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
+    
+    if (id && storePromotionsCache) {
+        const promo = storePromotionsCache.find(p => p.id === id);
+        if (promo) {
+            document.getElementById('promo-title').value = promo.title;
+            document.getElementById('promo-type').value = promo.promo_type;
+            document.getElementById('promo-value').value = promo.promo_value;
+            document.getElementById('promo-target-type').value = promo.target_type;
+            if (promo.target_ids && promo.target_ids.length > 0) document.getElementById('promo-target-category').value = promo.target_ids[0];
+            if (promo.start_date) document.getElementById('promo-start-date').value = promo.start_date.substring(0,10);
+            if (promo.end_date) document.getElementById('promo-end-date').value = promo.end_date.substring(0,10);
+            if (document.getElementById('promo-show-banner')) document.getElementById('promo-show-banner').checked = promo.show_in_banner !== false;
+            if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
+            if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
+        }
+    }
+    modal.classList.remove('hidden');
+};
+
+window.togglePromoValueInput = function() {
+    const type = document.getElementById('promo-type')?.value;
+    const label = document.getElementById('promo-value-label');
+    const input = document.getElementById('promo-value');
+    if(!label || !input) return;
+    if (type === 'bogo') { label.innerText = 'שווי ההטבה (מקסימום):'; input.placeholder = 'למשל: 50'; } 
+    else if (type === 'discount_pct') { label.innerText = 'אחוז הנחה (%):'; input.placeholder = 'למשל: 20'; } 
+    else { label.innerText = 'מחיר מבצע קבוע (₪):'; input.placeholder = 'למשל: 99'; }
+};
+
+window.togglePromoTargetInput = function() {
+    const type = document.getElementById('promo-target-type')?.value;
+    const container = document.getElementById('promo-target-category-container');
+    if(container) {
+        if (type === 'category') container.classList.remove('hidden');
+        else container.classList.add('hidden');
+    }
+};
+
+// 3. החזרת אלמנטים שנעלמו ל-UI (קופונים + מחולל דוחות) (Issues 9, 11)
+function restoreMissingUIElements() {
+    // מחולל דוחות (Report Builder)
+    const analyticsHeader = document.querySelector('#sales-view-analytics .bg-white.p-4.rounded-\\[2rem\\] .flex.flex-wrap.items-center.gap-2');
+    if (analyticsHeader && !document.getElementById('btn-report-builder')) {
+        analyticsHeader.insertAdjacentHTML('beforeend', `
+            <button id="btn-report-builder" onclick="window.openReportBuilderModal()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-file-export"></i> מחולל דוחות
+            </button>
+        `);
+    }
+
+    // קופונים (Coupons)
+    const marketingView = document.getElementById('sales-view-marketing');
+    if (marketingView && !document.getElementById('coupons-section-wrapper')) {
+        marketingView.insertAdjacentHTML('beforeend', `
+            <div id="coupons-section-wrapper" class="border-t border-slate-200 pt-6 mt-6">
+                <h4 class="font-bold text-slate-800 text-lg mb-4">קופונים <i class="fa-solid fa-ticket text-indigo-500"></i></h4>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+                    <h5 class="font-bold text-slate-700 text-sm mb-3">יצירת קופון חדש</h5>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">קוד קופון:</label><input type="text" id="coupon-code" class="modern-input py-2 text-sm font-mono uppercase text-left dir-ltr" placeholder="SUMMER20"></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אחוז הנחה (%):</label><input type="number" id="coupon-discount" class="modern-input py-2 text-sm text-center" placeholder="10"></div>
+                    </div>
+                    <div class="mb-3"><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (אופציונלי):</label><input type="date" id="coupon-date" class="modern-input py-2 text-sm bg-white"></div>
+                    <button type="button" onclick="window.createStoreCoupon()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">צור קופון</button>
+                </div>
+                <div id="store-coupons-list" class="space-y-2 pb-8"></div>
+            </div>
+        `);
+        // קריאה לפונקציית טעינת קופונים מהשרת במידה וקיימת
+        if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
+    }
+}
+setInterval(restoreMissingUIElements, 1500);
+
+// 4. תיקון זכרון המע"מ בהגדרות החנות (Issue 10)
+window.saveStoreSettings = async function() {
+    const btn = document.getElementById('btn-save-store-settings');
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    
+    const includeVatEl = document.getElementById('store-include-vat');
+    const vatRateEl = document.getElementById('store-vat-rate');
+    
+    window.storeVatSettings = { 
+        enabled: includeVatEl ? includeVatEl.checked : false, 
+        rate: vatRateEl ? parseFloat(vatRateEl.value) || 18 : 18 
+    };
+    if (typeof currentGroup !== 'undefined' && currentGroup) {
+        localStorage.setItem('ofl_vat_' + currentGroup.id, JSON.stringify(window.storeVatSettings));
+    }
+
+    try {
+        await fetch(`${API}/store/settings`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, 
+                isActive: document.getElementById('store-is-active') ? document.getElementById('store-is-active').checked : true, 
+                welcomeMessage: document.getElementById('store-welcome-msg') ? document.getElementById('store-welcome-msg').value : '', 
+                phone: document.getElementById('store-phone') ? document.getElementById('store-phone').value : '', 
+                minOrder: document.getElementById('store-min-order') ? document.getElementById('store-min-order').value : '', 
+                slogan: document.getElementById('store-slogan') ? document.getElementById('store-slogan').value : '', 
+                storeType: document.getElementById('store-type') ? document.getElementById('store-type').value : 'retail', 
+                logoUrl: document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null, 
+                bannerUrl: document.getElementById('store-banner-base64') ? document.getElementById('store-banner-base64').value : null,
+                openTime: document.getElementById('store-open-time') ? document.getElementById('store-open-time').value : '', 
+                closeTime: document.getElementById('store-close-time') ? document.getElementById('store-close-time').value : '', 
+                whatsappNumber: document.getElementById('store-whatsapp') ? document.getElementById('store-whatsapp').value : ''
+            })
+        });
+        showToast('success', 'הגדרות החנות והמע"מ נשמרו בהצלחה!');
+    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
+    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
+};
+
+// תיקון שאיבת הגדרות המע"מ בעת טעינה מחודשת
+const origFetchSettings = window.fetchStoreSettings;
+window.fetchStoreSettings = async function() {
+    if(origFetchSettings) await origFetchSettings();
+    
+    if (typeof currentGroup !== 'undefined' && currentGroup) {
+        const savedVat = localStorage.getItem('ofl_vat_' + currentGroup.id);
+        if(savedVat) {
+            try {
+                window.storeVatSettings = JSON.parse(savedVat);
+                const incVatEl = document.getElementById('store-include-vat');
+                const rateEl = document.getElementById('store-vat-rate');
+                if(incVatEl) incVatEl.checked = window.storeVatSettings.enabled;
+                if(rateEl) rateEl.value = window.storeVatSettings.rate;
+            } catch(e) {}
+        }
+    }
+};
