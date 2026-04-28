@@ -5336,32 +5336,126 @@ window.openStoreProductModal = function(id = null) {
     currentBundleStepsUI = [];
     currentPizzaToppingsUI = [];
     
-    let bundleContainer = getEl('bundle-builder-container');
-    if (!bundleContainer) {
-        const modContainer = getEl('modifiers-builder-container');
-        if (modContainer) {
-            bundleContainer = document.createElement('div');
-            bundleContainer.id = 'bundle-builder-container';
-            bundleContainer.className = 'mt-4 border-t border-slate-100 pt-4';
-            modContainer.parentNode.insertBefore(bundleContainer, modContainer.nextSibling);
-            
-            const pTypeEl = getEl('sp-product-type');
-            if (pTypeEl) {
-                pTypeEl.innerHTML = `
-                    <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
-                    <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
-                    <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
-                    <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
-                    <option value="event_menu">🎉 תפריט אירועים וקייטרינג</option>
-                    <option value="service">✂️ שירות / טיפול</option>
-                `;
-                pTypeEl.addEventListener('change', (e) => toggleProductTypeUI(e.target.value));
-            }
-        }
+    // מחיקת החלון הישן והתקול מה-DOM
+    let modal = document.getElementById('store-product-modal');
+    if (modal) {
+        modal.remove();
     }
+    
+    // איסוף כל הקטגוריות הקיימות מהקטלוג ליצירת הרשימה החכמה (Datalist)
+    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    let dataListHtml = `<datalist id="sp-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    
+    // הזרקת המבנה החדש והתקין של המודאל
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-box text-indigo-500 mr-2"></i> ניהול פריט בקטלוג</h3>
+                <button onclick="document.getElementById('store-product-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
+                <input type="hidden" id="sp-id" value="">
+                ${dataListHtml}
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
+                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                        <div id="sp-image-placeholder" class="text-center py-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                        </div>
+                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
+                        <input type="hidden" id="sp-image-base64">
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    <label class="text-xs font-bold text-indigo-800 block mb-2">סוג תבנית מוצר:</label>
+                    <select id="sp-product-type" onchange="window.onProductTypeChange()" class="modern-input py-2.5 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm">
+                        <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                        <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
+                        <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+                        <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+                        <option value="service">✂️ שירות / טיפול</option>
+                    </select>
+                    <p class="text-[10px] text-indigo-500 mt-2">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
+                </div>
+
+                <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
+                
+                <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                    <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                    <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                    <button type="button" onclick="window.addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="sp-price" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white text-center dir-ltr" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 mt-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
+                            <button type="button" onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                    <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sp-badge-text" class="modern-input py-2.5 text-sm flex-1 bg-white shadow-sm" placeholder="למשל: חדש!" maxlength="15">
+                        <select id="sp-badge-color" class="modern-input py-2.5 text-sm w-28 bg-white font-bold shadow-sm">
+                            <option value="red" class="text-red-500">אדום</option>
+                            <option value="green" class="text-green-500">ירוק</option>
+                            <option value="blue" class="text-blue-500">כחול</option>
+                            <option value="yellow" class="text-yellow-600">צהוב</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm" id="modifiers-builder-container-wrapper">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-3">
+                        <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות:</label>
+                        <button type="button" onclick="window.addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-2 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> קבוצה חדשה</button>
+                    </div>
+                    <div id="modifiers-builder-container" class="space-y-3"></div>
+                    <input type="hidden" id="sp-options">
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 flex gap-3 z-10">
+                <button type="button" onclick="document.getElementById('store-product-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">ביטול</button>
+                <button type="button" id="btn-submit-sp" onclick="window.submitStoreProduct()" class="flex-[1.2] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition text-base flex justify-center items-center gap-2"><i class="fa-solid fa-save"></i> שמור מוצר</button>
+            </div>
+        </div>
+    </div>
+    `);
+    modal = document.getElementById('store-product-modal');
 
     if (id) {
-        const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
+        const p = storeCatalogCache.find(item => item.id === id); 
+        if(!p) return;
         getEl('sp-id').value = p.id; 
         getEl('sp-name').value = p.name; 
         getEl('sp-price').value = p.price; 
@@ -5376,7 +5470,11 @@ window.openStoreProductModal = function(id = null) {
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
         if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
         
-        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
+        if (p.image_url) { 
+            getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); 
+        } else { 
+            getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); 
+        }
         
         if (p.options_text) {
             try { 
@@ -5399,40 +5497,37 @@ window.openStoreProductModal = function(id = null) {
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
     }
     
-    toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
-    renderModifiersUI(); 
-    renderBundleBuilderUI();
-    getEl('store-product-modal').classList.remove('hidden');
-}
+    window.toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
+    window.renderModifiersUI(); 
+    if(typeof window.renderBundleBuilderUI === 'function') window.renderBundleBuilderUI();
+    
+    modal.classList.remove('hidden');
+};
 
-function toggleProductTypeUI(type) {
-    const modContainer = getEl('modifiers-builder-container');
-    const bundleContainer = getEl('bundle-builder-container');
-    const presetContainer = getEl('preset-selector') ? getEl('preset-selector').parentNode : null;
-    const pizzaContainer = getEl('sp-pizza-section');
+window.toggleProductTypeUI = function(type) {
+    const modContainer = document.getElementById('modifiers-builder-container-wrapper');
+    const bundleContainer = document.getElementById('bundle-builder-container');
+    const pizzaContainer = document.getElementById('sp-pizza-section');
     
     if (type === 'bundle' || type === 'event_menu') {
         if (modContainer) modContainer.classList.add('hidden');
-        if (presetContainer) presetContainer.classList.add('hidden');
         if (bundleContainer) bundleContainer.classList.remove('hidden');
         if (pizzaContainer) pizzaContainer.classList.add('hidden');
     } else if (type === 'pizza_builder') {
         if (modContainer) modContainer.classList.add('hidden');
-        if (presetContainer) presetContainer.classList.add('hidden');
         if (bundleContainer) bundleContainer.classList.add('hidden');
         if (pizzaContainer) pizzaContainer.classList.remove('hidden');
-        renderPizzaToppingsUI();
+        if (typeof window.renderPizzaToppingsUI === 'function') window.renderPizzaToppingsUI();
     } else {
         if (modContainer) modContainer.classList.remove('hidden');
-        if (presetContainer) presetContainer.classList.remove('hidden');
         if (bundleContainer) bundleContainer.classList.add('hidden');
         if (pizzaContainer) pizzaContainer.classList.add('hidden');
     }
-}
+};
 
 window.onProductTypeChange = function() {
-    const type = val('sp-product-type');
-    toggleProductTypeUI(type);
+    const type = document.getElementById('sp-product-type').value;
+    window.toggleProductTypeUI(type);
 };
 
 function renderPizzaToppingsUI() {
