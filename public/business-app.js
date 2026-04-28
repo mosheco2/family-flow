@@ -2803,115 +2803,164 @@ async function clearEntireCart() {
     try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
-function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
+window.renderShopList = function() {
+    // הפונקציה הישנה כעת מנותבת למערכת הממתינים החדשה ב-B2B
+    window.renderB2BPendingRequests();
+};
 
-function renderShopList() {
-    if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
-    const list = getEl('shop-list'); const reqList = getEl('shop-requests-list'); const reqContainer = getEl('shop-requests-container');
-    const activeItems = []; const requestedItems = [];
-    shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
+window.renderB2BPendingRequests = function() {
+    const container = document.getElementById('b2b-pending-requests-container');
+    if (!container) {
+        const procViewList = document.getElementById('proc-view-list');
+        if (procViewList) {
+            procViewList.insertAdjacentHTML('afterbegin', `
+                <div id="b2b-pending-requests-container" class="hidden mb-6 bg-orange-50/50 border border-orange-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                    <div class="absolute right-0 top-0 bottom-0 w-1 bg-orange-400"></div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-bold text-orange-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-list text-orange-500"></i> דרישות רכש ממתינות (לשיוך)</h4>
+                    </div>
+                    <p class="text-[10px] text-orange-700 mb-3">פריטים אלו נוצרו ידנית או הועברו מהמזווה. שייכו אותם לספק כדי להפוך אותם להזמנת רכש.</p>
+                    <div id="b2b-pending-requests-list" class="space-y-2 max-h-60 overflow-y-auto modal-scroll pr-1"></div>
+                </div>
+            `);
+        }
+    }
     
-    let reqHtml = '';
-    if (requestedItems.length > 0) {
-        if(reqContainer) reqContainer.classList.remove('hidden'); // הגנה קריטית
-        requestedItems.forEach(i => {
-            const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להנהלה</span>`;
-            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">דרישה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
+    const list = document.getElementById('b2b-pending-requests-list');
+    const wrapper = document.getElementById('b2b-pending-requests-container');
+    if (!list || !wrapper) return;
+    
+    if (!shoppingListCache || shoppingListCache.length === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    
+    wrapper.classList.remove('hidden');
+    list.innerHTML = shoppingListCache.map(req => `
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-orange-100 flex justify-between items-center transition hover:border-orange-300">
+            <div class="flex-1 pr-2 overflow-hidden">
+                <span class="font-bold text-slate-800 text-sm block truncate">${safeStr(req.item_name)}</span>
+                <span class="text-[10px] text-slate-500 mt-0.5 block"><i class="fa-regular fa-user mr-0.5"></i> ${safeStr(req.requester_name)} | כמות: <span class="font-bold text-slate-700">${req.quantity} ${safeStr(req.unit)}</span></span>
+            </div>
+            <div class="flex gap-2 shrink-0 items-center pl-1">
+                <button onclick="window.openAssignSupplierModal(${req.id}, '${safeStr(req.item_name).replace(/'/g, "\\'")}', ${req.quantity}, '${safeStr(req.unit).replace(/'/g, "\\'")}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-truck"></i> שיוך לספק</button>
+                <button onclick="deleteItem(${req.id})" class="bg-white text-slate-400 w-8 h-8 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.openAssignSupplierModal = function(reqId, itemName, qty, unit) {
+    let modal = document.getElementById('assign-supplier-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="assign-supplier-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('assign-supplier-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-lg font-black text-slate-800 mb-2 border-b border-slate-100 pb-3"><i class="fa-solid fa-link text-indigo-500 mr-2"></i> שיוך בקשת רכש לספק</h3>
+                
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4 mt-3">
+                    <p class="text-[10px] text-slate-500 mb-1">פריט לאישור ושיוך:</p>
+                    <p class="font-bold text-slate-800 text-sm" id="assign-sup-item-name"></p>
+                </div>
+                
+                <input type="hidden" id="assign-sup-req-id">
+                <input type="hidden" id="assign-sup-qty">
+                <input type="hidden" id="assign-sup-unit">
+                <input type="hidden" id="assign-sup-item-name-val">
+                
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">לאיזה ספק לשייך את הפריט?</label>
+                <select id="assign-sup-select" class="modern-input py-3 text-sm bg-white border-slate-200 text-slate-800 font-bold mb-6 shadow-sm focus:border-indigo-400"></select>
+                
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('assign-supplier-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200 text-sm">ביטול</button>
+                    <button onclick="window.submitAssignSupplier()" id="btn-submit-assign-sup" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 text-sm flex justify-center items-center gap-2">אשר והעבר לטיוטה <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+        `);
+        modal = document.getElementById('assign-supplier-modal');
+    }
+    
+    document.getElementById('assign-sup-req-id').value = reqId;
+    document.getElementById('assign-sup-item-name-val').value = itemName;
+    document.getElementById('assign-sup-item-name').innerText = `${itemName} (${qty} ${unit})`;
+    document.getElementById('assign-sup-qty').value = qty;
+    document.getElementById('assign-sup-unit').value = unit;
+    
+    const select = document.getElementById('assign-sup-select');
+    select.innerHTML = '<option value="" disabled selected>בחר ספק מהרשימה...</option>';
+    if (typeof suppliersList !== 'undefined' && suppliersList) {
+        suppliersList.forEach(s => {
+            select.innerHTML += `<option value="${s.id}">${safeStr(s.name)}</option>`;
         });
-        if(reqList) reqList.innerHTML = reqHtml;
-    } else { if(reqContainer) reqContainer.classList.add('hidden'); }
-
-    const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
-
-const footerEl = getEl('cart-footer');
-    if (footerEl) footerEl.style.display = 'none'; // השבתה מוחלטת של הפס הישן
-
-    if(activeItems.length === 0) { 
-        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
-        const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
-        return; 
     }
     
-    const fc = getEl('fab-container');
-    if (isShopTabActive) { 
-        if(fc) fc.classList.add('fab-lifted'); 
-    } else { 
-        if(fc) fc.classList.remove('fab-lifted'); 
-    }
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
-    let currentCat = ''; let shopHtml = '';
-    activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
-        const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
-        const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
-        const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
-        let bestPriceHtml = '';
+    modal.classList.remove('hidden');
+};
+
+window.submitAssignSupplier = async function() {
+    const reqId = document.getElementById('assign-sup-req-id').value;
+    const itemName = document.getElementById('assign-sup-item-name-val').value;
+    const qty = parseFloat(document.getElementById('assign-sup-qty').value) || 1;
+    const unit = document.getElementById('assign-sup-unit').value || "יח'";
+    const supplierId = document.getElementById('assign-sup-select').value;
+    
+    if (!supplierId) return showToast('error', 'יש לבחור ספק מהרשימה');
+    
+    const btn = document.getElementById('btn-submit-assign-sup');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר...';
+    
+    const supData = suppliersList.find(s => String(s.id) === String(supplierId)) || {};
+    
+    const orderData = {
+        supplierId: supplierId,
+        supplierName: supData.name || 'ספק',
+        supplierPhone: supData.phone || '',
+        supplierEmail: supData.email || '',
+        branchName: '',
+        customerNumber: supData.customer_number || '',
+        items: [{
+            id: 'req_' + reqId,
+            sku: '',
+            name: itemName,
+            quantity: qty,
+            unit: unit,
+            price_per_unit: 0,
+            row_total: 0
+        }],
+        totalAmount: 0,
+        status: 'draft'
+    };
+
+    try {
+        const res = await fetch(`${API}/b2b/orders`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: [orderData] }) 
+        });
+        const data = await res.json();
         
-        if (i.best_price && i.best_price.price_per_unit > 0) { 
-            const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
-            const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL');
-            const sourceText = i.best_price.is_local ? 'קנית בעבר' : 'חוכמת ההמונים';
-            const badgeColor = i.best_price.is_local ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600';
-            const icon = i.best_price.is_local ? 'fa-clock-rotate-left' : 'fa-users';
-            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
+        if (data.success) {
+            await fetch(`${API}/shopping/delete/${reqId}`, { method: 'DELETE' });
+            
+            showToast('success', 'הדרישה הועברה בהצלחה לטיוטת הזמנה אצל הספק!');
+            document.getElementById('assign-supplier-modal').classList.add('hidden');
+            
+            await fetchData();
+            if(typeof fetchB2BOrders === 'function') await fetchB2BOrders();
+            switchProcurementTab('rfq'); 
+        } else {
+            showToast('error', data.error || 'שגיאה בהעברה לספק');
         }
-
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
-    });
-    if(list) list.innerHTML = shopHtml; 
-    calcRunningTotal();
-}
-async function updateRow(id, type, value) {
-    if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
-    else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => String(i.id) === String(id)); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => String(i.id) === String(id)); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
-    if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
-}
-
-function toggleMissingLocal(id) { const row = getEl(`row-${id}`); const btn = getEl(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; getEl(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר בספק'; } calcRunningTotal(); }
-
-function calcRunningTotal() { 
-    let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); 
-        if (isChecked && !isMissing) { 
-            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
-            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; 
-            total += (unitPrice * qty); 
-        } 
-    }); 
-    getEl('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
-}
-
-function openCheckoutSummary() { 
-    let count = 0; let missing = 0; let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        if (row.classList.contains('missing')) missing++; 
-        else if (row.querySelector('input[type="checkbox"]').checked) { 
-            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
-            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; total += (unitPrice * qty); 
-        } 
-    }); 
-    if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום לאישור'); return; } 
-    getEl('summ-count').innerText = count; getEl('summ-missing').innerText = missing; getEl('summ-total').innerText = `₪${total.toFixed(2)}`; getEl('confirm-checkout-modal').classList.remove('hidden'); 
-}
-
-async function submitFinalCheckout() {
-    const store = val('checkout-store') || 'ספק כללי'; const branch = val('checkout-branch'); let total = 0; const boughtItems = []; const missingItems = [];
-    document.querySelectorAll('.shop-row').forEach(row => {
-        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
-        if (row.classList.contains('missing')) { missingItems.push({ id }); } 
-        else if (row.querySelector('input[type="checkbox"]').checked) {
-            const unitPrice = parseFloat(getEl(`price-${id}`).value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; const rowTotal = unitPrice * qty; total += rowTotal;
-            boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
-        }
-    });
-    const res = await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
-    const data = await res.json();
-    if(data.success) { getEl('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הקניה בוצעה ואושרה למזווה!'); fetchData(); } else showToast('error', data.error);
-}
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בהעברת הדרישה');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'אשר והעבר לטיוטה <i class="fa-solid fa-arrow-left"></i>';
+    }
+};
 
 async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
 
