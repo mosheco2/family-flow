@@ -4916,62 +4916,69 @@ window.renderStorePromotions = function() {
 
     if (!storePromotionsCache || storePromotionsCache.length === 0) {
         list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא הוגדרו מבצעים פעילים לחנות.</p>';
-        return;
+    } else {
+        let html = '';
+        storePromotionsCache.forEach(p => {
+            let typeBadge = '';
+            if(p.promo_type === 'discount_pct') typeBadge = `${p.promo_value}% הנחה`;
+            else if(p.promo_type === 'discount_fixed') typeBadge = `₪${p.promo_value} קבוע`;
+            else typeBadge = `1+1 (עד ₪${p.promo_value})`;
+
+            const targetText = p.target_type === 'all' ? 'כל החנות' : `קטגוריה: ${p.target_ids[0] || '?'}`;
+            const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+
+            html += `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 hover:border-pink-300 transition group flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-bolt text-pink-500"></i> ${safeStr(p.title)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1">חל על: ${targetText} | ${p.end_date ? `עד: ${new Date(p.end_date).toLocaleDateString()}` : 'ללא תפוגה'}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-pink-700 bg-pink-50 px-3 py-1.5 rounded-lg border border-pink-100 dir-ltr">${typeBadge}</span>
+                    <button onclick="window.togglePromotionStatus(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
+                    <button onclick="window.openPromotionModal(${p.id})" class="text-slate-400 hover:text-indigo-600 bg-white w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="window.deletePromotion(${p.id})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
     }
 
-    let html = '';
-    storePromotionsCache.forEach(p => {
-        let typeBadge = '';
-        if(p.promo_type === 'discount_pct') typeBadge = `${p.promo_value}% הנחה`;
-        else if(p.promo_type === 'discount_fixed') typeBadge = `₪${p.promo_value} קבוע`;
-        else typeBadge = `1+1 (עד ₪${p.promo_value})`;
-
-        const targetText = p.target_type === 'all' ? 'כל החנות' : `קטגוריה: ${p.target_ids[0] || '?'}`;
-        const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-
-        html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 hover:border-pink-300 transition group flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-bolt text-pink-500"></i> ${safeStr(p.title)}</h4>
-                <p class="text-[10px] text-slate-500 mt-1">חל על: ${targetText} | ${p.end_date ? `עד: ${new Date(p.end_date).toLocaleDateString()}` : 'ללא תפוגה'}</p>
+    // הזרקת אזור הקופונים (מחוץ להתניה, כך שיוצג גם אם אין מבצעים)
+    if (!document.getElementById('store-coupons-section')) {
+        list.insertAdjacentHTML('afterend', `
+            <div id="store-coupons-section" class="mt-8 border-t border-slate-200 pt-6">
+                <h4 class="font-bold text-slate-800 text-base mb-4 flex items-center gap-2"><i class="fa-solid fa-ticket text-indigo-500"></i> קופוני הנחה מיוחדים</h4>
+                
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm mb-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">קוד קופון:</label>
+                            <input type="text" id="coupon-code" class="modern-input py-2 text-sm w-full font-mono uppercase font-bold" placeholder="למשל: VIP2024">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה (%):</label>
+                            <input type="number" id="coupon-discount" class="modern-input py-2 text-sm w-full text-center" placeholder="10" min="1" max="100">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (אופציונלי):</label>
+                            <input type="date" id="coupon-date" class="modern-input py-2 text-sm w-full">
+                        </div>
+                        <div class="col-span-2 sm:col-span-1 flex items-end">
+                            <button onclick="window.createStoreCoupon()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition h-[38px]"><i class="fa-solid fa-plus mr-1"></i> צור קופון</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="store-coupons-list" class="space-y-2"></div>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-black text-pink-700 bg-pink-50 px-3 py-1.5 rounded-lg border border-pink-100 dir-ltr">${typeBadge}</span>
-                <button onclick="window.togglePromotionStatus(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
-                <button onclick="window.openPromotionModal(${p.id})" class="text-slate-400 hover:text-indigo-600 bg-white w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="window.deletePromotion(${p.id})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-trash text-xs"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-};
-
-window.togglePromotionStatus = async function(id, isActive) {
-    try {
-        await fetch(`${API}/store/promotions/toggle`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promoId: id, isActive }) });
-        window.fetchStorePromotions();
-    } catch(e) {}
-};
-
-window.deletePromotion = async function(id) {
-    if(!confirm('האם למחוק את המבצע לצמיתות?')) return;
-    try {
-        await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' });
-        showToast('info', 'המבצע נמחק.');
-        window.fetchStorePromotions();
-    } catch(e) {}
-};
-
-// --- מערכת קופונים ---
-window.fetchStoreCoupons = async function() {
-    try {
-        const res = await fetch(`${API}/store/coupons/${currentGroup.id}`);
-        const data = await res.json();
-        if(data.success) {
-            window.storeCouponsCache = data.coupons || [];
-            window.renderStoreCoupons();
-        }
-    } catch(e) {}
+        `);
+    }
+    
+    // נוודא שקופונים מוצגים
+    if(typeof window.renderStoreCoupons === 'function' && window.storeCouponsCache) {
+        window.renderStoreCoupons();
+    }
 };
 
 window.renderStoreCoupons = function() {
