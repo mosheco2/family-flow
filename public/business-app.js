@@ -1360,7 +1360,7 @@ async function loadDashboard() {
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
     if (!navigator.geolocation) { 
-        return showToast('error', 'הדפדפן שלך אינו תומך ב-GPS');
+        return showToast('error', 'הדפדפן או הטאבלט שלך אינם תומכים ב-GPS');
     }
     if (!confirm('האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
     
@@ -1376,26 +1376,37 @@ async function setBusinessLocation() {
                 headers: {'Content-Type': 'application/json'}, 
                 body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) 
             });
+            
+            if (!res.ok) {
+                const txt = await res.text();
+                return showToast('error', 'שגיאת שרת בשמירת מיקום: ' + txt);
+            }
+            
             const data = await res.json();
-            if(res.ok && data.success) {
+            if(data.success) {
                 showToast('success', 'מיקום העסק נשמר בהצלחה בהנהלה!');
-                // עדכון הממשק בלייב
-                const locAlerts = document.querySelectorAll('.text-red-500');
-                locAlerts.forEach(el => {
-                    if(el.innerText && el.innerText.includes('לא הוגדר')) {
-                        el.className = 'text-xs text-green-600 font-bold mb-4 bg-green-50 p-2 rounded-lg block';
-                        el.innerText = '✓ מיקום העסק הוגדר בהצלחה. מערכת ה-GPS פעילה.';
-                    }
-                });
+                
+                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף
+                const locEl = document.getElementById('tc-location-status');
+                if(locEl) {
+                    locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
+                    locEl.innerText = '✓ מיקום העסק הוגדר בהצלחה. מערכת ה-GPS פעילה.';
+                }
+                
+                // שמירה מקומית כדי שהדפיקות של הלקוח מיד אחרי השמירה יעברו במנגנון בלי קריסה
+                currentGroup.location_lat = lat; 
+                currentGroup.location_lng = lng;
             } else {
                 showToast('error', data.error || 'שגיאה בשמירת המיקום');
             }
-        } catch(e) { showToast('error', 'שגיאת רשת בשמירת המיקום'); }
+        } catch(e) { 
+            showToast('error', 'שגיאת רשת בשמירת המיקום: ' + e.message); 
+        }
     }, (error) => {
         let errMsg = 'שגיאה באיתור המיקום.';
-        if (error.code === 1) errMsg = 'הגישה למיקום נחסמה. נא לאשר הגדרות GPS!';
+        if (error.code === 1) errMsg = 'הגישה ל-GPS נחסמה. נא לאשר בהגדרות הטאבלט/דפדפן!';
         if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע במכשיר.';
-        if (error.code === 3) errMsg = 'זמן איתור המיקום עבר.';
+        if (error.code === 3) errMsg = 'איתור המיקום ארך זמן רב מדי. ודא קליטה.';
         showToast('error', errMsg);
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
@@ -1404,7 +1415,20 @@ let liveTimeclockInterval = null;
 
 async function checkTimeclockStatus() {
     try {
-        const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`); const data = await res.json();
+        // עדכון חזותי של סטטוס המיקום אם הוא קיים בשרת, בעת טעינת הטאב
+        const locEl = document.getElementById('tc-location-status');
+        if (locEl && currentGroup.location_lat) {
+            locEl.className = 'text-xs font-bold text-green-600 mt-1 block';
+            locEl.innerText = '✓ מיקום העסק הוגדר במערכת. מערכת ה-GPS פעילה.';
+        } else if (locEl) {
+            locEl.className = 'text-[10px] text-slate-400 mt-1 block';
+            locEl.innerText = 'לא הוגדר — עובדים יוכלו להחתים מכל מקום';
+        }
+
+        const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`); 
+        if (!res.ok) return;
+        const data = await res.json();
+        
         const btn = getEl('btn-punch'); const icon = getEl('tc-icon'); const text = getEl('tc-btn-text'); const info = getEl('tc-active-info'); const startTime = getEl('tc-start-time');
         
         if(!btn) return;
@@ -1414,7 +1438,7 @@ async function checkTimeclockStatus() {
 
         if (isPunchedIn) {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(239,68,68,0.4)] transition-all duration-300 bg-red-500 text-white hover:bg-red-600";
-            icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2"; 
+            if (icon) icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2"; 
             if(info) info.classList.remove('hidden');
             
             const d = new Date(data.punchInTime); 
@@ -1434,13 +1458,15 @@ async function checkTimeclockStatus() {
 
         } else {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
-            icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; 
-            if(text) text.innerText = "כניסה"; 
-            if(info) info.classList.add('hidden');
+            if (icon) icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; 
+            if (text) text.innerText = "כניסה"; 
+            if (info) info.classList.add('hidden');
         }
         
         fetchTimeclockReport();
-    } catch(e) {}
+    } catch(e) {
+        console.error("Status error:", e);
+    }
 }
 
 async function handlePunch() {
@@ -1465,22 +1491,35 @@ async function handlePunch() {
                 body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) 
             });
             
-            const data = await res.json();
-            
-            // תפיסת שגיאות GPS אמיתיות והצגת ההודעה שחוזרת מהשרת
-            if(!res.ok || !data.success) { 
-                showToast('error', data.error || 'שגיאה בדיווח נוכחות (וודא שהמנהל קבע מיקום ושהנך בקרבת העסק)'); 
-                checkTimeclockStatus(); 
+            if (!res.ok) {
+                // המטרה: לקרוא את השגיאה שהשרת זרק (כמו "מרחק נוכחי 300 מטר") במקום לקרוס
+                let errMsg = "שגיאת שרת לא מזוהה";
+                try {
+                    const errorData = await res.json();
+                    errMsg = errorData.error;
+                } catch(jsonErr) {
+                    errMsg = `קוד שגיאה: ${res.status}`;
+                }
+                showToast('error', errMsg);
+                checkTimeclockStatus();
+                btn.disabled = false;
                 return;
             }
-
-            triggerConfetti(); 
-            showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-            await checkTimeclockStatus(); 
-            fetchData();
+            
+            const data = await res.json();
+            
+            if(data.success) { 
+                triggerConfetti(); 
+                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
+                await checkTimeclockStatus(); 
+                fetchData(); 
+            } else { 
+                showToast('error', data.error || 'שגיאה בדיווח'); 
+                checkTimeclockStatus(); 
+            }
         } catch(e) { 
             console.error("Punch error:", e);
-            showToast('error', 'שגיאת תקשורת עם השרת בעת דיווח הנוכחות'); 
+            showToast('error', 'שגיאת רשת בדיווח: ' + e.message); 
             checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
@@ -1488,7 +1527,7 @@ async function handlePunch() {
     }, (error) => {
         let errMsg = 'שגיאה באיתור המיקום.';
         if (error.code === 1) errMsg = 'הגישה ל-GPS נחסמה בטאבלט. נא לאשר בהגדרות!';
-        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע.';
+        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע במכשיר.';
         if (error.code === 3) errMsg = 'איתור המיקום ארך זמן רב מדי.';
         showToast('error', errMsg);
         checkTimeclockStatus();
@@ -1513,8 +1552,16 @@ async function submitManualPunch() {
     getEl('btn-submit-mp').disabled = true;
     try {
         const res = await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
+        
+        if (!res.ok) {
+            const errData = await res.json();
+            showToast('error', errData.error || 'שגיאה בהזנה ידנית');
+            getEl('btn-submit-mp').disabled = false;
+            return;
+        }
+
         const data = await res.json();
-        if(res.ok && data.success) {
+        if(data.success) {
             showToast('success', 'דווח בהצלחה!');
             getEl('manual-punch-modal').classList.add('hidden');
             fetchTimeclockReport();
@@ -1618,8 +1665,7 @@ async function fetchTimeclockReport() {
             }
             summaryHtml += `</div></div>`;
         } else {
-            // מתקן את התקלה - יצירת מראה חצי ריק יפה במידה ואין נתונים כלל (מניעת קריסה חזותית של הדוח)
-            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתוני שעות עבודה בחודש הנבחר.</p></div>`;
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
         }
         
         list.innerHTML = `
