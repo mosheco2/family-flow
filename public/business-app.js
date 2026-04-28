@@ -8168,35 +8168,73 @@ function renderFoodCostList() {
     list.innerHTML = html;
 }
 
-function openRecipeBuilder(catalogId) {
-    const item = foodCostData.find(i => i.id === catalogId);
-    if(!item) return;
+window.openRecipeBuilder = function(catalogId = null) {
+    rbIngredients = [];
+    rbOverheads = [];
     
-    rbCurrentItem = item;
-    rbIngredients = JSON.parse(JSON.stringify(item.ingredients));
-    rbOverheads = JSON.parse(JSON.stringify(item.overheads));
-    
-    getEl('rb-title').innerText = `עץ מוצר: ${item.name}`;
-    getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
-    getEl('rb-catalog-id').value = item.id;
+    // אם לא נשלח קטלוג ID, אנחנו במצב של "מוצר חדש"
+    if (!catalogId) {
+        rbCurrentItem = { id: null, name: '', price: '', category: '' };
+        
+        // יצירת ממשק הקלדה דינמי לשדות החדשים (שם מנה, מחיר, קטגוריה)
+        getEl('rb-title').innerHTML = `
+            <div class="flex flex-col gap-2 mt-2 w-[220px]">
+                <input type="text" id="rb-edit-name" class="modern-input py-2 text-sm font-black text-slate-800 shadow-sm border-slate-200" placeholder="שם המנה/מוצר">
+                <input type="text" id="rb-edit-category" class="modern-input py-1.5 text-xs text-slate-600 shadow-sm border-slate-200" placeholder="שייך לקטגוריה...">
+            </div>`;
+        getEl('rb-sale-price').innerHTML = `
+            <div class="flex items-center mt-1">
+                <span class="mr-1 text-slate-500 font-bold">₪</span>
+                <input type="number" id="rb-edit-price" oninput="window.refreshRBUI()" class="modern-input py-1 px-2 text-xs w-20 font-black text-indigo-600 text-center dir-ltr shadow-sm border-indigo-200" placeholder="0">
+            </div>`;
+        
+        getEl('rb-catalog-id').value = '';
+    } else {
+        const item = foodCostData.find(i => i.id === catalogId);
+        if(!item) return;
+        
+        rbCurrentItem = item;
+        rbIngredients = JSON.parse(JSON.stringify(item.ingredients || []));
+        rbOverheads = JSON.parse(JSON.stringify(item.overheads || []));
+        
+        getEl('rb-title').innerText = `עץ מוצר: ${item.name}`;
+        getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
+        getEl('rb-catalog-id').value = item.id;
+    }
     
     getEl('recipe-builder-modal').classList.remove('hidden');
-    refreshRBUI();
-}
+    window.refreshRBUI();
+};
 
-function closeRecipeBuilder() {
+// פונקציה לבדיקת הזרקת הכפתור ל-DOM
+function injectCreateRecipeBtn() {
+    const headerDiv = document.querySelector('#content-foodcost .flex.justify-between.items-center.mb-3.px-2');
+    if (headerDiv && !document.getElementById('btn-create-recipe-from-fc')) {
+        headerDiv.insertAdjacentHTML('afterend', `
+            <div class="px-2 mb-4">
+                <button id="btn-create-recipe-from-fc" onclick="window.openRecipeBuilder()" class="w-full bg-emerald-50 text-emerald-600 py-2.5 rounded-xl text-xs font-bold border border-emerald-200 shadow-sm hover:bg-emerald-100 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> הוסף מנה חדשה לחנות ותמחר מאפס
+                </button>
+            </div>
+        `);
+    }
+}
+// כדי להבטיח שהכפתור קיים בטעינת הטאב
+setInterval(injectCreateRecipeBtn, 2000);
+
+window.closeRecipeBuilder = function() {
     getEl('recipe-builder-modal').classList.add('hidden');
     rbCurrentItem = null;
-}
+};
 
-function addRBIngredient() {
+window.addRBIngredient = function() {
     const name = val('rb-add-ing-name');
     const qty = parseFloat(val('rb-add-ing-qty'));
     const unit = val('rb-add-ing-unit');
     
     if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
     
-    const knownPrice = foodCostPrices[name] ? foodCostPrices[name].price : 0;
+    const knownPrice = (foodCostPrices && foodCostPrices[name]) ? foodCostPrices[name].price : 0;
     
     rbIngredients.push({
         ingredient_name: name,
@@ -8208,15 +8246,15 @@ function addRBIngredient() {
     
     getEl('rb-add-ing-name').value = '';
     getEl('rb-add-ing-qty').value = '';
-    refreshRBUI();
-}
+    window.refreshRBUI();
+};
 
-function removeRBIngredient(index) {
+window.removeRBIngredient = function(index) {
     rbIngredients.splice(index, 1);
-    refreshRBUI();
-}
+    window.refreshRBUI();
+};
 
-function addRBOverhead() {
+window.addRBOverhead = function() {
     const name = val('rb-add-ovh-name');
     const cost = parseFloat(val('rb-add-ovh-cost'));
     
@@ -8226,15 +8264,15 @@ function addRBOverhead() {
     
     getEl('rb-add-ovh-name').value = '';
     getEl('rb-add-ovh-cost').value = '';
-    refreshRBUI();
-}
+    window.refreshRBUI();
+};
 
-function removeRBOverhead(index) {
+window.removeRBOverhead = function(index) {
     rbOverheads.splice(index, 1);
-    refreshRBUI();
-}
+    window.refreshRBUI();
+};
 
-function refreshRBUI() {
+window.refreshRBUI = function() {
     const ingList = getEl('rb-ingredients-list');
     const ovhList = getEl('rb-overhead-list');
     
@@ -8247,7 +8285,7 @@ function refreshRBUI() {
             const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
+                <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
                 <div class="font-mono text-slate-600">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
             </div>`;
         }).join('');
@@ -8261,14 +8299,23 @@ function refreshRBUI() {
             ovhTotal += parseFloat(ovh.cost);
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
+                <div class="flex items-center gap-2"><button onclick="window.removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
                 <div class="font-mono text-slate-600">₪${parseFloat(ovh.cost).toFixed(2)}</div>
             </div>`;
         }).join('');
     }
     
     const totalCost = ingTotal + ovhTotal;
-    const salePrice = parseFloat(rbCurrentItem.price) || 0;
+    
+    // משיכת מחיר גם אם זה מצב עריכה קיים וגם אם זו הקלדה דינמית
+    let salePrice = 0;
+    const dynamicPriceInput = getEl('rb-edit-price');
+    if (dynamicPriceInput) {
+        salePrice = parseFloat(dynamicPriceInput.value) || 0;
+    } else if (rbCurrentItem) {
+        salePrice = parseFloat(rbCurrentItem.price) || 0;
+    }
+    
     const profit = salePrice - totalCost;
     const fcPct = salePrice > 0 ? (totalCost / salePrice) * 100 : 0;
     
@@ -8283,32 +8330,83 @@ function refreshRBUI() {
     if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
     else if (fcPct > 30) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
     else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
-}
+};
 
-async function saveRecipeBuilder() {
-    const catalogId = val('rb-catalog-id');
+window.saveRecipeBuilder = async function() {
+    let catalogId = val('rb-catalog-id');
+    
+    const dynamicNameInput = getEl('rb-edit-name');
+    const dynamicPriceInput = getEl('rb-edit-price');
+    const dynamicCatInput = getEl('rb-edit-category');
+    
     const btn = document.querySelector('#recipe-builder-modal button.bg-slate-900');
-    btn.disabled = true; btn.innerText = 'שומר...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     
     try {
+        // שלב 1: אם מדובר במוצר חדש (אין ID), אנו יוצרים אותו קודם בקטלוג החנות
+        if (!catalogId) {
+            const name = dynamicNameInput ? dynamicNameInput.value : '';
+            const price = dynamicPriceInput ? parseFloat(dynamicPriceInput.value) : 0;
+            const category = dynamicCatInput ? dynamicCatInput.value : 'כללי';
+            
+            if (!name || price <= 0) {
+                showToast('error', 'יש להזין שם מנה ומחיר מכירה גדול מ-0');
+                btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+                return;
+            }
+            
+            // שידור המנה לחנות (Store Catalog)
+            const catPayload = { 
+                groupId: currentGroup.id, 
+                name: name, 
+                price: price, 
+                category: category, 
+                description: 'מנה שהורכבה במערכת התמחור.', 
+                isAvailable: true, 
+                productType: 'food' 
+            };
+            
+            const catRes = await fetch(`${API}/store/catalog`, { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify(catPayload) 
+            });
+            const catData = await catRes.json();
+            
+            if (!catData.success) {
+                showToast('error', 'שגיאה ביצירת המנה בקטלוג הראשי');
+                btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+                return;
+            }
+            
+            // חילוץ ה-ID החדש שנוצר
+            catalogId = catData.id;
+            
+            // רענון הקטלוג ברקע
+            if(typeof fetchStoreCatalog === 'function') fetchStoreCatalog();
+        }
+
+        // שלב 2: שיוך עץ המוצר (חומרי גלם + עקיפות) אל ה-ID של המוצר בחנות
         const res = await fetch(`${API}/food-cost/recipe/${catalogId}`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ ingredients: rbIngredients, overheads: rbOverheads })
         });
         
-        if((await res.json()).success) {
-            showToast('success', 'עץ המוצר עודכן בהצלחה!');
-            closeRecipeBuilder();
-            fetchFoodCost(); // רענון הנתונים
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'המנה ועץ המוצר נשמרו בהצלחה!');
+            window.closeRecipeBuilder();
+            fetchFoodCost(); // רענון הנתונים במסך הפוד קוסט
         } else {
-            showToast('error', 'שגיאה בשמירת הנתונים');
+            showToast('error', 'שגיאה בשמירת נתוני התמחיר');
         }
     } catch(e) {
-        showToast('error', 'שגיאת רשת');
+        showToast('error', 'שגיאת רשת מול השרת');
     } finally {
         btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
     }
-}
+};
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
