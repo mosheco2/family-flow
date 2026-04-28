@@ -4491,20 +4491,6 @@ window.renderStoreCustomers = function() {
     }).join('');
 };
 
-// תיקון כפתור ה"הוספת מאפיינים" (Modifiers) שהפסיק לעבוד בגלל תצורת ה-Window:
-window.addModifierGroup = function() { 
-    if(!currentModifiersUI) currentModifiersUI = [];
-    currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
-    window.renderModifiersUI(); 
-};
-window.removeModifierGroup = function(index) { currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
-window.updateModName = function(index, v) { currentModifiersUI[index].name = v; };
-window.updateModType = function(index, v) { currentModifiersUI[index].type = v; };
-window.addModifierOption = function(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
-window.removeModifierOption = function(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
-window.updateModOptionName = function(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; };
-window.updateModOptionPrice = function(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
-
 window.switchCustomerMainTab = function(tab) {
     const listBtn = getEl('btn-cust-main-list');
     const histBtn = getEl('btn-cust-main-history');
@@ -4906,70 +4892,6 @@ window.switchCustomerTab = function(tab) {
     }
 };
 
-window.openPromotionModal = function(id = null) {
-    if (!document.getElementById('promotion-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
-                <button onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע חדש</h3>
-                <input type="hidden" id="promo-id">
-                <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
-                    <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white"></div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option></select></div>
-                        <div><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-xs font-bold text-slate-500">חל על:</label><select id="promo-target-type" onchange="window.togglePromoTargetInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="all">כל החנות</option><option value="category">קטגוריה ספציפית</option></select></div>
-                        <div id="promo-target-category-container" class="hidden"><label class="text-xs font-bold text-slate-500">שם הקטגוריה:</label><input type="text" id="promo-target-category" class="modern-input py-2 text-sm w-full bg-white"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <div><label class="text-xs font-bold text-slate-500">בתוקף מ:</label><input type="date" id="promo-start-date" class="modern-input py-2 text-sm w-full bg-white"></div>
-                        <div><label class="text-xs font-bold text-slate-500">בתוקף עד:</label><input type="date" id="promo-end-date" class="modern-input py-2 text-sm w-full bg-white"></div>
-                    </div>
-                    <div class="mt-4 p-3 bg-pink-50 rounded-xl border border-pink-100 flex justify-between items-center">
-                        <span class="text-xs font-bold text-pink-800">הצג באנר קופץ בחנות?</span>
-                        <input type="checkbox" id="promo-show-banner" class="w-4 h-4 accent-pink-600" checked>
-                    </div>
-                </div>
-                <div class="pt-3 border-t border-slate-100 flex gap-2">
-                    <button onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ביטול</button>
-                    <button id="btn-submit-promo" onclick="window.submitPromotion()" class="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold hover:bg-pink-700 shadow-md transition">שמור והפעל</button>
-                </div>
-            </div>
-        </div>`);
-    }
-    
-    document.getElementById('promo-id').value = id || '';
-    document.getElementById('promo-title').value = '';
-    document.getElementById('promo-type').value = 'discount_pct';
-    document.getElementById('promo-value').value = '';
-    document.getElementById('promo-target-type').value = 'all';
-    document.getElementById('promo-target-category').value = '';
-    document.getElementById('promo-start-date').value = '';
-    document.getElementById('promo-end-date').value = '';
-    if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
-    if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
-    
-    if (id && storePromotionsCache) {
-        const promo = storePromotionsCache.find(p => p.id === id);
-        if (promo) {
-            document.getElementById('promo-title').value = promo.title;
-            document.getElementById('promo-type').value = promo.promo_type;
-            document.getElementById('promo-value').value = promo.promo_value;
-            document.getElementById('promo-target-type').value = promo.target_type;
-            if (promo.target_ids && promo.target_ids.length > 0) document.getElementById('promo-target-category').value = promo.target_ids[0];
-            if (promo.start_date) document.getElementById('promo-start-date').value = promo.start_date.substring(0,10);
-            if (promo.end_date) document.getElementById('promo-end-date').value = promo.end_date.substring(0,10);
-            if (document.getElementById('promo-show-banner')) document.getElementById('promo-show-banner').checked = promo.show_in_banner !== false;
-            if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
-            if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
-        }
-    }
-    document.getElementById('promotion-modal').classList.remove('hidden');
-};
-
 window.fetchStorePromotions = async function() {
     try {
         const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
@@ -5008,31 +4930,6 @@ window.renderStorePromotions = function() {
     });
     list.innerHTML = html;
 };
-
-function togglePromoValueInput() {
-    const type = val('promo-type');
-    const label = getEl('promo-value-label');
-    const input = getEl('promo-value');
-    if(!label || !input) return;
-
-    if (type === 'bogo') {
-        label.innerText = 'שווי ההטבה (המקסימלי לפריט):';
-        input.placeholder = 'למשל: עד 50 ש"ח למנה מתנה';
-    } else if (type === 'discount_pct') {
-        label.innerText = 'ערך המבצע באחוזים:';
-        input.placeholder = 'למשל: 20 (%)';
-    } else {
-        label.innerText = 'המחיר הקבוע למבצע (פיקס):';
-        input.placeholder = 'למשל: 99 (₪)';
-    }
-}
-
-function togglePromoTargetInput() {
-    const type = val('promo-target-type');
-    const container = getEl('promo-target-category-container');
-    if (type === 'category') container.classList.remove('hidden');
-    else container.classList.add('hidden');
-}
 
 async function submitPromotion() {
     const id = val('promo-id');
@@ -11101,41 +10998,6 @@ window.fetchStoreSettings = async function() {
             }
         }
     } catch(e) {}
-};
-
-window.saveStoreSettings = async function() {
-    const btn = document.getElementById('btn-save-store-settings');
-    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    
-    window.storeVatSettings = { 
-        enabled: document.getElementById('store-include-vat') ? document.getElementById('store-include-vat').checked : false, 
-        rate: document.getElementById('store-vat-rate') ? parseFloat(document.getElementById('store-vat-rate').value) || 18 : 18 
-    };
-    if (typeof currentGroup !== 'undefined' && currentGroup) {
-        localStorage.setItem('ofl_vat_' + currentGroup.id, JSON.stringify(window.storeVatSettings));
-    }
-
-    try {
-        await fetch(`${API}/store/settings`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, 
-                isActive: document.getElementById('store-is-active') ? document.getElementById('store-is-active').checked : true, 
-                welcomeMessage: val('store-welcome-msg'), 
-                phone: val('store-phone'), 
-                minOrder: val('store-min-order'), 
-                slogan: val('store-slogan'), 
-                storeType: val('store-type'), 
-                logoUrl: val('store-logo-base64') || null, 
-                bannerUrl: val('store-banner-base64') || null,
-                openTime: val('store-open-time'), 
-                closeTime: val('store-close-time'), 
-                whatsappNumber: val('store-whatsapp')
-            })
-        });
-        showToast('success', 'הגדרות החנות והמע"מ נשמרו בהצלחה!');
-    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
-    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 };
 
 window.clearImage = function(targetIdPrefix) {
