@@ -3457,19 +3457,102 @@ function renderPantry() {
     });
 }
 
-function openPantryModal() { getEl('pantry-modal').classList.remove('hidden'); }
+window.openPantryModal = function() {
+    let modal = document.getElementById('pantry-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="pantry-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
+                <button onclick="document.getElementById('pantry-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-box text-blue-500 mr-2"></i> הוספת מוצר למלאי</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם המוצר / פריט:</label>
+                        <input type="text" id="pantry-item" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm" placeholder="למשל: קמח לבן">
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות התחלתית:</label>
+                            <input type="number" id="pantry-quantity" class="modern-input py-2.5 text-center text-sm font-bold" value="1" min="0.1" step="0.1">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג יחידה:</label>
+                            <select id="pantry-unit" onchange="checkPantryUnit()" class="modern-input py-2.5 text-sm bg-white font-bold text-slate-700 shadow-sm">
+                                <option value="יח'">יח'</option>
+                                <option value="ק&quot;ג">ק"ג</option>
+                                <option value="גרם">גרם</option>
+                                <option value="מארז">מארז</option>
+                                <option value="קרטון">קרטון</option>
+                                <option value="ליטר">ליטר</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 shadow-sm" id="pantry-upp-container">
+                        <label class="text-[10px] font-bold text-slate-600 block mb-1">כמה יחידות בודדות יש בפנים?</label>
+                        <input type="number" id="pantry-upp" class="modern-input py-2 text-center text-sm font-bold" value="1" min="1">
+                    </div>
+                </div>
+                
+                <button id="btn-submit-pantry" onclick="window.submitPantryItem()" class="w-full mt-6 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    הוסף למאגר <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+        </div>
+        `);
+        modal = document.getElementById('pantry-modal');
+    }
+    
+    // ניקוי הטופס לפני כל פתיחה
+    document.getElementById('pantry-item').value = '';
+    document.getElementById('pantry-quantity').value = 1;
+    document.getElementById('pantry-unit').value = "יח'";
+    document.getElementById('pantry-upp').value = 1;
+    if(document.getElementById('pantry-upp-container')) document.getElementById('pantry-upp-container').classList.add('hidden');
+    
+    modal.classList.remove('hidden');
+};
 
-async function submitPantryItem() {
-    const name = val('pantry-item'); const qty = parseFloat(val('pantry-quantity')) || 1; const unit = val('pantry-unit') || "יח'"; const upp = parseInt(val('pantry-upp')) || 1; 
+window.submitPantryItem = async function() {
+    const name = document.getElementById('pantry-item').value; 
+    const qty = parseFloat(document.getElementById('pantry-quantity').value) || 1; 
+    const unit = document.getElementById('pantry-unit').value || "יח'"; 
+    const upp = parseInt(document.getElementById('pantry-upp').value) || 1; 
+    
     if(!name) return showToast('error', 'יש להזין שם מוצר');
-    const btn = getEl('btn-submit-pantry'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    
+    const btn = document.getElementById('btn-submit-pantry'); 
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+    
     try {
-        const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
+        const res = await fetch(`${API}/pantry/add`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) 
+        });
+        
+        if (!res.ok) {
+            const errData = await res.json();
+            showToast('error', errData.error || 'שגיאת שרת בהוספת הפריט');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'הוסף למאגר <i class="fa-solid fa-plus"></i>'; }
+            return;
+        }
+        
         const data = await res.json();
-        if (data.success) { getEl('pantry-modal').classList.add('hidden'); val('pantry-item', ''); val('pantry-quantity', 1); getEl('pantry-unit').value = "יח'"; getEl('pantry-upp').value = 1; fetchData(); showToast('success', 'המוצר נקלט במלאי'); } 
-        else { showToast('error', data.error || 'שגיאת שרת בהוספת הפריט'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הוסף למאגר'; } }
-}
+        
+        if (data.success) { 
+            document.getElementById('pantry-modal').classList.add('hidden'); 
+            showToast('success', 'המוצר נקלט במלאי בהצלחה!');
+            fetchData(); // ירענן את רשימת המלאי על המסך
+        } else { 
+            showToast('error', data.error || 'שגיאת שרת בהוספת הפריט'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת מול השרת'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerHTML = 'הוסף למאגר <i class="fa-solid fa-plus"></i>'; } 
+    }
+};
 
 async function updatePantryQty(id, newQty) {
     if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
