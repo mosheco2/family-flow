@@ -8267,20 +8267,44 @@ window.openRecipeBuilder = function(catalogId = null) {
     rbIngredients = [];
     rbOverheads = [];
     
-    // אם לא נשלח קטלוג ID, אנחנו במצב של "מוצר חדש"
+    const modal = document.getElementById('recipe-builder-modal');
+    if(!modal) return;
+
+    // 1. תיקון המסך השחור: שינוי יישור החלון כדי שלא ידחף החוצה בפתיחת מקלדת
+    modal.classList.remove('items-center');
+    modal.classList.add('items-start', 'pt-8', 'pb-8');
+    
+    const headerDiv = modal.querySelector('.p-5.border-b');
+    if(headerDiv) {
+        headerDiv.classList.remove('items-center');
+        headerDiv.classList.add('items-start');
+    }
+
+    // 2. שאיבת הקטגוריות לחלון הפוד-קוסט (מבוסס על קטלוג החנות)
+    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    let dataListHtml = `<datalist id="fc-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    
+    if (!document.getElementById('fc-category-list')) {
+        document.body.insertAdjacentHTML('beforeend', dataListHtml);
+    } else {
+        document.getElementById('fc-category-list').outerHTML = dataListHtml;
+    }
+    
     if (!catalogId) {
         rbCurrentItem = { id: null, name: '', price: '', category: '' };
         
-        // יצירת ממשק הקלדה דינמי לשדות החדשים (שם מנה, מחיר, קטגוריה)
+        // בניית מבנה יציב שלא שובר את ההדר (Header)
         getEl('rb-title').innerHTML = `
-            <div class="flex flex-col gap-2 mt-2 w-[220px]">
-                <input type="text" id="rb-edit-name" class="modern-input py-2 text-sm font-black text-slate-800 shadow-sm border-slate-200" placeholder="שם המנה/מוצר">
-                <input type="text" id="rb-edit-category" class="modern-input py-1.5 text-xs text-slate-600 shadow-sm border-slate-200" placeholder="שייך לקטגוריה...">
+            <div class="flex flex-col gap-2 w-full max-w-[200px] pb-1">
+                <span class="text-xs font-bold text-slate-500 mb-1">הקמת מנה חדשה:</span>
+                <input type="text" id="rb-edit-name" class="modern-input py-2 px-3 text-sm font-black text-slate-800 shadow-sm border-slate-200 bg-white" placeholder="שם המנה/מוצר">
+                <input type="text" id="rb-edit-category" list="fc-category-list" class="modern-input py-2 px-3 text-xs text-slate-600 shadow-sm border-slate-200 bg-white" placeholder="בחר/הקלד קטגוריה...">
             </div>`;
+            
         getEl('rb-sale-price').innerHTML = `
-            <div class="flex items-center mt-1">
-                <span class="mr-1 text-slate-500 font-bold">₪</span>
-                <input type="number" id="rb-edit-price" oninput="window.refreshRBUI()" class="modern-input py-1 px-2 text-xs w-20 font-black text-indigo-600 text-center dir-ltr shadow-sm border-indigo-200" placeholder="0">
+            <div class="flex items-center gap-1 mt-2">
+                <span class="text-slate-500 font-bold text-sm">₪</span>
+                <input type="number" id="rb-edit-price" oninput="window.refreshRBUI()" class="modern-input py-1.5 px-2 text-sm w-20 font-black text-indigo-600 text-center dir-ltr shadow-sm border-indigo-200 bg-white" placeholder="0">
             </div>`;
         
         getEl('rb-catalog-id').value = '';
@@ -8292,12 +8316,12 @@ window.openRecipeBuilder = function(catalogId = null) {
         rbIngredients = JSON.parse(JSON.stringify(item.ingredients || []));
         rbOverheads = JSON.parse(JSON.stringify(item.overheads || []));
         
-        getEl('rb-title').innerText = `עץ מוצר: ${item.name}`;
+        getEl('rb-title').innerHTML = `עץ מוצר:<br><span class="text-indigo-700 text-base mt-1 block">${safeStr(item.name)}</span>`;
         getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
         getEl('rb-catalog-id').value = item.id;
     }
     
-    getEl('recipe-builder-modal').classList.remove('hidden');
+    modal.classList.remove('hidden');
     window.refreshRBUI();
 };
 
