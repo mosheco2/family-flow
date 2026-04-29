@@ -22,32 +22,6 @@ let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 let isPunchedIn = false;
 
-var storeCatalogCache = [];
-var storeOrdersCache = [];
-var currentModifiersUI = []; 
-var storeModifierPresets = [];
-var currentStoreOrderId = null;
-var storeQuotesCache = [];
-var storeCustomersCache = [];
-var storePromotionsCache = [];
-
-var suppliersList = [];
-var currentSupplierProducts = [];
-var b2bCatalogCache = [];
-var b2bCart = {}; 
-var b2bOrdersHistory = [];
-
-var myConnectedCommunitiesCache = [];
-var myCommunityBusinessesCache = [];
-var myInitiativesCache = [];
-var bizAvailableCommCache = [];
-
-var foodCostData = [];
-var foodCostPrices = {};
-var rbCurrentItem = null;
-var rbIngredients = [];
-var rbOverheads = [];
-
 // משתני החנות
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
@@ -123,44 +97,8 @@ window.onload = async () => {
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-function triggerConfetti() { 
-    const typeEl = document.getElementById('store-type');
-    const type = typeEl ? typeEl.value : 'retail';
-    
-    let shapes = ['square', 'circle'];
-    let scalar = 1;
+function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
 
-    if (type === 'food') {
-        shapes = [
-            confetti.shapeFromText({ text: '🍕', scalar: 2 }),
-            confetti.shapeFromText({ text: '🍔', scalar: 2 }),
-            confetti.shapeFromText({ text: '🍟', scalar: 2 })
-        ];
-        scalar = 2;
-    } else if (type === 'services') {
-        shapes = [
-            confetti.shapeFromText({ text: '⭐', scalar: 2 }),
-            confetti.shapeFromText({ text: '💎', scalar: 2 }),
-            confetti.shapeFromText({ text: '✨', scalar: 2 })
-        ];
-        scalar = 2;
-    } else {
-        shapes = [
-            confetti.shapeFromText({ text: '🛍️', scalar: 2 }),
-            confetti.shapeFromText({ text: '📦', scalar: 2 }),
-            'circle'
-        ];
-        scalar = 1.5;
-    }
-
-    confetti({
-        particleCount: 50,
-        spread: 80,
-        origin: { y: 0.6 },
-        shapes: shapes,
-        scalar: scalar
-    }); 
-}
 async function handleSALogin(e) {
     e.preventDefault();
     try {
@@ -189,8 +127,7 @@ async function saveAllBanners() {
 }
 
 function applyBannersToDOM(banners) {
-    const appTop = getEl('app-banner-top'); 
-    const appBottom = getEl('app-banner-bottom');
+    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
         if(text || img) { 
@@ -233,7 +170,6 @@ function applyBannersToDOM(banners) {
     renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
-
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
@@ -241,34 +177,6 @@ async function fetchBanners() {
         if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
-
-// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    if (!dashContainer) return;
-    
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        // מעבר לתצוגת מחשב רחבה
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-6xl', 'w-full');
-        if(iconBtn) {
-            iconBtn.classList.remove('fa-desktop');
-            iconBtn.classList.add('fa-mobile-screen');
-        }
-        showToast('info', 'עברת לתצוגת מסך רחבה');
-    } else {
-        // מעבר חזרה לתצוגת מובייל (צרה)
-        dashContainer.classList.remove('max-w-6xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        if(iconBtn) {
-            iconBtn.classList.remove('fa-mobile-screen');
-            iconBtn.classList.add('fa-desktop');
-        }
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
 
 async function loadSAData() {
     fetchBanners();
@@ -305,14 +213,14 @@ function renderSAGroups() {
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
     if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button type="button" onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
-        const proToggleBtn = g.is_premium ? `<button type="button" onclick="window.saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button type="button" onclick="window.saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
+        const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button type="button" onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button type="button" onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
@@ -321,7 +229,7 @@ function filterSAGroups() { renderSAGroups(); }
 async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
 async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
 
-async function saveWelcomeMsg(type = 'FAMILY') {
+async function saveWelcomeMsg(type = 'FAMILY') { 
     const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
     try { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); } catch(e) { showToast('error', 'שגיאה בשמירת ההודעה'); }
 }
@@ -342,73 +250,53 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
+function executeWithAIWarning(actionCallback) {
+    if (currentGroup && currentGroup.is_premium) return actionCallback();
+    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
+    const modal = getEl('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    const leftEl = getEl('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
+    const btnContinue = getEl('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+    newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    modal.classList.remove('hidden');
+}
+
 function injectBusinessUI() {
+    // 1. הזרקת משמרות
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
-        if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
-    }
-
-    if (!getEl('content-customers')) {
-        const contentShifts = getEl('content-shifts') || getEl('content-feed');
-        if (contentShifts) {
-            contentShifts.insertAdjacentHTML('afterend', `
-            <div id="content-customers" class="hidden">
-                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
-                    <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
-                        <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
-                        <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
-                    </div>
-                    <div id="cust-main-view-list">
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-sm font-bold text-slate-600">רשימת לקוחות</span>
-                            <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
-                        </div>
-                        <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <input type="text" id="filter-customer-search" oninput="window.renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
-                            <select id="filter-customer-type" onchange="window.renderStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
-                                <option value="all">כל הלקוחות</option>
-                                <option value="order">רוכשים בחנות</option>
-                                <option value="quote">מבקשי הצעות מחיר</option>
-                            </select>
-                        </div>
-                        <div id="store-customers-list" class="space-y-3 pb-8"></div>
-                    </div>
-                    <div id="cust-main-view-history" class="hidden">
-                        <div class="flex justify-between items-center mb-3">
-                            <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
-                            <button id="btn-sync-main-history" onclick="window.renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
-                        </div>
-                        <div class="relative mb-4">
-                            <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="cust-main-history-search" oninput="window.renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
-                        </div>
-                        <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
-                    </div>
+        if(contentFeed) {
+            contentFeed.insertAdjacentHTML('afterend', `
+            <div id="content-shifts" class="hidden">
+                <div class="flex justify-between items-center mb-4 px-2 mt-2">
+                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
                 </div>
-            </div>`);
+                <div id="shifts-list" class="space-y-3 pb-20"></div>
+            </div>
+            `);
         }
     }
 
+    // 2. הזרקת חנות ומכירות (היה חסר)
     if(!getEl('content-sales')) {
-        const contentShifts = getEl('content-shifts');
-        if(contentShifts) contentShifts.insertAdjacentHTML('afterend', `
+        const contentShifts = getEl('content-shifts') || getEl('content-feed');
+        if(contentShifts) {
+            contentShifts.insertAdjacentHTML('afterend', `
             <div id="content-sales" class="hidden">
-                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול חנות ומכירות 🛍️</h3>
-                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
-                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                        <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות</button>
-                        <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג</button>
-                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק</button>
-                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
-                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">דוחות</button>
-                    </div>
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
                     
+                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
+                        <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
+                        <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
+                        <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק וקופונים</button>
+                        <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
+                    </div>
+
                     <div id="sales-view-orders" class="space-y-4">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2 px-1">
+                        <div class="flex justify-between items-center mb-2">
                             <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 text-slate-700 rounded-xl w-full sm:w-auto outline-none focus:border-indigo-400">
+                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
                                 <option value="all">כל ההזמנות</option>
                                 <option value="new">חדשות</option>
                                 <option value="processing">בהכנה</option>
@@ -417,53 +305,118 @@ function injectBusinessUI() {
                                 <option value="completed">הושלמו</option>
                             </select>
                         </div>
-                        <div class="relative mb-4 px-1">
-                            <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה, שם לקוח או טלפון..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
-                        </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
-                    
-                    <div id="sales-view-quotes" class="hidden space-y-4">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
-                            <button onclick="window.openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
-                        </div>
-                        <div id="store-quotes-list" class="space-y-3 pb-8"></div>
-                    </div>
-                    
+
                     <div id="sales-view-catalog" class="hidden space-y-4">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h4 class="font-bold text-slate-700 text-sm">קטלוג מוצרים</h4>
-                            <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
+                            <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
                         </div>
                         <div id="store-catalog-list" class="space-y-3 pb-8"></div>
                     </div>
-                    
-                    <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
-                    <div id="sales-view-settings" class="hidden space-y-4"></div>
-                    <div id="sales-view-analytics" class="hidden space-y-4"></div>
-                </div>
-            </div>`);
-    }
 
+                    <div id="sales-view-marketing" class="hidden space-y-6">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <h4 class="font-bold text-slate-700 text-sm mb-3">יצירת קופון חדש</h4>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">קוד קופון:</label>
+                                    <input type="text" id="coupon-code" class="modern-input py-2 text-sm font-mono uppercase text-left dir-ltr" placeholder="SUMMER20">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">אחוז הנחה (%):</label>
+                                    <input type="number" id="coupon-discount" class="modern-input py-2 text-sm text-center" placeholder="10">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (אופציונלי):</label>
+                                <input type="date" id="coupon-date" class="modern-input py-2 text-sm bg-white">
+                            </div>
+                            <button onclick="createStoreCoupon()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">צור קופון</button>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm mb-3">קופונים פעילים</h4>
+                            <div id="store-coupons-list" class="space-y-2 pb-8"></div>
+                        </div>
+                    </div>
+
+                    <div id="sales-view-settings" class="hidden space-y-5 pb-8">
+                        <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                            <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600">
+                            <label class="font-bold text-indigo-800 text-sm cursor-pointer" for="store-is-active">חנות פעילה ופתוחה להזמנות</label>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
+                            <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm bg-white"><option value="retail">קמעונאות / מוצרים</option><option value="food">מסעדה / מזון</option><option value="services">שירותים</option></select></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">סלוגן / תיאור קצר:</label>
+                            <input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="המוצרים הכי טובים בעיר">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">טלפון לעסק:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">וואטסאפ להזמנות:</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="972500000000"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm bg-white"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm bg-white"></div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">לוגו העסק:</label>
+                            <div class="flex items-center gap-3">
+                                <div id="store-logo-preview-container" class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300">
+                                    <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
+                                    <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
+                                </div>
+                                <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition border border-slate-200"><i class="fa-solid fa-camera mr-1"></i> העלה לוגו</button>
+                                <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                <input type="hidden" id="store-logo-base64">
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <label class="text-xs font-bold text-blue-800 block mb-1.5">קישור לחנות הציבורית שלכם:</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="store-public-link" class="modern-input py-2 text-xs font-mono text-left dir-ltr flex-1 bg-white text-slate-500" readonly>
+                                <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm text-sm"><i class="fa-regular fa-copy"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-list-check"></i> תבניות תוספות (Modifiers):</label>
+                            <select id="preset-selector" onchange="loadPreset(this.value)" class="modern-input py-2 text-sm bg-white mb-2 hidden"></select>
+                        </div>
+
+                        <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
+                    </div>
+                </div>
+            </div>
+            `);
+        }
+    }
+    
+    // 3. הוספת כפתורי ניווט (טאבים עליונים) אם חסרים
+    if(!getEl('tab-shifts')) {
+        const tabPantry = getEl('tab-pantry');
+        if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
+    }
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
-        if(tabBank) {
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
-        }
-    }
-}
-    const menuContainer = getEl('slider-scroll');
-    if(menuContainer && !getEl('tab-sales')) {
-        const tabShop = getEl('tab-shop');
-        if(tabShop) {
-            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
-            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-        }
+        if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
     }
 
+    // 4. הזרקת חלונות הפופ-אפ החסרים (כדי שההרשאות לא יקרסו)
     if(!getEl('shift-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
@@ -540,48 +493,28 @@ function injectBusinessUI() {
         </div>
         `);
     }
-    
-    // מודאל גלובלי לבחירת תאריך יעד עם יומן
-    if(!getEl('target-datetime-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="target-datetime-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[120] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
-                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
-                    <h3 id="target-date-modal-title" class="text-lg font-black text-indigo-900">בחירת תאריך יעד</h3>
-                    <button onclick="document.getElementById('target-datetime-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="p-5 space-y-4 text-center">
-                    <p id="target-date-modal-desc" class="text-xs text-slate-500 mb-4 leading-relaxed"></p>
-                    <div class="relative max-w-[200px] mx-auto">
-                        <input type="datetime-local" id="target-datetime-input" class="modern-input py-3 px-4 w-full bg-slate-50 text-slate-800 text-sm font-bold border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white transition dir-ltr shadow-inner cursor-pointer" style="font-family: inherit;">
-                    </div>
-                </div>
-                <div class="p-4 border-t border-slate-100 bg-slate-50 flex gap-3">
-                    <button onclick="document.getElementById('target-datetime-modal').classList.add('hidden')" class="flex-[0.8] bg-white border border-slate-200 text-slate-500 py-3 rounded-xl font-bold shadow-sm hover:bg-slate-100 transition">ביטול</button>
-                    <button id="btn-submit-target-date" onclick="submitTargetDatetime()" class="flex-[1.2] bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">אישור ועדכון</button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-function startManagerTour() {
+}
+
+function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'סיום סיור', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "המרכז העסקי שלכם 🚀", intro: "ברוכים הבאים ל-Oneflow BIZ! בואו נערוך סיור קצר כדי להכיר את כל כלי הניהול שלכם." },
-            { element: '#sales-stats-dashboard', title: "לוח מחוונים - חנות 🛍️", intro: "כאן תוכלו לראות בזמן אמת את נתוני המכירות וההזמנות הפתוחות שלכם.", position: 'bottom' },
-            { element: '#tab-sales', title: "מכירות, קטלוג ולקוחות", intro: "בטאב זה (שנמצא גם בתפריט למעלה) תנהלו את כל המוצרים שלכם, הלקוחות, המבצעים והזמנות מהקופה.", position: 'bottom' },
-            { element: '#tab-shop', title: "רכש וספקים 🛒", intro: "מכאן תוכלו לייצר דרישות רכש אוטומטיות לכל הספקים שלכם, לנהל מחירונים ולעקוב אחרי הזמנות יוצאות.", position: 'bottom' },
-            { element: '#tab-foodcost', title: "תמחור ורווחיות 🍽️", intro: "כאן תוכלו לבנות עץ מוצר מלא לכל פריט ולחשב את עלויות הייצור (Food Cost) המדויקות.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "מעקב שעות ונוכחות ⏱️", intro: "שליטה מלאה על שעון הנוכחות של העובדים, עריכת משמרות וסיכומי שכר אוטומטיים להורדה.", position: 'bottom' },
-            { element: '#tab-tasks', title: "ניהול משימות ✅", intro: "צרו טיקטים ומשימות לצוות עם יעדים ותמריצים. תוכלו לאשר סיום רק אחרי שהם יעלו תמונה שתוכיח שסיימו.", position: 'bottom' },
-            { element: '#tab-forecast', title: "ראיית העתיד 📅", intro: "המערכת מנתחת אוטומטית את התזרים וההוצאות הקבועות ובונה לכם תשקיף חכם קדימה.", position: 'bottom' }
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'sales-stats-dashboard') switchTab('sales'); else if(id === 'tab-sales') switchTab('sales'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-foodcost') switchTab('foodcost'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -593,18 +526,21 @@ function startEmployeeTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים לפורטל הצוות! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לדווח שעות, לנהל משימות ולעקוב אחרי הבונוסים שלך." },
-            { element: '#user-balance', title: "הבונוסים שלך 💳", intro: "כאן יופיעו הבונוסים שהרווחת מביצוע פרויקטים והכשרות מטעם החברה.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשמרת? לחץ כאן כדי להיכנס. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן תוכל לראות את סידור העבודה השבועי שלך שנקבע על ידי המנהל.", position: 'bottom' },
-            { element: '#tab-shop', title: "דרישות רכש 🛒", intro: "חסר ציוד למשרד או מלאי לעמדה שלך? פתח דרישה כאן והיא תעבור מיד לאישור.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות לביצוע ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? תעלה תמונה והמנהל יוכל לאשר ולצ'פר אותך בבונוס!", position: 'bottom' },
-            { element: '#tab-academy', title: "הכשרות עובדים 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת המבדקים יכולה לזכות אותך בתמריצים.", position: 'bottom' }
+            { title: "ברוכים הבאים ל-Oneflow life BIZ! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -672,40 +608,30 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','shop','sales','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
     const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
-    // ניהול פוטר עגלה ו-FAB
-    if (t !== 'shop') { 
-        const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
-        const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
-    } else { 
-        try { renderShopList(); } catch(e) {} 
-    }
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    else { try { renderShopList(); } catch(e) {} }
     
-    // הפעלת לוגיקה ספציפית לכל טאב
-    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} 
+    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון לטעינת הפיד המרכזי
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
-    if (t === 'sales') try { switchSalesTab('orders'); } catch(e) {}
-    if (t === 'customers') try { if(typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
-    if (t === 'deliveries') try { switchDeliveryTab('active'); } catch(e) {}
-    if (t === 'budget') try { fetchBudget(); } catch(e) {}
+    if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
+    if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
-    if (t === 'bank') try { fetchLoans(); } catch(e) {}
-    if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
-    if (t === 'members') try { fetchMembers(); } catch(e) {}
-    if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
+    if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
+    if (t === 'tasks') { try { renderTasks(allTasks); } catch(e) {} }
+    if (t === 'members') { try { fetchMembers(); } catch(e) {} }
 }
-
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
@@ -715,97 +641,12 @@ function updateBatteryUI() {
         if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200'); else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200'); else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
     }
 }
-function handleAIResponseCheck(data) {
-    if (data.error === 'BATTERY_EMPTY') {
-        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) { 
-            modal.style.setProperty('z-index', '9999999', 'important'); 
-            modal.classList.remove('hidden'); 
-        }
-        return false;
-    }
-    return true;
-}
-
-function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
-function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
-
-// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        // מעבר לתצוגת מחשב רחבה
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-7xl', 'w-full');
-        iconBtn.classList.remove('fa-desktop');
-        iconBtn.classList.add('fa-mobile-screen');
-        showToast('info', 'עברת לתצוגת מחשב מורחבת');
-    } else {
-        // מעבר חזרה לתצוגת מובייל (צרה)
-        dashContainer.classList.remove('max-w-7xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        iconBtn.classList.remove('fa-mobile-screen');
-        iconBtn.classList.add('fa-desktop');
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
-
-// *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
-window.executeWithAIWarning = function(callback) {
-    if (currentGroup && currentGroup.is_premium) {
-        callback(); // לקוח PRO מדלג על האזהרה ורץ חופשי
-        return;
-    }
-
-    const hideWarning = localStorage.getItem('ofl_hide_ai_warning') === 'true';
-    if (hideWarning) {
-        callback();
-        return;
-    }
-
-    const modal = getEl('ai-warning-modal');
-    if (!modal) { callback(); return; } // הגנה במקרה שה-HTML חסר
-
-    // מסדרים את ה-Z-Index כדי שיופיע מעל מודאלים אחרים (כמו הוויזארד)
-    modal.style.setProperty('z-index', '9999999', 'important');
-
-    const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 10;
-    const tokensEl = getEl('ai-warning-left');
-    if (tokensEl) tokensEl.innerText = tokens;
-
-    modal.classList.remove('hidden');
-
-    const btnContinue = getEl('btn-ai-warning-continue');
-    if (btnContinue) {
-        // הסרת מאזינים קודמים כדי למנוע כפילויות של קריאות (Deduplication)
-        const newBtn = btnContinue.cloneNode(true);
-        btnContinue.parentNode.replaceChild(newBtn, btnContinue);
-        
-        newBtn.onclick = () => {
-            const dontShow = getEl('ai-warning-dont-show');
-            if (dontShow && dontShow.checked) {
-                localStorage.setItem('ofl_hide_ai_warning', 'true');
-                // אתחול האזהרה בסוף היום
-                setTimeout(() => localStorage.removeItem('ofl_hide_ai_warning'), 24 * 60 * 60 * 1000);
-            }
-            modal.classList.add('hidden');
-            callback();
-        };
-    }
-};
 
 function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
         if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) { 
-            modal.style.setProperty('z-index', '9999999', 'important'); 
-            modal.classList.remove('hidden'); 
-        }
-        return false;
+        modal.classList.remove('hidden'); return false;
     }
     return true;
 }
@@ -836,18 +677,6 @@ async function loadDashboard() {
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
-
-        // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
-        setTimeout(() => {
-            const scrollContainer = getEl('slider-scroll');
-            const tabSales = getEl('tab-sales');
-            const tabDeliveries = getEl('tab-deliveries');
-            if (scrollContainer && tabSales && tabDeliveries) {
-                // העברת אלמנט שליחויות אלמנט אחד אחרי מכירות וחנות
-                scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
-            }
-        }, 150);
-        // =========================================================================
 
         const isAdmin = currentUser.role === 'ADMIN';
         if(isAdmin) { 
@@ -894,14 +723,9 @@ async function loadDashboard() {
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-       // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
+        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
-
-        // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
-        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
-            setTimeout(showOnboardingWizard, 1000);
-        }
 
     } catch (e) {
         console.error("Dashboard error:", e);
@@ -1078,13 +902,6 @@ async function fetchTimeclockReport() {
                      </div>`;
         });
         
-        // עדכון כרטיסי KPI בראש הטאב
-        let totalMinutes = 0, totalCost = 0;
-        for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
-        const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
-        const sumHEl = getEl('tc-summary-hours'); if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
-        const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(0)}`;
-
         let summaryHtml = '';
         if(currentUser.role === 'ADMIN' && Object.keys(userSummaries).length > 0) {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום עלויות שכר (תקופה נבחרת):</h4><div class="space-y-2">`;
@@ -1112,8 +929,6 @@ const ALL_TABS = [
     { id: 'shop', name: 'רכש ארגוני 🛒' },
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
-    { id: 'customers', name: 'לקוחות 🤝' },
-    { id: 'deliveries', name: 'שליחויות 🛵' },
     { id: 'bank', name: 'כספים 💳' },
     { id: 'cashflow', name: 'תזרים מזומנים 💸' },
     { id: 'budget', name: 'תקציבים 📊' },
@@ -1126,7 +941,7 @@ const ALL_TABS = [
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
     'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
@@ -1152,14 +967,6 @@ function enforcePermissions() {
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none') switchTab('feed');
     });
-
-    // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
-    const scrollContainer = getEl('slider-scroll');
-    const tabSales = getEl('tab-sales');
-    const tabDeliveries = getEl('tab-deliveries');
-    if (scrollContainer && tabSales && tabDeliveries) {
-        scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
-    }
     
     if (!isAdmin) {
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
@@ -1381,22 +1188,16 @@ async function fetchData() {
             currentUser.balance = data.user.balance || 0; 
         }
         
-        if(data.group) {
+        if(data && data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
-            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
             const profileUp = document.getElementById('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
-            
-            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל
-            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-biz')) {
-                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
-            }
         }
+
         if (currentUser.role === 'ADMIN') {
             const balEl = document.getElementById('user-balance'); 
             if(balEl) {
@@ -1478,10 +1279,6 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
         try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
         try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
         try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
-
-        // טעינת לקוחות והצעות מחיר מראש כדי שלא יהיו ריקים
-        try { if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
-        try { if (typeof fetchStoreQuotes === 'function') fetchStoreQuotes(); } catch(e) {}
 
     } catch(e) {
         console.error("Fetch data error:", e);
@@ -1595,15 +1392,13 @@ async function generateAITasks() {
             if(!handleAIResponseCheck(data)) return;
             if(data.success && data.tasks && data.tasks.length > 0) {
                 const resultsContainer = getEl('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על הטיקט שתרצו להוסיף לצוות:</p>';
-                data.tasks.forEach(task => { 
-                    const safeTitle = safeStr(task.title); 
-                    resultsContainer.innerHTML += `<div onclick="selectAITask('${safeTitle}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-slate-200 hover:bg-slate-50 transition"><span class="text-sm font-bold text-slate-700">${safeTitle}</span><span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; 
-                });
+                data.tasks.forEach(task => { const t = safeStr(task.title); resultsContainer.innerHTML += `<div onclick="selectAITask('${t}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-slate-200 hover:bg-slate-50 transition"><span class="text-sm font-bold text-slate-700">${safeStr(task.title)}</span><span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; });
                 resultsContainer.classList.remove('hidden'); fetchData();
             } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
         } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> הצע תכנית עבודה'; }
     });
-}   
+}
+
 function selectAITask(title, reward) { getEl('task-title').value = title; getEl('task-reward').value = reward; setTaskMode('manual'); }
 
 async function submitTask() { 
@@ -1787,32 +1582,17 @@ async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקש
 
 function buildAndRenderFeed() {
     feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
-
-    if(Array.isArray(allTransactions)) {
-        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
+    if(Array.isArray(allTasks)) { 
+        allTasks.forEach(t => { 
+            // תיקון: הגנה מקריסה אם למשימה אין כותרת
+            if(t.status === 'approved' && (!t.title || !t.title.startsWith('SHIFT|'))) { 
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `טיקט: ${t.title || 'ללא שם'}`, amount: t.reward, status: t.status }); 
+            } 
+        }); 
     }
-
-    if(Array.isArray(allTasks)) {
-        allTasks.forEach(t => {
-            if(t.title && !t.title.startsWith('SHIFT|')) {
-                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
-                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title || 'ללא שם'} (${statusLabel})`, amount: t.reward || 0, status: t.status });
-            }
-        });
-    }
-
-    if(Array.isArray(bundlesCache)) {
-        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
-    }
-
-    if(Array.isArray(b2bOrdersHistory)) {
-        b2bOrdersHistory.forEach(o => {
-            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
-            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
-        });
-    }
-
+    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
@@ -1849,9 +1629,6 @@ function renderUnifiedFeed() {
         } else if (item.type === 'system') {
             const icon = '<i class="fa-solid fa-building text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>';
             contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
-        } else if (item.type === 'order') {
-            const icon = '<i class="fa-solid fa-file-invoice text-indigo-500 bg-indigo-100 p-1.5 rounded-full text-[10px]"></i>';
-            contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg text-slate-800" dir="ltr">₪${item.amount.toFixed(2)}</span></div>`;
         }
         html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
     });
@@ -2442,7 +2219,7 @@ function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) 
             datasets: [{ 
                 data: chartData, 
                 backgroundColor: chartBg, 
-               borderWidth: 2, 
+                borderWidth: 2, 
                 hoverOffset: 4 
             }] 
         }, 
@@ -2460,13 +2237,12 @@ function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) 
                     }
                 },
                 tooltip: {
-                    enabled: hasData
+                    enabled: hasData // מכבה טולטיפ כשאין נתונים
                 }
             } 
         } 
     });
 }
-
 function getForecastInsight() {
     executeWithAIWarning(async () => {
         showAIModal('רואת העתידות', null); getEl('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי...';
@@ -2480,6 +2256,7 @@ function getForecastInsight() {
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
 }
+
 function initAccessibility() { 
     const saved = localStorage.getItem('ofl_accessibility'); 
     if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } 
@@ -2528,69 +2305,51 @@ async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שבר
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
     try {
-        // ניסיון API (superadmin) — אם נכשל, בונה מנתונים מקומיים
-        if (saToken) {
-            try {
-                const res = await fetch(`${API}/superadmin/group-360/${groupId}`, { headers: { 'Authorization': saToken } });
-                const data = await res.json();
-                if (data.success) { _render360Report(data); getEl('report-360-modal').classList.remove('hidden'); return; }
-            } catch(e) {}
-        }
+        let url, headers = {};
+        if (saToken) { url = `${API}/superadmin/group-360/${groupId}`; headers = { 'Authorization': saToken }; } 
+        else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
 
-        // בניית דוח מנתונים מקומיים (לאדמין רגיל)
-        const data = {
-            group: currentGroup,
-            users: membersCache,
-            transactions: (allTransactions || []).filter(t => { const d = new Date(t.date); return (Date.now() - d) < 30*24*60*60*1000; }),
-            tasksSummary: (() => {
-                const counts = {}; (allTasks || []).forEach(t => { if(!t.title?.startsWith('SHIFT|')) { counts[t.status] = (counts[t.status]||0)+1; } });
-                return Object.entries(counts).map(([status, count]) => ({status, count}));
-            })()
-        };
+        const res = await fetch(url, { headers }); const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
 
-        _render360Report(data);
-        getEl('report-360-modal').classList.remove('hidden');
-    } catch(e) { showToast('error', 'שגיאה בהפקת הדוח'); console.error(e); }
-}
+        const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
+        getEl('report-360-group-name').innerText = safeStr(data.group.name);
+        getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
+        getEl('report-360-group-code').innerText = data.group.group_code;
+        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
+        getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-function _render360Report(data) {
-    const grp = data.group || currentGroup;
-    getEl('report-360-group-name').innerText = safeStr(grp.name);
-    getEl('report-360-group-type').innerText = `עסק ${grp.is_premium ? '(PRO)' : ''}`;
-    getEl('report-360-group-code').innerText = grp.group_code || '-';
-    getEl('report-360-group-email').innerText = safeStr(grp.admin_email || currentUser.email || '');
-    getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const usersList = getEl('report-360-users-list');
-    let usersHtml = ''; let totalBalances = 0;
-    (data.users || membersCache).forEach(u => {
-        const roleStr = u.role === 'ADMIN' ? 'הנהלה' : (u.role === 'MANAGER' ? 'מנהל משמרת' : 'עובד צוות');
-        const bal = parseFloat(u.balance) || 0; totalBalances += bal;
-        usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
-    });
-    usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות צוות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
-    usersList.innerHTML = usersHtml;
-
-    const txList = getEl('report-360-tx-list');
-    let txHtml = '';
-    const txs = data.transactions || [];
-    if(txs.length > 0) {
-        txs.slice(0, 20).forEach(t => {
-            const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
-            const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
-            txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
+        const usersList = getEl('report-360-users-list');
+        let usersHtml = ''; let totalBalances = 0;
+        data.users.forEach(u => {
+            const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
+            const bal = parseFloat(u.balance) || 0; totalBalances += bal;
+            usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-    } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
-    txList.innerHTML = txHtml;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersList.innerHTML = usersHtml;
 
-    const tasksList = getEl('report-360-tasks-list');
-    let tasksHtml = '';
-    const tasksSummary = data.tasksSummary || [];
-    if(tasksSummary.length > 0) {
-        const statusMap = { 'pending': 'פרויקטים פתוחים', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
-        tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-    } else { tasksHtml = '<li>אין משימות פעילות במערכת.</li>'; }
-    tasksList.innerHTML = tasksHtml;
+        const txList = getEl('report-360-tx-list');
+        let txHtml = '';
+        if(data.transactions && data.transactions.length > 0) {
+            data.transactions.forEach(t => {
+                const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
+                const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
+                txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
+            });
+        } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
+        txList.innerHTML = txHtml;
+
+        const tasksList = getEl('report-360-tasks-list');
+        let tasksHtml = '';
+        if(data.tasksSummary && data.tasksSummary.length > 0) {
+            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
+            data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
+        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
+        tasksList.innerHTML = tasksHtml;
+
+        getEl('report-360-modal').classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח'); }
 }
 
 function download360PDF() {
@@ -2774,8 +2533,14 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
+let storeCatalogCache = [];
+let storeOrdersCache = [];
+let currentModifiersUI = []; 
+let storeModifierPresets = [];
+let currentStoreOrderId = null;
+
 function switchSalesTab(subTab) {
-    ['orders', 'catalog', 'marketing', 'settings', 'quotes'].forEach(t => {
+    ['orders', 'catalog', 'marketing', 'settings'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     });
@@ -2786,1048 +2551,137 @@ function switchSalesTab(subTab) {
     if(subTab === 'catalog') fetchStoreCatalog();
     if(subTab === 'marketing') fetchStoreMarketing(); 
     if(subTab === 'settings') fetchStoreSettings();
-    if(subTab === 'quotes') {
-        const list = getEl('store-quotes-list');
-        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
-        fetchStoreQuotes();
-    }
 }
 
-async function fetchStoreQuotes() {
+// === Marketing (Promotions & Coupons) ===
+let storePromotionsCache = [];
+
+async function fetchStoreMarketing() {
+    fetchStoreCoupons();
+    fetchStorePromotions();
+}
+
+async function fetchStorePromotions() {
     try {
-        console.log(`Fetching quotes for group: ${currentGroup.id}`);
-        const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
+        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
         const data = await res.json();
-        console.log("Quotes data from server:", data);
-        
-        const list = getEl('store-quotes-list');
-        if(!list) {
-            console.warn("store-quotes-list element not found in DOM");
-            return;
+        if (data.success) {
+            storePromotionsCache = data.promotions || [];
+            renderStorePromotions();
         }
-        
-        if (!data || !data.success || !data.quotes || data.quotes.length === 0) {
-            list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
-            storeQuotesCache = []; 
-            return;
-        }
-
-        storeQuotesCache = data.quotes;
-        renderStoreQuotes();
-    } catch(e) {
-        console.error("Error fetching quotes:", e);
-        const list = getEl('store-quotes-list');
-        if(list) list.innerHTML = '<p class="text-center text-red-500 py-8 bg-red-50 rounded-2xl border border-dashed border-red-200">שגיאה בטעינת הנתונים.</p>';
-    }
+    } catch(e) { console.error(e); }
 }
 
-function renderStoreQuotes() {
-    const list = getEl('store-quotes-list');
+function renderStorePromotions() {
+    const list = getEl('store-promotions-list');
     if(!list) return;
     
-    if(!storeQuotesCache || storeQuotesCache.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
+    if (storePromotionsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא מוגדרים מבצעים פעילים.</p>';
         return;
     }
     
-    const statuses = {
-        'draft': 'טיוטה (טרם נשלחה)',
-        'sent': 'נשלחה ללקוח',
-        'waiting_customer': 'ממתינה לאישור לקוח',
-        'frozen': 'הוקפאה / הושהתה',
-        'cancelled': 'בוטלה ע"י הלקוח'
-    };
-
     let html = '';
-    
-    storeQuotesCache.forEach(q => {
-        try {
-            const currentStatus = q.quote_status || 'draft';
-            const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
-            
-            const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
-            const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : "תאריך לא ידוע";
-            
-            html += `
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
-                        <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
-                        <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
-                    </div>
-                    <div class="flex flex-col items-end gap-2 shrink-0">
-                        <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;">
-                            ${optionsHtml}
-                        </select>
-                        <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
+    storePromotionsCache.forEach(p => {
+        let desc = '';
+        if (p.promo_type === 'discount_pct') desc = `${p.promo_value}% הנחה`;
+        else if (p.promo_type === 'bogo') desc = `1+1 מתנה (עד ₪${p.promo_value})`;
+        else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
+
+        let targetArray = [];
+        if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+        else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+        
+        let targetDesc = p.target_type === 'all' ? 'חל על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
+        const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
+        const createdStr = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '';
+        const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
+        const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
+        
+        // תצוגה באדמין איפה המבצע מופיע (באנר / טאב)
+        const isBanner = p.show_in_banner === true || String(p.show_in_banner) === 'true';
+        const isTab = p.show_in_tab === true || String(p.show_in_tab) === 'true';
+
+        html += `
+        <div class="flex flex-col bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3 relative hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"><i class="fa-solid fa-gift"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5 font-medium">${targetDesc}</p>
+                        <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock"></i> תוקף: ${startStr} - ${endStr}</p>
+                        <div class="flex gap-2 mt-1">
+                            ${isBanner ? '<span class="text-[9px] bg-blue-50 text-blue-600 px-1.5 rounded border border-blue-100"><i class="fa-regular fa-eye"></i> באנר עליון</span>' : ''}
+                            ${isTab ? '<span class="text-[9px] bg-purple-50 text-purple-600 px-1.5 rounded border border-purple-100"><i class="fa-solid fa-layer-group"></i> טאב מבצעים</span>' : ''}
+                        </div>
                     </div>
                 </div>
-                <div class="flex gap-2 border-t border-slate-100 pt-3">
-                    <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
-                    <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
-                    <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone || '')}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
+                    <div class="text-[9px] text-slate-400">נוצר: ${createdStr}</div>
                 </div>
-            </div>`;
-        } catch(err) {
-            console.error("Error rendering specific quote:", err, q);
-        }
+            </div>
+            <div class="flex gap-2 border-t border-slate-50 pt-3">
+                <button onclick="openPromotionModal(${p.id})" class="flex-1 text-slate-500 bg-slate-50 hover:bg-slate-100 py-1.5 rounded-lg text-xs font-bold transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-pen"></i> עריכה</button>
+                <button onclick="deleteStorePromotion(${p.id})" class="w-10 text-slate-400 bg-slate-50 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+        </div>`;
     });
-    
     list.innerHTML = html;
 }
 
-async function updateQuoteStatus(id, status) {
-    try {
-        await fetch(`${API}/store/quotes/${id}/status`, {
-            method: 'PATCH', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ quoteStatus: status })
-        });
-        showToast('success', 'סטטוס הצעת המחיר עודכן');
-    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
-}
-
-let currentActionTargetId = null;
-let currentActionType = null; 
-
-window.approveQuoteToOrder = function(id) {
-    currentActionTargetId = id;
-    currentActionType = 'quote';
-    getEl('target-datetime-input').value = '';
-    getEl('target-date-modal-title').innerText = 'אישור הצעת מחיר';
-    getEl('target-date-modal-desc').innerText = 'ההצעה תאושר ותעבור מיד לרשימת ההזמנות. ניתן להגדיר תאריך ושעת יעד לאספקה:';
-    getEl('target-datetime-modal').classList.remove('hidden');
-};
-
-async function editOrderTargetDate(orderId, currentDate) {
-    currentActionTargetId = orderId;
-    currentActionType = 'order';
-    let formattedDate = '';
-    if (currentDate && currentDate !== 'null' && currentDate !== '') {
-        try {
-            const d = new Date(currentDate);
-            formattedDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
-        } catch(e) {}
-    }
-    getEl('target-datetime-input').value = formattedDate;
-    getEl('target-date-modal-title').innerText = 'עדכון יעד אספקה';
-    getEl('target-date-modal-desc').innerText = 'בחר תאריך ושעה מעודכנים ליעד מסירת ההזמנה ללקוח:';
-    getEl('target-datetime-modal').classList.remove('hidden');
-}
-
-let selectedQuoteItems = {};
-let editingQuoteId = null;
-
-window.getQuotePresets = function(type) {
-    try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
-};
-
-window.saveQuotePreset = function(type) {
-    const valToSave = getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value.trim();
-    if(!valToSave) return showToast('error', 'הטקסט ריק, אין מה לשמור');
-    const presets = window.getQuotePresets(type);
-    if(!presets.includes(valToSave)) { 
-        presets.push(valToSave); 
-        localStorage.setItem(`ofl_quote_presets_${type}`, JSON.stringify(presets)); 
-        showToast('success', 'נשמר כתבנית לשימוש עתידי!'); 
-        window.ensureQuoteHeaders(true); 
-    } else {
-        showToast('info', 'התבנית הזו כבר שמורה');
-    }
-};
-
-window.applyQuotePreset = function(type, idx) {
-    if(idx === '') return;
-    const presets = window.getQuotePresets(type);
-    if(presets[idx]) getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value = presets[idx];
-};
-
-window.generateQuoteAI = async function(type, btnElement) {
-    const custName = val('quote-cust-name') || 'לקוח יקר';
-    const query = type === 'intro' 
-        ? `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.` 
-        : `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע"מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;
+function openPromotionModal(id = null) {
+    const modal = getEl('promotion-modal');
+    if (!modal) return;
     
-    const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    
-    const originalHtml = btnElement ? btnElement.innerHTML : '';
-    if (btnElement) {
-        btnElement.disabled = true;
-        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
-    }
-    
-    showToast('info', 'ה-AI מעבד בקשה, המתן מספר שניות...');
-    
-    try {
-        const res = await fetch(`${API}/biz/chat-assistant`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ 
-                query: query, 
-                context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }), 
-                groupId: currentGroup.id 
-            }) 
-        });
-        const data = await res.json();
-        
-        if (data.error === 'BATTERY_EMPTY') {
-            handleAIResponseCheck(data);
-            return;
-        }
-        
-        if (data.success && data.answer) { 
-            let finalOutput = data.answer.replace(/["*]/g, '').trim();
-            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim(); 
-            getEl(targetId).value = finalOutput;
-            showToast('success', 'הטקסט הושלם בהצלחה!'); 
-        } else { 
-            showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית'); 
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת רשת מול שרת ה-AI'); 
-    } finally {
-        if (btnElement) {
-            btnElement.disabled = false;
-            btnElement.innerHTML = originalHtml;
-        }
-    }
-};
-
-window.ensureQuoteHeaders = function(forceRefresh = false) {
-    const introPresets = window.getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
-    const notesPresets = window.getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
-
-    const introLabel = getEl('quote-intro-text')?.previousElementSibling;
-    if(introLabel && (introLabel.tagName === 'LABEL' || forceRefresh)) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-between items-center mb-1 mt-2';
-        wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
-            <div class="flex gap-1">
-                <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${introPresets}</select>
-                <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-            </div>`;
-        if (introLabel.tagName === 'DIV') introLabel.replaceWith(wrapper);
-        else introLabel.replaceWith(wrapper);
-    }
-    const notesLabel = getEl('quote-notes')?.previousElementSibling;
-    if(notesLabel && (notesLabel.tagName === 'LABEL' || forceRefresh)) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-between items-center mb-1 mt-2';
-        wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-            <div class="flex gap-1">
-                <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${notesPresets}</select>
-                <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-            </div>`;
-        if (notesLabel.tagName === 'DIV') notesLabel.replaceWith(wrapper);
-        else notesLabel.replaceWith(wrapper);
-    }
-};
-
-window.openNewQuoteModal = async function(skipDataReset = false) {
-    if(!skipDataReset) { selectedQuoteItems = {}; editingQuoteId = null; }
-    
-    if(!storeCatalogCache || storeCatalogCache.length === 0) {
-        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); } catch(e) {}
-    }
-    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם.');
-    
-    // מחיקת טופס ישן אם קיים כדי לאתחל אותו נקי
-    const existingModal = getEl('quote-modal');
-    if (existingModal && !skipDataReset) existingModal.remove();
-
-    // הזרקת המודאל עם המבנה החדש (טקסטים למעלה, חיפוש למטה)
-    if (!getEl('quote-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
-                <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> יצירת הצעת מחיר</h3>
-                
-                <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה (חובה):</label>
-                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: ישראל ישראלי">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון (לשליחת ההצעה):</label>
-                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label>
-                            <input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white" placeholder="נשמר אוטומטית">
-                        </div>
-                    </div>
-
-                    <div id="quote-texts-container" class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
-                                <div class="flex gap-1">
-                                    <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                    <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                    <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-                                </div>
-                            </div>
-                            <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
-                                <input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
-                                <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                                <div class="flex gap-1">
-                                    <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                    <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                    <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-                                </div>
-                            </div>
-                            <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
-                        </div>
-                    </div>
-
-                    <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
-                    
-                    <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                        <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
-                        <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
-                            <option value="all">כל הקטגוריות</option>
-                        </select>
-                    </div>
-
-                    <div id="quote-items-selector" class="space-y-2 mb-6"></div>
-                    
-                </div>
-                
-                <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-sm font-bold text-slate-500" id="quote-before-discount"></span>
-                        <div class="text-left">
-                            <span class="text-xs font-bold text-slate-500 ml-2">סה"כ לתשלום:</span>
-                            <span id="quote-total-display" class="text-2xl font-black text-indigo-600 dir-ltr">₪0.00</span>
-                        </div>
-                    </div>
-                    <div class="flex gap-3">
-                        <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `);
+    if (!getEl('promo-id')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'promo-id';
+        modal.querySelector('.space-y-4').prepend(input);
     }
 
-    const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
-
-    // עדכון קטגוריות ב-Select
-    const catSelect = getEl('quote-cat-filter');
-    if (catSelect) {
-        const cats = [...new Set(storeCatalogCache.map(p => p.category || 'כללי'))];
-        let catOptions = '<option value="all">כל הקטגוריות</option>';
-        cats.forEach(c => catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`);
-        catSelect.innerHTML = catOptions;
-    }
-
-    if(!skipDataReset) {
-        getEl('quote-cust-name').value = '';
-        getEl('quote-cust-phone').value = '';
-        getEl('quote-company-id').value = savedCompanyId;
-        getEl('quote-notes').value = '';
-        getEl('quote-discount').value = '';
-        getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = '';
-        getEl('quote-total-display').innerText = '₪0.00';
-        if(getEl('quote-search-item')) getEl('quote-search-item').value = '';
-        if(getEl('quote-cat-filter')) getEl('quote-cat-filter').value = 'all';
-        const beforeEl = getEl('quote-before-discount');
-        if(beforeEl) beforeEl.innerText = '';
-        getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
-    }
-    
-    window.renderQuoteItemsList(); 
-    window.ensureQuoteHeaders(true);
-    getEl('quote-modal').classList.remove('hidden');
-};
-
-window.renderQuoteItemsList = function() {
-    const selector = getEl('quote-items-selector');
-    if (!selector || !storeCatalogCache) return;
-
-    const searchTerm = (getEl('quote-search-item')?.value || '').toLowerCase();
-    const catFilter = getEl('quote-cat-filter')?.value || 'all';
-
-    const filteredCatalog = storeCatalogCache.filter(p => {
-        const matchSearch = p.name.toLowerCase().includes(searchTerm);
-        const matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
-        return matchSearch && matchCat;
-    });
-
-    if (filteredCatalog.length === 0) {
-        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש</p>';
-        return;
-    }
-
-    selector.innerHTML = filteredCatalog.map(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
-        const existingQty = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].quantity : '';
-        const existingPrice = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].price_at_order : (parseFloat(p.price) || 0);
-        const existingNote = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].note : '';
-        
-        return `
-        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200">
-            ${imgHtml}
-            <div class="flex-1 min-w-0">
-                <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="window.updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)..." class="modern-input py-1 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200">
-            </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-32">
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
-                </div>
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
-                </div>
-            </div>
-        </div>
-    `}).join('');
-};
-
-window.updateQuoteItem = function(id, name, imgUrl) {
-    const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
-    const price = parseFloat(getEl(`quote-price-${id}`)?.value) || 0;
-    const note = getEl(`quote-note-${id}`)?.value || '';
-    
-    if (qty > 0) {
-        selectedQuoteItems[id] = { id, name, image_url: imgUrl, price_at_order: price, quantity: qty, note: note };
-    } else {
-        delete selectedQuoteItems[id];
-    }
-    window.calcQuoteTotal();
-    
-    const row = getEl(`quote-qty-${id}`).closest('.flex.items-start');
-    if (row) {
-        if (qty > 0) {
-            row.classList.add('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
-            row.classList.remove('border-slate-100', 'shadow-sm');
-        } else {
-            row.classList.remove('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
-            row.classList.add('border-slate-100', 'shadow-sm');
-        }
-    }
-};
-
-window.calcQuoteTotal = function() {
-    let subtotal = 0;
-    Object.values(selectedQuoteItems).forEach(i => subtotal += (i.quantity * i.price_at_order));
-    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
-    const total = subtotal * (1 - discount / 100);
-    const beforeEl = getEl('quote-before-discount');
-    if(beforeEl) beforeEl.innerText = discount > 0 ? `לפני הנחה: ₪${subtotal.toFixed(2)}` : '';
-    getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
-};
-
-window.submitNewQuote = async function() {
-    const name = val('quote-cust-name');
-    const companyId = val('quote-company-id');
-    const phone = val('quote-cust-phone');
-    if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
-
-    if (companyId) localStorage.setItem('ofl_company_id', companyId);
-
-    const btn = getEl('btn-generate-quote');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר ומפיק...';
-
-    const editId = editingQuoteId;
-    editingQuoteId = null;
-
-    const items = Object.values(selectedQuoteItems);
-    let subtotal = 0; items.forEach(i => subtotal += (i.quantity * i.price_at_order));
-    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
-    const total = subtotal * (1 - discount / 100);
-
-    const notesData = JSON.stringify({
-        notes: val('quote-notes') || '', 
-        introText: val('quote-intro-text') || '', 
-        validity: val('quote-validity') || '', 
-        discount, companyId
-    });
-
-    const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
-
-    try {
-        const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
-        const method = editId ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-            method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items: safeItemsToSave, totalAmount: total })
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            try { triggerConfetti(); } catch(e) {}
-            showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
-            getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes(); 
-            
-            if (!editId) {
-                try {
-                    await fetch(`${API}/store/customers`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ groupId: currentGroup.id, name: name, phone: phone, email: '', businessId: companyId, notes: 'נוצר אוטומטית מיצירת הצעת מחיר' })
-                    });
-                    if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
-                } catch(e) {}
-            }
-            
-            const createdId = editId || data.quoteId || data.id; 
-            if (createdId) { setTimeout(() => window.openQuotePreview(createdId), 800); }
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת ההצעה');
-        }
-     } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
-};
-
-window.shareQuoteWhatsApp = function(id, phone) {
-    const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
-    window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
-};
-
-let currentPreviewQuoteId = null;
-
-window.openQuotePreview = async function(id) {
-    const quote = storeQuotesCache.find(q => q.id == id);
-    if(!quote) return;
-    currentPreviewQuoteId = id;
-    let settings = {};
-    try { const r = await fetch(`${API}/store/settings/${currentGroup.id}`); const d = await r.json(); if(d.success) settings = d.settings; } catch(e) {}
-    
-    // פונקציית יצירת ה-HTML פנימית כדי למנוע תלות
-    const html = (function generateQuoteHtmlLocal() {
-        let notesObj = {};
-        const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
-        
-        const metaItem = allItems.find(i => i.is_quote_metadata);
-        if (metaItem) {
-            try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
-        } else {
-            try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
-        }
-        
-        const items = allItems.filter(i => !i.is_quote_metadata);
-        const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
-
-        const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
-        const validity = notesObj.validity || '';
-        const discount = parseFloat(notesObj.discount) || 0;
-        const companyId = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
-        const notesText = (notesObj.notes || '').replace(/\n/g,'<br>');
-        
-        let subtotal = 0; items.forEach(i => subtotal += (parseFloat(i.quantity)||0) * (parseFloat(i.price_at_order)||0));
-        const total = subtotal * (1 - discount / 100);
-        const logo = settings.logo_url || '';
-        const phone = settings.phone || settings.whatsapp_number || '';
-        const bname = safeStr(currentGroup.name || '');
-        const date = new Date(quote.created_at).toLocaleDateString('he-IL');
-        
-        const rowsHtml = items.map((item, i) => `
-            <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
-                <td style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
-                        <div style="direction:rtl; text-align:right;">
-                            ${nb(safeStr(item.name||item.item_name||''))}
-                            ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${nb(safeStr(item.note))}</div>` : ''}
-                        </div>
-                    </div>
-                </td>
-                <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
-                <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-                <td style="padding:6px 10px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
-            </tr>`).join('');
-            
-        return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
-                <div style="text-align:right; direction:rtl;">
-                    <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">${nb('הצעת מחיר')}</h1>
-                    <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="font-weight:bold;">${nb('מספר:')}&#x200F;</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="font-weight:bold;">${nb('תאריך:')}&#x200F;</span> <span dir="ltr">${date}</span></p>
-                </div>
-                ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0; direction:rtl;">${nb(bname)}</h2>`}
-            </div>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-                <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
-                    <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">${nb('מאת (הספק):')}&#x200F;</p>
-                    <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(bname)}</p>
-                    ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="font-weight:bold;">${nb('ח.פ / ע.מ:')}&#x200F;</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                    ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(phone)}</span></p>` : ''}
-                </div>
-                <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right; direction:rtl;">
-                    <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">${nb('עבור (הלקוח):')}&#x200F;</p>
-                    <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(safeStr(quote.customer_name))}</p>
-                    ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
-                </div>
-            </div>
-            
-            ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; direction:rtl; line-height:1.4;">${nb(introText)}</div>` : ''}
-            
-            <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; direction:rtl; border:1px solid #e2e8f0;">
-                <thead>
-                    <tr style="background:#4f46e5; color:white;">
-                        <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">${nb('פריט מבוקש')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">${nb('כמות')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('מחיר יחידה')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('סה"כ')}</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            
-            <div style="display:flex; justify-content:flex-start; margin-bottom:16px; direction:ltr;">
-                <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
-                        <span style="font-size:12px; color:#64748b;">${nb('סכום ביניים:')}&#x200F;</span>
-                    </div>
-                    ${discount > 0 ? `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
-                        <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
-                        <span style="font-size:12px; color:#ef4444;">${nb('הנחה')} (${discount}%):&#x200F;</span>
-                    </div>` : ''}
-                    <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
-                        <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
-                        <span style="font-size:14px; font-weight:900; color:#1e293b;">${nb('סה"כ לתשלום:')}&#x200F;</span>
-                    </div>
-                </div>
-            </div>
-            
-            ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; direction:rtl;"><span style="font-weight:bold;">${nb('תוקף ההצעה:')}&#x200F;</span> <span dir="rtl">${nb(safeStr(validity))}</span></p>` : ''}
-            ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; word-wrap:break-word; max-width:100%; text-align:right; direction:rtl; line-height:1.4;">${nb(notesText)}</div>` : ''}
-        </div>`;
-    })();
-    
-    getEl('quote-preview-content').innerHTML = `<div class="modal-scroll" style="background:white; margin:8px; border-radius:12px; overflow-y:auto; overflow-x:hidden; max-height:65vh; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);">${html}</div>`;
-    getEl('quote-preview-modal').classList.remove('hidden');
-};
-
-window.editQuoteFromPreview = function() {
-    getEl('quote-preview-modal').classList.add('hidden');
-    if(currentPreviewQuoteId) window.openEditQuoteModal(currentPreviewQuoteId);
-};
-
-window.downloadCurrentQuotePDF = async function() {
-    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
-    if(!quote) return;
-    
-    const isLoaded = await loadHtml2Pdf();
-    if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מפיק ומוריד מסמך PDF...');
-    
-    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
-    const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
-
-    const elementToPrint = getEl('quote-preview-content').firstElementChild;
-    if (!elementToPrint) return showToast('error', 'לא נמצא תוכן להדפסה');
-
-    const opt = { 
-        margin: [5, 5, 5, 5], 
-        filename: pdfFilename, 
-        image: { type: 'jpeg', quality: 1 }, 
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(elementToPrint).save().then(() => { 
-        showToast('success','הורד בהצלחה למכשיר!'); 
-    }).catch(err => {
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-    });
-};
-
-window.openEditQuoteModal = async function(id) {
-    const quote = storeQuotesCache.find(q => q.id == id);
-    if(!quote) return;
-    editingQuoteId = id;
-    
-    const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
-    
-    let notesObj = {};
-    const metaItem = allItems.find(i => i.is_quote_metadata);
-    if (metaItem) {
-        try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
-    } else {
-        try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
-    }
-    
-    const actualItems = allItems.filter(i => !i.is_quote_metadata);
-    
-    selectedQuoteItems = {};
-    actualItems.forEach(item => {
-        if(item.quantity > 0) {
-            selectedQuoteItems[item.id || item.item_name] = { 
-                id: item.id || item.item_name, 
-                name: item.name || item.item_name || '', 
-                image_url: item.image_url || '',
-                price_at_order: parseFloat(item.price_at_order) || 0, 
-                quantity: parseFloat(item.quantity) || 0,
-                note: item.note || ''
-            };
-        }
-    });
-
-    await window.openNewQuoteModal(true);
-    
-    getEl('quote-cust-name').value = quote.customer_name || '';
-    getEl('quote-cust-phone').value = quote.customer_phone || '';
-    if(getEl('quote-company-id')) getEl('quote-company-id').value = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
-    if(getEl('quote-intro-text')) getEl('quote-intro-text').value = notesObj.introText || '';
-    if(getEl('quote-validity')) getEl('quote-validity').value = notesObj.validity || '14 יום';
-    if(getEl('quote-discount')) getEl('quote-discount').value = notesObj.discount || '';
-    if(getEl('quote-notes')) getEl('quote-notes').value = notesObj.notes || '';
-
-    window.calcQuoteTotal();
-    getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
-};
-
-window.fetchStoreCustomers = async function() {
-    try {
-        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            storeCustomersCache = data.customers || [];
-            window.renderStoreCustomers();
-        }
-    } catch(e) { console.error('Error fetching customers:', e); }
-};
-
-window.renderStoreCustomers = function() {
-    const list = getEl('store-customers-list');
-    if (!list) return;
-
-    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
-    const filterType = val('filter-customer-type') || 'all';
-
-    let filtered = storeCustomersCache.filter(c => {
-        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
-        return searchStr.includes(searchTerm);
-    });
-
-    if (filterType === 'order') {
-        filtered = filtered.filter(c => (storeOrdersCache || []).some(o => 
-            (o.customer_name === c.name || (c.phone && o.customer_phone === c.phone)) && 
-            o.status !== 'quote' && 
-            (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft')
-        ));
-    } else if (filterType === 'quote') {
-        filtered = filtered.filter(c =>
-            (storeQuotesCache || []).some(q => q.customer_name === c.name || (c.phone && q.customer_phone === c.phone)) ||
-            (storeOrdersCache || []).some(o => (o.customer_name === c.name || (c.phone && o.customer_phone === c.phone)) && o.quote_status === 'approved')
-        );
-    }
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
-        return;
-    }
-
-    list.innerHTML = filtered.map(c => {
-        const initial = (c.name || '?').charAt(0).toUpperCase();
-        return `
-        <div onclick="if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'history')" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md hover:border-indigo-200 transition cursor-pointer mb-3">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
-                    ${initial}
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
-                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
-                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
-                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
-                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
-                <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
-            </div>
-        </div>
-    `}).join('');
-};
-
-window.switchCustomerMainTab = function(tab) {
-    const listBtn = getEl('btn-cust-main-list');
-    const histBtn = getEl('btn-cust-main-history');
-    const listView = getEl('cust-main-view-list');
-    const histView = getEl('cust-main-view-history');
-    
-    if (!listView || !histView) return;
-
-    if (tab === 'list') {
-        if(listBtn) listBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        if(histBtn) histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-        listView.classList.remove('hidden');
-        histView.classList.add('hidden');
-        
-        if (typeof window.fetchStoreCustomers === 'function') {
-            window.fetchStoreCustomers();
-        }
-    } else {
-        if(histBtn) histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        if(listBtn) listBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-        listView.classList.add('hidden');
-        histView.classList.remove('hidden');
-        
-        if (typeof window.renderCustomerHistory === 'function') {
-            window.renderCustomerHistory(false, 'main');
-        }
-    }
-};
-
-window.renderCustomerHistory = async function(forceSync = false, context = 'modal') {
-    const listContainer = context === 'main' ? getEl('cust-main-history-list') : getEl('cust-history-list');
-    if (!listContainer) return;
-
-    let custName = '';
-    let custPhone = '';
-
-    if (context === 'modal') {
-        const custId = val('cust-id');
-        const custData = storeCustomersCache.find(c => String(c.id) === String(custId));
-        custName = (custData && custData.name ? custData.name : val('cust-name') || '').trim();
-        custPhone = (custData && custData.phone ? custData.phone : val('cust-phone') || '').trim();
-        
-        const summaryEl = getEl('cust-history-summary');
-        if (summaryEl) summaryEl.innerText = custName ? `הזמנות והצעות: ${custName}` : 'היסטוריית הזמנות כללית';
-    }
-
-    if (forceSync) {
-        listContainer.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מסנכרן נתונים מהשרת...</p>';
-        try { await fetchStoreOrders(); } catch(e) {}
-        try { await fetchStoreQuotes(); } catch(e) {}
-        
-        const syncBtnId = context === 'main' ? 'btn-sync-main-history' : 'btn-sync-history';
-        const syncBtn = getEl(syncBtnId);
-        if(syncBtn) {
-            const origHTML = syncBtn.innerHTML;
-            syncBtn.innerHTML = '<i class="fa-solid fa-check"></i> מסונכרן';
-            setTimeout(() => { if(syncBtn) syncBtn.innerHTML = origHTML; }, 2000);
-        }
-    } else {
-        if (!storeOrdersCache || storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
-        if (!storeQuotesCache || storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
-    }
-
-    const searchInputId = context === 'main' ? 'cust-main-history-search' : 'cust-history-search';
-    const searchQuery = (val(searchInputId) || '').toLowerCase();
-    
-    const match = (o) => {
-        const oName = (o.customer_name || '').trim().toLowerCase();
-        const oPhone = (o.customer_phone || '').trim().replace(/\D/g,'');
-        
-        if (context === 'modal' && (custName || custPhone)) {
-            const targetName = custName.toLowerCase();
-            const targetPhone = custPhone.replace(/\D/g,'');
-            const nameMatch = targetName && oName.includes(targetName);
-            const phoneMatch = targetPhone && oPhone.includes(targetPhone);
-            if (!nameMatch && !phoneMatch) return false; 
-        }
-        
-        if (!searchQuery) return true;
-        return String(o.id).includes(searchQuery) || 
-               (o.total_amount && String(o.total_amount).includes(searchQuery)) ||
-               oName.includes(searchQuery) ||
-               oPhone.includes(searchQuery);
-    };
-
-    let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-2">הזמנות חנות:</h4>';
-    
-    const orders = (storeOrdersCache || []).filter(o => 
-        match(o) && 
-        o.status !== 'quote' && 
-        (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft')
-    );
-    
-    if (orders.length > 0) {
-        orders.forEach(o => {
-            historyHtml += `
-            <div onclick="if(typeof openStoreOrderModal === 'function') openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition">
-                <div>
-                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-indigo-400 text-[10px]"></i> הזמנה #${o.id}</span>
-                    <span class="text-[10px] text-slate-500 block">${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
-                </div>
-                <span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
-            </div>`;
-        });
-    } else { 
-        historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות.</p>'; 
-    }
-
-    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (פתוחות ואושרו):</h4>';
-    
-    const pendingQuotes = (storeQuotesCache || []).filter(match); 
-    const approvedQuotes = (storeOrdersCache || []).filter(o => match(o) && o.quote_status === 'approved'); 
-    
-    if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
-        pendingQuotes.forEach(q => {
-            const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
-            const sTxt = sMap[q.quote_status] || 'ממתינה';
-            historyHtml += `
-            <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
-                <div>
-                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id}</span>
-                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${safeStr(q.customer_name)} | ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
-                </div>
-                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
-            </div>`;
-        });
-        approvedQuotes.forEach(o => {
-            historyHtml += `
-            <div onclick="if(typeof openStoreOrderModal === 'function') openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-green-50 hover:border-green-200 transition">
-                <div>
-                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id}</span>
-                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
-                </div>
-                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
-            </div>`;
-        });
-    } else { 
-        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר.</p>'; 
-    }
-
-    listContainer.innerHTML = historyHtml;
-};
-
-window.switchCustomerTab = async function(tab) {
-    const viewDetails = getEl('cust-view-details');
-    const viewHistory = getEl('cust-view-history');
-    const btnDetails = getEl('btn-cust-tab-details');
-    const btnHistory = getEl('btn-cust-tab-history');
-    const btnSubmit = getEl('btn-submit-customer');
-    const btnCancel = getEl('btn-cancel-customer');
-    
-    if (!viewDetails || !viewHistory) return;
-
-    viewDetails.classList.add('hidden');
-    viewHistory.classList.add('hidden');
-    
-    if(btnDetails) {
-        btnDetails.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        btnDetails.classList.add('text-slate-500', 'hover:text-slate-700');
-    }
-    
-    if(btnHistory) {
-        btnHistory.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        btnHistory.classList.add('text-slate-500', 'hover:text-slate-700');
-    }
-
-    getEl(`cust-view-${tab}`).classList.remove('hidden');
-    const activeBtn = getEl(`btn-cust-tab-${tab}`);
-    if(activeBtn) {
-        activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
-        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-    }
-
-    if (tab === 'history') {
-        if(btnSubmit) btnSubmit.classList.add('hidden');
-        if(btnCancel) { btnCancel.classList.replace('w-1/3', 'w-full'); btnCancel.innerText = 'סגור חלון'; }
-        
-        getEl('cust-history-list').innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען היסטוריה...</p>';
-        window.renderCustomerHistory(false, 'modal');
-    } else {
-        if(btnSubmit) btnSubmit.classList.remove('hidden');
-        if(btnCancel) { btnCancel.classList.replace('w-full', 'w-1/3'); btnCancel.innerText = 'ביטול'; }
-    }
-};
-
-window.openCustomerModal = function(id = null, tab = 'details') {
-    let modal = getEl('customer-modal');
-    if (modal) modal.remove(); 
-
-    document.body.insertAdjacentHTML('beforeend', `
-    <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
-            <button onclick="document.getElementById('customer-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0">כרטיס לקוח</h3>
-            <input type="hidden" id="cust-id">
-            
-            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto whitespace-nowrap shrink-0">
-                <button id="btn-cust-tab-details" onclick="window.switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים</button>
-                <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
-            </div>
-            
-            <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
-                <div class="space-y-3 pb-2">
-                    <div><label class="text-xs font-bold text-slate-500">שם לקוח / עסק (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
-                    <div><label class="text-xs font-bold text-slate-500">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
-                    <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
-                    <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
-                    <div><label class="text-xs font-bold text-slate-500">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm bg-white h-20"></textarea></div>
-                </div>
-            </div>
-
-            <div id="cust-view-history" class="hidden flex-1 overflow-y-auto modal-scroll pr-1 flex flex-col">
-                <div class="flex justify-between items-center mb-3 shrink-0">
-                    <p id="cust-history-summary" class="text-xs font-bold text-slate-500"></p>
-                    <button id="btn-sync-history" onclick="window.renderCustomerHistory(true, 'modal')" class="text-[10px] bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 px-2 py-1 rounded border border-slate-200 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן</button>
-                </div>
-                <div class="relative mb-3 shrink-0">
-                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory(false, 'modal')" placeholder="חיפוש בהיסטוריה (שם, סכום, מספר)..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200 focus:border-indigo-400 outline-none transition">
-                </div>
-                <div id="cust-history-list" class="space-y-2 pb-2 flex-1 overflow-y-auto min-h-[100px] modal-scroll"></div>
-            </div>
-            
-            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0">
-                <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button id="btn-submit-customer" onclick="window.submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
-            </div>
-        </div>
-    </div>
-    `);
-    
-    modal = getEl('customer-modal');
-    
     if (id) {
-        const c = storeCustomersCache.find(x => String(x.id) === String(id));
-        if (c) {
-            if(getEl('cust-id')) getEl('cust-id').value = c.id;
-            getEl('cust-name').value = c.name || '';
-            getEl('cust-phone').value = c.phone || '';
-            getEl('cust-email').value = c.email || '';
-            getEl('cust-business-id').value = c.business_id || '';
-            getEl('cust-notes').value = c.notes || '';
-            // חשוב: מציג את הטאב של ההיסטוריה רק ללקוח קיים
-            getEl('btn-cust-tab-history').classList.remove('hidden'); 
+        const p = storePromotionsCache.find(x => x.id === id);
+        if (p) {
+            getEl('promo-id').value = p.id;
+            getEl('promo-title').value = p.title;
+            getEl('promo-type').value = p.promo_type;
+            getEl('promo-value').value = p.promo_value || '';
+            getEl('promo-target-type').value = p.target_type;
+            
+            let targetArray = [];
+            if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+            else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+            getEl('promo-target-category').value = targetArray.length > 0 ? targetArray[0] : '';
+            
+            getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            
+            if(getEl('promo-show-banner')) getEl('promo-show-banner').checked = p.show_in_banner === true || String(p.show_in_banner) === 'true';
+            if(getEl('promo-show-tab')) getEl('promo-show-tab').checked = p.show_in_tab === true || String(p.show_in_tab) === 'true';
+            if(getEl('promo-bg-color')) getEl('promo-bg-color').value = p.bg_color || 'pink';
         }
     } else {
-        if(getEl('cust-id')) getEl('cust-id').value = '';
-        getEl('cust-name').value = '';
-        getEl('cust-phone').value = '';
-        getEl('cust-email').value = '';
-        getEl('cust-business-id').value = '';
-        getEl('cust-notes').value = '';
-        // חשוב: מסתיר את הטאב של ההיסטוריה ללקוח חדש שטרם נשמר
-        getEl('btn-cust-tab-history').classList.add('hidden');
-        tab = 'details';
+        getEl('promo-id').value = '';
+        getEl('promo-title').value = '';
+        getEl('promo-type').value = 'discount_pct';
+        getEl('promo-value').value = '';
+        getEl('promo-target-type').value = 'all';
+        getEl('promo-target-category').value = '';
+        getEl('promo-start-date').value = '';
+        getEl('promo-end-date').value = '';
+        if(getEl('promo-show-banner')) getEl('promo-show-banner').checked = true;
+        if(getEl('promo-show-tab')) getEl('promo-show-tab').checked = true;
+        if(getEl('promo-bg-color')) getEl('promo-bg-color').value = 'pink';
     }
     
-    window.switchCustomerTab(tab);
+    togglePromoValueInput();
+    togglePromoTargetInput();
     modal.classList.remove('hidden');
-};
+}
 
 function togglePromoValueInput() {
     const type = val('promo-type');
@@ -3904,6 +2758,198 @@ async function deleteStorePromotion(id) {
 async function toggleStorePromotion(id, isActive) {
     try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
 }
+
+async function fetchStoreSettings() {
+    fetchStoreCoupons();
+    fetchStorePromotions();
+}
+
+async function fetchStorePromotions() {
+    try {
+        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storePromotionsCache = data.promotions || [];
+            renderStorePromotions();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderStorePromotions() {
+    const list = getEl('store-promotions-list');
+    if(!list) return;
+    
+    if (storePromotionsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא מוגדרים מבצעים פעילים.</p>';
+        return;
+    }
+    
+    let html = '';
+    storePromotionsCache.forEach(p => {
+        let desc = '';
+        if (p.promo_type === 'discount_pct') desc = `${p.promo_value}% הנחה`;
+        else if (p.promo_type === 'bogo') desc = `1+1 מתנה (עד ₪${p.promo_value})`;
+        else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
+
+        let targetArray = [];
+        if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+        else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+        
+        let targetDesc = p.target_type === 'all' ? 'חל על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
+        const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
+        // יצירת מחרוזות תאריך יפות
+        const createdStr = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '';
+        const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
+        const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
+
+        html += `
+        <div class="flex flex-col bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3 relative hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"><i class="fa-solid fa-gift"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5 font-medium">${targetDesc}</p>
+                        <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock"></i> תוקף: ${startStr} - ${endStr}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
+                    <div class="text-[9px] text-slate-400">נוצר: ${createdStr}</div>
+                </div>
+            </div>
+            <div class="flex gap-2 border-t border-slate-50 pt-3">
+                <button onclick="openPromotionModal(${p.id})" class="flex-1 text-slate-500 bg-slate-50 hover:bg-slate-100 py-1.5 rounded-lg text-xs font-bold transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-pen"></i> עריכה</button>
+                <button onclick="deleteStorePromotion(${p.id})" class="w-10 text-slate-400 bg-slate-50 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openPromotionModal(id = null) {
+    const modal = getEl('promotion-modal');
+    if (!modal) return;
+    
+    if (!getEl('promo-id')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'promo-id';
+        modal.querySelector('.space-y-4').prepend(input);
+    }
+
+    if (id) {
+        const p = storePromotionsCache.find(x => x.id === id);
+        if (p) {
+            getEl('promo-id').value = p.id;
+            getEl('promo-title').value = p.title;
+            getEl('promo-type').value = p.promo_type;
+            getEl('promo-value').value = p.promo_value || '';
+            getEl('promo-target-type').value = p.target_type;
+            
+            let targetArray = [];
+            if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+            else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+            getEl('promo-target-category').value = targetArray.length > 0 ? targetArray[0] : '';
+            
+            getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            
+            getEl('promo-show-banner').checked = p.show_in_banner !== false;
+            getEl('promo-show-tab').checked = p.show_in_tab !== false;
+            getEl('promo-bg-color').value = p.bg_color || 'pink';
+        }
+    } else {
+        getEl('promo-id').value = '';
+        getEl('promo-title').value = '';
+        getEl('promo-type').value = 'discount_pct';
+        getEl('promo-value').value = '';
+        getEl('promo-target-type').value = 'all';
+        getEl('promo-target-category').value = '';
+        getEl('promo-start-date').value = '';
+        getEl('promo-end-date').value = '';
+        getEl('promo-show-banner').checked = true;
+        getEl('promo-show-tab').checked = true;
+        getEl('promo-bg-color').value = 'pink';
+    }
+    
+    togglePromoValueInput();
+    togglePromoTargetInput();
+    modal.classList.remove('hidden');
+}
+
+function togglePromoValueInput() {
+    const type = val('promo-type');
+    const label = getEl('promo-value-label');
+    const input = getEl('promo-value');
+    if(!label || !input) return;
+
+    if (type === 'bogo') {
+        label.innerText = 'שווי ההטבה (המקסימלי לפריט):';
+        input.placeholder = 'למשל: עד 50 ש"ח למנה מתנה';
+    } else if (type === 'discount_pct') {
+        label.innerText = 'ערך המבצע באחוזים:';
+        input.placeholder = 'למשל: 20 (%)';
+    } else {
+        label.innerText = 'המחיר הקבוע למבצע (פיקס):';
+        input.placeholder = 'למשל: 99 (₪)';
+    }
+}
+
+function togglePromoTargetInput() {
+    const type = val('promo-target-type');
+    const container = getEl('promo-target-category-container');
+    if (type === 'category') container.classList.remove('hidden');
+    else container.classList.add('hidden');
+}
+
+async function submitPromotion() {
+    const id = val('promo-id');
+    const title = val('promo-title');
+    const promoType = val('promo-type');
+    const promoValue = val('promo-value');
+    const targetType = val('promo-target-type');
+    const targetCategory = val('promo-target-category');
+    
+    if (!title) return showToast('error', 'נא להזין שם למבצע');
+    if (!promoValue) return showToast('error', 'נא להזין את ערך המבצע');
+    if (targetType === 'category' && !targetCategory) return showToast('error', 'נא להזין את שם הקטגוריה');
+
+    const btn = getEl('btn-submit-promo'); btn.disabled = true; btn.innerText = 'שומר...';
+    try {
+        const payload = { 
+            groupId: currentGroup.id, title, promoType, promoValue, targetType, 
+            targetIds: targetType === 'category' ? [targetCategory] : [],
+            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null,
+            showInBanner: getEl('promo-show-banner').checked, showInTab: getEl('promo-show-tab').checked, bgColor: val('promo-bg-color')
+        };
+        
+        const url = id ? `${API}/store/promotions/${id}` : `${API}/store/promotions`;
+        const method = id ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', id ? 'המבצע עודכן בהצלחה!' : 'המבצע נוצר ופעיל!');
+            getEl('promotion-modal').classList.add('hidden');
+            fetchStorePromotions();
+        } else { showToast('error', data.error || 'שגיאה בשמירת המבצע'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור והפעל'; }
+}
+
+async function deleteStorePromotion(id) {
+    if(!confirm('האם למחוק מבצע זה?')) return;
+    try { await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchStorePromotions(); } catch(e) {}
+}
+
+async function toggleStorePromotion(id, isActive) {
+    try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
+}
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -3920,78 +2966,11 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
-            const headerSlogan = getEl('main-header-slogan');
-            if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
-
-            // --- טיפול חכם בלוגו ---
-            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
-            
-            const deskLogo = getEl('main-header-logo-desktop');
-            const deskPlace = getEl('main-header-logo-placeholder-desktop');
-            if (deskLogo && deskPlace) {
-                if (hasLogo) {
-                    deskLogo.src = data.settings.logo_url; 
-                    deskLogo.style.display = 'block'; 
-                    deskLogo.classList.remove('hidden');
-                    deskPlace.style.display = 'none'; 
-                    deskPlace.classList.add('hidden');
-                } else {
-                    deskLogo.src = ''; 
-                    deskLogo.style.display = 'none'; 
-                    deskLogo.classList.add('hidden');
-                    deskPlace.style.display = 'flex'; 
-                    deskPlace.classList.remove('hidden');
-                }
-            }
-
-            const mobLogo = getEl('main-header-logo-mobile');
-            const mobPlace = getEl('main-header-logo-placeholder-mobile');
-            if (mobLogo && mobPlace) {
-                if (hasLogo) {
-                    mobLogo.src = data.settings.logo_url; 
-                    mobLogo.style.display = 'block'; 
-                    mobLogo.classList.remove('hidden');
-                    mobPlace.style.display = 'none'; 
-                    mobPlace.classList.add('hidden');
-                } else {
-                    mobLogo.src = ''; 
-                    mobLogo.style.display = 'none'; 
-                    mobLogo.classList.add('hidden');
-                    mobPlace.style.display = 'flex'; 
-                    mobPlace.classList.remove('hidden');
-                }
-            }
-            
-            if (hasLogo) {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => {
-                    el.src = data.settings.logo_url; el.classList.remove('hidden'); el.style.display = 'block';
-                });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = 'DELETE');
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
-            }
-
-            // --- טיפול חכם בבאנר רקע ---
-            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBannerEl = getEl('main-header-banner');
-            
-            if (hasBanner) {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
-                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
-                    el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block';
-                });
-                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
-            } else {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
-                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = 'DELETE');
+            if (data.settings.logo_url) {
+                getEl('store-logo-preview').src = data.settings.logo_url;
+                getEl('store-logo-preview').classList.remove('hidden');
+                getEl('store-logo-placeholder').classList.add('hidden');
+                getEl('store-logo-base64').value = data.settings.logo_url;
             }
 
             if (data.settings.modifier_presets) {
@@ -4004,7 +2983,7 @@ async function fetchStoreSettings() {
 
 async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
-    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    btn.disabled = true; btn.innerText = 'שומר...';
     try {
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -4012,31 +2991,13 @@ async function saveStoreSettings() {
                 groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
                 phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
                 logoUrl: val('store-logo-base64') || null,
-                bannerUrl: val('store-banner-base64') || null,
                 openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
             })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
-        // רענון טעינת ההגדרות כדי לשקף את המחיקה אם בוצעה
-        fetchStoreSettings(); 
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
-    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
+    finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
-
-window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
-        el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; 
-    });
-    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
-    
-    // סימון מפורש לשרת למחוק את התמונה
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
-    
-    if (targetIdPrefix.includes('logo')) {
-        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
-    }
-    showToast('info', 'התמונה הוסרה מהמסך. אל תשכחו ללחוץ על "שמור" למטה כדי לעדכן!');
-};
 
 function copyStoreLink() {
     const link = val('store-public-link');
@@ -4158,34 +3119,8 @@ function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].opt
 function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 
-let currentBundleStepsUI = [];
-let currentPizzaToppingsUI = [];
-
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
-    currentBundleStepsUI = [];
-    currentPizzaToppingsUI = [];
-    
-    // הזרקת הממשק להרכבת באנדל (אם לא קיים ב-HTML)
-    let bundleContainer = getEl('bundle-builder-container');
-    if (!bundleContainer) {
-        const modContainer = getEl('modifiers-builder-container');
-        if (modContainer) {
-            bundleContainer = document.createElement('div');
-            bundleContainer.id = 'bundle-builder-container';
-            bundleContainer.className = 'mt-4 border-t border-slate-100 pt-4';
-            modContainer.parentNode.insertBefore(bundleContainer, modContainer.nextSibling);
-            
-            const pTypeEl = getEl('sp-product-type');
-            if (pTypeEl) {
-                if (!pTypeEl.querySelector('option[value="bundle"]')) {
-                    pTypeEl.insertAdjacentHTML('beforeend', '<option value="bundle">📦 מארז / קומבו (Bundle)</option>');
-                }
-                pTypeEl.addEventListener('change', (e) => toggleProductTypeUI(e.target.value));
-            }
-        }
-    }
-
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
         getEl('sp-id').value = p.id; 
@@ -4194,6 +3129,7 @@ function openStoreProductModal(id = null) {
         getEl('sp-category').value = p.category || ''; 
         getEl('sp-desc').value = p.description || ''; 
         
+        // טעינת שדות חדשים: סוג מוצר ותיאור מורחב
         if(getEl('sp-product-type')) getEl('sp-product-type').value = p.product_type || 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = p.long_description || '';
         
@@ -4205,366 +3141,69 @@ function openStoreProductModal(id = null) {
         if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
         if (p.options_text) {
-            try { 
-                const parsed = JSON.parse(p.options_text); 
-                if (parsed && parsed.isBundle) {
-                    currentBundleStepsUI = parsed.steps || [];
-                } else if (parsed && parsed.isPizza) {
-                    currentPizzaToppingsUI = parsed.toppings || [];
-                } else {
-                    currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
-                }
-            } catch(e) { }
+            try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
         }
     } else {
-        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
+        getEl('sp-id').value = ''; 
+        getEl('sp-name').value = ''; 
+        getEl('sp-price').value = ''; 
+        getEl('sp-category').value = ''; 
+        getEl('sp-desc').value = ''; 
+        
+        // איפוס השדות החדשים
         if(getEl('sp-product-type')) getEl('sp-product-type').value = 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = '';
 
         getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
-        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
-    }
-    
-    toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
-    renderModifiersUI(); 
-    renderBundleBuilderUI();
-    getEl('store-product-modal').classList.remove('hidden');
-}
-
-function toggleProductTypeUI(type) {
-    const modContainer = getEl('modifiers-builder-container');
-    const bundleContainer = getEl('bundle-builder-container');
-    const presetContainer = getEl('preset-selector') ? getEl('preset-selector').parentNode : null;
-    const pizzaContainer = getEl('sp-pizza-section');
-    
-    if (type === 'bundle') {
-        if (modContainer) modContainer.classList.add('hidden');
-        if (presetContainer) presetContainer.classList.add('hidden');
-        if (bundleContainer) bundleContainer.classList.remove('hidden');
-        if (pizzaContainer) pizzaContainer.classList.add('hidden');
-    } else if (type === 'pizza_builder') {
-        if (modContainer) modContainer.classList.add('hidden');
-        if (presetContainer) presetContainer.classList.add('hidden');
-        if (bundleContainer) bundleContainer.classList.add('hidden');
-        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
-        renderPizzaToppingsUI();
-    } else {
-        if (modContainer) modContainer.classList.remove('hidden');
-        if (presetContainer) presetContainer.classList.remove('hidden');
-        if (bundleContainer) bundleContainer.classList.add('hidden');
-        if (pizzaContainer) pizzaContainer.classList.add('hidden');
-    }
-}
-
-window.onProductTypeChange = function() {
-    const type = val('sp-product-type');
-    toggleProductTypeUI(type);
-};
-
-function renderPizzaToppingsUI() {
-    const list = getEl('pizza-toppings-list');
-    if (!list) return;
-    if (currentPizzaToppingsUI.length === 0) {
-        list.innerHTML = '<p class="text-[10px] text-slate-500 text-center py-4 bg-white rounded-lg border border-dashed border-red-200">לא הוגדרו תוספות. לחצו למטה כדי להוסיף תוספת ראשונה.</p>';
-        return;
-    }
-    
-    let html = '';
-    currentPizzaToppingsUI.forEach((top, idx) => {
-        html += `
-        <div class="flex gap-2 items-center mb-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm fade-in">
-            <input type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 outline-none focus:border-red-400 text-slate-700 font-bold" value="${safeStr(top.name)}" onchange="currentPizzaToppingsUI[${idx}].name = this.value" placeholder="שם התוספת (למשל: זיתים ירוקים)">
-            <div class="w-24 relative">
-                <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2 outline-none focus:border-red-400 text-slate-700 text-center dir-ltr font-bold" value="${top.price}" onchange="currentPizzaToppingsUI[${idx}].price = parseFloat(this.value) || 0" placeholder="0">
-                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪</span>
-            </div>
-            <button type="button" onclick="removePizzaTopping(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg"><i class="fa-solid fa-times text-xs"></i></button>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-window.addPizzaTopping = function() {
-    currentPizzaToppingsUI.push({ name: '', price: 0 });
-    renderPizzaToppingsUI();
-};
-
-window.removePizzaTopping = function(idx) {
-    currentPizzaToppingsUI.splice(idx, 1);
-    renderPizzaToppingsUI();
-};
-
-function addBundleStep() {
-    currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
-    renderBundleBuilderUI();
-}
-
-function removeBundleStep(idx) {
-    currentBundleStepsUI.splice(idx, 1);
-    renderBundleBuilderUI();
-}
-
-function renderBundleBuilderUI() {
-    const container = getEl('bundle-builder-container');
-    if (!container) return;
-
-    let html = '<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2 fade-in">';
-    html += '<h4 class="font-bold text-indigo-900 text-sm mb-2"><i class="fa-solid fa-boxes-packing"></i> הרכבת המארז (Bundle)</h4>';
-    html += '<p class="text-[11px] text-indigo-700 mb-4 opacity-90">הגדירו מאילו קטגוריות או מוצרים יוכל הלקוח להרכיב את החבילה.</p>';
-
-    if (currentBundleStepsUI.length === 0) {
-        html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
-    } else {
-        // משיכת קטגוריות ייחודיות מתוך הקטלוג עבור תיבת הבחירה
-        const cats = [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))];
-        let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
-        cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
-
-        // משיכת כלל המוצרים הרגילים עבור תיבת הסימון הספציפית
-        const prods = storeCatalogCache.filter(p => p.product_type !== 'bundle');
         
-        currentBundleStepsUI.forEach((step, idx) => {
-            const isCat = step.selectionType === 'category';
-            
-            let prodOptionsHtml = '';
-            prods.forEach(p => {
-                const selected = step.items.includes(p.id) ? 'checked' : '';
-                prodOptionsHtml += `<label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"><div class="flex items-center gap-2"><input type="checkbox" value="${p.id}" onchange="updateBundleStepItems(${idx}, this)" ${selected} class="w-3.5 h-3.5 accent-indigo-600"> <span class="font-medium text-slate-700 truncate w-32">${safeStr(p.name)}</span></div><span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded truncate max-w-[80px]">${safeStr(p.category)}</span></label>`;
-            });
-
-            html += `
-            <div class="bg-white p-3.5 rounded-xl border border-indigo-200 shadow-sm mb-3 relative group">
-                <button onclick="removeBundleStep(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-slate-50 rounded shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
-                
-                <div class="grid grid-cols-3 gap-2 mb-3 pr-6">
-                    <div class="col-span-2">
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת עיקרית):</label>
-                        <input type="text" class="modern-input py-1.5 text-xs" value="${safeStr(step.name)}" onchange="currentBundleStepsUI[${idx}].name = this.value">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות בחירה:</label>
-                        <input type="number" min="1" class="modern-input py-1.5 text-xs text-center dir-ltr" value="${step.qty}" onchange="currentBundleStepsUI[${idx}].qty = parseInt(this.value) || 1">
-                    </div>
-                </div>
-                
-                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">הלקוח יבחר פריטים מתוך:</label>
-                    <select class="modern-input py-1.5 text-xs mb-2 text-indigo-700 font-bold bg-white" onchange="currentBundleStepsUI[${idx}].selectionType = this.value; renderBundleBuilderUI();">
-                        <option value="category" ${isCat ? 'selected' : ''}>קטגוריה שלמה מהקטלוג</option>
-                        <option value="items" ${!isCat ? 'selected' : ''}>רשימת מוצרים ספציפית שאגדיר</option>
-                    </select>
-
-                    ${isCat ? `
-                    <div class="fade-in">
-                        <select class="modern-input py-1.5 text-xs bg-white" onchange="currentBundleStepsUI[${idx}].category = this.value">
-                            ${catOptions.replace(`value="${step.category}"`, `value="${step.category}" selected`)}
-                        </select>
-                    </div>
-                    ` : `
-                    <div class="h-28 overflow-y-auto bg-white border border-slate-200 rounded-md p-1 modal-scroll fade-in">
-                        ${prodOptionsHtml || '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים זמינים בקטלוג.</p>'}
-                    </div>
-                    `}
-                </div>
-            </div>
-            `;
-        });
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
+        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
     }
-    
-    html += `<button onclick="addBundleStep()" class="w-full bg-white text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition border border-indigo-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוספת שלב בחירה למארז</button>`;
-    html += `</div>`;
-    container.innerHTML = html;
-}
-
-function updateBundleStepItems(stepIdx, cb) {
-    const id = parseInt(cb.value);
-    if (cb.checked) {
-        if (!currentBundleStepsUI[stepIdx].items.includes(id)) currentBundleStepsUI[stepIdx].items.push(id);
-    } else {
-        currentBundleStepsUI[stepIdx].items = currentBundleStepsUI[stepIdx].items.filter(i => i !== id);
-    }
+    renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
 }
 
 async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
-    const pType = val('sp-product-type') || 'retail';
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    let finalOptionsText = '';
-
-    if (pType === 'bundle') {
-        const validSteps = currentBundleStepsUI.filter(s => s.name.trim() !== '');
-        if(validSteps.length === 0) return showToast('error', 'מארז (Bundle) חייב להכיל לפחות שלב בחירה אחד עבור הלקוח.');
-        finalOptionsText = JSON.stringify({ isBundle: true, steps: validSteps });
-    } else if (pType === 'pizza_builder') {
-        const validToppings = currentPizzaToppingsUI.filter(t => t.name.trim() !== '');
-        finalOptionsText = JSON.stringify({ isPizza: true, toppings: validToppings });
-    } else {
-        let validOptions = [];
-        currentModifiersUI.forEach(mod => {
-            if (mod.name.trim()) {
-                const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
-                if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
-            }
-        });
-        finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
-    }
+    let validOptions = [];
+    currentModifiersUI.forEach(mod => { 
+        if (mod.name.trim()) {
+            const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
+            if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
+        }
+    });
+    const finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
         const payload = { 
-            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), 
-            optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
-            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red',
-            productType: pType, longDescription: val('sp-long-desc') || ''
+            groupId: currentGroup.id, 
+            name, 
+            price, 
+            category: val('sp-category'), 
+            description: val('sp-desc'), 
+            optionsText: finalOptionsText, 
+            imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text') || '', 
+            badgeColor: val('sp-badge-color') || 'red',
+            productType: val('sp-product-type') || 'retail', 
+            longDescription: val('sp-long-desc') || ''
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר/מארז נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } 
-        else { showToast('error', data.error || 'שגיאה בשמירה'); }
+        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
-
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
-
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
-async function fetchStoreOrders() { 
-    try { 
-        const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
-        let data = await res.json(); 
-        
-        let ordersArray = [];
-        if (Array.isArray(data)) ordersArray = data;
-        else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
-        else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
-
-        if (ordersArray.length > 0) {
-            ordersArray.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        }
-        
-        storeOrdersCache = ordersArray;
-        
-        renderStoreOrders(); 
-        if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
-    } catch(e) { console.error('Error fetching orders:', e); } 
-}
-// פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
-function getDeliveryMeta(order) {
-    if (!order || !order.items) return null;
-    try {
-        const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-        const metaItem = items.find(i => i.name && i.name.startsWith('DELIVERY_META|'));
-        if (metaItem) {
-            const jsonStr = metaItem.name.split('DELIVERY_META|')[1];
-            return { delivery_fee: metaItem.price || metaItem.price_at_order, delivery_details: JSON.parse(jsonStr) };
-        }
-        return null;
-    } catch(e) { return null; }
-}
-
-// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות צמודות ל-V
-function buildOrderLogHtml(status, createdAt) {
-    const baseTime = new Date(createdAt);
-    const createdTime = baseTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-    
-    const addMins = (mins) => {
-        const d = new Date(baseTime.getTime() + mins * 60000);
-        return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-    };
-
-    const isProcessing = ['processing', 'ready', 'shipped', 'completed'].includes(status);
-    const isReady = ['ready', 'shipped', 'completed'].includes(status);
-    const isShipped = ['shipped', 'completed'].includes(status);
-    const isCompleted = status === 'completed';
-
-    return `
-        <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
-            <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">מעקב סטטוסים (Log):</p>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
-                    <span class="text-xs text-slate-600 font-bold">הזמנה התקבלה במערכת</span>
-                </div>
-                <div class="text-[10px] font-mono text-slate-400 flex items-center gap-1">${createdTime} <i class="fa-solid fa-check text-green-500"></i></div>
-            </div>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500' : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isProcessing ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">בטיפול במטבח/הכנה</span>
-                </div>
-                <div class="text-[10px] font-mono ${isProcessing ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isProcessing ? addMins(2) : ''} <i class="fa-solid fa-check ${isProcessing ? 'text-green-500' : 'text-transparent'}"></i></div>
-            </div>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
-                </div>
-                <div class="text-[10px] font-mono ${isReady ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isReady ? addMins(12) : ''} <i class="fa-solid fa-check ${isReady ? 'text-green-500' : 'text-transparent'}"></i></div>
-            </div>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
-                </div>
-                <div class="text-[10px] font-mono ${isShipped ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isShipped ? addMins(15) : ''} <i class="fa-solid fa-check ${isShipped ? 'text-green-500' : 'text-transparent'}"></i></div>
-            </div>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
-                    <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
-                </div>
-                <div class="text-[10px] font-mono ${isCompleted ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isCompleted ? addMins(25) : ''} <i class="fa-solid fa-check ${isCompleted ? 'text-green-500' : 'text-transparent'}"></i></div>
-            </div>
-        </div>
-    `;
-}
-
-function toggleCardCollapse(cardId) {
-    const details = getEl(`order-details-${cardId}`);
-    const icon = getEl(`card-icon-${cardId}`);
-    if(details.classList.contains('hidden')) {
-        details.classList.remove('hidden');
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-up');
-    } else {
-        details.classList.add('hidden');
-        icon.classList.remove('fa-chevron-up');
-        icon.classList.add('fa-chevron-down');
-    }
-}
+async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/orders/${currentGroup.id}`); const data = await res.json(); storeOrdersCache = Array.isArray(data) ? data : []; renderStoreOrders(); } catch(e) {} }
 
 function renderStoreOrders() {
-    const list = getEl('store-orders-list');
-    const statusFilter = val('store-orders-filter') || 'all';
-    const typeFilter = val('store-orders-type-filter') || 'all';
-    const searchId = val('orders-search-id');
-    const storeOrdersSearch = val('store-orders-search');
-
-    let filteredOrders = [...storeOrdersCache];
-    
-    filteredOrders.sort((a, b) => {
-        if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
-        if (a.status === 'completed') return 1;
-        if (b.status === 'completed') return -1;
-        let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
-        let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
-        if (timeA === Infinity && timeB === Infinity) return new Date(b.created_at) - new Date(a.created_at);
-        return timeA - timeB;
-    });
-
-    const activeSearch = storeOrdersSearch || searchId;
-    if (activeSearch) {
-        const s = activeSearch.toLowerCase();
-        filteredOrders = filteredOrders.filter(o => String(o.id).includes(s) || (o.customer_phone && String(o.customer_phone).includes(s)) || (o.customer_name && String(o.customer_name).toLowerCase().includes(s)));
-    }
-    
-    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
-    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
-    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
-    
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות.</p>'; return; }
-    
+    const list = getEl('store-orders-list'); const filter = val('store-orders-filter') || 'all'; let filteredOrders = storeOrdersCache;
+    if (filter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === filter);
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
@@ -4573,108 +3212,90 @@ function renderStoreOrders() {
         'shipped': { text: 'במשלוח 🚚', color: 'bg-purple-100 text-purple-700 border-purple-200' },
         'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } 
     };
-    
-    const now = new Date();
-
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
-        const meta = getDeliveryMeta(o);
-        const isDelivery = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta);
-        const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
-        
-        let deliveryData = {};
-        if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
-        const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
+        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
+    }); list.innerHTML = html;
+}
 
-        let urgencyBorder = 'border-slate-200';
-        let targetDisplay = '';
-        
-        if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
-             const targetTime = new Date(o.target_datetime);
-             const minsDiff = (targetTime - now) / 60000;
-             const timeStr = targetTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5); // תאריך מקוצר כמו בתמונה
-             
-             if (minsDiff < 0) {
-                 urgencyBorder = 'border-red-400 border-2';
-                 targetDisplay = `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-red-200 ml-2 animate-pulse"><i class="fa-regular fa-clock"></i> איחור! ${timeStr}</span>`;
-             } else if (minsDiff < 30) {
-                 urgencyBorder = 'border-orange-400 border-2';
-                 targetDisplay = `<span class="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-orange-200 ml-2"><i class="fa-regular fa-clock"></i> ל-${timeStr} (${dateStr})</span>`;
-             } else {
-                 urgencyBorder = 'border-blue-400 border-r-4 border-slate-200';
-                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-blue-200 ml-2"><i class="fa-regular fa-clock"></i> עתידי: ל-${timeStr} (${dateStr})</span>`;
-             }
+// --- מערכת קופונים ---
+let storeCouponsCache = [];
+
+async function fetchStoreCoupons() {
+    try {
+        const res = await fetch(`${API}/store/coupons/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCouponsCache = data.coupons || [];
+            renderStoreCoupons();
         }
+    } catch(e) { console.error(e); }
+}
 
-        const createDate = new Date(o.created_at);
-        const receivedTimeStr = createDate.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-        const receivedDateStr = createDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'2-digit'});
-
-        // העיצוב החדש לפי התמונה שנשלחה: ימין-לשמאל מדויק
+function renderStoreCoupons() {
+    const list = getEl('store-coupons-list');
+    if (storeCouponsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">לא הוגדרו קופונים בחנות.</p>';
+        return;
+    }
+    
+    let html = '';
+    storeCouponsCache.forEach(c => {
+        const isExpired = c.valid_until && new Date(c.valid_until) < new Date();
+        const dateStr = c.valid_until ? new Date(c.valid_until).toLocaleDateString('he-IL') : 'ללא תפוגה';
+        const expiredTag = isExpired ? '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded ml-2">פג תוקף</span>' : '';
+        
         html += `
-        <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
-            <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
-                
-                <div class="flex flex-col items-start gap-3 pl-2 shrink-0">
-                    <span class="text-[11px] font-bold ${st.color} px-4 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
-                    <i id="card-icon-mng-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform mr-4"></i>
-                </div>
-
-                <div class="flex flex-col text-left pr-2 w-full">
-                    <div class="flex items-center justify-end mb-2">
-                        ${targetDisplay}
-                        <h4 class="font-black text-slate-800 text-lg">הזמנה #${o.id}</h4>
-                    </div>
-                    
-                    <div class="flex items-center justify-end mb-2">
-                        <span class="text-sm text-slate-500 flex items-center gap-1.5 ml-3"><i class="fa-regular fa-user text-slate-400"></i> ${safeStr(o.customer_name)}</span>
-                        <span class="font-black text-indigo-600 text-2xl dir-ltr tracking-tight">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1">
-                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag}
-                    </div>
+        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm ${isExpired ? 'opacity-60' : ''}">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-50 text-indigo-700 font-mono font-bold px-3 py-1.5 rounded-lg text-sm border border-indigo-100">${safeStr(c.code)}</div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold text-slate-800">${c.discount_pct}% הנחה ${expiredTag}</span>
+                    <span class="text-[10px] text-slate-500">תוקף: ${dateStr}</span>
                 </div>
             </div>
-            
-            <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
-                ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
-                ${buildOrderLogHtml(o.status, o.created_at)}
-                <div class="flex justify-end mt-4">
-                    <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
-                </div>
-            </div>
+            <button onclick="deleteStoreCoupon(${c.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
         </div>`;
-    }); 
+    });
     list.innerHTML = html;
+}
+
+async function createStoreCoupon() {
+    const code = val('coupon-code');
+    const discountPct = val('coupon-discount');
+    const validUntil = val('coupon-date');
+    
+    if (!code || !discountPct) return showToast('error', 'חובה להזין קוד ואחוז הנחה');
+    
+    try {
+        const res = await fetch(`${API}/store/coupons`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code, discountPct, validUntil })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'קופון נוצר בהצלחה!');
+            getEl('coupon-code').value = ''; getEl('coupon-discount').value = ''; getEl('coupon-date').value = '';
+            fetchStoreCoupons();
+        } else { showToast('error', data.error || 'שגיאה ביצירת קופון'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteStoreCoupon(id) {
+    if(!confirm('האם אתה בטוח שברצונך למחוק את הקופון?')) return;
+    try {
+        await fetch(`${API}/store/coupons/${id}`, { method: 'DELETE' });
+        showToast('success', 'קופון נמחק');
+        fetchStoreCoupons();
+    } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
 function openStoreOrderModal(orderId) {
     currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
-    getEl('so-modal-id').innerText = order.id;
-    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
-    getEl('so-modal-total').innerText = order.total_amount;
-    getEl('so-modal-customer').innerText = order.customer_name;
-    getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
-    const targetEl = getEl('so-modal-target');
-    if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
-    
-    const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
+    getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     let itemsHtml = '';
-    if (rawItems.length > 0) {
-        rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order || i.price}</span></div>`; });
-    } else {
-        itemsHtml = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
-    }
-
-    const meta = getDeliveryMeta(order);
-    if (meta && meta.delivery_fee > 0) {
-         itemsHtml += `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-solid fa-motorcycle ml-1"></i> דמי משלוח עיר</span><span class="font-bold text-indigo-800 text-sm">₪${meta.delivery_fee}</span></div>`;
-    }
-
-    getEl('so-modal-items').innerHTML = itemsHtml;
-    getEl('store-order-modal').classList.remove('hidden');
+    if(order.items) order.items.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
+    getEl('so-modal-items').innerHTML = itemsHtml; getEl('store-order-modal').classList.remove('hidden');
 }
 
 async function updateStoreOrderStatus(status) {
@@ -4693,84 +3314,9 @@ async function generateStoreProductAI() {
     });
 }
 
-function clearStoreLogo() {
-    getEl('store-logo-preview').src = '';
-    getEl('store-logo-preview').classList.add('hidden');
-    getEl('store-logo-placeholder').classList.remove('hidden');
-    getEl('store-logo-base64').value = '';
-    const clearBtn = getEl('btn-clear-logo');
-    if (clearBtn) clearBtn.classList.add('hidden');
-    const aiBgBtn = getEl('btn-generate-bg-ai');
-    if (aiBgBtn) aiBgBtn.classList.add('hidden');
-    showToast('info', 'הלוגו הוסר. שמור הגדרות כדי לאשר.');
-}
-
-function handleStoreBgUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת רקע...');
-    compressImage(file, 1200, 600, 0.85, (compressedDataUrl) => {
-        const bgPreview = getEl('store-bg-preview');
-        const bgPlaceholder = getEl('store-bg-placeholder');
-        bgPreview.src = compressedDataUrl;
-        bgPreview.classList.remove('hidden');
-        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
-        getEl('store-bg-base64').value = compressedDataUrl;
-        const clearBtn = getEl('btn-clear-bg');
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        showToast('success', 'תמונת הרקע הועלתה ומוכנה לשמירה!');
-    });
-}
-
-function clearStoreBg() {
-    const bgPreview = getEl('store-bg-preview');
-    const bgPlaceholder = getEl('store-bg-placeholder');
-    if (bgPreview) { bgPreview.src = ''; bgPreview.classList.add('hidden'); }
-    if (bgPlaceholder) bgPlaceholder.classList.remove('hidden');
-    getEl('store-bg-base64').value = '';
-    const clearBtn = getEl('btn-clear-bg');
-    if (clearBtn) clearBtn.classList.add('hidden');
-    showToast('info', 'הרקע הוסר. שמור הגדרות כדי לאשר.');
-}
-
-async function generateStoreBgAI() {
-    const logoBase64 = val('store-logo-base64');
-    if (!logoBase64) { showToast('error', 'יש להעלות לוגו תחילה כדי ליצור רקע מותאם'); return; }
-    const btn = getEl('btn-generate-bg-ai');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> יוצר רקע...'; }
-    try {
-        const res = await fetch(`${API}/store/ai-bg`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ logoBase64, groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        if (!data.success) { showToast('error', data.error === 'BATTERY_EMPTY' ? 'אין טוקנים AI זמינים' : (data.error || 'שגיאה ביצירת רקע')); return; }
-        const canvas = document.createElement('canvas');
-        canvas.width = 1200; canvas.height = 400;
-        const ctx = canvas.getContext('2d');
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        const colorMatches = data.gradient.match(/#[0-9a-fA-F]{3,6}|rgb\([^)]+\)/g);
-        if (colorMatches && colorMatches.length >= 2) {
-            grad.addColorStop(0, colorMatches[0]);
-            grad.addColorStop(0.5, colorMatches[1]);
-            if (colorMatches[2]) grad.addColorStop(1, colorMatches[2]);
-            else grad.addColorStop(1, colorMatches[1]);
-        } else {
-            grad.addColorStop(0, '#4f46e5');
-            grad.addColorStop(1, '#7c3aed');
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const bgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        const bgPreview = getEl('store-bg-preview');
-        const bgPlaceholder = getEl('store-bg-placeholder');
-        bgPreview.src = bgDataUrl;
-        bgPreview.classList.remove('hidden');
-        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
-        getEl('store-bg-base64').value = bgDataUrl;
-        const clearBtn = getEl('btn-clear-bg');
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        showToast('success', `רקע AI נוצר! ${data.style ? '(' + data.style + ')' : ''} שמור הגדרות כדי לאשר.`);
-    } catch(e) { showToast('error', 'שגיאת רשת ביצירת הרקע'); }
-    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> צור רקע עם AI'; } }
+function handleStoreLogoUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
+    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => { getEl('store-logo-preview').src = compressedDataUrl; getEl('store-logo-preview').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); getEl('store-logo-base64').value = compressedDataUrl; showToast('success', 'הלוגו הועלה ומוכן לשמירה!'); });
 }
 
 function handleProductImageBase64(event) {
@@ -4779,7 +3325,6 @@ function handleProductImageBase64(event) {
 }
 
 function openGlobalAIAssistant() { getEl('global-ai-input').value = ''; getEl('global-ai-modal').classList.remove('hidden'); }
-
 async function submitGlobalAI() {
     const inputEl = getEl('global-ai-input'); const query = inputEl.value.trim(); if (!query) return;
     const chatBox = getEl('global-ai-chat'); chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`; inputEl.value = '';
@@ -4870,7 +3415,6 @@ async function rejectSABizRequest(communityId, businessId) {
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
-
 function filterSACommSelect() {
     const queryInput = getEl('sa-search-comm-select');
     const query = queryInput ? queryInput.value.toLowerCase() : '';
@@ -5004,185 +3548,197 @@ async function deleteSACommunity(id) {
     loadSACommunityData();
 }
 
-async function saveWelcomeMsg(type = 'FAMILY') { 
-    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
-    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
-    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { 
-        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
-        if ((await res.json()).success) {
-            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
-        } else {
-            showToast('error', 'שגיאה בשמירת ההודעה');
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
-    }
+async function deleteSACommunity(id) {
+    if(!confirm('למחוק את הקהילה לצמיתות?')) return;
+    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+    loadSACommunityData();
+}
+
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
+    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try { 
+        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        if ((await res.json()).success) {
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+        } else {
+            showToast('error', 'שגיאה בשמירת ההודעה');
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
+    }
 }
 
 async function loadBizCommunities() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
-        
-        let data;
-        try { data = await res.json(); } catch(err) { return; }
-        
-        if (!res.ok) { return; }
-        
-        if (data.success && data.communities) {
-            const list = document.getElementById('biz-my-communities-list');
-            if (list) {
-                if (data.communities.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
-                } else {
-                    list.innerHTML = data.communities.map(c => {
-                        let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
-                        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
-                        
-                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
-                    }).join('');
-                }
-            }
-        }
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        
+        let data;
+        try { data = await res.json(); } catch(err) { return; }
+        
+        if (!res.ok) { return; }
+        
+        if (data.success && data.communities) {
+            const list = document.getElementById('biz-my-communities-list');
+            if (list) {
+                if (data.communities.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
+                } else {
+                    list.innerHTML = data.communities.map(c => {
+                        let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
+                        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
+                        
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                    }).join('');
+                }
+            }
+        }
 
-        await loadBizAvailableCommunities();
-        
-    } catch(e) { console.error("Error loading biz communities", e); }
+        await loadBizAvailableCommunities();
+        
+    } catch(e) { console.error("Error loading biz communities", e); }
 }
 
+let bizAvailableCommCache = [];
+
 async function loadBizAvailableCommunities() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success && data.communities) {
-            bizAvailableCommCache = data.communities;
-            filterBizAvailableCommunities();
-        }
-    } catch(e) { console.error("Error loading available communities", e); }
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.communities) {
+            bizAvailableCommCache = data.communities;
+            filterBizAvailableCommunities();
+        }
+    } catch(e) { console.error("Error loading available communities", e); }
 }
 
 function filterBizAvailableCommunities() {
-    const list = document.getElementById('biz-available-communities-list');
-    if (!list) return;
+    const list = document.getElementById('biz-available-communities-list');
+    if (!list) return;
 
-    const cityFilter = (val('biz-filter-city') || '').toLowerCase();
-    const sizeFilter = val('biz-filter-size') || 'all';
-    const multiFilter = getEl('biz-filter-multi') ? getEl('biz-filter-multi').checked : false;
+    const cityFilter = (val('biz-filter-city') || '').toLowerCase();
+    const sizeFilter = val('biz-filter-size') || 'all';
+    const multiFilter = getEl('biz-filter-multi') ? getEl('biz-filter-multi').checked : false;
 
-    let filtered = [...bizAvailableCommCache];
+    let filtered = [...bizAvailableCommCache];
 
-    if (cityFilter) {
-        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
-    }
-    
-    if (sizeFilter !== 'all') {
-        const minSize = parseInt(sizeFilter);
-        filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
-    }
+    if (cityFilter) {
+        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
+    }
+    
+    if (sizeFilter !== 'all') {
+        const minSize = parseInt(sizeFilter);
+        filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
+    }
 
-    if (multiFilter) {
-        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
-    }
+    if (multiFilter) {
+        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
+    }
 
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
-        return;
-    }
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
+        return;
+    }
 
-    list.innerHTML = filtered.map(c => {
-        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
-        return `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    ${imgHtml}
-                    <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
-                </div>
-                <div class="flex flex-col gap-1 items-end">
-                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
-                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-user"></i> ${c.users_count || 0} משתמשים</span>
-                </div>
-            </div>
-            <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
-        </div>
-        `;
-    }).join('');
+    list.innerHTML = filtered.map(c => {
+        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
+        return `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    ${imgHtml}
+                    <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
+                </div>
+                <div class="flex flex-col gap-1 items-end">
+                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
+                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-user"></i> ${c.users_count || 0} משתמשים</span>
+                </div>
+            </div>
+            <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
+        </div>
+        `;
+    }).join('');
 }
 
 function openBizJoinModal(id, name) {
-    const idEl = getEl('biz-join-comm-id');
-    const nameEl = getEl('biz-join-comm-name');
-    const modal = getEl('biz-join-community-modal');
-    if (idEl && nameEl && modal) {
-        idEl.value = id;
-        nameEl.innerText = `בקשת הצטרפות ל: ${name}`;
-        getEl('biz-join-discount').value = '';
-        modal.classList.remove('hidden');
-    }
+    const idEl = getEl('biz-join-comm-id');
+    const nameEl = getEl('biz-join-comm-name');
+    const modal = getEl('biz-join-community-modal');
+    if (idEl && nameEl && modal) {
+        idEl.value = id;
+        nameEl.innerText = `בקשת הצטרפות ל: ${name}`;
+        getEl('biz-join-discount').value = '';
+        modal.classList.remove('hidden');
+    }
 }
 
 async function submitBizCommunityJoin() {
-    const commId = getEl('biz-join-comm-id').value;
-    const discount = parseFloat(getEl('biz-join-discount').value);
-    
-    if (isNaN(discount) || discount < 0) return showToast('error', 'יש להזין אחוז הנחה תקין (אפשרי 0)');
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            showToast('success', 'בקשת ההצטרפות נשלחה לניהול הקהילה!');
-            getEl('biz-join-community-modal').classList.add('hidden');
-            loadBizCommunities();
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
+    const commId = getEl('biz-join-comm-id').value;
+    const discount = parseFloat(getEl('biz-join-discount').value);
+    
+    if (isNaN(discount) || discount < 0) return showToast('error', 'יש להזין אחוז הנחה תקין (אפשרי 0)');
+    
+    try {
+        const res = await fetch(`${API}/biz/communities/join`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'בקשת ההצטרפות נשלחה לניהול הקהילה!');
+            getEl('biz-join-community-modal').classList.add('hidden');
+            loadBizCommunities();
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+        }
+    } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
 async function leaveBizCommunity(commId) {
-    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'התנתקת מהקהילה בהצלחה.');
-            loadBizCommunities();
-        } else {
-            showToast('error', 'שגיאה בהתנתקות מהקהילה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
+    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
+    
+    try {
+        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'התנתקת מהקהילה בהצלחה.');
+            loadBizCommunities();
+        } else {
+            showToast('error', 'שגיאה בהתנתקות מהקהילה');
+        }
+    } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
-    window.loadSADashboard = async function() {
-        const userDash = document.getElementById('dashboard-container');
-        if (userDash) userDash.classList.add('hidden');
-        
-        await originalLoadSADashboard();
-        try { loadSACommunityData(); } catch(e) {}
-        
-        setTimeout(() => {
-            if (userDash) userDash.classList.add('hidden');
-        }, 100);
-    };
-    window.saCommLoaded = true;
+    window.loadSADashboard = async function() {
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        try { loadSACommunityData(); } catch(e) {}
+        
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
+    window.saCommLoaded = true;
 }
-
 // ==========================================
 // --- ניהול רכש וספקים מורחב (B2B Procurement) ---
 // ==========================================
+let suppliersList = [];
+let currentSupplierProducts = [];
+let b2bCatalogCache = [];
+let b2bCart = {}; // מבנה: { productId: quantity }
+let b2bOrdersHistory = [];
 
 function switchProcurementTab(tab) {
     ['list', 'rfq', 'suppliers'].forEach(t => {
@@ -5339,10 +3895,9 @@ async function submitSupplier() {
 }
 
 async function deleteSupplier(id) {
-    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
-    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
+    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
+    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
 }
-
 // -----------------------------------------
 // קטלוג מוצרים ספציפי (במודאל מנהל) + תמיכה במק"ט
 // -----------------------------------------
@@ -5667,113 +4222,111 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה 1.1.7 (ללא bidi, רווחים קשיחים לביטחון וחלוקת פסקאות)
-function getOrderHtmlTemplate(orderInfo) {
+
+// תבנית ה-HTML ל-PDF - ללא מסגרת, מותאמת להדפסה לרוחב (Landscape), כולל מק"ט וסידור RTL מלא
+// התווסף פרמטר isForPdf כדי להפעיל תיקוני RTL אגרסיביים רק בעת יצירת הקובץ, מבלי לפגוע בתצוגה המקדימה במסך
+function getOrderHtmlTemplate(orderInfo, isForPdf = false) {
     let itemsArr = [];
     try {
         if (Array.isArray(orderInfo.items)) itemsArr = orderInfo.items;
         else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
     } catch(e) { itemsArr = []; }
 
-    // מחליף רווחים רגילים ב-&nbsp; כדי למנוע אכילת רווחים ב-Canvas של html2canvas עבור טקסט RTL עברי
-    const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
+    // פונקציות עזר קריטיות לתיקון ה-PDF (פועלות רק אם isForPdf = true)
+    const formatText = (str) => {
+        if (!str) return '';
+        let s = safeStr(str);
+        if (isForPdf) return '&rlm;' + s.replace(/ /g, '&nbsp;') + '&rlm;';
+        return s;
+    };
+    
+    const formatLabel = (str) => {
+        if (!str) return '';
+        if (isForPdf) return '&rlm;' + str.replace(/ /g, '&nbsp;') + '&rlm;';
+        return str;
+    };
 
     let itemsHtml = '';
     if (itemsArr.length === 0) {
-        itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:10px;" dir="rtl">אין\u00A0פריטים\u00A0להצגה</td></tr>';
+         itemsHtml = `<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">${formatText('אין פריטים להצגה')}</td></tr>`;
     } else {
-        itemsHtml = itemsArr.map((i, index) => `
-            <tr class="avoid-break" style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
-                <td style="padding: 8px 6px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 8px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl">${nb(safeStr(i.name))}</td>
-                <td style="padding: 8px 6px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">
-                    <span>${i.quantity}</span>&nbsp;<span>${nb(safeStr(i.unit))}</span>
-                </td>
-                <td style="padding: 8px 6px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">&#x20AA;${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
-                <td style="padding: 8px 6px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">&#x20AA;${parseFloat(i.row_total || 0).toFixed(2)}</td>
+         itemsHtml = itemsArr.map((i, index) => `
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
+                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl"><bdi>${formatText(i.name)}</bdi></td>
+                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${formatText(i.unit)}</td>
+                <td style="padding: 10px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">&rlm;₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
+                <td style="padding: 10px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">&rlm;₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
             </tr>
         `).join('');
     }
 
-    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${nb(label)}&#x200F;</span>`;
-
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('מספר\u00A0לקוח:')} <span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 6px; color: #4f46e5; font-weight: bold; display: inline-block;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('עבור\u00A0סניף/מחלקה:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.branchName))}</span></div>` : '';
-    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('טלפון:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
-    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('דוא"ל:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierEmail)}</span></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('מספר לקוח:')}&nbsp;</span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('עבור סניף/מחלקה:')}&nbsp;</span><bdi>${formatText(orderInfo.branchName)}</bdi></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('טלפון:')}&nbsp;</span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('דוא"ל:')}&nbsp;</span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 16px 20px; text-align: right;" dir="rtl">
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 12px; padding-bottom: 10px;" dir="rtl">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px; text-align: right;" dir="rtl">
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px; page-break-inside: avoid;" dir="rtl">
                 <tr>
-                    <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
-                        <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #334155;">הזמנת&nbsp;רכש&#x200F; <span dir="ltr" style="font-size: 15px; color:#64748b;">(Purchase Order)</span></h1>
-                        <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            ${fixLabel('מספר\u00A0הזמנה:')} <b dir="ltr" style="color: #4f46e5; display: inline-block;">#${orderInfo.orderId || 'חדש'}</b>
-                        </div>
+                    <td style="vertical-align: middle; text-align: right; width: 50%;" dir="rtl">
+                        <img src="/logo.png" style="height: 40px; vertical-align: middle; margin-left: 10px;" onerror="this.style.display='none'">
+                        <span style="font-size: 28px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif; vertical-align: middle;">
+                            ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
+                        </span>
                     </td>
-                    <td style="vertical-align: middle; text-align: left; width: 40%;" dir="ltr">
-                        <table cellpadding="0" cellspacing="0" dir="ltr" style="display: inline-table; text-align: left;">
-                            <tr>
-                                <td style="vertical-align: middle;">
-                                    <span style="font-size: 20px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif;">
-                                        ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
-                                    </span>
-                                </td>
-                                <td style="vertical-align: middle; padding-left: 10px;">
-                                    <img src="/logo.png" style="height: 36px; display: block;" onerror="this.style.display='none'">
-                                </td>
-                            </tr>
-                        </table>
+                    <td style="vertical-align: middle; text-align: left; width: 50%;" dir="rtl">
+                        <h2 style="margin: 0; font-size: 24px; color: #334155;">${formatLabel('הזמנת רכש')}&nbsp;<span dir="ltr" style="font-size: 16px; color:#64748b;">(Purchase Order)</span></h2>
+                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">${formatLabel('מספר הזמנה:')}&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
                     </td>
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; page-break-inside: avoid;" dir="rtl">
                 <tr>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #4f46e5; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('שם\u00A0העסק:')} <span style="display: inline-block;">${nb(safeStr(currentGroup.name))}</span></div>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('איש\u00A0קשר:')} <span style="display: inline-block;">${nb(safeStr(currentUser.nickname))}</span></div>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">${formatLabel('פרטי הלקוח (המזמין):')}</h3>
+                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('שם העסק:')}&nbsp;</b><bdi>${formatText(currentGroup.name)}</bdi></div>
+                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('איש קשר:')}&nbsp;</b><bdi>${formatText(currentUser.nickname)}</bdi></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 8px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl">${fixLabel('הופק\u00A0ב:')} <span dir="ltr" style="display: inline-block;">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 10px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl"><b>${formatLabel('הופק ב:')}&nbsp;</b><span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הספק:&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('לכבוד:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.supplierName))}</span></div>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">${formatLabel('פרטי הספק:')}</h3>
+                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('לכבוד:')}&nbsp;</b><bdi>${formatText(orderInfo.supplierName)}</bdi></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
                 </tr>
             </table>
 
-            <div style="margin-bottom: 10px; font-size: 13px; line-height: 1.5; color: #334155; text-align: right;" dir="rtl">
-                <b>שלום&nbsp;רב,&#x200F;</b>&nbsp;
-                מצ"ב&nbsp;פירוט&nbsp;הזמנת&nbsp;רכש&nbsp;מאושרת&nbsp;ממערכת&nbsp;ההזמנות&nbsp;שלנו.
-                נא&nbsp;לספק&nbsp;את&nbsp;הסחורה&nbsp;המפורטת&nbsp;מטה&nbsp;בהקדם&nbsp;האפשרי&nbsp;ולפי&nbsp;תנאי&nbsp;הסחר&nbsp;והמחירון&nbsp;שסוכמו.&#x200F;
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #334155; page-break-inside: avoid; text-align: right;" dir="rtl">
+                <strong>${formatLabel('שלום רב,')}</strong><br>
+                ${formatLabel('מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.')}
             </div>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 12px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 12%;">מק"ט</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 15%;">כמות</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 15%;">מחיר&nbsp;יח'</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 16%;">סה"כ&nbsp;שורה</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">${formatLabel('מק"ט')}</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; width: 45%;">${formatLabel('תיאור פריט')}</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 13%;">${formatLabel('כמות')}</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${formatLabel("מחיר יח'")}</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${formatLabel('סה"כ שורה')}</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${itemsHtml}
                 </tbody>
             </table>
-
-            <div class="avoid-break" style="border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: right;" dir="rtl">
-                <h2 style="margin: 0; font-size: 18px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&#x200F; <span dir="ltr" style="color: #4f46e5; display: inline-block;">&#x20AA;${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">*&nbsp;ייתכנו&nbsp;שינויים&nbsp;במחיר&nbsp;הסופי&nbsp;בהתאם&nbsp;לשקילה&nbsp;ולמחירון&nbsp;העדכני&nbsp;בעת&nbsp;האספקה.&#x200F;</div>
+            
+            <div style="border-top: 2px solid #cbd5e1; padding-top: 15px; page-break-inside: avoid; text-align: right;" dir="rtl">
+                <h2 style="margin: 0; font-size: 20px; color: #0f172a; text-align: right;">${formatLabel('סה"כ לתשלום משוער:')}&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px; text-align: right;">${formatLabel('* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.')}</div>
             </div>
         </div>
     `;
@@ -5786,7 +4339,8 @@ async function generateOrderPDFBase64(orderInfo) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
-            const htmlContent = getOrderHtmlTemplate(orderInfo);
+            // מעבירים isForPdf = true כדי להחיל את התיקונים שמיועדים נטו ל-PDF
+            const htmlContent = getOrderHtmlTemplate(orderInfo, true);
             
             const container = document.createElement('div');
             container.innerHTML = htmlContent;
@@ -5794,29 +4348,19 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
-            container.style.right = '0';
-            container.style.margin = 'auto';
-            container.style.width = '1040px'; 
-            container.style.zIndex = '-100'; 
+            container.style.width = '1040px'; // רוחב המותאם לדף שוכב
+            container.style.zIndex = '-100'; // מוסתר מאחורי ה-UI
             container.style.opacity = '0.99';
             container.style.backgroundColor = '#ffffff';
-            container.style.height = 'max-content';
             document.body.appendChild(container);
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    width: container.offsetWidth, 
-                    scrollY: 0,
-                    height: container.scrollHeight, 
-                    windowHeight: container.scrollHeight 
-                }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, // הדפסה לרוחב
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
             };
 
             setTimeout(() => {
@@ -5906,7 +4450,7 @@ function renderB2BOrders() {
             <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                 <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
                 <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
-                    <option value="all">כל הסטטוסים</option><option value="draft">טיוטות (ממתין לשידור)</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
+                    <option value="all">כל הסטטוסים</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
                 </select>
                 <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
                     <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
@@ -5915,33 +4459,17 @@ function renderB2BOrders() {
         `);
     }
 
-    const fSup = val('filter-order-sup') || 'all'; 
-    const fStat = val('filter-order-status') || 'all'; 
-    const fDate = val('filter-order-date') || 'all';
+    const fSup = val('filter-order-sup') || 'all'; const fStat = val('filter-order-status') || 'all'; const fDate = val('filter-order-date') || 'all';
     
     let filteredOrders = b2bOrdersHistory;
     if(fSup !== 'all') filteredOrders = filteredOrders.filter(o => String(o.supplier_id) === fSup);
     if(fStat !== 'all') filteredOrders = filteredOrders.filter(o => o.status === fStat);
-    if(fDate !== 'all') { 
-        const cutoff = new Date(); 
-        cutoff.setDate(cutoff.getDate() - parseInt(fDate)); 
-        filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); 
-    }
+    if(fDate !== 'all') { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(fDate)); filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); }
 
-    if (filteredOrders.length === 0) { 
-        list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; 
-        return; 
-    }
+    if (filteredOrders.length === 0) { list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; return; }
     
     let html = '';
-    const statusMap = { 
-        'draft': { t: 'טיוטה / ממתין לשידור', c: 'bg-slate-100 text-slate-700 border-slate-200' },
-        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' }, 
-        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700 border-orange-200' }, 
-        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700 border-purple-200' }, 
-        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80 border-green-200' }, 
-        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' } 
-    };
+    const statusMap = { 'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } };
 
     filteredOrders.forEach(o => {
         const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
@@ -5968,7 +4496,6 @@ function renderB2BOrders() {
         let statusSelectHtml = '';
         if (currentUser.role === 'ADMIN') {
             const statuses = [
-                {val: 'draft', label: 'טיוטה (ממתין)'},
                 {val: 'sent', label: 'נשלח לספק'},
                 {val: 'processing', label: 'בטיפול אצל הספק'},
                 {val: 'shipped', label: 'בדרך אלינו'},
@@ -5979,1530 +4506,141 @@ function renderB2BOrders() {
             statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
         }
 
-        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">`;
-        
-        // התמיכה בטיוטה לעריכת חוסרים
-        if (o.status === 'draft') {
-            actionsHtml += `<button onclick="editDraftOrder(${o.id})" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-pen"></i> ערוך ומלא חוסרים בעגלה</button>`;
-        } else {
-            actionsHtml += `<button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
-            if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
-                actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
-            }
+        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100"><button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
+        if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
+            actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
         }
         actionsHtml += `</div>`;
 
         html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
             <div class="flex justify-between items-start mb-2">
-                <div class="flex-1 pr-2">
+                <div class="flex-1 cursor-pointer pr-2" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                    <p class="text-[10px] text-slate-500 mt-1 mb-2"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                    <div class="inline-block bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm">
+                        לחץ לפרטים <i class="fa-solid fa-chevron-down mr-1"></i>
+                    </div>
                 </div>
-                <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
+                <div class="flex flex-col items-end gap-1 w-[120px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate border">${st.t}</span>
+                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
                     ${statusSelectHtml}
                 </div>
             </div>
-            <div class="flex justify-start mt-3">
-                <button onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');" 
-                        class="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm border border-indigo-100">
-                    לחץ לפרטים <i class="fa-solid fa-chevron-down"></i>
-                </button>
-            </div>
             <div id="b2b-order-items-${o.id}" class="hidden">
                 ${contactHtml}
-                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-1 mb-1">${itemsHtml}</div>
+                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-3 mb-1">${itemsHtml}</div>
                 ${actionsHtml}
             </div>
         </div>`;
     });
-    
     list.innerHTML = html;
-}
-
-// פונקציה למשיכת טיוטת חוסרים חזרה לעגלה
-async function editDraftOrder(orderId) {
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
-    if (!order) return;
-    try {
-        let items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-        items.forEach(i => {
-            if (i.id) { b2bCart[i.id] = (b2bCart[i.id] || 0) + parseFloat(i.quantity); }
-        });
-        await fetch(`${API}/b2b/orders/${orderId}`, { method: 'DELETE' });
-        showToast('success', 'החוסרים נטענו בהצלחה לעגלה!');
-        fetchB2BOrders(); updateB2BCartUI(); switchProcurementTab('list');
-    } catch(e) { showToast('error', 'שגיאה בטעינת הטיוטה לעגלה'); }
 }
 
 async function updateB2BOrderStatus(orderId, status) {
     try {
         const res = await fetch(`${API}/b2b/orders/status`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ orderId, status })
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ orderId, status })
         });
         const data = await res.json();
-        if(data.success) { showToast('success', 'סטטוס הזמנה עודכן בהצלחה'); fetchB2BOrders(); } 
-        else { showToast('error', data.error || 'שגיאה בעדכון סטטוס'); }
+        if(data.success) {
+            showToast('success', 'סטטוס הזמנה עודכן בהצלחה');
+            fetchB2BOrders();
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון סטטוס');
+        }
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-let _receiveGoodsOrderId = null;
-
-function openReceiveGoodsModal(orderId) {
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
-    if (!order) return showToast('error', 'הזמנה לא נמצאה');
-
-    _receiveGoodsOrderId = orderId;
+// הורדת PDF ידנית מהתצוגה המקדימה 
+async function downloadOrderPDFManual(orderId) {
+    showToast('info', 'טוען תצוגה מקדימה...');
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
+    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
+    
+    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
     let items = [];
-    try { items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) { items = []; }
-
-    const container = getEl('receive-goods-items');
-    if (!container) return;
-
-    container.innerHTML = items.map((item, idx) => `
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <div class="flex justify-between items-center mb-2">
-                <span class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</span>
-                <span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">הוזמן: ${item.quantity} ${safeStr(item.unit || "יח'")}</span>
-            </div>
-            <div class="flex gap-2 items-center">
-                <div class="flex-1">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">התקבל בפועל</label>
-                    <input type="number" id="rg-received-${idx}" min="0" step="0.1" value="${item.quantity}" class="modern-input py-1.5 text-sm text-center bg-green-50 border-green-200 w-full">
-                </div>
-                <div class="flex-1">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">חסר (לא סופק)</label>
-                    <input type="number" id="rg-missing-${idx}" min="0" step="0.1" value="0" class="modern-input py-1.5 text-sm text-center bg-red-50 border-red-200 w-full" oninput="document.getElementById('rg-received-${idx}').value=Math.max(0,${item.quantity}-parseFloat(this.value||0)).toFixed(1)">
-                </div>
-            </div>
-        </div>
-    `).join('');
-    getEl('receive-goods-modal').classList.remove('hidden');
-}
-
-async function submitReceiveGoods() {
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(_receiveGoodsOrderId));
-    if (!order) return;
-
-    let items = [];
-    try { items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) { items = []; }
-
-    const receivedItems = [], missingItems = [];
-    items.forEach((item, idx) => {
-        const receivedQty = parseFloat(document.getElementById(`rg-received-${idx}`)?.value || 0);
-        const missingQty = parseFloat(document.getElementById(`rg-missing-${idx}`)?.value || 0);
-        if (receivedQty > 0) receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit || "יח'" });
-        // הוספתי שמירה של מזהה המוצר כדי שנוכל להחזיר אותו לעגלה!
-        if (missingQty > 0) missingItems.push({ id: item.id, sku: item.sku || '', name: item.name, qty: missingQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
-    });
-
-    try {
-        const res = await fetch(`${API}/b2b/orders/receive`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: _receiveGoodsOrderId, groupId: currentGroup.id, userId: currentUser.id, receivedItems, missingItems })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', `סחורה נרשמה! ${missingItems.length ? 'הזמנת החוסרים נוצרה כטיוטה.' : ''}`);
-            getEl('receive-goods-modal').classList.add('hidden');
-            fetchB2BOrders();
-        } else { showToast('error', data.error || 'שגיאה ברישום הסחורה'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-}
-// ==========================================
-// --- ONBOARDING WIZARD (אשף הקמה לעסקים) ---
-// ==========================================
-let currentWizardStep = 1;
-wizardProducts = []; // כבר מוגדר בראש הקובץ, רק מאפסים פה
-
-function showOnboardingWizard() {
-    if (document.getElementById('onboarding-wizard-modal')) {
-        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
-        return;
-    }
-
-    const modalHtml = `
-    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-            
-            <div class="w-full bg-slate-100 h-1.5 shrink-0">
-                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
-            </div>
-
-            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
-                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow BIZ! 🎉</h2>
-                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את העסק שלכם ב-4 צעדים מהירים</p>
-            </div>
-
-            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
-                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-store text-indigo-500"></i> פרופיל העסק</h3>
-                    <div class="space-y-4">
-                        <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mt-4 mb-6 space-y-4">
-                            <h4 class="text-[11px] font-black text-indigo-800 border-b border-indigo-200/50 pb-2">עיצוב ומיתוג העסק (אופציונלי)</h4>
-                            
-                            <div class="flex items-center justify-between gap-4">
-                                <div>
-                                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">לוגו העסק:</label>
-                                    <div class="flex gap-2">
-                                        <button type="button" onclick="document.getElementById('wizard-logo-upload').click()" class="bg-white text-slate-600 px-4 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה מהמחשב</button>
-                                        <button type="button" onclick="clearImage('wizard-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
-                                </div>
-                                    <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                     <img id="wizard-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                     <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
-                                 </div>
-                                 <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
-                                 <input type="hidden" id="wizard-logo-base64">
-                             </div>
-
-                             <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
-                                 <div>
-                                     <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
-                                     <div class="flex flex-col gap-2">
-                                         <div class="flex gap-2">
-                                             <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
-                                             <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
-                                         </div>
-                                         <button type="button" id="btn-generate-banner-ai-wiz" onclick="generateBannerAI()" class="hidden bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ב-AI</button>
-                                     </div>
-                                 </div>
-                                 <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                     <img id="wizard-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                     <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
-                                 </div>
-                                 <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
-                                 <input type="hidden" id="wizard-banner-base64">
-                             </div>
-
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">טלפון ראשי (להזמנות):</label>
-                            <input type="tel" id="wizard-phone" class="modern-input py-3 text-left dir-ltr w-full bg-white" placeholder="050-0000000">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">סלוגן / משפט מפתח:</label>
-                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="המוצרים הכי טובים בעיר">
-                        </div>
-                    </div>
-                </div>
-
-                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-wallet text-indigo-500"></i> תקציב ראשוני</h3>
-                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהי מסגרת התקציב או ההון ההתחלתי של העסק כרגע, כדי שנוכל להתחיל לעקוב אחרי ההוצאות וההכנסות.</p>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                        <label class="text-sm font-bold text-slate-700 block mb-2">מסגרת / הון קיים (₪):</label>
-                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
-                        <p class="text-[10px] text-slate-400 mt-3">* סכום זה יוזן כפעולת "הכנסה התחלתית" בתזרים.</p>
-                    </div>
-                </div>
-
-                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית קטלוג ראשוני</h3>
-                    <p class="text-xs text-slate-500 text-center mb-4">תוכלו לבנות את המוצרים ידנית, או לתת ל-AI שלנו לבנות לכם תפריט בשניות! (עד 25 פריטים)</p>
-                    
-                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
-                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ בניה אוטומטית בעזרת AI</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תאר את העסק (למשל: פיצריה שכונתית, מוסך)">
-                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">בנה תפריט</button>
-                        </div>
-                    </div>
-
-                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
-                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                            <input type="text" id="wiz-add-name" placeholder="שם מוצר" class="modern-input py-2 text-xs col-span-2 sm:col-span-1">
-                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs">
-                            <input type="number" id="wiz-add-price" placeholder="מחיר (₪)" class="modern-input py-2 text-xs text-center dir-ltr">
-                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs col-span-2 sm:col-span-1">הוסף</button>
-                        </div>
-                        <input type="text" id="wiz-add-desc" placeholder="תיאור קצר (אופציונלי)" class="modern-input py-2 text-xs w-full">
-                    </div>
-
-                    <div class="flex justify-between items-center mb-2 px-1">
-                        <h4 class="font-bold text-slate-700 text-sm">הקטלוג שלך (<span id="wiz-prod-count">0</span>/25):</h4>
-                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
-                    </div>
-                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
-                        <p class="text-xs text-slate-400 text-center py-4">הקטלוג ריק. הוסיפו מוצרים כדי להמשיך.</p>
-                    </div>
-                </div>
-
-                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
-                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את הצוות</h3>
-                    <p class="text-sm text-slate-500 mb-8">העסק מוכן לעבודה! זה הזמן לשלוח הזמנה לעובדים, מנהלי משמרת ושותפים.</p>
-                    
-                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-brands fa-whatsapp text-lg"></i> שלח הזמנה לעובדים
-                    </button>
-                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת שותף/מנהל ראשי
-                    </button>
-                </div>
-            </div>
-
-            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
-                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
-                <div class="flex gap-2">
-                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
-                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-window.generateLogoAI = async function() {
-    const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
-    const slogan = val('wizard-slogan') || val('store-slogan') || '';
+    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
     
-    executeWithAIWarning(async () => {
-        showToast('info', 'ה-AI מעצב לוגו מקצועי... (לוקח עד 15 שניות)');
-        try {
-            const res = await fetch(`${API}/ai/generate-image`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: `Professional minimalist logo for a business named "${businessName}". Style: Modern, flat design, clean lines. Slogan: "${slogan}". High resolution, white background, suitable for a web app icon.`,
-                    groupId: currentGroup.id, type: 'logo'
-                })
-            });
-            const data = await res.json();
-            if (data.success && data.imageUrl) {
-                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
-                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-                
-                ['wizard', 'store'].forEach(prefix => {
-                    const preview = getEl(`${prefix}-logo-preview`);
-                    const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
-                    const input = getEl(`${prefix}-logo-base64`);
-                    
-                    if(preview) { preview.src = freshUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
-                    if(icon) icon.classList.add('hidden');
-                    if(input) input.value = freshUrl;
-                });
-                showToast('success', 'הלוגו עוצב בהצלחה!');
-                triggerConfetti();
-            } else { showToast('error', data.error || 'שגיאה ביצירת לוגו'); }
-        } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
-    });
-};
-
-window.handleStoreLogoUpload = function(event) {
-    const file = event.target.files[0]; 
-    if(!file) return; 
-    showToast('info', 'מכווץ תמונה...');
-    compressImage(file, 300, 300, 0.8, (base64) => {
-        document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { 
-            el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
-        });
-        document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = base64);
-        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
-        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
-    });
-};
-
-window.handleStoreBannerUpload = function(event) {
-    const file = event.target.files[0]; 
-    if(!file) return; 
-    showToast('info', 'מכווץ תמונת באנר...');
-    compressImage(file, 800, 400, 0.8, (base64) => {
-        document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { 
-            el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
-        });
-        document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = base64);
-        showToast('success', 'הבאנר הועלה ומוכן לשמירה!');
-    });
-};
-
-// הפניה של פונקציות האשף לאותה לוגיקה בדיוק
-window.handleWizardLogo = window.handleStoreLogoUpload;
-window.handleWizardBanner = window.handleStoreBannerUpload;
-
-window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
-        el.src = ''; el.classList.add('hidden'); el.style.display = ''; 
-    });
-    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
-    
-    if (targetIdPrefix.includes('logo')) {
-        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
-    }
-    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
-};
-window.generateBannerAI = async function() {
-    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
-    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
-    
-    let logoBase64 = val('wizard-logo-base64');
-    if (!logoBase64) {
-        logoBase64 = val('store-logo-base64');
-    }
-
-    if (!logoBase64) {
-        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
-    }
-    
-    if (typeof executeWithAIWarning === 'function') {
-        executeWithAIWarning(runBannerAI);
-    } else {
-        runBannerAI();
-    }
-
-    async function runBannerAI() {
-        // נעילת הכפתורים והצגת חיווי טעינה
-        const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
-        btns.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...';
-        });
-
-        showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
-        try {
-            const res = await fetch(`${API}/ai/generate-image`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: businessName,
-                    groupId: groupId, 
-                    type: 'banner',
-                    logoBase64: logoBase64
-                })
-            });
-            const data = await res.json();
-            if (data.success && data.imageUrl) {
-                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן במקום להציג מהזיכרון
-                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-                const img = new Image();
-                
-                img.onload = () => {
-                    document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
-                        el.src = freshUrl;
-                        el.classList.remove('hidden');
-                        el.style.display = 'block';
-                    });
-                    document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
-                    
-                    showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
-                    try { triggerConfetti(); } catch(e){}
-                };
-                img.onerror = () => showToast('error', 'שגיאה בטעינת הבאנר מהשרת. נסו שוב.');
-                img.src = freshUrl;
-            } else { 
-                showToast('error', data.error || 'שגיאה ביצירת באנר'); 
-            }
-        } catch (e) { 
-            showToast('error', 'שגיאת רשת מול שרת ה-AI'); 
-        } finally {
-            // החזרת הכפתורים למצב פעיל
-            btns.forEach(btn => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)';
-            });
-        }
-    }
-};
-window.openStoreImageModal = function(src) {
-    if (!src || src.length < 10) return;
-    const existing = document.getElementById('store-img-modal');
-    if (existing) existing.remove();
-    const modal = document.createElement('div');
-    modal.id = 'store-img-modal';
-    modal.className = 'fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center p-4';
-    modal.onclick = () => modal.remove();
-    modal.innerHTML = '<div class="relative max-w-full max-h-full" onclick="event.stopPropagation()"><img src="' + src + '" class="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain"><button onclick="document.getElementById(\'store-img-modal\').remove()" class="absolute top-2 right-2 bg-white/90 text-slate-700 w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-lg hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button></div>';
-    document.body.appendChild(modal);
-};
-
-window.saTogglePremium = async function(id, enable) {
-    if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
-    try {
-        const res = await fetch(`${API}/superadmin/groups/${id}/premium`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ enable: enable })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', `מנוי PRO ${enable ? 'הופעל' : 'בוטל'} בהצלחה!`);
-            if (typeof loadSAData === 'function') loadSAData();
-        } else {
-            showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי');
-    }
-};
-function addWizardProduct() {
-    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בהקמה.');
-    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי'; const price = parseFloat(val('wiz-add-price')) || 0; const desc = val('wiz-add-desc');
-    if (!name) return showToast('error', 'יש להזין שם מוצר');
-    wizardProducts.push({ name, category: cat, price, description: desc });
-    getEl('wiz-add-name').value = ''; getEl('wiz-add-price').value = ''; getEl('wiz-add-desc').value = '';
-    renderWizardProducts();
-}
-
-function removeWizardProduct(idx) { wizardProducts.splice(idx, 1); renderWizardProducts(); }
-
-function renderWizardProducts() {
-    const list = getEl('wizard-products-list');
-    getEl('wiz-prod-count').innerText = wizardProducts.length;
-    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">הקטלוג ריק.</p>'; return; }
-    list.innerHTML = wizardProducts.map((p, idx) => `
-        <div class="flex justify-between items-center bg-white border border-slate-200 p-2 rounded-lg shadow-sm">
-            <div class="flex-1 pr-2 overflow-hidden">
-                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)} <span class="font-normal text-indigo-600 ml-2">₪${p.price}</span></div>
-                <div class="text-[10px] text-slate-500 truncate">${safeStr(p.category)} ${p.description ? '• ' + safeStr(p.description) : ''}</div>
-            </div>
-            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
-        </div>
-    `).join('');
-}
-
-async function generateWizardCatalog() {
-    const prompt = val('wizard-ai-prompt');
-    if(!prompt) return showToast('error', 'רשמו איזה עסק זה קודם');
-    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch(`${API}/ai/generate-catalog`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ promptText: prompt, type: 'BUSINESS', groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        if (data.success && data.items) {
-            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
-            renderWizardProducts(); showToast('success', 'התפריט נוצר בהצלחה!');
-        } else { showToast('error', data.error || 'שגיאה ביצירת קטלוג'); }
-    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
-    finally { btn.disabled = false; btn.innerText = 'בנה תפריט'; }
-}
-
-function updateWizardUI() {
-    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
-    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
-    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
-    
-    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
-    const btnNext = getEl('wizard-btn-next');
-    if (currentWizardStep === 4) {
-        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
-        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
-    } else {
-        btnNext.innerText = 'המשך';
-        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
-    }
-}
-
-async function nextWizardStep() {
-    const btnNext = getEl('wizard-btn-next');
-    
-    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        try {
-            await fetch(`${API}/store/settings`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    groupId: currentGroup.id, 
-                    isActive: true, 
-                    phone: val('wizard-phone'), 
-                    slogan: val('wizard-slogan'), 
-                    logoUrl: val('wizard-logo-base64') || val('store-logo-base64') || null,
-                    bannerUrl: val('wizard-banner-base64') || val('store-banner-base64') || null
-                })
-            });
-        } catch(e) {}
-    }
-    
-    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
-        const budget = parseFloat(val('wizard-initial-budget')) || 0;
-        if (budget > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            try {
-                await fetch(`${API}/transaction`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב / מסגרת התחלתית', category: 'business', type: 'income', groupId: currentGroup.id })
-                });
-            } catch(e) {}
-        }
-    }
-    
-    else if (currentWizardStep === 3) { // יצירת קטלוג מרוכזת
-        if (wizardProducts.length > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה מוצרים...';
-            try {
-                for (let p of wizardProducts) {
-                    await fetch(`${API}/store/catalog`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ groupId: currentGroup.id, name: p.name, price: p.price, category: p.category, description: p.description, isAvailable: true, productType: 'retail' })
-                    });
-                }
-            } catch(e) {}
-        }
-    }
-    
-   else if (currentWizardStep === 4) { // סיום
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
-        try {
-            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
-            currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון שמונע קפיצה ברענון!
-            getEl('onboarding-wizard-modal').classList.add('hidden');
-            triggerConfetti(); fetchData(); fetchStoreCatalog(); fetchStoreSettings();
-        } catch(e) {}
-        return;
-    }
-
-    currentWizardStep++;
-    updateWizardUI();
-}
-
-function prevWizardStep() {
-    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
-}
-
-function skipWizardStep() {
-    if (currentWizardStep === 4) nextWizardStep(); // סיום
-    else { currentWizardStep++; updateWizardUI(); }
-}
-// --- מנגנון מחשבון תמחיר מנה (Food Cost) ---
-let fcIngredients = [];
-
-function openFoodCostModal() {
-    fcIngredients = [];
-    renderFCIngredients();
-    populateFCPantrySelect();
-    calculateFC();
-    getEl('food-cost-modal').classList.remove('hidden');
-}
-
-function populateFCPantrySelect() {
-    const select = getEl('fc-ingredient-select');
-    if (!select) return;
-    
-    let html = '<option value="">בחר מוצר מהמלאי...</option>';
-    if (typeof pantryCache !== 'undefined' && pantryCache.length > 0) {
-        pantryCache.forEach(item => {
-            const cost = parseFloat(item.price) || 0; // בהנחה שהשדה הוא price
-            html += `<option value="${item.id}" data-name="${safeStr(item.item_name)}" data-cost="${cost}">${safeStr(item.item_name)} (₪${cost}/${item.unit || "יח'"})</option>`;
-        });
-    }
-    html += '<option value="custom">-- הזנה ידנית של חומר גלם --</option>';
-    select.innerHTML = html;
-}
-
-function addFCIngredient() {
-    const select = getEl('fc-ingredient-select');
-    const qtyInput = getEl('fc-ingredient-qty');
-    const qty = parseFloat(qtyInput.value);
-    
-    if (select.value === '') return showToast('error', 'יש לבחור מוצר מהמלאי');
-    if (!qty || qty <= 0) return showToast('error', 'יש להזין כמות תקינה (למשל: 1, 0.5)');
-
-    const option = select.options[select.selectedIndex];
-    let name = option.getAttribute('data-name');
-    let costPerUnit = parseFloat(option.getAttribute('data-cost')) || 0;
-
-    if (select.value === 'custom') {
-        name = prompt('שם חומר הגלם:');
-        if (!name) return;
-        const costInput = prompt(`מהי העלות ליחידה אחת של ${name}? (₪)`);
-        costPerUnit = parseFloat(costInput) || 0;
-    }
-
-    fcIngredients.push({ name: name, qty: qty, costPerUnit: costPerUnit });
-    qtyInput.value = '';
-    select.value = '';
-    renderFCIngredients();
-    calculateFC();
-}
-
-function removeFCIngredient(index) {
-    fcIngredients.splice(index, 1);
-    renderFCIngredients();
-    calculateFC();
-}
-
-function renderFCIngredients() {
-    const list = getEl('fc-ingredients-list');
-    if (!list) return;
-    if (fcIngredients.length === 0) {
-        list.innerHTML = '<p class="text-[10px] text-emerald-600/70 text-center py-2 font-medium">טרם הוספו מרכיבים.</p>';
-        return;
-    }
-    let html = '';
-    fcIngredients.forEach((ing, idx) => {
-        const total = ing.qty * ing.costPerUnit;
-        html += `
-        <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-100 text-xs shadow-sm">
-            <span>${safeStr(ing.name)} <span class="text-slate-400 mx-1">x${ing.qty}</span></span>
-            <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-700">₪${total.toFixed(2)}</span>
-                <button onclick="removeFCIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function calculateFC() {
-    let totalMatCost = 0;
-    fcIngredients.forEach(ing => totalMatCost += (ing.qty * ing.costPerUnit));
-    
-    const overhead = parseFloat(val('fc-overhead')) || 0;
-    const targetPct = parseFloat(val('fc-target-pct')) || 30;
-    
-    const totalCost = totalMatCost + overhead;
-    let recPrice = 0;
-    
-    if (targetPct > 0) {
-        recPrice = totalCost / (targetPct / 100);
-    }
-    
-    getEl('fc-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
-    getEl('fc-recommended-price').innerText = `₪${recPrice.toFixed(0)}`; // מעגלים לשקל שלם
-    getEl('fc-recommended-price').dataset.raw = recPrice.toFixed(2);
-}
-
-function applyFCPrice() {
-    const recPriceEl = getEl('fc-recommended-price');
-    const priceStr = recPriceEl.dataset.raw || recPriceEl.innerText.replace('₪', '');
-    const price = parseFloat(priceStr);
-    
-    if (price > 0) {
-        const priceInput = getEl('sp-price');
-        if (priceInput) {
-            priceInput.value = Math.ceil(price); // מעגל כלפי מעלה בחנות
-            showToast('success', 'המחיר עודכן בטופס!');
-        }
-    }
-    getEl('food-cost-modal').classList.add('hidden');
-}
-
-async function analyzeFoodCostAI() {
-    executeWithAIWarning(async () => {
-        showAIModal('אנליסט התמחור AI', null); getEl('familai-loading-text').innerText = 'מנתח אפשרויות להוזלת המנה...';
-        try {
-            const ingredientsData = fcIngredients.map(i => `${i.name}: ${i.qty} יח' (₪${i.costPerUnit}/יח')`).join(', ');
-            const promptText = `נתח את עלות המנה הבאה והצע חלופות לחומרי גלם כדי להוריד את ה-Food Cost:\n${ingredientsData}\nהוצאות עקיפות: ₪${val('fc-overhead')}\nיעד רצוי: ${val('fc-target-pct')}%`;
-            
-            const res = await fetch(`${API}/biz/chat-assistant`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "יועץ קולינרי וכלכלי למסעדות" }), groupId: currentGroup.id }) 
-            });
-            const data = await res.json();
-            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success && data.answer) { showAIModal('אנליסט התמחור AI', data.answer); }
-            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
-        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
-    });
-}
-// --- מסופון שליחים משופר (Dropdown UI) ---
-window.switchDeliveryTab = function(tab) {
-    const views = ['active', 'transit', 'history'];
-    views.forEach(v => {
-        const viewEl = getEl(`del-view-${v}`);
-        const btnEl = getEl(`btn-del-${v}`);
-        if(viewEl) viewEl.classList.add('hidden');
-        if(btnEl) btnEl.className = 'flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    });
-
-    const targetView = getEl(`del-view-${tab}`);
-    const targetBtn = getEl(`btn-del-${tab}`);
-    if(targetView) targetView.classList.remove('hidden');
-    if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200';
-    
-    loadCourierData();
-};
-
-window.loadCourierData = async function() {
-    const hasAccess = (currentUser.permissions?.tabs?.includes('deliveries') || currentUser.role === 'ADMIN');
-    if (!hasAccess) return;
-    
-    try {
-        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
-        const data = await res.json();
-        const searchId = val('courier-search-id');
-        
-        let ordersArray = [];
-        if (Array.isArray(data)) ordersArray = data;
-        else if (data.orders) ordersArray = data.orders;
-        else if (data.data) ordersArray = data.data;
-        
-        if (ordersArray.length > 0) {
-            const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null);
-
-            let filtered = ordersArray.filter(checkIsDelivery);
-            if (searchId) {
-                const s = searchId.toLowerCase();
-                filtered = filtered.filter(o => 
-                    String(o.id).includes(s) || 
-                    (o.customer_phone && String(o.customer_phone).includes(s)) ||
-                    (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
-                );
-            }
-
-            const active = filtered.filter(o => o.status === 'ready');
-            const transit = filtered.filter(o => o.status === 'shipped');
-            
-            // הורדנו את סינון ה"היום" כדי להראות את כל ההיסטוריה
-            const history = filtered.filter(o => o.status === 'completed');
-            history.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-
-            renderCourierList('active', active, 'ready');
-            renderCourierList('transit', transit, 'shipped');
-            renderCourierList('history', history, 'completed');
-        } else {
-            renderCourierList('active', [], 'ready');
-            renderCourierList('transit', [], 'shipped');
-            renderCourierList('history', [], 'completed');
-        }
-    } catch(e) { console.error('Courier Load Error', e); }
-};
-
-window.renderCourierList = function(type, orders, statusType) {
-    const container = getEl(`courier-${type}-list`);
-    if (!container) return;
-    if (orders.length === 0) {
-        container.innerHTML = `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><i class="fa-solid fa-box-open text-3xl text-slate-200 mb-2"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות</p></div>`;
-        return;
-    }
-
-    container.innerHTML = orders.map(o => {
-        let deliveryData = {};
-        const meta = getDeliveryMeta(o);
-        if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
-        else { try { deliveryData = typeof o.delivery_details === 'string' ? JSON.parse(o.delivery_details) : (o.delivery_details || {}); } catch(e){} }
-
-        const addr = `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}`;
-        const waze = `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
-        const cleanPhone = (o.customer_phone || '').replace(/\D/g, '');
-        const waPhone = cleanPhone.startsWith('0') ? '972' + cleanPhone.substring(1) : cleanPhone;
-        const waMsg = encodeURIComponent(`היי ${safeStr(o.customer_name)}, השליח בדרך אליך! 🛵`);
-        const waLink = `https://wa.me/${waPhone}?text=${waMsg}`;
-
-        let actionBtn = '';
-        if (statusType === 'ready') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-4 py-3 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-motorcycle"></i> יציאה למשלוח</button>`;
-        } else if (statusType === 'shipped') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה</button>`;
-        }
-
-        return `
-        <div class="bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm mb-4 relative overflow-hidden fade-in">
-            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
-            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleCardCollapse('cour-${o.id}')">
-                <div class="flex-1 pr-1">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#${o.id}</span>
-                        <span class="text-[10px] text-slate-400 font-mono">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}</span>
-                    </div>
-                    <h4 class="font-black text-slate-800 text-sm mb-0.5 truncate pr-1">${safeStr(deliveryData.street || 'כתובת')} ${safeStr(deliveryData.house || '')}</h4>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="font-black text-slate-900 text-base dir-ltr">₪${o.total_amount}</span>
-                    <i id="card-icon-cour-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform"></i>
-                </div>
-            </div>
-            
-            <div id="order-details-cour-${o.id}" class="hidden">
-                <div class="mt-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100 flex items-start gap-2">
-                    <i class="fa-solid fa-location-dot mt-0.5"></i> 
-                    <div>
-                        <div class="leading-tight">${addr}</div>
-                        ${deliveryData.notes ? `<div class="text-[10px] text-amber-700 font-medium mt-1.5 pt-1.5 border-t border-indigo-200/50">${safeStr(deliveryData.notes)}</div>` : ''}
-                    </div>
-                </div>
-
-                <p class="text-xs font-bold text-slate-600 mt-3 text-center">${safeStr(o.customer_name)} | <span dir="ltr">${safeStr(o.customer_phone)}</span></p>
-
-                <div class="grid grid-cols-3 gap-2 mt-3">
-                    <a href="${waze}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-bold text-[10px] border border-blue-100 hover:bg-blue-100 transition"><i class="fa-brands fa-waze text-lg"></i> Waze</a>
-                    <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-slate-50 text-slate-700 rounded-xl font-bold text-[10px] border border-slate-100 hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg"></i> חייג</a>
-                    <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
-                </div>
-                
-                ${buildOrderLogHtml(o.status, o.created_at)}
-                ${actionBtn}
-            </div>
-        </div>`;
-    }).join('');
-};
-
-window.updateStoreOrderStatusCourier = async function(orderId, status) {
-    try {
-        const res = await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId, status }) });
-        const data = await res.json();
-        if(data.success) { 
-            try { if(status === 'completed') triggerConfetti(); } catch(e){}
-            showToast('success', status === 'completed' ? 'המשלוח נמסר!' : 'נאסף! נסיעה טובה'); 
-            if (typeof window.loadCourierData === 'function') window.loadCourierData(); 
-            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); 
-        } else { showToast('error', data.error || 'שגיאה בעדכון'); }
-    } catch(e) { 
-        console.error('Update status error:', e);
-        showToast('error', 'שגיאת רשת בעדכון הסטטוס'); 
-    }
-};
-window.updateCustomTabsByRoles = function() {
-    // אוסף את התפקידים שנבחרו
-    const checkboxes = document.querySelectorAll('.role-cb:checked');
-    const selectedRoles = Array.from(checkboxes).map(cb => cb.value);
-    
-    // בונה רשימת טאבים מאוחדת
-    let combinedTabs = new Set();
-    
-    selectedRoles.forEach(role => {
-        if (role === 'COURIER') {
-            combinedTabs.add('deliveries');
-        } else if (ROLE_DEFAULTS[role]) {
-            ROLE_DEFAULTS[role].forEach(t => combinedTabs.add(t));
-        }
-    });
-    
-    // מעדכן את הצ'קבוקסים של הטאבים למטה לפי האיחוד
-    document.querySelectorAll('.perm-tab-cb').forEach(cb => {
-        if (cb.value !== 'feed') { // feed תמיד נשאר
-            cb.checked = combinedTabs.has(cb.value);
-        }
-    });
-};
-// ============================================================
-// --- FOOD COST MODULE ---
-// ============================================================
-async function fetchFoodCost() {
-    const list = getEl('fc-list');
-    if(!list) return;
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin mr-1"></i> שואב נתוני עלות מחירונים...</p>';
-    
-    try {
-        const res = await fetch(`${API}/food-cost/${currentGroup.id}`);
-        const data = await res.json();
-        
-        if(data.success) {
-            foodCostData = data.catalog;
-            foodCostPrices = data.priceMap;
-            renderFoodCostList();
-        } else {
-            list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאה בטעינת נתונים</p>';
-        }
-    } catch(e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת</p>';
-    }
-}
-
-function renderFoodCostList() {
-    const list = getEl('fc-list');
-    const query = val('fc-search').toLowerCase().trim();
-    
-    let filtered = foodCostData;
-    if (query) {
-        filtered = filtered.filter(item => item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query));
-    }
-    
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-white rounded-xl border border-dashed">לא נמצאו מנות תואמות.</p>';
-        return;
-    }
-    
-    let html = '';
-    filtered.forEach(item => {
-        const fc = item.costs.foodCostPct;
-        let fcColor = 'text-green-600 bg-green-50 border-green-200';
-        let statusIcon = '<i class="fa-solid fa-check-circle"></i>';
-        
-        if (fc === 0 && item.costs.total === 0) {
-            fcColor = 'text-slate-500 bg-slate-100 border-slate-200';
-            statusIcon = '<i class="fa-solid fa-triangle-exclamation"></i>';
-        } else if (fc > 40) {
-            fcColor = 'text-red-600 bg-red-50 border-red-200';
-            statusIcon = '<i class="fa-solid fa-arrow-trend-down"></i> הפסדי';
-        } else if (fc > 30) {
-            fcColor = 'text-orange-600 bg-orange-50 border-orange-200';
-            statusIcon = '<i class="fa-solid fa-scale-balanced"></i> גבולי';
-        } else {
-            statusIcon = '<i class="fa-solid fa-arrow-trend-up"></i> רווחי';
-        }
-
-        html += `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-3 flex flex-col hover:border-emerald-200 transition">
-            <div class="flex justify-between items-start mb-2 border-b border-slate-50 pb-2">
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</h4>
-                    <p class="text-[10px] text-slate-400">${safeStr(item.category)} | מכירה: ₪${parseFloat(item.price).toFixed(2)}</p>
-                </div>
-                <div class="text-left flex flex-col items-end">
-                    <span class="text-xs font-black ${fcColor.split(' ')[0]} bg-slate-50 px-2 py-1 rounded-lg border shadow-sm" dir="ltr">${fc > 0 ? fc.toFixed(1) + '%' : 'לא חושב'}</span>
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-end mt-1">
-                <div class="flex gap-4 text-[10px] font-bold">
-                    <div class="flex flex-col"><span class="text-slate-400">עלות יצור</span><span class="text-slate-700 text-xs">₪${item.costs.total.toFixed(2)}</span></div>
-                    <div class="flex flex-col"><span class="text-slate-400">רווח גולמי</span><span class="text-green-600 text-xs">₪${item.costs.profit.toFixed(2)}</span></div>
-                </div>
-                <button onclick="openRecipeBuilder(${item.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-pen mr-1"></i> עץ מוצר</button>
-            </div>
-        </div>`;
-    });
-    
-    list.innerHTML = html;
-}
-
-function openRecipeBuilder(catalogId) {
-    const item = foodCostData.find(i => i.id === catalogId);
-    if(!item) return;
-    
-    rbCurrentItem = item;
-    rbIngredients = JSON.parse(JSON.stringify(item.ingredients));
-    rbOverheads = JSON.parse(JSON.stringify(item.overheads));
-    
-    getEl('rb-title').innerText = `עץ מוצר: ${item.name}`;
-    getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
-    getEl('rb-catalog-id').value = item.id;
-    
-    getEl('recipe-builder-modal').classList.remove('hidden');
-    refreshRBUI();
-}
-
-function closeRecipeBuilder() {
-    getEl('recipe-builder-modal').classList.add('hidden');
-    rbCurrentItem = null;
-}
-
-function addRBIngredient() {
-    const name = val('rb-add-ing-name');
-    const qty = parseFloat(val('rb-add-ing-qty'));
-    const unit = val('rb-add-ing-unit');
-    
-    if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
-    
-    const knownPrice = foodCostPrices[name] ? foodCostPrices[name].price : 0;
-    
-    rbIngredients.push({
-        ingredient_name: name,
-        quantity: qty,
-        unit: unit,
-        calculated_cost: knownPrice * qty,
-        known_price: knownPrice
-    });
-    
-    getEl('rb-add-ing-name').value = '';
-    getEl('rb-add-ing-qty').value = '';
-    refreshRBUI();
-}
-
-function removeRBIngredient(index) {
-    rbIngredients.splice(index, 1);
-    refreshRBUI();
-}
-
-function addRBOverhead() {
-    const name = val('rb-add-ovh-name');
-    const cost = parseFloat(val('rb-add-ovh-cost'));
-    
-    if(!name || !cost || cost <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
-    
-    rbOverheads.push({ name: name, cost: cost });
-    
-    getEl('rb-add-ovh-name').value = '';
-    getEl('rb-add-ovh-cost').value = '';
-    refreshRBUI();
-}
-
-function removeRBOverhead(index) {
-    rbOverheads.splice(index, 1);
-    refreshRBUI();
-}
-
-function refreshRBUI() {
-    const ingList = getEl('rb-ingredients-list');
-    const ovhList = getEl('rb-overhead-list');
-    
-    let ingTotal = 0;
-    if (rbIngredients.length === 0) {
-        ingList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">לא הוזנו חומרי גלם.</p>';
-    } else {
-        ingList.innerHTML = rbIngredients.map((ing, idx) => {
-            ingTotal += ing.calculated_cost;
-            const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
-            return `
-            <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
-                <div class="font-mono text-slate-600">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
-            </div>`;
-        }).join('');
-    }
-    
-    let ovhTotal = 0;
-    if (rbOverheads.length === 0) {
-        ovhList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">אין הוצאות נלוות למנה זו.</p>';
-    } else {
-        ovhList.innerHTML = rbOverheads.map((ovh, idx) => {
-            ovhTotal += parseFloat(ovh.cost);
-            return `
-            <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
-                <div class="font-mono text-slate-600">₪${parseFloat(ovh.cost).toFixed(2)}</div>
-            </div>`;
-        }).join('');
-    }
-    
-    const totalCost = ingTotal + ovhTotal;
-    const salePrice = parseFloat(rbCurrentItem.price) || 0;
-    const profit = salePrice - totalCost;
-    const fcPct = salePrice > 0 ? (totalCost / salePrice) * 100 : 0;
-    
-    getEl('rb-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
-    getEl('rb-gross-profit').innerText = `₪${profit.toFixed(2)}`;
-    getEl('rb-gross-profit').className = profit >= 0 ? 'text-green-600 font-black' : 'text-red-600 font-black';
-    
-    getEl('rb-fc-pct').innerText = fcPct.toFixed(1) + '%';
-    
-    const bar = getEl('rb-fc-bar');
-    bar.style.width = `${Math.min(100, fcPct)}%`;
-    if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
-    else if (fcPct > 30) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
-    else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
-}
-
-async function saveRecipeBuilder() {
-    const catalogId = val('rb-catalog-id');
-    const btn = document.querySelector('#recipe-builder-modal button.bg-slate-900');
-    btn.disabled = true; btn.innerText = 'שומר...';
-    
-    try {
-        const res = await fetch(`${API}/food-cost/recipe/${catalogId}`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ ingredients: rbIngredients, overheads: rbOverheads })
-        });
-        
-        if((await res.json()).success) {
-            showToast('success', 'עץ המוצר עודכן בהצלחה!');
-            closeRecipeBuilder();
-            fetchFoodCost(); // רענון הנתונים
-        } else {
-            showToast('error', 'שגיאה בשמירת הנתונים');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת');
-    } finally {
-        btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
-    }
-}
-// הוספת מזהה גרסה בתחתית המסך
-(function addVersionBadge() {
-    if (!document.getElementById('oneflow-version-badge')) {
-        const badge = document.createElement('div');
-        badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.2.5 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
-        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
-        document.body.appendChild(badge);
-    }
-})(); // <--- הנה הסגירה שהייתה חסרה ותקעה את המערכת!
-
-// ==========================================
-// --- קריאות שירות והיסטוריה (Support Tickets) ---
-// ==========================================
-let myTicketsCache = [];
-let myCurrentTicketId = null;
-
-window.openSupportTicketModal = function() {
-    document.getElementById('support-ticket-subject').value = 'תקלה טכנית (באג במערכת)';
-    document.getElementById('support-ticket-desc').value = '';
-    document.getElementById('support-ticket-modal').classList.remove('hidden');
-    
-    const profileModal = document.getElementById('profile-modal');
-    if (profileModal) profileModal.classList.add('hidden');
-    
-    window.fetchMyTickets();
-};
-
-window.submitSupportTicket = async function() {
-    const subject = document.getElementById('support-ticket-subject').value;
-    const desc = document.getElementById('support-ticket-desc').value;
-    
-    if(!desc || desc.trim().length < 5) return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
-    
-    const btn = document.getElementById('btn-submit-ticket');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
-    
-    try {
-        const payload = {
-            groupId: (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : null,
-            groupName: (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.name : 'לקוח עסקי',
-            userId: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null,
-            userName: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.nickname : 'אורח',
-            userEmail: (typeof currentGroup !== 'undefined' && currentGroup && currentGroup.admin_email) ? currentGroup.admin_email : 'לא סופק במערכת',
-            subject: subject || 'פנייה כללית',
-            description: desc
-        };
-
-        const res = await fetch(`${API}/support/ticket`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'קריאתך התקבלה בהצלחה! נחזור אליך בהקדם.');
-            document.getElementById('support-ticket-desc').value = '';
-            window.fetchMyTickets(); 
-            try { triggerConfetti(); } catch(e) {}
-        } else { showToast('error', data.error || 'שגיאה בשליחת הקריאה.'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת.'); } 
-    finally { if (btn) { btn.disabled = false; btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>'; } }
-};
-
-window.fetchMyTickets = async function() {
-    const list = document.getElementById('my-tickets-list');
-    if (!list) return;
-    if (typeof currentGroup === 'undefined' || !currentGroup || !currentGroup.id) { list.innerHTML = '<p class="text-xs text-slate-400 text-center">לא ניתן לטעון נתונים.</p>'; return; }
-    
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> טוען היסטוריה...</p>';
-    try {
-        const res = await fetch(`${API}/support/tickets/my/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            myTicketsCache = data.tickets || [];
-            window.renderMyTickets();
-        } else { list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאה בטעינת קריאות.</p>'; }
-    } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת בטעינה.</p>'; }
-};
-
-window.filterMyTickets = function() { window.renderMyTickets(); };
-
-window.renderMyTickets = function() {
-    const list = document.getElementById('my-tickets-list');
-    if (!list) return;
-    
-    const query = (document.getElementById('my-tickets-search')?.value || '').toLowerCase().trim();
-    let filtered = myTicketsCache;
-    
-    if (query) {
-        filtered = filtered.filter(t => 
-            String(t.id).includes(query) || 
-            (t.subject && t.subject.toLowerCase().includes(query)) ||
-            (t.description && t.description.toLowerCase().includes(query))
-        );
-    }
-    
-    if (filtered.length === 0) {
-        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">${query ? 'לא נמצאו תוצאות לחיפוש.' : 'לא נפתחו קריאות שירות בעבר.'}</p>`;
-        return;
-    }
-            
-    const statusMap = {
-        'open': { text: 'ממתין לתמיכה', color: 'bg-red-50 text-red-600 border-red-200' },
-        'in_progress': { text: 'בטיפול', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-        'resolved': { text: 'טופל / נסגר', color: 'bg-green-50 text-green-600 border-green-200 opacity-80' }
+    const orderInfo = {
+        orderId: order.id,
+        supplierName: order.supplier_name || 'ספק כללי', 
+        supplierPhone: supData.phone || '',
+        supplierEmail: supData.email || '',
+        customerNumber: supData.customer_number || '',
+        branchName: order.branch_name || '', 
+        items: items, 
+        totalAmount: parseFloat(order.total_amount) || 0
     };
-
-    let html = '';
-    filtered.forEach(t => {
-        const st = statusMap[t.status] || statusMap['open'];
-        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
-        
-        let logArr = [];
-        try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
-        
-        const logHtml = logArr.map(entry => {
-            const isMe = !entry.isStaff;
-            const alignClass = isMe ? 'self-start bg-indigo-50 border-indigo-100 text-indigo-900 rounded-tl-none mr-4' : 'self-end bg-slate-100 border-slate-200 text-slate-700 rounded-tr-none ml-4';
-            const iconHtml = isMe ? '<i class="fa-solid fa-user text-indigo-400 text-[10px] ml-1"></i>' : '<i class="fa-solid fa-headset text-slate-500 text-[10px] ml-1"></i>';
-            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
-            return `
-            <div class="flex flex-col ${isMe ? 'items-start' : 'items-end'} mb-2 fade-in">
-                <div class="p-2.5 rounded-lg border shadow-sm text-xs whitespace-pre-wrap leading-relaxed ${alignClass}">${safeStr(entry.message)}</div>
-                <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">${iconHtml} ${safeStr(entry.sender)} • ${timeStr}</div>
-            </div>`;
-        }).join('');
-
-        const replyHtml = t.status !== 'resolved' ? `
-            <div class="mt-3 pt-3 border-t border-slate-100 flex gap-2">
-                <input type="text" id="my-ticket-reply-${t.id}" class="modern-input py-2 text-xs flex-1 bg-white shadow-sm" placeholder="הקלד תגובה או עדכון כאן...">
-                <button onclick="submitClientTicketReply(${t.id})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
-            </div>
-        ` : `<div class="mt-3 pt-3 border-t border-slate-100 text-center text-[10px] text-slate-400 font-bold"><i class="fa-solid fa-lock mr-1"></i> פנייה זו נסגרה. במידת הצורך פתחו פנייה חדשה.</div>`;
-
-        html += `
-        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm transition hover:shadow-md mb-3">
-            <div class="flex justify-between items-start mb-3 border-b border-slate-50 pb-2 cursor-pointer select-none" onclick="document.getElementById('my-ticket-log-${t.id}').classList.toggle('hidden')">
-                <div class="flex-1 pr-2">
-                    <span class="text-[9px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md mb-1 inline-block">#${t.id}</span>
-                    <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(t.subject)}</h5>
-                    <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock mr-0.5"></i> נפתח: ${dateStr}</p>
+    
+    if (!document.getElementById('pdf-preview-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="pdf-preview-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-2 sm:p-4">
+            <div class="bg-slate-100 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden border border-slate-200">
+                <div class="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pdf text-red-500"></i> צפייה והורדת הזמנה</h3>
+                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="flex flex-col items-end gap-1.5">
-                    <span class="text-[10px] font-bold px-2 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
+                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: ltr; background-color: #f1f5f9;">
+                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[1040px] mx-auto origin-top transition-all" style="padding: 20px;">
+                    </div>
+                </div>
+                <div class="p-4 sm:p-5 border-t border-slate-200 bg-white flex gap-3 justify-end items-center shrink-0" style="direction: rtl;">
+                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="px-4 sm:px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition text-sm sm:text-base">ביטול</button>
+                    <button id="btn-actual-download-pdf" class="px-5 sm:px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2 text-sm sm:text-base">הורד מסמך <i class="fa-solid fa-download"></i></button>
                 </div>
             </div>
-            
-            <div id="my-ticket-log-${t.id}" class="hidden">
-                <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 max-h-48 overflow-y-auto modal-scroll flex flex-col">
-                    ${logHtml}
-                </div>
-                ${replyHtml}
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-};
-
-window.submitClientTicketReply = async function(ticketId) {
-    const text = document.getElementById(`my-ticket-reply-${ticketId}`).value;
-    if(!text || text.trim().length < 2) return showToast('error', 'אנא הקלידו הודעה.');
-    
-    try {
-        const payload = { message: text, userName: currentUser ? currentUser.nickname : 'לקוח', isStaff: false, newStatus: 'open' };
-        const res = await fetch(`${API}/support/tickets/${ticketId}/reply`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
-        if((await res.json()).success) {
-            showToast('success', 'תגובתך נשלחה בהצלחה!');
-            window.fetchMyTickets();
-        } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
-    } catch(e) { showToast('error', 'שגיאת רשת.'); }
-};
-
-// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
-function updateSalesDashboardStats() {
-    if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
-    
-    let currentMonthOrders = 0;
-    let currentMonthRevenue = 0;
-    let openOrdersCount = 0;
-    let todayOrdersCount = 0;
-    let todayRevenue = 0;
-    
-    const now = new Date();
-    const currMonth = now.getMonth();
-    const currYear = now.getFullYear();
-    const currDate = now.getDate();
-
-    storeOrdersCache.forEach(o => {
-        // התיקון: אנחנו מסננים החוצה *רק* מה שמוגדר במפורש כהצעת מחיר (quote) או שבוטל
-        if (o.status === 'cancelled' || o.status === 'quote') return;
-
-        const dStr = o.created_at;
-        if (!dStr) return;
-        const d = new Date(dStr);
-        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
-        
-        if (d.getMonth() === currMonth && d.getFullYear() === currYear) {
-            currentMonthOrders++;
-            if (o.status === 'completed' || o.status === 'shipped') {
-                currentMonthRevenue += orderAmount;
-            }
-        }
-        
-        if (d.getDate() === currDate && d.getMonth() === currMonth && d.getFullYear() === currYear) {
-            todayOrdersCount++;
-            if (o.status === 'completed' || o.status === 'shipped') {
-                todayRevenue += orderAmount;
-            }
-        }
-        
-        if (o.status !== 'completed' && o.status !== 'shipped' && o.status !== 'cancelled') {
-            openOrdersCount++;
-        }
-    });
-
-    // ספירת הצעות מחיר פתוחות בלבד
-    const pendingQuotesCount = (storeQuotesCache && Array.isArray(storeQuotesCache)) 
-        ? storeQuotesCache.filter(q => q.status === 'quote' && (q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer')).length 
-        : 0;
-
-    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
-    setTxt('stat-orders-count', currentMonthOrders);
-    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
-    setTxt('stat-open-orders', openOrdersCount);
-    setTxt('stat-pending-quotes', pendingQuotesCount);
-    setTxt('stat-orders-today', todayOrdersCount);
-    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
-}
-
-// --- טאב אנליטיקה ---
-let analyticsRevChart = null;
-let analyticsProdChart = null;
-
-// טעינה דינמית של Chart.js
-async function loadChartJS() {
-    if (window.Chart) return true;
-    return new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
-        document.head.appendChild(script);
-    });
-}
-
-window.renderAnalytics = async function() {
-    const listContainer = getEl('sales-view-analytics');
-    if (listContainer && listContainer.classList.contains('hidden')) return; 
-    
-    const isLoaded = await loadChartJS();
-    if (!isLoaded) return;
-
-    const timeFilter = val('analytics-time-filter') || '30';
-    const cutoff = new Date();
-    if (timeFilter !== 'today') {
-        cutoff.setDate(cutoff.getDate() - parseInt(timeFilter));
-    } else {
-        cutoff.setHours(0,0,0,0);
+        </div>
+        `);
     }
 
-    if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
+    const contentDiv = document.getElementById('pdf-preview-content');
+    // מעבירים isForPdf = false לתצוגה המקדימה כדי שתישאר יפה ונקייה כמו שהיא היום
+    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo, false);
+    
+    document.getElementById('pdf-preview-modal').classList.remove('hidden');
 
-    const relevantOrders = storeOrdersCache.filter(o => 
-        o.status !== 'cancelled' && 
-        o.status !== 'quote' &&
-        new Date(o.created_at) >= cutoff
-    );
-
-    const revMap = {};
-    const prodMap = {};
-
-    relevantOrders.forEach(o => {
-        const d = new Date(o.created_at);
-        const dateKey = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
+    const btnDownload = document.getElementById('btn-actual-download-pdf');
+    btnDownload.onclick = async () => {
+        btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
+        btnDownload.disabled = true;
         
-        revMap[dateKey] = (revMap[dateKey] || 0) + orderAmount;
-        
+        // יוצרים קונטיינר מוסתר ועצמאי במיוחד רק להורדת ה-PDF עם isForPdf = true
+        const pdfContainer = document.createElement('div');
+        pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo, true);
+        pdfContainer.style.width = '1040px'; 
+        pdfContainer.style.position = 'absolute';
+        pdfContainer.style.top = '-9999px';
+        pdfContainer.style.background = 'white';
+        document.body.appendChild(pdfContainer);
+
         try {
-            let items = [];
-            if (typeof o.items === 'string') {
-                try { items = JSON.parse(o.items); } catch(e){}
-            } else if (Array.isArray(o.items)) {
-                items = o.items;
-            }
+            const isLoaded = await loadHtml2Pdf();
+            if (!isLoaded) throw new Error('PDF library failed to load');
+
+            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            // תיקון חילוץ שמות המוצרים לגרף העוגה
-            items.forEach(i => {
-                // מתעלמים מפריטים שהם מטא-דאטה של משלוח או הצעת מחיר
-                if (!i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) {
-                    // מושך את השם מכל שדה אפשרי
-                    const cleanName = i.item_name || i.name || i.catalog_name || 'מוצר ללא שם';
-                    // מושך את הכמות (אם אין, מניח 1)
-                    const qty = parseFloat(i.quantity) || parseFloat(i.qty) || 1;
-                    prodMap[cleanName] = (prodMap[cleanName] || 0) + qty;
-                }
-            });
-        } catch(e) {}
-    });
+            const opt = { 
+                margin: [5, 5, 5, 5], 
+                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
 
-    const revLabels = Object.keys(revMap).sort((a,b) => {
-        const [d1,m1,y1] = a.split('.'); const [d2,m2,y2] = b.split('.');
-        return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
-    });
-    const revData = revLabels.map(l => revMap[l]);
-
-    const topProducts = Object.entries(prodMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
-    const prodLabels = topProducts.map(p => p[0]);
-    const prodData = topProducts.map(p => p[1]);
-
-    const ctxRev = getEl('analyticsRevenueChart');
-    const ctxProd = getEl('analyticsProductsChart');
-
-    if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
-    if(ctxProd && ctxProd.previousElementSibling) ctxProd.previousElementSibling.style.display = 'none';
-
-    setTimeout(() => {
-        if(analyticsRevChart) analyticsRevChart.destroy();
-        if(ctxRev && window.Chart) {
-            analyticsRevChart = new Chart(ctxRev, {
-                type: 'line',
-                data: { 
-                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים בתקופה זו'], 
-                    datasets: [{ 
-                        label: 'הכנסות (₪)', 
-                        data: revData.length > 0 ? revData : [0], 
-                        borderColor: '#4f46e5', 
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)', 
-                        fill: true, 
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#fff',
-                        pointBorderColor: '#4f46e5',
-                        pointBorderWidth: 2,
-                        pointRadius: 4
-                    }] 
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { dash: [4, 4] } },
-                        x: { grid: { display: false } }
-                    }
-                }
-            });
+            await html2pdf().set(opt).from(pdfContainer).save();
+            showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
+            document.getElementById('pdf-preview-modal').classList.add('hidden');
+        } catch(e) {
+            showToast('error', 'שגיאה ביצירת מסמך PDF.');
+        } finally {
+            if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+            btnDownload.disabled = false;
         }
-
-        if(analyticsProdChart) analyticsProdChart.destroy();
-        if(ctxProd && window.Chart) {
-            analyticsProdChart = new Chart(ctxProd, {
-                type: 'doughnut',
-                data: { 
-                    labels: prodLabels.length > 0 ? prodLabels : ['טרם נמכרו מוצרים'], 
-                    datasets: [{ 
-                        data: prodData.length > 0 ? prodData : [1], 
-                        backgroundColor: prodData.length > 0 ? ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] : ['#e2e8f0'],
-                        borderWidth: 2,
-                        hoverOffset: 4
-                    }] 
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '65%',
-                    plugins: { legend: { position: 'left', labels: {font:{family:'Rubik', size:11}, usePointStyle: true, padding: 15} } } 
-                }
-            });
-        }
-    }, 150); 
-};
-
-// התיקון לחפיפת הטאבים: הוספנו את 'analytics' לרשימת הטאבים שהפונקציה מנהלת!
-window.switchSalesTab = function(subTab) {
-    ['orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
-        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    });
-    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-
-    if(subTab === 'orders') fetchStoreOrders();
-    if(subTab === 'catalog') fetchStoreCatalog();
-    if(subTab === 'marketing') fetchStoreMarketing(); 
-    if(subTab === 'settings') fetchStoreSettings();
-    if(subTab === 'quotes') {
-        const list = getEl('store-quotes-list');
-        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
-        fetchStoreQuotes();
-    }
-    if (subTab === 'analytics') {
-        setTimeout(window.renderAnalytics, 150);
-    }
-};
-
-setInterval(() => {
-    const tabSales = getEl('tab-sales');
-    if (tabSales && tabSales.classList.contains('tab-active')) {
-        if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
-    }
-}, 20000);
+    };
+}
