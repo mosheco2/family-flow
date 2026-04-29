@@ -252,6 +252,45 @@
                         <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
                     </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
+                    
+                    <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mt-4 mb-2 space-y-4">
+                        <h4 class="text-[11px] font-black text-indigo-800 border-b border-indigo-200/50 pb-2">עיצוב ומיתוג העסק (אופציונלי)</h4>
+                        
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 mb-4">
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
+                                        <div class="flex items-center gap-3">
+                                            <div id="store-logo-preview-container" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
+                                                <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
+                                            </div>
+                                           <div class="flex flex-col gap-2 w-full">
+                                                <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קיים</button>
+                                                <button type="button" onclick="clearImage('store-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
+                                            </div>
+                                            <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                            <input type="hidden" id="store-logo-base64">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <div id="store-banner-preview-container" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                <i class="fa-regular fa-image text-2xl" id="store-banner-placeholder"></i>
+                                                <img id="store-banner-preview" src="" class="w-full h-full object-cover hidden">
+                                            </div>
+                                            <div class="flex flex-col gap-2 w-full">
+                                                <button type="button" onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                <button type="button" onclick="clearImage('store-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
+                                            </div>
+                                            <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
+                                            <input type="hidden" id="store-banner-base64">
+                                        </div>
+                                        <button type="button" onclick="generateBannerAI()" class="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
+                                    </div>
+                                </div>
+                    </div>
                     <div class="flex flex-col gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div class="flex items-start gap-2">
                             <label class="cursor-pointer flex items-start gap-2">
@@ -466,46 +505,88 @@
             </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+<div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4 transition-all duration-300">
        
-            <a id="app-banner-top"
-               href="#"
-               target="_blank"
-               class="hidden bg-gradient-to-r from-slate-700 to-slate-900 mx-0 mt-0 w-full items-center justify-center text-sm font-medium border-b border-slate-100 text-slate-700 sm:rounded-t-[2rem] shadow-sm overflow-hidden min-h-[140px] relative z-40 shrink-0">
-            </a>
-            <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm w-full" id="tour-header">
-                    <div class="flex items-center gap-3">
-                        <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
-                            <i class="fa-solid fa-bars"></i> תפריט
-                        </button>
-                        <div class="flex flex-col items-start">
-                            <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
-                            <div class="flex items-center gap-2 mt-1">
-                                <p class="text-xs text-slate-500">שלום <span id="dash-nickname" class="font-bold"></span></p>
-                                <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition flex items-center gap-1"></button>
+<div class="flex-1 pb-28 relative flex flex-col w-full">
+                
+                <div class="w-full shadow-sm bg-white flex flex-col z-40 relative">
+                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex-col items-center justify-center text-sm font-bold text-center overflow-hidden min-h-[80px] sm:min-h-[100px] relative"></a>
+                    <div id="app-banner-placeholder" class="hidden w-full min-h-[80px] sm:min-h-[100px] flex items-center justify-center text-slate-400 text-xs font-bold">
+                        <i class="fa-solid fa-rectangle-ad mr-1"></i> באנר פרסומי (סופר אדמין)
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-b-[2rem] shadow-sm border border-slate-100 mb-6 relative fade-in z-30 p-4 sm:p-5">
+                <div class="flex justify-between items-center gap-3">
+                        <div class="flex items-center gap-3 sm:gap-4 flex-1">
+                            <button onclick="openSidebar()" class="text-slate-600 hover:text-indigo-600 transition text-2xl pr-1 outline-none" title="תפריט ניווט">
+                                <i class="fa-solid fa-bars"></i>
+                            </button>
+                <div class="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl p-1 shadow-sm border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
+                                <img id="dash-logo-preview" src="" class="w-full h-full object-cover rounded-xl hidden">
+                                <div id="dash-logo-placeholder" class="w-full h-full text-slate-300 flex items-center justify-center text-2xl">
+                                    <i class="fa-solid fa-store"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h1 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-none" id="dash-group-name">טוען...</h1>
+                                </div>
+                                <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wider" id="main-header-slogan">Business Control Center</p>
                             </div>
                         </div>
+
+                        <div class="flex gap-2 items-center shrink-0">
+                            <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
+                                <i class="fa-solid fa-desktop text-sm"></i>
+                            </button>
+                            <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
+                                <i class="fa-solid fa-headset text-sm"></i>
+                            </button>
+                            <button onclick="openProfileModal();" class="bg-slate-50 hover:bg-slate-100 text-slate-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
+                                <i class="fa-solid fa-gear text-sm"></i>
+                            </button>
+                            <button onclick="logout();" class="bg-red-50 hover:bg-red-100 text-red-500 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-red-100 transition" title="התנתקות">
+                                <i class="fa-solid fa-power-off text-sm"></i>
+                            </button>
+                        </div>
                     </div>
-                    <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center" title="התנתק"><i class="fa-solid fa-right-from-bracket"></i></button>
-                </header>
-                <!-- שאר התוכן (tabs + content) – נשאר בדיוק כמו אצלך -->
+
+                    <div class="flex items-center justify-between w-full mt-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-black"><i class="fa-solid fa-user"></i></div>
+                            <span class="text-[11px] font-bold text-slate-600">שלום, <span id="dash-nickname" class="text-indigo-700"></span></span>
+                        </div>
+                        
+                        <div class="flex items-center gap-1.5 text-[10px] font-black text-indigo-800 bg-indigo-100/60 px-2.5 py-1 rounded-lg border border-indigo-200/50 shadow-sm whitespace-nowrap">
+                            <img src="logo.png" alt="Oneflow Logo" class="h-3.5 w-auto object-contain"> ONEFLOW LIFE BIZ
+                        </div>
+
+                        <div class="flex gap-2 items-center">
+                            <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
+                        </div>
+                    </div>
+                </div>
                 <div class="relative px-2 mb-6 group shrink-0">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
                         <div class="slider-scroll" id="slider-scroll">
-                            <!-- כל הכפתורים כמו שהיו אצלך – לא לשנות -->
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
+                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-transparent shadow-md">יומן ותורים 📅</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
+                            <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shrink-0 shadow-md">פוד קוסט 🍽️</button>
                             <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>
-                            <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">כספים וקופה 💳</button>
+                            <button onclick="switchTab('customers')" id="tab-customers" class="tab-btn">לקוחות 🤝</button>
+                            <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">כספים 💳</button>
                             <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים 💸</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
                             <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                            <button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-transparent shadow-md">שליחויות 🛵</button>
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn bg-gradient-to-r from-orange-400 to-pink-500 text-white border-transparent shadow-md">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
@@ -514,7 +595,7 @@
                     </div>
                 </div>
                <div class="px-2 w-full">
-                    
+                   
                     <div id="content-feed">
                         <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                             <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
@@ -530,7 +611,7 @@
                             </div>
                             <div class="flex gap-2">
                                 <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 hidden rounded-lg shadow-sm border-slate-200 outline-none">
-                                    <option value="all">כל המשפחה</option>
+                    <option value="all">כל הצוות</option>
                                 </select>
                                 <select id="feed-date-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 rounded-lg shadow-sm border-slate-200 outline-none">
                                     <option value="all">כל ההיסטוריה</option>
@@ -540,22 +621,162 @@
                             </div>
                         </div>
 
-                        <div id="unified-feed-list" class="space-y-3 pb-8"></div>
+<div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
+
+<div id="content-calendar" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
+                            
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
+                                <button id="btn-cal-tab-main" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('main')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">לוח זמנים (היומן שלי)</button>
+                                <button id="btn-cal-tab-requests" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('requests')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition relative">בקשות שיבוץ <span id="cal-pending-badge" class="hidden absolute top-0 left-0 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center">0</span></button>
+                                <button id="btn-cal-tab-settings" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות ושירותים</button>
+                            </div>
+
+                            <div id="cal-view-main" class="space-y-4 pb-8">
+                                <div class="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between flex-1">
+                                        <button onclick="if(typeof changeCalDate==='function') changeCalDate(-1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-200 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                        <span id="cal-date-display" class="font-bold text-slate-800 text-sm min-w-[120px] text-center">היום</span>
+                                        <button onclick="if(typeof changeCalDate==='function') changeCalDate(1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-200 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                        <button onclick="if(typeof resetCalDate==='function') resetCalDate()" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition mr-2 shrink-0">חזור להיום</button>
+                                    </div>
+                                    <div class="flex gap-1 bg-slate-200/50 p-1 rounded-lg w-full sm:w-auto justify-center">
+                                        <button id="btn-cal-mode-agenda" onclick="if(typeof setCalMode==='function') setCalMode('agenda')" class="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1">רצף</button>
+                                        <button id="btn-cal-mode-day" onclick="if(typeof setCalMode==='function') setCalMode('day')" class="px-3 py-1.5 text-xs font-bold bg-white text-slate-800 rounded-md shadow-sm transition flex-1">יום</button>
+                                        <button id="btn-cal-mode-week" onclick="if(typeof setCalMode==='function') setCalMode('week')" class="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1">שבוע</button>
+                                        <button id="btn-cal-mode-month" onclick="if(typeof setCalMode==='function') setCalMode('month')" class="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1">חודש</button>
+                                    </div>
+                                    <div class="flex gap-2 w-full mt-1">
+                                        <div class="relative flex-1">
+                                            <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                            <input type="text" id="cal-search" oninput="if(typeof renderCalendar==='function') renderCalendar()" placeholder="חיפוש אירוע/לקוח..." class="modern-input py-2 pr-8 pl-3 text-xs bg-white shadow-sm w-full">
+                                        </div>
+                                        <button onclick="if(typeof openCalEventModal==='function') openCalEventModal()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-cyan-700 transition flex items-center justify-center gap-1.5 shrink-0"><i class="fa-solid fa-plus"></i> יצירת אירוע</button>
+                                    </div>
+                                </div>
+                                <div id="cal-main-container" class="min-h-[400px] relative w-full overflow-hidden"></div>
+                            </div>
+
+                            <div id="cal-view-requests" class="hidden space-y-4 pb-8 min-h-[200px]">
+                                <div class="bg-cyan-50 border border-cyan-100 p-3 rounded-xl mb-2 text-xs text-cyan-800">
+                                    <i class="fa-solid fa-circle-info"></i> לקוחות יכולים לשלוח בקשות לשיבוץ תור או אירוע דרך עמוד החנות שלכם. כאן תוכלו לאשר אותם או להפוך אותם להצעת מחיר.
+                                </div>
+                                <div id="cal-requests-list" class="space-y-3">
+                                    <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות ממתינות</p>
+                                </div>
+                            </div>
+
+                            <div id="cal-view-settings" class="hidden space-y-5 pb-8">
+                                <div class="bg-cyan-50 p-4 rounded-xl border border-cyan-100 flex items-center justify-between shadow-sm">
+                                    <div>
+                                        <h4 class="font-bold text-cyan-900 text-sm mb-1">הפעלת מודול הזמנת תורים בחנות</h4>
+                                        <p class="text-[10px] text-cyan-700">מאפשר ללקוחות לשלוח בקשות לתורים ואירועים דרך הלינק שלכם</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="cal-setting-active" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                                    </label>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-list-check text-cyan-500 mr-1"></i> שירותים הניתנים להזמנה</h4>
+                                    <div id="cal-services-list" class="space-y-2 mb-3 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                                    <button onclick="if(typeof openServiceModal==='function') openServiceModal()" class="w-full bg-slate-50 text-slate-600 border border-dashed border-slate-300 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 hover:text-cyan-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף שירות (למשל: תספורת גברים / קייטרינג חלבי)</button>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-clock text-cyan-500 mr-1"></i> שעות פעילות וזמינות</h4>
+                                    <div class="grid grid-cols-2 gap-3 mb-3">
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת פתיחה יומית:</label><input type="time" id="cal-setting-open" class="modern-input py-2 text-sm bg-slate-50" value="09:00"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת סגירה יומית:</label><input type="time" id="cal-setting-close" class="modern-input py-2 text-sm bg-slate-50" value="18:00"></div>
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הפרש דקות בין תורים (למשל: 30 דקות לתור):</label>
+                                            <input type="number" id="cal-setting-interval" class="modern-input py-2 text-sm bg-slate-50 text-center" value="30" min="15" step="5">
+                                            <p class="text-[9px] text-slate-400 mt-1">* לעסקים של אירועים גדולים, מומלץ להגדיר שירות של מספר שעות ולא לאפשר בחירה מצומצמת.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="if(typeof saveCalendarSettings==='function') saveCalendarSettings()" id="btn-save-cal-settings" class="w-full bg-slate-800 text-white py-3.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור הגדרות יומן</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="content-customers" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">לקוחות 🤝</h3>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4">
+                                <button id="btn-cust-tab-details" onclick="switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים</button>
+                                <button id="btn-cust-tab-history" onclick="switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">היסטוריית רכישות</button>
+                            </div>
+                            <div id="cust-view-details" class="space-y-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="relative flex-1 max-w-[200px]">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="filter-customer-search" onkeyup="renderStoreCustomers()" class="modern-input py-2 pr-9 pl-3 text-sm bg-slate-50 shadow-sm" placeholder="חיפוש לפי שם, טלפון...">
+                                    </div>
+                                    <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                                </div>
+                                <select id="filter-customer-type" onchange="renderStoreCustomers()" class="modern-input py-2 px-3 text-xs bg-slate-50 font-bold text-slate-600 mb-4 w-full">
+                                    <option value="all">כל הלקוחות במאגר</option>
+                                    <option value="order">לקוחות שביצעו קנייה</option>
+                                    <option value="quote">לקוחות עם הצעת מחיר</option>
+                                </select>
+                                <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                            </div>
+                            <div id="cust-view-history" class="hidden space-y-4 pb-8">
+                                <h4 class="font-bold text-indigo-700 text-sm mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100" id="cust-history-summary"></h4>
+                                <div id="cust-history-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="content-customers" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">לקוחות 🤝</h3>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4">
+                                <button id="btn-cust-tab-details" onclick="switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים</button>
+                                <button id="btn-cust-tab-history" onclick="switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">היסטוריית רכישות</button>
+                            </div>
+                            <div id="cust-view-details" class="space-y-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="relative flex-1 max-w-[200px]">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="filter-customer-search" onkeyup="renderStoreCustomers()" class="modern-input py-2 pr-9 pl-3 text-sm bg-slate-50 shadow-sm" placeholder="חיפוש לפי שם, טלפון...">
+                                    </div>
+                                    <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                                </div>
+                                <select id="filter-customer-type" onchange="renderStoreCustomers()" class="modern-input py-2 px-3 text-xs bg-slate-50 font-bold text-slate-600 mb-4 w-full">
+                                    <option value="all">כל הלקוחות במאגר</option>
+                                    <option value="order">לקוחות שביצעו קנייה</option>
+                                    <option value="quote">לקוחות עם הצעת מחיר</option>
+                                </select>
+                                <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                            </div>
+                            <div id="cust-view-history" class="hidden space-y-4 pb-8">
+                                <h4 class="font-bold text-indigo-700 text-sm mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100" id="cust-history-summary"></h4>
+                                <div id="cust-history-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="content-quotes" class="hidden">
+                        </div>
+
 <div id="content-timeclock" class="hidden">
                         <div id="timeclock-admin-view" class="hidden mb-6">
                             <div class="flex justify-between items-center px-2 mb-4">
                                 <h3 class="font-bold text-slate-700 text-lg">דוחות נוכחות ופעילות <i class="fa-solid fa-clock-rotate-left text-blue-500"></i></h3>
                                 <div class="flex gap-2">
                                     <button onclick="openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-plus"></i> דיווח ידני</button>
-                                    <button onclick="generateTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition shadow-sm"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                    <button onclick="exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition shadow-sm"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                                 </div>
                             </div>
                             <div class="flex gap-2 px-2">
                                 <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white flex-1 font-bold shadow-sm border-slate-200 outline-none"></select>
                                 <input type="month" id="tc-month-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white flex-1 font-bold shadow-sm border-slate-200 outline-none">
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-3 mt-4 px-2">
                                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                                     <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">סה"כ שעות</p>
@@ -564,6 +785,19 @@
                                 <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm">
                                     <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">שכר משוער</p>
                                     <p id="tc-summary-wage" class="text-2xl font-black text-emerald-900">₪0</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 px-2">
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-location-dot text-blue-500"></i>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-700">מיקום עסק לאימות GPS</p>
+                                            <p id="tc-location-status" class="text-[10px] text-slate-400">לא הוגדר — עובדים יוכלו להחתים מכל מקום</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="setBusinessLocation()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm"><i class="fa-solid fa-crosshairs"></i> הגדר</button>
                                 </div>
                             </div>
                         </div>
@@ -580,8 +814,6 @@
                                         <i class="fa-solid fa-circle text-[8px] text-red-500 animate-pulse mr-1"></i> משמרת פעילה מ- <span id="tc-start-time" class="text-blue-600">--:--</span>
                                     </p>
                                 </div>
-                                <button onclick="setBusinessLocation()" class="absolute top-4 right-4 text-slate-400 hover:text-blue-500 transition" title="הגדר מיקום עסק (מנהל)"><i class="fa-solid fa-location-dot"></i></button>
-                                
                                 <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-60"></div>
                                 <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
                             </div>
@@ -590,29 +822,29 @@
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פירוט שעות</h3>
                         <div id="timeclock-report-list" class="space-y-3 pb-24"></div>
                     </div>
-                    <div id="content-bank" class="hidden">
+                                <div id="content-bank" class="hidden">
                         <div id="bank-admin-view" class="hidden space-y-6">
                             <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
+                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">תשלום שכר ומענקים 💰</h3><p class="text-sm text-emerald-600 mb-6 px-4">ביצוע תשלום שכר ובונוסים לכל חברי הצוות בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע תשלום שכר</button></div>
                                 <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                             </div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ארנקי צוות 👥</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
                             <div id="admin-loans-panel" class="hidden bg-orange-50 rounded-[2rem] p-5 border border-orange-100 shadow-sm">
-                                <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות הלוואה ממתינות</h3>
+                                <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות מקדמה ממתינות</h3>
                                 <div id="admin-loans-list" class="space-y-2"></div>
                             </div>
-                            <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
+                            <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדים ופרויקטים במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
                         </div>
                         <div id="bank-child-view" class="hidden space-y-6">
                             <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                                <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                                <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                                <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
+                                <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">BIZ CARD</span></div>
+                                <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">שכר / תגמול</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">בונוס</span></div></div></div>
+                                <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>פעולות השבוע</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת בונוס!</p></div>
                                 <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                             </div>
-                            <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
+                            <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש מקדמה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד / קרן</span></button></div>
                             <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
+                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">הבקשות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
                         </div>
                     </div>
 
@@ -638,18 +870,60 @@
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
                             
+<div id="sales-stats-dashboard" class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                                <div class="bg-fuchsia-50 p-4 rounded-2xl border border-fuchsia-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-fuchsia-600 uppercase tracking-wider mb-1.5">הזמנות היום</span>
+                                    <span id="stat-orders-today" class="text-3xl font-black text-fuchsia-900 truncate w-full">0</span>
+                                </div>
+                                <div class="bg-teal-50 p-4 rounded-2xl border border-teal-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-teal-600 uppercase tracking-wider mb-1.5">הכנסות היום</span>
+                                    <span id="stat-revenue-today" class="text-3xl font-black text-teal-900 truncate w-full" dir="ltr">₪0</span>
+                                </div>
+                                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-orange-600 uppercase tracking-wider mb-1.5">הזמנות פתוחות</span>
+                                    <span id="stat-open-orders" class="text-3xl font-black text-orange-900 truncate w-full">0</span>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1.5">הזמנות החודש</span>
+                                    <span id="stat-orders-count" class="text-3xl font-black text-blue-900 truncate w-full">0</span>
+                                </div>
+                                <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1.5">הכנסות החודש</span>
+                                    <span id="stat-revenue-month" class="text-3xl font-black text-emerald-900 truncate w-full" dir="ltr">₪0</span>
+                                </div>
+                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1.5">הצעות ממתינות</span>
+                                    <span id="stat-pending-quotes" class="text-3xl font-black text-indigo-900 truncate w-full">0</span>
+                                </div>
+                            </div>
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
+                                <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                                 <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
                                 <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
+                                <button id="btn-sales-analytics" onclick="switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">אנליטיקה 📊</button>
                                 <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
-                                <div class="flex justify-between items-center mb-2">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                                     <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                                    <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
-                                        <option value="all">כל ההזמנות</option>
+                                    <button onclick="openCustomerStatusScreen()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-tv"></i> מסך סטטוס לקוחות (Live)</button>
+                                </div>
+                                
+                                <div class="relative w-full">
+                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                                    <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-1.5 pr-8 pl-3 text-xs bg-slate-50 h-auto" placeholder="חיפוש לפי שם, טלפון או מס' הזמנה...">
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                        <option value="all">כל הסוגים</option>
+                                        <option value="from_store">הזמנת חנות</option>
+                                        <option value="from_quote">הזמנת לקוח (מהצעה)</option>
+                                    </select>
+                                    <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                        <option value="all">כל הסטטוסים</option>
                                         <option value="new">חדשות</option>
                                         <option value="processing">בהכנה</option>
                                         <option value="ready">מוכנות</option>
@@ -659,7 +933,13 @@
                                 </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
                             </div>
-
+                                <div id="sales-view-quotes" class="hidden space-y-4">
+                                <div class="flex justify-between items-center mb-4 px-1">
+                                  <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
+        <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
+    </div>
+    <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+</div>
                             <div id="sales-view-catalog" class="hidden space-y-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
@@ -691,8 +971,215 @@
                                     <div id="store-coupons-list" class="space-y-2 pb-8"></div>
                                 </div>
                             </div>
+<div id="sales-view-analytics" class="hidden space-y-4 pb-8">
+                                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-4 print:hidden">
+                                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-chart-line text-indigo-500"></i> אנליטיקה ודוחות</h4>
+                                        </div>
+                                        <div class="flex gap-2 w-full md:w-auto">
+                                            <button onclick="getAnalyticsAIInsight()" class="flex-1 md:flex-none text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-xl border border-purple-100 hover:bg-purple-100 transition flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות AI</button>
+                                            <button onclick="window.openReportBuilderModal()" class="flex-1 md:flex-none bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-export"></i> מחולל דוחות</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 items-end z-10 relative">
+                                        <div class="col-span-2 md:col-span-1">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1 block">טווח תאריכים:</label>
+                                            <select id="analytics-time-filter" onchange="toggleCustomDateFilters()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700 w-full">
+                                                <option value="today">היום</option>
+                                                <option value="7">7 ימים אחרונים</option>
+                                                <option value="30" selected>30 ימים אחרונים</option>
+                                                <option value="90">3 חודשים אחרונים</option>
+                                                <option value="365">שנה אחרונה</option>
+                                                <option value="custom">התאמה אישית...</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div id="analytics-custom-dates" class="hidden col-span-2 md:col-span-2 grid grid-cols-2 gap-2 w-full">
+                                            <div>
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1 block">מתאריך:</label>
+                                                <input type="date" id="analytics-date-from" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 w-full">
+                                            </div>
+                                            <div>
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1 block">עד תאריך:</label>
+                                                <input type="date" id="analytics-date-to" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 w-full">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-span-2 md:col-span-1">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1 block">סוג הזמנה:</label>
+                                            <select id="analytics-type-filter" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700 w-full">
+                                                <option value="all">כל ההזמנות</option>
+                                                <option value="store">חנות בלבד</option>
+                                                <option value="quote">הצעות מחיר (שאושרו)</option>
+                                                <option value="delivery">משלוחים</option>
+                                                <option value="takeaway">איסוף במקום</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="col-span-2 md:col-span-4 flex justify-start md:justify-end mt-1">
+                                            <label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300">
+                                                <input type="checkbox" id="analytics-compare-toggle" onchange="renderAnalytics()" class="w-4 h-4 accent-indigo-600" checked>
+                                                <span class="text-xs font-bold text-slate-700">השוואה לתקופה קודמת</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div id="sales-view-settings" class="hidden space-y-5 pb-8">
+                                <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm text-right flex flex-col items-center" style="direction: rtl;">
+                                    
+                                    <div class="hidden print:flex justify-between items-end pb-6 mb-8 border-b-2 border-slate-200 w-full max-w-4xl mx-auto">
+                                        <div class="text-right">
+                                            <h2 class="text-4xl font-black text-slate-800 m-0 leading-tight">דוח ביצועים עסקיים ותמחיר</h2>
+                                            <p class="text-lg text-slate-500 font-bold mt-2">תקופה מדווחת: <span id="analytics-report-period"></span></p>
+                                        </div>
+                                        <div class="flex items-center text-left dir-ltr" id="print-header-brand">
+                                            </div>
+                                    </div>
+
+                                    <div class="w-full max-w-4xl mx-auto">
+                                        <div class="grid grid-cols-2 gap-4 mb-10 print:mb-14">
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                                                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-green-50 rounded-full z-0"></div>
+                                                <span class="text-xs font-bold text-slate-500 mb-2 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-sack-dollar text-green-500"></i> הכנסות ברוטו:</span>
+                                                <span id="analytics-kpi-rev" class="text-3xl sm:text-4xl font-black text-slate-800 dir-ltr text-left relative z-10 block whitespace-nowrap truncate w-full" title="">₪0</span>
+                                                <div id="analytics-kpi-rev-trend" class="text-xs font-bold mt-2 relative z-10 text-right h-4"></div>
+                                            </div>
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                                                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-blue-50 rounded-full z-0"></div>
+                                                <span class="text-xs font-bold text-slate-500 mb-2 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-receipt text-blue-500"></i> כמות הזמנות:</span>
+                                                <span id="analytics-kpi-orders" class="text-3xl sm:text-4xl font-black text-slate-800 relative z-10 block whitespace-nowrap truncate w-full" title="">0</span>
+                                                <div id="analytics-kpi-orders-trend" class="text-xs font-bold mt-2 relative z-10 text-right h-4"></div>
+                                            </div>
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                                                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-indigo-50 rounded-full z-0"></div>
+                                                <span class="text-xs font-bold text-slate-500 mb-2 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-indigo-500"></i> ממוצע לעסקה (AOV):</span>
+                                                <span id="analytics-kpi-avg" class="text-3xl sm:text-4xl font-black text-slate-800 dir-ltr text-left relative z-10 block whitespace-nowrap truncate w-full" title="">₪0</span>
+                                                <div id="analytics-kpi-avg-trend" class="text-xs font-bold mt-2 text-slate-400 relative z-10 text-right h-4"></div>
+                                            </div>
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                                                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-purple-50 rounded-full z-0"></div>
+                                                <span class="text-xs font-bold text-slate-500 mb-2 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-users text-purple-500"></i> לקוחות חוזרים:</span>
+                                                <span id="analytics-kpi-retention" class="text-3xl sm:text-4xl font-black text-slate-800 relative z-10 block whitespace-nowrap">0%</span>
+                                                <div id="analytics-kpi-cust-count" class="text-xs font-bold mt-2 text-purple-600 relative z-10 text-right h-4">מתוך 0 לקוחות</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex flex-col gap-8 mb-10 print:mb-14">
+                                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm w-full page-break-inside-avoid">
+                                                <div class="flex justify-between items-center mb-6">
+                                                    <h5 class="font-bold text-slate-700 text-base flex items-center gap-2"><i class="fa-solid fa-chart-area text-indigo-500"></i> מגמת הכנסות מול יעד:</h5>
+                                                    <input type="number" id="analytics-target-revenue" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-sm w-32 bg-white shadow-sm print:hidden" placeholder="יעד ב-₪">
+                                                </div>
+                                                <div class="relative h-[300px] w-full flex justify-center items-center">
+                                                    <p class="text-sm text-slate-400" id="chart-rev-loading">טוען גרף...</p>
+                                                    <canvas id="analyticsRevenueChart" class="absolute inset-0"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm relative w-full page-break-inside-avoid">
+                                                <button id="btn-clear-cat-filter" onclick="clearAnalyticsCategoryFilter()" class="hidden absolute top-4 left-4 text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-200 transition z-10 print:hidden">נקה סינון פלח</button>
+                                                <h5 class="font-bold text-slate-700 text-base mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-pink-500"></i> התפלגות הכנסות לפי קטגוריות:</h5>
+                                                <div class="relative h-[350px] w-full flex justify-center items-center">
+                                                    <p class="text-sm text-slate-400" id="chart-cat-loading">טוען גרף...</p>
+                                                    <canvas id="analyticsCategoryChart" class="absolute inset-0"></canvas>
+                                                </div>
+                                                <p class="text-xs text-center text-slate-500 mt-4 print:hidden">לחץ על פלח לסינון שאר הנתונים (Drill-down)</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col gap-8 mb-10 print:mb-14">
+                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid">
+                                                <div class="p-5 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center">
+                                                    <div class="flex items-center gap-2">
+                                                        <i class="fa-solid fa-trophy text-emerald-500 text-lg"></i>
+                                                        <h5 class="font-bold text-emerald-800 text-base">המוצרים המובילים (Top Sellers)</h5>
+                                                    </div>
+                                                    <select id="analytics-top-by" onchange="renderAnalytics()" class="text-xs font-bold bg-white border border-emerald-200 rounded-lg px-3 py-1.5 text-emerald-700 outline-none print:hidden">
+                                                        <option value="revenue">ממוין לפי הכנסה</option>
+                                                        <option value="volume">ממוין לפי כמות</option>
+                                                    </select>
+                                                </div>
+                                                <div class="p-0 overflow-x-auto print:overflow-visible">
+                                                    <table class="w-full text-right border-collapse">
+                                                        <thead>
+                                                            <tr class="bg-slate-100 text-slate-600 text-xs font-bold border-b border-slate-200">
+                                                                <th class="py-4 px-5 w-16">דירוג</th>
+                                                                <th class="py-4 px-5">שם המוצר</th>
+                                                                <th class="py-4 px-5 text-center w-32">כמות</th>
+                                                                <th class="py-4 px-5 text-left w-40">הכנסה</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="analytics-top-products" class="bg-white divide-y divide-slate-100"></tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="bg-slate-50 border-t border-slate-100 p-3 flex justify-between items-center px-5 print:hidden">
+                                                    <button onclick="changeAnalyticsPage('top', -1)" class="text-sm font-bold text-slate-500 hover:text-indigo-600 transition bg-white px-4 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-chevron-right ml-1"></i> הקודם</button>
+                                                    <span id="analytics-top-page-info" class="text-xs font-bold text-slate-500">עמוד 1</span>
+                                                    <button onclick="changeAnalyticsPage('top', 1)" class="text-sm font-bold text-slate-500 hover:text-indigo-600 transition bg-white px-4 py-1.5 rounded-lg border shadow-sm">הבא <i class="fa-solid fa-chevron-left mr-1"></i></button>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid">
+                                                <div class="p-5 bg-orange-50/50 border-b border-orange-100 flex items-center gap-2">
+                                                    <i class="fa-solid fa-hourglass-half text-orange-500 text-lg"></i>
+                                                    <h5 class="font-bold text-orange-800 text-base">מלאי עומד / לא נמכרו (Slow Movers)</h5>
+                                                </div>
+                                                <div class="p-0 overflow-x-auto print:overflow-visible">
+                                                    <table class="w-full text-right border-collapse">
+                                                        <thead>
+                                                            <tr class="bg-slate-100 text-slate-600 text-xs font-bold border-b border-slate-200">
+                                                                <th class="py-4 px-5">שם המוצר</th>
+                                                                <th class="py-4 px-5 w-40">קטגוריה</th>
+                                                                <th class="py-4 px-5 text-center w-32">סטטוס</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="analytics-slow-products" class="bg-white divide-y divide-slate-100"></tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="bg-slate-50 border-t border-slate-100 p-3 flex justify-between items-center px-5 print:hidden">
+                                                    <button onclick="changeAnalyticsPage('slow', -1)" class="text-sm font-bold text-slate-500 hover:text-orange-600 transition bg-white px-4 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-chevron-right ml-1"></i> הקודם</button>
+                                                    <span id="analytics-slow-page-info" class="text-xs font-bold text-slate-500">עמוד 1</span>
+                                                    <button onclick="changeAnalyticsPage('slow', 1)" class="text-sm font-bold text-slate-500 hover:text-orange-600 transition bg-white px-4 py-1.5 rounded-lg border shadow-sm">הבא <i class="fa-solid fa-chevron-left mr-1"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid print:hidden" id="analytics-raw-data-section">
+                                            <div class="p-5 bg-white border-b border-slate-200 flex justify-between items-center">
+                                                <h5 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-list text-slate-400 ml-1"></i> פירוט עסקאות (נתונים גולמיים)</h5>
+                                                <span class="text-xs text-slate-500 font-bold bg-slate-100 px-3 py-1.5 rounded-lg" id="analytics-orders-count-label">מציג נתונים</span>
+                                            </div>
+                                            <div class="overflow-x-auto max-h-96 modal-scroll">
+                                                <table class="w-full text-right border-collapse" id="analytics-raw-table">
+                                                    <thead class="sticky top-0 bg-slate-200 shadow-sm z-10">
+                                                        <tr class="text-slate-600 text-xs font-bold border-b border-slate-300">
+                                                            <th class="py-4 px-5">מס'</th>
+                                                            <th class="py-4 px-5">תאריך ושעה</th>
+                                                            <th class="py-4 px-5">לקוח</th>
+                                                            <th class="py-4 px-5">סוג</th>
+                                                            <th class="py-4 px-5">סטטוס</th>
+                                                            <th class="py-4 px-5 text-left">סה"כ</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="analytics-table-body" class="bg-white divide-y divide-slate-200">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-8 shadow-sm overflow-x-auto print:hidden">
+                                            <h5 class="font-bold text-slate-700 text-base mb-6 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> מפת עומסים (הזמנות לפי ימים ושעות):</h5>
+                                            <div id="analytics-heatmap" class="min-w-[700px] min-h-[150px] relative">
+                                                <p class="text-sm text-slate-400 absolute inset-0 flex items-center justify-center">מנתח עומסים...</p>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                </div>
+<div id="sales-view-settings" class="hidden space-y-5 pb-8">
                                 <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                                     <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600">
                                     <label class="font-bold text-indigo-800 text-sm cursor-pointer" for="store-is-active">חנות פעילה ופתוחה להזמנות</label>
@@ -723,16 +1210,38 @@
                                     <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm bg-white"></div>
                                 </div>
 
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1.5">לוגו העסק:</label>
-                                    <div class="flex items-center gap-3">
-                                        <div id="store-logo-preview-container" class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300">
-                                            <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
-                                            <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
+                                        <div class="flex items-center gap-3">
+                                            <div id="store-logo-preview-container" class="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
+                                                <img id="store-logo-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                            </div>
+                                            <div class="flex flex-col gap-2 w-full">
+                                                <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                <button type="button" onclick="clearImage('store-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק לוגו</button>
+                                            </div>
+                                            <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                            <input type="hidden" id="store-logo-base64">
                                         </div>
-                                        <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition border border-slate-200"><i class="fa-solid fa-camera mr-1"></i> העלה לוגו</button>
-                                        <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
-                                        <input type="hidden" id="store-logo-base64">
+                                    </div>
+                                    
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <div id="store-banner-preview-container" class="relative w-24 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                <i class="fa-regular fa-image text-2xl" id="store-banner-placeholder"></i>
+                                                <img id="store-banner-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                            </div>
+                                            <div class="flex flex-col gap-2 w-full">
+                                                <button type="button" onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                <button type="button" onclick="clearImage('store-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק רקע</button>
+                                            </div>
+                                            <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
+                                            <input type="hidden" id="store-banner-base64">
+                                        </div>
+                                        <button type="button" id="btn-generate-banner-ai" onclick="generateBannerAI()" class="hidden bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
                                     </div>
                                 </div>
 
@@ -750,6 +1259,136 @@
                                 </div>
 
                                 <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
+                            </div>
+                        </div>
+                    </div>
+                  <div id="content-deliveries" class="hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-5 text-white shadow-md mb-2 relative overflow-hidden">
+                            <h3 class="text-xl font-bold mb-0.5 flex items-center gap-2"><i class="fa-solid fa-helmet-safety"></i> מסופון חלוקה</h3>
+                            <p class="text-blue-100 text-xs opacity-90">ניהול פיזורים, ניווט ואישורי מסירה</p>
+                            <i class="fa-solid fa-route absolute -left-4 -bottom-4 text-8xl text-white opacity-10 rotate-12"></i>
+                        </div>
+
+                        <div class="flex flex-col gap-1 px-1 mb-2">
+                            <div class="relative w-full">
+                                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" id="courier-search-id" oninput="loadCourierData()" class="w-full bg-white border border-slate-200 rounded-xl py-2 pr-9 pl-3 text-sm shadow-sm outline-none focus:border-indigo-400 transition text-slate-700 placeholder-slate-400" placeholder="חיפוש לפי שם, טלפון או מס' הזמנה...">
+                            </div>
+
+                            <div class="flex bg-slate-100 p-1 rounded-xl w-full">
+                                <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-1.5 px-1 sm:px-3 text-xs sm:text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200 text-center">ממתין 📦</button>
+                                <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-1.5 px-1 sm:px-3 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition text-center">במשלוח 🛵</button>
+                                <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-1.5 px-1 sm:px-3 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition text-center">היסטוריה ✅</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-transparent relative min-h-[400px] mb-8 pb-20 px-1 mt-0">
+                            <div id="del-view-active" class="space-y-2">
+                                <div class="flex justify-between items-center pb-0">
+                                    <h4 class="font-bold text-slate-700 text-xs">הזמנות הממתינות לאיסוף מהעסק</h4>
+                                    <button onclick="loadCourierData()" class="text-blue-600 text-xs font-bold hover:underline"><i class="fa-solid fa-rotate-right"></i> רענן רשימה</button>
+                                </div>
+                                <div id="courier-active-list" class="space-y-2">
+                                    <p class="text-xs text-slate-400 text-center py-4">טוען הזמנות...</p>
+                                </div>
+                            </div>
+
+                            <div id="del-view-transit" class="hidden space-y-2 px-1">
+                                <div id="courier-transit-list" class="space-y-2"></div>
+                            </div>
+
+                            <div id="del-view-history" class="hidden space-y-2 px-1">
+                                <div id="courier-history-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                   <div id="content-foodcost" class="hidden">
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
+                            <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> ניהול פוד קוסט ורווחיות</h3>
+                            <p class="text-emerald-50 text-xs opacity-90">בנו עץ מוצר למנות, הוסיפו תקורות, ושלטו ברווחיות של העסק.</p>
+                            <i class="fa-solid fa-utensils absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                        </div>
+
+                        <div class="flex justify-between items-center mb-3 px-2">
+                            <h3 class="font-bold text-slate-700 text-lg">רווחיות התפריט</h3>
+                            <button onclick="if(typeof fetchFoodCost === 'function') fetchFoodCost()" class="text-blue-500 text-xs font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן נתונים</button>
+                        </div>
+                        
+                        <div class="flex gap-2 mb-4 px-2">
+                            <input type="text" id="fc-search" onkeyup="renderFoodCostList()" class="modern-input py-2 text-sm bg-white shadow-sm flex-1" placeholder="חיפוש מנה...">
+                        </div>
+
+                        <div id="fc-list" class="space-y-3 pb-24 px-1 min-h-[300px]">
+                            <p class="text-xs text-slate-400 text-center py-10">טוען נתונים...</p>
+                        </div>
+                    </div>
+
+                    <div id="recipe-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-0 sm:p-4">
+                        <div class="bg-white w-full max-w-lg rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
+                            <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50">
+                                <div>
+                                    <h3 class="font-black text-slate-800 text-lg" id="rb-title">עץ מוצר</h3>
+                                    <p class="text-[10px] text-slate-500 font-bold mt-1 bg-white px-2 py-0.5 rounded-full border border-slate-200 inline-block">מחיר מכירה: <span id="rb-sale-price" class="text-indigo-600">₪0</span></p>
+                                </div>
+                                <button onclick="closeRecipeBuilder()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            
+                            <input type="hidden" id="rb-catalog-id">
+                            
+                            <div class="flex-1 overflow-y-auto p-4 space-y-6 modal-scroll bg-slate-50/50">
+                                
+                                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-carrot text-orange-500 mr-1"></i> חומרי גלם מהמלאי</h4>
+                                    <div id="rb-ingredients-list" class="space-y-2 mb-3 min-h-[50px]"></div>
+                                    
+                                    <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
+                                        <input type="text" id="rb-add-ing-name" class="modern-input py-1.5 px-2 text-xs flex-[2]" placeholder="שם חומר הגלם">
+                                        <input type="number" id="rb-add-ing-qty" class="modern-input py-1.5 px-2 text-xs flex-1 text-center" placeholder="כמות" min="0.01" step="0.01">
+                                        <select id="rb-add-ing-unit" class="modern-input py-1.5 px-1 text-xs bg-white w-16 text-center">
+                                            <option value="קג">ק"ג</option>
+                                            <option value="גרם">גרם</option>
+                                            <option value="יח'">יח'</option>
+                                            <option value="ליטר">ליטר</option>
+                                            <option value="מארז">מארז</option>
+                                        </select>
+                                        <button onclick="addRBIngredient()" class="bg-orange-50 text-orange-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-orange-100 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-file-invoice-dollar text-blue-500 mr-1"></i> הוצאות נלוות (אריזה, כוח אדם)</h4>
+                                    <div id="rb-overhead-list" class="space-y-2 mb-3 min-h-[50px]"></div>
+                                    
+                                    <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
+                                        <input type="text" id="rb-add-ovh-name" class="modern-input py-1.5 px-2 text-xs flex-[2]" placeholder="למשל: קופסת קרטון">
+                                        <input type="number" id="rb-add-ovh-cost" class="modern-input py-1.5 px-2 text-xs flex-1 text-center" placeholder="עלות ב-₪" min="0.01" step="0.01">
+                                        <button onclick="addRBOverhead()" class="bg-blue-50 text-blue-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                                    </div>
+                                </div>
+
+                            </div>
+                            
+                            <div class="p-4 border-t border-slate-200 bg-white shrink-0">
+                                <div class="flex justify-between items-center mb-1 text-xs font-bold text-slate-500">
+                                    <span>סה"כ עלות (Cost):</span>
+                                    <span id="rb-total-cost" class="text-red-500">₪0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center mb-4 text-xs font-bold text-slate-500">
+                                    <span>רווח גולמי:</span>
+                                    <span id="rb-gross-profit" class="text-green-600">₪0.00</span>
+                                </div>
+                                
+                                <div class="w-full bg-slate-200 rounded-full h-3 mb-2 overflow-hidden shadow-inner flex relative">
+                                    <div id="rb-fc-bar" class="h-3 transition-all duration-500 bg-emerald-500"></div>
+                                    <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-800 drop-shadow-sm pointer-events-none">
+                                        Food Cost: <span id="rb-fc-pct" class="ml-1">0%</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100">
+                                    <button onclick="closeRecipeBuilder()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm">ביטול</button>
+                                    <button onclick="saveRecipeBuilder()" class="flex-[2] bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-black transition text-sm">שמור עץ מוצר</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1032,28 +1671,29 @@
                         
                         <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
                             <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) למשפחה
-                            </button>
+                                <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360)
+               </button>
                         </div>
                         
                         <div id="admin-members-tools" class="hidden">
                             <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל הורה</button>
                             <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כל בני המשפחה לשם אבטחה ובקרה.</p>
                         </div>
-                        <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
-                            <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות ממתינות</h3></div>
-                            <div id="pending-list" class="space-y-2 p-2"></div>
+                       <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
+                                <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות ממתינות</h3></div>
+                                <div id="pending-list" class="space-y-2 p-2"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <a id="app-banner-bottom"
+                   href="#"
+                   target="_blank"
+                   class="hidden bg-gradient-to-r from-slate-800 to-slate-900 w-full items-center justify-center text-sm font-medium border-t border-slate-100 text-slate-700 sm:rounded-b-[2rem] shadow-[0_-5px_15px_rgba(0,0,0,0.15)] overflow-hidden min-h-[140px] shrink-0 relative z-40 mt-auto">
+                </a>
             </div>
-            <!-- באנר תחתון – full width + פינות מעוגלות + גובה גבוה + צבע חזק -->
-           <a id="app-banner-bottom"
-               href="#"
-               target="_blank"
-               class="hidden bg-gradient-to-r from-slate-800 to-slate-900 mx-0 mt-auto mb-0 w-full items-center justify-center text-sm font-medium border-t border-slate-100 text-slate-700 sm:rounded-b-[2rem] shadow-[0_-5px_15px_rgba(0,0,0,0.15)] overflow-hidden min-h-[140px] shrink-0 relative z-40">
-            </a>
-        </div>
+
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
             <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ הזמנה מוערך</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
             <button onclick="openCheckoutSummary()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 transition">אשר הזמנת רכש</button>
@@ -1134,15 +1774,110 @@
             </div>
         </div>
 
-        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
-                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
-                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
-                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
+<div id="cal-event-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
+                    <h3 class="text-xl font-black text-slate-800" id="cal-event-modal-title">אירוע / תור חדש</h3>
+                    <div class="flex gap-2">
+                        <button id="btn-delete-cal-event" onclick="if(typeof deleteCurrentEvent==='function') deleteCurrentEvent()" class="w-8 h-8 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition flex items-center justify-center hidden"><i class="fa-solid fa-trash-can"></i></button>
+                        <button onclick="document.getElementById('cal-event-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <input type="hidden" id="cal-event-id">
+                
+                <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 mb-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כותרת / שם לקוח (חובה):</label>
+                        <input type="text" id="cal-event-title" class="modern-input py-2 text-sm bg-white font-bold" placeholder="שם הלקוח, חברה או נושא הפגישה">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון לקוח (אופציונלי):</label>
+                        <input type="tel" id="cal-event-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג שירות:</label>
+                        <select id="cal-event-service" class="modern-input py-2 text-sm bg-white font-bold text-cyan-700"></select>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך:</label>
+                            <input type="date" id="cal-event-date" class="modern-input py-2 px-1 text-xs bg-white font-bold">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג תזמון:</label>
+                            <select id="cal-event-time-type" onchange="document.getElementById('cal-event-time').disabled = (this.value !== 'specific'); document.getElementById('cal-event-time').style.opacity = (this.value !== 'specific' ? '0.5' : '1');" class="modern-input py-2 px-1 text-[11px] bg-white font-bold text-slate-700">
+                                <option value="specific">לפי שעה</option>
+                                <option value="ALL_DAY">יום שלם</option>
+                                <option value="EVENING">ערב שלם</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שעה:</label>
+                            <input type="time" id="cal-event-time" class="modern-input py-2 px-1 text-xs bg-white font-bold text-center">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                        <label class="text-[10px] font-bold text-indigo-800 block mb-1.5"><i class="fa-solid fa-link mr-1"></i> שיוך הצעת מחיר / הזמנה לאירוע:</label>
+                        <div class="flex gap-2">
+                            <select id="cal-event-quote" onchange="if(typeof toggleQuotePreviewBtn==='function') toggleQuotePreviewBtn()" class="modern-input py-1.5 px-2 text-xs flex-1 bg-white text-slate-700"></select>
+                            <button type="button" id="btn-cal-view-quote" onclick="if(typeof viewEventQuote==='function') viewEventQuote()" class="bg-white border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition hidden shrink-0"><i class="fa-solid fa-file-pdf"></i> צפה</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות / דרישות מיוחדות:</label>
+                        <textarea id="cal-event-notes" class="modern-input py-2 text-sm h-16 bg-white"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
+                    <button onclick="document.getElementById('cal-event-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
+                    <button onclick="if(typeof submitCalendarEvent==='function') submitCalendarEvent()" id="btn-submit-cal-event" class="w-2/3 bg-cyan-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור אירוע</button>
+                </div>
             </div>
         </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cal-service-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <h3 class="text-lg font-black text-slate-800 mb-4 border-b border-slate-100 pb-2"><i class="fa-solid fa-tag text-cyan-500 mr-1"></i> הגדרת שירות לקביעת תור</h3>
+                <input type="hidden" id="cal-service-id">
+                <div class="space-y-3 mb-6">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השירות (יוצג ללקוח):</label>
+                        <input type="text" id="cal-service-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: אירוע צהריים (עד 50 איש) / טיפול קוסמטי">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">משך משוער (בדקות):</label>
+                            <input type="number" id="cal-service-duration" class="modern-input py-2 text-sm bg-white text-center" value="30">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר התחלתי (₪):</label>
+                            <input type="number" id="cal-service-price" class="modern-input py-2 text-sm bg-white text-center" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('cal-service-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition text-sm">ביטול</button>
+                    <button onclick="if(typeof submitCalendarService==='function') submitCalendarService()" class="flex-[1.5] bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md hover:bg-slate-700 transition text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-save"></i> הוסף שירות</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
+                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
+                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
+                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
+                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
+            </div>
+        </div>
 
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
@@ -1167,7 +1902,10 @@
                 <button onclick="closeWelcomeModal()" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg hover:scale-105 transition">הבנתי, תודה!</button>
             </div>
         </div>
-
+            <div id="image-preview-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden z-[99999] flex flex-col items-center justify-center p-4" onclick="this.classList.add('hidden')">
+            <button onclick="document.getElementById('image-preview-modal').classList.add('hidden')" class="absolute top-6 right-6 text-white bg-black/50 hover:bg-black/80 w-10 h-10 rounded-full flex items-center justify-center transition text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <img id="image-preview-modal-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" onclick="event.stopPropagation();">
+        </div>
         <div id="ai-warning-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[999] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-slate-800"></div>
@@ -1704,17 +2442,33 @@
 
                     <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 shadow-sm">
                         <label class="text-xs font-bold text-indigo-800 block mb-1">סוג תבנית מוצר:</label>
-                        <select id="sp-product-type" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
-                            <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
-                            <option value="food">🍔 מנת מזון / מסעדה</option>
-                            <option value="service">✂️ שירות / טיפול</option>
-                            <option value="apparel">👕 ביגוד והנעלה (מידות)</option>
-                        </select>
-                        <p class="text-[9px] text-indigo-500 mt-1">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
-                    </div>
+<select id="sp-product-type" onchange="onProductTypeChange()" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                                                <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                                                <option value="food">🍔 מנת מזון / מסעדה</option>
+                                                <option value="service">✂️ שירות / טיפול</option>
+                                                <option value="apparel">👕 ביגוד והנעלה (מידות)</option>
+                                                <option value="bundle">🎁 חבילה / סט מוצרים</option>
+                                                <option value="pizza_builder">🍕 הרכבת פיצה ויזואלית (רבעים)</option>
+                                            </select>
+                                            <p class="text-[9px] text-indigo-500 mt-1">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
+                                        </div>
+
+                                        <div id="sp-bundle-section" class="hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm mt-4">
+                                            <label class="text-xs font-bold text-amber-800 block mb-2"><i class="fa-solid fa-cubes-stacked ml-1"></i> פריטים בחבילה:</label>
+                                            <div id="sp-bundle-items-list" class="space-y-1.5 max-h-52 overflow-y-auto modal-scroll pr-1"></div>
+                                            <p class="text-[9px] text-amber-600 mt-2">סמן את המוצרים שיצרו את החבילה וקבע כמות לכל פריט.</p>
+                                        </div>
+
+                                        <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                                            <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                                            <p class="text-[9px] text-red-600 mb-3 font-medium">הגדירו את התוספות לבחירה ומחיר לכל תוספת על מגש שלם. המערכת בחנות תאפשר ללקוח לבחור רבעים/חצאים ותחשב את המחיר היחסי אוטומטית.</p>
+                                            <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                                            <button type="button" onclick="addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                                        </div>
 
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+
                         <input type="text" id="sp-name" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: המבורגר הבית">
                     </div>
 
@@ -1769,7 +2523,7 @@
                 </div>
             </div>
         </div>
-        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                     <h3 class="text-xl font-black text-slate-800">הזמנה #<span id="so-modal-id"></span></h3>
@@ -1780,6 +2534,7 @@
                     <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-regular fa-user mr-1 text-slate-400"></i> לקוח: <span id="so-modal-customer" class="text-slate-900"></span></p>
                     <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-solid fa-phone mr-1 text-slate-400"></i> טלפון: <span id="so-modal-phone" class="text-slate-900 dir-ltr inline-block"></span></p>
                     <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200"><i class="fa-regular fa-clock mr-1"></i> התקבל ב: <span id="so-modal-date"></span></p>
+                    <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-calendar-check mr-1 text-green-500"></i> יעד אספקה: <span id="so-modal-target" class="font-bold text-green-700"></span></p>
                 </div>
 
                 <h4 class="font-bold text-slate-700 text-sm mb-2">פירוט הפריטים:</h4>
@@ -1897,13 +2652,29 @@
                 <input type="hidden" id="perm-user-id">
 
                 <div class="mb-4">
-                    <label class="text-xs font-bold text-slate-500 block mb-2">סיווג העובד/ת (משנה תבנית אוטומטית):</label>
-                    <select id="perm-role-select" onchange="applyRoleDefaults(this.value)" class="modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold">
-                        <option value="MEMBER">עובד רגיל / איש צוות</option>
-                        <option value="SENIOR">עובד בכיר / אחראי</option>
-                        <option value="MANAGER">מנהל משמרת (אחמ"ש)</option>
-                        <option value="ADMIN">בעלים / מנהל ראשי (הרשאה מלאה)</option>
-                    </select>
+                    <label class="text-xs font-bold text-slate-500 block mb-2">תפקידי העובד/ת (ניתן לבחור יותר מאחד):</label>
+                    <div id="perm-role-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="ADMIN" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">מנהל ראשי</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="MANAGER" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">מנהל משמרת</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="SENIOR" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">אחראי/ת משמרת</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="MEMBER" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">איש צוות (רגיל)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-blue-100 p-2 rounded-lg border border-blue-300 hover:border-blue-500 transition shadow-sm sm:col-span-2">
+                            <input type="checkbox" value="COURIER" class="role-cb w-4 h-4 accent-blue-700" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-black text-blue-900"><i class="fa-solid fa-motorcycle mr-1"></i> שליח (גישה למסופון חלוקה)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <label class="text-xs font-bold text-slate-500 block mb-2">טאבים מורשים למשתמש (התאמה אישית):</label>
@@ -1985,16 +2756,16 @@
                     <p class="text-xs text-slate-600 mb-3 leading-relaxed text-center">תיהנו מכוח עיבוד ללא הגבלה של מערכות ה-AI וניהול הרשאות מתקדם בארגון שלכם.</p>
                     <button id="btn-profile-upgrade" type="button" onclick="openAlertModal('Oneflowlife Pro', 'שדרוג למנוי פרימיום יעלה בקרוב למערכת!')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">שדרגו כעת</button>
                 </div>
-
-                <form onsubmit="submitChangePassword(event)" class="space-y-3">
+<form onsubmit="submitChangePassword(event)" class="space-y-3">
                     <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
                     <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">
                     <button type="submit" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg mt-2 hover:bg-slate-700 transition">עדכון סיסמת גישה</button>
                 </form>
                 
                 <button type="button" onclick="triggerManualTour()" class="mt-4 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> הדרכת משתמש על המערכת</button>
+                <button type="button" onclick="document.getElementById('support-ticket-modal').classList.remove('hidden'); document.getElementById('profile-modal').classList.add('hidden');" class="mt-3 w-full bg-blue-50 text-blue-600 border border-blue-100 py-3 rounded-xl font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-headset"></i> פתח קריאת שירות ל-Oneflow</button>
                 <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-3 w-full bg-white border border-slate-200 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition">חזור ללוח הבקרה</button>
-            </div>
+               </div>
         </div>
 
         <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -2071,11 +2842,68 @@
                     <button onclick="submitGlobalAI()" id="btn-global-ai-submit" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-arrow-up"></i></button>
                 </div>
             </div>
-        </div>
-        
+        </div>        
     </div>
 
-    <script src="business-app.js?v=27" defer></script>
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden opacity-0 transition-opacity duration-300" onclick="closeSidebar()"></div>
+    <div id="sidebar-menu" class="fixed top-0 right-0 bottom-0 w-64 bg-white z-[201] shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="font-black text-slate-800 text-lg">תפריט ניווט</h3>
+            <button onclick="closeSidebar()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="sidebar-tab-list" class="flex-1 overflow-y-auto p-4 space-y-2 modal-scroll bg-slate-50/50">
+            </div>
+        <div class="p-4 bg-slate-50 border-t border-slate-100 shrink-0 text-center">
+            <img src="logo.png" class="h-6 mx-auto opacity-50 mb-1" onerror="this.style.display='none'">
+            <p class="text-[9px] text-slate-400 font-bold">Oneflow Life BIZ</p>
+        </div>
+    </div>
+
+    <script>
+        function openSidebar() {
+            const overlay = document.getElementById('sidebar-overlay');
+            const menu = document.getElementById('sidebar-menu');
+            const list = document.getElementById('sidebar-tab-list');
+
+            list.innerHTML = '';
+            const tabs = document.querySelectorAll('#slider-scroll .tab-btn');
+            
+            // שיבוט דינמי של הטאבים הגלויים בלבד (כדי לשמור על הרשאות עובדים)
+            tabs.forEach(tab => {
+                if (window.getComputedStyle(tab).display !== 'none' && !tab.classList.contains('hidden')) {
+                    const btn = document.createElement('button');
+                    btn.innerHTML = tab.innerHTML;
+                    btn.className = 'w-full text-right p-3.5 rounded-xl font-bold transition border ' +
+                                    (tab.classList.contains('tab-active') ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200 shadow-sm');
+                    btn.onclick = () => {
+                        tab.click();
+                        closeSidebar();
+                    };
+                    list.appendChild(btn);
+                }
+            });
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                menu.classList.remove('translate-x-full');
+            }, 10);
+        }
+
+        function closeSidebar() {
+            const overlay = document.getElementById('sidebar-overlay');
+            const menu = document.getElementById('sidebar-menu');
+            
+            overlay.classList.add('opacity-0');
+            menu.classList.add('translate-x-full');
+            
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 300);
+        }
+    </script>
+
+    <script src="business-app.js?v=35" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -2127,5 +2955,595 @@
             });
         }
     </script>
+                    <!-- מודל דוח תמונת מצב 360 -->
+        <div id="report-360-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-500"></i> דוח תמונת מצב 360°</h3>
+                    <button onclick="getEl('report-360-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="report-360-content" class="flex-1 overflow-y-auto p-5 space-y-5 modal-scroll" style="direction:rtl; font-family: sans-serif;">
+                    <style>.report-badge{background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:bold;}</style>
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <h4 class="font-black text-indigo-800 text-base mb-2" id="report-360-group-name">-</h4>
+                        <div class="flex flex-wrap gap-3 text-xs text-slate-600">
+                            <span><b>סוג:</b> <span id="report-360-group-type">-</span></span>
+                            <span><b>קוד:</b> <span id="report-360-group-code" class="font-mono">-</span></span>
+                            <span><b>מנהל:</b> <span id="report-360-group-email">-</span></span>
+                            <span class="mr-auto text-slate-400" id="report-360-date">-</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">חברי הצוות ויתרות</h4>
+                        <table class="w-full text-sm border-collapse">
+                            <thead><tr class="bg-slate-100 text-slate-600"><th class="p-2 text-right font-bold">שם</th><th class="p-2 text-right font-bold">תפקיד</th><th class="p-2 text-right font-bold">יתרה</th></tr></thead>
+                            <tbody id="report-360-users-list"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">תנועות פיננסיות (30 יום אחרונים)</h4>
+                        <table class="w-full text-sm border-collapse">
+                            <thead><tr class="bg-slate-100 text-slate-600"><th class="p-2 text-right font-bold">תאריך</th><th class="p-2 text-right font-bold">עובד</th><th class="p-2 text-right font-bold">תיאור</th><th class="p-2 text-left font-bold">סכום</th></tr></thead>
+                            <tbody id="report-360-tx-list"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">סיכום משימות ופרויקטים</h4>
+                        <ul id="report-360-tasks-list" class="list-disc list-inside space-y-1 text-sm text-slate-600"></ul>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                    <button onclick="getEl('report-360-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition">סגור</button>
+                    <button onclick="download360PDF()" class="px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow hover:bg-indigo-700 transition"><i class="fa-solid fa-file-pdf"></i> הורד PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- מודל קבלת סחורה -->
+        <div id="receive-goods-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-box-open text-green-500"></i> קבלת סחורה</h3>
+                    <button onclick="getEl('receive-goods-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5 modal-scroll" style="direction:rtl;">
+                    <p class="text-xs text-slate-500 bg-blue-50 p-3 rounded-xl border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-400"></i> עבור כל פריט: הזן כמות שהתקבלה בפועל. פריטים חסרים יישלחו אוטומטית לדרישות שוטפות.</p>
+                    <div id="receive-goods-items" class="space-y-3"></div>
+                </div>
+                <div class="p-4 border-t border-slate-100 flex gap-3 justify-end shrink-0">
+                    <button onclick="getEl('receive-goods-modal').classList.add('hidden')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitReceiveGoods()" class="px-5 py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm shadow hover:bg-green-700 transition"><i class="fa-solid fa-check"></i> אשר קבלת סחורה</button>
+                </div>
+            </div>
+        </div>
+    <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-file-signature text-indigo-500"></i> עריכת הצעת מחיר</h3>
+                    <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-5 space-y-5 modal-scroll bg-slate-50/30">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / העסק (חובה):</label>
+                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm font-bold bg-white" placeholder="למי מיועדת ההצעה?">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון (אופציונלי):</label>
+                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-4">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">בחירת פריטים מתוך הקטלוג:</label>
+                        <div id="quote-items-selector" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה (יופיע בראש ההצעה):</label>
+                            <div class="flex gap-1">
+                                <button type="button" onclick="generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                            </div>
+                        </div>
+                        <textarea id="quote-intro-text" class="modern-input py-2 text-sm bg-white h-20" placeholder="למשל: לבקשתכם, להלן הצעת מחיר עבור..."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
+                            <input type="text" id="quote-validity" class="modern-input py-2 text-sm bg-white" value="14 יום" placeholder="למשל: עד גמר המלאי / 30 יום">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
+                            <input type="number" id="quote-discount" oninput="calcQuoteTotal()" class="modern-input py-2 text-sm bg-white text-center" placeholder="0" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[10px] font-bold text-slate-500">הערות ותנאי סחר (יופיע בתחתית):</label>
+                            <div class="flex gap-1">
+                                <button type="button" onclick="generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                            </div>
+                        </div>
+                        <textarea id="quote-notes" class="modern-input py-2 text-sm bg-white h-24" placeholder="למשל: תנאי תשלום שוטף+30..."></textarea>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 bg-white shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-right w-full sm:w-auto">
+                        <span class="text-xs text-slate-500 font-bold block" id="quote-before-discount"></span>
+                        <span class="text-[10px] font-bold text-slate-400 mr-1 uppercase tracking-wider">סה"כ לתשלום:</span>
+                        <span id="quote-total-display" class="font-black text-2xl text-indigo-600 dir-ltr inline-block">₪0.00</span>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="flex-[0.5] sm:flex-none px-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-generate-quote" onclick="submitNewQuote()" class="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                            שמור והפק <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="quote-preview-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-2 sm:p-4">
+            <div class="bg-slate-50 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                    <div class="flex items-center gap-3">
+                        <button onclick="document.getElementById('quote-preview-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                        <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> תצוגה מקדימה</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editQuoteFromPreview()" class="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-lg text-xs hover:bg-slate-200 transition hidden sm:block"><i class="fa-solid fa-pen"></i> ערוך</button>
+                        <button onclick="downloadCurrentQuotePDF()" class="px-4 py-1.5 bg-slate-800 text-white font-bold rounded-lg text-xs shadow hover:bg-slate-700 transition flex items-center gap-1"><i class="fa-solid fa-download"></i> הורד PDF</button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-4 flex justify-center bg-slate-200/50" id="quote-preview-scroll-area">
+                    <div id="quote-preview-content" class="shadow-md" style="width:100%; max-width:900px; display:flex; justify-content:center;">
+                        </div>
+                </div>
+                
+                <div class="p-3 border-t border-slate-200 bg-white shrink-0 flex justify-center">
+                    <button onclick="shareQuoteWhatsAppFromPreview()" class="w-full max-w-sm bg-[#25D366] text-white py-3 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-lg"></i> שליחה ללקוח בוואטסאפ
+                    </button>
+                </div>
+            </div>
+        </div>
+<div id="support-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
+            <button onclick="document.getElementById('support-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-1 text-center shrink-0"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> מרכז תמיכה ושירות</h3>
+            <p class="text-xs text-slate-500 text-center mb-5 shrink-0">צוות Oneflow כאן בשבילכם.</p>
+            
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-6 pb-4">
+                
+                <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    <h4 class="font-bold text-sm text-indigo-800 mb-3 border-b border-indigo-100 pb-2">פתיחת קריאה חדשה</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <select id="support-ticket-subject" class="modern-input py-2 text-sm bg-white font-bold text-slate-700 shadow-sm">
+                                <option value="תקלה טכנית (באג במערכת)">תקלה טכנית (באג במערכת)</option>
+                                <option value="הדרכה ושאלה על שימוש">הדרכה ושאלה על שימוש</option>
+                                <option value="בקשת שדרוג או פיצ'ר חדש">בקשת שדרוג או פיצ'ר חדש</option>
+                                <option value="הנהלת חשבונות וחיובים">הנהלת חשבונות וחיובים</option>
+                                <option value="אחר">אחר</option>
+                            </select>
+                        </div>
+                        <div>
+                            <textarea id="support-ticket-desc" class="modern-input py-3 text-sm h-24 bg-white shadow-sm" placeholder="תארו לנו את הבעיה בפירוט..."></textarea>
+                        </div>
+                        <button onclick="submitSupportTicket()" id="btn-submit-ticket" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition flex items-center justify-center gap-2">שלח קריאה <i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+
+               <div class="pt-2">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-bold text-sm text-slate-700">הפניות והיסטוריה</h4>
+                        <button onclick="fetchMyTickets()" class="text-xs font-bold text-blue-500 hover:underline"><i class="fa-solid fa-rotate-right"></i> רענן נתונים</button>
+                    </div>
+                    <div class="relative mb-3">
+                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="my-tickets-search" onkeyup="filterMyTickets()" class="modern-input py-2.5 pr-8 pl-3 text-xs bg-slate-50 shadow-sm" placeholder="חיפוש לפי מספר, נושא או תוכן...">
+                    </div>
+                    <div id="my-tickets-list" class="space-y-3 min-h-[100px]">
+                        <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl">טוען קריאות...</p>
+                    </div>
+                </div>
+                        <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl">טוען קריאות...</p>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    <div id="customer-status-screen" class="fixed inset-0 bg-slate-950 z-[999999] hidden flex flex-col font-['Rubik']">
+            <div class="bg-slate-900 text-white p-6 flex justify-between items-center shadow-2xl shrink-0 border-b border-slate-800">
+               <div class="flex items-center gap-5">
+                    <div class="w-16 h-16 bg-white rounded-2xl shadow-inner flex items-center justify-center overflow-hidden border-2 border-slate-700">
+                        <img id="status-screen-logo" src="" class="w-full h-full object-cover hidden" onerror="this.style.display='none'">
+                        <i id="status-screen-logo-icon" class="fa-solid fa-store text-slate-300 text-3xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black tracking-tight text-white" id="status-screen-title">העסק שלי</h2>
+                        <p class="text-slate-400 text-sm font-bold opacity-80" id="status-screen-slogan">ברוכים הבאים</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-8">
+                    <div class="flex flex-col items-end">
+                        <div class="flex items-center gap-3 bg-white/5 px-6 py-3 rounded-2xl border border-white/10 shadow-lg">
+                            <img src="logo.png" alt="Oneflow Logo" class="h-10 w-auto object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                            <div class="flex flex-col leading-none">
+                                <span class="text-indigo-400 text-[10px] font-black tracking-[0.2em] uppercase">Powered By</span>
+                                <span class="text-2xl font-black tracking-tighter text-white">ONEFLOW <span class="text-indigo-500">LIFE</span> BIZ</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="closeCustomerStatusScreen()" class="text-slate-500 hover:text-white transition p-2 bg-slate-800 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center border border-slate-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+            </div>
+
+            <div class="flex-1 flex overflow-hidden">
+                <div class="flex-1 border-l border-slate-800 bg-slate-900/30 flex flex-col">
+                    <div class="bg-slate-900/80 py-5 text-center border-b border-slate-800 shrink-0 shadow-sm">
+                        <h3 class="text-3xl font-bold text-slate-400 flex items-center justify-center gap-3"><i class="fa-solid fa-fire-burner text-orange-500/70"></i> בהכנה</h3>
+                    </div>
+                    <div id="status-screen-preparing" class="flex-1 overflow-y-auto p-8 grid grid-cols-2 gap-5 content-start modal-scroll">
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-slate-950 flex flex-col relative overflow-hidden">
+                    <div class="bg-green-500/10 py-5 text-center border-b border-green-500/20 shrink-0 relative z-10 shadow-sm">
+                        <h3 class="text-4xl font-black text-green-400 flex items-center justify-center gap-4 animate-pulse"><i class="fa-solid fa-check-double"></i> מוכן לאיסוף</h3>
+                    </div>
+                    <div id="status-screen-ready" class="flex-1 overflow-y-auto p-8 grid grid-cols-2 gap-5 content-start modal-scroll relative z-10">
+                    </div>
+                    <i class="fa-solid fa-circle-check absolute -bottom-20 -right-20 text-[25rem] text-green-500 opacity-[0.03] pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="bg-black p-4 text-center text-slate-500 font-mono shrink-0 border-t border-slate-900 flex justify-between items-center px-10">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">System Live Status</span>
+                </div>
+                <span id="status-screen-clock" class="text-2xl font-black text-slate-300 tracking-tighter">00:00</span>
+            </div>
+        </div>
+<div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-500"></i> מחולל דוחות</h3>
+                <button onclick="document.getElementById('report-builder-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-5 flex-1 overflow-y-auto modal-scroll pr-1">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">סוג הדוח (בחירה מרובה):</label>
+                    <select id="report-type" class="modern-input py-3 text-sm bg-white font-bold shadow-sm" onchange="updateReportFormatUI()">
+                        <option value="executive">דוח מנהלים מסכם (מיועד ל-PDF)</option>
+                        <option value="accounting">דוח עסקאות חשבונאיות (ייצוא ל-CSV)</option>
+                        <option value="inventory">דוח מכירות וניהול מלאי (ייצוא ל-CSV)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">פורמט ייצוא זמין:</label>
+                    <div class="flex gap-3">
+                        <label id="label-format-csv" class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-4 rounded-xl border-2 border-transparent cursor-pointer transition-all">
+                            <input type="radio" name="report_format" value="csv" class="hidden peer">
+                            <i class="fa-solid fa-file-excel text-3xl mb-2 transition-colors text-slate-300 peer-checked:text-green-500"></i>
+                            <span class="text-sm font-bold text-slate-500 peer-checked:text-green-600">Excel / CSV</span>
+                        </label>
+                        
+                        <label id="label-format-pdf" class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-4 rounded-xl border-2 border-transparent cursor-pointer transition-all">
+                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked>
+                            <i class="fa-solid fa-file-pdf text-3xl mb-2 transition-colors text-slate-300 peer-checked:text-red-500"></i>
+                            <span class="text-sm font-bold text-slate-500 peer-checked:text-red-600">PDF מקצועי</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5 border-t border-slate-100 mt-4 shrink-0">
+                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2 text-lg">
+                    הצג תצוגה מקדימה <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="report-preview-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden z-[999999] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-50 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden slide-up">
+            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="document.getElementById('report-preview-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> תצוגה מקדימה - דוח מנהלים</h3>
+                </div>
+                <div>
+                    <button id="btn-download-report-pdf" onclick="downloadReportPDF(this)" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-download"></i> הורד להדפסה (PDF)</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 flex justify-start sm:justify-center bg-slate-200/50" id="report-preview-scroll-area">
+                <div id="report-preview-content" style="width: 100%; max-width: 760px; margin: 0 auto;">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.openReportBuilderModal = function() {
+            const modal = document.getElementById('report-builder-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                updateReportFormatUI(); 
+            }
+        };
+
+        window.updateReportFormatUI = function() {
+            const type = document.getElementById('report-type').value;
+            const pdfRadio = document.querySelector('input[name="report_format"][value="pdf"]');
+            const csvRadio = document.querySelector('input[name="report_format"][value="csv"]');
+            const pdfLabel = document.getElementById('label-format-pdf');
+            const csvLabel = document.getElementById('label-format-csv');
+            const btn = document.getElementById('btn-generate-report');
+
+            if (type === 'executive') {
+                pdfRadio.checked = true;
+                
+                pdfLabel.classList.add('border-red-200', 'bg-red-50/50');
+                pdfLabel.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                
+                csvLabel.classList.remove('border-green-200', 'bg-green-50/50');
+                csvLabel.classList.add('opacity-40', 'pointer-events-none');
+                
+                btn.innerHTML = 'הצג תצוגה מקדימה <i class="fa-solid fa-eye"></i>';
+                btn.className = "w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2 text-lg";
+            } else {
+                csvRadio.checked = true;
+                
+                csvLabel.classList.add('border-green-200', 'bg-green-50/50');
+                csvLabel.classList.remove('opacity-40', 'pointer-events-none');
+                
+                pdfRadio.checked = false;
+                pdfLabel.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                pdfLabel.classList.remove('border-red-200', 'bg-red-50/50');
+
+                btn.innerHTML = 'ייצא דוח ישירות ל-Excel <i class="fa-solid fa-file-csv"></i>';
+                btn.className = "w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2 text-lg";
+            }
+        };
+
+        window.generateReport = function() {
+            try {
+                const type = document.getElementById('report-type').value;
+                const format = document.querySelector('input[name="report_format"]:checked').value;
+
+                if (format === 'csv') {
+                    if (type === 'accounting' && typeof window.exportOrdersToCSV === 'function') {
+                        window.exportOrdersToCSV();
+                    } else if (type === 'inventory' && typeof window.exportProductsToCSV === 'function') {
+                        window.exportProductsToCSV();
+                    } else {
+                        showToast('error', 'פונקציית ייצוא CSV אינה פעילה עבור דוח זה.');
+                    }
+                    document.getElementById('report-builder-modal').classList.add('hidden');
+                } else if (format === 'pdf') {
+                    document.getElementById('report-builder-modal').classList.add('hidden');
+                    
+                    const previewContent = document.getElementById('report-preview-content');
+                    if (previewContent) {
+                        try {
+                            previewContent.innerHTML = window.buildPDFReportContentString();
+                        } catch(innerErr) {
+                            previewContent.innerHTML = '<p class="text-center text-red-500 py-10">שגיאה בבניית הדוח. אנא בדוק נתונים.</p>';
+                        }
+                    }
+                    
+                    const pModal = document.getElementById('report-preview-modal');
+                    if(pModal) {
+                        pModal.classList.remove('hidden');
+                        pModal.style.display = 'flex'; 
+                    }
+                }
+            } catch (e) {
+                showToast('error','שגיאה בתהליך הפקת הדוח.');
+            }
+        };
+
+        window.downloadReportPDF = function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד להדפסה...';
+            btn.style.pointerEvents = 'none';
+
+            // לוקחים את האלמנט הפנימי שעטוף (הוא בעל רוחב מדויק ל-A4)
+            const element = document.getElementById('pdf-export-wrapper');
+            
+            // פתרון קסם לבאג החיתוך השמאלי של html2canvas במסכי RTL:
+            // מבטלים את המרכוז האוטומטי רק לשניית הצילום, שמבלבלת את ה-Canvas
+            const origMargin = element.style.margin;
+            element.style.margin = '0';
+            
+            const opt = {
+                margin: 10, // שוליים אחידים מכל הכיוונים (במילימטרים)
+                filename: 'Oneflow_Executive_Report_' + new Date().toLocaleDateString('he-IL').replace(/\./g, '-') + '.pdf',
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.margin = origMargin; // החזרת המרכוז לתצוגה
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+                showToast('success', 'הדוח ירד בהצלחה למכשיר!');
+            }).catch(err => {
+                showToast('error', 'שגיאה ביצירת קובץ ה-PDF.');
+                element.style.margin = origMargin;
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+            });
+        };
+
+        window.buildPDFReportContentString = function() {
+            // שאיבת נתונים מהדף הנוכחי
+            const period = document.getElementById('analytics-report-period')?.innerText || 'התקופה האחרונה';
+            const rev = document.getElementById('analytics-kpi-rev')?.innerText || '₪0';
+            const orders = document.getElementById('analytics-kpi-orders')?.innerText || '0';
+            const avg = document.getElementById('analytics-kpi-avg')?.innerText || '₪0';
+            const retention = document.getElementById('analytics-kpi-retention')?.innerText || '0%';
+            
+            let revChartImg = '';
+            const revCanvas = document.getElementById('analyticsRevenueChart');
+            if (revCanvas) { try { revChartImg = revCanvas.toDataURL('image/png', 1.0); } catch(e) {} }
+            
+            let catChartImg = '';
+            const catCanvas = document.getElementById('analyticsCategoryChart');
+            if (catCanvas) { try { catChartImg = catCanvas.toDataURL('image/png', 1.0); } catch(e) {} }
+
+            // קוד מפת העומסים (נשלט כדי שלא יחרוג מהמסגרת)
+            const heatmapHtml = document.getElementById('analytics-heatmap')?.innerHTML || '<p style="text-align:center; color:#94a3b8; padding: 20px;">אין נתונים מספיקים בתקופה זו</p>';
+
+            let topProductsHtml = '';
+            if (window.analyticsState && window.analyticsState.topProducts && window.analyticsState.topProducts.length > 0) {
+                topProductsHtml = window.analyticsState.topProducts.slice(0, 10).map((p, i) => `
+                    <tr style="border-bottom: 1px solid #e2e8f0; background: ${i%2===0?'#f8fafc':'#ffffff'};">
+                        <td style="padding: 10px 14px; text-align: right; color:#64748b;">${i+1}</td>
+                        <td style="padding: 10px 14px; font-weight: bold; text-align: right; color:#1e293b;">${p[0]}</td>
+                        <td style="padding: 10px 14px; text-align: center; color:#475569;">${p[1].qty} יח'</td>
+                        <td style="padding: 10px 14px; text-align: left; direction: ltr; font-weight: bold; color:#4f46e5;">₪${p[1].revenue.toLocaleString('he-IL',{maximumFractionDigits:0})}</td>
+                    </tr>
+                `).join('');
+            } else {
+                topProductsHtml = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">אין נתונים בתקופה זו</td></tr>';
+            }
+
+            let slowProductsHtml = '';
+            if (window.analyticsState && window.analyticsState.slowProducts && window.analyticsState.slowProducts.length > 0) {
+                slowProductsHtml = window.analyticsState.slowProducts.slice(0, 10).map((p, i) => `
+                    <tr style="border-bottom: 1px solid #e2e8f0; background: ${i%2===0?'#f8fafc':'#ffffff'};">
+                        <td style="padding: 10px 14px; font-weight: bold; text-align: right; color:#1e293b;">${p.name}</td>
+                        <td style="padding: 10px 14px; text-align: right; color:#475569;">${p.category || 'כללי'}</td>
+                        <td style="padding: 10px 14px; text-align: center; color:#f97316; font-weight: bold;">0 מכירות</td>
+                    </tr>
+                `).join('');
+            } else {
+                slowProductsHtml = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">מעולה! כל המוצרים נמכרו בתקופה זו.</td></tr>';
+            }
+
+            const bname = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.name : 'העסק שלי';
+            
+            let logoSrc = '';
+            const dashLogo = document.getElementById('dash-logo-preview');
+            if (dashLogo && dashLogo.src && dashLogo.src.length > 50 && !dashLogo.src.includes('null') && !dashLogo.classList.contains('hidden')) {
+                logoSrc = dashLogo.src;
+            }
+
+            const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
+            const currentDate = new Date().toLocaleDateString('he-IL') + ' ' + new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+
+            // המבנה כאן מסודר אנכית בלוק-אחרי-בלוק ומוגבל לרוחב 720 פיקסלים שיושב בצורה מושלמת בדף A4
+            return `
+            <div id="pdf-export-wrapper" class="bg-white shadow-sm" style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 720px; padding: 25px; margin: 0 auto; text-align: right; box-sizing: border-box;">
+                
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 15px;" dir="rtl">
+                    <tr>
+                        <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
+                            <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: 900; color: #1e293b;">${nb('דוח מנהלים מסכם')}</h1>
+                            <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 6px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <span style="font-weight: bold; color: #475569;">${nb('תקופה נבדקת:')}&#x200F;</span> <b style="color: #4f46e5;">${nb(period)}</b>
+                            </div>
+                        </td>
+                        <td style="vertical-align: middle; text-align: left; width: 40%;" dir="ltr">
+                            ${logoSrc ? `<img src="${logoSrc}" style="max-height:70px; max-width:160px; object-fit:contain; float: left;">` : `<h2 style="font-size:26px; font-weight:900; color:#4f46e5; margin:0; text-align: left;">${nb(bname)}</h2>`}
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; text-align: center;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('הכנסות ברוטו')}</div>
+                        <div style="font-size: 24px; color: #10b981; font-weight: 900;" dir="ltr">${rev}</div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('הזמנות')}</div>
+                        <div style="font-size: 24px; color: #3b82f6; font-weight: 900;">${orders}</div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('ממוצע לעסקה')}</div>
+                        <div style="font-size: 24px; color: #6366f1; font-weight: 900;" dir="ltr">${avg}</div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('לקוחות חוזרים')}</div>
+                        <div style="font-size: 24px; color: #a855f7; font-weight: 900;">${retention}</div>
+                    </div>
+                </div>
+
+                <div style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white; margin-bottom: 20px; box-sizing: border-box; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin-top: 0; margin-bottom: 10px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('מגמת הכנסות')}</h3>
+                    ${revChartImg ? `<img src="${revChartImg}" style="width: 100%; max-height: 200px; object-fit: contain;">` : `<p style="text-align:center; color:#94a3b8; padding: 20px;">${nb('אין נתונים לגרף')}</p>`}
+                </div>
+
+                <div style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white; margin-bottom: 20px; box-sizing: border-box; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin-top: 0; margin-bottom: 10px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('פילוח לפי קטגוריות')}</h3>
+                    ${catChartImg ? `<img src="${catChartImg}" style="width: 100%; max-height: 200px; object-fit: contain; margin: 0 auto; display: block;">` : `<p style="text-align:center; color:#94a3b8; padding: 20px;">${nb('אין נתונים לגרף')}</p>`}
+                </div>
+
+                <div class="avoid-break" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white; margin-bottom: 20px; box-sizing: border-box; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin-top: 0; margin-bottom: 10px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('מפת עומסים (הזמנות לפי שעות וימים)')}</h3>
+                    <div style="width: 100%; overflow: hidden;">
+                        <div style="transform: scale(0.85); transform-origin: top right; width: 115%;">
+                            ${heatmapHtml}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="avoid-break" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; background: white; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin: 0; color: #334155; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 12px 15px;">${nb('מוצרים מובילים (Top Sellers)')}</h3>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #4f46e5; color: white;">
+                                <th style="padding: 8px 14px; text-align: right; width: 5%;">#</th>
+                                <th style="padding: 8px 14px; text-align: right; width: 45%;">${nb('שם המוצר')}</th>
+                                <th style="padding: 8px 14px; text-align: center; width: 25%;">${nb('כמות שנמכרה')}</th>
+                                <th style="padding: 8px 14px; text-align: left; width: 25%;">${nb('הכנסה כוללת')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${topProductsHtml}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="avoid-break" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; background: white; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin: 0; color: #334155; background: #fff7ed; border-bottom: 1px solid #e2e8f0; padding: 12px 15px;">${nb('מלאי עומד / לא נמכרו כלל (Slow Movers)')}</h3>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f97316; color: white;">
+                                <th style="padding: 8px 14px; text-align: right; width: 45%;">${nb('שם המוצר')}</th>
+                                <th style="padding: 8px 14px; text-align: right; width: 30%;">${nb('קטגוריה')}</th>
+                                <th style="padding: 8px 14px; text-align: center; width: 25%;">${nb('סטטוס')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${slowProductsHtml}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 30px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    ${nb('דוח זה הופק אלקטרונית מתוך פורטל הניהול Oneflow BIZ. הופק בתאריך:')} <span dir="ltr">${currentDate}</span>
+                </div>
+            </div>
+            `;
+        }
+    </script>
+    ```
 </body>
 </html>
