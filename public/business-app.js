@@ -11469,14 +11469,13 @@ window.submitStoreProduct = async function() {
 // MODULE: MARKETING, PROMOTIONS & COUPONS
 // ==========================================
 
-window.openPromotionModal = function(id = null) {
-    let modal = document.getElementById('promotion-modal');
-    if (!modal) {
+window.injectMarketingModals = function() {
+    if (!document.getElementById('promotion-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
                 <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע חדש</h3>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע</h3>
                 <input type="hidden" id="promo-id">
                 <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
                     <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white font-bold"></div>
@@ -11503,8 +11502,16 @@ window.openPromotionModal = function(id = null) {
                 </div>
             </div>
         </div>`);
-        modal = document.getElementById('promotion-modal');
     }
+};
+
+// הפעלה מוקדמת כדי למנוע את שגיאת ה-null
+setTimeout(window.injectMarketingModals, 2000);
+
+window.openPromotionModal = function(id = null) {
+    window.injectMarketingModals();
+    const modal = document.getElementById('promotion-modal');
+    if (!modal) return;
     
     document.getElementById('promo-id').value = id || '';
     document.getElementById('promo-title').value = '';
@@ -11598,13 +11605,33 @@ window.submitPromotion = async function() {
     }
 };
 
-window.togglePromotionStatus = async function(id, isActive) {
+window.togglePromotionStatus = async function(id, nextStatus) {
+    const promo = window.storePromotionsCache.find(p => p.id === id);
+    if (!promo) return;
+    
     try {
-        const res = await fetch(`${API}/store/promotions/toggle`, { 
-            method: 'POST', headers: {'Content-Type':'application/json'}, 
-            body: JSON.stringify({ promoId: id, isActive: isActive }) 
+        // עוקפים את נתיב ה-toggle שחסר בשרת ומשתמשים בנתיב ה-PUT של עריכת מבצע!
+        const url = `${API}/store/promotions/${id}`;
+        const payload = {
+            groupId: currentGroup.id, 
+            title: promo.title, 
+            promoType: promo.promo_type, 
+            promoValue: promo.promo_value,
+            targetType: promo.target_type, 
+            targetIds: promo.target_ids || [],
+            startDate: promo.start_date ? promo.start_date.substring(0,10) : null, 
+            endDate: promo.end_date ? promo.end_date.substring(0,10) : null, 
+            isActive: nextStatus, 
+            showInBanner: promo.show_in_banner !== false
+        };
+
+        const res = await fetch(url, { 
+            method: 'PUT', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify(payload) 
         });
         const data = await res.json();
+        
         if (data.success) {
             showToast('success', 'סטטוס המבצע עודכן');
             window.fetchStorePromotions();
@@ -11612,7 +11639,7 @@ window.togglePromotionStatus = async function(id, isActive) {
             showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
         }
     } catch(e) {
-        showToast('error', 'שגיאה בעדכון הסטטוס');
+        showToast('error', 'שגיאת רשת בעדכון הסטטוס');
     }
 };
 
@@ -11678,6 +11705,7 @@ window.fetchStoreCoupons = async function() {
 };
 
 window.renderStorePromotions = function() {
+    window.injectMarketingModals();
     const list = document.getElementById('store-promotions-list');
     if (!list) return;
 
@@ -11693,7 +11721,6 @@ window.renderStorePromotions = function() {
 
             const targetText = p.target_type === 'all' ? 'כל החנות' : `קטגוריה: ${p.target_ids[0] || '?'}`;
             
-            // תיקון הלוגיקה כדי למנוע שליחת משתנים שהשרת לא מזהה (למניעת שגיאות שרת בעדכון הסטטוס)
             const isActiveBool = p.is_active === true || p.is_active == 1 || String(p.is_active) === 'true';
             const nextStatus = !isActiveBool;
             const activeColor = isActiveBool ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
