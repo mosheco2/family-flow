@@ -3888,6 +3888,48 @@ async function editOrderTargetDate(orderId, currentDate) {
     getEl('target-datetime-modal').classList.remove('hidden');
 }
 
+// תיקון סעיף 3: הוספת פונקציית האישור שקוראת לשרת והופכת הצעה להזמנה
+window.submitTargetDatetime = async function() {
+    const targetDate = getEl('target-datetime-input').value;
+    const btn = getEl('btn-submit-target-date');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאשר...';
+    
+    try {
+        if (currentActionType === 'quote') {
+            const res = await fetch(`${API}/store/quotes/${currentActionTargetId}/approve`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ targetDatetime: targetDate })
+            });
+            const data = await res.json();
+            if(data.success) {
+                showToast('success', 'הצעת המחיר אושרה והפכה להזמנה!');
+                getEl('target-datetime-modal').classList.add('hidden');
+                if(typeof fetchStoreQuotes === 'function') fetchStoreQuotes();
+                if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
+            } else {
+                showToast('error', data.error || 'שגיאה באישור ההצעה');
+            }
+        } else if (currentActionType === 'order') {
+            const res = await fetch(`${API}/store/orders/${currentActionTargetId}/target-date`, {
+                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ targetDatetime: targetDate })
+            });
+            const data = await res.json();
+            if(data.success) {
+                showToast('success', 'יעד האספקה עודכן!');
+                getEl('target-datetime-modal').classList.add('hidden');
+                if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
+            } else {
+                showToast('error', data.error || 'שגיאה בעדכון');
+            }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false; btn.innerHTML = 'אישור ועדכון';
+    }
+};
+
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
@@ -4275,6 +4317,17 @@ window.submitNewQuote = async function() {
 window.shareQuoteWhatsApp = function(id, phone) {
     const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
     window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
+};
+
+// תיקון סעיף 4: הוספת הפונקציה החסרה ששואבת את הטלפון מתוך חלונית ה-PDF של ההצעה
+window.shareQuoteWhatsAppFromPreview = function() {
+    if (!currentPreviewQuoteId) return;
+    const quote = storeQuotesCache.find(q => String(q.id) === String(currentPreviewQuoteId));
+    if (quote && quote.customer_phone) {
+        window.shareQuoteWhatsApp(quote.id, quote.customer_phone);
+    } else {
+        showToast('error', 'לא מוגדר מספר טלפון ללקוח בהצעה זו.');
+    }
 };
 
 let currentPreviewQuoteId = null;
