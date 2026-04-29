@@ -12175,7 +12175,6 @@ if (!window._originalRenderAnalyticsSaved) {
 // ============================================================
 
 window.injectReportGenerator = function() {
-    // 1. הזרקת כפתור "מחולל דוחות" לשורת הפעולות למעלה (ליד כפתור ה-AI)
     const actionBar = document.querySelector('#sales-view-analytics .flex.flex-wrap.items-center.gap-2');
     if (actionBar && !document.getElementById('btn-report-generator-master')) {
         actionBar.insertAdjacentHTML('beforeend', `
@@ -12185,7 +12184,6 @@ window.injectReportGenerator = function() {
         `);
     }
 
-    // 2. הזרקת המודאל של מחולל הדוחות ל-DOM
     if (!document.getElementById('report-generator-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="report-generator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
@@ -12196,7 +12194,6 @@ window.injectReportGenerator = function() {
                 <div class="flex-1 overflow-y-auto modal-scroll space-y-3 pb-2 pr-1">
                     <p class="text-xs text-slate-500 font-bold mb-3">בחרו את סוג הדוח המבוקש (הנתונים מחושבים לפי התאריכים שסיננתם במסך האנליטיקה):</p>
                     
-                    <!-- דוח מסכם PDF -->
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">דוח מנהלים מסכם</h4>
@@ -12205,7 +12202,6 @@ window.injectReportGenerator = function() {
                         <button onclick="window.downloadAnalyticsPDF(); document.getElementById('report-generator-modal').classList.add('hidden');" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-red-100"><i class="fa-solid fa-file-pdf"></i> PDF</button>
                     </div>
 
-                    <!-- הזמנות גולמיות Excel -->
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">פירוט עסקאות והזמנות</h4>
@@ -12214,7 +12210,6 @@ window.injectReportGenerator = function() {
                         <button onclick="window.exportOrdersToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
                     </div>
 
-                    <!-- הנמכרים ביותר Excel -->
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">הנמכרים ביותר (Top Sellers)</h4>
@@ -12223,7 +12218,6 @@ window.injectReportGenerator = function() {
                         <button onclick="window.exportTopProductsToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
                     </div>
 
-                    <!-- ללא מכירות Excel -->
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">מוצרים ללא מכירות (Slow)</h4>
@@ -12232,7 +12226,6 @@ window.injectReportGenerator = function() {
                         <button onclick="window.exportSlowProductsToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
                     </div>
 
-                    <!-- דוח קטלוג מלא Excel -->
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">דוח מחירון / קטלוג מלא</h4>
@@ -12250,71 +12243,190 @@ window.injectReportGenerator = function() {
     }
 };
 
-// הפעלה כעבור שנייה כדי לוודא שכל ה-DOM נטען
-setInterval(window.injectReportGenerator, 2000);
-
 window.openReportGenerator = function() {
     window.injectReportGenerator();
     const modal = document.getElementById('report-generator-modal');
     if(modal) modal.classList.remove('hidden');
 };
 
-// פונקציית עזר לניקוי מחרוזות לאקסל (תומך בעברית כראוי)
 const cleanForExcel = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
 
-// ייצוא אקסל: הנמכרים ביותר (רשימה מלאה מתוך הסטייט)
 window.exportTopProductsToCSV = function() {
     const data = window.analyticsState.topProducts;
     if(!data || data.length === 0) return showToast('error', 'אין נתונים לייצוא התואמים לתאריכים שנבחרו.');
     
     const headers = ["דירוג במערכת", "שם פריט", "כמות כוללת שנמכרה (יח')", "סך הכנסה (שח)"];
-    const rows = data.map((p, index) => [
-        index + 1,
-        cleanForExcel(p[0]),
-        p[1].qty,
-        parseFloat(p[1].revenue).toFixed(2)
-    ]);
-
+    const rows = data.map((p, index) => [ index + 1, cleanForExcel(p[0]), p[1].qty, parseFloat(p[1].revenue).toFixed(2) ]);
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
-    
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${bname}_TopSellers_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('success', 'דוח הנמכרים ביותר ירד בהצלחה למכשיר!');
+    link.setAttribute("href", URL.createObjectURL(blob));
+    link.setAttribute("download", `${bname}_TopSellers_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
 
-// ייצוא אקסל: מוצרים ללא מכירות (רשימה מלאה מתוך הסטייט)
 window.exportSlowProductsToCSV = function() {
     const data = window.analyticsState.slowProducts;
     if(!data || data.length === 0) return showToast('error', 'אין נתונים לייצוא - כל המוצרים נמכרו בתקופה זו!');
     
     const headers = ["מזהה פריט", "שם פריט", "קטגוריה", "סטטוס מכירות בתקופה הנבחרת", "מחיר קטלוגי (שח)"];
-    const rows = data.map(p => [
-        p.id || '-',
-        cleanForExcel(p.name),
-        cleanForExcel(p.category || 'כללי'),
-        "0 מכירות",
-        parseFloat(p.price || 0).toFixed(2)
-    ]);
-
+    const rows = data.map(p => [ p.id || '-', cleanForExcel(p.name), cleanForExcel(p.category || 'כללי'), "0 מכירות", parseFloat(p.price || 0).toFixed(2) ]);
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
+    link.setAttribute("href", URL.createObjectURL(blob));
+    link.setAttribute("download", `${bname}_SlowMovers_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+};
+
+// ============================================================
+// MASTER UI FIXES: TRANSACTIONS, PROFILE & AI ASSISTANT BUTTON
+// ============================================================
+
+// 1. תיקון פונקציית הזרקת כפתור ה-AI הצף
+window.injectFloatingElements = function() {
+    if (!document.getElementById('floating-ai-btn')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <button id="floating-ai-btn" onclick="window.openGlobalAIAssistant()" class="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-xl hover:scale-110 transition-transform z-[50] animate-pulse border-2 border-white/20">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        `);
+    } else {
+        document.getElementById('floating-ai-btn').classList.remove('hidden');
+    }
+
+    // הזרקה בטוחה מעל כפתור הוואטסאפ (אם קיים)
+    const waButton = document.querySelector('a[href^="https://wa.me/"]'); 
+    if (waButton) {
+        waButton.classList.remove('hidden');
+        waButton.style.zIndex = '40';
+    }
+};
+
+setInterval(() => {
+    window.injectReportGenerator();
+    window.injectFloatingElements();
+}, 2000);
+
+// 2. תיקון פונקציות ההוצאה וההכנסה המהירות (Transactions)
+window.toggleTransType = function(type) {
+    const isRecurring = type === 'recurring';
+    const recInput = document.getElementById('trans-is-recurring');
+    if(recInput) recInput.value = isRecurring ? 'true' : 'false';
+    const recSection = document.getElementById('recurring-trans-section');
+    if(recSection) {
+        if(isRecurring) recSection.classList.remove('hidden');
+        else recSection.classList.add('hidden');
+    }
+};
+
+window.openTransactionModal = function(t) { 
+    const typeEl = document.getElementById('trans-type'); if(typeEl) typeEl.value = t; 
+    const titleEl = document.getElementById('trans-modal-title'); if(titleEl) titleEl.innerText = t === 'income' ? 'הכנסה' : 'הוצאה'; 
     
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${bname}_SlowMovers_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('success', 'דוח מלאי מת לא נמכר ירד בהצלחה למכשיר!');
+    const s = document.getElementById('trans-cat'); 
+    if(s && CATEGORIES[t]) {
+        s.innerHTML = ''; 
+        CATEGORIES[t].forEach(c => s.innerHTML += `<option value="${c.value}">${c.label}</option>`); 
+    }
+    
+    const dateEl = document.getElementById('trans-date');
+    if(dateEl) dateEl.value = new Date().toISOString().split('T')[0]; 
+    
+    window.toggleTransType('onetime'); 
+    
+    const modal = document.getElementById('transaction-modal');
+    if(modal) modal.classList.remove('hidden'); 
+};
+
+window.submitTransaction = async function() { 
+    const amountStr = document.getElementById('trans-amount') ? document.getElementById('trans-amount').value : '0';
+    const amount = parseFloat(amountStr) || 0; 
+    if(!amount) return showToast('error', 'נא להזין סכום תקין'); 
+    
+    const btn = document.getElementById('btn-submit-transaction'); 
+    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    
+    const isRecurringEl = document.getElementById('trans-is-recurring');
+    const isRecurring = isRecurringEl ? isRecurringEl.value === 'true' : false; 
+    
+    const dateEl = document.getElementById('trans-date');
+    let transDate = dateEl ? dateEl.value : ''; 
+    if (!transDate) transDate = new Date().toISOString().split('T')[0];
+    
+    const descEl = document.getElementById('trans-desc');
+    const catEl = document.getElementById('trans-cat');
+    const typeEl = document.getElementById('trans-type');
+    const endMonthEl = document.getElementById('trans-end-month');
+    
+    try {
+        const res = await fetch(`${API}/transaction`, { 
+            method:'POST', 
+            headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({ 
+                userId: currentUser.id, 
+                amount: amount, 
+                description: descEl ? descEl.value : 'פעולה', 
+                category: catEl ? catEl.value : 'other', 
+                type: typeEl ? typeEl.value : 'expense', 
+                date: transDate, 
+                isRecurring: isRecurring, 
+                endMonth: (isRecurring && endMonthEl) ? endMonthEl.value : null, 
+                groupId: currentGroup.id 
+            }) 
+        }); 
+        const data = await res.json();
+        if (data.success) { 
+            const modal = document.getElementById('transaction-modal');
+            if(modal) modal.classList.add('hidden'); 
+            showToast('success', 'נרשם בהצלחה!'); 
+            if(typeof fetchData === 'function') fetchData(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה ברישום הפעולה'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת שרת בשמירת פעולה'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'רשום פעולה'; } 
+    }
+};
+
+// 3. תיקון כפתור הגדרות משתמש והחלפת סיסמה
+window.openProfileModal = function() { 
+    const oldP = document.getElementById('old-password'); if(oldP) oldP.value = ''; 
+    const newP = document.getElementById('new-password'); if(newP) newP.value = ''; 
+    const modal = document.getElementById('profile-modal');
+    if(modal) modal.classList.remove('hidden'); 
+};
+
+window.submitChangePassword = async function(e) { 
+    if(e) e.preventDefault(); 
+    const oldP = document.getElementById('old-password') ? document.getElementById('old-password').value : ''; 
+    const newP = document.getElementById('new-password') ? document.getElementById('new-password').value : ''; 
+    
+    let btn = null;
+    if (e && e.target) btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerText = 'מעדכן...'; } 
+    
+    try { 
+        const res = await fetch(`${API}/users/${currentUser.id}/password`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) 
+        }); 
+        const data = await res.json(); 
+        if(data.success) { 
+            showToast('success', 'הסיסמה שונתה בהצלחה!'); 
+            const modal = document.getElementById('profile-modal');
+            if(modal) modal.classList.add('hidden'); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בשינוי סיסמה'); 
+        } 
+    } catch(err) { 
+        showToast('error', 'שגיאה בתקשורת'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } 
+    } 
 };
