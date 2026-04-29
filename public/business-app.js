@@ -9207,11 +9207,14 @@ window.exportProductsToCSV = function() {
 window.getAnalyticsAIInsight = async function() {
     executeWithAIWarning(async () => {
         showAIModal('אנליסט הנתונים הראשי (AI)', null); 
-        getEl('familai-loading-text').innerText = 'מנתח מגמות מכירה, מלאי ולקוחות...';
         
-        const timeFilter = val('analytics-time-filter') || '30';
+        // הגנה שמונעת קריסה אם חלון הטעינה עדיין לא רונדר
+        const loadingText = document.getElementById('familai-loading-text');
+        if (loadingText) loadingText.innerText = 'מנתח מגמות מכירה, מלאי ולקוחות...';
         
-        // ה-AI שואב את הנתונים ישירות מהסטייט
+        const timeFilter = document.getElementById('analytics-time-filter') ? document.getElementById('analytics-time-filter').value : '30';
+        
+        // ה-AI שואב את הנתונים ישירות מהסטייט באופן בטוח
         const rev = window.analyticsState.totalRevenue || 0;
         const orders = window.analyticsState.totalOrders || 0;
         const top = window.analyticsState.topProductName || 'אין נתונים';
@@ -9222,13 +9225,36 @@ window.getAnalyticsAIInsight = async function() {
             const res = await fetch(`${API}/biz/chat-assistant`, { 
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "אנליסט עסקי ומנהל צמיחה" }), groupId: currentGroup.id }) 
+                body: JSON.stringify({ 
+                    query: promptText, 
+                    context: JSON.stringify({ role: "אנליסט עסקי ומנהל צמיחה" }), 
+                    groupId: currentGroup.id 
+                }) 
             });
+            
+            if (!res.ok) throw new Error('Network response was not ok');
+            
             const data = await res.json();
-            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success && data.answer) { showAIModal('אנליסט נתונים (AI)', data.answer); }
-            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
-        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+            
+            if(!handleAIResponseCheck(data)) { 
+                const modal = document.getElementById('familai-advisor-modal');
+                if (modal) modal.classList.add('hidden'); 
+                return; 
+            }
+            
+            if(data.success && data.answer) { 
+                showAIModal('אנליסט נתונים (AI)', data.answer); 
+            } else { 
+                const modal = document.getElementById('familai-advisor-modal');
+                if (modal) modal.classList.add('hidden'); 
+                showToast('error', data.error || 'שגיאה בניתוח הנתונים'); 
+            }
+        } catch(e) { 
+            console.error('AI Analytics Error:', e);
+            const modal = document.getElementById('familai-advisor-modal');
+            if (modal) modal.classList.add('hidden'); 
+            showToast('error', 'שגיאת רשת מול שרת ה-AI (נסה שוב)'); 
+        }
     });
 };
 
@@ -11636,7 +11662,14 @@ window.togglePromotionStatus = async function(id, nextStatus) {
     const promo = window.storePromotionsCache.find(p => p.id === id);
     if (!promo) return;
     
+    // שומרים את הסטטוס הישן למקרה של כישלון
+    const oldStatus = promo.is_active;
+
     try {
+        // עדכון אופטימי (Optimistic Update) - מעדכנים את המסך מיד כדי למנוע קפיצות
+        promo.is_active = nextStatus;
+        window.renderStorePromotions();
+
         const url = `${API}/store/promotions/${id}`;
         const payload = {
             groupId: currentGroup.id, 
@@ -11647,7 +11680,8 @@ window.togglePromotionStatus = async function(id, nextStatus) {
             targetIds: promo.target_ids || [],
             startDate: promo.start_date ? promo.start_date.substring(0,10) : null, 
             endDate: promo.end_date ? promo.end_date.substring(0,10) : null, 
-            isActive: nextStatus, 
+            isActive: nextStatus,
+            is_active: nextStatus, // מוודאים תאימות מול הבקאנד
             showInBanner: promo.show_in_banner !== false
         };
 
@@ -11659,20 +11693,24 @@ window.togglePromotionStatus = async function(id, nextStatus) {
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', 'סטטוס המבצע עודכן');
-            // עדכון מקומי מיידי (Optimistic UI)
-            promo.is_active = nextStatus;
-            window.renderStorePromotions();
-            // משיכה מעודכנת ברקע לשם סנכרון
-            window.fetchStorePromotions();
+            showToast('success', 'סטטוס המבצע עודכן בהצלחה');
+            // משיכים נתונים מהשרת רק אחרי שנייה וחצי כדי לוודא ששמירת הנתונים ב-DB הסתיימה
+            setTimeout(() => {
+                if (typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
+            }, 1500);
         } else {
+            // החזרה למצב קודם במקרה של שגיאת שרת
+            promo.is_active = oldStatus;
+            window.renderStorePromotions();
             showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
         }
     } catch(e) {
+        // החזרה למצב קודם במקרה של ניתוק רשת
+        promo.is_active = oldStatus;
+        window.renderStorePromotions();
         showToast('error', 'שגיאת רשת בעדכון הסטטוס');
     }
 };
-
 window.deletePromotion = async function(id) {
     if(!confirm('למחוק מבצע זה לחלוטין?')) return;
     try {
