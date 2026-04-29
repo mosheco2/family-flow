@@ -5016,7 +5016,6 @@ async function fetchStoreSettings() {
             getEls('store-whatsapp').forEach(el => el.value = data.settings.whatsapp_number || '');
             getEls('store-public-link').forEach(el => el.value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
             
-            // טעינת רכיב מע"מ למסך
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
             
@@ -5069,7 +5068,9 @@ async function saveStoreSettings() {
     try {
         const getVal = (id) => {
             const els = document.querySelectorAll('#' + id);
-            return els.length > 0 ? els[els.length - 1].value : ''; 
+            let val = '';
+            els.forEach(el => { if(el.value && el.value !== 'DELETE') val = el.value; });
+            return val || (els.length > 0 ? els[0].value : '');
         };
 
         const getChecked = (id) => {
@@ -5109,36 +5110,33 @@ async function saveStoreSettings() {
             })
         });
 
-        // בדיקה מחמירה של התשובה מהשרת
-        if (!res.ok) {
-            throw new Error(`השרת דחה את הבקשה (שגיאה ${res.status}). ייתכן שהתמונה גדולה מדי.`);
-        }
+        if (!res.ok) throw new Error(`שגיאה מהשרת (${res.status}). ייתכן שהתמונה עדיין גדולה מדי.`);
 
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+            showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
             fetchStoreSettings(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
     } catch(e) { 
-        showToast('error', 'תקלת רשת בשמירת הגדרות - ' + e.message); 
+        showToast('error', 'תקלת רשת - ' + e.message); 
     }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 }
 
-// מעקף שדוחס את התמונה לפני שהיא מגיעה לשרת כדי למנוע קריסה!
 window.handleStoreLogoUpload = function(event) {
     const file = event.target.files[0];
     if(!file) return;
     
+    showToast('info', 'מכווץ תמונה...');
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ תמונה וטוען...');
-        compressImage(file, 800, 800, 0.8, function(base64DataUrl) {
+        compressImage(file, 500, 500, 0.6, function(base64DataUrl) {
             document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'תמונה מוכנה! לחץ למטה על "שמור הגדרות"');
         });
     } else {
         const reader = new FileReader();
@@ -5157,13 +5155,14 @@ window.handleStoreBannerUpload = function(event) {
     const file = event.target.files[0];
     if(!file) return;
 
+    showToast('info', 'מכווץ תמונה...');
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ תמונה וטוען...');
-        compressImage(file, 1200, 800, 0.8, function(base64DataUrl) {
+        compressImage(file, 1000, 600, 0.6, function(base64DataUrl) {
             document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'רקע מוכן! לחץ למטה על "שמור הגדרות"');
         });
     } else {
         const reader = new FileReader();
