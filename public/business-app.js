@@ -9208,7 +9208,6 @@ window.getAnalyticsAIInsight = async function() {
     executeWithAIWarning(async () => {
         showAIModal('אנליסט הנתונים הראשי (AI)', null); 
         
-        // הגנה שמונעת קריסה אם חלון הטעינה עדיין לא רונדר
         const loadingText = document.getElementById('familai-loading-text');
         if (loadingText) loadingText.innerText = 'מנתח מגמות מכירה, מלאי ולקוחות...';
         
@@ -9232,9 +9231,14 @@ window.getAnalyticsAIInsight = async function() {
                 }) 
             });
             
-            if (!res.ok) throw new Error('Network response was not ok');
-            
-            const data = await res.json();
+            // התיקון המרכזי: קוראים את ה-JSON גם אם הסטטוס הוא שגיאה (כדי לזהות סוללה ריקה למשל)
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch(err) {
+                throw new Error('תשובת שרת לא תקינה');
+            }
             
             if(!handleAIResponseCheck(data)) { 
                 const modal = document.getElementById('familai-advisor-modal');
@@ -9253,7 +9257,7 @@ window.getAnalyticsAIInsight = async function() {
             console.error('AI Analytics Error:', e);
             const modal = document.getElementById('familai-advisor-modal');
             if (modal) modal.classList.add('hidden'); 
-            showToast('error', 'שגיאת רשת מול שרת ה-AI (נסה שוב)'); 
+            showToast('error', 'שגיאת תקשורת מול השרת בעת הפקת התובנות'); 
         }
     });
 };
