@@ -12721,9 +12721,8 @@ window.fetchStorePromotions = async function() {
         window.storePromotionsCache = [];
     }
     
-    // חובה לרנדר את הממשק גם אם יש שגיאה, כדי להזריק את הקופונים!
+    // קריאה לרנדור המבצעים + משיכת קופונים, גם אם הייתה שגיאה
     window.renderStorePromotions();
-    
     if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
 };
 
@@ -12788,7 +12787,7 @@ window.renderStorePromotions = function() {
         list.innerHTML = html;
     }
 
-    // הזרקת אזור הקופונים 
+    // הזרקת אזור הקופונים (מחוץ להתניה, כך שיוצג גם אם אין מבצעים)
     if (!document.getElementById('store-coupons-section')) {
         list.insertAdjacentHTML('afterend', `
             <div id="store-coupons-section" class="mt-8 border-t border-slate-200 pt-6">
@@ -12819,6 +12818,7 @@ window.renderStorePromotions = function() {
         `);
     }
     
+    // קריאה לרנדור קופונים אם כבר קיימים בזיכרון
     if(typeof window.renderStoreCoupons === 'function' && window.storeCouponsCache) {
         window.renderStoreCoupons();
     }
