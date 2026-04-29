@@ -9239,7 +9239,6 @@ window.switchSalesTab = function(subTab) {
     if(subTab === 'pos') { window.renderPOSCatalog('all'); }
     if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
     if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
-    if(subTab === 'marketing') { if (typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions(); } 
     if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
     if(subTab === 'quotes') {
         const list = document.getElementById('store-quotes-list');
@@ -9249,6 +9248,16 @@ window.switchSalesTab = function(subTab) {
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
     }
+    if(subTab === 'marketing') { 
+        if (typeof window.fetchStorePromotions === 'function') {
+            window.fetchStorePromotions(); 
+        } else {
+            // גיבוי קריטי במקרה שהפונקציה לא נטענה מסיבה כלשהי (תצוגה ריקה אך פעילה)
+            const list = document.getElementById('store-promotions-list');
+            if (list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא הוגדרו מבצעים פעילים לחנות.</p>';
+            if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
+        }
+    } 
 };
 
 // עדכון טאב נבחר אוטומטית ברקע
@@ -12602,6 +12611,7 @@ window.openPromotionModal = function(id = null) {
     document.getElementById('promo-target-category').value = '';
     document.getElementById('promo-start-date').value = '';
     document.getElementById('promo-end-date').value = '';
+    
     if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
     if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
     
@@ -12616,6 +12626,7 @@ window.openPromotionModal = function(id = null) {
             if (promo.start_date) document.getElementById('promo-start-date').value = promo.start_date.substring(0,10);
             if (promo.end_date) document.getElementById('promo-end-date').value = promo.end_date.substring(0,10);
             if (document.getElementById('promo-show-banner')) document.getElementById('promo-show-banner').checked = promo.show_in_banner !== false;
+            
             if(typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
             if(typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
         }
@@ -12686,11 +12697,17 @@ window.submitPromotion = async function() {
 
 window.togglePromotionStatus = async function(id, isActive) {
     try {
-        await fetch(`${API}/store/promotions/toggle`, { 
+        const res = await fetch(`${API}/store/promotions/toggle`, { 
             method: 'POST', headers: {'Content-Type':'application/json'}, 
             body: JSON.stringify({ promoId: id, isActive }) 
         });
-        window.fetchStorePromotions();
+        const data = await res.json();
+        if (data.success) {
+            window.fetchStorePromotions();
+            showToast('success', 'סטטוס המבצע עודכן');
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
+        }
     } catch(e) {
         showToast('error', 'שגיאה בעדכון הסטטוס');
     }
@@ -12699,11 +12716,16 @@ window.togglePromotionStatus = async function(id, isActive) {
 window.deletePromotion = async function(id) {
     if(!confirm('למחוק מבצע זה לחלוטין?')) return;
     try {
-        await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' });
-        showToast('info', 'המבצע נמחק');
-        window.fetchStorePromotions();
+        const res = await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('info', 'המבצע נמחק');
+            window.fetchStorePromotions();
+        } else {
+            showToast('error', data.error || 'שגיאה במחיקה');
+        }
     } catch(e) {
-        showToast('error', 'שגיאה במחיקה');
+        showToast('error', 'שגיאת רשת בעת המחיקה');
     }
 };
 
@@ -12721,7 +12743,6 @@ window.fetchStorePromotions = async function() {
         window.storePromotionsCache = [];
     }
     
-    // קריאה לרנדור המבצעים + משיכת קופונים, גם אם הייתה שגיאה
     window.renderStorePromotions();
     if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
 };
@@ -12774,7 +12795,7 @@ window.renderStorePromotions = function() {
             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 hover:border-pink-300 transition group flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-bolt text-pink-500"></i> ${safeStr(p.title)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1">חל על: ${targetText} | ${p.end_date ? `עד: ${new Date(p.end_date).toLocaleDateString()}` : 'ללא תפוגה'}</p>
+                    <p class="text-[10px] text-slate-500 mt-1">חל על: ${targetText} | ${p.end_date ? `עד: ${new Date(p.end_date).toLocaleDateString('he-IL')}` : 'ללא תפוגה'}</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-black text-pink-700 bg-pink-50 px-3 py-1.5 rounded-lg border border-pink-100 dir-ltr">${typeBadge}</span>
@@ -12787,7 +12808,6 @@ window.renderStorePromotions = function() {
         list.innerHTML = html;
     }
 
-    // הזרקת אזור הקופונים (מחוץ להתניה, כך שיוצג גם אם אין מבצעים)
     if (!document.getElementById('store-coupons-section')) {
         list.insertAdjacentHTML('afterend', `
             <div id="store-coupons-section" class="mt-8 border-t border-slate-200 pt-6">
@@ -12818,7 +12838,6 @@ window.renderStorePromotions = function() {
         `);
     }
     
-    // קריאה לרנדור קופונים אם כבר קיימים בזיכרון
     if(typeof window.renderStoreCoupons === 'function' && window.storeCouponsCache) {
         window.renderStoreCoupons();
     }
@@ -12863,7 +12882,6 @@ window.createStoreCoupon = async function() {
             body: JSON.stringify({ groupId: currentGroup.id, code: code, discountPct: discount, validUntil: date || null })
         });
         
-        // הגנה קריטית: אם השרת לא מחזיר JSON (למשל 404), לא נקרוס
         const text = await res.text();
         let data;
         try {
