@@ -5016,50 +5016,28 @@ async function fetchStoreSettings() {
             getEls('store-whatsapp').forEach(el => el.value = data.settings.whatsapp_number || '');
             getEls('store-public-link').forEach(el => el.value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
             
+            // טעינת רכיב מע"מ למסך
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
 
-            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
+            const hasLogo = data.settings.logo_url && data.settings.logo_url !== 'DELETE';
             const logoUrl = data.settings.logo_url;
             
             getEls('store-logo-preview').forEach(el => {
                 if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
                 else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
             });
-            getEls('wizard-logo-preview').forEach(el => {
-                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            getEls('dash-logo-preview').forEach(el => {
-                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-
             getEls('store-logo-placeholder').forEach(el => {
                 if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
                 else { el.classList.remove('hidden'); el.style.display = 'flex'; }
             });
-            getEls('wizard-logo-icon').forEach(el => {
-                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
-                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
-            });
-            getEls('dash-logo-placeholder').forEach(el => {
-                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
-                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
-            });
-
-            getEls('btn-clear-logo').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden');
-                else el.classList.add('hidden');
-            });
-            
             getEls('store-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
-            getEls('wizard-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
+            getEls('btn-clear-logo').forEach(el => { if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden'); });
 
-            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
+            const hasBanner = data.settings.banner_url && data.settings.banner_url !== 'DELETE';
             const bannerUrl = data.settings.banner_url;
 
             const headerBannerEl = document.getElementById('main-header-banner');
@@ -5070,34 +5048,12 @@ async function fetchStoreSettings() {
                 if(hasBanner) { el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
                 else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
             });
-            getEls('wizard-banner-preview').forEach(el => {
-                if(hasBanner) { el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-
             getEls('store-banner-placeholder').forEach(el => {
                 if(hasBanner) el.classList.add('hidden');
                 else el.classList.remove('hidden');
             });
-            getEls('wizard-banner-icon').forEach(el => {
-                if(hasBanner) el.classList.add('hidden');
-                else el.classList.remove('hidden');
-            });
-
-            getEls('btn-clear-bg').forEach(el => {
-                if(hasBanner) el.classList.remove('hidden');
-                else el.classList.add('hidden');
-            });
-
             getEls('store-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
-            getEls('wizard-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
-
-            getEls('btn-generate-banner-ai').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            getEls('btn-generate-banner-ai-wiz').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
+            getEls('btn-clear-bg').forEach(el => { if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden'); });
 
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
@@ -5113,9 +5069,7 @@ async function saveStoreSettings() {
     try {
         const getVal = (id) => {
             const els = document.querySelectorAll('#' + id);
-            let val = '';
-            els.forEach(el => { if(el.value && el.value !== 'DELETE') val = el.value; });
-            return val || (els.length > 0 ? els[0].value : '');
+            return els.length > 0 ? els[els.length - 1].value : ''; 
         };
 
         const getChecked = (id) => {
@@ -5136,7 +5090,7 @@ async function saveStoreSettings() {
         if (bannerValues.some(v => v && v !== 'DELETE')) bannerBase64 = bannerValues.find(v => v && v !== 'DELETE');
         else if (bannerValues.every(v => v === 'DELETE')) bannerBase64 = 'DELETE';
 
-        await fetch(`${API}/store/settings`, {
+        const res = await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ 
                 groupId: currentGroup.id, 
@@ -5154,38 +5108,74 @@ async function saveStoreSettings() {
                 includeVat: includeVat
             })
         });
-        showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
-        fetchStoreSettings(); 
-    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
+
+        // בדיקה מחמירה של התשובה מהשרת
+        if (!res.ok) {
+            throw new Error(`השרת דחה את הבקשה (שגיאה ${res.status}). ייתכן שהתמונה גדולה מדי.`);
+        }
+
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+            fetchStoreSettings(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירה');
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת בשמירת הגדרות - ' + e.message); 
+    }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 }
 
+// מעקף שדוחס את התמונה לפני שהיא מגיעה לשרת כדי למנוע קריסה!
 window.handleStoreLogoUpload = function(event) {
     const file = event.target.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64);
-        document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
-        document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-        document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
-    };
-    reader.readAsDataURL(file);
+    
+    if (typeof compressImage === 'function') {
+        showToast('info', 'מכווץ תמונה וטוען...');
+        compressImage(file, 800, 800, 0.8, function(base64DataUrl) {
+            document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64DataUrl);
+            document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
+        });
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64);
+            document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
+        };
+        reader.readAsDataURL(file);
+    }
 };
 
 window.handleStoreBannerUpload = function(event) {
     const file = event.target.files[0];
     if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64);
-        document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
-        document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-        document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
-    };
-    reader.readAsDataURL(file);
+
+    if (typeof compressImage === 'function') {
+        showToast('info', 'מכווץ תמונה וטוען...');
+        compressImage(file, 1200, 800, 0.8, function(base64DataUrl) {
+            document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64DataUrl);
+            document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
+        });
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64);
+            document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
+        };
+        reader.readAsDataURL(file);
+    }
 };
 
 window.clearImage = function(targetIdPrefix) {
