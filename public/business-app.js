@@ -11469,7 +11469,15 @@ window.submitStoreProduct = async function() {
 // MODULE: MARKETING, PROMOTIONS & COUPONS
 // ==========================================
 
-window.injectMarketingModals = function() {
+window.injectMarketingModals = function(force = false) {
+    let existingModal = document.getElementById('promotion-modal');
+    let existingInput = document.getElementById('promo-id');
+    
+    // במידה וקיים מודאל ריק או פגום (ללא השדות הפנימיים) - נשמיד אותו כדי לבנות מחדש
+    if (force || (existingModal && !existingInput)) {
+        if (existingModal) existingModal.remove();
+    }
+
     if (!document.getElementById('promotion-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
@@ -11505,12 +11513,19 @@ window.injectMarketingModals = function() {
     }
 };
 
-// הפעלה מוקדמת כדי למנוע את שגיאת ה-null
-setTimeout(window.injectMarketingModals, 2000);
-
 window.openPromotionModal = function(id = null) {
+    // הפעלה כפויה של בדיקת המודאל כדי למנוע קריסה
     window.injectMarketingModals();
+    
     const modal = document.getElementById('promotion-modal');
+    const idInput = document.getElementById('promo-id');
+    
+    // מנגנון הגנה אחרון
+    if (!idInput) {
+        console.warn("Rebuilding promotion modal forcefully.");
+        window.injectMarketingModals(true);
+    }
+    
     if (!modal) return;
     
     document.getElementById('promo-id').value = id || '';
@@ -11610,7 +11625,6 @@ window.togglePromotionStatus = async function(id, nextStatus) {
     if (!promo) return;
     
     try {
-        // עוקפים את נתיב ה-toggle שחסר בשרת ומשתמשים בנתיב ה-PUT של עריכת מבצע!
         const url = `${API}/store/promotions/${id}`;
         const payload = {
             groupId: currentGroup.id, 
@@ -11634,6 +11648,10 @@ window.togglePromotionStatus = async function(id, nextStatus) {
         
         if (data.success) {
             showToast('success', 'סטטוס המבצע עודכן');
+            // עדכון מקומי מיידי (Optimistic UI)
+            promo.is_active = nextStatus;
+            window.renderStorePromotions();
+            // משיכה מעודכנת ברקע לשם סנכרון
             window.fetchStorePromotions();
         } else {
             showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
