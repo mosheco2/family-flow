@@ -3378,6 +3378,7 @@
 
             // 3. הזרקה של עותק יחיד, מושלם ונקי ישירות לגוף המסמך
             const pristineHTML = `
+<!-- Transaction Modal -->
             <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
                 <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out] max-h-[90vh] overflow-y-auto modal-scroll">
                     <h3 id="trans-modal-title" class="text-xl font-bold mb-4 text-center text-slate-800">פעולה פיננסית</h3>
@@ -3407,6 +3408,29 @@
                     <div class="flex gap-3">
                         <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                         <button id="btn-submit-transaction" onclick="if(typeof submitTransaction === 'function') submitTransaction();" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">רשום פעולה</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Transaction Modal -->
+            <div id="edit-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                    <button onclick="document.getElementById('edit-transaction-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-2"><i class="fa-solid fa-pen-to-square text-indigo-500 mr-2"></i> עריכת פעולה</h3>
+                    
+                    <input type="hidden" id="edit-trans-id">
+                    <input type="hidden" id="edit-trans-old-amount">
+                    <input type="hidden" id="edit-trans-type">
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="relative"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg font-light">₪</span><input type="number" id="edit-trans-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-xl text-2xl text-center font-bold outline-none focus:border-indigo-500 transition text-slate-800" placeholder="0.00"></div>
+                        <input type="text" id="edit-trans-desc" class="modern-input py-2 text-sm" placeholder="תיאור העסקה">
+                        <select id="edit-trans-cat" class="modern-input py-2 text-sm bg-white"></select>
+                    </div>
+                    
+                    <div class="flex gap-2 border-t border-slate-100 pt-4">
+                        <button onclick="deleteTransaction()" class="w-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 transition shadow-sm" title="מחק פעולה"><i class="fa-solid fa-trash"></i></button>
+                        <button id="btn-submit-edit-transaction" onclick="submitEditTransaction()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור שינויים</button>
                     </div>
                 </div>
             </div>
