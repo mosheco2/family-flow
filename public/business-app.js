@@ -5014,69 +5014,78 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
+            // תיקון סעיף 5: טעינת הגדרת המע"מ
+            const incVatEl = getEl('store-include-vat');
+            if (incVatEl) incVatEl.checked = data.settings.include_vat === true || String(data.settings.include_vat) === 'true';
+            
             const headerSlogan = getEl('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
 
-            // --- טיפול חכם בלוגו ---
+            // --- תיקון סעיף 6: טיפול חכם בלוגו שיוצג גם במסך הגדרות חנות ---
             const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
             const logoUrl = data.settings.logo_url;
             
-            ['store-logo-preview', 'wizard-logo-preview', 'dash-logo-preview'].forEach(id => {
-                const el = getEl(id);
-                if(el) { 
-                    if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                    else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-                }
-            });
+            const logoPreview = getEl('store-logo-preview');
+            const logoPlaceholder = getEl('store-logo-placeholder');
+            const btnClearLogo = getEl('btn-clear-logo');
             
-            ['store-logo-placeholder', 'wizard-logo-icon', 'dash-logo-placeholder'].forEach(id => {
-                const el = getEl(id);
-                if(el) {
-                    if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
-                    else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            if (logoPreview && logoPlaceholder) {
+                if(hasLogo) { 
+                    logoPreview.src = logoUrl; 
+                    logoPreview.classList.remove('hidden'); 
+                    logoPreview.style.display = 'block'; 
+                    logoPlaceholder.classList.add('hidden');
+                    if (btnClearLogo) btnClearLogo.classList.remove('hidden');
+                } else { 
+                    logoPreview.src = ''; 
+                    logoPreview.classList.add('hidden'); 
+                    logoPreview.style.display = 'none'; 
+                    logoPlaceholder.classList.remove('hidden');
+                    if (btnClearLogo) btnClearLogo.classList.add('hidden');
                 }
-            });
-
-            ['store-logo-base64', 'wizard-logo-base64'].forEach(id => {
-                const el = getEl(id);
-                if(el) el.value = hasLogo ? logoUrl : 'DELETE';
-            });
-
-            if (hasLogo) {
-                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.remove('hidden');
-                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.remove('hidden');
-            } else {
-                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.add('hidden');
-                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.add('hidden');
+            }
+            
+            const dashLogo = getEl('dash-logo-preview');
+            const dashPlaceholder = getEl('dash-logo-placeholder');
+            if (dashLogo && dashPlaceholder) {
+                if(hasLogo) { dashLogo.src = logoUrl; dashLogo.classList.remove('hidden'); dashPlaceholder.classList.add('hidden'); }
+                else { dashLogo.src = ''; dashLogo.classList.add('hidden'); dashPlaceholder.classList.remove('hidden'); }
             }
 
-            // --- טיפול חכם בבאנר רקע ---
+            const logoBase64 = getEl('store-logo-base64');
+            if(logoBase64) logoBase64.value = hasLogo ? logoUrl : 'DELETE';
+
+            const btnGenAi = getEl('btn-generate-banner-ai');
+            if (btnGenAi) {
+                if (hasLogo) btnGenAi.classList.remove('hidden'); 
+                else btnGenAi.classList.add('hidden');
+            }
+
+            // --- תיקון סעיף 6: טיפול חכם בבאנר רקע שיוצג גם במסך הגדרות חנות ---
             const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBannerEl = getEl('main-header-banner');
             
-            if (hasBanner) {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getEl(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getEl(id); if(el) el.classList.add('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getEl(id); if(el) el.value = data.settings.banner_url;
-                });
-            } else {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getEl(id); if(el) { el.src = ''; el.classList.add('hidden'); }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getEl(id); if(el) el.classList.remove('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getEl(id); if(el) el.value = 'DELETE';
-                });
+            const bannerPreview = getEl('store-banner-preview');
+            const bannerPlaceholder = getEl('store-banner-placeholder');
+            const btnClearBg = getEl('btn-clear-bg');
+            
+            if (bannerPreview && bannerPlaceholder) {
+                if(hasBanner) { 
+                    bannerPreview.src = data.settings.banner_url; 
+                    bannerPreview.classList.remove('hidden'); 
+                    bannerPreview.style.display = 'block'; 
+                    bannerPlaceholder.classList.add('hidden');
+                    if(btnClearBg) btnClearBg.classList.remove('hidden');
+                } else { 
+                    bannerPreview.src = ''; 
+                    bannerPreview.classList.add('hidden'); 
+                    bannerPreview.style.display = 'none'; 
+                    bannerPlaceholder.classList.remove('hidden');
+                    if(btnClearBg) btnClearBg.classList.add('hidden');
+                }
             }
+            
+            const bannerBase64 = getEl('store-banner-base64');
+            if(bannerBase64) bannerBase64.value = hasBanner ? data.settings.banner_url : 'DELETE';
 
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
@@ -5090,18 +5099,28 @@ async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
+        const includeVatEl = getEl('store-include-vat');
+        const includeVat = includeVatEl ? includeVatEl.checked : false;
+        
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ 
-                groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
-                phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
+                groupId: currentGroup.id, 
+                isActive: getEl('store-is-active').checked, 
+                welcomeMessage: val('store-welcome-msg'), 
+                phone: val('store-phone'), 
+                minOrder: val('store-min-order'), 
+                slogan: val('store-slogan'), 
+                storeType: val('store-type'), 
                 logoUrl: val('store-logo-base64') || null,
                 bannerUrl: val('store-banner-base64') || null,
-                openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
+                openTime: val('store-open-time'), 
+                closeTime: val('store-close-time'), 
+                whatsappNumber: val('store-whatsapp'),
+                includeVat: includeVat
             })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
-        // רענון טעינת ההגדרות כדי לשקף את המחיקה אם בוצעה
         fetchStoreSettings(); 
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
