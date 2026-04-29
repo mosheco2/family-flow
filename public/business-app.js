@@ -11863,3 +11863,290 @@ window.deleteCoupon = async function(id) {
         window.fetchStoreCoupons();
     } catch(e) {}
 };
+// ============================================================
+// FIX BLOCK: ANALYTICS PAGINATION, PDF EXPORT & UI ALIGNMENT
+// ============================================================
+
+// 1. הגדרת סטייט מעודכן ל-15 שורות והוספת דפדוף להזמנות
+window.analyticsState = {
+    topProducts: [],
+    slowProducts: [],
+    rawOrders: [], // נשמור פה את ההזמנות לדפדוף
+    topPage: 1,
+    slowPage: 1,
+    ordersPage: 1,
+    itemsPerPage: 15, // שונה מ-5 ל-15 פריטים לעמוד
+    totalRevenue: 0,
+    totalOrders: 0,
+    topProductName: ''
+};
+
+// 2. הזרקת כפתור ה-PDF ופקדי הדפדוף לטבלת ההזמנות (אם חסרים)
+setInterval(() => {
+    // הזרקת כפתור PDF
+    const exportContainer = document.querySelector('#sales-view-analytics .flex.gap-2 button[onclick="window.exportOrdersToCSV()"]')?.parentNode;
+    if (exportContainer && !document.getElementById('btn-export-analytics-pdf')) {
+        exportContainer.insertAdjacentHTML('afterbegin', `<button id="btn-export-analytics-pdf" onclick="window.downloadAnalyticsPDF()" class="text-[10px] bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded-lg hover:bg-red-100 transition border border-red-200 shadow-sm flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i> ייצוא דוח PDF</button>`);
+    }
+
+    // הזרקת פקדי דפדוף לטבלת ההזמנות
+    const ordersTableBody = document.getElementById('analytics-table-body');
+    if (ordersTableBody && ordersTableBody.parentNode) {
+        const tableWrapper = ordersTableBody.parentNode.parentNode; // ה-div שעוטף את ה-table
+        if (tableWrapper && !document.getElementById('analytics-orders-pagination')) {
+            tableWrapper.insertAdjacentHTML('afterend', `
+                <div id="analytics-orders-pagination" class="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                    <button onclick="window.changeAnalyticsPage('orders', -1)" class="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                    <span id="analytics-orders-page-info" class="text-[10px] font-bold text-slate-400">עמוד 1</span>
+                    <button onclick="window.changeAnalyticsPage('orders', 1)" class="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                </div>
+            `);
+        }
+    }
+}, 2000);
+
+// 3. תיקון הדפסת ה-PDF (המרה זמנית של גרפים לתמונות כדי למנוע מריחות)
+window.downloadAnalyticsPDF = async function() {
+    const isLoaded = await loadHtml2Pdf();
+    if (!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע ההדפסה.');
+
+    showToast('info', 'מכין דוח PDF, נא להמתין...');
+    
+    const elementToPrint = document.getElementById('sales-view-analytics');
+    
+    // פתרון קסם למריחת קנבסים: ממירים ל-Image, מדפיסים, ומחזירים חזרה
+    const canvases = elementToPrint.querySelectorAll('canvas');
+    const originalDisplays = [];
+    const tempImages = [];
+    
+    canvases.forEach(canvas => {
+        originalDisplays.push(canvas.style.display);
+        const img = document.createElement('img');
+        // המרה לרזולוציה גבוהה
+        img.src = canvas.toDataURL('image/png', 1.0);
+        img.style.width = canvas.offsetWidth + 'px';
+        img.style.height = canvas.offsetHeight + 'px';
+        img.style.objectFit = 'contain';
+        img.className = canvas.className;
+        
+        canvas.style.display = 'none';
+        canvas.parentNode.insertBefore(img, canvas);
+        tempImages.push(img);
+    });
+
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
+    const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
+    const pdfFilename = `${bname}_Analytics_${dateStr}.pdf`;
+
+    const opt = { 
+        margin: [10, 5, 10, 5], 
+        filename: pdfFilename, 
+        image: { type: 'jpeg', quality: 1.0 }, 
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, logging: false }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    try {
+        await html2pdf().set(opt).from(elementToPrint).save();
+        showToast('success', 'הדוח ירד בהצלחה למכשיר!');
+    } catch (err) {
+        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
+    } finally {
+        // ניקוי והחזרת הקנבסים למצב פעיל
+        tempImages.forEach(img => img.remove());
+        canvases.forEach((canvas, i) => {
+            canvas.style.display = originalDisplays[i];
+        });
+    }
+};
+
+// 4. שדרוג רינדור טבלת המצטיינים (Top) ל-15 שורות
+window.renderTopProductsTable = function() {
+    const tbody = document.getElementById('analytics-top-products');
+    const info = document.getElementById('analytics-top-page-info');
+    if(!tbody) return;
+    
+    const data = window.analyticsState.topProducts;
+    if(data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-4 text-[11px]">אין נתונים</td></tr>';
+        if(info) info.innerText = 'עמוד 1 מתוך 1';
+        return;
+    }
+    
+    const maxPages = Math.ceil(data.length / window.analyticsState.itemsPerPage) || 1;
+    let page = window.analyticsState.topPage;
+    if (page > maxPages) page = maxPages;
+    if (page < 1) page = 1;
+    window.analyticsState.topPage = page;
+    
+    const start = (page - 1) * window.analyticsState.itemsPerPage;
+    const items = data.slice(start, start + window.analyticsState.itemsPerPage);
+    
+    tbody.innerHTML = items.map((p, i) => `
+        <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition text-right" dir="rtl">
+            <td class="py-3 px-4 w-10">
+                <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] font-black">${start + i + 1}</span>
+            </td>
+            <td class="py-3 px-4 text-xs font-bold text-slate-700">${safeStr(p[0])}</td>
+            <td class="py-3 px-4 text-xs text-center font-medium text-slate-500">${p[1].qty.toLocaleString('he-IL')} יח'</td>
+            <td class="py-3 px-4 text-xs font-bold text-emerald-600 text-left dir-ltr">₪${p[1].revenue.toLocaleString('he-IL', {maximumFractionDigits:0})}</td>
+        </tr>`).join('');
+        
+    if(info) info.innerText = `עמוד ${page} מתוך ${maxPages}`;
+};
+
+// 5. שדרוג רינדור טבלת החלשים (Slow) ל-15 שורות
+window.renderSlowProductsTable = function() {
+    const tbody = document.getElementById('analytics-slow-products');
+    const info = document.getElementById('analytics-slow-page-info');
+    if(!tbody) return;
+    
+    const data = window.analyticsState.slowProducts;
+    if(data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">כל המוצרים בקטגוריה נמכרו!</td></tr>';
+        if(info) info.innerText = 'עמוד 1 מתוך 1';
+        return;
+    }
+    
+    const maxPages = Math.ceil(data.length / window.analyticsState.itemsPerPage) || 1;
+    let page = window.analyticsState.slowPage;
+    if (page > maxPages) page = maxPages;
+    if (page < 1) page = 1;
+    window.analyticsState.slowPage = page;
+    
+    const start = (page - 1) * window.analyticsState.itemsPerPage;
+    const items = data.slice(start, start + window.analyticsState.itemsPerPage);
+    
+    tbody.innerHTML = items.map(p => `
+        <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition text-right" dir="rtl">
+            <td class="py-3 px-4 text-xs font-bold text-slate-700">${safeStr(p.name)}</td>
+            <td class="py-3 px-4 text-[10px] text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded-md">${safeStr(p.category || 'כללי')}</span></td>
+            <td class="py-3 px-4 text-[10px] font-bold text-orange-500 text-center"><i class="fa-solid fa-triangle-exclamation"></i> 0 מכירות</td>
+        </tr>`).join('');
+        
+    if(info) info.innerText = `עמוד ${page} מתוך ${maxPages}`;
+};
+
+// 6. פונקציית רינדור חדשה לטבלת ההזמנות (תומכת דפדוף של 15)
+window.renderAnalyticsOrdersTable = function() {
+    const tbody = document.getElementById('analytics-table-body');
+    const info = document.getElementById('analytics-orders-page-info');
+    const countLabel = document.getElementById('analytics-orders-count-label');
+    if(!tbody) return;
+
+    const data = window.analyticsState.rawOrders;
+    
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-400 py-8 text-xs">אין נתונים לתקופה זו</td></tr>';
+        if(info) info.innerText = 'עמוד 1 מתוך 1';
+        if(countLabel) countLabel.innerText = 'מציג 0 הזמנות';
+        return;
+    }
+
+    const maxPages = Math.ceil(data.length / window.analyticsState.itemsPerPage) || 1;
+    let page = window.analyticsState.ordersPage;
+    if (page > maxPages) page = maxPages;
+    if (page < 1) page = 1;
+    window.analyticsState.ordersPage = page;
+
+    const start = (page - 1) * window.analyticsState.itemsPerPage;
+    const items = data.slice(start, start + window.analyticsState.itemsPerPage);
+
+    const statusMap = { 'new': 'חדש', 'processing': 'בהכנה', 'ready': 'מוכן', 'shipped': 'במשלוח', 'completed': 'נמסר' };
+    const typeMap = (o) => o.quote_status === 'approved' ? 'הצעת מחיר' : (o.is_delivery == 1 || o.is_delivery === true ? 'משלוח' : 'חנות');
+    
+    tbody.innerHTML = items.map(o => {
+        const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+        return `
+        <tr class="hover:bg-slate-50 transition text-right border-b border-slate-50 last:border-0" dir="rtl">
+            <td class="py-3 px-4 text-xs font-black text-slate-700">#${o.id}</td>
+            <td class="py-3 px-4 text-[10px] text-slate-500 font-mono">${dateStr}</td>
+            <td class="py-3 px-4 text-xs font-medium text-slate-600">${safeStr(o.customer_name)}</td>
+            <td class="py-3 px-4 text-[10px] text-slate-500">${typeMap(o)}</td>
+            <td class="py-3 px-4 text-[10px] text-slate-500">${statusMap[o.status] || o.status}</td>
+            <td class="py-3 px-4 text-xs font-black text-indigo-600 dir-ltr text-left">₪${parseFloat(o.total_amount).toLocaleString('he-IL', {minimumFractionDigits:2})}</td>
+        </tr>`;
+    }).join('');
+
+    if(info) info.innerText = `עמוד ${page} מתוך ${maxPages}`;
+    if(countLabel) countLabel.innerText = `מציג ${start + 1} עד ${Math.min(start + window.analyticsState.itemsPerPage, data.length)} מתוך ${data.length} הזמנות`;
+};
+
+// 7. שדרוג פונקציית שינוי העמודים שתתמוך גם בטבלת ההזמנות
+window.changeAnalyticsPage = function(table, delta) {
+    if (table === 'top') {
+        const maxPages = Math.ceil(window.analyticsState.topProducts.length / window.analyticsState.itemsPerPage);
+        const newPage = window.analyticsState.topPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+            window.analyticsState.topPage = newPage;
+            window.renderTopProductsTable();
+        }
+    } else if (table === 'slow') {
+        const maxPages = Math.ceil(window.analyticsState.slowProducts.length / window.analyticsState.itemsPerPage);
+        const newPage = window.analyticsState.slowPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+            window.analyticsState.slowPage = newPage;
+            window.renderSlowProductsTable();
+        }
+    } else if (table === 'orders') {
+        const maxPages = Math.ceil(window.analyticsState.rawOrders.length / window.analyticsState.itemsPerPage);
+        const newPage = window.analyticsState.ordersPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+            window.analyticsState.ordersPage = newPage;
+            window.renderAnalyticsOrdersTable();
+        }
+    }
+};
+
+// 8. חטיפה חכמה של פונקציית רנדור האנליטיקה המקורית (כדי להזין את הסטייט של ההזמנות)
+if (!window._originalRenderAnalyticsSaved) {
+    window._originalRenderAnalytics = window.renderAnalytics;
+    window._originalRenderAnalyticsSaved = true;
+    
+    window.renderAnalytics = async function() {
+        // מריצים את הפונקציה המקורית שמחשבת הכל ומייצרת את הגרפים
+        await window._originalRenderAnalytics();
+        
+        // לאחר מכן, שואבים את ההזמנות המסונננות כדי להכניס אותן למערכת הדפדוף שלנו
+        if (window.storeOrdersCache && Array.isArray(window.storeOrdersCache)) {
+            const timeFilter = document.getElementById('analytics-time-filter')?.value || '30';
+            const orderTypeFilter = document.getElementById('analytics-type-filter')?.value || 'all';
+            const now = new Date();
+            let cutoff = new Date();
+            
+            if (timeFilter === 'custom') {
+                cutoff = new Date(document.getElementById('analytics-date-from')?.value || now);
+                cutoff.setHours(0,0,0,0);
+            } else if (timeFilter !== 'today' && timeFilter !== 'all') {
+                cutoff.setDate(cutoff.getDate() - parseInt(timeFilter));
+            } else if (timeFilter === 'today') {
+                cutoff.setHours(0,0,0,0);
+            } else {
+                cutoff.setFullYear(2000); 
+            }
+
+            const endCustomDate = timeFilter === 'custom' ? new Date(document.getElementById('analytics-date-to')?.value || now) : now;
+            if (timeFilter === 'custom') endCustomDate.setHours(23,59,59,999);
+
+            const validOrders = window.storeOrdersCache.filter(o => {
+                if (o.status === 'cancelled') return false;
+                let typeMatch = true;
+                const isDelivery = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || (o.items && o.items.includes('DELIVERY_META'));
+                if (orderTypeFilter === 'store') typeMatch = o.status !== 'quote' && (!o.quote_status || o.quote_status === 'draft') && !isDelivery;
+                else if (orderTypeFilter === 'quote') typeMatch = o.quote_status === 'approved';
+                else if (orderTypeFilter === 'delivery') typeMatch = isDelivery && o.status !== 'quote';
+                else if (orderTypeFilter === 'takeaway') typeMatch = !isDelivery && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'draft');
+                return typeMatch;
+            }).filter(o => {
+                if (!o.created_at) return false;
+                const d = new Date(o.created_at);
+                return !isNaN(d.getTime()) && d >= cutoff && d <= endCustomDate;
+            }).sort((a,b) => new Date(b.created_at) - new Date(a.created_at)); // מיון מהחדש לישן
+
+            // דחיפה לסטייט ורינדור מחדש עם דפדוף
+            window.analyticsState.rawOrders = validOrders;
+            window.analyticsState.ordersPage = 1;
+            window.renderAnalyticsOrdersTable();
+        }
+    };
+}
