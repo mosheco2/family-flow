@@ -5003,89 +5003,104 @@ async function fetchStoreSettings() {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
         const data = await res.json();
         if (data.success && data.settings) {
-            getEl('store-is-active').checked = data.settings.is_active;
-            getEl('store-welcome-msg').value = data.settings.welcome_message || '';
-            getEl('store-phone').value = data.settings.phone || '';
-            getEl('store-min-order').value = data.settings.min_order || '';
-            getEl('store-slogan').value = data.settings.slogan || '';
-            getEl('store-type').value = data.settings.store_type || 'retail';
-            getEl('store-open-time').value = data.settings.open_time || '';
-            getEl('store-close-time').value = data.settings.close_time || '';
-            getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
-            getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
+            const getEls = (id) => document.querySelectorAll(`#${id}`);
             
-            // תיקון סעיף 5: טעינת הגדרת המע"מ
-            const incVatEl = getEl('store-include-vat');
-            if (incVatEl) incVatEl.checked = data.settings.include_vat === true || String(data.settings.include_vat) === 'true';
+            getEls('store-is-active').forEach(el => el.checked = data.settings.is_active);
+            getEls('store-welcome-msg').forEach(el => el.value = data.settings.welcome_message || '');
+            getEls('store-phone').forEach(el => el.value = data.settings.phone || '');
+            getEls('store-min-order').forEach(el => el.value = data.settings.min_order || '');
+            getEls('store-slogan').forEach(el => el.value = data.settings.slogan || '');
+            getEls('store-type').forEach(el => el.value = data.settings.store_type || 'retail');
+            getEls('store-open-time').forEach(el => el.value = data.settings.open_time || '');
+            getEls('store-close-time').forEach(el => el.value = data.settings.close_time || '');
+            getEls('store-whatsapp').forEach(el => el.value = data.settings.whatsapp_number || '');
+            getEls('store-public-link').forEach(el => el.value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
             
-            const headerSlogan = getEl('main-header-slogan');
+            // תיקון סעיף 5: מע"מ (עדכון על כל האלמנטים בעלי ה-ID הזה)
+            const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true';
+            getEls('store-include-vat').forEach(el => el.checked = isVat);
+            
+            const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
 
-            // --- תיקון סעיף 6: טיפול חכם בלוגו שיוצג גם במסך הגדרות חנות ---
+            // --- תיקון סעיף 6: פתרון כפילויות ID במסמך (אשף הקמה לעומת הגדרות חנות) ---
             const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
             const logoUrl = data.settings.logo_url;
             
-            const logoPreview = getEl('store-logo-preview');
-            const logoPlaceholder = getEl('store-logo-placeholder');
-            const btnClearLogo = getEl('btn-clear-logo');
+            getEls('store-logo-preview').forEach(el => {
+                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+            getEls('wizard-logo-preview').forEach(el => {
+                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+            getEls('dash-logo-preview').forEach(el => {
+                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+
+            getEls('store-logo-placeholder').forEach(el => {
+                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            });
+            getEls('wizard-logo-icon').forEach(el => {
+                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            });
+            getEls('dash-logo-placeholder').forEach(el => {
+                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            });
+
+            getEls('btn-clear-logo').forEach(el => {
+                if(hasLogo) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
             
-            if (logoPreview && logoPlaceholder) {
-                if(hasLogo) { 
-                    logoPreview.src = logoUrl; 
-                    logoPreview.classList.remove('hidden'); 
-                    logoPreview.style.display = 'block'; 
-                    logoPlaceholder.classList.add('hidden');
-                    if (btnClearLogo) btnClearLogo.classList.remove('hidden');
-                } else { 
-                    logoPreview.src = ''; 
-                    logoPreview.classList.add('hidden'); 
-                    logoPreview.style.display = 'none'; 
-                    logoPlaceholder.classList.remove('hidden');
-                    if (btnClearLogo) btnClearLogo.classList.add('hidden');
-                }
-            }
-            
-            const dashLogo = getEl('dash-logo-preview');
-            const dashPlaceholder = getEl('dash-logo-placeholder');
-            if (dashLogo && dashPlaceholder) {
-                if(hasLogo) { dashLogo.src = logoUrl; dashLogo.classList.remove('hidden'); dashPlaceholder.classList.add('hidden'); }
-                else { dashLogo.src = ''; dashLogo.classList.add('hidden'); dashPlaceholder.classList.remove('hidden'); }
-            }
+            getEls('store-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
+            getEls('wizard-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
 
-            const logoBase64 = getEl('store-logo-base64');
-            if(logoBase64) logoBase64.value = hasLogo ? logoUrl : 'DELETE';
-
-            const btnGenAi = getEl('btn-generate-banner-ai');
-            if (btnGenAi) {
-                if (hasLogo) btnGenAi.classList.remove('hidden'); 
-                else btnGenAi.classList.add('hidden');
-            }
-
-            // --- תיקון סעיף 6: טיפול חכם בבאנר רקע שיוצג גם במסך הגדרות חנות ---
+            // --- באנר רקע ---
             const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            
-            const bannerPreview = getEl('store-banner-preview');
-            const bannerPlaceholder = getEl('store-banner-placeholder');
-            const btnClearBg = getEl('btn-clear-bg');
-            
-            if (bannerPreview && bannerPlaceholder) {
-                if(hasBanner) { 
-                    bannerPreview.src = data.settings.banner_url; 
-                    bannerPreview.classList.remove('hidden'); 
-                    bannerPreview.style.display = 'block'; 
-                    bannerPlaceholder.classList.add('hidden');
-                    if(btnClearBg) btnClearBg.classList.remove('hidden');
-                } else { 
-                    bannerPreview.src = ''; 
-                    bannerPreview.classList.add('hidden'); 
-                    bannerPreview.style.display = 'none'; 
-                    bannerPlaceholder.classList.remove('hidden');
-                    if(btnClearBg) btnClearBg.classList.add('hidden');
-                }
-            }
-            
-            const bannerBase64 = getEl('store-banner-base64');
-            if(bannerBase64) bannerBase64.value = hasBanner ? data.settings.banner_url : 'DELETE';
+            const bannerUrl = data.settings.banner_url;
+
+            const headerBannerEl = document.getElementById('main-header-banner');
+            if (hasBanner && headerBannerEl) headerBannerEl.style.backgroundImage = `url('${bannerUrl}')`;
+            else if (headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
+
+            getEls('store-banner-preview').forEach(el => {
+                if(hasBanner) { el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+            getEls('wizard-banner-preview').forEach(el => {
+                if(hasBanner) { el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+
+            getEls('store-banner-placeholder').forEach(el => {
+                if(hasBanner) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            });
+            getEls('wizard-banner-icon').forEach(el => {
+                if(hasBanner) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            });
+
+            getEls('btn-clear-bg').forEach(el => {
+                if(hasBanner) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+
+            getEls('store-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
+            getEls('wizard-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
+
+            getEls('btn-generate-banner-ai').forEach(el => {
+                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
+            });
+            getEls('btn-generate-banner-ai-wiz').forEach(el => {
+                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
+            });
 
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
@@ -5096,28 +5111,48 @@ async function fetchStoreSettings() {
 }
 
 async function saveStoreSettings() {
-    const btn = getEl('btn-save-store-settings');
+    const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const includeVatEl = getEl('store-include-vat');
-        const includeVat = includeVatEl ? includeVatEl.checked : false;
+        // חיפוש חכם כדי לעקוף כפילויות ID במסמך
+        const getVal = (id) => {
+            const els = document.querySelectorAll('#' + id);
+            let val = '';
+            els.forEach(el => { if(el.value && el.value !== 'DELETE') val = el.value; });
+            return val || (els.length > 0 ? els[0].value : '');
+        };
+
+        const getChecked = (id) => {
+            const els = document.querySelectorAll('#' + id);
+            let isChecked = false;
+            els.forEach(el => { if(el.checked) isChecked = true; });
+            return isChecked;
+        };
+
+        const includeVat = getChecked('store-include-vat');
+        let logoBase64 = getVal('store-logo-base64');
+        let bannerBase64 = getVal('store-banner-base64');
         
+        // מחיקה מפורשת של תמונות
+        document.querySelectorAll('#store-logo-base64').forEach(el => { if(el.value === 'DELETE') logoBase64 = 'DELETE'; });
+        document.querySelectorAll('#store-banner-base64').forEach(el => { if(el.value === 'DELETE') bannerBase64 = 'DELETE'; });
+
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ 
                 groupId: currentGroup.id, 
-                isActive: getEl('store-is-active').checked, 
-                welcomeMessage: val('store-welcome-msg'), 
-                phone: val('store-phone'), 
-                minOrder: val('store-min-order'), 
-                slogan: val('store-slogan'), 
-                storeType: val('store-type'), 
-                logoUrl: val('store-logo-base64') || null,
-                bannerUrl: val('store-banner-base64') || null,
-                openTime: val('store-open-time'), 
-                closeTime: val('store-close-time'), 
-                whatsappNumber: val('store-whatsapp'),
-                includeVat: includeVat
+                isActive: getChecked('store-is-active'), 
+                welcomeMessage: getVal('store-welcome-msg'), 
+                phone: getVal('store-phone'), 
+                minOrder: getVal('store-min-order'), 
+                slogan: getVal('store-slogan'), 
+                storeType: getVal('store-type') || 'retail', 
+                logoUrl: logoBase64 === 'DELETE' ? null : (logoBase64 || null),
+                bannerUrl: bannerBase64 === 'DELETE' ? null : (bannerBase64 || null),
+                openTime: getVal('store-open-time'), 
+                closeTime: getVal('store-close-time'), 
+                whatsappNumber: getVal('store-whatsapp'),
+                includeVat: includeVat // תיקון סעיף 5: שליחת ערך המע"מ לשרת!
             })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
