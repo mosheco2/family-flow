@@ -12566,42 +12566,44 @@ window.openModifierTemplatesModal = function() {
 // MODULE: MARKETING, PROMOTIONS & COUPONS
 // ==========================================
 
-window.openPromotionModal = function(id = null) {
-    let modal = document.getElementById('promotion-modal');
-    if (!modal) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
-                <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע חדש</h3>
-                <input type="hidden" id="promo-id">
-                <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
-                    <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white font-bold"></div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option></select></div>
-                        <div><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-xs font-bold text-slate-500">חל על:</label><select id="promo-target-type" onchange="window.togglePromoTargetInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="all">כל החנות</option><option value="category">קטגוריה ספציפית</option></select></div>
-                        <div id="promo-target-category-container" class="hidden"><label class="text-xs font-bold text-slate-500">שם הקטגוריה:</label><input type="text" id="promo-target-category" class="modern-input py-2 text-sm w-full bg-white"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <div><label class="text-xs font-bold text-slate-500">בתוקף מ:</label><input type="date" id="promo-start-date" class="modern-input py-2 text-sm w-full bg-white"></div>
-                        <div><label class="text-xs font-bold text-slate-500">בתוקף עד:</label><input type="date" id="promo-end-date" class="modern-input py-2 text-sm w-full bg-white"></div>
-                    </div>
-                    <div class="mt-4 p-3 bg-pink-50 rounded-xl border border-pink-100 flex justify-between items-center">
-                        <span class="text-xs font-bold text-pink-800">הצג באנר קופץ בחנות?</span>
-                        <input type="checkbox" id="promo-show-banner" class="w-4 h-4 accent-pink-600" checked>
-                    </div>
+// הזרקת המודאל ישירות ל-DOM כדי להבטיח זמינות
+if (!document.getElementById('promotion-modal')) {
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+            <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-gift text-pink-500 mr-2"></i> הגדרת מבצע חדש</h3>
+            <input type="hidden" id="promo-id">
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
+                <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white font-bold"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option></select></div>
+                    <div><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600"></div>
                 </div>
-                <div class="pt-3 border-t border-slate-100 flex gap-2 shrink-0">
-                    <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ביטול</button>
-                    <button type="button" id="btn-submit-promo" onclick="window.submitPromotion()" class="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold hover:bg-pink-700 shadow-md transition">שמור והפעל</button>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-slate-500">חל על:</label><select id="promo-target-type" onchange="window.togglePromoTargetInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="all">כל החנות</option><option value="category">קטגוריה ספציפית</option></select></div>
+                    <div id="promo-target-category-container" class="hidden"><label class="text-xs font-bold text-slate-500">שם הקטגוריה:</label><input type="text" id="promo-target-category" class="modern-input py-2 text-sm w-full bg-white"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div><label class="text-xs font-bold text-slate-500">בתוקף מ:</label><input type="date" id="promo-start-date" class="modern-input py-2 text-sm w-full bg-white"></div>
+                    <div><label class="text-xs font-bold text-slate-500">בתוקף עד:</label><input type="date" id="promo-end-date" class="modern-input py-2 text-sm w-full bg-white"></div>
+                </div>
+                <div class="mt-4 p-3 bg-pink-50 rounded-xl border border-pink-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-pink-800">הצג באנר קופץ בחנות?</span>
+                    <input type="checkbox" id="promo-show-banner" class="w-4 h-4 accent-pink-600" checked>
                 </div>
             </div>
-        </div>`);
-        modal = document.getElementById('promotion-modal');
-    }
+            <div class="pt-3 border-t border-slate-100 flex gap-2 shrink-0">
+                <button type="button" onclick="document.getElementById('promotion-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ביטול</button>
+                <button type="button" id="btn-submit-promo" onclick="window.submitPromotion()" class="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold hover:bg-pink-700 shadow-md transition">שמור והפעל</button>
+            </div>
+        </div>
+    </div>`);
+}
+
+window.openPromotionModal = function(id = null) {
+    const modal = document.getElementById('promotion-modal');
+    if (!modal) return;
     
     document.getElementById('promo-id').value = id || '';
     document.getElementById('promo-title').value = '';
@@ -12684,7 +12686,7 @@ window.submitPromotion = async function() {
         if(data.success) {
             showToast('success', 'המבצע נשמר בהצלחה!');
             document.getElementById('promotion-modal').classList.add('hidden');
-            if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
+            window.fetchStorePromotions();
         } else {
             showToast('error', data.error || 'שגיאה בשמירת המבצע');
         }
@@ -12703,8 +12705,8 @@ window.togglePromotionStatus = async function(id, isActive) {
         });
         const data = await res.json();
         if (data.success) {
-            window.fetchStorePromotions();
             showToast('success', 'סטטוס המבצע עודכן');
+            window.fetchStorePromotions();
         } else {
             showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
         }
@@ -12743,6 +12745,7 @@ window.fetchStorePromotions = async function() {
         window.storePromotionsCache = [];
     }
     
+    // קריאה חובה לרינדור גם אם יש שגיאה
     window.renderStorePromotions();
     if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
 };
