@@ -3362,71 +3362,78 @@
     ```
 <script>
         window.addEventListener('DOMContentLoaded', () => {
-            // 1. אלגוריתם חכם לניקוי כפילויות מוחלט: 
-            // שומר רק את המופע הראשון והתקין של כל אלמנט, ומוחק את כל השכפולים שנוצרו בטעות!
-            const seenIds = new Set();
-            document.querySelectorAll('[id]').forEach(el => {
-                if (seenIds.has(el.id)) {
-                    el.remove(); 
-                } else {
-                    seenIds.add(el.id);
+            // 1. ניקוי מודאלים כפולים בצורה בטוחה: 
+            // אנחנו סורקים רק מודאלים ברמת ה-body (ולא נכנסים פנימה לשדות)
+            const seenModals = new Set();
+            document.querySelectorAll('body > div.fixed.inset-0').forEach(modal => {
+                if (modal.id) {
+                    if (seenModals.has(modal.id)) {
+                        modal.remove(); // מחיקת המודאל הכפול במלואו
+                    } else {
+                        seenModals.add(modal.id);
+                    }
                 }
             });
 
-            // 2. מחיקת כפתורים צפים ישנים כדי למנוע התנגשויות נוספות
-            document.querySelectorAll('#cart-footer, #fab-container, #ai-assistant-wrapper, #whatsapp-btn-wrapper, #access-btn-wrapper').forEach(el => el.remove());
+            // 2. סידור כפתור העוזרת העסקית AI (צד ימין מעל וואטסאפ)
+            const aiBtns = document.querySelectorAll('div[onclick*="openGlobalAIAssistant"]');
+            aiBtns.forEach((btn, index) => {
+                if (index > 0) {
+                    btn.remove(); // מחיקת כפילויות של הכפתור
+                } else {
+                    btn.className = 'fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer';
+                    // הבטחת פתיחה של המודאל למקרה שהפונקציה נדרסה
+                    const originalClick = btn.getAttribute('onclick');
+                    btn.setAttribute('onclick', "document.getElementById('global-ai-modal').classList.remove('hidden'); " + originalClick);
+                }
+            });
 
-            // 3. הזרקת הכפתורים הצפים החדשים - במיקומים המדויקים ועם גיבוי ללחיצה
-            const floatingUI = `
-            <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
-                <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ הזמנה מוערך</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
-                <button onclick="openCheckoutSummary()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 transition">אשר הזמנת רכש</button>
-            </div>
-            
-            <div id="fab-container" class="fixed bottom-6 left-6 z-[90] flex flex-col gap-3 items-center transition-all duration-300 hidden">
-                <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
-                    <button onclick="if(typeof openShopModal === 'function') openShopModal(); else { document.getElementById('shop-modal').classList.remove('hidden'); } toggleFab();" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition" title="בקשת רכש"><i class="fa-solid fa-cart-arrow-down"></i></button>
-                    <button onclick="if(typeof openTransactionModal === 'function') openTransactionModal('income'); else { document.getElementById('trans-type').value='income'; document.getElementById('transaction-modal').classList.remove('hidden'); } toggleFab();" class="w-12 h-12 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-emerald-700 transition" title="הכנסה"><i class="fa-solid fa-plus"></i></button>
-                    <button onclick="if(typeof openTransactionModal === 'function') openTransactionModal('expense'); else { document.getElementById('trans-type').value='expense'; document.getElementById('transaction-modal').classList.remove('hidden'); } toggleFab();" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition" title="הוצאה תפעולית"><i class="fa-solid fa-minus"></i></button>
-                </div>
-                <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
-            </div>
+            // 3. סידור כפתור הוואטסאפ (צד ימין למטה)
+            const waBtns = document.querySelectorAll('a[href^="https://wa.me"]');
+            waBtns.forEach((btn, index) => {
+                if (index > 0) {
+                    btn.remove(); // מחיקת כפילויות של הכפתור
+                } else {
+                    btn.className = 'fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-[90]';
+                }
+            });
 
-            <div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else { document.getElementById('global-ai-modal').classList.remove('hidden'); }">
-                <div class="w-14 h-14 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border border-slate-100 p-2 overflow-hidden">
-                    <img src="logo.png" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
-                </div>
-                <p class="text-[9px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-slate-200">העוזרת העסקית</p>
-            </div>
-            
-            <a href="https://wa.me/972504000024" target="_blank" id="whatsapp-btn-wrapper" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-[90] hidden">
-                <i class="fa-brands fa-whatsapp"></i>
-            </a>
+            // 4. הבטחת פעולה של תפריט הפעולות (FAB)
+            const fabMenus = document.querySelectorAll('#fab-container');
+            fabMenus.forEach((fab, index) => {
+                if (index > 0) {
+                    fab.remove();
+                } else {
+                    fab.style.zIndex = "90";
+                    // הבטחה שכל לחיצה על כפתור תסגור את התפריט
+                    const buttons = fab.querySelectorAll('button');
+                    buttons.forEach(b => {
+                        const originalClick = b.getAttribute('onclick');
+                        if (originalClick && !originalClick.includes('toggleFab')) {
+                            b.setAttribute('onclick', originalClick + '; document.getElementById("fab-container").classList.remove("fab-open");');
+                        }
+                    });
+                }
+            });
 
-            <button id="access-btn-wrapper" onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-slate-800 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-slate-100 transition z-[90] border border-slate-200">
-                <i class="fa-solid fa-universal-access"></i>
-            </button>
-            `;
-            document.body.insertAdjacentHTML('beforeend', floatingUI);
-
-            // 4. פונקציית פתיחת תפריט FAB 
-            window.toggleFab = function() {
-                const fc = document.getElementById('fab-container');
-                if(fc) fc.classList.toggle('fab-open');
-            };
-
-            // 5. חשיפת הכפתורים אך ורק כשהמערכת פועלת והמשתמש מחובר
+            // 5. חשיפת הכפתורים מתי שהדשבורד נטען
             setInterval(() => {
                 const dash = document.getElementById('dashboard-container');
                 const isDashVisible = dash && !dash.classList.contains('hidden');
                 
-                ['fab-container', 'ai-assistant-wrapper', 'whatsapp-btn-wrapper', 'access-btn-wrapper'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) {
-                        if (isDashVisible) el.classList.remove('hidden');
-                        else el.classList.add('hidden');
-                    }
-                });
+                const aiBtn = document.querySelector('div[onclick*="openGlobalAIAssistant"]');
+                const waBtn = document.querySelector('a[href^="https://wa.me"]');
+                const fabBtn = document.getElementById('fab-container');
+                
+                if (isDashVisible) {
+                    if (aiBtn) aiBtn.classList.remove('hidden');
+                    if (waBtn) waBtn.classList.remove('hidden');
+                    if (fabBtn) fabBtn.classList.remove('hidden');
+                } else {
+                    if (aiBtn) aiBtn.classList.add('hidden');
+                    if (waBtn) waBtn.classList.add('hidden');
+                    if (fabBtn) fabBtn.classList.add('hidden');
+                }
             }, 1000);
         });
     </script>
