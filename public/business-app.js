@@ -12128,3 +12128,151 @@ if (!window._originalRenderAnalyticsSaved) {
         }
     };
 }
+// ============================================================
+// FEATURE: REPORT GENERATOR MODAL & ADVANCED CSV EXPORTS
+// ============================================================
+
+window.injectReportGenerator = function() {
+    // 1. הזרקת כפתור "מחולל דוחות" לשורת הפעולות למעלה (ליד כפתור ה-AI)
+    const actionBar = document.querySelector('#sales-view-analytics .flex.flex-wrap.items-center.gap-2');
+    if (actionBar && !document.getElementById('btn-report-generator-master')) {
+        actionBar.insertAdjacentHTML('beforeend', `
+            <button id="btn-report-generator-master" onclick="window.openReportGenerator()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-file-export"></i> מחולל דוחות
+            </button>
+        `);
+    }
+
+    // 2. הזרקת המודאל של מחולל הדוחות ל-DOM
+    if (!document.getElementById('report-generator-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="report-generator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+                <button type="button" onclick="document.getElementById('report-generator-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-layer-group text-indigo-500 mr-2"></i> מחולל דוחות להורדה</h3>
+                
+                <div class="flex-1 overflow-y-auto modal-scroll space-y-3 pb-2 pr-1">
+                    <p class="text-xs text-slate-500 font-bold mb-3">בחרו את סוג הדוח המבוקש (הנתונים מחושבים לפי התאריכים שסיננתם במסך האנליטיקה):</p>
+                    
+                    <!-- דוח מסכם PDF -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">דוח מנהלים מסכם</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">תמונת מצב, פילוחים וגרפים חזותיים</p>
+                        </div>
+                        <button onclick="window.downloadAnalyticsPDF(); document.getElementById('report-generator-modal').classList.add('hidden');" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-red-100"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    </div>
+
+                    <!-- הזמנות גולמיות Excel -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">פירוט עסקאות והזמנות</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">טבלה גולמית של כל המכירות בתקופה</p>
+                        </div>
+                        <button onclick="window.exportOrdersToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    </div>
+
+                    <!-- הנמכרים ביותר Excel -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">הנמכרים ביותר (Top Sellers)</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">רשימת מלאה של ביצועי המוצרים שנמכרו</p>
+                        </div>
+                        <button onclick="window.exportTopProductsToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    </div>
+
+                    <!-- ללא מכירות Excel -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">מוצרים ללא מכירות (Slow)</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">רשימה מלאה של פריטים שלא זזו בתקופה</p>
+                        </div>
+                        <button onclick="window.exportSlowProductsToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    </div>
+
+                    <!-- דוח קטלוג מלא Excel -->
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center hover:bg-slate-100 transition shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">דוח מחירון / קטלוג מלא</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">רשימת כל פריטי החנות, כולל מוסתרים</p>
+                        </div>
+                        <button onclick="window.exportProductsToCSV()" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-emerald-100"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    </div>
+                </div>
+                
+                <div class="pt-4 border-t border-slate-100 mt-2">
+                    <button type="button" onclick="document.getElementById('report-generator-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">סגור מחולל דוחות</button>
+                </div>
+            </div>
+        </div>`);
+    }
+};
+
+// הפעלה כעבור שנייה כדי לוודא שכל ה-DOM נטען
+setInterval(window.injectReportGenerator, 2000);
+
+window.openReportGenerator = function() {
+    window.injectReportGenerator();
+    const modal = document.getElementById('report-generator-modal');
+    if(modal) modal.classList.remove('hidden');
+};
+
+// פונקציית עזר לניקוי מחרוזות לאקסל (תומך בעברית כראוי)
+const cleanForExcel = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
+
+// ייצוא אקסל: הנמכרים ביותר (רשימה מלאה מתוך הסטייט)
+window.exportTopProductsToCSV = function() {
+    const data = window.analyticsState.topProducts;
+    if(!data || data.length === 0) return showToast('error', 'אין נתונים לייצוא התואמים לתאריכים שנבחרו.');
+    
+    const headers = ["דירוג במערכת", "שם פריט", "כמות כוללת שנמכרה (יח')", "סך הכנסה (שח)"];
+    const rows = data.map((p, index) => [
+        index + 1,
+        cleanForExcel(p[0]),
+        p[1].qty,
+        parseFloat(p[1].revenue).toFixed(2)
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
+    const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${bname}_TopSellers_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('success', 'דוח הנמכרים ביותר ירד בהצלחה למכשיר!');
+};
+
+// ייצוא אקסל: מוצרים ללא מכירות (רשימה מלאה מתוך הסטייט)
+window.exportSlowProductsToCSV = function() {
+    const data = window.analyticsState.slowProducts;
+    if(!data || data.length === 0) return showToast('error', 'אין נתונים לייצוא - כל המוצרים נמכרו בתקופה זו!');
+    
+    const headers = ["מזהה פריט", "שם פריט", "קטגוריה", "סטטוס מכירות בתקופה הנבחרת", "מחיר קטלוגי (שח)"];
+    const rows = data.map(p => [
+        p.id || '-',
+        cleanForExcel(p.name),
+        cleanForExcel(p.category || 'כללי'),
+        "0 מכירות",
+        parseFloat(p.price || 0).toFixed(2)
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
+    const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${bname}_SlowMovers_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('success', 'דוח מלאי מת לא נמכר ירד בהצלחה למכשיר!');
+};
