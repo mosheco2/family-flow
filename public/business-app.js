@@ -5079,8 +5079,6 @@ async function saveStoreSettings() {
             return isChecked;
         };
 
-        const includeVat = getChecked('store-include-vat');
-        
         let logoBase64 = null;
         let logoValues = Array.from(document.querySelectorAll('#store-logo-base64')).map(el => el.value);
         if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
@@ -5091,40 +5089,41 @@ async function saveStoreSettings() {
         if (bannerValues.some(v => v && v !== 'DELETE' && v !== '')) bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
         else if (bannerValues.every(v => v === 'DELETE')) bannerBase64 = 'DELETE';
 
-        const payload = { 
-            groupId: currentGroup.id, 
-            isActive: getChecked('store-is-active'), 
-            welcomeMessage: getVal('store-welcome-msg'), 
-            phone: getVal('store-phone'), 
-            minOrder: getVal('store-min-order'), 
-            slogan: getVal('store-slogan'), 
-            storeType: getVal('store-type') || 'retail', 
-            logoUrl: logoBase64 === 'DELETE' ? null : (logoBase64 || null),
-            bannerUrl: bannerBase64 === 'DELETE' ? null : (bannerBase64 || null),
-            openTime: getVal('store-open-time'), 
-            closeTime: getVal('store-close-time'), 
-            whatsappNumber: getVal('store-whatsapp'),
-            includeVat: includeVat
-        };
-
         const res = await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, 
+                isActive: getChecked('store-is-active'), 
+                welcomeMessage: getVal('store-welcome-msg'), 
+                phone: getVal('store-phone'), 
+                minOrder: getVal('store-min-order'), 
+                slogan: getVal('store-slogan'), 
+                storeType: getVal('store-type') || 'retail', 
+                logoUrl: logoBase64 === 'DELETE' ? null : (logoBase64 || null),
+                bannerUrl: bannerBase64 === 'DELETE' ? null : (bannerBase64 || null),
+                openTime: getVal('store-open-time'), 
+                closeTime: getVal('store-close-time'), 
+                whatsappNumber: getVal('store-whatsapp'),
+                includeVat: getChecked('store-include-vat')
+            })
         });
 
+        // התיקון שמונע שקרים: עכשיו המערכת בודקת את התשובה מהשרת!
         if (!res.ok) {
-            throw new Error(`שגיאת שרת (${res.status}). נסה להעלות תמונה קטנה יותר.`);
+            let errMsg = 'שגיאת תקשורת נעלמה';
+            try { const errData = await res.json(); errMsg = errData.error; } catch(e) {}
+            throw new Error(errMsg || `השרת דחה את הבקשה. ייתכן שהתמונה עדיין כבדה מדי (שגיאה ${res.status}).`);
         }
 
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+            showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
             fetchStoreSettings(); 
         } else {
-            showToast('error', data.error || 'שגיאה בשמירה');
+            showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
         }
     } catch(e) { 
-        showToast('error', 'תקלת רשת - ' + e.message); 
+        showToast('error', 'תקלה: ' + e.message); 
     }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 }
@@ -5134,13 +5133,13 @@ window.handleStoreLogoUpload = function(event) {
     if(!file) return;
     
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ תמונה וטוען...');
+        showToast('info', 'מכווץ את הלוגו כדי שישמר מהר...');
         compressImage(file, 400, 400, 0.7, function(base64DataUrl) {
             document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'לוגו מוכן! זכור ללחוץ על שמירה למטה.');
+            showToast('success', 'לוגו מוכן! זכור ללחוץ על "שמור הגדרות חנות" למטה.');
         });
     } else {
         const reader = new FileReader();
@@ -5160,13 +5159,13 @@ window.handleStoreBannerUpload = function(event) {
     if(!file) return;
 
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ תמונה וטוען...');
+        showToast('info', 'מכווץ את הבאנר כדי שישמר מהר...');
         compressImage(file, 800, 500, 0.7, function(base64DataUrl) {
             document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'באנר מוכן! זכור ללחוץ על שמירה למטה.');
+            showToast('success', 'באנר מוכן! זכור ללחוץ על "שמור הגדרות חנות" למטה.');
         });
     } else {
         const reader = new FileReader();
