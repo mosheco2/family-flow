@@ -1814,12 +1814,13 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
-        // תיקון קריטי סעיף 5: הוספת עמודת המע"מ אם אינה קיימת
+        // תיקון: יצירת עמודת מע"מ במסד הנתונים
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
 
         const finalLogoUrl = (logoUrl === 'DELETE') ? null : (logoUrl || null);
         const finalBannerUrl = (bannerUrl === 'DELETE') ? null : (bannerUrl || null);
         
+        // תיקון: הזרקת ערך המע"מ במסד הנתונים
         await pool.query(`
             INSERT INTO store_settings (
                 group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat
