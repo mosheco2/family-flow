@@ -91,6 +91,9 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
