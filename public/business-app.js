@@ -12537,7 +12537,6 @@ window.openStoreProductModal = function(id = null) {
     
     modal.classList.remove('hidden');
 };
-
 window.openModifierTemplatesModal = function() {
     showToast('info', 'מערכת התבניות זמינה כעת בתוך עריכת המוצר!');
 };
