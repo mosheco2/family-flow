@@ -5136,13 +5136,13 @@ window.handleStoreLogoUpload = function(event) {
     if(!file) return;
     
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ את הלוגו לשמירה...');
+        showToast('info', 'מכווץ את הלוגו כדי שישמר מהר...');
         compressImage(file, 400, 400, 0.7, function(base64DataUrl) {
             document.querySelectorAll('#store-logo-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-logo-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-logo-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-logo').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'לוגו מוכן! זכור ללחוץ על "שמור הגדרות"');
+            showToast('success', 'לוגו מוכן! זכור ללחוץ על "שמור הגדרות חנות" למטה.');
         });
     } else {
         const reader = new FileReader();
@@ -5162,13 +5162,13 @@ window.handleStoreBannerUpload = function(event) {
     if(!file) return;
 
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ את הבאנר לשמירה...');
+        showToast('info', 'מכווץ את הבאנר כדי שישמר מהר...');
         compressImage(file, 800, 500, 0.7, function(base64DataUrl) {
             document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
             document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
             document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'באנר מוכן! זכור ללחוץ על "שמור הגדרות"');
+            showToast('success', 'באנר מוכן! זכור ללחוץ על "שמור הגדרות חנות" למטה.');
         });
     } else {
         const reader = new FileReader();
@@ -5194,6 +5194,57 @@ window.clearImage = function(targetIdPrefix) {
         document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.add('hidden'));
     }
     showToast('info', 'התמונה הוסרה. אל תשכחו ללחוץ "שמור הגדרות חנות" למטה!');
+};
+
+window.generateBannerAI = async function() {
+    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null;
+    if (!logoBase64 || logoBase64 === 'DELETE') return showToast('error', 'יש להעלות קודם לוגו (הגדרות חנות) כדי שה-AI יתאים לו רקע!');
+    
+    const btn = document.getElementById('btn-generate-banner-ai');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; }
+    
+    try {
+        showToast('info', 'מייצר רקע חכם ב-AI, אנא המתן...');
+        const prompt = `Create a beautiful, abstract, professional blurred gradient background for a business store banner. Use colors that match this brand. No text, no logos, just a clean aesthetic banner background.`;
+        const res = await fetch(`${API}/ai/generate-image`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prompt: prompt, groupId: currentGroup.id, type: 'banner' })
+        });
+        const data = await res.json();
+        
+        if(!handleAIResponseCheck(data)) return;
+        
+        if (data.success && data.imageUrl) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const base64Url = canvas.toDataURL('image/jpeg', 0.8);
+                
+                document.querySelectorAll('#store-banner-base64').forEach(el => el.value = base64Url);
+                document.querySelectorAll('#store-banner-preview').forEach(el => { el.src = base64Url; el.classList.remove('hidden'); el.style.display='block'; });
+                document.querySelectorAll('#store-banner-placeholder').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+                document.querySelectorAll('#btn-clear-bg').forEach(el => el.classList.remove('hidden'));
+                
+                showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
+                if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+            };
+            img.onerror = function() {
+                showToast('error', 'שגיאה בטעינת הרקע שנוצר');
+                if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+            };
+            img.src = data.imageUrl;
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת רקע');
+            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול שרת ה-AI');
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+    }
 };
 
 function copyStoreLink() {
