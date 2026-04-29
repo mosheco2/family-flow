@@ -3361,40 +3361,117 @@
     </script>
     ```
 <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            // 1. ניקוי ממוקד של מודאלים כפולים ספציפיים (רק את אלה שעושים בעיות)
-            const targetModals = ['global-ai-modal', 'transaction-modal', 'shop-modal'];
-            
-            targetModals.forEach(modalId => {
-                const duplicates = document.querySelectorAll('#' + modalId);
-                if (duplicates.length > 1) {
-                    // שומרים את הראשון (אינדקס 0) ומוחקים את כל השאר
-                    for (let i = 1; i < duplicates.length; i++) {
-                        duplicates[i].remove();
-                    }
-                }
+        window.addEventListener('load', () => {
+            // 1. רשימת המזהים (IDs) שגורמים לקריסה בגלל כפילויות
+            const brokenIds = [
+                'transaction-modal', 'trans-modal-title', 'trans-type', 'btn-trans-onetime', 'btn-trans-recurring', 'trans-is-recurring', 'trans-amount', 'trans-desc', 'trans-cat', 'trans-date', 'trans-end-date-container', 'trans-end-month', 'btn-submit-transaction',
+                'global-ai-modal', 'global-ai-chat', 'global-ai-input', 'btn-global-ai-submit',
+                'shop-modal', 'shop-item', 'shop-est-price', 'shop-quantity', 'shop-unit', 'shop-upp-container', 'shop-upp', 'btn-submit-shop', 'suggestions',
+                'fab-container', 'fab-menu', 'tour-fab-btn', 'fab-icon',
+                'ai-assistant-wrapper', 'whatsapp-btn-wrapper'
+            ];
+
+            // 2. מחיקה אגרסיבית של *כל* האלמנטים האלה מכל מקום במסמך
+            brokenIds.forEach(id => {
+                document.querySelectorAll('#' + id).forEach(el => el.remove());
             });
 
-            // 2. מחיקת כפתורים צפים ישנים
-            document.querySelectorAll('#cart-footer, #fab-container, #ai-assistant-wrapper, #whatsapp-btn-wrapper, #access-btn-wrapper').forEach(el => el.remove());
+            // 3. הזרקה של עותק יחיד, מושלם ונקי ישירות לגוף המסמך
+            const pristineHTML = `
+            <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out] max-h-[90vh] overflow-y-auto modal-scroll">
+                    <h3 id="trans-modal-title" class="text-xl font-bold mb-4 text-center text-slate-800">פעולה פיננסית</h3>
+                    <input type="hidden" id="trans-type" value="expense">
+                    
+                    <div class="flex bg-slate-100 p-1 rounded-xl mb-4">
+                        <button id="btn-trans-onetime" onclick="toggleTransType('onetime')" class="flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פעולה בודדת</button>
+                        <button id="btn-trans-recurring" onclick="toggleTransType('recurring')" class="flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הוצאה/הכנסה קבועה</button>
+                    </div>
+                    <input type="hidden" id="trans-is-recurring" value="false">
 
-            // 3. יצירת הכפתורים הצפים במיקום הנכון (AI בצד ימין למעלה)
-            const floatingUI = `
-            <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
-                <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ הזמנה מוערך</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
-                <button onclick="openCheckoutSummary()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 transition">אשר הזמנת רכש</button>
+                    <div class="relative mb-3"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div>
+                    <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור העסקה">
+                    <select id="trans-cat" class="modern-input mb-3 bg-white"></select>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-400 block mb-1">תאריך ביצוע/התחלה:</label>
+                            <input type="date" id="trans-date" class="modern-input py-2 text-sm bg-white">
+                        </div>
+                        <div class="flex-1 hidden" id="trans-end-date-container">
+                            <label class="text-[10px] font-bold text-slate-400 block mb-1">תאריך סיום (אופציונלי):</label>
+                            <input type="month" id="trans-end-month" class="modern-input py-2 text-sm bg-white">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-submit-transaction" onclick="if(typeof submitTransaction === 'function') submitTransaction();" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">רשום פעולה</button>
+                    </div>
+                </div>
             </div>
-            
+
+            <div id="global-ai-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col h-[85vh] max-h-[600px] relative overflow-hidden">
+                    <button onclick="document.getElementById('global-ai-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                    
+                    <div class="text-center mb-4 shrink-0 mt-2">
+                        <img src="logo.png" alt="FamliAI Logo" class="w-20 h-auto mx-auto mb-2 object-contain drop-shadow-sm" onerror="this.style.display='none'">
+                        <h3 class="text-2xl font-black text-slate-800 tracking-tight">FamliAI</h3>
+                        <p class="text-xs font-bold text-indigo-600 mt-1">העוזרת האישית שלך</p>
+                    </div>
+                    
+                    <div id="global-ai-chat" class="flex-1 bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 space-y-3 flex flex-col overflow-y-auto modal-scroll min-h-0">
+                        <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%]">
+                            היי! אני העוזרת הווירטואלית שלכם. איך אוכל לעזור היום?
+                        </div>
+                    </div>
+
+                    <div class="relative shrink-0">
+                        <input type="text" id="global-ai-input" placeholder="שאלו אותי על נתונים, מלאי או הזמנות..." class="modern-input py-3 pr-4 pl-12 text-sm border-indigo-200 focus:border-indigo-500 shadow-sm" onkeypress="if(event.key === 'Enter' && typeof submitGlobalAI === 'function') submitGlobalAI()">
+                        <button onclick="if(typeof submitGlobalAI === 'function') submitGlobalAI()" id="btn-global-ai-submit" class="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-arrow-up"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
+                    <h3 class="text-lg font-bold mb-4 text-center">הוספה לבקשת רכש</h3>
+                    <div class="space-y-4">
+                        <div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר לצוות? (למשל: עכבר למחשב)" oninput="if(typeof filterSuggestions==='function') filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div>
+                        <div class="flex gap-2">
+                            <div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ יחידה (משוער)</span></div>
+                            <div class="w-20 relative"><input type="number" id="shop-quantity" class="modern-input text-center px-1" value="1" min="0.1" step="0.1"><span class="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">כמות</span></div>
+                            <div class="w-24 relative">
+                                <select id="shop-unit" onchange="if(typeof checkShopUnit==='function') checkShopUnit()" class="modern-input text-center px-1 py-3 text-sm bg-white">
+                                    <option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-3 hidden" id="shop-upp-container">
+                            <div class="flex-1 relative">
+                                <input type="number" id="shop-upp" class="modern-input text-center px-1" value="1" min="1">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמה יח' בודדות יש במארז?</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                        <button id="btn-submit-shop" onclick="if(typeof submitShopItem==='function') submitShopItem()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף לרשימה</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="fab-container" class="fixed bottom-6 left-6 z-[90] flex flex-col gap-3 items-center transition-all duration-300 hidden">
                 <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
-                    <button onclick="if(typeof openShopModal === 'function') openShopModal(); else document.getElementById('shop-modal').classList.remove('hidden'); toggleFab();" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition" title="בקשת רכש"><i class="fa-solid fa-cart-arrow-down"></i></button>
-                    <button onclick="document.getElementById('trans-type').value='income'; document.getElementById('transaction-modal').classList.remove('hidden'); toggleFab();" class="w-12 h-12 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-emerald-700 transition" title="הכנסה"><i class="fa-solid fa-plus"></i></button>
-                    <button onclick="document.getElementById('trans-type').value='expense'; document.getElementById('transaction-modal').classList.remove('hidden'); toggleFab();" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition" title="הוצאה תפעולית"><i class="fa-solid fa-minus"></i></button>
+                    <button onclick="if(typeof openShopModal === 'function') openShopModal(); else document.getElementById('shop-modal').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('fab-open');" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition" title="בקשת רכש"><i class="fa-solid fa-cart-arrow-down"></i></button>
+                    <button onclick="if(typeof openTransactionModal === 'function') openTransactionModal('income'); else { document.getElementById('trans-type').value='income'; document.getElementById('transaction-modal').classList.remove('hidden'); } document.getElementById('fab-container').classList.remove('fab-open');" class="w-12 h-12 bg-emerald-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-emerald-700 transition" title="הכנסה"><i class="fa-solid fa-plus"></i></button>
+                    <button onclick="if(typeof openTransactionModal === 'function') openTransactionModal('expense'); else { document.getElementById('trans-type').value='expense'; document.getElementById('transaction-modal').classList.remove('hidden'); } document.getElementById('fab-container').classList.remove('fab-open');" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition" title="הוצאה תפעולית"><i class="fa-solid fa-minus"></i></button>
                 </div>
-                <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
+                <button id="tour-fab-btn" onclick="document.getElementById('fab-container').classList.toggle('fab-open')" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
             </div>
 
-            <div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="document.getElementById('global-ai-modal').classList.remove('hidden'); if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant();">
+            <div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else document.getElementById('global-ai-modal').classList.remove('hidden');">
                 <div class="w-14 h-14 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border border-slate-100 p-2 overflow-hidden">
                     <img src="logo.png" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
                 </div>
@@ -3404,20 +3481,11 @@
             <a href="https://wa.me/972504000024" target="_blank" id="whatsapp-btn-wrapper" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-[90] hidden">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
-
-            <button id="access-btn-wrapper" onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-slate-800 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-slate-100 transition z-[90] border border-slate-200 hidden">
-                <i class="fa-solid fa-universal-access"></i>
-            </button>
             `;
-            document.body.insertAdjacentHTML('beforeend', floatingUI);
+            
+            document.body.insertAdjacentHTML('beforeend', pristineHTML);
 
-            // 4. פונקציית פתיחת תפריט FAB
-            window.toggleFab = function() {
-                const fc = document.getElementById('fab-container');
-                if(fc) fc.classList.toggle('fab-open');
-            };
-
-            // 5. חשיפת הכפתורים אך ורק כשהמערכת פועלת והמשתמש מחובר
+            // 4. חשיפת הכפתורים אך ורק כשהמערכת פועלת והמשתמש מחובר
             setInterval(() => {
                 const dash = document.getElementById('dashboard-container');
                 const isDashVisible = dash && !dash.classList.contains('hidden');
