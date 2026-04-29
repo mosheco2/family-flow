@@ -2582,7 +2582,13 @@ function buildAndRenderFeed() {
         });
     }
 
-    feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
+    // תיקון סעיף 2: סדר התצוגה - חישוב מדויק של זמן מהחדש (למעלה) לישן (למטה)
+    feedCache.sort((a, b) => {
+        const timeA = (a.date && !isNaN(a.date.getTime())) ? a.date.getTime() : 0;
+        const timeB = (b.date && !isNaN(b.date.getTime())) ? b.date.getTime() : 0;
+        return timeB - timeA;
+    });
+    
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
     renderUnifiedFeed();
@@ -3061,7 +3067,17 @@ function openTransactionModal(t) {
 async function submitTransaction() { 
     const amount = parseFloat(val('trans-amount')) || 0; if(!amount) return showToast('error', 'נא להזין סכום תקין'); 
     const btn = getEl('btn-submit-transaction'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    const isRecurring = val('trans-is-recurring') === 'true'; let transDate = val('trans-date'); if (!transDate) transDate = new Date().toISOString().split('T')[0];
+    const isRecurring = val('trans-is-recurring') === 'true'; 
+    let transDate = val('trans-date'); 
+    
+    // תיקון סעיף 1: הלבשת שעה נוכחית על תאריך שנבחר כדי שיסתדר נכון בפיד!
+    if (!transDate) {
+        transDate = new Date().toISOString(); 
+    } else {
+        const now = new Date();
+        transDate = `${transDate}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}.000Z`;
+    }
+
     try {
         const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
         const data = await res.json();
@@ -3069,6 +3085,31 @@ async function submitTransaction() {
     } catch(e) { showToast('error', 'שגיאת שרת בשמירת פעולה'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'רשום פעולה'; } }
 }
 
+// תיקון סעיף 9: פונקציות לפתיחה ושמירה של מצב עריכת שורת תזרים
+function openEditTransactionModal(id, amount, desc, cat, type) {
+    getEl('edit-trans-id').value = id; getEl('edit-trans-old-amount').value = amount; getEl('edit-trans-type').value = type; getEl('edit-trans-amount').value = amount; getEl('edit-trans-desc').value = desc;
+    const catSelect = getEl('edit-trans-cat'); catSelect.innerHTML = '';
+    if(CATEGORIES[type]) { CATEGORIES[type].forEach(c => { const selected = c.value === cat ? 'selected' : ''; catSelect.innerHTML += `<option value="${c.value}" ${selected}>${c.label}</option>`; }); } else { catSelect.innerHTML += `<option value="${cat}" selected>${cat}</option>`; }
+    getEl('edit-transaction-modal').classList.remove('hidden');
+}
+
+async function submitEditTransaction() {
+    const id = val('edit-trans-id'); const amount = val('edit-trans-amount'); const desc = val('edit-trans-desc'); const cat = val('edit-trans-cat');
+    if(!amount) return showToast('error', 'נא להזין סכום תקין');
+    const btn = getEl('btn-submit-edit-transaction'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try {
+        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'הפעולה עודכנה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בעדכון'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור שינויים'; } }
+}
+
+async function deleteTransaction() {
+    const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
+    try {
+        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 function openShopModal() { getEl('shop-modal').classList.remove('hidden'); }
 function openLoanModal() { getEl('loan-modal').classList.remove('hidden'); }
 
