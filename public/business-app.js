@@ -5129,18 +5129,7 @@ function renderModifiersUI() {
 
 let currentBundleStepsUI = [];
 let currentPizzaToppingsUI = [];
-
-window.openStoreProductModal = function(id = null) {
-    currentModifiersUI = []; 
-    currentBundleStepsUI = [];
-    currentPizzaToppingsUI = [];
-    
-    // מחיקת החלון הישן והתקול מה-DOM
-    let modal = document.getElementById('store-product-modal');
-    if (modal) {
-        modal.remove();
-    }
-    
+   
     // איסוף כל הקטגוריות הקיימות מהקטלוג ליצירת הרשימה החכמה (Datalist)
     const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
     let dataListHtml = `<datalist id="sp-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
