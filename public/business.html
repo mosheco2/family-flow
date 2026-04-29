@@ -3439,5 +3439,59 @@
             }, 1000);
         });
     </script>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            // 1. קסם ניקוי השכפולים: שומרים רק את האלמנט הראשון מכל מזהה ומוחקים את כל הכפילויות שמסתירות אותו!
+            const seenIds = new Set();
+            document.querySelectorAll('[id]').forEach(el => {
+                if (seenIds.has(el.id)) {
+                    el.remove(); 
+                } else {
+                    seenIds.add(el.id);
+                }
+            });
+
+            // 2. סידור כפתור העוזרת העסקית - צד ימין מעל הוואטסאפ
+            const aiBtn = document.querySelector('div[onclick*="openGlobalAIAssistant"]');
+            if (aiBtn) {
+                // וידוא מיקום מדויק בצד ימין
+                aiBtn.classList.remove('hidden');
+                aiBtn.className = 'fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer';
+                // פתיחה ישירה של מודאל ה-AI
+                aiBtn.setAttribute('onclick', "document.getElementById('global-ai-modal').classList.remove('hidden')");
+            }
+
+            // 3. תיקון כפתורי פעולות מהירות (FAB - הכנסה/הוצאה/רכש)
+            const fabContainer = document.getElementById('fab-container');
+            if (fabContainer) {
+                fabContainer.style.zIndex = "90";
+                
+                // כפתור ראשי לפתיחה וסגירה של התפריט עצמו
+                const mainFabBtn = document.getElementById('tour-fab-btn');
+                if (mainFabBtn) {
+                    mainFabBtn.setAttribute('onclick', "document.getElementById('fab-container').classList.toggle('fab-open')");
+                }
+
+                // תיקון כפתור רכש
+                const shopBtn = fabContainer.querySelector('button[title="בקשת רכש"]');
+                if (shopBtn) shopBtn.setAttribute('onclick', "document.getElementById('shop-modal').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('fab-open');");
+
+                // תיקון כפתור הכנסה
+                const incomeBtn = fabContainer.querySelector('button[title="הכנסה"]');
+                if (incomeBtn) incomeBtn.setAttribute('onclick', "document.getElementById('trans-type').value='income'; document.getElementById('transaction-modal').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('fab-open');");
+
+                // תיקון כפתור הוצאה
+                const expenseBtn = fabContainer.querySelector('button[title="הוצאה תפעולית"]');
+                if (expenseBtn) expenseBtn.setAttribute('onclick', "document.getElementById('trans-type').value='expense'; document.getElementById('transaction-modal').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('fab-open');");
+            }
+            
+            // 4. ווידוא שוואטסאפ מוצג נכון מתחת ל-AI
+            const waBtn = document.querySelector('a[href^="https://wa.me"]');
+            if (waBtn) {
+                waBtn.classList.remove('hidden');
+                waBtn.style.zIndex = "90";
+            }
+        });
+    </script>
 </body>
 </html>
