@@ -5018,6 +5018,7 @@ async function fetchStoreSettings() {
             
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
+            localStorage.setItem('store_include_vat', isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
@@ -5080,16 +5081,17 @@ async function saveStoreSettings() {
         };
 
         const includeVat = getChecked('store-include-vat');
+        localStorage.setItem('store_include_vat', includeVat);
         
         let logoBase64 = null;
         let logoValues = Array.from(document.querySelectorAll('[id="store-logo-base64"]')).map(el => el.value);
-        if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
-        else if (logoValues.every(v => v === 'DELETE')) logoBase64 = 'DELETE';
+        if (logoValues.every(v => v === 'DELETE')) logoBase64 = 'DELETE';
+        else if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
 
         let bannerBase64 = null;
         let bannerValues = Array.from(document.querySelectorAll('[id="store-banner-base64"]')).map(el => el.value);
-        if (bannerValues.some(v => v && v !== 'DELETE' && v !== '')) bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
-        else if (bannerValues.every(v => v === 'DELETE')) bannerBase64 = 'DELETE';
+        if (bannerValues.every(v => v === 'DELETE')) bannerBase64 = 'DELETE';
+        else if (bannerValues.some(v => v && v !== 'DELETE' && v !== '')) bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
 
         const payload = { 
             groupId: currentGroup.id, 
@@ -5099,8 +5101,8 @@ async function saveStoreSettings() {
             minOrder: getVal('store-min-order'), 
             slogan: getVal('store-slogan'), 
             storeType: getVal('store-type') || 'retail', 
-            logoUrl: logoBase64 === 'DELETE' ? null : (logoBase64 || null),
-            bannerUrl: bannerBase64 === 'DELETE' ? null : (bannerBase64 || null),
+            logoUrl: logoBase64,
+            bannerUrl: bannerBase64,
             openTime: getVal('store-open-time'), 
             closeTime: getVal('store-close-time'), 
             whatsappNumber: getVal('store-whatsapp'),
@@ -5194,6 +5196,48 @@ window.clearImage = function(targetIdPrefix) {
         document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
     }
     showToast('info', 'התמונה הוסרה. אל תשכחו ללחוץ "שמור הגדרות חנות" למטה!');
+};
+
+window.generateBannerAI = async function() {
+    let logoBase64 = null;
+    let logoValues = Array.from(document.querySelectorAll('[id="store-logo-base64"]')).map(el => el.value);
+    if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
+
+    if (!logoBase64 || logoBase64 === 'DELETE') return showToast('error', 'יש להעלות קודם לוגו כדי שה-AI יתאים לו רקע!');
+    
+    const btn = document.getElementById('btn-generate-banner-ai');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; }
+    
+    try {
+        showToast('info', 'מייצר רקע חכם ב-AI, אנא המתן...');
+        const prompt = `Create a beautiful, abstract, professional blurred gradient background for a business store banner. Use colors that match this brand. No text, no logos, just a clean aesthetic banner background.`;
+        const res = await fetch(`${API}/ai/generate-image`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ prompt: prompt, groupId: currentGroup.id, type: 'banner' })
+        });
+        const data = await res.json();
+        
+        if(!handleAIResponseCheck(data)) return;
+        
+        if (data.success && data.imageUrl) {
+            const finalUrl = data.imageUrl;
+            
+            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = finalUrl);
+            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = finalUrl; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            
+            showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
+            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+            
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת רקע');
+            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול שרת ה-AI');
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+    }
 };
 
 // תיקון: הצגת הרקע מה-AI מבלי לקרוס!
