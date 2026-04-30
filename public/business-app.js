@@ -5018,6 +5018,7 @@ async function fetchStoreSettings() {
             
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
+            localStorage.setItem('store_include_vat', isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
@@ -5034,9 +5035,7 @@ async function fetchStoreSettings() {
                 else { el.classList.remove('hidden'); el.style.display = 'flex'; }
             });
             getEls('btn-clear-logo').forEach(el => { if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden'); });
-            
-            // מנקה את השדות המוסתרים לאחר טעינה כדי לא לשלוח סתם מחדש
-            getEls('store-logo-base64').forEach(el => el.value = '');
+            getEls('store-logo-base64').forEach(el => el.value = ''); // מנקים כדי לא לשלוח סתם מחדש
 
             const hasBanner = data.settings.banner_url && data.settings.banner_url !== 'DELETE';
             const bannerUrl = data.settings.banner_url;
@@ -5054,7 +5053,6 @@ async function fetchStoreSettings() {
                 else el.classList.remove('hidden');
             });
             getEls('btn-clear-bg').forEach(el => { if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden'); });
-            
             getEls('store-banner-base64').forEach(el => el.value = '');
 
             if (data.settings.modifier_presets) {
@@ -5069,25 +5067,25 @@ async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const getLastVal = (id) => {
-            const els = document.querySelectorAll(`[id="${id}"]`);
-            return els.length > 0 ? els[els.length - 1].value : '';
+        const getVal = (id) => {
+            const els = Array.from(document.querySelectorAll(`[id="${id}"]`));
+            const activeEl = els.find(el => el.value && el.value.trim() !== 'DELETE');
+            return activeEl ? activeEl.value : '';
         };
 
-        const getLastChecked = (id) => {
-            const els = document.querySelectorAll(`[id="${id}"]`);
-            return els.length > 0 ? els[els.length - 1].checked : false;
+        const getChecked = (id) => {
+            const els = Array.from(document.querySelectorAll(`[id="${id}"]`));
+            return els.some(el => el.checked); // ברגע שאחד מסומן - הערך חיובי! מונע כפילויות של שדות מוסתרים
         };
 
-        const includeVat = getLastChecked('store-include-vat');
+        const includeVat = getChecked('store-include-vat');
+        localStorage.setItem('store_include_vat', includeVat);
         
         const getLogoBannerVal = (id) => {
             const els = Array.from(document.querySelectorAll(`[id="${id}"]`));
-            if (els.some(el => el.value && el.value !== 'DELETE' && el.value !== '')) {
-                return els.find(el => el.value && el.value !== 'DELETE' && el.value !== '').value;
-            }
             if (els.some(el => el.value === 'DELETE')) return 'DELETE';
-            return null;
+            const valid = els.find(el => el.value && el.value.trim() !== '' && el.value !== 'DELETE');
+            return valid ? valid.value : null;
         };
 
         const logoBase64 = getLogoBannerVal('store-logo-base64');
@@ -5095,17 +5093,17 @@ async function saveStoreSettings() {
 
         const payload = { 
             groupId: currentGroup.id, 
-            isActive: getLastChecked('store-is-active'), 
-            welcomeMessage: getLastVal('store-welcome-msg'), 
-            phone: getLastVal('store-phone'), 
-            minOrder: getLastVal('store-min-order'), 
-            slogan: getLastVal('store-slogan'), 
-            storeType: getLastVal('store-type') || 'retail', 
+            isActive: getChecked('store-is-active'), 
+            welcomeMessage: getVal('store-welcome-msg'), 
+            phone: getVal('store-phone'), 
+            minOrder: getVal('store-min-order'), 
+            slogan: getVal('store-slogan'), 
+            storeType: getVal('store-type') || 'retail', 
             logoUrl: logoBase64,
             bannerUrl: bannerBase64,
-            openTime: getLastVal('store-open-time'), 
-            closeTime: getLastVal('store-close-time'), 
-            whatsappNumber: getLastVal('store-whatsapp'),
+            openTime: getVal('store-open-time'), 
+            closeTime: getVal('store-close-time'), 
+            whatsappNumber: getVal('store-whatsapp'),
             includeVat: includeVat
         };
 
@@ -5190,6 +5188,8 @@ window.handleStoreBannerUpload = function(event) {
 window.clearImage = function(targetIdPrefix) {
     document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
     document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
+    
+    // סימון מפורש למחיקה לשרת
     document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
     
     if (targetIdPrefix.includes('logo')) {
