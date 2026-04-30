@@ -2264,19 +2264,6 @@ function showAIModal(title, text) {
 
 function openAIModal() { getEl('ai-modal').classList.remove('hidden'); }
 
-async function generateAIQuiz() {
-    executeWithAIWarning(async () => {
-        const btn = getEl('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳';
-        try {
-            const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", groupId: currentGroup.id }) });
-            const data = await res.json();
-            if(!handleAIResponseCheck(data)) return;
-            if(data.success) { showToast('success', 'הכשרת ה-AI מוכנה!'); getEl('ai-modal').classList.add('hidden'); getEl('ai-topic').value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
-            else showToast('error', data.error || 'שגיאה ביצירת התוכן');
-        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור חפיפה'; }
-    });
-}
-
 async function getBusinessAIAdvice(employeeId, goalId) {
     executeWithAIWarning(async () => {
         showAIModal('היועץ העסקי של הארגון', null); getEl('familai-loading-text').innerText = 'מנתח ביצועים ויעדים...';
@@ -2832,59 +2819,6 @@ window.renderManualQuestions = function() {
             </div>
         </div>
     `).join('');
-};
-
-window.submitManualQuiz = async function() {
-    const title = val('mq-title');
-    const reward = parseFloat(val('mq-reward')) || 0;
-    const age = val('mq-age') || 'כללי';
-    const textContent = val('mq-text');
-
-    if(!title) return showToast('error', 'כותרת היא שדה חובה');
-    
-    // Validate questions
-    for (let i = 0; i < window.manualQuizQuestions.length; i++) {
-        const q = window.manualQuizQuestions[i];
-        if(!q.q.trim()) return showToast('error', `שאלה ${i+1} ריקה.`);
-        for (let j = 0; j < 4; j++) {
-            if(!q.options[j].trim()) return showToast('error', `שאלה ${i+1} חסרה את תשובה ${j+1}.`);
-        }
-    }
-
-    const payload = {
-        groupId: currentGroup.id,
-        title: title,
-        ageGroup: age,
-        reward: reward,
-        textContent: textContent,
-        questions: window.manualQuizQuestions,
-        type: window.manualQuizQuestions.length > 0 ? 'quiz' : 'reading'
-    };
-
-    const btn = getEl('btn-submit-mq');
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה...'; }
-
-    try {
-        const res = await fetch(`${API}/academy/bundles`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'ההכשרה נשמרה בהצלחה במאגר!');
-            getEl('manual-quiz-modal').classList.add('hidden');
-            if (typeof fetchBundles === 'function') await fetchBundles();
-            window.renderAdminAcademy();
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת ההכשרה');
-        }
-    } catch (e) {
-        showToast('error', 'שגיאת רשת מול השרת');
-    } finally {
-        if(btn) { btn.disabled = false; btn.innerHTML = 'שמור הכשרה <i class="fa-solid fa-check"></i>'; }
-    }
 };
 
 // --- Training Track Builder ---
@@ -13169,4 +13103,122 @@ window.fetchStoreSettings = async function() {
             }
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
+};
+// ==========================================
+// MASTER FIX: ACADEMY CREATION & ERROR HANDLING
+// ==========================================
+
+window.submitManualQuiz = async function() {
+    const title = val('mq-title');
+    const reward = parseFloat(val('mq-reward')) || 0;
+    const age = val('mq-age') || 'כללי';
+    const textContent = val('mq-text');
+
+    if(!title) return showToast('error', 'כותרת היא שדה חובה');
+    
+    for (let i = 0; i < window.manualQuizQuestions.length; i++) {
+        const q = window.manualQuizQuestions[i];
+        if(!q.q.trim()) return showToast('error', `שאלה ${i+1} ריקה.`);
+        for (let j = 0; j < 4; j++) {
+            if(!q.options[j].trim()) return showToast('error', `שאלה ${i+1} חסרה את תשובה ${j+1}.`);
+        }
+    }
+
+    const payload = {
+        groupId: currentGroup.id,
+        title: title,
+        ageGroup: age,
+        reward: reward,
+        textContent: textContent,
+        questions: window.manualQuizQuestions,
+        type: window.manualQuizQuestions.length > 0 ? 'quiz' : 'reading'
+    };
+
+    const btn = getEl('btn-submit-mq');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה...'; }
+
+    try {
+        const res = await fetch(`${API}/academy/bundles`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error("Server Error:", res.status, errText);
+            throw new Error(`שגיאת שרת: הקריאה נכשלה (סטטוס ${res.status}). ודא שהנתיב מוגדר ותקין בצד השרת.`);
+        }
+
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'ההכשרה נשמרה בהצלחה במאגר!');
+            getEl('manual-quiz-modal').classList.add('hidden');
+            
+            // תוקנו קריאות הרענון שלא היו קיימות
+            if (typeof fetchData === 'function') await fetchData();
+            if (typeof window.renderAdminAcademy === 'function') window.renderAdminAcademy();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ההכשרה');
+        }
+    } catch (e) {
+        console.error("Manual Quiz Submission Error:", e);
+        showToast('error', e.message || 'שגיאת רשת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = 'שמור הכשרה <i class="fa-solid fa-check"></i>'; }
+    }
+};
+
+window.generateAIQuiz = async function() {
+    executeWithAIWarning(async () => {
+        const btn = getEl('btn-ai-gen'); 
+        if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); 
+        
+        if(btn) { btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳'; }
+        
+        try {
+            const payload = { 
+                ageGroup: val('ai-age'), 
+                topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", 
+                groupId: currentGroup.id 
+            };
+            
+            const res = await fetch(`${API}/academy/ai-generate`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error("AI Quiz Gen Server Error:", res.status, errText);
+                throw new Error(`שגיאת שרת: הקריאה נכשלה (סטטוס ${res.status}). ודא שהנתיב מוגדר ותקין בצד השרת.`);
+            }
+
+            const data = await res.json();
+            
+            if(!handleAIResponseCheck(data)) return;
+            
+            if(data.success) { 
+                showToast('success', 'הכשרת ה-AI מוכנה!'); 
+                getEl('ai-modal').classList.add('hidden'); 
+                getEl('ai-topic').value = ''; 
+                
+                // תוקנו קריאות הרענון שלא היו קיימות
+                if(typeof fetchData === 'function') await fetchData(); 
+                if (typeof window.renderAdminAcademy === 'function') window.renderAdminAcademy();
+                
+                // שיוך ספציפי
+                if (typeof openAssignModalSpecific === 'function') openAssignModalSpecific(data.bundleId); 
+            } else {
+                showToast('error', data.error || 'שגיאה ביצירת התוכן');
+            }
+        } catch(e) { 
+            console.error("AI Quiz Error:", e);
+            showToast('error', e.message || 'תקלה בתקשורת עם השרת'); 
+        } finally { 
+            if(btn) { btn.disabled = false; btn.innerText = 'צור חפיפה'; }
+        }
+    });
 };
