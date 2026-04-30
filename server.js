@@ -1819,10 +1819,9 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
 
-        // המרה ל-Boolean חזק כדי למנוע שגיאות SQL
-        const isVat = includeVat === true || String(includeVat) === 'true';
+        const isVat = (includeVat === true || String(includeVat) === 'true');
         
-        // שימוש ב- COALESCE ו- NULLIF כדי להגן על התמונות הקיימות מדריסה של null
+        // הגנה מקסימלית על תמונות ומע"מ
         await pool.query(`
             INSERT INTO store_settings (
                 group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat
@@ -1837,8 +1836,8 @@ app.post('/api/store/settings', async (req, res) => {
                 min_order = EXCLUDED.min_order, 
                 slogan = EXCLUDED.slogan, 
                 store_type = EXCLUDED.store_type, 
-                logo_url = NULLIF(COALESCE($8, store_settings.logo_url), 'DELETE'),
-                banner_url = NULLIF(COALESCE($9, store_settings.banner_url), 'DELETE'),
+                logo_url = CASE WHEN $8 = 'DELETE' THEN NULL WHEN $8 IS NOT NULL THEN $8 ELSE store_settings.logo_url END,
+                banner_url = CASE WHEN $9 = 'DELETE' THEN NULL WHEN $9 IS NOT NULL THEN $9 ELSE store_settings.banner_url END,
                 open_time = EXCLUDED.open_time, 
                 close_time = EXCLUDED.close_time, 
                 whatsapp_number = EXCLUDED.whatsapp_number, 
