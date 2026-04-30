@@ -4998,84 +4998,101 @@ window.switchCustomerTab = function(tab) {
     }
 };
 
-async function fetchStoreSettings() {
-    try {
-        const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
-        const data = await res.json();
-        if (data.success && data.settings) {
-            const s = data.settings;
-            
-            // הגדרה חכמה שמעדכנת כל אלמנט רלוונטי ב-DOM (מונעת התנגשויות)
-            const syncInputs = (id, val) => {
-                document.querySelectorAll(`input[id*="${id}"], textarea[id*="${id}"], select[id*="${id}"]`).forEach(el => el.value = val);
-            };
-            const syncChecks = (id, checked) => {
-                document.querySelectorAll(`input[type="checkbox"][id*="${id}"]`).forEach(el => el.checked = checked);
-            };
+window.fetchStoreSettings = async function() {
+    try {
+        const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success && data.settings) {
+            const s = data.settings;
+            
+            // הגדרה חכמה שמעדכנת כל אלמנט רלוונטי ב-DOM (מונעת התנגשויות)
+            const syncInputs = (id, val) => {
+                document.querySelectorAll(`input[id*="${id}"], textarea[id*="${id}"], select[id*="${id}"]`).forEach(el => el.value = val);
+            };
+            const syncChecks = (id, checked) => {
+                document.querySelectorAll(`input[type="checkbox"][id*="${id}"]`).forEach(el => el.checked = checked);
+            };
 
-            syncChecks('store-is-active', s.is_active);
-            syncInputs('store-welcome-msg', s.welcome_message || '');
-            syncInputs('store-phone', s.phone || '');
-            syncInputs('store-min-order', s.min_order || '');
-            syncInputs('store-slogan', s.slogan || '');
-            syncInputs('store-type', s.store_type || 'retail');
-            syncInputs('store-open-time', s.open_time || '');
-            syncInputs('store-close-time', s.close_time || '');
-            syncInputs('store-whatsapp', s.whatsapp_number || '');
-            syncInputs('store-public-link', `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
-            
-            // טיפול חזק במע"מ
-            const isVat = (s.include_vat === true || String(s.include_vat) === 'true');
-            syncChecks('store-include-vat', isVat);
-            localStorage.setItem('store_include_vat', isVat);
-            
-            const headerSlogan = document.getElementById('main-header-slogan');
-            if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
+            syncChecks('store-is-active', s.is_active);
+            syncInputs('store-welcome-msg', s.welcome_message || '');
+            syncInputs('store-phone', s.phone || '');
+            syncInputs('store-min-order', s.min_order || '');
+            syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-type', s.store_type || 'retail');
+            syncInputs('store-open-time', s.open_time || '');
+            syncInputs('store-close-time', s.close_time || '');
+            syncInputs('store-whatsapp', s.whatsapp_number || '');
+            syncInputs('store-public-link', `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
+            
+            const headerSlogan = document.getElementById('main-header-slogan');
+            if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
 
-            // טעינת לוגו בצורה חסינה
-            const hasLogo = s.logo_url && s.logo_url !== 'DELETE' && s.logo_url !== 'null';
-            document.querySelectorAll('[id*="store-logo-preview"], [id*="wizard-logo-preview"]').forEach(el => {
-                if(hasLogo) { el.src = s.logo_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            document.querySelectorAll('[id*="store-logo-placeholder"], [id*="wizard-logo-icon"]').forEach(el => {
-                if(hasLogo) el.classList.add('hidden'); else el.classList.remove('hidden');
-            });
-            document.querySelectorAll('[id*="btn-clear-logo"]').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            document.querySelectorAll('[id*="btn-generate-banner-ai"]').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            document.querySelectorAll('[id*="store-logo-base64"]').forEach(el => el.value = ''); // מנקים כדי לא לשדר בטעות
+            // משיכת הגדרות מע"מ אחידה, כמו בקופה (POS)
+            const vatSettings = window.getVatSettings();
+            syncChecks('store-include-vat', vatSettings.enabled);
+            syncInputs('store-vat-rate', vatSettings.rate);
+            localStorage.setItem('store_include_vat', vatSettings.enabled);
 
-            // טעינת באנר בצורה חסינה
-            const hasBanner = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null';
-            const headerBannerEl = document.getElementById('main-header-banner');
-            if (headerBannerEl) {
-                if (hasBanner) headerBannerEl.style.backgroundImage = `url('${s.banner_url}')`;
-                else headerBannerEl.style.backgroundImage = `none`;
-            }
+            // טיפול בלוגו העסק
+            const hasLogo = s.logo_url && s.logo_url.trim() !== '' && s.logo_url !== 'DELETE' && s.logo_url !== 'null';
+            const logoUrl = hasLogo ? (s.logo_url.startsWith('http') ? s.logo_url : `/${s.logo_url}`) : '';
 
-            document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
-                if(hasBanner) { el.src = s.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
-                if(hasBanner) el.classList.add('hidden'); else el.classList.remove('hidden');
-            });
-            document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => {
-                if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            document.querySelectorAll('[id*="store-banner-base64"]').forEach(el => el.value = '');
+            document.querySelectorAll('[id*="store-logo-preview"], [id*="wizard-logo-preview"], [id*="dash-logo-preview"]').forEach(el => {
+                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+            document.querySelectorAll('[id*="store-logo-placeholder"], [id*="wizard-logo-icon"], [id*="dash-logo-placeholder"]').forEach(el => {
+                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            });
+            document.querySelectorAll('[id*="store-logo-base64"], [id*="wizard-logo-base64"]').forEach(el => {
+                el.value = hasLogo ? s.logo_url : 'DELETE';
+            });
 
-            if (s.modifier_presets) {
-                try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
-                if(typeof renderPresetSelector === 'function') renderPresetSelector();
-            }
-        }
-    } catch(e) { console.error("Fetch Settings Error:", e); }
-}
+            if(hasLogo) {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            // טיפול בבאנר הראשי
+            const hasBanner = s.banner_url && s.banner_url.trim() !== '' && s.banner_url !== 'DELETE' && s.banner_url !== 'null';
+            const bannerUrl = hasBanner ? (s.banner_url.startsWith('http') ? s.banner_url : `/${s.banner_url}`) : '';
+            const headerBannerEl = document.getElementById('main-header-banner');
+            
+            if (hasBanner) {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${bannerUrl}')`;
+                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
+                    el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block';
+                });
+                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
+                    el.classList.add('hidden'); el.style.display = 'none';
+                });
+                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
+                    el.value = s.banner_url;
+                });
+                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
+                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
+                    el.src = ''; el.classList.add('hidden'); el.style.display = 'none';
+                });
+                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
+                    el.classList.remove('hidden'); el.style.display = 'flex';
+                });
+                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
+                    el.value = 'DELETE';
+                });
+                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            if (s.modifier_presets) {
+                try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
+                if(typeof renderPresetSelector === 'function') renderPresetSelector();
+            }
+        }
+    } catch(e) { console.error("Fetch Settings Error:", e); }
+};
 
 async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
