@@ -3317,6 +3317,28 @@ window.fetchBudget = async function() {
 };
 
 window.openAddBudgetCategoryModal = function() { 
+    // הזרקת המודאל באופן דינמי אם הוא חסר ב-DOM
+    if (!document.getElementById('add-budget-cat-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="add-budget-cat-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('add-budget-cat-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-tags text-indigo-500 mr-2"></i> קטגוריה חדשה לתקציב</h3>
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-2">שם הקטגוריה:</label>
+                        <input type="text" id="new-budget-cat-name" class="modern-input py-3 text-sm w-full bg-slate-50 border-slate-200 focus:border-indigo-400 focus:bg-white transition" placeholder="למשל: ריהוט משרדי">
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('add-budget-cat-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200 text-sm">ביטול</button>
+                    <button onclick="window.submitNewBudgetCat()" id="btn-submit-budget-cat" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 text-sm">הוסף לתקציב</button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
+
     getEl('new-budget-cat-name').value = ''; 
     getEl('add-budget-cat-modal').classList.remove('hidden'); 
 };
@@ -3336,7 +3358,31 @@ window.submitNewBudgetCat = async function() { 
     }
 };
 
-window.openBudgetModal = function(catId, catName, currentLimit) { 
+window.openBudgetModal = function(catId, catName, currentLimit) {
+    // הזרקת המודאל באופן דינמי אם הוא חסר ב-DOM
+    if (!document.getElementById('budget-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="budget-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-2"><i class="fa-solid fa-bullseye text-indigo-500 mr-2"></i> עדכון יעד תקציב</h3>
+                <p class="text-sm font-bold text-slate-500 mb-6 border-b border-slate-100 pb-3" id="budget-cat-name"></p>
+                <input type="hidden" id="budget-cat-id">
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-2">תקציב מקסימלי מוקצה (₪):</label>
+                        <input type="number" id="budget-limit" class="modern-input py-3 text-sm w-full bg-slate-50 border-slate-200 focus:border-indigo-400 focus:bg-white transition text-center dir-ltr font-bold text-indigo-700" placeholder="0">
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200 text-sm">ביטול</button>
+                    <button onclick="window.submitBudgetUpdate()" id="btn-submit-budget-update" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 text-sm">עדכן יעד</button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
+
     getEl('budget-cat-name').innerText = catName; 
     getEl('budget-cat-id').value = catId; 
     getEl('budget-limit').value = currentLimit > 0 ? currentLimit : ''; 
