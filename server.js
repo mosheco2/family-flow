@@ -1821,6 +1821,8 @@ app.post('/api/store/settings', async (req, res) => {
 
         const finalLogoUrl = (logoUrl === 'DELETE') ? null : (logoUrl || null);
         const finalBannerUrl = (bannerUrl === 'DELETE') ? null : (bannerUrl || null);
+        
+        // תיקון קריטי: ממירים ל-Boolean בצורה חד משמעית
         const isVat = includeVat === true || String(includeVat) === 'true';
         
         await pool.query(`
@@ -1834,8 +1836,8 @@ app.post('/api/store/settings', async (req, res) => {
                 min_order=EXCLUDED.min_order, 
                 slogan=EXCLUDED.slogan, 
                 store_type=EXCLUDED.store_type, 
-                logo_url = CASE WHEN $8 = 'DELETE' THEN NULL WHEN $8 IS NOT NULL THEN $8 ELSE store_settings.logo_url END,
-                banner_url = CASE WHEN $9 = 'DELETE' THEN NULL WHEN $9 IS NOT NULL THEN $9 ELSE store_settings.banner_url END,
+                logo_url = CASE WHEN EXCLUDED.logo_url IS NULL THEN store_settings.logo_url ELSE EXCLUDED.logo_url END,
+                banner_url = CASE WHEN EXCLUDED.banner_url IS NULL THEN store_settings.banner_url ELSE EXCLUDED.banner_url END,
                 open_time=EXCLUDED.open_time, 
                 close_time=EXCLUDED.close_time, 
                 whatsapp_number=EXCLUDED.whatsapp_number, 
@@ -1843,8 +1845,16 @@ app.post('/api/store/settings', async (req, res) => {
                 include_vat=EXCLUDED.include_vat
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
+            finalLogoUrl, finalBannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
         ]);
+        
+        // תיקון: טיפול ייעודי במקרה של מחיקה מפורשת
+        if (logoUrl === 'DELETE') {
+            await pool.query(`UPDATE store_settings SET logo_url = NULL WHERE group_id = $1`, [groupId]);
+        }
+        if (bannerUrl === 'DELETE') {
+            await pool.query(`UPDATE store_settings SET banner_url = NULL WHERE group_id = $1`, [groupId]);
+        }
         
         res.json({ success: true });
     } catch(e) { 
