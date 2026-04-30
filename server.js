@@ -1819,14 +1819,14 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
 
-        const isVat = includeVat === true || String(includeVat) === 'true';
+        const isVat = (includeVat === true || String(includeVat) === 'true');
         
         await pool.query(`
             INSERT INTO store_settings (
                 group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, 
-                CASE WHEN $8 = 'DELETE' THEN NULL ELSE $8 END, 
-                CASE WHEN $9 = 'DELETE' THEN NULL ELSE $9 END, 
+                NULLIF($8, 'DELETE'), 
+                NULLIF($9, 'DELETE'), 
                 $10, $11, $12, $13, $14) 
             ON CONFLICT (group_id) DO UPDATE SET 
                 is_active = EXCLUDED.is_active, 
@@ -1837,12 +1837,12 @@ app.post('/api/store/settings', async (req, res) => {
                 store_type = EXCLUDED.store_type, 
                 logo_url = CASE 
                     WHEN $8 = 'DELETE' THEN NULL 
-                    WHEN $8 IS NOT NULL AND LENGTH($8) > 10 THEN $8 
+                    WHEN $8 IS NOT NULL AND $8 != '' THEN $8 
                     ELSE store_settings.logo_url 
                 END,
                 banner_url = CASE 
                     WHEN $9 = 'DELETE' THEN NULL 
-                    WHEN $9 IS NOT NULL AND LENGTH($9) > 10 THEN $9 
+                    WHEN $9 IS NOT NULL AND $9 != '' THEN $9 
                     ELSE store_settings.banner_url 
                 END,
                 open_time = EXCLUDED.open_time, 
@@ -1852,7 +1852,7 @@ app.post('/api/store/settings', async (req, res) => {
                 include_vat = EXCLUDED.include_vat
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            logoUrl, bannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
         ]);
         
         res.json({ success: true });
