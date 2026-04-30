@@ -5018,6 +5018,7 @@ async function fetchStoreSettings() {
             
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
+            // סנכרון עם ה-localStorage למקרה הצורך
             localStorage.setItem('store_include_vat', isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
@@ -5034,6 +5035,7 @@ async function fetchStoreSettings() {
                 if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
                 else { el.classList.remove('hidden'); el.style.display = 'flex'; }
             });
+            // שינוי קריטי: אם יש תמונה מהשרת אנחנו מכניסים אותה לשדות הנסתרים
             getEls('store-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
             getEls('btn-clear-logo').forEach(el => { if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden'); });
 
@@ -5052,6 +5054,7 @@ async function fetchStoreSettings() {
                 if(hasBanner) el.classList.add('hidden');
                 else el.classList.remove('hidden');
             });
+            // אותו הדבר לגבי הבאנר
             getEls('store-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
             getEls('btn-clear-bg').forEach(el => { if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden'); });
 
@@ -5080,18 +5083,27 @@ async function saveStoreSettings() {
             return isChecked;
         };
 
+        // לקיחת נתון מע"מ מה-DOM ושמירה בלוקאלי
         const includeVat = getChecked('store-include-vat');
         localStorage.setItem('store_include_vat', includeVat);
         
+        // תיקון שליפת התמונות
         let logoBase64 = null;
         let logoValues = Array.from(document.querySelectorAll('[id="store-logo-base64"]')).map(el => el.value);
-        if (logoValues.every(v => v === 'DELETE')) logoBase64 = 'DELETE';
-        else if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
+        if (logoValues.every(v => v === 'DELETE' || v === '')) {
+            // אם הכל ריק או DELETE, לא נשלח כלום (כדי שהשרת לא ידרוס) - אלא אם יש DELETE מפורש
+             logoBase64 = logoValues.includes('DELETE') ? 'DELETE' : null;
+        } else {
+             logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
+        }
 
         let bannerBase64 = null;
         let bannerValues = Array.from(document.querySelectorAll('[id="store-banner-base64"]')).map(el => el.value);
-        if (bannerValues.every(v => v === 'DELETE')) bannerBase64 = 'DELETE';
-        else if (bannerValues.some(v => v && v !== 'DELETE' && v !== '')) bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
+        if (bannerValues.every(v => v === 'DELETE' || v === '')) {
+             bannerBase64 = bannerValues.includes('DELETE') ? 'DELETE' : null;
+        } else {
+             bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
+        }
 
         const payload = { 
             groupId: currentGroup.id, 
@@ -5138,7 +5150,7 @@ window.handleStoreLogoUpload = function(event) {
     if(!file) return;
     
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ את הלוגו לשמירה...');
+        showToast('info', 'מכווץ את הלוגו לשמירה מהירה...');
         compressImage(file, 400, 400, 0.7, function(base64DataUrl) {
             document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('[id="store-logo-preview"]').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
@@ -5164,7 +5176,7 @@ window.handleStoreBannerUpload = function(event) {
     if(!file) return;
 
     if (typeof compressImage === 'function') {
-        showToast('info', 'מכווץ את הבאנר לשמירה...');
+        showToast('info', 'מכווץ את הבאנר לשמירה מהירה...');
         compressImage(file, 800, 500, 0.7, function(base64DataUrl) {
             document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = base64DataUrl);
             document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
@@ -5188,6 +5200,8 @@ window.handleStoreBannerUpload = function(event) {
 window.clearImage = function(targetIdPrefix) {
     document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
     document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
+    
+    // סימון מפורש למחיקה לשרת
     document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
     
     if (targetIdPrefix.includes('logo')) {
