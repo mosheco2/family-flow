@@ -1821,19 +1821,29 @@ app.post('/api/store/settings', async (req, res) => {
 
         const finalLogoUrl = (logoUrl === 'DELETE') ? null : (logoUrl || null);
         const finalBannerUrl = (bannerUrl === 'DELETE') ? null : (bannerUrl || null);
+        const isVat = includeVat === true || String(includeVat) === 'true';
         
         await pool.query(`
             INSERT INTO store_settings (
                 group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
             ON CONFLICT (group_id) DO UPDATE SET 
-                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
+                is_active=EXCLUDED.is_active, 
+                welcome_message=EXCLUDED.welcome_message, 
+                phone=EXCLUDED.phone, 
+                min_order=EXCLUDED.min_order, 
+                slogan=EXCLUDED.slogan, 
+                store_type=EXCLUDED.store_type, 
                 logo_url=EXCLUDED.logo_url, 
                 banner_url=EXCLUDED.banner_url,
-                open_time=$10, close_time=$11, whatsapp_number=$12, delivery_fee=$13, include_vat=$14
+                open_time=EXCLUDED.open_time, 
+                close_time=EXCLUDED.close_time, 
+                whatsapp_number=EXCLUDED.whatsapp_number, 
+                delivery_fee=EXCLUDED.delivery_fee, 
+                include_vat=EXCLUDED.include_vat
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            finalLogoUrl, finalBannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, includeVat || false
+            finalLogoUrl, finalBannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
         ]);
         
         res.json({ success: true });
