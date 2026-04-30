@@ -5003,7 +5003,7 @@ async function fetchStoreSettings() {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
         const data = await res.json();
         if (data.success && data.settings) {
-            // בחירה חכמה שמתמודדת עם כפילויות ID במסמך
+            // החלפנו ל-querySelectorAll כדי לעקוף את בעיית ה-ID הכפול ב-HTML!
             const getEls = (id) => document.querySelectorAll(`[id="${id}"]`);
             
             getEls('store-is-active').forEach(el => el.checked = data.settings.is_active);
@@ -5116,12 +5116,12 @@ async function saveStoreSettings() {
         if (!res.ok) {
             let errMsg = 'שגיאת תקשורת עם השרת';
             try { const errData = await res.json(); errMsg = errData.error; } catch(e) {}
-            throw new Error(errMsg || `השרת דחה את הבקשה (שגיאה ${res.status}). התמונה גדולה מדי.`);
+            throw new Error(errMsg || `השרת דחה את הבקשה (שגיאה ${res.status}). נסה תמונה קטנה יותר.`);
         }
 
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
+            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
             fetchStoreSettings(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
