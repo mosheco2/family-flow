@@ -1834,8 +1834,8 @@ app.post('/api/store/settings', async (req, res) => {
                 min_order=EXCLUDED.min_order, 
                 slogan=EXCLUDED.slogan, 
                 store_type=EXCLUDED.store_type, 
-                logo_url=EXCLUDED.logo_url, 
-                banner_url=EXCLUDED.banner_url,
+                logo_url = CASE WHEN $8 = 'DELETE' THEN NULL WHEN $8 IS NOT NULL THEN $8 ELSE store_settings.logo_url END,
+                banner_url = CASE WHEN $9 = 'DELETE' THEN NULL WHEN $9 IS NOT NULL THEN $9 ELSE store_settings.banner_url END,
                 open_time=EXCLUDED.open_time, 
                 close_time=EXCLUDED.close_time, 
                 whatsapp_number=EXCLUDED.whatsapp_number, 
@@ -1843,7 +1843,7 @@ app.post('/api/store/settings', async (req, res) => {
                 include_vat=EXCLUDED.include_vat
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            finalLogoUrl, finalBannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
         ]);
         
         res.json({ success: true });
