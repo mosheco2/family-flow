@@ -12649,9 +12649,9 @@ window.fetchStoreSettings = async function() {
             syncInputs('store-vat-rate', vatSettings.rate);
             localStorage.setItem('store_include_vat', vatSettings.enabled);
 
-            // טיפול חסין בלוגו
+            // טיפול חסין בלוגו (תמיכה ב-Base64)
             const hasLogo = s.logo_url && s.logo_url.trim() !== '' && s.logo_url !== 'DELETE' && s.logo_url !== 'null';
-            const logoUrl = hasLogo ? (s.logo_url.startsWith('http') ? s.logo_url : `/${s.logo_url}`) : '';
+            const logoUrl = hasLogo ? (s.logo_url.startsWith('http') || s.logo_url.startsWith('data:') ? s.logo_url : `/${s.logo_url}`) : '';
 
             document.querySelectorAll('[id*="store-logo-preview"], [id*="wizard-logo-preview"], [id*="dash-logo-preview"]').forEach(el => {
                 if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
@@ -12671,9 +12671,9 @@ window.fetchStoreSettings = async function() {
                 document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
             }
 
-            // טיפול חסין בבאנר
+            // טיפול חסין בבאנר (תמיכה ב-Base64)
             const hasBanner = s.banner_url && s.banner_url.trim() !== '' && s.banner_url !== 'DELETE' && s.banner_url !== 'null';
-            const bannerUrl = hasBanner ? (s.banner_url.startsWith('http') ? s.banner_url : `/${s.banner_url}`) : '';
+            const bannerUrl = hasBanner ? (s.banner_url.startsWith('http') || s.banner_url.startsWith('data:') ? s.banner_url : `/${s.banner_url}`) : '';
             const headerBannerEl = document.getElementById('main-header-banner');
             
             if (hasBanner) {
