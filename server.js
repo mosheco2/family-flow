@@ -1330,33 +1330,68 @@ app.post('/api/tasks/update', async (req, res) => {
 // ============================================================
 
 app.post('/api/academy/assign', async (req, res) => {
-    try {
-        const { userId, bundleId, reward, days, groupId } = req.body;
-        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
-        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try {
+        const { userId, bundleId, reward, days, groupId } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.post('/api/academy/submit', async (req, res) => {
-    try {
-        const { userId, bundleId, score, groupId } = req.body;
-        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
-        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
-        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
-        await pool.query('BEGIN');
-        if (ua.rows.length > 0) {
-            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
-            if (passed) {
-                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
-                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
-                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
-            }
-        }
-        await pool.query('COMMIT'); res.json({success:true});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+    try {
+        const { userId, bundleId, score, groupId } = req.body;
+        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
+        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
+        await pool.query('BEGIN');
+        if (ua.rows.length > 0) {
+            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
+            if (passed) {
+                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
+                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
+            }
+        }
+        await pool.query('COMMIT'); res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
+// יצירת הכשרה / חפיפה ידנית ושמירה למאגר
+app.post('/api/academy/bundles', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const bundleType = type || 'professional';
+        
+        const bundleRes = await dbClient.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
+            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
+        );
+        
+        const newBundleId = bundleRes.rows[0].id;
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(
+                    `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, 
+                    [newBundleId, q.q, JSON.stringify(q.options), q.correct]
+                );
+            }
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
 // ============================================================
 // --- AI ENDPOINTS (ADAPTED FOR FAMILY / BUSINESS) ---
 // ============================================================
@@ -1403,13 +1438,33 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         }
 
         const result = await model.generateContent(prompt);
-        const quizData = JSON.parse(result.response.text());
+        let rawText = result.response.text().trim();
+        
+        // SAFE JSON PARSE: חילוץ דינמי במידה וה-AI דוחף סימוני Markdown למרות הבקשה
+        const jsonStart = rawText.indexOf('{');
+        const jsonEnd = rawText.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה מבנה תקין');
+        
+        const quizData = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+        
         const bundleType = gType === 'BUSINESS' ? 'professional' : 'financial';
-        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 80, 10.0) RETURNING id`, [bundleType, ageGroup, quizData.title, quizData.text_content || '']);
+        
+        // שמירת ההכשרה למסד הנתונים
+        const bundleRes = await pool.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, 10.0, $5) RETURNING id`, 
+            [bundleType, ageGroup, quizData.title, quizData.text_content || '', String(groupId)]
+        );
         const newBundleId = bundleRes.rows[0].id;
-        for (const q of quizData.questions) await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+        
+        for (const q of quizData.questions) {
+            await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, 
+            [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+        }
+        
         res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הלומדה'); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה ביצירת הלומדה - ייתכן שהנושא היה מורכב מדי. נסה לנסח שוב.'); 
+    }
 });
 
 app.post('/api/tasks/ai-generate', async (req, res) => {
