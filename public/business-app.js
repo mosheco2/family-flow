@@ -3244,53 +3244,6 @@ async function renderForecast() {
     drawForecastCharts({ income: totalIncome }, { expense: totalExpense }, totalIncome, totalExpense);
 }
 
-window.fetchBudget = async function() {
-    const cat = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id;
-    try {
-        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
-        let data = await res.json(); if (!Array.isArray(data)) data = []; 
-        const list = getEl('budget-list'); 
-        if(!list) return;
-        list.innerHTML = '';
-        
-        const baseCategories = CATEGORIES.expense.map(c => c.value);
-        data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
-        baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
-        let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
-        data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
-
-        const createRow = (category, spent, limit, isSub = false) => {
-            const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
-            const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
-            // שינוי קריטי: הוספת window. לפונקציה
-            const editBtn = (category !== 'allocations') ? `<button onclick="window.openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
-            const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
-            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
-        };
-
-        if (childrenItems.length > 0) {
-            const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
-            const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
-            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי יעדים ובונוסים' : 'התקציב שלי';
-            list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
-        }
-        otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
-    } catch(e) {}
-};
-
-// שינוי קריטי: הגדרת הפונקציה ב-Window
-window.openAddBudgetCategoryModal = function() { 
-    getEl('new-budget-cat-name').value = ''; 
-    getEl('add-budget-cat-modal').classList.remove('hidden'); 
-};
-
-window.submitNewBudgetCat = async function() { 
-    const catName = val('new-budget-cat-name'); if(!catName) return; 
-    const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
-    const btn = getEl('btn-submit-budget-cat'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); getEl('add-budget-cat-modal').classList.add('hidden'); window.fetchBudget(); } catch(e) { showToast('error', 'שגיאה בשמירת סעיף'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הוסף לתקציב'; } }
-};
-
 window.openPasteListModal = function() { getEl('paste-list-text').value = ''; getEl('paste-list-modal').classList.remove('hidden'); };
 
 window.submitPastedList = async function() {
@@ -3310,20 +3263,108 @@ window.exportShopToWhatsApp = function() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 };
 
-// שינוי קריטי: הגדרת הפונקציה ב-Window
-window.openBudgetModal = function(catId, catName, currentLimit) { 
-    getEl('budget-cat-name').innerText = catName; 
-    getEl('budget-cat-id').value = catId; 
-    getEl('budget-limit').value = currentLimit > 0 ? currentLimit : ''; 
-    getEl('budget-modal').classList.remove('hidden'); 
+// ==========================================
+// MASTER FIX: BUDGET MODULE OVERRIDES
+// ==========================================
+
+window.fetchBudget = async function() {
+    const cat = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id;
+    try {
+        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
+        let data = await res.json(); if (!Array.isArray(data)) data = []; 
+        const list = getEl('budget-list'); 
+        if(!list) return; // הגנה
+        list.innerHTML = '';
+        
+        const baseCategories = CATEGORIES.expense.map(c => c.value);
+        data.forEach(b => { 
+            if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { 
+                CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); 
+                BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; 
+            } 
+        });
+        baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); 
+        const childrenCategories = ['allowance', 'tasks', 'academy']; 
+        childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
+        let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
+        data.forEach(b => { 
+            if (childrenCategories.includes(b.category) || b.category === 'allocations') { 
+                childrenTotalSpent += parseFloat(b.spent) || 0; 
+                childrenTotalLimit += parseFloat(b.limit) || 0; 
+                childrenItems.push(b); 
+            } else { 
+                otherItems.push(b); 
+            } 
+        });
+
+        const createRow = (category, spent, limit, isSub = false) => {
+            const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+            const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
+            // קריאה מאובטחת וחסינה דרך אובייקט חלון
+            const editBtn = (category !== 'allocations') ? `<button onclick="if(typeof window.openBudgetModal === 'function') window.openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
+            const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
+            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+        };
+
+        if (childrenItems.length > 0) {
+            const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
+            const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי יעדים ובונוסים' : 'התקציב שלי';
+            list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
+        }
+        otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
+    } catch(e) {}
+};
+
+window.openAddBudgetCategoryModal = function() { 
+    getEl('new-budget-cat-name').value = ''; 
+    getEl('add-budget-cat-modal').classList.remove('hidden'); 
+};
+
+window.submitNewBudgetCat = async function() { 
+    const catName = val('new-budget-cat-name'); if(!catName) return; 
+    const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
+    const btn = getEl('btn-submit-budget-cat'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try { 
+        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); 
+        getEl('add-budget-cat-modal').classList.add('hidden'); 
+        window.fetchBudget(); 
+    } catch(e) { 
+        showToast('error', 'שגיאה בשמירת סעיף'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'הוסף לתקציב'; } 
+    }
+};
+
+window.openBudgetModal = function(catId, catName, currentLimit) { 
+    getEl('budget-cat-name').innerText = catName; 
+    getEl('budget-cat-id').value = catId; 
+    getEl('budget-limit').value = currentLimit > 0 ? currentLimit : ''; 
+    getEl('budget-modal').classList.remove('hidden'); 
 };
 
 window.submitBudgetUpdate = async function() { 
     const cat = val('budget-cat-id'); const limit = parseFloat(val('budget-limit')) || 0; 
     const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
     const btn = getEl('btn-submit-budget-update'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); getEl('budget-modal').classList.add('hidden'); window.fetchBudget(); } catch(e) { showToast('error', 'שגיאת בעדכון'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'עדכן יעד'; } }
+    try { 
+        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); 
+        getEl('budget-modal').classList.add('hidden'); 
+        window.fetchBudget(); 
+    } catch(e) { 
+        showToast('error', 'שגיאת בעדכון'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'עדכן יעד'; } 
+    }
 };
+
+// וידוא שהכפתור קורא לפונקציה מתוך אובייקט החלון
+setTimeout(() => {
+    const addCatBtn = document.querySelector('button[onclick="openAddBudgetCategoryModal()"]');
+    if (addCatBtn) {
+        addCatBtn.setAttribute('onclick', 'window.openAddBudgetCategoryModal()');
+    }
+}, 2000);
 
 // ... פונקציות ה-Forecast נשארות כאן ...
 
