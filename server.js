@@ -1440,31 +1440,78 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const result = await model.generateContent(prompt);
         let rawText = result.response.text().trim();
         
-        // SAFE JSON PARSE: חילוץ דינמי במידה וה-AI דוחף סימוני Markdown למרות הבקשה
+        // תיקון חילוץ JSON בטוח ממבנה Markdown אם נוצר בטעות על ידי ה-AI
         const jsonStart = rawText.indexOf('{');
         const jsonEnd = rawText.lastIndexOf('}');
         if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה מבנה תקין');
-        
         const quizData = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
-        
+
         const bundleType = gType === 'BUSINESS' ? 'professional' : 'financial';
-        
-        // שמירת ההכשרה למסד הנתונים
-        const bundleRes = await pool.query(
-            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, 10.0, $5) RETURNING id`, 
-            [bundleType, ageGroup, quizData.title, quizData.text_content || '', String(groupId)]
+        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, [bundleType, ageGroup, quizData.title, quizData.text_content || '', 10.0, String(groupId)]);
+        const newBundleId = bundleRes.rows[0].id;
+        for (const q of quizData.questions) await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הלומדה - נסה שנית'); }
+});
+
+// --- נתיבים לניהול ועריכת הכשרות ---
+app.post('/api/academy/bundles', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const bundleType = type || 'professional';
+        const bundleRes = await dbClient.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
+            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
         );
         const newBundleId = bundleRes.rows[0].id;
         
-        for (const q of quizData.questions) {
-            await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, 
-            [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
+            }
         }
-        
+        await dbClient.query('COMMIT');
         res.json({ success: true, bundleId: newBundleId });
     } catch (e) { 
-        handleAIError(e, res, 'שגיאה ביצירת הלומדה - ייתכן שהנושא היה מורכב מדי. נסה לנסח שוב.'); 
-    }
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.get('/api/academy/bundles/:id', async (req, res) => {
+    try {
+        const bRes = await pool.query('SELECT * FROM quiz_bundles WHERE id = $1', [req.params.id]);
+        if (bRes.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
+        const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1 ORDER BY id ASC', [req.params.id]);
+        res.json({ success: true, bundle: { ...bRes.rows[0], questions: qRes.rows } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/academy/bundles/:id', async (req, res) => {
+    let dbClient;
+    try {
+        const { title, ageGroup, reward, textContent, questions } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', parseFloat(reward)||0, textContent || '', req.params.id]);
+        await dbClient.query('DELETE FROM quiz_questions WHERE bundle_id = $1', [req.params.id]);
+        
+        if (questions && Array.isArray(questions)) {
+            for (const q of questions) {
+                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [req.params.id, q.q, JSON.stringify(q.options), q.correct]);
+            }
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
 });
 
 app.post('/api/tasks/ai-generate', async (req, res) => {
