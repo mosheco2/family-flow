@@ -5018,8 +5018,6 @@ async function fetchStoreSettings() {
             
             const isVat = data.settings.include_vat === true || String(data.settings.include_vat) === 'true' || data.settings.include_vat === 1;
             getEls('store-include-vat').forEach(el => el.checked = isVat);
-            // סנכרון עם ה-localStorage למקרה הצורך
-            localStorage.setItem('store_include_vat', isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
@@ -5035,9 +5033,10 @@ async function fetchStoreSettings() {
                 if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
                 else { el.classList.remove('hidden'); el.style.display = 'flex'; }
             });
-            // שינוי קריטי: אם יש תמונה מהשרת אנחנו מכניסים אותה לשדות הנסתרים
-            getEls('store-logo-base64').forEach(el => el.value = hasLogo ? logoUrl : 'DELETE');
             getEls('btn-clear-logo').forEach(el => { if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden'); });
+            
+            // מנקה את השדות המוסתרים לאחר טעינה כדי לא לשלוח סתם מחדש
+            getEls('store-logo-base64').forEach(el => el.value = '');
 
             const hasBanner = data.settings.banner_url && data.settings.banner_url !== 'DELETE';
             const bannerUrl = data.settings.banner_url;
@@ -5054,9 +5053,9 @@ async function fetchStoreSettings() {
                 if(hasBanner) el.classList.add('hidden');
                 else el.classList.remove('hidden');
             });
-            // אותו הדבר לגבי הבאנר
-            getEls('store-banner-base64').forEach(el => el.value = hasBanner ? bannerUrl : 'DELETE');
             getEls('btn-clear-bg').forEach(el => { if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden'); });
+            
+            getEls('store-banner-base64').forEach(el => el.value = '');
 
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
@@ -5070,54 +5069,43 @@ async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const getVal = (id) => {
+        const getLastVal = (id) => {
             const els = document.querySelectorAll(`[id="${id}"]`);
-            let val = '';
-            els.forEach(el => { if(el.value && el.value !== 'DELETE') val = el.value; });
-            return val || (els.length > 0 ? els[0].value : '');
+            return els.length > 0 ? els[els.length - 1].value : '';
         };
 
-        const getChecked = (id) => {
-            let isChecked = false;
-            document.querySelectorAll(`[id="${id}"]`).forEach(el => { if(el.checked) isChecked = true; });
-            return isChecked;
+        const getLastChecked = (id) => {
+            const els = document.querySelectorAll(`[id="${id}"]`);
+            return els.length > 0 ? els[els.length - 1].checked : false;
         };
 
-        // לקיחת נתון מע"מ מה-DOM ושמירה בלוקאלי
-        const includeVat = getChecked('store-include-vat');
-        localStorage.setItem('store_include_vat', includeVat);
+        const includeVat = getLastChecked('store-include-vat');
         
-        // תיקון שליפת התמונות
-        let logoBase64 = null;
-        let logoValues = Array.from(document.querySelectorAll('[id="store-logo-base64"]')).map(el => el.value);
-        if (logoValues.every(v => v === 'DELETE' || v === '')) {
-            // אם הכל ריק או DELETE, לא נשלח כלום (כדי שהשרת לא ידרוס) - אלא אם יש DELETE מפורש
-             logoBase64 = logoValues.includes('DELETE') ? 'DELETE' : null;
-        } else {
-             logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
-        }
+        const getLogoBannerVal = (id) => {
+            const els = Array.from(document.querySelectorAll(`[id="${id}"]`));
+            if (els.some(el => el.value && el.value !== 'DELETE' && el.value !== '')) {
+                return els.find(el => el.value && el.value !== 'DELETE' && el.value !== '').value;
+            }
+            if (els.some(el => el.value === 'DELETE')) return 'DELETE';
+            return null;
+        };
 
-        let bannerBase64 = null;
-        let bannerValues = Array.from(document.querySelectorAll('[id="store-banner-base64"]')).map(el => el.value);
-        if (bannerValues.every(v => v === 'DELETE' || v === '')) {
-             bannerBase64 = bannerValues.includes('DELETE') ? 'DELETE' : null;
-        } else {
-             bannerBase64 = bannerValues.find(v => v && v !== 'DELETE' && v !== '');
-        }
+        const logoBase64 = getLogoBannerVal('store-logo-base64');
+        const bannerBase64 = getLogoBannerVal('store-banner-base64');
 
         const payload = { 
             groupId: currentGroup.id, 
-            isActive: getChecked('store-is-active'), 
-            welcomeMessage: getVal('store-welcome-msg'), 
-            phone: getVal('store-phone'), 
-            minOrder: getVal('store-min-order'), 
-            slogan: getVal('store-slogan'), 
-            storeType: getVal('store-type') || 'retail', 
+            isActive: getLastChecked('store-is-active'), 
+            welcomeMessage: getLastVal('store-welcome-msg'), 
+            phone: getLastVal('store-phone'), 
+            minOrder: getLastVal('store-min-order'), 
+            slogan: getLastVal('store-slogan'), 
+            storeType: getLastVal('store-type') || 'retail', 
             logoUrl: logoBase64,
             bannerUrl: bannerBase64,
-            openTime: getVal('store-open-time'), 
-            closeTime: getVal('store-close-time'), 
-            whatsappNumber: getVal('store-whatsapp'),
+            openTime: getLastVal('store-open-time'), 
+            closeTime: getLastVal('store-close-time'), 
+            whatsappNumber: getLastVal('store-whatsapp'),
             includeVat: includeVat
         };
 
@@ -5135,6 +5123,8 @@ async function saveStoreSettings() {
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
+            document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = '');
+            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = '');
             fetchStoreSettings(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
@@ -5200,8 +5190,6 @@ window.handleStoreBannerUpload = function(event) {
 window.clearImage = function(targetIdPrefix) {
     document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
     document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
-    
-    // סימון מפורש למחיקה לשרת
     document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
     
     if (targetIdPrefix.includes('logo')) {
