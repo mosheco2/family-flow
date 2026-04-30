@@ -5004,54 +5004,68 @@ async function fetchStoreSettings() {
         const data = await res.json();
         if (data.success && data.settings) {
             const s = data.settings;
-            const getEls = (id) => document.querySelectorAll(`[id="${id}"]`);
             
-            getEls('store-is-active').forEach(el => el.checked = s.is_active);
-            getEls('store-welcome-msg').forEach(el => el.value = s.welcome_message || '');
-            getEls('store-phone').forEach(el => el.value = s.phone || '');
-            getEls('store-min-order').forEach(el => el.value = s.min_order || '');
-            getEls('store-slogan').forEach(el => el.value = s.slogan || '');
-            getEls('store-type').forEach(el => el.value = s.store_type || 'retail');
-            getEls('store-open-time').forEach(el => el.value = s.open_time || '');
-            getEls('store-close-time').forEach(el => el.value = s.close_time || '');
-            getEls('store-whatsapp').forEach(el => el.value = s.whatsapp_number || '');
-            getEls('store-public-link').forEach(el => el.value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
+            // גישה ישירה ויחידה לאלמנטים במסך ההגדרות עצמו
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            const setCheck = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
             
-            // קריאת VAT ממסד הנתונים וסנכרון חזק
-            const isVat = s.include_vat === true || String(s.include_vat) === 'true';
-            getEls('store-include-vat').forEach(el => el.checked = isVat);
+            setCheck('store-is-active', s.is_active);
+            setVal('store-welcome-msg', s.welcome_message || '');
+            setVal('store-phone', s.phone || '');
+            setVal('store-min-order', s.min_order || '');
+            setVal('store-slogan', s.slogan || '');
+            setVal('store-type', s.store_type || 'retail');
+            setVal('store-open-time', s.open_time || '');
+            setVal('store-close-time', s.close_time || '');
+            setVal('store-whatsapp', s.whatsapp_number || '');
+            setVal('store-public-link', `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
+            
+            // טיפול חזק במע"מ
+            const isVat = (s.include_vat === true || String(s.include_vat) === 'true' || s.include_vat === 1);
+            setCheck('store-include-vat', isVat);
             localStorage.setItem('store_include_vat', isVat);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
 
-            const hasLogo = s.logo_url && s.logo_url !== 'DELETE';
-            getEls('store-logo-preview').forEach(el => {
-                if(hasLogo) { el.src = s.logo_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            getEls('store-logo-placeholder').forEach(el => {
-                if(hasLogo) el.classList.add('hidden'); else el.classList.remove('hidden');
-            });
-            getEls('btn-clear-logo').forEach(el => {
-                if(hasLogo) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            // חובה: איפוס השדה המוסתר כדי שלא נשדר סתם שמירה ריקה
-            getEls('store-logo-base64').forEach(el => el.value = '');
+            // טיפול חזק בתמונות - מתעלם ממחרוזת "null" שעלולה לקרות
+            const isValidUrl = (url) => url && url !== 'DELETE' && url !== 'null' && url.trim() !== '';
 
-            const hasBanner = s.banner_url && s.banner_url !== 'DELETE';
-            getEls('store-banner-preview').forEach(el => {
-                if(hasBanner) { el.src = s.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            getEls('store-banner-placeholder').forEach(el => {
-                if(hasBanner) el.classList.add('hidden'); else el.classList.remove('hidden');
-            });
-            getEls('btn-clear-bg').forEach(el => {
-                if(hasBanner) el.classList.remove('hidden'); else el.classList.add('hidden');
-            });
-            // חובה: איפוס
-            getEls('store-banner-base64').forEach(el => el.value = '');
+            // לוגו
+            const hasLogo = isValidUrl(s.logo_url);
+            const logoPreview = document.getElementById('store-logo-preview');
+            const logoPlaceholder = document.getElementById('store-logo-placeholder');
+            const btnClearLogo = document.getElementById('btn-clear-logo');
+            const logoBase64 = document.getElementById('store-logo-base64');
+            
+            if(logoPreview) {
+                if(hasLogo) { logoPreview.src = s.logo_url; logoPreview.classList.remove('hidden'); logoPreview.style.display = 'block'; }
+                else { logoPreview.src = ''; logoPreview.classList.add('hidden'); logoPreview.style.display = 'none'; }
+            }
+            if(logoPlaceholder) { if(hasLogo) logoPlaceholder.classList.add('hidden'); else logoPlaceholder.classList.remove('hidden'); }
+            if(btnClearLogo) { if(hasLogo) btnClearLogo.classList.remove('hidden'); else btnClearLogo.classList.add('hidden'); }
+            if(logoBase64) logoBase64.value = ''; // איפוס תמיד אחרי טעינה
+
+            // באנר
+            const hasBanner = isValidUrl(s.banner_url);
+            const bannerPreview = document.getElementById('store-banner-preview');
+            const bannerPlaceholder = document.getElementById('store-banner-placeholder');
+            const btnClearBg = document.getElementById('btn-clear-bg');
+            const bannerBase64 = document.getElementById('store-banner-base64');
+            const headerBannerEl = document.getElementById('main-header-banner');
+            
+            if (headerBannerEl) {
+                if (hasBanner) headerBannerEl.style.backgroundImage = `url('${s.banner_url}')`;
+                else headerBannerEl.style.backgroundImage = `none`;
+            }
+
+            if(bannerPreview) {
+                if(hasBanner) { bannerPreview.src = s.banner_url; bannerPreview.classList.remove('hidden'); bannerPreview.style.display = 'block'; }
+                else { bannerPreview.src = ''; bannerPreview.classList.add('hidden'); bannerPreview.style.display = 'none'; }
+            }
+            if(bannerPlaceholder) { if(hasBanner) bannerPlaceholder.classList.add('hidden'); else bannerPlaceholder.classList.remove('hidden'); }
+            if(btnClearBg) { if(hasBanner) btnClearBg.classList.remove('hidden'); else btnClearBg.classList.add('hidden'); }
+            if(bannerBase64) bannerBase64.value = ''; // איפוס תמיד אחרי טעינה
 
             if (s.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
@@ -5065,38 +5079,22 @@ async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const getVal = (id) => {
-            let val = '';
-            document.querySelectorAll(`[id="${id}"]`).forEach(el => {
-                if(el.value && el.value.trim() !== '' && el.value !== 'DELETE') val = el.value;
-            });
-            return val;
-        };
+        // פונקציות חכמות שמתעדפות את שדות ה-DOM האמיתיים שמוצגים למשתמש
+        const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+        const getChecked = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
 
-        // סריקה חכמה של כל הצ'קבוקסים כדי לאתר אם אחד מהם סומן
-        let includeVat = false;
-        let isActive = false;
-        document.querySelectorAll('[id="store-include-vat"]').forEach(el => { if(el.checked) includeVat = true; });
-        document.querySelectorAll('[id="store-is-active"]').forEach(el => { if(el.checked) isActive = true; });
-        
+        const includeVat = getChecked('store-include-vat');
         localStorage.setItem('store_include_vat', includeVat);
         
-        // קריאה חכמה של התמונות (מתעלמת משדות ריקים שנשארים מהאשף)
-        let logoBase64 = null;
-        document.querySelectorAll('[id="store-logo-base64"]').forEach(el => {
-            if(el.value === 'DELETE') logoBase64 = 'DELETE';
-            else if(el.value && el.value.length > 100) logoBase64 = el.value;
-        });
+        const logoInput = document.getElementById('store-logo-base64');
+        const logoBase64 = logoInput && logoInput.value.trim() !== '' ? logoInput.value : null;
 
-        let bannerBase64 = null;
-        document.querySelectorAll('[id="store-banner-base64"]').forEach(el => {
-            if(el.value === 'DELETE') bannerBase64 = 'DELETE';
-            else if(el.value && el.value.length > 100) bannerBase64 = el.value;
-        });
+        const bannerInput = document.getElementById('store-banner-base64');
+        const bannerBase64 = bannerInput && bannerInput.value.trim() !== '' ? bannerInput.value : null;
 
         const payload = { 
             groupId: currentGroup.id, 
-            isActive: isActive, 
+            isActive: getChecked('store-is-active'), 
             welcomeMessage: getVal('store-welcome-msg'), 
             phone: getVal('store-phone'), 
             minOrder: getVal('store-min-order'), 
@@ -5116,15 +5114,17 @@ async function saveStoreSettings() {
         });
 
         if (!res.ok) {
-            throw new Error(`השרת דחה את הבקשה (שגיאה ${res.status}). ייתכן שהתמונה גדולה מדי.`);
+            let errMsg = 'שגיאת תקשורת עם השרת';
+            try { const errData = await res.json(); errMsg = errData.error; } catch(e) {}
+            throw new Error(errMsg || `השרת דחה את הבקשה (שגיאה ${res.status}). נסה תמונה קטנה יותר.`);
         }
 
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
-            // איפוס מוחלט של שדות התמונה כדי שלא ישדרו שוב בשמירה הבאה
-            document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = '');
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = '');
+            // איפוס מוחלט כדי שלא ישלח מחדש נתונים
+            if (logoInput) logoInput.value = '';
+            if (bannerInput) bannerInput.value = '';
             fetchStoreSettings(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
@@ -5142,22 +5142,18 @@ window.handleStoreLogoUpload = function(event) {
     if (typeof compressImage === 'function') {
         showToast('info', 'מכווץ את הלוגו לשמירה מהירה...');
         compressImage(file, 400, 400, 0.7, function(base64DataUrl) {
-            document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = base64DataUrl);
-            document.querySelectorAll('[id="store-logo-preview"]').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-logo-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-            document.querySelectorAll('[id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            const logoBase64 = document.getElementById('store-logo-base64');
+            const logoPreview = document.getElementById('store-logo-preview');
+            const logoPlaceholder = document.getElementById('store-logo-placeholder');
+            const btnClearLogo = document.getElementById('btn-clear-logo');
+            
+            if(logoBase64) logoBase64.value = base64DataUrl;
+            if(logoPreview) { logoPreview.src = base64DataUrl; logoPreview.classList.remove('hidden'); logoPreview.style.display='block'; }
+            if(logoPlaceholder) logoPlaceholder.classList.add('hidden');
+            if(btnClearLogo) btnClearLogo.classList.remove('hidden');
+            
             showToast('success', 'לוגו מוכן! זכור ללחוץ על "שמור הגדרות"');
         });
-    } else {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const base64 = e.target.result;
-            document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = base64);
-            document.querySelectorAll('[id="store-logo-preview"]').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-logo-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-            document.querySelectorAll('[id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
-        };
-        reader.readAsDataURL(file);
     }
 };
 
@@ -5168,47 +5164,47 @@ window.handleStoreBannerUpload = function(event) {
     if (typeof compressImage === 'function') {
         showToast('info', 'מכווץ את הבאנר לשמירה מהירה...');
         compressImage(file, 800, 500, 0.7, function(base64DataUrl) {
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = base64DataUrl);
-            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = base64DataUrl; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            const bannerBase64 = document.getElementById('store-banner-base64');
+            const bannerPreview = document.getElementById('store-banner-preview');
+            const bannerPlaceholder = document.getElementById('store-banner-placeholder');
+            const btnClearBg = document.getElementById('btn-clear-bg');
+            
+            if(bannerBase64) bannerBase64.value = base64DataUrl;
+            if(bannerPreview) { bannerPreview.src = base64DataUrl; bannerPreview.classList.remove('hidden'); bannerPreview.style.display='block'; }
+            if(bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+            if(btnClearBg) btnClearBg.classList.remove('hidden');
+            
             showToast('success', 'באנר מוכן! זכור ללחוץ על "שמור הגדרות"');
         });
-    } else {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const base64 = e.target.result;
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = base64);
-            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = base64; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-        };
-        reader.readAsDataURL(file);
     }
 };
 
 window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
-    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
+    const preview = document.getElementById(`${targetIdPrefix}-preview`);
+    const placeholder = document.getElementById(`${targetIdPrefix}-placeholder`);
+    const base64Input = document.getElementById(`${targetIdPrefix}-base64`);
     
-    // סימון מפורש למחיקה לשרת (שולח DELETE כפשוטו)
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
+    if(preview) { preview.src = ''; preview.classList.add('hidden'); preview.style.display = 'none'; }
+    if(placeholder) { placeholder.classList.remove('hidden'); }
+    
+    // סימון מפורש למחיקה לשרת
+    if(base64Input) base64Input.value = 'DELETE';
     
     if (targetIdPrefix.includes('logo')) {
-        document.querySelectorAll('[id="btn-clear-logo"], [id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
+        const btnClearLogo = document.getElementById('btn-clear-logo');
+        if(btnClearLogo) btnClearLogo.classList.add('hidden');
     } else {
-        document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+        const btnClearBg = document.getElementById('btn-clear-bg');
+        if(btnClearBg) btnClearBg.classList.add('hidden');
     }
     showToast('info', 'התמונה הוסרה. אל תשכחו ללחוץ "שמור הגדרות חנות" למטה!');
 };
 
 window.generateBannerAI = async function() {
-    let logoBase64 = null;
-    document.querySelectorAll('[id="store-logo-base64"]').forEach(el => {
-        if(el.value && el.value.length > 100) logoBase64 = el.value;
-    });
+    const logoInput = document.getElementById('store-logo-base64');
+    let logoBase64 = logoInput ? logoInput.value : null;
 
-    if (!logoBase64 || logoBase64 === 'DELETE') return showToast('error', 'יש להעלות קודם לוגו כדי שה-AI יתאים לו רקע!');
+    if (!logoBase64 || logoBase64 === 'DELETE' || logoBase64 === '') return showToast('error', 'יש להעלות קודם לוגו כדי שה-AI יתאים לו רקע!');
     
     const btn = document.getElementById('btn-generate-banner-ai');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; }
@@ -5227,10 +5223,15 @@ window.generateBannerAI = async function() {
         if (data.success && data.imageUrl) {
             const finalUrl = data.imageUrl;
             
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = finalUrl);
-            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = finalUrl; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            const bannerBase64 = document.getElementById('store-banner-base64');
+            const bannerPreview = document.getElementById('store-banner-preview');
+            const bannerPlaceholder = document.getElementById('store-banner-placeholder');
+            const btnClearBg = document.getElementById('btn-clear-bg');
+
+            if(bannerBase64) bannerBase64.value = finalUrl;
+            if(bannerPreview) { bannerPreview.src = finalUrl; bannerPreview.classList.remove('hidden'); bannerPreview.style.display='block'; }
+            if(bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+            if(btnClearBg) btnClearBg.classList.remove('hidden');
             
             showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
             if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
