@@ -5003,7 +5003,6 @@ async function fetchStoreSettings() {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
         const data = await res.json();
         if (data.success && data.settings) {
-            // החלפנו ל-querySelectorAll כדי לעקוף את בעיית ה-ID הכפול ב-HTML!
             const getEls = (id) => document.querySelectorAll(`[id="${id}"]`);
             
             getEls('store-is-active').forEach(el => el.checked = data.settings.is_active);
@@ -5121,7 +5120,7 @@ async function saveStoreSettings() {
 
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+            showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
             fetchStoreSettings(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
@@ -5197,6 +5196,7 @@ window.clearImage = function(targetIdPrefix) {
     showToast('info', 'התמונה הוסרה. אל תשכחו ללחוץ "שמור הגדרות חנות" למטה!');
 };
 
+// תיקון: הצגת הרקע מה-AI מבלי לקרוס!
 window.generateBannerAI = async function() {
     let logoBase64 = null;
     let logoValues = Array.from(document.querySelectorAll('[id="store-logo-base64"]')).map(el => el.value);
@@ -5219,28 +5219,17 @@ window.generateBannerAI = async function() {
         if(!handleAIResponseCheck(data)) return;
         
         if (data.success && data.imageUrl) {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width; canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                const base64Url = canvas.toDataURL('image/jpeg', 0.8);
-                
-                document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = base64Url);
-                document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = base64Url; el.classList.remove('hidden'); el.style.display='block'; });
-                document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
-                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-                
-                showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
-                if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
-            };
-            img.onerror = function() {
-                showToast('error', 'שגיאה בטעינת הרקע שנוצר');
-                if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
-            };
-            img.src = data.imageUrl;
+            // שינוי קריטי: לא משתמשים ב-Canvas כדי למנוע CORS Error. פשוט מציגים ושומרים את ה-URL!
+            const finalUrl = data.imageUrl;
+            
+            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = finalUrl);
+            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = finalUrl; el.classList.remove('hidden'); el.style.display='block'; });
+            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            
+            showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
+            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+            
         } else {
             showToast('error', data.error || 'שגיאה ביצירת רקע');
             if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
