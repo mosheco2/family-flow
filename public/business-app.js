@@ -2666,22 +2666,62 @@ async function deleteTransaction() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
-function updateAssignDetails() { const select = getEl('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { getEl('assign-reward').value = bundle.reward; } }
-function openAssignModal() {
+window.updateAssignDetails = function() { const select = getEl('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => String(b.id) === String(bundleId)); if(bundle) { getEl('assign-reward').value = bundle.reward || 0; } };
+
+window.openAssignModal = function() {
+    if (!document.getElementById('assign-quiz-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i> הקצאת הכשרה לעובד</h3>
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">בחר עובד/ת:</label>
+                        <select id="assign-child-select" class="modern-input py-2.5 text-sm w-full bg-slate-50"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">בחר הכשרה / לומדה:</label>
+                        <select id="assign-bundle-select" onchange="window.updateAssignDetails()" class="modern-input py-2.5 text-sm w-full bg-slate-50"></select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תמריץ ביצוע (₪):</label>
+                            <input type="number" id="assign-reward" class="modern-input py-2.5 text-sm w-full text-center dir-ltr font-bold text-indigo-700 bg-indigo-50" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">ימים לביצוע (יעד):</label>
+                            <input type="number" id="assign-days" class="modern-input py-2.5 text-sm w-full text-center dir-ltr" placeholder="למשל: 3">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200 text-sm">ביטול</button>
+                    <button id="btn-submit-assign" onclick="window.submitAssignQuiz()" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md transition hover:bg-indigo-700 text-sm">שייך לעובד</button>
+                </div>
+            </div>
+        </div>`);
+    }
+    
     const cSelect = getEl('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר עובד...</option>';
-    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
-    const bSelect = getEl('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר לומדה...</option>';
-    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'financial' ? '📈' : (b.type === 'reading' ? '📖' : '🧠')}] ${safeStr(b.title)} (${b.age_group})</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין הדרכות זמינות</option>'; }
-    getEl('assign-reward').value = ''; getEl('assign-days').value = ''; getEl('assign-quiz-modal').classList.remove('hidden');
-}
-function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() => { const select = getEl('assign-bundle-select'); if (select) { select.value = bundleId; updateAssignDetails(); } }, 100); }
-async function submitAssignQuiz() {
-    const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
-    if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
-    const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
-    const data = await res.json();
-    if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); fetchData(); } else showToast('error', data.error);
-}
+    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+    const bSelect = getEl('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר לומדה...</option>';
+    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'financial' ? '📈' : (b.type === 'reading' ? '📖' : '🧠')}] ${safeStr(b.title)}</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין הדרכות זמינות</option>'; }
+    getEl('assign-reward').value = ''; getEl('assign-days').value = ''; getEl('assign-quiz-modal').classList.remove('hidden');
+};
+
+window.openAssignModalSpecific = function(bundleId) { window.openAssignModal(); setTimeout(() => { const select = getEl('assign-bundle-select'); if (select) { select.value = bundleId; window.updateAssignDetails(); } }, 100); };
+
+window.submitAssignQuiz = async function() {
+    const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
+    if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
+    const btn = getEl('btn-submit-assign'); if(btn) { btn.disabled = true; btn.innerText = 'משייך...'; }
+    try {
+        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); if(typeof fetchData === 'function') fetchData(); } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שייך לעובד'; } }
+};
 
 // ==========================================
 // MASTER FIX: ACADEMY MANUAL CREATION & TRACKS
@@ -13221,4 +13261,529 @@ window.generateAIQuiz = async function() {
             if(btn) { btn.disabled = false; btn.innerText = 'צור חפיפה'; }
         }
     });
+};
+// ==========================================
+// MASTER FIX: ACADEMY MODULE (ASSIGNMENTS, AI, TRACKS, EDITING)
+// ==========================================
+
+window.updateAssignDetails = function() { 
+    const select = getEl('assign-bundle-select'); 
+    const bundleId = select.value; 
+    const bundle = allBundles.find(b => String(b.id) === String(bundleId)); 
+    if(bundle) { getEl('assign-reward').value = bundle.reward || 0; } 
+};
+
+window.openAssignModal = function() {
+    if (!document.getElementById('assign-quiz-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-user-plus text-indigo-500 mr-2"></i> הקצאת הכשרה לעובד</h3>
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">בחר עובד/ת:</label>
+                        <select id="assign-child-select" class="modern-input py-2.5 text-sm w-full bg-slate-50"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">בחר הכשרה / לומדה:</label>
+                        <select id="assign-bundle-select" onchange="window.updateAssignDetails()" class="modern-input py-2.5 text-sm w-full bg-slate-50"></select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תמריץ ביצוע (₪):</label>
+                            <input type="number" id="assign-reward" class="modern-input py-2.5 text-sm w-full text-center dir-ltr font-bold text-indigo-700 bg-indigo-50" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">ימים לביצוע (יעד):</label>
+                            <input type="number" id="assign-days" class="modern-input py-2.5 text-sm w-full text-center dir-ltr" placeholder="למשל: 3">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200 text-sm">ביטול</button>
+                    <button id="btn-submit-assign" onclick="window.submitAssignQuiz()" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md transition hover:bg-indigo-700 text-sm">שייך לעובד</button>
+                </div>
+            </div>
+        </div>`);
+    }
+    
+    const cSelect = getEl('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר עובד...</option>';
+    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+    const bSelect = getEl('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר לומדה...</option>';
+    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'financial' ? '📈' : (b.type === 'reading' ? '📖' : '🧠')}] ${safeStr(b.title)}</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין הדרכות זמינות</option>'; }
+    getEl('assign-reward').value = ''; getEl('assign-days').value = ''; getEl('assign-quiz-modal').classList.remove('hidden');
+};
+
+window.openAssignModalSpecific = function(bundleId) { window.openAssignModal(); setTimeout(() => { const select = getEl('assign-bundle-select'); if (select) { select.value = bundleId; window.updateAssignDetails(); } }, 100); };
+
+window.submitAssignQuiz = async function() {
+    const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
+    if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
+    const btn = getEl('btn-submit-assign'); if(btn) { btn.disabled = true; btn.innerText = 'משייך...'; }
+    try {
+        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); if(typeof fetchData === 'function') fetchData(); } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שייך לעובד'; } }
+};
+
+window.editingBundleId = null;
+
+window.openEditBundleModal = async function(id) {
+    window.openCreateManualQuizModal(); 
+    getEl('manual-quiz-modal').querySelector('h3').innerHTML = '<i class="fa-solid fa-pen text-indigo-500 mr-2"></i> עריכת הכשרה ממאגר';
+    getEl('btn-submit-mq').innerHTML = 'עדכן הכשרה <i class="fa-solid fa-check"></i>';
+    
+    try {
+        const res = await fetch(`${API}/academy/bundles/${id}`);
+        const data = await res.json();
+        if (data.success && data.bundle) {
+            window.editingBundleId = id;
+            getEl('mq-title').value = data.bundle.title || '';
+            getEl('mq-reward').value = data.bundle.reward || 0;
+            getEl('mq-age').value = data.bundle.age_group || 'כללי';
+            getEl('mq-text').value = data.bundle.text_content || '';
+            
+            if (data.bundle.questions) {
+                window.manualQuizQuestions = data.bundle.questions.map(q => ({
+                    q: q.q,
+                    options: Array.isArray(q.options) ? q.options : JSON.parse(q.options),
+                    correct: q.correct
+                }));
+            } else {
+                window.manualQuizQuestions = [];
+            }
+            window.renderManualQuestions();
+        }
+    } catch (e) {
+        showToast('error', 'שגיאה בשליפת ההכשרה מהשרת');
+        getEl('manual-quiz-modal').classList.add('hidden');
+    }
+};
+
+window.renderAdminAcademy = function() {
+    const list = getEl('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
+    
+    let html = `
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 mt-2 gap-3">
+        <h4 class="font-bold text-slate-700"><i class="fa-solid fa-swatchbook text-indigo-500 mr-1"></i> מאגר חפיפות והכשרות</h4>
+        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+            <button onclick="window.editingBundleId = null; window.openCreateManualQuizModal();" class="flex-1 sm:flex-none bg-white text-indigo-600 px-3 py-2 rounded-lg text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm"><i class="fa-solid fa-pen-to-square"></i> יצירה ידנית</button>
+            <button onclick="window.openTrainingTrackModal()" class="flex-1 sm:flex-none bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition"><i class="fa-solid fa-layer-group"></i> הקצאת מסלול לעובדים</button>
+        </div>
+    </div>`;
+
+    if (!allBundles || allBundles.length === 0) { 
+        html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין הכשרות זמינות במאגר. ניתן לייצר ידנית או בעזרת ה-AI למעלה!</p>'; 
+    } else {
+        html += '<div class="space-y-2 mb-8">';
+        allBundles.forEach(b => {
+            const getIcon = (type) => type === 'financial' ? '📈' : (type === 'reading' ? '📖' : '🧠'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-indigo-200 transition group">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-slate-50 text-slate-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
+                    <div class="max-w-[150px] sm:max-w-xs">
+                        <h4 class="font-bold text-slate-700 text-sm truncate">${safeStr(b.title)}</h4>
+                        <p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • קהל: ${safeStr(b.age_group)} • תמריץ: ₪${b.reward}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.openEditBundleModal(${b.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 px-2 py-1.5 rounded-lg text-xs font-bold transition border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
+                    <button onclick="window.openAssignModalSpecific(${b.id})" class="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shrink-0">שיוך</button>
+                </div>
+            </div>`;
+        }); 
+        html += '</div>';
+    }
+
+    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6"><i class="fa-solid fa-list-check text-emerald-500 mr-1"></i> מעקב ביצוע עובדים</h4>';
+    if (!bundlesCache || bundlesCache.length === 0) { 
+        html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">טרם בוצעו שיוכים לאנשי צוות.</p>'; 
+    } else {
+        html += '<div class="space-y-2 pb-20">';
+        bundlesCache.forEach(b => {
+            let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם בהצטיינות' : (b.status === 'failed' ? 'נכשל / לפסילה' : 'טרם בוצע'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:shadow-md transition"><div><p class="font-bold text-slate-700 text-sm truncate max-w-[180px]">${safeStr(b.title)}</p><p class="text-[10px] text-slate-500 mt-0.5">עובד/ת: <span class="font-bold text-slate-700">${safeStr(b.assignee_name)}</span> | ${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 shrink-0">${statusText}</span></div>`;
+        }); 
+        html += '</div>';
+    } 
+    list.innerHTML = html;
+};
+
+window.manualQuizQuestions = [];
+
+window.openCreateManualQuizModal = function() {
+    window.manualQuizQuestions = [];
+    if (!document.getElementById('manual-quiz-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="manual-quiz-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
+                <button onclick="document.getElementById('manual-quiz-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-laptop-code text-indigo-500 mr-2"></i> בניית הכשרה ידנית</h3>
+                
+                <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">כותרת ההכשרה / חפיפה:</label>
+                        <input type="text" id="mq-title" class="modern-input py-2 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white" placeholder="למשל: נהלי פתיחת משמרת">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">תמריץ מעבר (₪):</label>
+                            <input type="number" id="mq-reward" class="modern-input py-2 text-sm w-full text-center dir-ltr font-bold text-indigo-700 bg-indigo-50 border-indigo-100" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">קהל יעד (תפקיד):</label>
+                            <input type="text" id="mq-age" class="modern-input py-2 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white" placeholder="למשל: כללי / אחמ''שים" value="כללי">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">חומר קריאה / הסבר מקדים:</label>
+                        <textarea id="mq-text" class="modern-input py-2 text-sm h-20 w-full bg-slate-50 border-slate-200 focus:bg-white" placeholder="טקסט שהעובד יקרא לפני המבחן..."></textarea>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-4 mt-2">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold text-slate-700 text-sm">שאלות ומבדק ידע:</h4>
+                            <button onclick="window.addManualQuestionUI()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף שאלה</button>
+                        </div>
+                        <div id="mq-questions-container" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                    <button onclick="document.getElementById('manual-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-mq" onclick="window.submitManualQuiz()" class="flex-[1.5] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition flex items-center justify-center gap-2">שמור הכשרה <i class="fa-solid fa-check"></i></button>
+                </div>
+            </div>
+        </div>`);
+    }
+
+    getEl('manual-quiz-modal').querySelector('h3').innerHTML = '<i class="fa-solid fa-laptop-code text-indigo-500 mr-2"></i> בניית הכשרה ידנית';
+    getEl('btn-submit-mq').innerHTML = 'שמור הכשרה <i class="fa-solid fa-check"></i>';
+
+    getEl('mq-title').value = '';
+    getEl('mq-reward').value = '';
+    getEl('mq-age').value = 'כללי';
+    getEl('mq-text').value = '';
+    window.renderManualQuestions();
+    getEl('manual-quiz-modal').classList.remove('hidden');
+};
+
+window.addManualQuestionUI = function() {
+    window.manualQuizQuestions.push({ q: '', options: ['','','',''], correct: 0 });
+    window.renderManualQuestions();
+};
+
+window.removeManualQuestionUI = function(idx) {
+    window.manualQuizQuestions.splice(idx, 1);
+    window.renderManualQuestions();
+};
+
+window.renderManualQuestions = function() {
+    const container = getEl('mq-questions-container');
+    if(!container) return;
+    
+    if(window.manualQuizQuestions.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed">לא הוגדרו שאלות. ההכשרה תהיה לקריאה בלבד.</p>';
+        return;
+    }
+
+    container.innerHTML = window.manualQuizQuestions.map((q, idx) => `
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 relative group">
+            <button onclick="window.removeManualQuestionUI(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">שאלה ${idx + 1}:</label>
+            <input type="text" class="modern-input py-1.5 text-xs w-full mb-2 bg-white" value="${safeStr(q.q)}" onchange="window.manualQuizQuestions[${idx}].q = this.value" placeholder="הקלד את השאלה כאן">
+            
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">תשובות (סמן את הנכונה):</label>
+            <div class="space-y-1.5">
+                ${q.options.map((opt, optIdx) => `
+                    <div class="flex items-center gap-2">
+                        <input type="radio" name="mq_correct_${idx}" value="${optIdx}" ${q.correct === optIdx ? 'checked' : ''} onchange="window.manualQuizQuestions[${idx}].correct = ${optIdx}" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                        <input type="text" class="modern-input py-1.5 text-xs w-full bg-white ${q.correct === optIdx ? 'border-emerald-300 bg-emerald-50/20' : ''}" value="${safeStr(opt)}" onchange="window.manualQuizQuestions[${idx}].options[${optIdx}] = this.value" placeholder="תשובה ${optIdx + 1}">
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+};
+
+window.submitManualQuiz = async function() {
+    const title = val('mq-title');
+    const reward = parseFloat(val('mq-reward')) || 0;
+    const age = val('mq-age') || 'כללי';
+    const textContent = val('mq-text');
+
+    if(!title) return showToast('error', 'כותרת היא שדה חובה');
+    
+    for (let i = 0; i < window.manualQuizQuestions.length; i++) {
+        const q = window.manualQuizQuestions[i];
+        if(!q.q.trim()) return showToast('error', `שאלה ${i+1} ריקה.`);
+        for (let j = 0; j < 4; j++) {
+            if(!q.options[j].trim()) return showToast('error', `שאלה ${i+1} חסרה את תשובה ${j+1}.`);
+        }
+    }
+
+    const payload = {
+        groupId: currentGroup.id,
+        title: title,
+        ageGroup: age,
+        reward: reward,
+        textContent: textContent,
+        questions: window.manualQuizQuestions,
+        type: window.manualQuizQuestions.length > 0 ? 'quiz' : 'reading'
+    };
+
+    const btn = getEl('btn-submit-mq');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה...'; }
+
+    try {
+        const isEdit = !!window.editingBundleId;
+        const url = isEdit ? `${API}/academy/bundles/${window.editingBundleId}` : `${API}/academy/bundles`;
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`שגיאת שרת (${res.status}): יש לוודא עדכון תקין של השרת`);
+        }
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', isEdit ? 'ההכשרה עודכנה בהצלחה!' : 'ההכשרה נשמרה במאגר!');
+            getEl('manual-quiz-modal').classList.add('hidden');
+            window.editingBundleId = null;
+            if (typeof fetchData === 'function') await fetchData();
+            window.renderAdminAcademy();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ההכשרה');
+        }
+    } catch (e) {
+        showToast('error', e.message || 'שגיאת תקשורת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = window.editingBundleId ? 'עדכן הכשרה <i class="fa-solid fa-check"></i>' : 'שמור הכשרה <i class="fa-solid fa-check"></i>'; }
+    }
+};
+
+window.generateAIQuiz = async function() {
+    executeWithAIWarning(async () => {
+        const btn = getEl('btn-ai-gen'); 
+        if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); 
+        
+        if(btn) { btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳'; }
+        
+        try {
+            const payload = { 
+                ageGroup: val('ai-age'), 
+                topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", 
+                groupId: currentGroup.id 
+            };
+            
+            const res = await fetch(`${API}/academy/ai-generate`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error("AI Quiz Gen Server Error:", res.status, errText);
+                throw new Error(`שגיאת שרת: הקריאה נכשלה (סטטוס ${res.status}). ודא שהנתיב מוגדר ותקין בצד השרת.`);
+            }
+
+            const data = await res.json();
+            
+            if(!handleAIResponseCheck(data)) return;
+            
+            if(data.success) { 
+                showToast('success', 'הכשרת ה-AI מוכנה!'); 
+                getEl('ai-modal').classList.add('hidden'); 
+                getEl('ai-topic').value = ''; 
+                
+                if(typeof fetchData === 'function') await fetchData(); 
+                if (typeof window.renderAdminAcademy === 'function') window.renderAdminAcademy();
+                
+                if (typeof openAssignModalSpecific === 'function') openAssignModalSpecific(data.bundleId); 
+            } else {
+                showToast('error', data.error || 'שגיאה ביצירת התוכן');
+            }
+        } catch(e) { 
+            console.error("AI Quiz Error:", e);
+            showToast('error', e.message || 'תקלה בתקשורת עם השרת'); 
+        } finally { 
+            if(btn) { btn.disabled = false; btn.innerText = 'צור חפיפה'; }
+        }
+    });
+};
+
+window.currentTrackItems = [];
+
+window.openTrainingTrackModal = function() {
+    window.currentTrackItems = [];
+    if (!document.getElementById('training-track-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="training-track-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
+                <button onclick="document.getElementById('training-track-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-route text-indigo-500 mr-2"></i> הקצאת מסלול לעובדים</h3>
+                
+                <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-6">
+                    
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <label class="text-xs font-bold text-slate-700 block mb-2">1. בחרו עובדים למסלול:</label>
+                        <div class="max-h-32 overflow-y-auto bg-white border border-slate-200 rounded-xl p-2 shadow-inner modal-scroll" id="track-users-container">
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                        <label class="text-xs font-bold text-indigo-800 block mb-3">2. הרכיבו את המסלול (לפי יום בשבוע):</label>
+                        
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                            <select id="track-bundle-select" class="modern-input py-2 text-xs flex-1 bg-white font-medium border-indigo-200">
+                            </select>
+                            <select id="track-day-select" class="modern-input py-2 text-xs w-full sm:w-32 bg-white font-medium border-indigo-200 text-center">
+                                <option value="0">יום ראשון</option>
+                                <option value="1">יום שני</option>
+                                <option value="2">יום שלישי</option>
+                                <option value="3">יום רביעי</option>
+                                <option value="4">יום חמישי</option>
+                                <option value="5">יום שישי</option>
+                                <option value="6">יום שבת</option>
+                            </select>
+                            <button onclick="window.addTrackItem()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+
+                        <div id="track-items-list" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                    <button onclick="document.getElementById('training-track-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-track" onclick="window.submitTrainingTrack()" class="flex-[1.5] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-slate-700 transition flex items-center justify-center gap-2">הקצה מסלול <i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>`);
+    }
+
+    const usersContainer = getEl('track-users-container');
+    if (usersContainer && membersCache) {
+        const team = membersCache.filter(m => m.role !== 'ADMIN');
+        if (team.length === 0) {
+            usersContainer.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center">אין עובדים בארגון.</p>';
+        } else {
+            usersContainer.innerHTML = team.map(m => `
+                <label class="flex items-center gap-2 p-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition rounded">
+                    <input type="checkbox" class="track-user-cb w-4 h-4 accent-indigo-600" value="${m.id}">
+                    <span class="text-sm font-bold text-slate-700">${safeStr(m.nickname)}</span>
+                </label>
+            `).join('');
+        }
+    }
+
+    const bundleSelect = getEl('track-bundle-select');
+    if (bundleSelect && allBundles) {
+        bundleSelect.innerHTML = '<option value="" disabled selected>בחרו חפיפה/הכשרה מהמאגר...</option>' + 
+            allBundles.map(b => `<option value="${b.id}">${safeStr(b.title)}</option>`).join('');
+    }
+
+    window.renderTrackItems();
+    getEl('training-track-modal').classList.remove('hidden');
+};
+
+window.addTrackItem = function() {
+    const bundleId = val('track-bundle-select');
+    const dayOfWeek = val('track-day-select');
+    
+    if(!bundleId) return showToast('error', 'יש לבחור הכשרה מהרשימה');
+    
+    const b = allBundles.find(x => String(x.id) === String(bundleId));
+    if(!b) return;
+
+    window.currentTrackItems.push({ bundleId: b.id, title: b.title, dayOfWeek: parseInt(dayOfWeek), reward: b.reward });
+    
+    window.currentTrackItems.sort((a,b) => a.dayOfWeek - b.dayOfWeek);
+    window.renderTrackItems();
+};
+
+window.removeTrackItem = function(idx) {
+    window.currentTrackItems.splice(idx, 1);
+    window.renderTrackItems();
+};
+
+window.renderTrackItems = function() {
+    const list = getEl('track-items-list');
+    if(!list) return;
+
+    if(window.currentTrackItems.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 bg-white rounded-xl border border-dashed border-indigo-200">לא נוספו הכשרות למסלול זה.</p>';
+        return;
+    }
+
+    const daysMap = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+    list.innerHTML = window.currentTrackItems.map((item, idx) => `
+        <div class="bg-white p-2.5 rounded-xl border border-indigo-100 shadow-sm flex justify-between items-center group">
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 w-16 text-center py-1 rounded-lg shadow-sm">יום ${daysMap[item.dayOfWeek]}</span>
+                <span class="text-xs font-bold text-slate-700">${safeStr(item.title)}</span>
+            </div>
+            <button onclick="window.removeTrackItem(${idx})" class="text-slate-300 hover:text-red-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-times text-xs"></i></button>
+        </div>
+    `).join('');
+};
+
+window.submitTrainingTrack = async function() {
+    const userCheckboxes = document.querySelectorAll('.track-user-cb:checked');
+    const selectedUsers = Array.from(userCheckboxes).map(cb => cb.value);
+
+    if (selectedUsers.length === 0) return showToast('error', 'יש לבחור לפחות עובד אחד להקצאה');
+    if (window.currentTrackItems.length === 0) return showToast('error', 'המסלול ריק! הוסיפו הכשרות.');
+
+    const btn = getEl('btn-submit-track');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד הקצאות...'; }
+
+    try {
+        const today = new Date().getDay(); 
+        let successCount = 0;
+
+        for (let uid of selectedUsers) {
+            for (let item of window.currentTrackItems) {
+                let daysOffset = item.dayOfWeek - today;
+                if (daysOffset <= 0) daysOffset += 7; 
+
+                const payload = {
+                    userId: uid,
+                    bundleId: item.bundleId,
+                    reward: item.reward || 0,
+                    days: daysOffset,
+                    groupId: currentGroup.id
+                };
+
+                const res = await fetch(`${API}/academy/assign`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if(data.success) successCount++;
+            }
+        }
+
+        showToast('success', `המסלול הוקצה! ${successCount} משימות הכשרה נוצרו במערכת.`);
+        getEl('training-track-modal').classList.add('hidden');
+        if(typeof fetchData === 'function') fetchData();
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בביצוע ההקצאות');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = 'הקצה מסלול <i class="fa-solid fa-paper-plane"></i>'; }
+    }
 };
