@@ -13819,12 +13819,13 @@ window.submitTrainingTrack = async function() {
     }
 };
 // ==========================================
-// FEATURE: TASK SETS / SOP BUILDER (STANDARD OPERATING PROCEDURES)
+// FEATURE: ADVANCED TASK SETS (SOP BUILDER) - WITH EDIT, ROUTINE, PHOTO TOGGLE & PROGRESS
 // ==========================================
 
 window.taskSetTemplates = [];
 window.currentTaskSetSubTasks = [];
 window.currentSOPTaskContext = null;
+window.editingTaskSetId = null;
 
 window.loadTaskSetTemplates = function() {
     if (!currentGroup || !currentGroup.id) return;
@@ -13856,52 +13857,152 @@ window.renderTaskSetsList = function() {
         return;
     }
     
-    list.innerHTML = window.taskSetTemplates.map(ts => `
+    list.innerHTML = window.taskSetTemplates.map(ts => {
+        let metaHtml = '';
+        if(ts.scheduleType === 'routine') metaHtml = `<span class="bg-indigo-50 text-indigo-600 px-1.5 rounded-md text-[9px] ml-1"><i class="fa-solid fa-rotate"></i> רוטינה</span>`;
+        if(ts.scheduleType === 'specific') metaHtml = `<span class="bg-blue-50 text-blue-600 px-1.5 rounded-md text-[9px] ml-1"><i class="fa-regular fa-calendar"></i> ספציפי</span>`;
+        if(ts.requiresPhoto) metaHtml += `<span class="bg-slate-100 text-slate-500 px-1.5 rounded-md text-[9px]"><i class="fa-solid fa-camera"></i> מצולם</span>`;
+
+        return `
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 group hover:border-indigo-300 hover:shadow-md transition">
             <div class="flex-1 pr-2 min-w-0">
                 <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2 truncate"><i class="fa-solid fa-list-check text-indigo-400"></i> ${safeStr(ts.title)}</h4>
-                <p class="text-[10px] text-slate-500 mt-1 font-medium"><i class="fa-solid fa-bars-staggered mr-1"></i> מאגד ${ts.tasks.length} תתי-משימות בסט</p>
+                <p class="text-[10px] text-slate-500 mt-1 font-medium flex items-center gap-1"><i class="fa-solid fa-bars-staggered ml-1"></i> ${ts.tasks.length} שורות נוהל | ${metaHtml}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                 <button onclick="window.openAssignTaskSetModal('${ts.id}')" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-100 transition border border-indigo-100 flex items-center gap-1.5"><i class="fa-solid fa-paper-plane"></i> שגר לעובד</button>
+                <button onclick="window.editTaskSet('${ts.id}')" class="bg-white text-slate-400 w-9 h-9 rounded-lg flex items-center justify-center hover:text-blue-500 hover:bg-blue-50 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-pen text-sm"></i></button>
                 <button onclick="window.deleteTaskSet('${ts.id}')" class="bg-white text-slate-400 w-9 h-9 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-trash-can text-sm"></i></button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
+};
+
+window.injectSOPAdvancedFields = function() {
+    const builderTitle = document.getElementById('ts-builder-name');
+    if (builderTitle && !document.getElementById('ts-builder-requires-photo')) {
+        const container = builderTitle.parentNode;
+        container.insertAdjacentHTML('afterend', `
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mt-4 mb-4 flex flex-col gap-3 shadow-sm">
+                <label class="flex items-center gap-2 cursor-pointer mb-1 border-b border-slate-200 pb-3">
+                    <input type="checkbox" id="ts-builder-requires-photo" class="w-4 h-4 accent-indigo-600">
+                    <span class="text-xs font-bold text-slate-700">דרוש צילום הוכחה בסיום הסט (QA)</span>
+                </label>
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-regular fa-clock text-indigo-400 ml-1"></i> תזמון ומועד ביצוע:</label>
+                    <select id="ts-builder-schedule-type" onchange="window.toggleSopScheduleUI()" class="modern-input py-2.5 text-sm bg-white mb-2 shadow-sm font-bold text-indigo-700">
+                        <option value="manual">ידני (לפי דרישה)</option>
+                        <option value="specific">תאריך ספציפי (חד פעמי)</option>
+                        <option value="routine">רוטינה קבועה (ימים ושעות)</option>
+                    </select>
+                    
+                    <div id="ts-schedule-specific" class="hidden mt-2">
+                        <input type="date" id="ts-builder-date" class="modern-input py-2 text-sm bg-white shadow-sm">
+                    </div>
+                    
+                    <div id="ts-schedule-routine" class="hidden mt-3 bg-white p-3 rounded-lg border border-slate-200">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-2 text-center">באילו ימים בשבוע המשימה תקפוץ?</label>
+                        <div class="flex flex-wrap gap-2 justify-center mb-3 dir-rtl">
+                            ${['א','ב','ג','ד','ה','ו','ש'].map((d,i) => `
+                            <label class="flex flex-col items-center gap-1 cursor-pointer">
+                                <span class="text-[10px] font-bold text-slate-600">${d}'</span>
+                                <input type="checkbox" value="${i}" class="ts-routine-day w-5 h-5 accent-indigo-500 rounded">
+                            </label>`).join('')}
+                        </div>
+                        <div class="flex items-center justify-center gap-3 border-t border-slate-100 pt-3">
+                            <label class="text-xs font-bold text-slate-600">באיזו שעה?</label>
+                            <input type="time" id="ts-builder-time" class="modern-input py-1.5 px-2 text-sm bg-slate-50 text-center w-32 font-bold" value="08:00">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+};
+
+window.toggleSopScheduleUI = function() {
+    const type = document.getElementById('ts-builder-schedule-type').value;
+    const spec = document.getElementById('ts-schedule-specific');
+    const rout = document.getElementById('ts-schedule-routine');
+    if(spec) spec.classList.add('hidden');
+    if(rout) rout.classList.add('hidden');
+    if (type === 'specific' && spec) spec.classList.remove('hidden');
+    if (type === 'routine' && rout) rout.classList.remove('hidden');
 };
 
 window.openTaskSetBuilderModal = function() {
+    window.injectSOPAdvancedFields();
+    window.editingTaskSetId = null;
     window.currentTaskSetSubTasks = [];
-    const nameInput = document.getElementById('ts-builder-name');
-    if(nameInput) nameInput.value = '';
+    
+    document.getElementById('ts-builder-title').innerHTML = '<i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> בונה הנהלים (סט חדש)';
+    document.getElementById('ts-builder-name').value = '';
+    
+    const reqPhoto = document.getElementById('ts-builder-requires-photo');
+    if(reqPhoto) reqPhoto.checked = false;
+    
+    const schedType = document.getElementById('ts-builder-schedule-type');
+    if(schedType) { schedType.value = 'manual'; window.toggleSopScheduleUI(); }
+    
+    document.querySelectorAll('.ts-routine-day').forEach(cb => cb.checked = false);
+    const tsTime = document.getElementById('ts-builder-time');
+    if(tsTime) tsTime.value = '08:00';
+    const tsDate = document.getElementById('ts-builder-date');
+    if(tsDate) tsDate.value = '';
+
     window.renderTaskSetSubTasks();
     const modal = document.getElementById('task-set-builder-modal');
     if(modal) modal.classList.remove('hidden');
 };
 
-window.addTaskSetSubTask = function() {
-    window.currentTaskSetSubTasks.push('');
+window.editTaskSet = function(id) {
+    window.injectSOPAdvancedFields();
+    const ts = window.taskSetTemplates.find(t => t.id === id);
+    if (!ts) return;
+    
+    window.editingTaskSetId = id;
+    document.getElementById('ts-builder-title').innerHTML = '<i class="fa-solid fa-pen text-indigo-500 mr-2"></i> עריכת נוהל קיים';
+    document.getElementById('ts-builder-name').value = ts.title;
+    window.currentTaskSetSubTasks = [...ts.tasks];
+    
+    const reqPhoto = document.getElementById('ts-builder-requires-photo');
+    if(reqPhoto) reqPhoto.checked = ts.requiresPhoto === true;
+    
+    const schedType = document.getElementById('ts-builder-schedule-type');
+    if(schedType) { 
+        schedType.value = ts.scheduleType || 'manual'; 
+        window.toggleSopScheduleUI(); 
+    }
+    
+    if (ts.routineDays && Array.isArray(ts.routineDays)) {
+        document.querySelectorAll('.ts-routine-day').forEach(cb => {
+            cb.checked = ts.routineDays.includes(parseInt(cb.value));
+        });
+    }
+    
+    const tsTime = document.getElementById('ts-builder-time');
+    if(tsTime && ts.routineTime) tsTime.value = ts.routineTime;
+    
+    const tsDate = document.getElementById('ts-builder-date');
+    if(tsDate && ts.specificDate) tsDate.value = ts.specificDate;
+
     window.renderTaskSetSubTasks();
+    const modal = document.getElementById('task-set-builder-modal');
+    if(modal) modal.classList.remove('hidden');
 };
 
-window.removeTaskSetSubTask = function(idx) {
-    window.currentTaskSetSubTasks.splice(idx, 1);
-    window.renderTaskSetSubTasks();
-};
-
-window.updateTaskSetSubTask = function(idx, val) {
-    window.currentTaskSetSubTasks[idx] = val;
-};
+window.addTaskSetSubTask = function() { window.currentTaskSetSubTasks.push(''); window.renderTaskSetSubTasks(); };
+window.removeTaskSetSubTask = function(idx) { window.currentTaskSetSubTasks.splice(idx, 1); window.renderTaskSetSubTasks(); };
+window.updateTaskSetSubTask = function(idx, val) { window.currentTaskSetSubTasks[idx] = val; };
 
 window.renderTaskSetSubTasks = function() {
     const list = document.getElementById('ts-builder-tasks');
     if (!list) return;
-    
     if (window.currentTaskSetSubTasks.length === 0) {
         list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-indigo-200 font-medium">הסט ריק. הוסיפו את שורות הנוהל שיוצגו כרשימת תיוג (Checklist) לעובד.</p>';
         return;
     }
-    
     list.innerHTML = window.currentTaskSetSubTasks.map((t, idx) => `
         <div class="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm fade-in hover:border-indigo-300 transition">
             <span class="text-xs font-black text-indigo-300 w-5 text-center shrink-0">${idx+1}.</span>
@@ -13912,35 +14013,53 @@ window.renderTaskSetSubTasks = function() {
 };
 
 window.saveTaskSet = function() {
-    const nameInput = document.getElementById('ts-builder-name');
-    const title = nameInput ? nameInput.value.trim() : '';
+    const title = document.getElementById('ts-builder-name').value.trim();
     const validTasks = window.currentTaskSetSubTasks.filter(t => t.trim() !== '');
     
     if (!title) return showToast('error', 'יש להזין שם לסט המשימות');
     if (validTasks.length === 0) return showToast('error', 'יש להוסיף לפחות משימה אחת תקינה לסט');
-    if (validTasks.join(',').length > 200) return showToast('error', 'רשימת המשימות ארוכה מדי, אנא צמצמו מלל או חלקו לסטים שונים');
     
-    const newSet = {
-        id: 'ts_' + Date.now(),
+    const reqPhotoEl = document.getElementById('ts-builder-requires-photo');
+    const schedTypeEl = document.getElementById('ts-builder-schedule-type');
+    
+    const requiresPhoto = reqPhotoEl ? reqPhotoEl.checked : false;
+    const scheduleType = schedTypeEl ? schedTypeEl.value : 'manual';
+    
+    let routineDays = [];
+    if (scheduleType === 'routine') {
+        document.querySelectorAll('.ts-routine-day:checked').forEach(cb => routineDays.push(parseInt(cb.value)));
+        if (routineDays.length === 0) return showToast('error', 'ברוטינה, חובה לבחור לפחות יום אחד בשבוע.');
+    }
+    
+    const routineTime = document.getElementById('ts-builder-time') ? document.getElementById('ts-builder-time').value : '08:00';
+    const specificDate = document.getElementById('ts-builder-date') ? document.getElementById('ts-builder-date').value : '';
+    
+    if (scheduleType === 'specific' && !specificDate) return showToast('error', 'יש לבחור תאריך ספציפי לסט');
+
+    const setData = {
+        id: window.editingTaskSetId ? window.editingTaskSetId : ('ts_' + Date.now()),
         title: title,
-        tasks: validTasks
+        tasks: validTasks,
+        requiresPhoto: requiresPhoto,
+        scheduleType: scheduleType,
+        routineDays: routineDays,
+        routineTime: routineTime,
+        specificDate: specificDate
     };
     
-    window.taskSetTemplates.push(newSet);
+    if (window.editingTaskSetId) {
+        const index = window.taskSetTemplates.findIndex(t => t.id === window.editingTaskSetId);
+        if (index > -1) window.taskSetTemplates[index] = setData;
+    } else {
+        window.taskSetTemplates.push(setData);
+    }
+    
     window.saveTaskSetTemplates();
     
-    showToast('success', 'הנוהל נשמר בהצלחה במאגר הארגון!');
+    showToast('success', window.editingTaskSetId ? 'הנוהל עודכן בהצלחה!' : 'הנוהל נשמר בהצלחה במאגר הארגון!');
     const modal = document.getElementById('task-set-builder-modal');
     if(modal) modal.classList.add('hidden');
     window.renderTaskSetsList();
-};
-
-window.deleteTaskSet = function(id) {
-    if (!confirm('האם למחוק את תבנית הנוהל? (היסטוריית משימות שכבר בוצעו לא תיפגע)')) return;
-    window.taskSetTemplates = window.taskSetTemplates.filter(ts => ts.id !== id);
-    window.saveTaskSetTemplates();
-    window.renderTaskSetsList();
-    showToast('info', 'הנוהל נמחק.');
 };
 
 window.openAssignTaskSetModal = function(id) {
@@ -13950,7 +14069,14 @@ window.openAssignTaskSetModal = function(id) {
     document.getElementById('assign-ts-id').value = id;
     document.getElementById('assign-ts-title').innerText = ts.title;
     document.getElementById('assign-ts-reward').value = '';
-    document.getElementById('assign-ts-days').value = '';
+    
+    // חישוב ימים אוטומטי בהתבסס על ההגדרה (אם ספציפי נחשב את ההפרש להיום)
+    let autoDays = '';
+    if (ts.scheduleType === 'specific' && ts.specificDate) {
+        const diff = Math.ceil((new Date(ts.specificDate) - new Date()) / (1000 * 60 * 60 * 24));
+        autoDays = diff > 0 ? diff : 1;
+    }
+    document.getElementById('assign-ts-days').value = autoDays;
     
     const userSelect = document.getElementById('assign-ts-user');
     userSelect.innerHTML = '<option value="" disabled selected>בחרו עובד מהרשימה...</option>';
@@ -13978,9 +14104,13 @@ window.submitAssignTaskSet = async function() {
     const btn = document.getElementById('btn-submit-assign-ts');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...'; }
     
-    // שומרים את הסט כולו בתוך מחרוזת ה-Title של הטיקט
-    const itemsStr = ts.tasks.join('|');
-    const combinedTitle = `SOP|${ts.title}|${itemsStr}`;
+    // אורזים את כל הנתונים (כולל הגדרת צילום חובה) לתוך אובייקט JSON בתוך ה-Title של הטיקט
+    const sopPayload = {
+        title: ts.title,
+        items: ts.tasks,
+        requiresPhoto: ts.requiresPhoto === true
+    };
+    const combinedTitle = `SOP|${JSON.stringify(sopPayload)}`;
     
     try {
         const res = await fetch(`${API}/tasks`, { 
@@ -14012,13 +14142,15 @@ window.submitAssignTaskSet = async function() {
     }
 };
 
-window.openSOPExecutionModal = function(taskId, title, itemsStr) {
-    window.currentSOPTaskContext = { id: taskId, title: title };
-    const items = itemsStr.split('|').filter(x => x.trim() !== '');
+window.openSOPExecutionModal = function(taskId, displayTitle, sopDataStr) {
+    let sopData = { items: [], requiresPhoto: false };
+    try { sopData = JSON.parse(decodeURIComponent(sopDataStr)); } catch(e) { }
+    
+    window.currentSOPTaskContext = { id: taskId, title: displayTitle, requiresPhoto: sopData.requiresPhoto };
     
     const list = document.getElementById('sop-execution-list');
-    if(list) {
-        list.innerHTML = items.map((item, idx) => `
+    if(list && sopData.items) {
+        list.innerHTML = sopData.items.map((item, idx) => `
             <label class="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group shadow-sm mb-3 fade-in">
                 <div class="relative flex items-center justify-center shrink-0">
                     <input type="checkbox" onchange="window.checkSOPProgress()" class="sop-checkbox w-6 h-6 appearance-none border-2 border-slate-300 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 outline-none transition peer cursor-pointer">
@@ -14030,19 +14162,28 @@ window.openSOPExecutionModal = function(taskId, title, itemsStr) {
     }
     
     const titleEl = document.getElementById('sop-execution-title');
-    if(titleEl) titleEl.innerText = title;
+    if(titleEl) titleEl.innerText = displayTitle;
     
     const btn = document.getElementById('btn-complete-sop');
     if(btn) {
         btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        btn.classList.remove('animate-pulse');
+        btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-slate-400');
+        btn.classList.remove('animate-pulse', 'bg-indigo-600', 'shadow-indigo-200');
+        
+        // החלפת טקסט הכפתור בהתאם לדרישת הצילום
+        if (sopData.requiresPhoto) {
+            btn.innerHTML = '<i class="fa-solid fa-camera"></i> סיום וצילום הוכחה';
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-check-double"></i> אישור סיום נוהל';
+        }
     }
     
     const modal = document.getElementById('sop-execution-modal');
     if(modal) modal.classList.remove('hidden');
     window.checkSOPProgress();
 };
+
+window.sopProgressDebounce = null;
 
 window.checkSOPProgress = function() {
     const checkboxes = document.querySelectorAll('.sop-checkbox');
@@ -14080,19 +14221,46 @@ window.checkSOPProgress = function() {
     } else {
         if(btn) {
             btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            btn.classList.remove('animate-pulse');
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-slate-400');
+            btn.classList.remove('animate-pulse', 'bg-indigo-600', 'shadow-indigo-200');
         }
+    }
+
+    // שיגור שקט לשרת כדי שהמנהל יראה חיווי התקדמות אונליין
+    if (window.currentSOPTaskContext && window.currentSOPTaskContext.id) {
+        clearTimeout(window.sopProgressDebounce);
+        window.sopProgressDebounce = setTimeout(() => {
+            fetch(`${API}/tasks/update`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                // מנצלים את שדה notes כדי לשתול חיווי התקדמות (למנהל יש גישה אליו)
+                body: JSON.stringify({ taskId: window.currentSOPTaskContext.id, status: 'pending', notes: `PROGRESS:${checked}/${total}` })
+            }).catch(e=>{});
+        }, 1000);
     }
 };
 
-window.completeSOP = function() {
+window.completeSOP = async function() {
     if (!window.currentSOPTaskContext) return;
+    const ctx = window.currentSOPTaskContext;
     const modal = document.getElementById('sop-execution-modal');
     if(modal) modal.classList.add('hidden');
-    // שולח את העובד למנגנון צילום ההוכחה הקיים שסוגר את הטיקט
-    if(typeof window.clickTaskProof === 'function') {
-        window.clickTaskProof(window.currentSOPTaskContext.id, window.currentSOPTaskContext.title);
+    
+    if (ctx.requiresPhoto) {
+        // שלח את העובד למנגנון צילום ההוכחה הקיים
+        if(typeof window.clickTaskProof === 'function') {
+            window.clickTaskProof(ctx.id, ctx.title);
+        }
+    } else {
+        // סגור עצמאית ללא צילום מול השרת
+        try {
+            await fetch(`${API}/tasks/update`, { 
+                method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ taskId: ctx.id, status: 'done', notes: 'הושלם (לא נדרש צילום הוכחה)' }) 
+            });
+            showToast('success', 'הנוהל הושלם ונשלח לאישור מנהל!');
+            if (typeof triggerConfetti === 'function') triggerConfetti();
+            if (typeof fetchData === 'function') fetchData();
+        } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס מול השרת'); }
     }
 };
 
