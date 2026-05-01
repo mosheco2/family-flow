@@ -2448,55 +2448,86 @@ function handleProductImageUpload(event, target) {
 
 function closeBarcodeScanner() { const modal = getEl('barcode-scanner-modal'); if(modal) modal.classList.add('hidden'); }
 
-function renderEmployeeTodo() {
-    const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
-    if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
-    let hasItems = false; let htmlStr = '';
-    const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
-    myTasks.forEach(t => {
-        // הוספת ההגנה t.title && 
-        if(t.title && t.title.startsWith('SHIFT|')) return;
-        hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימים</span>` : ` • <span class="text-red-500">חריגת זמנים!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:bg-slate-50 transition mb-2" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(t.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • טיקט / משימה • בונוס: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
-    });
-    const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
-    myQuizzes.forEach(b => {
-        hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
-        if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימים</span>` : ` • <span class="text-red-500">חריגת זמנים!</span>`; }
-        const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:bg-slate-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center"><i class="fa-solid fa-book-open"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • לומדה • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
-    });
-    if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
-}
+window.renderEmployeeTodo = function() {
+    const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
+    if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
+    let hasItems = false; let htmlStr = '';
+    const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
+    myTasks.forEach(t => {
+        if(t.title && t.title.startsWith('SHIFT|')) return;
+        hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימ'</span>` : ` • <span class="text-red-500 font-bold">חריגה!</span>`; }
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
+        
+        let isSop = false;
+        let displayTitle = safeStr(t.title);
+        if (t.title && t.title.startsWith('SOP|')) {
+            isSop = true;
+            displayTitle = safeStr(t.title.split('|')[1] || 'נוהל');
+        }
+        const iconHtml = isSop ? '<i class="fa-solid fa-layer-group text-indigo-500 text-lg"></i>' : '<i class="fa-solid fa-list-check text-blue-500 text-lg"></i>';
 
-function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id').value = id; getEl('approve-task-title').innerText = title; getEl('approve-task-reward').value = currentReward || 0; getEl('approve-task-modal').classList.remove('hidden'); }
+        htmlStr += `<div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:border-indigo-300 transition mb-2 group" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">${iconHtml}</div><div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate">${displayTitle}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-regular fa-calendar"></i> ${dateStr} • ${isSop?'נוהל':'משימה'} • בונוס: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300 group-hover:text-indigo-500 transition"></i></div>`;
+    });
+    const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
+    myQuizzes.forEach(b => {
+        hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
+        if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימ'</span>` : ` • <span class="text-red-500 font-bold">חריגה!</span>`; }
+        const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+        htmlStr += `<div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:border-purple-300 transition mb-2 group" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open text-purple-500 text-lg"></i></div><div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-regular fa-calendar"></i> ${dateStr} • לומדה • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300 group-hover:text-purple-500 transition"></i></div>`;
+    });
+    if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
+};
 
-async function submitTaskApproval() {
-    const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
-    getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
-    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
-    const data = await res.json();
-    if(data.success) { showToast('success', 'המשימה אושרה והבונוס שוחרר לעובד!'); fetchData(); } else showToast('error', data.error);
-}
+window.openApproveTaskModal = function(id, title, currentReward) { getEl('approve-task-id').value = id; getEl('approve-task-title').innerText = title; getEl('approve-task-reward').value = currentReward || 0; getEl('approve-task-modal').classList.remove('hidden'); };
 
-function renderTasks(tasks) {
-    const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
-    tasks.forEach(t => {
-        // הוספת ההגנה t.title &&
-        if(t.title && t.title.startsWith('SHIFT|')) return;
-        const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
+window.submitTaskApproval = async function() {
+    const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
+    getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
+    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
+    const data = await res.json();
+    if(data.success) { showToast('success', 'המשימה אושרה והבונוס שוחרר לעובד!'); fetchData(); } else showToast('error', data.error);
+};
+
+window.renderTasks = function(tasks) {
+    const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
+    tasks.forEach(t => {
+        if(t.title && t.title.startsWith('SHIFT|')) return;
+        const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
+        
+        let isSop = false;
+        let displayTitle = safeStr(t.title);
+        let sopItemsStr = '';
+        if (t.title && t.title.startsWith('SOP|')) {
+            isSop = true;
+            const parts = t.title.split('|');
+            displayTitle = safeStr(parts[1] || 'נוהל עבודה');
+            sopItemsStr = safeStr(parts.slice(2).join('|') || '');
+        }
+
         let statusColor = 'bg-white border-slate-100'; let statusBadge = ''; let actionBtn = '';
-        if (t.status === 'pending') { if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1"><i class="fa-solid fa-check"></i> דיווח סיום</button>`; } else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } } 
-        else if (t.status === 'done') { statusColor = 'bg-amber-50 border-amber-100'; if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700">אישור סופי</button>`; } else { statusBadge = `<span class="text-xs text-amber-600 font-bold bg-amber-100 px-2 py-1 rounded-lg">בבקרת מנהל</span>`; } } 
-        else if (t.status === 'approved') { statusColor = 'bg-green-50 border-green-100'; statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check-double"></i> סגור</span>`; }
-        const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-slate-700 bg-slate-100 px-1.5 rounded">בונוס ₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">שגרה</span>`;
-        let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> ${diff} ימים</span>`; else deadlineBadge = `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> חריגה!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> נפתח: ${dateStr}</span>` : '';
-        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}"><div><p class="font-bold text-slate-800">${safeStr(t.title)} ${deadlineBadge}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-1">${actionBtn}${statusBadge}</div></div>`;
-    });
-    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פרויקטים פעילים</div>'; else list.innerHTML = htmlStr;
-}
+        if (t.status === 'pending') { 
+            if (isMyTask) { 
+                if (isSop) {
+                    actionBtn = `<button onclick="if(typeof window.openSOPExecutionModal === 'function') window.openSOPExecutionModal(${t.id}, '${displayTitle}', '${sopItemsStr}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ביצוע נוהל</button>`;
+                } else {
+                    actionBtn = `<button onclick="clickTaskProof(${t.id}, '${displayTitle}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> דיווח סיום</button>`; 
+                }
+            } else { 
+                statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-bold border border-slate-200">ממתין לעובד</span>`; 
+            } 
+        } 
+        else if (t.status === 'done') { statusColor = 'bg-amber-50 border-amber-100'; if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${displayTitle}', ${t.reward})" class="bg-green-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-700 transition flex items-center gap-1"><i class="fa-solid fa-check-double"></i> אישור סופי</button>`; } else { statusBadge = `<span class="text-xs text-amber-600 font-bold bg-amber-100 px-2 py-1 rounded-lg shadow-sm">בבקרת מנהל</span>`; } } 
+        else if (t.status === 'approved') { statusColor = 'bg-green-50 border-green-100 opacity-70'; statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check-double"></i> סגור</span>`; }
+        
+        const sopBadge = isSop ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-bold ml-1 shadow-sm"><i class="fa-solid fa-layer-group"></i> נוהל</span>` : '';
+        const rewardDisplay = t.reward > 0 ? `<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shadow-sm">בונוס ₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 shadow-sm">שגרה</span>`;
+        let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-1 font-bold border border-orange-100"><i class="fa-regular fa-clock"></i> יעד: ${diff} ימ'</span>`; else deadlineBadge = `<span class="text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-1 font-bold border border-red-100 animate-pulse"><i class="fa-regular fa-clock"></i> חריגה!</span>`; }
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> נפתח: ${dateStr}</span>` : '';
+        
+        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm hover:shadow-md transition ${statusColor} group"><div><p class="font-bold text-slate-800 text-sm leading-tight flex items-center flex-wrap gap-1">${displayTitle} ${sopBadge} ${deadlineBadge}</p><div class="flex items-center flex-wrap gap-2 mt-2"><span class="text-xs text-slate-500 font-medium"><i class="fa-regular fa-user"></i> ${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-2 shrink-0 pl-1">${actionBtn}${statusBadge}</div></div>`;
+    });
+    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין פרויקטים ומשימות פעילים כרגע</div>'; else list.innerHTML = htmlStr;
+};
 
 function renderShifts() {
     // הוספת ההגנה t.title &&
@@ -13787,3 +13818,287 @@ window.submitTrainingTrack = async function() {
         if(btn) { btn.disabled = false; btn.innerHTML = 'הקצה מסלול <i class="fa-solid fa-paper-plane"></i>'; }
     }
 };
+// ==========================================
+// FEATURE: TASK SETS / SOP BUILDER (STANDARD OPERATING PROCEDURES)
+// ==========================================
+
+window.taskSetTemplates = [];
+window.currentTaskSetSubTasks = [];
+window.currentSOPTaskContext = null;
+
+window.loadTaskSetTemplates = function() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const saved = localStorage.getItem('ofl_task_sets_' + currentGroup.id);
+        if (saved) window.taskSetTemplates = JSON.parse(saved);
+        else window.taskSetTemplates = [];
+    } catch(e) { window.taskSetTemplates = []; }
+};
+
+window.saveTaskSetTemplates = function() {
+    if (!currentGroup || !currentGroup.id) return;
+    localStorage.setItem('ofl_task_sets_' + currentGroup.id, JSON.stringify(window.taskSetTemplates));
+};
+
+window.openTaskSetManagerModal = function() {
+    window.loadTaskSetTemplates();
+    window.renderTaskSetsList();
+    const modal = document.getElementById('task-set-manager-modal');
+    if(modal) modal.classList.remove('hidden');
+};
+
+window.renderTaskSetsList = function() {
+    const list = document.getElementById('task-sets-list');
+    if (!list) return;
+    
+    if (window.taskSetTemplates.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50 shadow-inner">טרם הוגדרו נהלי עבודה קבועים במערכת.<br>לחצו על "בניית נוהל / סט חדש" כדי להתחיל.</p>';
+        return;
+    }
+    
+    list.innerHTML = window.taskSetTemplates.map(ts => `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 group hover:border-indigo-300 hover:shadow-md transition">
+            <div class="flex-1 pr-2 min-w-0">
+                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2 truncate"><i class="fa-solid fa-list-check text-indigo-400"></i> ${safeStr(ts.title)}</h4>
+                <p class="text-[10px] text-slate-500 mt-1 font-medium"><i class="fa-solid fa-bars-staggered mr-1"></i> מאגד ${ts.tasks.length} תתי-משימות בסט</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                <button onclick="window.openAssignTaskSetModal('${ts.id}')" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-100 transition border border-indigo-100 flex items-center gap-1.5"><i class="fa-solid fa-paper-plane"></i> שגר לעובד</button>
+                <button onclick="window.deleteTaskSet('${ts.id}')" class="bg-white text-slate-400 w-9 h-9 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-trash-can text-sm"></i></button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.openTaskSetBuilderModal = function() {
+    window.currentTaskSetSubTasks = [];
+    const nameInput = document.getElementById('ts-builder-name');
+    if(nameInput) nameInput.value = '';
+    window.renderTaskSetSubTasks();
+    const modal = document.getElementById('task-set-builder-modal');
+    if(modal) modal.classList.remove('hidden');
+};
+
+window.addTaskSetSubTask = function() {
+    window.currentTaskSetSubTasks.push('');
+    window.renderTaskSetSubTasks();
+};
+
+window.removeTaskSetSubTask = function(idx) {
+    window.currentTaskSetSubTasks.splice(idx, 1);
+    window.renderTaskSetSubTasks();
+};
+
+window.updateTaskSetSubTask = function(idx, val) {
+    window.currentTaskSetSubTasks[idx] = val;
+};
+
+window.renderTaskSetSubTasks = function() {
+    const list = document.getElementById('ts-builder-tasks');
+    if (!list) return;
+    
+    if (window.currentTaskSetSubTasks.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-indigo-200 font-medium">הסט ריק. הוסיפו את שורות הנוהל שיוצגו כרשימת תיוג (Checklist) לעובד.</p>';
+        return;
+    }
+    
+    list.innerHTML = window.currentTaskSetSubTasks.map((t, idx) => `
+        <div class="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm fade-in hover:border-indigo-300 transition">
+            <span class="text-xs font-black text-indigo-300 w-5 text-center shrink-0">${idx+1}.</span>
+            <input type="text" class="flex-1 bg-slate-50 border border-slate-100 rounded-lg text-sm px-3 py-2.5 outline-none focus:border-indigo-400 focus:bg-white text-slate-700 font-bold transition shadow-inner" value="${safeStr(t)}" onchange="window.updateTaskSetSubTask(${idx}, this.value)" placeholder="תיאור המשימה (למשל: ספירת קופה)">
+            <button type="button" onclick="window.removeTaskSetSubTask(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg shrink-0 border border-slate-100"><i class="fa-solid fa-times"></i></button>
+        </div>
+    `).join('');
+};
+
+window.saveTaskSet = function() {
+    const nameInput = document.getElementById('ts-builder-name');
+    const title = nameInput ? nameInput.value.trim() : '';
+    const validTasks = window.currentTaskSetSubTasks.filter(t => t.trim() !== '');
+    
+    if (!title) return showToast('error', 'יש להזין שם לסט המשימות');
+    if (validTasks.length === 0) return showToast('error', 'יש להוסיף לפחות משימה אחת תקינה לסט');
+    if (validTasks.join(',').length > 200) return showToast('error', 'רשימת המשימות ארוכה מדי, אנא צמצמו מלל או חלקו לסטים שונים');
+    
+    const newSet = {
+        id: 'ts_' + Date.now(),
+        title: title,
+        tasks: validTasks
+    };
+    
+    window.taskSetTemplates.push(newSet);
+    window.saveTaskSetTemplates();
+    
+    showToast('success', 'הנוהל נשמר בהצלחה במאגר הארגון!');
+    const modal = document.getElementById('task-set-builder-modal');
+    if(modal) modal.classList.add('hidden');
+    window.renderTaskSetsList();
+};
+
+window.deleteTaskSet = function(id) {
+    if (!confirm('האם למחוק את תבנית הנוהל? (היסטוריית משימות שכבר בוצעו לא תיפגע)')) return;
+    window.taskSetTemplates = window.taskSetTemplates.filter(ts => ts.id !== id);
+    window.saveTaskSetTemplates();
+    window.renderTaskSetsList();
+    showToast('info', 'הנוהל נמחק.');
+};
+
+window.openAssignTaskSetModal = function(id) {
+    const ts = window.taskSetTemplates.find(t => t.id === id);
+    if (!ts) return;
+    
+    document.getElementById('assign-ts-id').value = id;
+    document.getElementById('assign-ts-title').innerText = ts.title;
+    document.getElementById('assign-ts-reward').value = '';
+    document.getElementById('assign-ts-days').value = '';
+    
+    const userSelect = document.getElementById('assign-ts-user');
+    userSelect.innerHTML = '<option value="" disabled selected>בחרו עובד מהרשימה...</option>';
+    if (membersCache) {
+        membersCache.forEach(m => {
+            if (m.role !== 'ADMIN') userSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`;
+        });
+    }
+    
+    const modal = document.getElementById('assign-task-set-modal');
+    if(modal) modal.classList.remove('hidden');
+};
+
+window.submitAssignTaskSet = async function() {
+    const tsId = document.getElementById('assign-ts-id').value;
+    const userId = document.getElementById('assign-ts-user').value;
+    const reward = parseFloat(document.getElementById('assign-ts-reward').value) || 0;
+    const days = parseInt(document.getElementById('assign-ts-days').value) || null;
+    
+    if (!userId) return showToast('error', 'יש לבחור עובד/ת להקצאה');
+    
+    const ts = window.taskSetTemplates.find(t => t.id === tsId);
+    if (!ts) return;
+    
+    const btn = document.getElementById('btn-submit-assign-ts');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...'; }
+    
+    // שומרים את הסט כולו בתוך מחרוזת ה-Title של הטיקט
+    const itemsStr = ts.tasks.join('|');
+    const combinedTitle = `SOP|${ts.title}|${itemsStr}`;
+    
+    try {
+        const res = await fetch(`${API}/tasks`, { 
+            method:'POST', 
+            headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({ 
+                title: combinedTitle, 
+                reward: reward, 
+                assignedTo: userId, 
+                days: days, 
+                status: 'pending', 
+                groupId: currentGroup.id 
+            }) 
+        }); 
+        
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הנוהל שוגר בהצלחה והופיע למשתמש!');
+            const modal = document.getElementById('assign-task-set-modal');
+            if(modal) modal.classList.add('hidden');
+            if (typeof fetchData === 'function') fetchData();
+        } else {
+            showToast('error', data.error || 'שגיאה בשיגור');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> הקצה עכשיו'; }
+    }
+};
+
+window.openSOPExecutionModal = function(taskId, title, itemsStr) {
+    window.currentSOPTaskContext = { id: taskId, title: title };
+    const items = itemsStr.split('|').filter(x => x.trim() !== '');
+    
+    const list = document.getElementById('sop-execution-list');
+    if(list) {
+        list.innerHTML = items.map((item, idx) => `
+            <label class="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group shadow-sm mb-3 fade-in">
+                <div class="relative flex items-center justify-center shrink-0">
+                    <input type="checkbox" onchange="window.checkSOPProgress()" class="sop-checkbox w-6 h-6 appearance-none border-2 border-slate-300 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 outline-none transition peer cursor-pointer">
+                    <i class="fa-solid fa-check absolute text-white text-xs opacity-0 peer-checked:opacity-100 pointer-events-none transition"></i>
+                </div>
+                <span class="text-sm font-bold text-slate-700 group-hover:text-indigo-900 transition leading-tight">${safeStr(item)}</span>
+            </label>
+        `).join('');
+    }
+    
+    const titleEl = document.getElementById('sop-execution-title');
+    if(titleEl) titleEl.innerText = title;
+    
+    const btn = document.getElementById('btn-complete-sop');
+    if(btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        btn.classList.remove('animate-pulse');
+    }
+    
+    const modal = document.getElementById('sop-execution-modal');
+    if(modal) modal.classList.remove('hidden');
+    window.checkSOPProgress();
+};
+
+window.checkSOPProgress = function() {
+    const checkboxes = document.querySelectorAll('.sop-checkbox');
+    const total = checkboxes.length;
+    const checked = document.querySelectorAll('.sop-checkbox:checked').length;
+    const btn = document.getElementById('btn-complete-sop');
+    const progressText = document.getElementById('sop-progress-text');
+    const progressBar = document.getElementById('sop-progress-bar');
+    
+    const pct = total === 0 ? 0 : (checked / total) * 100;
+    if(progressBar) progressBar.style.width = `${pct}%`;
+    if(progressText) progressText.innerText = `${checked} מתוך ${total} הושלמו`;
+    
+    checkboxes.forEach(cb => {
+        const label = cb.closest('label');
+        if (label) {
+            if (cb.checked) {
+                label.classList.add('bg-indigo-50/50', 'border-indigo-300');
+                label.classList.remove('bg-white', 'border-slate-200');
+                label.querySelector('span').classList.add('line-through', 'text-indigo-400');
+            } else {
+                label.classList.remove('bg-indigo-50/50', 'border-indigo-300');
+                label.classList.add('bg-white', 'border-slate-200');
+                label.querySelector('span').classList.remove('line-through', 'text-indigo-400');
+            }
+        }
+    });
+    
+    if (checked === total && total > 0) {
+        if(btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-slate-400');
+            btn.classList.add('animate-pulse', 'bg-indigo-600', 'shadow-indigo-200');
+        }
+    } else {
+        if(btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.classList.remove('animate-pulse');
+        }
+    }
+};
+
+window.completeSOP = function() {
+    if (!window.currentSOPTaskContext) return;
+    const modal = document.getElementById('sop-execution-modal');
+    if(modal) modal.classList.add('hidden');
+    // שולח את העובד למנגנון צילום ההוכחה הקיים שסוגר את הטיקט
+    if(typeof window.clickTaskProof === 'function') {
+        window.clickTaskProof(window.currentSOPTaskContext.id, window.currentSOPTaskContext.title);
+    }
+};
+
+setInterval(() => {
+    const btnManageSets = document.getElementById('btn-manage-task-sets');
+    if (btnManageSets && typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'ADMIN') {
+        btnManageSets.classList.remove('hidden');
+    }
+}, 1500);
