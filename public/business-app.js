@@ -2496,19 +2496,42 @@ window.renderTasks = function(tasks) {
         
         let isSop = false;
         let displayTitle = safeStr(t.title);
-        let sopItemsStr = '';
+        let sopDataStr = '';
+        let sopData = null;
+        let managerProgressHtml = '';
+
         if (t.title && t.title.startsWith('SOP|')) {
             isSop = true;
-            const parts = t.title.split('|');
-            displayTitle = safeStr(parts[1] || 'נוהל עבודה');
-            sopItemsStr = safeStr(parts.slice(2).join('|') || '');
+            try {
+                sopDataStr = t.title.substring(4);
+                sopData = JSON.parse(sopDataStr);
+                displayTitle = safeStr(sopData.title || 'נוהל עבודה');
+                
+                if (isAdmin && t.status === 'pending') {
+                    const match = (t.notes || '').match(/PROGRESS:(\d+)\/(\d+)/);
+                    if (match) {
+                        const checked = parseInt(match[1]);
+                        const total = parseInt(match[2]);
+                        const pct = total > 0 ? (checked/total)*100 : 0;
+                        managerProgressHtml = `
+                        <div class="mt-2 w-full max-w-[200px]">
+                            <div class="flex justify-between text-[9px] text-slate-400 mb-0.5"><span>התקדמות העובד:</span><span>${checked}/${total}</span></div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-indigo-400 h-1.5 rounded-full transition-all" style="width: ${pct}%"></div></div>
+                        </div>`;
+                    }
+                }
+            } catch(e) { displayTitle = 'נוהל שגוי'; }
         }
 
         let statusColor = 'bg-white border-slate-100'; let statusBadge = ''; let actionBtn = '';
+        
+        const deleteBtn = isAdmin ? `<button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="בטל משימה"><i class="fa-solid fa-trash-can text-xs"></i></button>` : '';
+
         if (t.status === 'pending') { 
             if (isMyTask) { 
                 if (isSop) {
-                    actionBtn = `<button onclick="if(typeof window.openSOPExecutionModal === 'function') window.openSOPExecutionModal(${t.id}, '${displayTitle}', '${sopItemsStr}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ביצוע נוהל</button>`;
+                    const safeSopData = encodeURIComponent(sopDataStr);
+                    actionBtn = `<button onclick="if(typeof window.openSOPExecutionModal === 'function') window.openSOPExecutionModal(${t.id}, '${displayTitle}', '${safeSopData}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ביצוע נוהל</button>`;
                 } else {
                     actionBtn = `<button onclick="clickTaskProof(${t.id}, '${displayTitle}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> דיווח סיום</button>`; 
                 }
@@ -2524,7 +2547,7 @@ window.renderTasks = function(tasks) {
         let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-1 font-bold border border-orange-100"><i class="fa-regular fa-clock"></i> יעד: ${diff} ימ'</span>`; else deadlineBadge = `<span class="text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-1 font-bold border border-red-100 animate-pulse"><i class="fa-regular fa-clock"></i> חריגה!</span>`; }
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> נפתח: ${dateStr}</span>` : '';
         
-        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm hover:shadow-md transition ${statusColor} group"><div><p class="font-bold text-slate-800 text-sm leading-tight flex items-center flex-wrap gap-1">${displayTitle} ${sopBadge} ${deadlineBadge}</p><div class="flex items-center flex-wrap gap-2 mt-2"><span class="text-xs text-slate-500 font-medium"><i class="fa-regular fa-user"></i> ${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-2 shrink-0 pl-1">${actionBtn}${statusBadge}</div></div>`;
+        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm hover:shadow-md transition ${statusColor} group"><div><p class="font-bold text-slate-800 text-sm leading-tight flex items-center flex-wrap gap-1">${displayTitle} ${sopBadge} ${deadlineBadge}</p><div class="flex items-center flex-wrap gap-2 mt-2"><span class="text-xs text-slate-500 font-medium"><i class="fa-regular fa-user"></i> ${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div>${managerProgressHtml}</div><div class="flex flex-col items-end gap-2 shrink-0 pl-1"><div class="flex items-center gap-2">${actionBtn}${deleteBtn}</div>${statusBadge}</div></div>`;
     });
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין פרויקטים ומשימות פעילים כרגע</div>'; else list.innerHTML = htmlStr;
 };
@@ -2573,43 +2596,56 @@ async function updateTask(id, s) { if(s==='done' || s==='completed_self') trigge
 async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקשה?')) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
 
 function buildAndRenderFeed() {
-    feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+    feedCache = [];
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
 
-    if(Array.isArray(allTransactions)) {
-        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
-    }
+    if(Array.isArray(allTransactions)) {
+        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
+    }
 
-    if(Array.isArray(allTasks)) {
-        allTasks.forEach(t => {
-            if(t.title && !t.title.startsWith('SHIFT|')) {
-                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
-                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title || 'ללא שם'} (${statusLabel})`, amount: t.reward || 0, status: t.status });
-            }
-        });
-    }
+    if(Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            if(t.title && !t.title.startsWith('SHIFT|')) {
+                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
+                
+                let displayTitle = t.title || 'ללא שם';
+                let isSop = false;
+                if (displayTitle.startsWith('SOP|')) {
+                    isSop = true;
+                    try {
+                        const sopData = JSON.parse(displayTitle.substring(4));
+                        displayTitle = sopData.title || 'נוהל עבודה';
+                    } catch(e) {
+                        displayTitle = displayTitle.split('|')[1] || 'נוהל עבודה';
+                    }
+                }
+                const prefix = isSop ? 'נוהל' : 'משימה';
 
-    if(Array.isArray(bundlesCache)) {
-        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
-    }
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `${prefix}: ${displayTitle} (${statusLabel})`, amount: t.reward || 0, status: t.status });
+            }
+        });
+    }
 
-    if(Array.isArray(b2bOrdersHistory)) {
-        b2bOrdersHistory.forEach(o => {
-            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
-            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
-        });
-    }
+    if(Array.isArray(bundlesCache)) {
+        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
+    }
 
-    // תיקון סעיף 2: סדר התצוגה - חישוב מדויק של זמן מהחדש (למעלה) לישן (למטה)
-    feedCache.sort((a, b) => {
-        const timeA = (a.date && !isNaN(a.date.getTime())) ? a.date.getTime() : 0;
-        const timeB = (b.date && !isNaN(b.date.getTime())) ? b.date.getTime() : 0;
-        return timeB - timeA;
-    });
-    
-    const filterEl = getEl('feed-user-filter');
-    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
-    renderUnifiedFeed();
+    if(Array.isArray(b2bOrdersHistory)) {
+        b2bOrdersHistory.forEach(o => {
+            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
+            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
+        });
+    }
+
+    feedCache.sort((a, b) => {
+        const timeA = (a.date && !isNaN(a.date.getTime())) ? a.date.getTime() : 0;
+        const timeB = (b.date && !isNaN(b.date.getTime())) ? b.date.getTime() : 0;
+        return timeB - timeA;
+    });
+    
+    const filterEl = getEl('feed-user-filter');
+    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
+    renderUnifiedFeed();
 }
 
 function renderUnifiedFeed() {
