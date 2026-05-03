@@ -4940,6 +4940,35 @@ window.calcQuoteTotal = function() {
     }
 };
 
+window.calcQuoteTotal = function() {
+    let total = 0;
+    if (window.selectedQuoteItems) {
+        Object.values(window.selectedQuoteItems).forEach(item => {
+            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
+        });
+    }
+    
+    const discountStr = document.getElementById('quote-discount') ? document.getElementById('quote-discount').value : '0';
+    let discount = parseFloat(discountStr) || 0;
+    if (discount > 100) discount = 100;
+    if (discount < 0) discount = 0;
+    
+    const beforeDiscount = total;
+    total = total - (total * (discount / 100));
+    
+    const totalEl = document.getElementById('quote-total-display');
+    const beforeEl = document.getElementById('quote-before-discount');
+    
+    if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
+    if (beforeEl) {
+        if (discount > 0) {
+            beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
+        } else {
+            beforeEl.innerText = '';
+        }
+    }
+};
+
 window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
@@ -5086,9 +5115,11 @@ window.renderQuoteItemsList = function() {
         const strId = String(p.id);
         const isSelected = !!window.selectedQuoteItems[strId];
         
-        // סינון חכם יותר: בודק גם בתוך תיאור המוצר
         const matchSearch = p.name.toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm);
-        const matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
+        
+        // תיקון הסינון: אם יש טקסט בחיפוש, נתעלם מבחירת הקטגוריה כדי לא להסתיר תוצאות
+        let matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
+        if (searchTerm !== '') matchCat = true; 
         
         if (isSelected) {
             selectedCatalogItems.push(p);
@@ -5099,15 +5130,17 @@ window.renderQuoteItemsList = function() {
         }
     });
     
+    // משיכת פריטי הבחירה מהרכבה / קייטרינג להצגה כשורה נפרדת לחלוטין הניתנת לעריכה
     const catalogIds = window.storeCatalogCache.map(p => String(p.id));
     Object.values(window.selectedQuoteItems).forEach(sqi => {
         if (!catalogIds.includes(String(sqi.id))) {
             selectedCatalogItems.push({
                 id: sqi.id,
                 name: sqi.name,
-                category: 'פריט מותאם אישית',
+                category: sqi.note || 'פריט מהרכבה', // תיאור ההערה משמש כקטגוריה לצורך הצגה יפה
                 image_url: sqi.image_url,
-                price: sqi.price_at_order
+                price: sqi.price_at_order,
+                is_virtual: true
             });
         }
     });
@@ -5115,7 +5148,7 @@ window.renderQuoteItemsList = function() {
     const combinedToRender = [...selectedCatalogItems, ...unselectedCatalogItems];
 
     if (combinedToRender.length === 0) {
-        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש (בדוק את סינון הקטגוריות)</p>';
+        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש.</p>';
         return;
     }
 
@@ -5124,14 +5157,20 @@ window.renderQuoteItemsList = function() {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
         const existingQty = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].quantity : '';
         const existingPrice = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].price_at_order : (parseFloat(p.price) || 0);
-        const existingNote = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].note : '';
+        
+        // רק אם זה מוצר מקורי נשאב הערה קיימת. במוצרים "וירטואלים" מהרכבה, שם הקטגוריה הוא ההערה
+        const existingNote = (window.selectedQuoteItems[strId] && !p.is_virtual) ? window.selectedQuoteItems[strId].note : '';
         
         return `
-        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200">
+        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200 relative group">
+            ${p.is_virtual && !existingQty ? `<button onclick="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '', true)" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] shadow flex items-center justify-center hover:bg-red-600"><i class="fa-solid fa-times"></i></button>` : ''}
             ${imgHtml}
             <div class="flex-1 min-w-0">
                 <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-24 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>
+                ${p.is_virtual ? 
+                `<p class="text-[10px] text-slate-500 mt-1">${safeStr(existingNote)}</p>` :
+                `<textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-16 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>`
+                }
             </div>
             <div class="flex flex-col items-end gap-2 shrink-0 w-28">
                 <div class="w-full relative pt-3">
@@ -5147,11 +5186,22 @@ window.renderQuoteItemsList = function() {
     `}).join('');
 };
 
-window.updateQuoteItem = function(id, name, imgUrl) {
+window.updateQuoteItem = function(id, name, imgUrl, deleteVirtual = false) {
     const strId = String(id);
+    
+    if (deleteVirtual) {
+        delete window.selectedQuoteItems[strId];
+        window.calcQuoteTotal();
+        window.renderQuoteItemsList();
+        return;
+    }
+    
     const qty = parseFloat(document.getElementById(`quote-qty-${id}`)?.value) || 0;
     const price = parseFloat(document.getElementById(`quote-price-${id}`)?.value) || 0;
-    const note = document.getElementById(`quote-note-${id}`)?.value || '';
+    const noteEl = document.getElementById(`quote-note-${id}`);
+    
+    // אם זו שורה וירטואלית שהוספנו מתוך הבחירות, נשמור את הקטגוריה שהוגדרה לה כהערה. אם זו שורת קטלוג רגילה, ניקח מהטקסטבוקס
+    const note = noteEl ? noteEl.value : (window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].note : '');
     
     if (qty > 0) {
         window.selectedQuoteItems[strId] = { id: strId, name, image_url: imgUrl, price_at_order: price, quantity: qty, note: note };
@@ -5161,7 +5211,7 @@ window.updateQuoteItem = function(id, name, imgUrl) {
     
     window.calcQuoteTotal();
     
-    const row = document.getElementById(`quote-qty-${id}`).closest('.flex.items-start');
+    const row = document.getElementById(`quote-qty-${id}`)?.closest('.flex.items-start');
     if (row) {
         if (qty > 0) {
             row.classList.add('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
@@ -5191,66 +5241,96 @@ window.openEditQuoteModal = async function(id) {
     const actualItems = allItems.filter(i => !i.is_quote_metadata);
     
     window.selectedQuoteItems = {};
+    
     actualItems.forEach((item, idx) => {
         let itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
         if (!itemId || itemId === 'undefined' || itemId === 'null') {
-            itemId = 'custom_item_' + idx;
+            itemId = 'custom_main_' + idx;
         }
         
-        let noteTxt = '';
+        let mainNote = '';
+        if (item.note && item.note !== 'undefined') mainNote += item.note + '\n';
+        if (item.notes && item.notes !== 'undefined') mainNote += item.notes + '\n';
+        if (item.cart_note && item.cart_note !== 'undefined') mainNote += item.cart_note + '\n';
         
-        // 1. נתונים ישירים
-        if (item.note && item.note !== 'undefined') noteTxt += item.note + '\n';
-        if (item.notes && item.notes !== 'undefined') noteTxt += item.notes + '\n';
-        if (item.cart_note && item.cart_note !== 'undefined') noteTxt += item.cart_note + '\n';
-
-        // 2. מודולים שנבחרו בקופה/חנות
-        if (item.modifiers && Array.isArray(item.modifiers)) {
-            noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
-        }
-
-        // 3. שאיבה מורחבת מתוך מפרטי אירועים ופרויקטים
-        if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
-            try {
-                const parsed = JSON.parse(item.options_text);
-                if (parsed.selections) {
-                    if (Array.isArray(parsed.selections)) {
-                        noteTxt += parsed.selections.map(s => typeof s === 'object' ? s.name : s).join(', ') + '\n';
-                    } else {
-                        noteTxt += parsed.selections + '\n';
-                    }
-                }
-                if (parsed.note) noteTxt += parsed.note + '\n';
-                if (parsed.toppings && Array.isArray(parsed.toppings)) {
-                    noteTxt += parsed.toppings.map(t => t.name).join(', ') + '\n';
-                }
-                if (parsed.isComplex && parsed.steps) {
-                    parsed.steps.forEach(step => {
-                       if (step.options && Array.isArray(step.options)) {
-                           const selectedOpts = step.options.filter(o => o.selected === true || o.selected === 'true');
-                           if (selectedOpts.length > 0) {
-                               noteTxt += step.name + ': ' + selectedOpts.map(o => o.name).join(', ') + '\n';
-                           }
-                       } 
-                    });
-                }
-            } catch (e) {
-                noteTxt += item.options_text + '\n';
-            }
-        }
-        
-        noteTxt = noteTxt.trim();
         const qty = parseFloat(item.quantity || item.qty) || 1;
         
-        if(qty > 0 && itemId) {
+        if(qty > 0) {
             window.selectedQuoteItems[itemId] = { 
                 id: itemId, 
                 name: item.name || item.item_name || 'פריט מותאם אישית', 
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
                 quantity: qty,
-                note: noteTxt
+                note: mainNote.trim()
             };
+        }
+
+        // חילוץ תוספות ומודולים ויצירת פריטי עריכה עצמאיים
+        if (item.modifiers && Array.isArray(item.modifiers)) {
+            item.modifiers.forEach((mod, mIdx) => {
+                const modId = itemId + '_mod_' + mIdx;
+                window.selectedQuoteItems[modId] = {
+                    id: modId, name: mod.name, image_url: '',
+                    price_at_order: parseFloat(mod.price) || 0, quantity: qty,
+                    note: `תוספת ל: ${item.name || item.item_name}`
+                };
+            });
+        }
+
+        // חילוץ עמוק מתוך options_text (בחירות מפרט קייטרינג, פיצה וכו')
+        if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
+            try {
+                const parsed = JSON.parse(item.options_text);
+                
+                if (parsed.isComplex && parsed.steps) {
+                    parsed.steps.forEach((step, sIdx) => {
+                        if (step.options) {
+                            step.options.forEach((opt, oIdx) => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    const optId = itemId + '_cpx_' + sIdx + '_' + oIdx;
+                                    window.selectedQuoteItems[optId] = {
+                                        id: optId, name: opt.name, image_url: '',
+                                        price_at_order: parseFloat(opt.price) || 0, quantity: qty,
+                                        note: `בחירה משלב: ${step.name}`
+                                    };
+                                }
+                            });
+                        }
+                    });
+                } else if (parsed.isPizza && parsed.toppings) {
+                    parsed.toppings.forEach((top, tIdx) => {
+                        if (top.selected && top.selected !== '0') {
+                            const optId = itemId + '_pza_' + tIdx;
+                            window.selectedQuoteItems[optId] = {
+                                id: optId, name: `${top.name} (${top.selected === '1' ? 'שלם' : (top.selected === '0.5' ? 'חצי' : 'רבע')})`, image_url: '',
+                                price_at_order: parseFloat(top.price) || 0, quantity: qty,
+                                note: `תוספת לפיצה`
+                            };
+                        }
+                    });
+                } else if (Array.isArray(parsed)) {
+                    parsed.forEach((p, pIdx) => {
+                        const optId = itemId + '_arr_' + pIdx;
+                        window.selectedQuoteItems[optId] = {
+                            id: optId, name: typeof p === 'object' ? p.name : p, image_url: '',
+                            price_at_order: typeof p === 'object' ? (parseFloat(p.price) || 0) : 0, quantity: qty,
+                            note: `אפשרות שנבחרה`
+                        };
+                    });
+                } else if (parsed.selections) {
+                    if (Array.isArray(parsed.selections)) {
+                        parsed.selections.forEach((s, sIdx) => {
+                            const optId = itemId + '_sel_' + sIdx;
+                            window.selectedQuoteItems[optId] = {
+                                id: optId, name: typeof s === 'object' ? s.name : s, image_url: '',
+                                price_at_order: typeof s === 'object' ? (parseFloat(s.price) || 0) : 0, quantity: qty,
+                                note: `בחירה`
+                            };
+                        });
+                    }
+                }
+            } catch(e) {}
         }
     });
 
