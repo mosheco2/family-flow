@@ -14697,3 +14697,127 @@ setInterval(() => {
         btnManageSets.classList.remove('hidden');
     }
 }, 1500);
+
+// ============================================================
+// --- מודול תיבת הודעות נכנסות (INBOX) ---
+// ============================================================
+
+window.inboxMessagesCache = [];
+
+window.fetchInboxMessages = async function() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const res = await fetch(`${API}/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            window.inboxMessagesCache = data.messages || [];
+            window.updateInboxBadge();
+        }
+    } catch(e) { console.error('Error fetching inbox', e); }
+};
+
+window.updateInboxBadge = function() {
+    const badge = document.getElementById('inbox-unread-badge');
+    if (!badge) return;
+    
+    const unreadCount = window.inboxMessagesCache.filter(m => !m.is_read).length;
+    if (unreadCount > 0) {
+        badge.innerText = unreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+};
+
+window.openInboxModal = function() {
+    const modal = document.getElementById('inbox-modal');
+    if (!modal) return;
+    
+    window.renderInboxList();
+    modal.classList.remove('hidden');
+};
+
+window.renderInboxList = function() {
+    const list = document.getElementById('inbox-messages-list');
+    if (!list) return;
+    
+    if (window.inboxMessagesCache.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין לך הודעות חדשות כרגע.</p>';
+        return;
+    }
+    
+    list.innerHTML = window.inboxMessagesCache.map(m => {
+        const isSys = m.sender_type === 'superadmin';
+        const isCustomer = m.sender_type === 'customer';
+        const dateStr = new Date(m.created_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
+        
+        let iconHtml = '<i class="fa-solid fa-envelope text-slate-400"></i>';
+        let bgClass = m.is_read ? 'bg-slate-50 opacity-70 border-slate-100' : 'bg-white border-indigo-200 shadow-sm';
+        let typeBadge = '';
+        
+        if (isSys) {
+            iconHtml = '<i class="fa-solid fa-tower-cell text-indigo-500"></i>';
+            typeBadge = '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-indigo-200">הודעת מערכת</span>';
+        } else if (isCustomer) {
+            iconHtml = '<i class="fa-solid fa-user text-emerald-500"></i>';
+            typeBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-emerald-200">לקוח (חנות)</span>';
+        }
+
+        return `
+        <div class="p-4 rounded-xl border ${bgClass} transition flex flex-col mb-3">
+            <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
+                        ${iconHtml}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight flex items-center gap-1">${safeStr(m.subject)} ${!m.is_read ? '<span class="w-2 h-2 bg-red-500 rounded-full inline-block shadow-sm"></span>' : ''}</h4>
+                        <p class="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">מאת: <strong>${safeStr(m.sender_name)}</strong> ${typeBadge}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <span class="text-[9px] text-slate-400 font-mono">${dateStr}</span>
+                    <button onclick="window.deleteInboxMessage(${m.id})" class="text-slate-300 hover:text-red-500 transition" title="מחק הודעה"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>
+            </div>
+            
+            <div class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap ${!m.is_read ? 'font-medium' : ''}">${safeStr(m.content)}</div>
+            
+            ${m.sender_contact && isCustomer ? `<div class="mt-3 pt-3 border-t border-slate-100"><a href="tel:${safeStr(m.sender_contact)}" class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm hover:bg-emerald-100 transition inline-flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> צור קשר: <span dir="ltr">${safeStr(m.sender_contact)}</span></a></div>` : ''}
+            
+            ${!m.is_read ? `<div class="mt-3 text-left"><button onclick="window.markInboxAsRead(${m.id})" class="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition">סמן כנקרא</button></div>` : ''}
+        </div>
+        `;
+    }).join('');
+};
+
+window.markInboxAsRead = async function(id) {
+    try {
+        await fetch(`${API}/inbox/${id}/read`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ isRead: true }) });
+        const msg = window.inboxMessagesCache.find(m => m.id === id);
+        if (msg) msg.is_read = true;
+        window.renderInboxList();
+        window.updateInboxBadge();
+    } catch(e) {}
+};
+
+window.deleteInboxMessage = async function(id) {
+    if(!confirm('האם למחוק את ההודעה?')) return;
+    try {
+        await fetch(`${API}/inbox/${id}`, { method: 'DELETE' });
+        window.inboxMessagesCache = window.inboxMessagesCache.filter(m => m.id !== id);
+        window.renderInboxList();
+        window.updateInboxBadge();
+        showToast('info', 'ההודעה נמחקה');
+    } catch(e) {}
+};
+
+// שילוב קריאת המשיכה אל תוך מחזור החיים הקיים של האפליקציה!
+// מוסיפים האזנה ל-setInterval שכבר רץ במערכת ומעדכן את המידע התקופתי:
+const origFetchDataInboxHook = window.fetchData;
+if (origFetchDataInboxHook) {
+    window.fetchData = async function() {
+        await origFetchDataInboxHook(); // קורא קודם לפונקציה המקורית
+        window.fetchInboxMessages(); // ואז מושך גם את תיבת ההודעות ברקע!
+    };
+}
