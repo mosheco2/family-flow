@@ -541,6 +541,10 @@
                             <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
                                 <i class="fa-solid fa-desktop text-sm"></i>
                             </button>
+                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative bg-emerald-50 hover:bg-emerald-100 text-emerald-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
+                                <i class="fa-regular fa-envelope text-sm"></i>
+                                <span id="inbox-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
+                            </button>
                             <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
                                 <i class="fa-solid fa-headset text-sm"></i>
                             </button>
@@ -3607,9 +3611,22 @@
                 <p class="text-[9px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-slate-200">העוזרת העסקית</p>
             </div>
             
-            <a href="https://wa.me/972504000024" target="_blank" id="whatsapp-btn-wrapper" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-[90] hidden">
+ <a href="https://wa.me/972504000024" target="_blank" id="whatsapp-btn-wrapper" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-[90] hidden">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
+
+            <!-- מודל קריאת ההודעות החדש (Inbox) -->
+            <div id="inbox-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+                <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
+                    <button onclick="document.getElementById('inbox-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mb-1 text-center shrink-0"><i class="fa-regular fa-envelope text-emerald-500 mr-2"></i> תיבת ההודעות</h3>
+                    <p class="text-xs text-slate-500 text-center mb-5 shrink-0">הודעות מהמערכת ומלקוחות החנות</p>
+                    
+                    <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4" id="inbox-messages-list">
+                        <p class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl">טוען הודעות...</p>
+                    </div>
+                </div>
+            </div>
             `;
             
             document.body.insertAdjacentHTML('beforeend', pristineHTML);
