@@ -5046,13 +5046,13 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 };
 
 window.renderQuoteItemsList = function() {
-    const selector = getEl('quote-items-selector');
-    if (!selector || !storeCatalogCache) return;
+    const selector = document.getElementById('quote-items-selector');
+    if (!selector || !window.storeCatalogCache) return;
 
-    const searchTerm = (getEl('quote-search-item')?.value || '').toLowerCase();
-    const catFilter = getEl('quote-cat-filter')?.value || 'all';
+    const searchTerm = (document.getElementById('quote-search-item')?.value || '').toLowerCase();
+    const catFilter = document.getElementById('quote-cat-filter')?.value || 'all';
 
-    const filteredCatalog = storeCatalogCache.filter(p => {
+    const filteredCatalog = window.storeCatalogCache.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(searchTerm);
         const matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
         return matchSearch && matchCat;
@@ -5064,10 +5064,11 @@ window.renderQuoteItemsList = function() {
     }
 
     selector.innerHTML = filteredCatalog.map(p => {
+        const strId = String(p.id);
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
-        const existingQty = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].quantity : '';
-        const existingPrice = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].price_at_order : (parseFloat(p.price) || 0);
-        const existingNote = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].note : '';
+        const existingQty = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].quantity : '';
+        const existingPrice = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].price_at_order : (parseFloat(p.price) || 0);
+        const existingNote = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].note : '';
         
         return `
         <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200">
@@ -5091,18 +5092,19 @@ window.renderQuoteItemsList = function() {
 };
 
 window.updateQuoteItem = function(id, name, imgUrl) {
-    const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
-    const price = parseFloat(getEl(`quote-price-${id}`)?.value) || 0;
-    const note = getEl(`quote-note-${id}`)?.value || '';
+    const strId = String(id);
+    const qty = parseInt(document.getElementById(`quote-qty-${id}`)?.value) || 0;
+    const price = parseFloat(document.getElementById(`quote-price-${id}`)?.value) || 0;
+    const note = document.getElementById(`quote-note-${id}`)?.value || '';
     
     if (qty > 0) {
-        selectedQuoteItems[id] = { id, name, image_url: imgUrl, price_at_order: price, quantity: qty, note: note };
+        window.selectedQuoteItems[strId] = { id: strId, name, image_url: imgUrl, price_at_order: price, quantity: qty, note: note };
     } else {
-        delete selectedQuoteItems[id];
+        delete window.selectedQuoteItems[strId];
     }
     window.calcQuoteTotal();
     
-    const row = getEl(`quote-qty-${id}`).closest('.flex.items-start');
+    const row = document.getElementById(`quote-qty-${id}`).closest('.flex.items-start');
     if (row) {
         if (qty > 0) {
             row.classList.add('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
@@ -5114,251 +5116,10 @@ window.updateQuoteItem = function(id, name, imgUrl) {
     }
 };
 
-window.calcQuoteTotal = function() {
-    let subtotal = 0;
-    Object.values(selectedQuoteItems).forEach(i => subtotal += (i.quantity * i.price_at_order));
-    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
-    const total = subtotal * (1 - discount / 100);
-    const beforeEl = getEl('quote-before-discount');
-    if(beforeEl) beforeEl.innerText = discount > 0 ? `לפני הנחה: ₪${subtotal.toFixed(2)}` : '';
-    getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
-};
-
-window.submitNewQuote = async function() {
-    const name = val('quote-cust-name');
-    const companyId = val('quote-company-id');
-    const phone = val('quote-cust-phone');
-    if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
-
-    if (companyId) localStorage.setItem('ofl_company_id', companyId);
-
-    const btn = getEl('btn-generate-quote');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר ומפיק...';
-
-    const editId = editingQuoteId;
-    editingQuoteId = null;
-
-    const items = Object.values(selectedQuoteItems);
-    let subtotal = 0; items.forEach(i => subtotal += (i.quantity * i.price_at_order));
-    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
-    const total = subtotal * (1 - discount / 100);
-
-    const notesData = JSON.stringify({
-        notes: val('quote-notes') || '', 
-        introText: val('quote-intro-text') || '', 
-        validity: val('quote-validity') || '', 
-        discount, companyId
-    });
-
-    const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
-
-    try {
-        const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
-        const method = editId ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-            method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items: safeItemsToSave, totalAmount: total })
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            try { triggerConfetti(); } catch(e) {}
-            showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
-            getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes(); 
-            
-            if (!editId) {
-                try {
-                    await fetch(`${API}/store/customers`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ groupId: currentGroup.id, name: name, phone: phone, email: '', businessId: companyId, notes: 'נוצר אוטומטית מיצירת הצעת מחיר' })
-                    });
-                    if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
-                } catch(e) {}
-            }
-            
-            const createdId = editId || data.quoteId || data.id; 
-            if (createdId) { setTimeout(() => window.openQuotePreview(createdId), 800); }
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת ההצעה');
-        }
-     } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
-};
-
-window.shareQuoteWhatsApp = function(id, phone) {
-    const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
-    window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
-};
-
-// תיקון סעיף 4: הוספת הפונקציה החסרה ששואבת את הטלפון מתוך חלונית ה-PDF של ההצעה
-window.shareQuoteWhatsAppFromPreview = function() {
-    if (!currentPreviewQuoteId) return;
-    const quote = storeQuotesCache.find(q => String(q.id) === String(currentPreviewQuoteId));
-    if (quote && quote.customer_phone) {
-        window.shareQuoteWhatsApp(quote.id, quote.customer_phone);
-    } else {
-        showToast('error', 'לא מוגדר מספר טלפון ללקוח בהצעה זו.');
-    }
-};
-
-let currentPreviewQuoteId = null;
-
-window.openQuotePreview = async function(id) {
-    const quote = storeQuotesCache.find(q => q.id == id);
-    if(!quote) return;
-    currentPreviewQuoteId = id;
-    let settings = {};
-    try { const r = await fetch(`${API}/store/settings/${currentGroup.id}`); const d = await r.json(); if(d.success) settings = d.settings; } catch(e) {}
-    
-    // פונקציית יצירת ה-HTML פנימית כדי למנוע תלות
-    const html = (function generateQuoteHtmlLocal() {
-        let notesObj = {};
-        const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
-        
-        const metaItem = allItems.find(i => i.is_quote_metadata);
-        if (metaItem) {
-            try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
-        } else {
-            try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
-        }
-        
-        const items = allItems.filter(i => !i.is_quote_metadata);
-        const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
-
-        const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
-        const validity = notesObj.validity || '';
-        const discount = parseFloat(notesObj.discount) || 0;
-        const companyId = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
-        const notesText = (notesObj.notes || '').replace(/\n/g,'<br>');
-        
-        let subtotal = 0; items.forEach(i => subtotal += (parseFloat(i.quantity)||0) * (parseFloat(i.price_at_order)||0));
-        const total = subtotal * (1 - discount / 100);
-        const logo = settings.logo_url || '';
-        const phone = settings.phone || settings.whatsapp_number || '';
-        const bname = safeStr(currentGroup.name || '');
-        const date = new Date(quote.created_at).toLocaleDateString('he-IL');
-        
-        const rowsHtml = items.map((item, i) => `
-            <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
-                <td style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
-                        <div style="direction:rtl; text-align:right;">
-                            ${nb(safeStr(item.name||item.item_name||''))}
-                            ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${nb(safeStr(item.note))}</div>` : ''}
-                        </div>
-                    </div>
-                </td>
-                <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
-                <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-                <td style="padding:6px 10px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
-            </tr>`).join('');
-            
-        return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
-                <div style="text-align:right; direction:rtl;">
-                    <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">${nb('הצעת מחיר')}</h1>
-                    <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="font-weight:bold;">${nb('מספר:')}&#x200F;</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="font-weight:bold;">${nb('תאריך:')}&#x200F;</span> <span dir="ltr">${date}</span></p>
-                </div>
-                ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0; direction:rtl;">${nb(bname)}</h2>`}
-            </div>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-                <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
-                    <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">${nb('מאת (הספק):')}&#x200F;</p>
-                    <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(bname)}</p>
-                    ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="font-weight:bold;">${nb('ח.פ / ע.מ:')}&#x200F;</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                    ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(phone)}</span></p>` : ''}
-                </div>
-                <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right; direction:rtl;">
-                    <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">${nb('עבור (הלקוח):')}&#x200F;</p>
-                    <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(safeStr(quote.customer_name))}</p>
-                    ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
-                </div>
-            </div>
-            
-            ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; direction:rtl; line-height:1.4;">${nb(introText)}</div>` : ''}
-            
-            <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; direction:rtl; border:1px solid #e2e8f0;">
-                <thead>
-                    <tr style="background:#4f46e5; color:white;">
-                        <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">${nb('פריט מבוקש')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">${nb('כמות')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('מחיר יחידה')}</th>
-                        <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('סה"כ')}</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            
-            <div style="display:flex; justify-content:flex-start; margin-bottom:16px; direction:ltr;">
-                <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
-                        <span style="font-size:12px; color:#64748b;">${nb('סכום ביניים:')}&#x200F;</span>
-                    </div>
-                    ${discount > 0 ? `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
-                        <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
-                        <span style="font-size:12px; color:#ef4444;">${nb('הנחה')} (${discount}%):&#x200F;</span>
-                    </div>` : ''}
-                    <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
-                        <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
-                        <span style="font-size:14px; font-weight:900; color:#1e293b;">${nb('סה"כ לתשלום:')}&#x200F;</span>
-                    </div>
-                </div>
-            </div>
-            
-            ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; direction:rtl;"><span style="font-weight:bold;">${nb('תוקף ההצעה:')}&#x200F;</span> <span dir="rtl">${nb(safeStr(validity))}</span></p>` : ''}
-            ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; word-wrap:break-word; max-width:100%; text-align:right; direction:rtl; line-height:1.4;">${nb(notesText)}</div>` : ''}
-        </div>`;
-    })();
-    
-    getEl('quote-preview-content').innerHTML = `<div class="modal-scroll" style="background:white; margin:8px; border-radius:12px; overflow-y:auto; overflow-x:hidden; max-height:65vh; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);">${html}</div>`;
-    getEl('quote-preview-modal').classList.remove('hidden');
-};
-
-window.editQuoteFromPreview = function() {
-    getEl('quote-preview-modal').classList.add('hidden');
-    if(currentPreviewQuoteId) window.openEditQuoteModal(currentPreviewQuoteId);
-};
-
-window.downloadCurrentQuotePDF = async function() {
-    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
-    if(!quote) return;
-    
-    const isLoaded = await loadHtml2Pdf();
-    if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מפיק ומוריד מסמך PDF...');
-    
-    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
-    const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
-
-    const elementToPrint = getEl('quote-preview-content').firstElementChild;
-    if (!elementToPrint) return showToast('error', 'לא נמצא תוכן להדפסה');
-
-    const opt = { 
-        margin: [5, 5, 5, 5], 
-        filename: pdfFilename, 
-        image: { type: 'jpeg', quality: 1 }, 
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(elementToPrint).save().then(() => { 
-        showToast('success','הורד בהצלחה למכשיר!'); 
-    }).catch(err => {
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-    });
-};
-
 window.openEditQuoteModal = async function(id) {
-    const quote = storeQuotesCache.find(q => q.id == id);
+    const quote = window.storeQuotesCache.find(q => String(q.id) === String(id));
     if(!quote) return;
-    editingQuoteId = id;
+    window.editingQuoteId = id;
     
     const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
     
@@ -5372,15 +5133,16 @@ window.openEditQuoteModal = async function(id) {
     
     const actualItems = allItems.filter(i => !i.is_quote_metadata);
     
-    selectedQuoteItems = {};
+    window.selectedQuoteItems = {};
     actualItems.forEach(item => {
-        if(item.quantity > 0) {
-            selectedQuoteItems[item.id || item.item_name] = { 
-                id: item.id || item.item_name, 
+        const itemId = String(item.catalog_id || item.catalogId || item.id || '');
+        if(item.quantity > 0 && itemId) {
+            window.selectedQuoteItems[itemId] = { 
+                id: itemId, 
                 name: item.name || item.item_name || '', 
                 image_url: item.image_url || '',
-                price_at_order: parseFloat(item.price_at_order) || 0, 
-                quantity: parseFloat(item.quantity) || 0,
+                price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
+                quantity: parseFloat(item.quantity || item.qty) || 0,
                 note: item.note || ''
             };
         }
@@ -5388,16 +5150,19 @@ window.openEditQuoteModal = async function(id) {
 
     await window.openNewQuoteModal(true);
     
-    getEl('quote-cust-name').value = quote.customer_name || '';
-    getEl('quote-cust-phone').value = quote.customer_phone || '';
-    if(getEl('quote-company-id')) getEl('quote-company-id').value = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
-    if(getEl('quote-intro-text')) getEl('quote-intro-text').value = notesObj.introText || '';
-    if(getEl('quote-validity')) getEl('quote-validity').value = notesObj.validity || '14 יום';
-    if(getEl('quote-discount')) getEl('quote-discount').value = notesObj.discount || '';
-    if(getEl('quote-notes')) getEl('quote-notes').value = notesObj.notes || '';
+    document.getElementById('quote-cust-name').value = quote.customer_name || '';
+    document.getElementById('quote-cust-phone').value = quote.customer_phone || '';
+    if(document.getElementById('quote-company-id')) document.getElementById('quote-company-id').value = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
+    if(document.getElementById('quote-intro-text')) document.getElementById('quote-intro-text').value = notesObj.introText || '';
+    if(document.getElementById('quote-validity')) document.getElementById('quote-validity').value = notesObj.validity || '14 יום';
+    if(document.getElementById('quote-discount')) document.getElementById('quote-discount').value = notesObj.discount || '';
+    
+    let pureNotes = notesObj.notes || quote.notes || '';
+    pureNotes = pureNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+    if(document.getElementById('quote-notes')) document.getElementById('quote-notes').value = pureNotes;
 
     window.calcQuoteTotal();
-    getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
+    document.getElementById('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
 
 window.fetchStoreCustomers = async function() {
@@ -11251,7 +11016,55 @@ window.renderCalendarServices = function() {
     `).join('');
 };
 
+window.syncQuotesToCalendar = function() {
+    if (!window.calEventsCache || !window.storeQuotesCache) return;
+    
+    let added = false;
+    window.storeQuotesCache.forEach(q => {
+        if (q.target_datetime && (q.status === 'new' || q.status === 'quote' || q.status === 'draft' || q.quote_status === 'draft' || q.quote_status === 'waiting_customer')) {
+            const fakeId = 'quote_' + q.id;
+            if (!window.calEventsCache.find(e => String(e.id) === fakeId)) {
+                const d = new Date(q.target_datetime);
+                window.calEventsCache.push({
+                    id: fakeId,
+                    title: `בקשה לאירוע/פרויקט: ${safeStr(q.customer_name)}`,
+                    event_date: d.toISOString().split('T')[0],
+                    start_time: d.toTimeString().substring(0,5),
+                    customer_phone: q.customer_phone,
+                    notes: `ORDER_REF:${q.id} ` + (q.notes || ''),
+                    status: 'pending',
+                    service_id: null
+                });
+                added = true;
+            }
+        }
+    });
+    
+    if (added && typeof window.renderCalendarRequests === 'function') {
+        window.renderCalendarRequests();
+    }
+};
+
+const origFetchCalData = window.fetchCalendarData;
+window.fetchCalendarData = async function() {
+    if (origFetchCalData) await origFetchCalData();
+    window.syncQuotesToCalendar();
+};
+
+const origFetchStoreQuotes = window.fetchStoreQuotes;
+window.fetchStoreQuotes = async function() {
+    if (origFetchStoreQuotes) await origFetchStoreQuotes();
+    window.syncQuotesToCalendar();
+};
+
 window.approveCalendarEvent = async function(id) {
+    if (String(id).startsWith('quote_')) {
+        const qId = String(id).split('_')[1];
+        window.switchTab('sales');
+        window.switchSalesTab('quotes');
+        window.approveQuoteToOrder(qId);
+        return;
+    }
     try {
         const res = await fetch(`${API}/calendar/events/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: 'approved' }) });
         if((await res.json()).success) { showToast('success', 'הבקשה אושרה והתור שובץ!'); fetchCalendarData(); }
@@ -11259,6 +11072,14 @@ window.approveCalendarEvent = async function(id) {
 };
 
 window.deleteCalendarEvent = async function(id, isReject = false) {
+    if (String(id).startsWith('quote_')) {
+        if(!confirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
+        const qId = String(id).split('_')[1];
+        window.updateQuoteStatus(qId, 'cancelled');
+        window.calEventsCache = window.calEventsCache.filter(e => String(e.id) !== String(id));
+        window.renderCalendarRequests();
+        return;
+    }
     if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
     try {
         await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
