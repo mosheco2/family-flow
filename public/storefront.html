@@ -1373,7 +1373,7 @@ window.openCheckoutModal = function() {
             }
         };
 
-        window.submitOrder = async function(e) {
+window.submitOrder = async function(e) {
             e.preventDefault(); 
             const btn = getEl('btn-submit-order'); 
             btn.disabled = true; 
@@ -1385,7 +1385,8 @@ window.openCheckoutModal = function() {
 
             const isDelivery = getEl('is-delivery').value === 'true';
             
-            if (isDelivery) {
+            // בדיקת דמי משלוח וכתובת - רק להזמנות רגילות (לא קייטרינג/פרויקט)
+            if (isDelivery && !calc.hasComplexItems) {
                 if (!val('cust-city') || !val('cust-street') || !val('cust-house')) {
                     showToast('error', 'חובה למלא עיר, רחוב ומספר בית למשלוח');
                     btn.disabled = false;
@@ -1394,11 +1395,22 @@ window.openCheckoutModal = function() {
                 }
             }
 
-            const delFee = isDelivery ? (parseFloat(storeData.settings?.delivery_fee) || 30) : 0;
+            // חילוץ תאריך עתידי במידה ויש
+            const timeType = getEl('target-time-type').value;
+            const targetTimeVal = getEl('target-time-input').value;
+            
+            // חסימה: פרויקטים וקייטרינג מחייבים תאריך משוער
+            if (calc.hasComplexItems && (timeType !== 'future' || !targetTimeVal)) {
+                btn.disabled = false; 
+                btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
+            }
+
+            const delFee = (isDelivery && !calc.hasComplexItems) ? (parseFloat(storeData.settings?.delivery_fee) || 30) : 0;
             const finalTotalWithDelivery = calc.finalTotal + delFee;
 
             let deliveryData = null;
-            if (isDelivery) {
+            if (isDelivery && !calc.hasComplexItems) {
                 deliveryData = { city: val('cust-city'), street: val('cust-street'), house: val('cust-house'), floor: val('cust-floor'), apt: val('cust-apt'), notes: val('cust-notes') };
             }
 
@@ -1409,19 +1421,6 @@ window.openCheckoutModal = function() {
                     familyId = session.group.id;
                 }
             } catch(e) {}
-
-            try {
-                const res = await fetch(`${API}/store/orders`, { 
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        const timeType = getEl('target-time-type').value;
-            const targetTimeVal = getEl('target-time-input').value;
-            
-            if (calc.hasComplexItems && (timeType !== 'future' || !targetTimeVal)) {
-                btn.disabled = false; 
-                btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
-                return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
-            }
 
             let extraNotes = '';
             if (calc.hasComplexItems) extraNotes = '[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.';
@@ -1437,16 +1436,19 @@ window.openCheckoutModal = function() {
                 deliveryDetails: deliveryData, 
                 familyGroupId: familyId,
                 notes: extraNotes,
-                orderType: calc.hasComplexItems ? 'quote' : 'order' // סימון לעסק שזו הצעת מחיר
+                orderType: calc.hasComplexItems ? 'quote' : 'order'
             };
+
+            try {
+                const res = await fetch(`${API}/store/orders`, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) { 
                     // בדיקה ושידור של מועד ההזמנה העתידי (אם נבחר)
-                    const timeType = getEl('target-time-type').value;
-                    const targetTimeVal = getEl('target-time-input').value;
                     if (timeType === 'future' && targetTimeVal) {
                         try {
                             const formattedDate = targetTimeVal.replace('T', ' ') + ':00';
@@ -1465,7 +1467,11 @@ window.openCheckoutModal = function() {
             } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת'); } 
             finally { 
                 btn.disabled = false; 
-                btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
+                if (calc.hasComplexItems) {
+                    btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                } else {
+                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
+                }
             }
         };
 
