@@ -4969,6 +4969,35 @@ window.calcQuoteTotal = function() {
     }
 };
 
+window.calcQuoteTotal = function() {
+    let total = 0;
+    if (window.selectedQuoteItems) {
+        Object.values(window.selectedQuoteItems).forEach(item => {
+            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
+        });
+    }
+    
+    const discountStr = document.getElementById('quote-discount') ? document.getElementById('quote-discount').value : '0';
+    let discount = parseFloat(discountStr) || 0;
+    if (discount > 100) discount = 100;
+    if (discount < 0) discount = 0;
+    
+    const beforeDiscount = total;
+    total = total - (total * (discount / 100));
+    
+    const totalEl = document.getElementById('quote-total-display');
+    const beforeEl = document.getElementById('quote-before-discount');
+    
+    if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
+    if (beforeEl) {
+        if (discount > 0) {
+            beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
+        } else {
+            beforeEl.innerText = '';
+        }
+    }
+};
+
 window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
@@ -4976,9 +5005,10 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
     }
     
-    // מחיקת טופס ישן תמיד כדי לאתחל את ה-HTML מחדש (כולל שורת החיפוש)
     const existingModal = document.getElementById('quote-modal');
     if (existingModal) existingModal.remove();
+    const existingSubModal = document.getElementById('quote-complex-modal');
+    if (existingSubModal) existingSubModal.remove();
 
     document.body.insertAdjacentHTML('beforeend', `
     <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
@@ -4988,18 +5018,9 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
                 <div class="grid grid-cols-3 gap-2 mb-4">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה (חובה):</label>
-                        <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: ישראל ישראלי">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון (לשליחת ההצעה):</label>
-                        <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label>
-                        <input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white" placeholder="נשמר אוטומטית">
-                    </div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה:</label><input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white"></div>
                 </div>
 
                 <div id="quote-texts-container" class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -5007,47 +5028,40 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                         <div class="flex justify-between items-center mb-1">
                             <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
                             <div class="flex gap-1">
-                                <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
+                                <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                                <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 outline-none w-16"><option value="">תבניות...</option></select>
+                                <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
                             </div>
                         </div>
-                        <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
+                        <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
-                            <input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
-                            <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
-                        </div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label><input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0"></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label><input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום"></div>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
                             <div class="flex gap-1">
-                                <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
+                                <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                                <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 outline-none w-16"><option value="">תבניות...</option></select>
+                                <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
                             </div>
                         </div>
-                        <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
+                        <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200"></textarea>
                     </div>
                 </div>
 
                 <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
                 
                 <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש לפי שם או תיאור..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
+                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש חופשי (מתעלם מקטגוריה)..." class="modern-input py-1.5 px-3 text-xs w-full bg-white font-bold">
                     <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
                         <option value="all">כל הקטגוריות</option>
                     </select>
                 </div>
 
                 <div id="quote-items-selector" class="space-y-2 mb-6"></div>
-                
             </div>
             
             <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
@@ -5063,6 +5077,27 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                     <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- SUB MODAL FOR COMPLEX ITEMS -->
+    <div id="quote-complex-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in border-2 border-emerald-100">
+             <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+             <h3 class="text-xl font-black text-slate-800 mb-1 shrink-0"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> עריכת פריטי תפריט / מפרט</h3>
+             <p class="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-100 shrink-0">כאן תוכל להוסיף, להסיר, ולתמחר את מרכיבי המנה עבור הלקוח.</p>
+             
+             <div class="relative mb-4 shrink-0">
+                 <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                 <input type="text" id="complex-search-item" oninput="window.renderComplexEditorList()" placeholder="חפש תוספת או פריט מהתפריט (למשל: סלמון)..." class="modern-input py-2.5 pr-10 pl-4 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white font-bold transition">
+             </div>
+             
+             <div id="complex-items-selector" class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-2"></div>
+             
+             <div class="pt-4 border-t border-slate-100 shrink-0 bg-white flex gap-3">
+                 <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול שינויים</button>
+                 <button onclick="window.saveComplexEditor()" class="flex-[1.2] bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2">שמור פריטים <i class="fa-solid fa-check"></i></button>
+             </div>
         </div>
     </div>
     `);
@@ -5115,9 +5150,10 @@ window.renderQuoteItemsList = function() {
         const strId = String(p.id);
         const isSelected = !!window.selectedQuoteItems[strId];
         
+        // חיפוש טקסט חופשי גם בשם וגם בתיאור
         const matchSearch = p.name.toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm);
         
-        // תיקון הסינון: אם יש טקסט בחיפוש, נתעלם מבחירת הקטגוריה כדי לא להסתיר תוצאות
+        // עקיפה: אם מקלידים טקסט, נתעלם מהקטגוריה!
         let matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
         if (searchTerm !== '') matchCat = true; 
         
@@ -5129,98 +5165,100 @@ window.renderQuoteItemsList = function() {
             }
         }
     });
-    
-    // משיכת פריטי הבחירה מהרכבה / קייטרינג להצגה כשורה נפרדת לחלוטין הניתנת לעריכה
-    const catalogIds = window.storeCatalogCache.map(p => String(p.id));
-    Object.values(window.selectedQuoteItems).forEach(sqi => {
-        if (!catalogIds.includes(String(sqi.id))) {
-            selectedCatalogItems.push({
-                id: sqi.id,
-                name: sqi.name,
-                category: sqi.note || 'פריט מהרכבה', // תיאור ההערה משמש כקטגוריה לצורך הצגה יפה
-                image_url: sqi.image_url,
-                price: sqi.price_at_order,
-                is_virtual: true
-            });
-        }
-    });
 
     const combinedToRender = [...selectedCatalogItems, ...unselectedCatalogItems];
 
     if (combinedToRender.length === 0) {
-        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש.</p>';
+        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים (כדאי לנקות חיפוש או קטגוריה)</p>';
         return;
     }
 
     selector.innerHTML = combinedToRender.map(p => {
         const strId = String(p.id);
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
-        const existingQty = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].quantity : '';
-        const existingPrice = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].price_at_order : (parseFloat(p.price) || 0);
+        const existingItem = window.selectedQuoteItems[strId];
+        const existingQty = existingItem ? existingItem.quantity : '';
+        const existingPrice = existingItem ? existingItem.price_at_order : (parseFloat(p.price) || 0);
+        const existingNote = existingItem ? existingItem.note : '';
         
-        // רק אם זה מוצר מקורי נשאב הערה קיימת. במוצרים "וירטואלים" מהרכבה, שם הקטגוריה הוא ההערה
-        const existingNote = (window.selectedQuoteItems[strId] && !p.is_virtual) ? window.selectedQuoteItems[strId].note : '';
-        
-        return `
-        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200 relative group">
-            ${p.is_virtual && !existingQty ? `<button onclick="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '', true)" class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] shadow flex items-center justify-center hover:bg-red-600"><i class="fa-solid fa-times"></i></button>` : ''}
-            ${imgHtml}
-            <div class="flex-1 min-w-0">
-                <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                ${p.is_virtual ? 
-                `<p class="text-[10px] text-slate-500 mt-1">${safeStr(existingNote)}</p>` :
-                `<textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-16 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>`
-                }
-            </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+        // בדיקה האם זהו מוצר מורכב (תפריט אירוע)
+        const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
+
+        if (isComplex) {
+            // תצוגת מוצר מורכב - עם כפתור לפתיחת עורך התפריט
+            return `
+            <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-emerald-300 shadow-md bg-emerald-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-emerald-200">
+                ${imgHtml}
+                <div class="flex-1 min-w-0">
+                    <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
+                    ${existingQty ? `
+                        <button onclick="window.openQuoteComplexEditor('${strId}')" class="mt-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
+                        <div class="text-[10px] text-slate-500 mt-1 truncate max-w-full">${safeStr(existingNote)}</div>
+                    ` : `<p class="text-[10px] text-slate-400 mt-1">הזן כמות כדי לערוך את המפרט</p>`}
                 </div>
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                <div class="flex flex-col items-end gap-2 shrink-0 w-28">
+                    <div class="w-full relative pt-3">
+                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
+                        <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-emerald-50 text-emerald-700 font-bold border-emerald-200" placeholder="0.00">
+                    </div>
+                    <div class="w-full relative pt-3">
+                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
+                        <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    </div>
                 </div>
-            </div>
-        </div>
-    `}).join('');
+            </div>`;
+        } else {
+            // תצוגת מוצר רגיל
+            return `
+            <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200">
+                ${imgHtml}
+                <div class="flex-1 min-w-0">
+                    <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
+                    <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה (למשל: מידת עשייה)..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-16 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0 w-28">
+                    <div class="w-full relative pt-3">
+                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
+                        <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+                    </div>
+                    <div class="w-full relative pt-3">
+                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
+                        <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    </div>
+                </div>
+            </div>`;
+        }
+    }).join('');
 };
 
-window.updateQuoteItem = function(id, name, imgUrl, deleteVirtual = false) {
+window.updateQuoteItem = function(id, name, imgUrl) {
     const strId = String(id);
-    
-    if (deleteVirtual) {
-        delete window.selectedQuoteItems[strId];
-        window.calcQuoteTotal();
-        window.renderQuoteItemsList();
-        return;
-    }
-    
     const qty = parseFloat(document.getElementById(`quote-qty-${id}`)?.value) || 0;
     const price = parseFloat(document.getElementById(`quote-price-${id}`)?.value) || 0;
     const noteEl = document.getElementById(`quote-note-${id}`);
     
-    // אם זו שורה וירטואלית שהוספנו מתוך הבחירות, נשמור את הקטגוריה שהוגדרה לה כהערה. אם זו שורת קטלוג רגילה, ניקח מהטקסטבוקס
+    // אם זו שורה רגילה, ניקח טקסט מה-textarea. אם וירטואלית/מורכבת, נשמור את ההערה הקיימת בזיכרון (שתתעדכן מהמודאל הפנימי).
     const note = noteEl ? noteEl.value : (window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].note : '');
     
     if (qty > 0) {
-        window.selectedQuoteItems[strId] = { id: strId, name, image_url: imgUrl, price_at_order: price, quantity: qty, note: note };
+        // שמירת ה-complex_data אם קיים כדי לא לדרוס את בחירות התפריט המורכב בזמן עדכון כמות מבחוץ
+        const existingData = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].complex_data : null;
+        
+        window.selectedQuoteItems[strId] = { 
+            id: strId, 
+            name, 
+            image_url: imgUrl, 
+            price_at_order: price, 
+            quantity: qty, 
+            note: note,
+            complex_data: existingData 
+        };
     } else {
         delete window.selectedQuoteItems[strId];
     }
     
     window.calcQuoteTotal();
-    
-    const row = document.getElementById(`quote-qty-${id}`)?.closest('.flex.items-start');
-    if (row) {
-        if (qty > 0) {
-            row.classList.add('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
-            row.classList.remove('border-slate-100', 'shadow-sm');
-        } else {
-            row.classList.remove('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
-            row.classList.add('border-slate-100', 'shadow-sm');
-        }
-    }
+    window.renderQuoteItemsList();
 };
 
 window.openEditQuoteModal = async function(id) {
@@ -5241,18 +5279,41 @@ window.openEditQuoteModal = async function(id) {
     const actualItems = allItems.filter(i => !i.is_quote_metadata);
     
     window.selectedQuoteItems = {};
-    
-    actualItems.forEach((item, idx) => {
+    actualItems.forEach((item) => {
         let itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
-        if (!itemId || itemId === 'undefined' || itemId === 'null') {
-            itemId = 'custom_main_' + idx;
+        if (!itemId || itemId === 'undefined' || itemId === 'null') return;
+        
+        // יצירת מחרוזת התיאור היפה לתצוגה החיצונית
+        let noteTxt = '';
+        if (item.note && item.note !== 'undefined') noteTxt += item.note + '\n';
+        if (item.notes && item.notes !== 'undefined') noteTxt += item.notes + '\n';
+        if (item.cart_note && item.cart_note !== 'undefined') noteTxt += item.cart_note + '\n';
+
+        if (item.modifiers && Array.isArray(item.modifiers)) {
+            noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
+        }
+
+        if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
+            try {
+                const parsed = JSON.parse(item.options_text);
+                if (parsed.isComplex && parsed.steps) {
+                    let summary = [];
+                    parsed.steps.forEach(step => {
+                       if (step.options && Array.isArray(step.options)) {
+                           const selectedOpts = step.options.filter(o => o.selected === true || o.selected === 'true');
+                           if (selectedOpts.length > 0) {
+                               summary.push(step.name + ': ' + selectedOpts.map(o => `${o.name} (x${o.qty||1})`).join(', '));
+                           }
+                       } 
+                    });
+                    if (summary.length > 0) noteTxt += summary.join(' | ') + '\n';
+                }
+            } catch (e) {
+                noteTxt += item.options_text + '\n';
+            }
         }
         
-        let mainNote = '';
-        if (item.note && item.note !== 'undefined') mainNote += item.note + '\n';
-        if (item.notes && item.notes !== 'undefined') mainNote += item.notes + '\n';
-        if (item.cart_note && item.cart_note !== 'undefined') mainNote += item.cart_note + '\n';
-        
+        noteTxt = noteTxt.trim();
         const qty = parseFloat(item.quantity || item.qty) || 1;
         
         if(qty > 0) {
@@ -5262,75 +5323,9 @@ window.openEditQuoteModal = async function(id) {
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
                 quantity: qty,
-                note: mainNote.trim()
+                note: noteTxt,
+                complex_data: item.options_text // משמרים את האובייקט המקורי לעורך הפנימי!
             };
-        }
-
-        // חילוץ תוספות ומודולים ויצירת פריטי עריכה עצמאיים
-        if (item.modifiers && Array.isArray(item.modifiers)) {
-            item.modifiers.forEach((mod, mIdx) => {
-                const modId = itemId + '_mod_' + mIdx;
-                window.selectedQuoteItems[modId] = {
-                    id: modId, name: mod.name, image_url: '',
-                    price_at_order: parseFloat(mod.price) || 0, quantity: qty,
-                    note: `תוספת ל: ${item.name || item.item_name}`
-                };
-            });
-        }
-
-        // חילוץ עמוק מתוך options_text (בחירות מפרט קייטרינג, פיצה וכו')
-        if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
-            try {
-                const parsed = JSON.parse(item.options_text);
-                
-                if (parsed.isComplex && parsed.steps) {
-                    parsed.steps.forEach((step, sIdx) => {
-                        if (step.options) {
-                            step.options.forEach((opt, oIdx) => {
-                                if (opt.selected === true || opt.selected === 'true') {
-                                    const optId = itemId + '_cpx_' + sIdx + '_' + oIdx;
-                                    window.selectedQuoteItems[optId] = {
-                                        id: optId, name: opt.name, image_url: '',
-                                        price_at_order: parseFloat(opt.price) || 0, quantity: qty,
-                                        note: `בחירה משלב: ${step.name}`
-                                    };
-                                }
-                            });
-                        }
-                    });
-                } else if (parsed.isPizza && parsed.toppings) {
-                    parsed.toppings.forEach((top, tIdx) => {
-                        if (top.selected && top.selected !== '0') {
-                            const optId = itemId + '_pza_' + tIdx;
-                            window.selectedQuoteItems[optId] = {
-                                id: optId, name: `${top.name} (${top.selected === '1' ? 'שלם' : (top.selected === '0.5' ? 'חצי' : 'רבע')})`, image_url: '',
-                                price_at_order: parseFloat(top.price) || 0, quantity: qty,
-                                note: `תוספת לפיצה`
-                            };
-                        }
-                    });
-                } else if (Array.isArray(parsed)) {
-                    parsed.forEach((p, pIdx) => {
-                        const optId = itemId + '_arr_' + pIdx;
-                        window.selectedQuoteItems[optId] = {
-                            id: optId, name: typeof p === 'object' ? p.name : p, image_url: '',
-                            price_at_order: typeof p === 'object' ? (parseFloat(p.price) || 0) : 0, quantity: qty,
-                            note: `אפשרות שנבחרה`
-                        };
-                    });
-                } else if (parsed.selections) {
-                    if (Array.isArray(parsed.selections)) {
-                        parsed.selections.forEach((s, sIdx) => {
-                            const optId = itemId + '_sel_' + sIdx;
-                            window.selectedQuoteItems[optId] = {
-                                id: optId, name: typeof s === 'object' ? s.name : s, image_url: '',
-                                price_at_order: typeof s === 'object' ? (parseFloat(s.price) || 0) : 0, quantity: qty,
-                                note: `בחירה`
-                            };
-                        });
-                    }
-                }
-            } catch(e) {}
         }
     });
 
@@ -5351,6 +5346,156 @@ window.openEditQuoteModal = async function(id) {
     
     const btnGen = document.getElementById('btn-generate-quote');
     if(btnGen) btnGen.innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
+};
+window.openQuoteComplexEditor = function(strId) {
+    const item = window.selectedQuoteItems[strId];
+    if (!item) return;
+    
+    window.currentEditingComplexId = strId;
+    let catalogItem = window.storeCatalogCache.find(c => String(c.id) === String(item.id));
+    
+    // שליפת הנתונים מהעגלה / הצעת המחיר, או מהקטלוג אם זה מוצר חדש
+    let savedData = { steps: [] };
+    if (item.complex_data) {
+        try { savedData = JSON.parse(item.complex_data); } catch(e) {}
+    }
+    
+    let catalogData = { steps: [] };
+    if (catalogItem && catalogItem.options_text) {
+        try { catalogData = JSON.parse(catalogItem.options_text); } catch(e) {}
+    }
+
+    // בניית מערך זמני ושטוח של כל פריטי הבן, תוך מיזוג בחירות מהעבר
+    window.tempComplexItems = [];
+    
+    if (catalogData.steps) {
+        catalogData.steps.forEach((step, sIdx) => {
+            if (step.options) {
+                step.options.forEach((opt, oIdx) => {
+                    let savedOpt = null;
+                    if (savedData.steps && savedData.steps[sIdx] && savedData.steps[sIdx].options) {
+                        savedOpt = savedData.steps[sIdx].options.find(o => o.name === opt.name && (o.selected === true || o.selected === 'true'));
+                    }
+                    
+                    window.tempComplexItems.push({
+                        stepIdx: sIdx,
+                        stepName: step.name,
+                        optIdx: oIdx,
+                        name: opt.name,
+                        base_price: parseFloat(opt.price) || 0,
+                        price: savedOpt ? (parseFloat(savedOpt.price) || 0) : (parseFloat(opt.price) || 0),
+                        qty: savedOpt ? (parseFloat(savedOpt.qty || savedOpt.quantity) || 1) : 0, // כמות 0 אומרת שלא נבחר
+                        note: savedOpt ? (savedOpt.note || '') : ''
+                    });
+                });
+            }
+        });
+    }
+    
+    document.getElementById('complex-search-item').value = '';
+    window.renderComplexEditorList();
+    document.getElementById('quote-complex-modal').classList.remove('hidden');
+};
+
+window.renderComplexEditorList = function() {
+    const query = (document.getElementById('complex-search-item').value || '').toLowerCase();
+    const container = document.getElementById('complex-items-selector');
+    
+    let filtered = window.tempComplexItems;
+    if (query) {
+         filtered = filtered.filter(i => i.name.toLowerCase().includes(query) || i.stepName.toLowerCase().includes(query));
+    }
+    
+    // סידור: נבחרים קודם (לפי כמות > 0), ואז לפי סדר השלבים
+    filtered.sort((a, b) => {
+         if (a.qty > 0 && b.qty === 0) return -1;
+         if (a.qty === 0 && b.qty > 0) return 1;
+         return a.stepIdx - b.stepIdx;
+    });
+    
+    container.innerHTML = filtered.map(item => {
+        const isSelected = item.qty > 0;
+        return `
+        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${isSelected ? 'border-emerald-300 shadow-md bg-emerald-50/20' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-emerald-400">
+            <div class="flex-1 min-w-0">
+                <span class="text-sm font-bold text-slate-800 truncate block leading-tight">${safeStr(item.name)} <span class="text-[9px] text-slate-400 font-normal ml-1 bg-white px-1.5 py-0.5 rounded shadow-sm border border-slate-100">(${safeStr(item.stepName)})</span></span>
+                <textarea onchange="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'note', this.value)" placeholder="הערה לשורת תפריט זו (מידת עשייה, רגישות)..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-12 leading-tight shadow-sm">${safeStr(item.note)}</textarea>
+            </div>
+            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
+                <div class="w-full relative pt-3">
+                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר שורה ₪</span>
+                    <input type="number" min="0" step="0.01" value="${item.price}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'price', this.value)" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-white text-slate-700 font-bold border-slate-200 focus:border-emerald-400" placeholder="0.00">
+                </div>
+                <div class="w-full relative pt-3">
+                    <span class="text-[9px] ${isSelected ? 'text-emerald-600' : 'text-slate-400'} absolute top-0 right-1 font-bold">כמות (0 = לא נבחר)</span>
+                    <input type="number" min="0" value="${item.qty}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'qty', this.value)" class="modern-input py-1.5 px-2 text-sm text-center w-full ${isSelected ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-50 border-slate-200'}" placeholder="0">
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+};
+
+window.updateTempComplexItem = function(sIdx, oIdx, field, val) {
+     const item = window.tempComplexItems.find(i => i.stepIdx === sIdx && i.optIdx === oIdx);
+     if (item) {
+         if (field === 'qty' || field === 'price') item[field] = parseFloat(val) || 0;
+         else item[field] = val;
+         
+         // ריענון ויזואלי מיידי אם עברנו מ-0 בחירות ליותר מ-0
+         if (field === 'qty') window.renderComplexEditorList(); 
+     }
+};
+
+window.saveComplexEditor = function() {
+     const strId = window.currentEditingComplexId;
+     const quoteItem = window.selectedQuoteItems[strId];
+     if (!quoteItem) return;
+     
+     // יצירת מבנה הנתונים המקורי מחדש
+     let catalogItem = window.storeCatalogCache.find(c => String(c.id) === String(quoteItem.id));
+     let newComplexData = { steps: [] };
+     if (catalogItem && catalogItem.options_text) {
+         try { newComplexData = JSON.parse(catalogItem.options_text); } catch(e) {}
+     }
+     
+     // החדרת המידע המעודכן מהחלון הזמני חזרה לאובייקט
+     let summaryText = [];
+     if (newComplexData.steps) {
+         newComplexData.steps.forEach((step, sIdx) => {
+             if (step.options) {
+                 step.options.forEach((opt, oIdx) => {
+                     const tempItem = window.tempComplexItems.find(i => i.stepIdx === sIdx && i.optIdx === oIdx);
+                     if (tempItem && tempItem.qty > 0) {
+                         opt.selected = true;
+                         opt.qty = tempItem.qty;
+                         opt.price = tempItem.price;
+                         opt.note = tempItem.note;
+                         
+                         let itemStr = `${opt.name} (x${opt.qty})`;
+                         if(opt.note) itemStr += ` [${opt.note}]`;
+                         summaryText.push(itemStr);
+                     } else {
+                         opt.selected = false;
+                         opt.qty = 0;
+                     }
+                 });
+             }
+         });
+     }
+     
+     // עדכון שורת פריט האב עצמו
+     quoteItem.complex_data = JSON.stringify(newComplexData);
+     if (summaryText.length > 0) {
+         quoteItem.note = "בחירות תפריט:\n" + summaryText.join(' | ');
+     } else {
+         quoteItem.note = "לא נבחרו פריטים בתפריט.";
+     }
+     
+     document.getElementById('quote-complex-modal').classList.add('hidden');
+     window.renderQuoteItemsList(); // מרענן את רשימת המוצרים כדי להראות את הטקסט המעודכן תחת האב
+     window.calcQuoteTotal();
+     showToast('success', 'תפריט האירוע עודכן. יש ללחוץ למטה "שמור והפק" כדי לשמור את ההצעה סופית.');
 };
 
 window.fetchStoreCustomers = async function() {
