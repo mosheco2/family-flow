@@ -2127,8 +2127,8 @@ window.submitBalanceAdjustment = async function() {
     
     if(!rawAmount || rawAmount <= 0) return showToast('error', 'נא להזין סכום תקין לביצוע הפעולה');
     
-    // תיקון: אילוץ סכום שלילי אם נבחר "קנס/הפחתה" כדי שיקזז מהיתרה
-    const finalAmount = type === 'deduct' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+    // תיקון: שולחים תמיד ערך מוחלט חיובי. השרת יודע לחסר אוטומטית לפי type: 'deduct'
+    const finalAmount = Math.abs(rawAmount);
 
     const btn = document.getElementById('btn-submit-adjustment');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
