@@ -4911,6 +4911,35 @@ window.ensureQuoteHeaders = function(forceRefresh = false) {
     }
 };
 
+window.calcQuoteTotal = function() {
+    let total = 0;
+    if (window.selectedQuoteItems) {
+        Object.values(window.selectedQuoteItems).forEach(item => {
+            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
+        });
+    }
+    
+    const discountStr = document.getElementById('quote-discount') ? document.getElementById('quote-discount').value : '0';
+    let discount = parseFloat(discountStr) || 0;
+    if (discount > 100) discount = 100;
+    if (discount < 0) discount = 0;
+    
+    const beforeDiscount = total;
+    total = total - (total * (discount / 100));
+    
+    const totalEl = document.getElementById('quote-total-display');
+    const beforeEl = document.getElementById('quote-before-discount');
+    
+    if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
+    if (beforeEl) {
+        if (discount > 0) {
+            beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
+        } else {
+            beforeEl.innerText = '';
+        }
+    }
+};
+
 window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
@@ -4982,7 +5011,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                 <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
                 
                 <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר להוספה..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
+                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש לפי שם או תיאור..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
                     <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
                         <option value="all">כל הקטגוריות</option>
                     </select>
@@ -5057,7 +5086,8 @@ window.renderQuoteItemsList = function() {
         const strId = String(p.id);
         const isSelected = !!window.selectedQuoteItems[strId];
         
-        const matchSearch = p.name.toLowerCase().includes(searchTerm);
+        // סינון חכם יותר: בודק גם בתוך תיאור המוצר
+        const matchSearch = p.name.toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm);
         const matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
         
         if (isSelected) {
@@ -5085,7 +5115,7 @@ window.renderQuoteItemsList = function() {
     const combinedToRender = [...selectedCatalogItems, ...unselectedCatalogItems];
 
     if (combinedToRender.length === 0) {
-        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש</p>';
+        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש (בדוק את סינון הקטגוריות)</p>';
         return;
     }
 
@@ -5128,7 +5158,8 @@ window.updateQuoteItem = function(id, name, imgUrl) {
     } else {
         delete window.selectedQuoteItems[strId];
     }
-    if(typeof window.calcQuoteTotal === 'function') window.calcQuoteTotal();
+    
+    window.calcQuoteTotal();
     
     const row = document.getElementById(`quote-qty-${id}`).closest('.flex.items-start');
     if (row) {
@@ -5168,15 +5199,18 @@ window.openEditQuoteModal = async function(id) {
         
         let noteTxt = '';
         
-        if (item.note) noteTxt += item.note + '\n';
-        if (item.notes) noteTxt += item.notes + '\n';
-        if (item.cart_note) noteTxt += item.cart_note + '\n';
+        // 1. נתונים ישירים
+        if (item.note && item.note !== 'undefined') noteTxt += item.note + '\n';
+        if (item.notes && item.notes !== 'undefined') noteTxt += item.notes + '\n';
+        if (item.cart_note && item.cart_note !== 'undefined') noteTxt += item.cart_note + '\n';
 
+        // 2. מודולים שנבחרו בקופה/חנות
         if (item.modifiers && Array.isArray(item.modifiers)) {
             noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
         }
 
-        if (item.options_text) {
+        // 3. שאיבה מורחבת מתוך מפרטי אירועים ופרויקטים
+        if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
             try {
                 const parsed = JSON.parse(item.options_text);
                 if (parsed.selections) {
@@ -5189,6 +5223,16 @@ window.openEditQuoteModal = async function(id) {
                 if (parsed.note) noteTxt += parsed.note + '\n';
                 if (parsed.toppings && Array.isArray(parsed.toppings)) {
                     noteTxt += parsed.toppings.map(t => t.name).join(', ') + '\n';
+                }
+                if (parsed.isComplex && parsed.steps) {
+                    parsed.steps.forEach(step => {
+                       if (step.options && Array.isArray(step.options)) {
+                           const selectedOpts = step.options.filter(o => o.selected === true || o.selected === 'true');
+                           if (selectedOpts.length > 0) {
+                               noteTxt += step.name + ': ' + selectedOpts.map(o => o.name).join(', ') + '\n';
+                           }
+                       } 
+                    });
                 }
             } catch (e) {
                 noteTxt += item.options_text + '\n';
@@ -5223,7 +5267,8 @@ window.openEditQuoteModal = async function(id) {
     pureNotes = pureNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
     if(document.getElementById('quote-notes')) document.getElementById('quote-notes').value = pureNotes;
 
-    if(typeof window.calcQuoteTotal === 'function') window.calcQuoteTotal();
+    window.calcQuoteTotal();
+    
     const btnGen = document.getElementById('btn-generate-quote');
     if(btnGen) btnGen.innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
