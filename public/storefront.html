@@ -270,6 +270,35 @@
         <button onclick="window.resetStoreAfterOrder()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
 
+        <div id="complex-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 fade-in">
+        <div class="bg-white w-full max-w-2xl rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh] slide-up overflow-hidden transition-all duration-300">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="window.closeComplexProductModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800" id="cx-modal-title">הרכבת תפריט</h3>
+                        <p class="text-[10px] text-slate-500 font-bold" id="cx-modal-desc"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4" id="cx-modal-steps-container">
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 bg-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-between bg-slate-100 rounded-xl p-1 w-28 shrink-0">
+                        <button onclick="window.updateComplexQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
+                        <span id="cx-modal-qty" class="font-bold text-slate-900 text-sm">1</span>
+                        <button onclick="window.updateComplexQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <button id="btn-submit-complex" onclick="window.submitComplexProduct()" class="flex-1 bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2 text-base">
+                        הוסף לסל <span id="cx-total-display" class="font-normal text-sm bg-white/20 px-2 py-0.5 rounded ml-1"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="contact-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col overflow-hidden max-h-[90vh]">
             <button onclick="document.getElementById('contact-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
@@ -726,9 +755,18 @@
                 }
 
                 const pType = item.product_type || 'retail';
-                const btnText = pType === 'pizza_builder' ? 'הרכב פיצה' : (pType === 'service' ? 'הזמן שירות' : (pType === 'food' ? 'בחר מנה' : 'פרטים והוספה'));
-                const actionHtml = `<button onclick="window.openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
+                let btnText = 'פרטים והוספה';
+                let onclickAction = `window.openProductModal(${item.id}); event.stopPropagation();`;
+                
+                if (pType === 'pizza_builder') btnText = 'הרכב פיצה';
+                else if (pType === 'service') btnText = 'הזמן שירות';
+                else if (pType === 'food') btnText = 'בחר מנה';
+                else if (pType === 'complex_builder') {
+                    btnText = 'הרכב מפרט';
+                    onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
+                }
 
+                const actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
                 if (catalogViewMode === 'grid') {
                     html += `<div onclick="window.openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
@@ -1649,7 +1687,154 @@ window.openBookingModal = async function() {
                 if(btn) { btn.disabled = false; btn.innerHTML = 'שליחת פנייה <i class="fa-solid fa-paper-plane"></i>'; }
             }
         };
+// ============================================================
+        // --- COMPLEX PRODUCT BUILDER (STOREFRONT) ---
+        // ============================================================
+        
+        let currentComplexProduct = null;
+        let currentComplexBasePrice = 0;
+        let currentComplexQty = 1;
+        let currentComplexSteps = [];
 
+        window.openComplexProductModal = function(itemId) {
+            const item = storeData.catalog.find(i => i.id === itemId); 
+            if(!item) return;
+            
+            currentComplexProduct = item; 
+            currentComplexBasePrice = parseFloat(item.price) || 0;
+            currentComplexQty = 1;
+            currentComplexSteps = [];
+
+            try {
+                const parsed = JSON.parse(item.options_text);
+                if (parsed && parsed.isComplex) currentComplexSteps = parsed.steps || [];
+            } catch(e) {}
+
+            document.getElementById('cx-modal-title').innerText = item.name;
+            document.getElementById('cx-modal-desc').innerText = item.description || '';
+            document.getElementById('cx-modal-qty').innerText = currentComplexQty;
+            
+            window.renderComplexStepsSelectionUI();
+            window.calculateComplexTotal();
+            
+            document.getElementById('complex-product-modal').classList.remove('hidden');
+        };
+
+        window.closeComplexProductModal = function() {
+            document.getElementById('complex-product-modal').classList.add('hidden');
+        };
+
+        window.updateComplexQty = function(delta) {
+            currentComplexQty += delta;
+            if(currentComplexQty < 1) currentComplexQty = 1;
+            document.getElementById('cx-modal-qty').innerText = currentComplexQty;
+            window.calculateComplexTotal();
+        };
+
+        window.renderComplexStepsSelectionUI = function() {
+            const container = document.getElementById('cx-modal-steps-container');
+            if (!container) return;
+
+            let html = '';
+            currentComplexSteps.forEach((step, stepIdx) => {
+                const isMulti = step.max > 1 || step.max === 0; // 0 means unlimited
+                const inputType = isMulti ? 'checkbox' : 'radio';
+                const badgeText = isMulti 
+                    ? `בחר ${step.min > 0 ? `לפחות ${step.min} ` : ''}${step.max > 0 ? `ועד ${step.max}` : 'ללא הגבלה'}`
+                    : (step.min > 0 ? 'חובה לבחור 1' : 'בחירה אופציונלית');
+
+                let optionsHtml = step.options.map((opt, optIdx) => {
+                    const priceBadge = opt.price > 0 ? `<span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 shadow-sm dir-ltr">+₪${opt.price}</span>` : '';
+                    return `
+                    <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition group shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <input type="${inputType}" name="cx_step_${stepIdx}" value="${optIdx}" data-price="${opt.price}" class="w-4 h-4 accent-emerald-600 cx-input-step-${stepIdx}" onchange="window.handleComplexSelection(${stepIdx}, ${step.max}, this)">
+                            <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-800">${safeStr(opt.name)}</span>
+                        </div>
+                        ${priceBadge}
+                    </label>`;
+                }).join('');
+
+                html += `
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 fade-in">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                        <h4 class="font-black text-slate-800 text-sm flex items-center gap-2"><div class="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-[10px]">${stepIdx + 1}</div> ${safeStr(step.name)}</h4>
+                        <span class="text-[9px] font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">${badgeText}</span>
+                    </div>
+                    <div class="space-y-2">
+                        ${optionsHtml}
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        };
+
+        window.handleComplexSelection = function(stepIdx, max, inputEl) {
+            if (max > 1) { // Only enforce max logic if it's a multiple selection with a specific max limit
+                const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+                if (checked.length > max) {
+                    inputEl.checked = false;
+                    showToast('info', `ניתן לבחור עד ${max} אפשרויות בשלב זה`);
+                }
+            }
+            window.calculateComplexTotal();
+        };
+
+        window.calculateComplexTotal = function() {
+            let optionsTotal = 0;
+            currentComplexSteps.forEach((step, stepIdx) => {
+                const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+                checked.forEach(inp => {
+                    optionsTotal += parseFloat(inp.dataset.price) || 0;
+                });
+            });
+
+            const grandTotal = (currentComplexBasePrice + optionsTotal) * currentComplexQty;
+            const displayEl = document.getElementById('cx-total-display');
+            if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
+        };
+
+        window.submitComplexProduct = function() {
+            let finalPrice = currentComplexBasePrice;
+            let selectedTexts = [];
+            let isValid = true;
+
+            currentComplexSteps.forEach((step, stepIdx) => {
+                const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+                if (step.min > 0 && checked.length < step.min) {
+                    showToast('error', `חובה לבחור לפחות ${step.min} אפשרויות ב: ${step.name}`);
+                    isValid = false;
+                }
+                
+                let stepSelections = [];
+                checked.forEach(inp => {
+                    const opt = step.options[parseInt(inp.value)];
+                    finalPrice += parseFloat(opt.price) || 0;
+                    stepSelections.push(opt.name);
+                });
+                
+                if (stepSelections.length > 0) {
+                    selectedTexts.push(`${step.name}: ${stepSelections.join(', ')}`);
+                }
+            });
+
+            if (!isValid) return;
+
+            // המבנה הזה נכנס תחת "modifiers" כדי שהקופה של האדמין (POS) תדע לקרוא את זה
+            const mappedModifiers = selectedTexts.map(txt => ({ name: txt, price: 0 }));
+
+            window.updateCart('cx_' + Date.now(), currentComplexQty, currentComplexProduct.name, finalPrice, currentComplexProduct.id);
+            
+            // תוספת שמונעת דריסה אם העדכון דורש את זה
+            const lastAddedKey = Object.keys(cart)[Object.keys(cart).length - 1];
+            cart[lastAddedKey].modifiers = mappedModifiers;
+
+            window.closeComplexProductModal();
+            showToast('success', 'המפרט נוסף לעגלה בהצלחה! 📋');
+            window.renderCatalog();
+            window.updateCartFooter();
+        };
+        
         initStore();
     </script>
 </body>
