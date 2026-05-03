@@ -13396,6 +13396,38 @@ window.exportSlowProductsToCSV = function() {
     showToast('success', 'דוח מלאי מת לא נמכר ירד בהצלחה למכשיר!');
 };
 // === דריסה סופית של הגדרות החנות לתיקון תצוגת מע"מ ותמונות + הוספת כינוי לחנות ===
+
+window.generateStoreAliasLink = function() {
+    const aliasInput = document.getElementById('store-alias-input');
+    const linkInput = document.getElementById('store-public-link');
+    if (!aliasInput || !linkInput) return;
+    
+    // ניקוי אוטומטי של תווים לא חוקיים (רק אנגלית ומספרים מותרים)
+    let val = aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (val.length > 15) val = val.substring(0, 15); // מגבלה הועלתה ל-15
+    aliasInput.value = val;
+    
+    const displayId = val || currentGroup.group_code;
+    // הפורמט הקצר שהלקוח רוצה
+    linkInput.value = `${window.location.origin}/${displayId}`;
+};
+
+window.injectAliasUI = function(existingAlias) {
+    const linkInput = document.getElementById('store-public-link');
+    if (linkInput && !document.getElementById('store-alias-input')) {
+        const container = linkInput.parentNode.parentNode;
+        container.insertAdjacentHTML('afterbegin', `
+            <div class="mb-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                <label class="text-[10px] font-bold text-indigo-800 block mb-1">כינוי מותאם אישית ללינק (אופציונלי):</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="15" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-32 shadow-sm text-left dir-ltr">
+                    <span class="text-[10px] text-slate-500 font-medium">רק באנגלית ומספרים, עד 15 תווים. במקום קוד המספרים הארוך.</span>
+                </div>
+            </div>
+        `);
+    }
+};
+
 window.fetchStoreSettings = async function() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
@@ -13425,9 +13457,9 @@ window.fetchStoreSettings = async function() {
             syncInputs('store-close-time', s.close_time || '');
             syncInputs('store-whatsapp', s.whatsapp_number || '');
             
-            // עדכון הלינק הציבורי שיוצג (עם כינוי או קוד מספרים)
+            // עדכון הלינק הציבורי שיוצג (פורמט קצר)
             const displayId = s.store_alias || currentGroup.group_code;
-            syncInputs('store-public-link', `${window.location.origin}/storefront.html?store=${displayId}`);
+            syncInputs('store-public-link', `${window.location.origin}/${displayId}`);
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
@@ -13524,9 +13556,9 @@ async function saveStoreSettings() {
             return valid ? valid.value : null;
         };
 
-        // שאיבת הכינוי לשמירה
+        // שאיבת הכינוי לשמירה (הוגדל ל-15 תווים מקסימום)
         const aliasInput = document.getElementById('store-alias-input');
-        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 10) : '';
+        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 15) : '';
 
         const payload = { 
             groupId: currentGroup.id, 
