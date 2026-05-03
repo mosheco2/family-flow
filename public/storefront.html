@@ -139,7 +139,7 @@
     
     <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
 
-    <div id="cart-footer" class="fixed bottom-0 sm:bottom-4 left-0 right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-xl bg-white border-t border-slate-200 p-4 sm:rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-40 flex justify-between items-center hidden slide-up">
+<div id="cart-footer" class="fixed bottom-0 sm:bottom-4 left-0 right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-xl bg-white border-t border-slate-200 p-4 sm:rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-40 flex justify-between items-center hidden slide-up">
         <div>
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">סה"כ לסל</p>
             <div class="flex items-end gap-2">
@@ -147,8 +147,8 @@
                 <span id="cart-count" class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mb-1 border border-slate-200">0</span>
             </div>
         </div>
-        <button onclick="window.openCheckoutModal()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-black transition active:scale-95 flex items-center gap-2 shadow-lg">
-            לתשלום <i class="fa-solid fa-arrow-left text-sm"></i>
+        <button id="btn-cart-checkout" onclick="window.openCheckoutModal()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-black transition active:scale-95 flex items-center gap-2 shadow-lg">
+            <span id="cart-checkout-text">לתשלום</span> <i class="fa-solid fa-arrow-left text-sm"></i>
         </button>
     </div>
 
@@ -1253,9 +1253,13 @@ window.extractCategories = function() {
         window.updateCartFooter = function() {
             const calc = window.calculateCartDetails();
             const footer = getEl('cart-footer');
+            const btnText = getEl('cart-checkout-text');
             if (calc.totalQty > 0) { 
                 getEl('cart-count').innerText = calc.totalQty; 
                 getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`; 
+                if (btnText) {
+                    btnText.innerText = calc.hasComplexItems ? 'בקשת הצעת מחיר' : 'לתשלום';
+                }
                 footer.classList.remove('hidden'); 
             } else footer.classList.add('hidden');
         };
@@ -1428,7 +1432,7 @@ window.submitOrder = async function(e) {
 
             const isDelivery = getEl('is-delivery').value === 'true';
             
-            // בדיקת דמי משלוח וכתובת - רק להזמנות רגילות (לא קייטרינג/פרויקט)
+            // בדיקת דמי משלוח וכתובת - רק להזמנות רגילות
             if (isDelivery && !calc.hasComplexItems) {
                 if (!val('cust-city') || !val('cust-street') || !val('cust-house')) {
                     showToast('error', 'חובה למלא עיר, רחוב ומספר בית למשלוח');
@@ -1438,7 +1442,6 @@ window.submitOrder = async function(e) {
                 }
             }
 
-            // חילוץ תאריך עתידי במידה ויש
             const timeType = getEl('target-time-type').value;
             const targetTimeVal = getEl('target-time-input').value;
             
@@ -1491,7 +1494,6 @@ window.submitOrder = async function(e) {
                 const data = await res.json();
                 
                 if (data.success) { 
-                    // בדיקה ושידור של מועד ההזמנה העתידי (אם נבחר)
                     if (timeType === 'future' && targetTimeVal) {
                         try {
                             const formattedDate = targetTimeVal.replace('T', ' ') + ':00';
