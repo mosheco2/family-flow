@@ -351,9 +351,14 @@
 
         async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
-            const storeCode = urlParams.get('store');
+            let storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId');
             
+            // תמיכה ב-Alias: אם לא הועבר פרמטר ?store=, משיכת הכינוי מנתיב ה-URL (למשל /pizzamosh)
+            if (!storeCode && window.location.pathname !== '/' && window.location.pathname !== '') {
+                storeCode = window.location.pathname.replace('/', '').trim();
+            }
+
             if (!storeCode) {
                 getEl('loading-screen').classList.add('hidden');
                 return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור שגוי</h1>";
