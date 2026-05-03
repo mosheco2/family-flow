@@ -4883,7 +4883,7 @@ window.ensureQuoteHeaders = function(forceRefresh = false) {
     const introPresets = window.getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
     const notesPresets = window.getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
 
-    const introLabel = getEl('quote-intro-text')?.previousElementSibling;
+    const introLabel = document.getElementById('quote-intro-text')?.previousElementSibling;
     if(introLabel && (introLabel.tagName === 'LABEL' || forceRefresh)) {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
@@ -4893,10 +4893,9 @@ window.ensureQuoteHeaders = function(forceRefresh = false) {
                 <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${introPresets}</select>
                 <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
-        if (introLabel.tagName === 'DIV') introLabel.replaceWith(wrapper);
-        else introLabel.replaceWith(wrapper);
+        introLabel.replaceWith(wrapper);
     }
-    const notesLabel = getEl('quote-notes')?.previousElementSibling;
+    const notesLabel = document.getElementById('quote-notes')?.previousElementSibling;
     if(notesLabel && (notesLabel.tagName === 'LABEL' || forceRefresh)) {
         const wrapper = document.createElement('div');
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
@@ -4906,8 +4905,7 @@ window.ensureQuoteHeaders = function(forceRefresh = false) {
                 <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${notesPresets}</select>
                 <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
-        if (notesLabel.tagName === 'DIV') notesLabel.replaceWith(wrapper);
-        else notesLabel.replaceWith(wrapper);
+        notesLabel.replaceWith(wrapper);
     }
 };
 
@@ -4917,7 +4915,6 @@ window.calcQuoteTotal = function() {
         Object.values(window.selectedQuoteItems).forEach(item => {
             let rowBasePrice = (parseFloat(item.price_at_order) || 0);
             
-            // חישוב מחירי התוספות מתוך המפרט המורכב (אם קיים)
             if (item.complex_data) {
                 try {
                     const parsed = JSON.parse(item.complex_data);
@@ -4979,7 +4976,6 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> ${window.editingQuoteId ? 'עריכת הצעת מחיר' : 'יצירת הצעת מחיר'}</h3>
             
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6">
-                <!-- חלק ימין: פרטי לקוח וסל נבחר -->
                 <div class="w-full lg:w-1/2 flex flex-col">
                     <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div class="col-span-2">
@@ -4997,9 +4993,6 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                         <div class="col-span-2">
                             <div class="flex justify-between items-center mb-1">
                                 <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                                <div class="flex gap-1">
-                                    <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                </div>
                             </div>
                             <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
                         </div>
@@ -5011,7 +5004,6 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                     <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[150px]"></div>
                 </div>
 
-                <!-- חלק שמאל: קטלוג לחיפוש והוספה -->
                 <div class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col">
                     <h4 class="font-bold text-slate-700 text-sm mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-1"></i> קטלוג מוצרים להוספה:</h4>
                     <div class="flex gap-2 mb-4">
@@ -5046,7 +5038,6 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         </div>
     </div>
     
-    <!-- מודאל פנימי מיוחד לעריכת תפריטי קייטרינג / מפרטים מורכבים -->
     <div id="quote-complex-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden border-2 border-emerald-100">
              <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
@@ -5069,7 +5060,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
     `);
 
     const catSelect = document.getElementById('quote-cat-filter');
-    if (catSelect && window.storeCatalogCache) {
+    if (catSelect && window.storeCatalogCache && Array.isArray(window.storeCatalogCache)) {
         const cats = [...new Set(window.storeCatalogCache.map(p => p.category || 'כללי'))];
         let catOptions = '<option value="all">כל הקטגוריות</option>';
         cats.forEach(c => catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`);
@@ -5086,6 +5077,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         if(document.getElementById('quote-cat-filter')) document.getElementById('quote-cat-filter').value = 'all';
     }
     
+    window.ensureQuoteHeaders();
     window.renderQuoteCatalogGrid();
     window.renderQuoteSelectedItems();
     document.getElementById('quote-modal').classList.remove('hidden');
@@ -5093,7 +5085,12 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 
 window.renderQuoteCatalogGrid = function() {
     const grid = document.getElementById('quote-catalog-grid');
-    if (!grid || !window.storeCatalogCache) return;
+    if (!grid) return;
+    
+    if (!window.storeCatalogCache || !Array.isArray(window.storeCatalogCache)) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">טוען נתונים...</div>';
+        return;
+    }
     
     const searchTerm = (document.getElementById('quote-search-item')?.value || '').toLowerCase();
     const catFilter = document.getElementById('quote-cat-filter')?.value || 'all';
@@ -5101,30 +5098,30 @@ window.renderQuoteCatalogGrid = function() {
     let filtered = window.storeCatalogCache.filter(p => p.is_available);
     
     if (searchTerm) {
-        // התעלמות מקטגוריה במידה ויש חיפוש טקסטואלי חופשי
         filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm));
     } else if (catFilter !== 'all') {
         filtered = filtered.filter(p => (p.category || 'כללי') === catFilter);
     }
     
     if (filtered.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים.</div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים תואמים לחיפוש.</div>';
         return;
     }
     
     grid.innerHTML = filtered.map(p => {
         const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-24 object-cover rounded-t-xl">` : `<div class="w-full h-24 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-200"><i class="fa-solid ${isComplex ? 'fa-layer-group text-emerald-300' : 'fa-image text-slate-300'} text-3xl"></i></div>`;
-        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm">מפרט מורכב</span>' : '';
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-24 object-cover rounded-t-xl shrink-0 border-b border-slate-100">` : `<div class="w-full h-24 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-200 shrink-0"><i class="fa-solid ${isComplex ? 'fa-layer-group text-emerald-300' : 'fa-image text-slate-300'} text-3xl"></i></div>`;
+        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm z-10">מפרט מורכב</span>' : '';
         
+        // תיקון קריטי: הוספת מירכאות ל-p.id ב-onclick
         return `
-        <div onclick="window.addQuoteItemFromCatalog(${p.id})" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group">
+        <div onclick="window.addQuoteItemFromCatalog('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group min-h-[140px]">
             ${badgeHtml}
             ${imgHtml}
             <div class="p-3 flex-1 flex flex-col justify-between">
                 <h5 class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h5>
-                <div class="flex justify-between items-center mt-auto">
-                    <span class="text-indigo-600 font-black text-sm dir-ltr">₪${parseFloat(p.price).toFixed(2)}</span>
+                <div class="flex justify-between items-center mt-auto pt-1">
+                    <span class="text-indigo-600 font-black text-sm dir-ltr">₪${parseFloat(p.price || 0).toFixed(2)}</span>
                     <button class="bg-slate-50 text-indigo-500 w-6 h-6 rounded-md group-hover:bg-indigo-600 group-hover:text-white transition flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus text-[10px]"></i></button>
                 </div>
             </div>
@@ -5133,12 +5130,12 @@ window.renderQuoteCatalogGrid = function() {
 };
 
 window.addQuoteItemFromCatalog = function(catalogId) {
+    if (!window.storeCatalogCache) return;
     const p = window.storeCatalogCache.find(x => String(x.id) === String(catalogId));
     if(!p) return;
     
     const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
     
-    // מזהה ייחודי למפרטים כדי שנוכל להוסיף כמה סוגי תפריטים במקביל
     let strId = String(p.id);
     if (isComplex) {
         strId = strId + '_' + Date.now(); 
@@ -5172,7 +5169,6 @@ window.renderQuoteSelectedItems = function() {
     let flattenedItems = [];
     
     Object.values(window.selectedQuoteItems).forEach(item => {
-        // מוצר מורכב - אב ובנים
         if (item.isComplex || item.complex_data) {
             flattenedItems.push({ ...item, isParent: true });
             
@@ -5190,7 +5186,7 @@ window.renderQuoteSelectedItems = function() {
                                         stepIdx: sIdx,
                                         optIdx: oIdx,
                                         name: opt.name,
-                                        quantity: (parseFloat(item.quantity) || 1) * (parseFloat(opt.qty) || 1), // הכפלת מנות בסל
+                                        quantity: (parseFloat(item.quantity) || 1) * (parseFloat(opt.qty) || 1),
                                         price_at_order: parseFloat(opt.price) || 0,
                                         note: `מתוך: ${step.name}` + (opt.note ? ` | ${opt.note}` : '')
                                     });
@@ -5202,7 +5198,6 @@ window.renderQuoteSelectedItems = function() {
             } catch(e) {}
             
         } else {
-            // מוצר רגיל
             flattenedItems.push(item);
         }
     });
@@ -5220,16 +5215,16 @@ window.renderQuoteSelectedItems = function() {
             <div class="flex flex-col p-3 bg-emerald-50/50 rounded-xl border border-emerald-200 shadow-sm mb-1 mt-3 gap-2 relative">
                 <button onclick="window.removeQuoteItem('${item.id}')" class="absolute -top-2 -left-2 w-6 h-6 bg-red-50 border border-red-200 text-red-500 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-500 hover:text-white transition z-10"><i class="fa-solid fa-times"></i></button>
                 <div class="flex justify-between items-center w-full">
-                    <span class="text-sm font-black text-emerald-800 leading-tight"><i class="fa-solid fa-layer-group opacity-50 mr-1"></i> ${safeStr(item.name)}</span>
-                    <button onclick="window.openQuoteComplexEditor('${item.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
+                    <span class="text-sm font-black text-emerald-800 leading-tight pr-2"><i class="fa-solid fa-layer-group opacity-50 mr-1"></i> ${safeStr(item.name)}</span>
+                    <button onclick="window.openQuoteComplexEditor('${item.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
                 </div>
                 <div class="flex items-center gap-2 mt-1">
-                    <div class="relative w-20">
+                    <div class="relative w-24">
                         <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-emerald-50 px-1 font-bold">מחיר בסיס</span>
                         <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-emerald-200">
                     </div>
                     <div class="relative w-20">
-                        <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-100 px-1 font-bold rounded">כמות מנות</span>
+                        <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-100 px-1 font-bold rounded">כמות</span>
                         <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-emerald-100 border-emerald-300 text-emerald-800 font-black shadow-inner">
                     </div>
                 </div>
@@ -5237,14 +5232,14 @@ window.renderQuoteSelectedItems = function() {
             
         } else if (item.isChild) {
             return `
-            <div class="flex flex-col p-2.5 bg-white rounded-xl border-b border-l border-r border-slate-100 mb-1 mr-4 gap-2 relative group hover:bg-slate-50 transition">
+            <div class="flex flex-col p-2 bg-white rounded-xl border-b border-l border-r border-slate-100 mb-1 mr-4 gap-2 relative group hover:bg-slate-50 transition">
                 <button onclick="window.removeQuoteChildItem('${item.parentId}', ${item.stepIdx}, ${item.optIdx})" class="absolute top-2 left-2 w-5 h-5 bg-slate-50 border border-slate-200 text-slate-400 rounded hover:bg-red-50 hover:text-red-500 hover:border-red-200 text-[10px] flex items-center justify-center transition opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
-                <div class="flex justify-between items-start pr-6 w-full">
-                    <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start pr-4 w-full">
+                    <div class="flex-1 min-w-0 pr-2">
                         <span class="text-xs font-bold text-slate-700 block truncate leading-tight">${safeStr(item.name)}</span>
                         <span class="text-[9px] text-slate-400 mt-0.5 block truncate">${safeStr(item.note)}</span>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0 pr-2">
+                    <div class="flex items-center gap-2 shrink-0 pl-1">
                         <div class="relative w-16">
                             <span class="text-[8px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">מחיר ₪</span>
                             <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteChildPrice('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
@@ -5253,7 +5248,7 @@ window.renderQuoteSelectedItems = function() {
                             <span class="text-[8px] text-slate-400 absolute -top-1.5 right-1 bg-white px-1 font-bold">כמות</span>
                             <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteChildQty('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
                         </div>
-                        <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[45px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
+                        <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[40px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
                     </div>
                 </div>
             </div>`;
@@ -5265,7 +5260,7 @@ window.renderQuoteSelectedItems = function() {
                 <button onclick="window.removeQuoteItem('${item.id}')" class="absolute -top-2 -left-2 w-6 h-6 bg-slate-100 border border-slate-200 text-slate-500 hover:text-red-500 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-50 transition z-10"><i class="fa-solid fa-times"></i></button>
                 <div class="flex items-start gap-3 w-full">
                     ${imgHtml}
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0 pr-1">
                         <span class="text-sm font-bold text-slate-800 truncate block leading-tight">${safeStr(item.name)}</span>
                         <div class="flex items-center gap-2 mt-2">
                             <div class="relative w-20">
@@ -5395,10 +5390,20 @@ window.openEditQuoteModal = async function(id) {
         let isComplex = false;
         let complexDataToSave = null;
         
+        // תיקון: מנגנון הגיבוי שבודק בקטלוג אם המוצר הוא בעצם מוצר מורכב גם אם נשמר ללא הפלאג JSON
+        if (window.storeCatalogCache && Array.isArray(window.storeCatalogCache)) {
+            const catItem = window.storeCatalogCache.find(c => String(c.id) === String(item.real_id || item.catalog_id || item.catalogId || item.id));
+            if (catItem && (catItem.product_type === 'complex_builder' || catItem.product_type === 'catering' || catItem.product_type === 'project' || (catItem.options_text && catItem.options_text.includes('isComplex')))) {
+                isComplex = true;
+                complexDataToSave = catItem.options_text; 
+            }
+        }
+
         if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
             try {
                 const parsed = JSON.parse(item.options_text);
-                if (parsed.isComplex) {
+                // בדיקה עמידה יותר - או שיש את הפלאג, או שיש לו מערך Steps
+                if (parsed.isComplex || Array.isArray(parsed.steps)) {
                     isComplex = true;
                     complexDataToSave = item.options_text; 
                 } else if (parsed.selections) {
@@ -5416,7 +5421,7 @@ window.openEditQuoteModal = async function(id) {
         if(qty > 0) {
             window.selectedQuoteItems[itemId] = { 
                 id: itemId, 
-                real_id: item.real_id || item.catalog_id,
+                real_id: item.real_id || item.catalog_id || item.catalogId,
                 name: item.name || item.item_name || 'פריט', 
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
