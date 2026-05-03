@@ -4592,8 +4592,10 @@ window.renderStoreQuotes = function() {
     let filteredQuotes = window.storeQuotesCache.filter(q => {
         const matchSearch = String(q.id).includes(searchQuery) || (q.customer_name && q.customer_name.toLowerCase().includes(searchQuery)) || (q.customer_phone && q.customer_phone.includes(searchQuery));
         
-        const qStatus = q.quote_status || (q.status === 'quote' ? 'draft' : q.status);
-        const matchStatus = statusFilter === 'all' || qStatus === statusFilter;
+        let qStatusRaw = q.quote_status || q.status;
+        if (qStatusRaw === 'new' || qStatusRaw === 'quote') qStatusRaw = 'draft';
+        
+        const matchStatus = statusFilter === 'all' || qStatusRaw === statusFilter;
         
         return matchSearch && matchStatus;
     });
@@ -4618,7 +4620,8 @@ window.renderStoreQuotes = function() {
     
     filteredQuotes.forEach(q => {
         try {
-            const currentStatus = q.quote_status || (q.status === 'quote' ? 'draft' : q.status);
+            let currentStatus = q.quote_status || q.status;
+            if (currentStatus === 'new' || currentStatus === 'quote') currentStatus = 'draft';
             const isApproved = currentStatus === 'approved';
             
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
@@ -4662,31 +4665,56 @@ window.renderStoreQuotes = function() {
     list.innerHTML = html;
 };
 
-async function updateQuoteStatus(id, status) {
+window.updateQuoteStatus = async function(id, status) {
     try {
-        await fetch(`${API}/store/quotes/${id}/status`, {
-            method: 'PATCH', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ quoteStatus: status })
-        });
-        showToast('success', 'סטטוס הצעת המחיר עודכן');
-    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
-}
+        const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
+        let isEmbeddedOrder = false;
+        
+        if (q) {
+            if (q.status === 'new' || q.status === 'quote' || q.orderType === 'quote' || q.order_type === 'quote' || (q.notes && q.notes.includes('[הצעת מחיר]'))) {
+                isEmbeddedOrder = true;
+            }
+        }
 
-let currentActionTargetId = null;
-let currentActionType = null; 
+        if (isEmbeddedOrder) {
+            // מעדכנים דרך מערכת ההזמנות
+            await fetch(`${API}/store/orders/status`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ orderId: id, status: status })
+            });
+        } else {
+            // מעדכנים דרך מערכת ההצעות
+            await fetch(`${API}/store/quotes/${id}/status`, {
+                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ quoteStatus: status })
+            });
+        }
+
+        if (q) {
+            q.quote_status = status;
+            q.status = status;
+        }
+
+        showToast('success', 'סטטוס הצעת המחיר עודכן');
+        window.renderStoreQuotes();
+    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+};
+
+window.currentActionTargetId = null;
+window.currentActionType = null; 
 
 window.approveQuoteToOrder = function(id) {
-    currentActionTargetId = id;
-    currentActionType = 'quote';
+    window.currentActionTargetId = id;
+    window.currentActionType = 'quote';
     getEl('target-datetime-input').value = '';
     getEl('target-date-modal-title').innerText = 'אישור הצעת מחיר';
     getEl('target-date-modal-desc').innerText = 'ההצעה תאושר ותעבור מיד לרשימת ההזמנות. ניתן להגדיר תאריך ושעת יעד לאספקה:';
     getEl('target-datetime-modal').classList.remove('hidden');
 };
 
-async function editOrderTargetDate(orderId, currentDate) {
-    currentActionTargetId = orderId;
-    currentActionType = 'order';
+window.editOrderTargetDate = async function(orderId, currentDate) {
+    window.currentActionTargetId = orderId;
+    window.currentActionType = 'order';
     let formattedDate = '';
     if (currentDate && currentDate !== 'null' && currentDate !== '') {
         try {
@@ -4698,31 +4726,63 @@ async function editOrderTargetDate(orderId, currentDate) {
     getEl('target-date-modal-title').innerText = 'עדכון יעד אספקה';
     getEl('target-date-modal-desc').innerText = 'בחר תאריך ושעה מעודכנים ליעד מסירת ההזמנה ללקוח:';
     getEl('target-datetime-modal').classList.remove('hidden');
-}
+};
 
-// תיקון סעיף 3: הוספת פונקציית האישור שקוראת לשרת והופכת הצעה להזמנה
 window.submitTargetDatetime = async function() {
     const targetDate = getEl('target-datetime-input').value;
     const btn = getEl('btn-submit-target-date');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאשר...';
     
     try {
-        if (currentActionType === 'quote') {
-            const res = await fetch(`${API}/store/quotes/${currentActionTargetId}/approve`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ targetDatetime: targetDate })
-            });
-            const data = await res.json();
-            if(data.success) {
-                showToast('success', 'הצעת המחיר אושרה והפכה להזמנה!');
-                getEl('target-datetime-modal').classList.add('hidden');
-                if(typeof fetchStoreQuotes === 'function') fetchStoreQuotes();
-                if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
-            } else {
-                showToast('error', data.error || 'שגיאה באישור ההצעה');
+        if (window.currentActionType === 'quote') {
+            const q = window.storeQuotesCache.find(x => String(x.id) === String(window.currentActionTargetId));
+            let isEmbeddedOrder = false;
+            
+            if (q) {
+                if (q.status === 'new' || q.status === 'quote' || q.orderType === 'quote' || q.order_type === 'quote' || (q.notes && q.notes.includes('[הצעת מחיר]'))) {
+                    isEmbeddedOrder = true;
+                }
             }
-        } else if (currentActionType === 'order') {
-            const res = await fetch(`${API}/store/orders/${currentActionTargetId}/target-date`, {
+            
+            if (isEmbeddedOrder) {
+                // המרה להזמנה רגילה
+                await fetch(`${API}/store/orders/status`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
+                });
+                
+                if (targetDate) {
+                    await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
+                        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ targetDatetime: targetDate })
+                    });
+                }
+                
+                showToast('success', 'הצעת המחיר אושרה והפכה להזמנה פעילה!');
+                getEl('target-datetime-modal').classList.add('hidden');
+                
+                if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+                if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+                
+            } else {
+                // הצעה סטנדרטית 
+                const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ targetDatetime: targetDate })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast('success', 'הצעת המחיר אושרה והפכה להזמנה!');
+                    getEl('target-datetime-modal').classList.add('hidden');
+                    if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+                    if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+                } else {
+                    showToast('error', data.error || 'שגיאה באישור ההצעה');
+                }
+            }
+            
+        } else if (window.currentActionType === 'order') {
+            const res = await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
                 method: 'PATCH', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ targetDatetime: targetDate })
             });
@@ -4730,7 +4790,7 @@ window.submitTargetDatetime = async function() {
             if(data.success) {
                 showToast('success', 'יעד האספקה עודכן!');
                 getEl('target-datetime-modal').classList.add('hidden');
-                if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
+                if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
             } else {
                 showToast('error', data.error || 'שגיאה בעדכון');
             }
@@ -6743,8 +6803,12 @@ window.fetchStoreOrders = async function() {
         else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
         else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
 
-        // הצעת מחיר מזוהה על פי orderType, order_type או סטטוס של quote 
-        const isQuote = (o) => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer';
+        // פיצול סופר-חכם: מזהה הצעות מחיר גם על פי הסטטוס וגם על פי תגית בהערות מהחנות
+        const isQuote = (o) => {
+            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer') return true;
+            if (o.notes && o.notes.includes('[הצעת מחיר]')) return true;
+            return false;
+        };
         
         const actualOrders = ordersArray.filter(o => !isQuote(o));
         const embeddedQuotes = ordersArray.filter(o => isQuote(o));
@@ -6754,6 +6818,7 @@ window.fetchStoreOrders = async function() {
         if (embeddedQuotes.length > 0) {
             if (!window.storeQuotesCache) window.storeQuotesCache = [];
             embeddedQuotes.forEach(eq => {
+                // מניעת כפילויות במטמון
                 if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
                     window.storeQuotesCache.push(eq);
                 }
