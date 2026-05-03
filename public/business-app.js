@@ -2056,15 +2056,98 @@ function exportTimeclockPDF() {
     });
 }
 
-window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
+window.toggleAdjustmentType = function(type) {
+    document.getElementById('adjustment-type').value = type;
+    const btnAdd = document.getElementById('btn-adj-add');
+    const btnDeduct = document.getElementById('btn-adj-deduct');
+    if (type === 'add') {
+        btnAdd.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+        btnAdd.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-600');
+        btnDeduct.classList.remove('border-red-500', 'bg-red-50', 'text-red-700');
+        btnDeduct.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-600');
+    } else {
+        btnDeduct.classList.add('border-red-500', 'bg-red-50', 'text-red-700');
+        btnDeduct.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-600');
+        btnAdd.classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
+        btnAdd.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-600');
+    }
+};
+
+window.openBalanceAdjustmentModal = function(id, name) {
+    if (!document.getElementById('balance-adjustment-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="balance-adjustment-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative flex flex-col overflow-hidden max-h-[90vh]">
+                <button onclick="document.getElementById('balance-adjustment-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-2 shrink-0"><i class="fa-solid fa-money-bill-transfer text-blue-500 mr-2"></i> תיקון מאזן תקציבי</h3>
+                <p id="adjustment-user-name" class="text-xs font-bold text-slate-500 mb-4 border-b border-slate-100 pb-3 shrink-0"></p>
+                <input type="hidden" id="adjustment-user-id">
+                <input type="hidden" id="adjustment-type" value="deduct">
+                
+                <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-4">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button id="btn-adj-deduct" onclick="window.toggleAdjustmentType('deduct')" class="py-3 rounded-xl text-sm font-bold border-2 transition border-red-500 bg-red-50 text-red-700"><i class="fa-solid fa-minus mr-1"></i> הפחתה / קנס</button>
+                        <button id="btn-adj-add" onclick="window.toggleAdjustmentType('add')" class="py-3 rounded-xl text-sm font-bold border-2 transition border-slate-200 bg-slate-50 text-slate-600"><i class="fa-solid fa-plus mr-1"></i> בונוס / תוספת</button>
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">סכום לעדכון (₪):</label>
+                        <input type="number" id="adjustment-amount" class="modern-input py-3 text-lg font-black text-center dir-ltr text-slate-800 w-full" placeholder="0">
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">סיבה / הערה (יופיע בתזרים):</label>
+                        <input type="text" id="adjustment-reason" class="modern-input py-2.5 text-sm w-full" placeholder="הכנסת טעות בקופה, בונוס מיוחד...">
+                    </div>
+                </div>
+                
+                <div class="pt-4 border-t border-slate-100 flex gap-3 shrink-0 mt-4">
+                    <button onclick="document.getElementById('balance-adjustment-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-adjustment" onclick="window.submitBalanceAdjustment()" class="flex-[1.2] bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">אשר ועדכן יתרה</button>
+                </div>
+            </div>
+        </div>`);
+    }
+
+    document.getElementById('adjustment-user-id').value = id;
+    document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`;
+    document.getElementById('adjustment-amount').value = '';
+    document.getElementById('adjustment-reason').value = '';
+    window.toggleAdjustmentType('deduct');
+    document.getElementById('balance-adjustment-modal').classList.remove('hidden');
+};
+
 window.submitBalanceAdjustment = async function() {
-    const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס/מענק' : 'הפחתה תפעולית');
-    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
+    const userId = document.getElementById('adjustment-user-id').value;
+    const type = document.getElementById('adjustment-type').value;
+    const amount = parseFloat(document.getElementById('adjustment-amount').value);
+    const reason = document.getElementById('adjustment-reason').value || (type === 'add' ? 'בונוס/מענק מיוחד' : 'הפחתה תפעולית יזומה');
+    
+    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין לביצוע הפעולה');
+    
+    const btn = document.getElementById('btn-submit-adjustment');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    
     try {
-        const res = await fetch(`${API}/admin/adjust-balance`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason }) });
+        const res = await fetch(`${API}/admin/adjust-balance`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason })
+        });
         const data = await res.json();
-        if (data.success) { showToast('success', 'המאזן עודכן בהצלחה!'); getEl('balance-adjustment-modal').classList.add('hidden'); fetchData(); fetchMembers(); } else showToast('error', data.error || 'שגיאה בעדכון');
-    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
+        
+        if (data.success) {
+            showToast('success', 'יתרת העובד עודכנה והפעולה נרשמה בתזרים!');
+            document.getElementById('balance-adjustment-modal').classList.add('hidden');
+            if (typeof fetchData === 'function') fetchData();
+            if (typeof fetchMembers === 'function') fetchMembers();
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון היתרה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerText = 'אשר ועדכן יתרה'; }
+    }
 };
 
 async function fetchMembers() { 
@@ -2127,19 +2210,22 @@ async function sendCredentialsEmail() {
 }
 
 async function fetchData() {
-    try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
-        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
+    try {
+        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
+        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
-        const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
-        let parsed = {};
-        try { parsed = await res.json(); } catch(err) { console.warn("JSON Error, continuing with empty data", err); }
-        
-        let data = parsed.data || parsed || {};
-        
-        if (data && data.user) {
-            currentUser.balance = data.user.balance || 0; 
-        }
+        const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
+        let parsed = {};
+        try { parsed = await res.json(); } catch(err) { console.warn("JSON Error, continuing with empty data", err); }
+        
+        let data = parsed.data || parsed || {};
+        
+        if (data && data.user) {
+            // Update crucial live fields from the server seamlessly
+            currentUser.balance = data.user.balance || 0;
+            if (data.user.role !== undefined) currentUser.role = data.user.role;
+            if (data.user.permissions !== undefined) currentUser.permissions = data.user.permissions;
+        }
         
 if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
