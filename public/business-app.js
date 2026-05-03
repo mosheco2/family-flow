@@ -4536,20 +4536,16 @@ window.fetchStoreQuotes = async function() {
         const list = getEl('store-quotes-list');
         
         if (!data || !data.success || !data.quotes || data.quotes.length === 0) {
-            // לא נאפס את המטמון לחלוטין אם כבר קיבלנו נתונים מ-fetchStoreOrders
             if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
-                if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
                 window.storeQuotesCache = []; 
-            } else {
-                window.renderStoreQuotes();
             }
+            window.renderStoreQuotes();
             return;
         }
 
         const fetchedQuotes = data.quotes;
         if (!window.storeQuotesCache) window.storeQuotesCache = [];
         
-        // מיזוג נתונים שמגיעים משני הראוטים (גם מאלו שתפסנו דרך ההזמנות)
         fetchedQuotes.forEach(fq => {
             if (!window.storeQuotesCache.find(q => q.id === fq.id)) {
                 window.storeQuotesCache.push(fq);
@@ -4558,68 +4554,113 @@ window.fetchStoreQuotes = async function() {
         
         window.renderStoreQuotes();
     } catch(e) {
-        const list = getEl('store-quotes-list');
-        if(list && (!window.storeQuotesCache || window.storeQuotesCache.length === 0)) {
-            list.innerHTML = '<p class="text-center text-red-500 py-8 bg-red-50 rounded-2xl border border-dashed border-red-200">שגיאה בטעינת הנתונים.</p>';
-        }
+        console.error(e);
     }
 };
 
-function renderStoreQuotes() {
+window.renderStoreQuotes = function() {
     const list = getEl('store-quotes-list');
     if(!list) return;
-    
-    if(!storeQuotesCache || storeQuotesCache.length === 0) {
+
+    // הזרקת סרגל חיפוש וסינון אוטומטית לתוך הטאב
+    if (!getEl('quotes-search-bar')) {
+        list.insertAdjacentHTML('beforebegin', `
+            <div id="quotes-search-bar" class="flex flex-col sm:flex-row gap-2 mb-4">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="quote-search-input" oninput="window.renderStoreQuotes()" placeholder="חיפוש לקוח, טלפון או מס' הצעה..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                </div>
+                <select id="quote-status-filter" onchange="window.renderStoreQuotes()" class="modern-input py-2.5 px-3 text-sm font-bold bg-slate-50 border-slate-200 text-slate-700 rounded-xl w-full sm:w-auto outline-none focus:border-indigo-400">
+                    <option value="all">כל הסטטוסים</option>
+                    <option value="draft">טיוטות והצעות חדשות</option>
+                    <option value="sent">נשלחו ללקוח</option>
+                    <option value="waiting_customer">ממתין לאישור</option>
+                    <option value="approved">אושרו (הזמנות)</option>
+                </select>
+            </div>
+        `);
+    }
+
+    if(!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
         list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
         return;
     }
-    
+
+    const searchQuery = (val('quote-search-input') || '').toLowerCase();
+    const statusFilter = val('quote-status-filter') || 'all';
+
+    let filteredQuotes = window.storeQuotesCache.filter(q => {
+        const matchSearch = String(q.id).includes(searchQuery) || (q.customer_name && q.customer_name.toLowerCase().includes(searchQuery)) || (q.customer_phone && q.customer_phone.includes(searchQuery));
+        
+        const qStatus = q.quote_status || (q.status === 'quote' ? 'draft' : q.status);
+        const matchStatus = statusFilter === 'all' || qStatus === statusFilter;
+        
+        return matchSearch && matchStatus;
+    });
+
+    filteredQuotes.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+    if(filteredQuotes.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו הצעות מחיר התואמות לחיפוש.</p>';
+        return;
+    }
+
     const statuses = {
         'draft': 'טיוטה (טרם נשלחה)',
         'sent': 'נשלחה ללקוח',
-        'waiting_customer': 'ממתינה לאישור לקוח',
+        'waiting_customer': 'ממתין לאישור לקוח',
         'frozen': 'הוקפאה / הושהתה',
-        'cancelled': 'בוטלה ע"י הלקוח'
+        'cancelled': 'בוטלה ע"י הלקוח',
+        'approved': 'אושרה (הפכה להזמנה)'
     };
 
     let html = '';
     
-    storeQuotesCache.forEach(q => {
+    filteredQuotes.forEach(q => {
         try {
-            const currentStatus = q.quote_status || 'draft';
+            const currentStatus = q.quote_status || (q.status === 'quote' ? 'draft' : q.status);
+            const isApproved = currentStatus === 'approved';
+            
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
             
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
-            const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : "תאריך לא ידוע";
+            const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'}) : "תאריך לא ידוע";
             
+            let userNotes = '';
+            try {
+                const parsed = JSON.parse(q.notes);
+                if (parsed.notes) userNotes = parsed.notes; 
+            } catch(e) { userNotes = q.notes || ''; }
+
+            userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+
             html += `
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
+            <div class="bg-white p-4 rounded-2xl border ${isApproved ? 'border-green-300 shadow-md bg-green-50/20' : 'border-slate-200 shadow-sm'} flex flex-col mb-3 hover:shadow-md transition">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
+                        ${userNotes ? `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(userNotes)}</div>` : ''}
                     </div>
                     <div class="flex flex-col items-end gap-2 shrink-0">
-                        <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;">
+                        <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
                             ${optionsHtml}
                         </select>
-                        <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
+                        ${!isApproved ? `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>` : `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> עבר להזמנות</span>`}
                     </div>
                 </div>
                 <div class="flex gap-2 border-t border-slate-100 pt-3">
-                    <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
-                    <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
-                    <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone || '')}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                    <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
+                    <button onclick="window.openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
+                    <button onclick="window.shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone || '')}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
                 </div>
             </div>`;
-        } catch(err) {
-            console.error("Error rendering specific quote:", err, q);
-        }
+        } catch(err) {}
     });
     
     list.innerHTML = html;
-}
+};
 
 async function updateQuoteStatus(id, status) {
     try {
@@ -6617,20 +6658,17 @@ window.fetchStoreOrders = async function() {
         else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
         else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
 
-        if (ordersArray.length > 0) {
-            ordersArray.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        }
+        // פיצול חכם ומתוקן: הצעת מחיר מזוהה על פי orderType, order_type או סטטוס 
+        const isQuote = (o) => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer';
         
-        // פיצול חכם: זיהוי בקשות הצעת מחיר שנשמרו תחת "הזמנות" (מהחנות) והעברתן לטאב הצעות המחיר
-        const actualOrders = ordersArray.filter(o => o.status !== 'quote' && o.orderType !== 'quote' && o.order_type !== 'quote' && (!o.quote_status || o.quote_status === 'approved' || o.quote_status === 'draft'));
-        const embeddedQuotes = ordersArray.filter(o => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || (o.quote_status && o.quote_status !== 'approved' && o.quote_status !== 'draft'));
+        const actualOrders = ordersArray.filter(o => !isQuote(o));
+        const embeddedQuotes = ordersArray.filter(o => isQuote(o));
         
-        storeOrdersCache = actualOrders;
+        window.storeOrdersCache = actualOrders;
         
         if (embeddedQuotes.length > 0) {
             if (!window.storeQuotesCache) window.storeQuotesCache = [];
             embeddedQuotes.forEach(eq => {
-                // מניעת כפילויות במקרה של משיכה כפולה
                 if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
                     window.storeQuotesCache.push(eq);
                 }
@@ -6727,23 +6765,23 @@ function toggleCardCollapse(cardId) {
     }
 }
 
-function renderStoreOrders() {
+window.renderStoreOrders = function() {
     const list = getEl('store-orders-list');
     const statusFilter = val('store-orders-filter') || 'all';
     const typeFilter = val('store-orders-type-filter') || 'all';
     const searchId = val('orders-search-id');
     const storeOrdersSearch = val('store-orders-search');
 
-    let filteredOrders = [...storeOrdersCache];
+    if (!window.storeOrdersCache) return;
+    let filteredOrders = [...window.storeOrdersCache];
     
+    // סידור מחדש: הזמנות חדשות ופעילות תמיד למעלה, אלו שהושלמו/בוטלו יורדות למטה
     filteredOrders.sort((a, b) => {
-        if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
-        if (a.status === 'completed') return 1;
-        if (b.status === 'completed') return -1;
-        let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
-        let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
-        if (timeA === Infinity && timeB === Infinity) return new Date(b.created_at) - new Date(a.created_at);
-        return timeA - timeB;
+        const aDone = (a.status === 'completed' || a.status === 'cancelled');
+        const bDone = (b.status === 'completed' || b.status === 'cancelled');
+        if (aDone && !bDone) return 1;
+        if (bDone && !aDone) return -1;
+        return new Date(b.created_at) - new Date(a.created_at);
     });
 
     const activeSearch = storeOrdersSearch || searchId;
@@ -6756,7 +6794,7 @@ function renderStoreOrders() {
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
     
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות.</p>'; return; }
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     
     let html = '';
     const statusMap = { 
@@ -6764,7 +6802,8 @@ function renderStoreOrders() {
         'processing': { text: 'בהכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200' }, 
         'ready': { text: 'מוכן 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200' }, 
         'shipped': { text: 'במשלוח 🚚', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-        'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } 
+        'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' },
+        'cancelled': { text: 'בוטל ❌', color: 'bg-slate-100 text-slate-500 border-slate-200 opacity-60' }
     };
     
     const now = new Date();
@@ -6772,7 +6811,7 @@ function renderStoreOrders() {
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
         const meta = getDeliveryMeta(o);
-        const isDelivery = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta);
+        const isDelivery = (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || meta);
         const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
         
         let deliveryData = {};
@@ -6782,11 +6821,11 @@ function renderStoreOrders() {
         let urgencyBorder = 'border-slate-200';
         let targetDisplay = '';
         
-        if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
+        if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped' && o.status !== 'cancelled') {
              const targetTime = new Date(o.target_datetime);
              const minsDiff = (targetTime - now) / 60000;
              const timeStr = targetTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5); // תאריך מקוצר כמו בתמונה
+             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5); 
              
              if (minsDiff < 0) {
                  urgencyBorder = 'border-red-400 border-2';
@@ -6804,7 +6843,13 @@ function renderStoreOrders() {
         const receivedTimeStr = createDate.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
         const receivedDateStr = createDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'2-digit'});
 
-        // העיצוב החדש לפי התמונה שנשלחה: ימין-לשמאל מדויק
+        // חילוץ והצגת הערות הלקוח
+        let userNotes = '';
+        try {
+            const parsedNotes = JSON.parse(o.notes);
+            if (parsedNotes.notes) userNotes = parsedNotes.notes;
+        } catch(e) { userNotes = o.notes || ''; }
+
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
             <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
@@ -6833,18 +6878,22 @@ function renderStoreOrders() {
             
             <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
                 ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
+                ${userNotes ? `<div class="mb-3 bg-amber-50 p-3 rounded-xl text-xs font-bold text-amber-800 border border-amber-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(userNotes)}</div>` : ''}
                 ${buildOrderLogHtml(o.status, o.created_at)}
                 <div class="flex justify-end mt-4">
-                    <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
+                    <button onclick="window.openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
                 </div>
             </div>
         </div>`;
     }); 
     list.innerHTML = html;
-}
+};
 
-function openStoreOrderModal(orderId) {
-    currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
+window.openStoreOrderModal = function(orderId) {
+    currentStoreOrderId = orderId; 
+    const order = window.storeOrdersCache.find(o => o.id === orderId); 
+    if(!order) return;
+    
     getEl('so-modal-id').innerText = order.id;
     getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
     getEl('so-modal-total').innerText = order.total_amount;
@@ -6853,12 +6902,23 @@ function openStoreOrderModal(orderId) {
     const targetEl = getEl('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
+    let userNotes = '';
+    try {
+        const parsedNotes = JSON.parse(order.notes);
+        if (parsedNotes.notes) userNotes = parsedNotes.notes;
+    } catch(e) { userNotes = order.notes || ''; }
+
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
+    
+    if (userNotes) {
+         itemsHtml += `<div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 shadow-sm"><span class="font-bold text-amber-800 text-sm"><i class="fa-regular fa-comment-dots ml-1"></i> הערות מהלקוח: ${safeStr(userNotes)}</span></div>`;
+    }
+
     if (rawItems.length > 0) {
         rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order || i.price}</span></div>`; });
     } else {
-        itemsHtml = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
+        itemsHtml += '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
     }
 
     const meta = getDeliveryMeta(order);
@@ -6868,7 +6928,7 @@ function openStoreOrderModal(orderId) {
 
     getEl('so-modal-items').innerHTML = itemsHtml;
     getEl('store-order-modal').classList.remove('hidden');
-}
+};
 
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
