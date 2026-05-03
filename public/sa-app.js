@@ -65,7 +65,7 @@ function logoutSA() {
 }
 
 function switchSATab(tabId) {
-    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support'].forEach(t => {
+    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support', 'partners', 'inbox'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
@@ -79,6 +79,8 @@ function switchSATab(tabId) {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2';
         } else if(tabId === 'support') {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition flex items-center justify-center gap-1';
+        } else if (tabId === 'inbox') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl shadow-sm transition flex items-center justify-center gap-1';
         } else {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
         }
@@ -558,40 +560,51 @@ window.toggleAllSAFlags = function(checked) {
     document.querySelectorAll('.flag-cb').forEach(cb => cb.checked = checked);
 };
 
-// לוגיקת שיגור הודעות (Broadcast Center)
-async function sendBroadcastMessage() {
-    const title = val('bc-title');
-    const message = val('bc-message');
-    const audience = val('bc-audience');
+// לוגיקת הפצת הודעות אמיתיות לתיבת ה-Inbox של הלקוחות
+getEl('sa-inbox-target-type')?.addEventListener('change', (e) => {
+    if (e.target.value === 'specific') {
+        getEl('sa-inbox-specific-biz-wrapper').classList.remove('hidden');
+    } else {
+        getEl('sa-inbox-specific-biz-wrapper').classList.add('hidden');
+    }
+});
+
+window.sendSABroadcastMessage = async function() {
+    const subject = val('sa-inbox-subject');
+    const content = val('sa-inbox-content');
+    const targetType = val('sa-inbox-target-type');
+    const targetValue = val('sa-inbox-target-value');
     
-    if (!title || !message) return showToast('error', 'חובה להזין כותרת ותוכן להודעה');
-    if (!confirm('האם אתה בטוח? הודעה זו תישלח כפופ-אפ לקהל היעד הנבחר.')) return;
+    if (!subject || !content) return showToast('error', 'חובה להזין נושא ותוכן להודעה');
+    if (targetType === 'specific' && !targetValue) return showToast('error', 'יש להזין מזהה (ID) של העסק');
     
-    const btn = getEl('btn-broadcast');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> משגר...';
+    if (!confirm('האם אתה בטוח? הודעה זו תישלח לתיבות ה-Inbox של קהל היעד הנבחר במערכת העסקית.')) return;
+    
+    const btn = getEl('btn-sa-inbox-send');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> משגר למסד הנתונים...'; }
     
     try {
-        const res = await fetch(`${API}/superadmin/broadcast`, {
+        const res = await fetch(`${API}/sa/inbox/broadcast`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ title, message, audience })
+            body: JSON.stringify({ targetType, targetValue, subject, content })
         });
         
-        // אם השרת לא קיים עדיין - אנחנו נדמה הצלחה כדי להראות את הפעולה
-        showToast('success', 'ההודעה שוגרה בהצלחה לקהל היעד!');
-        getEl('bc-title').value = '';
-        getEl('bc-message').value = '';
+        const data = await res.json();
         
+        if (data.success) {
+            showToast('success', `ההודעה שוגרה בהצלחה ל-${data.count || 0} עסקים!`);
+            getEl('sa-inbox-subject').value = '';
+            getEl('sa-inbox-content').value = '';
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הודעה לשרת');
+        }
     } catch(e) { 
-        showToast('success', 'ההודעה שוגרה בהצלחה! (מצב הדמיה)'); // Fallback UI
-        getEl('bc-title').value = '';
-        getEl('bc-message').value = '';
+        showToast('error', 'שגיאת תקשורת מול השרת');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-tower-cell"></i> שגר הודעה כעת';
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות'; }
     }
-}
+};
 
 function openSAEditUserModal(id, nickname) {
     getEl('sa-edit-user-id').value = id;
