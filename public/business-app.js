@@ -494,6 +494,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות חנות</button>
                         <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
+                        <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">פרויקטים וקייטרינג</button>
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">אנליטיקה ודוחות</button>
@@ -529,12 +530,23 @@ window.injectBusinessUI = function() {
                         <div id="store-quotes-list" class="space-y-3 pb-8"></div>
                     </div>
                     
-                    <div id="sales-view-catalog" class="hidden space-y-4">
+                   <div id="sales-view-catalog" class="hidden space-y-4">
                         <div class="flex justify-between items-center mb-4 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
                             <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                         </div>
                         <div id="store-catalog-list" class="space-y-3 pb-8"></div>
+                    </div>
+                    
+                    <div id="sales-view-complex" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">תפריטי אירועים ופרויקטים מורכבים</h4>
+                            <button onclick="window.openComplexBuilderModal()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-emerald-700 transition"><i class="fa-solid fa-plus mr-1"></i> יצירת מפרט חדש</button>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl mb-4 text-[10px] text-emerald-800 shadow-sm leading-relaxed">
+                            <i class="fa-solid fa-circle-info mr-1"></i> אזור זה מיועד להרכבת תפריטי קייטרינג מורכבים (כמו אולמות אירועים), הצעות מחיר לשיפוצים, ומפרטים הדורשים מספר שלבי בחירה מצד הלקוח.
+                        </div>
+                        <div id="store-complex-list" class="space-y-3 pb-8"></div>
                     </div>
                     
                     <div id="sales-view-marketing" class="hidden space-y-4">
