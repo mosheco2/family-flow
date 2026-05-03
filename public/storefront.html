@@ -1336,12 +1336,15 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
 
         window.closeCheckoutModal = function() { getEl('checkout-modal').classList.add('hidden'); };
 
-        window.resetStoreAfterOrder = function() {
+ window.resetStoreAfterOrder = function() {
             getEl('success-screen').classList.add('hidden');
             cart = {};
             window.renderCatalog();
             window.updateCartFooter();
             getEl('checkout-form').reset();
+            
+            const genNotes = getEl('general-notes');
+            if (genNotes) genNotes.value = '';
             
             try {
                 const session = JSON.parse(localStorage.getItem('ofl_session'));
@@ -1417,7 +1420,7 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
 
             let deliveryData = null;
             if (isDelivery && !calc.hasComplexItems) {
-                deliveryData = { city: val('cust-city'), street: val('cust-street'), house: val('cust-house'), floor: val('cust-floor'), apt: val('cust-apt'), notes: val('cust-notes') };
+                deliveryData = { city: val('cust-city'), street: val('cust-street'), house: val('cust-house'), floor: val('cust-floor'), apt: val('cust-apt') }; 
             }
 
             let familyId = null;
@@ -1428,8 +1431,16 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 }
             } catch(e) {}
 
-            let extraNotes = '';
-            if (calc.hasComplexItems) extraNotes = '[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.';
+            // שאיבת ההערות מהטופס
+            let userNotes = val('general-notes') || '';
+            let finalNotes = userNotes;
+            
+            if (calc.hasComplexItems) {
+                finalNotes = '[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.';
+                if (userNotes.trim() !== '') {
+                    finalNotes += '\n\nהערות לקוח: ' + userNotes;
+                }
+            }
 
             const payload = { 
                 groupId: storeData.groupId, 
@@ -1441,7 +1452,7 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 deliveryFee: delFee, 
                 deliveryDetails: deliveryData, 
                 familyGroupId: familyId,
-                notes: extraNotes,
+                notes: finalNotes,
                 orderType: calc.hasComplexItems ? 'quote' : 'order'
             };
 
@@ -1483,7 +1494,7 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 if (calc.hasComplexItems) {
                     btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
                 } else {
-                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
+                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
                 }
             }
         };
