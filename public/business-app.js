@@ -2155,52 +2155,113 @@ window.submitBalanceAdjustment = async function() {
     }
 };
 
-async function fetchMembers() { 
+window.openSmartInviteModal = function() {
+    if (!document.getElementById('smart-invite-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="smart-invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative flex flex-col">
+                <button onclick="document.getElementById('smart-invite-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-16 h-16 bg-[#25D366]/10 text-[#25D366] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-[#25D366]/20"><i class="fa-brands fa-whatsapp"></i></div>
+                <h3 class="text-xl font-black text-slate-800 mb-2 text-center">הזמנת איש צוות חדש</h3>
+                <p class="text-xs text-slate-500 text-center mb-6">שלחו קישור אישי בווצאפ שייפתח ישירות במסך ההרשמה עם ההרשאה שבחרתם להלן.</p>
+                
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-2">תפקיד / הרשאה בחברה:</label>
+                        <select id="smart-invite-role" class="modern-input py-3 text-sm bg-slate-50 text-slate-800 font-bold border-slate-200 w-full focus:bg-white focus:border-indigo-400 outline-none">
+                            <option value="MEMBER">עובד רגיל / איש צוות</option>
+                            <option value="SENIOR">עובד בכיר / אחראי</option>
+                            <option value="MANAGER">מנהל משמרת (אחמ"ש)</option>
+                            <option value="ADMIN">בעלים / שותף מנהל</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button onclick="window.sendSmartWhatsAppInvite()" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2">
+                    שלח הזמנה עכשיו <i class="fa-brands fa-whatsapp text-lg ml-1"></i>
+                </button>
+            </div>
+        </div>
+        `);
+    }
+    document.getElementById('smart-invite-role').value = 'MEMBER';
+    document.getElementById('smart-invite-modal').classList.remove('hidden');
+};
+
+window.sendSmartWhatsAppInvite = function() {
+    const role = document.getElementById('smart-invite-role').value;
+    const roleName = document.getElementById('smart-invite-role').options[document.getElementById('smart-invite-role').selectedIndex].text;
+    
+    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד ארגון לא זמין. נסו לרענן.');
+    
+    const url = window.location.origin;
+    const joinLink = `${url}/business.html?code=${currentGroup.group_code}&role=${role}`;
+    
+    let text = `היי! פתחנו פורטל ארגוני חדש ב-Oneflow BIZ 🚀\n\n`;
+    text += `הוגדרת במערכת תחת תפקיד: *${roleName}*.\n`;
+    text += `קוד העסק שלנו הוא: ${currentGroup.group_code}\n\n`;
+    text += `לחץ/י על הקישור הבא כדי להירשם ולהתחבר ישירות:\n🔗 ${joinLink}`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    document.getElementById('smart-invite-modal').classList.add('hidden');
+};
+
+async function fetchMembers() { 
     try {
         if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
-        let json = await res.json(); 
+        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
+        let json = await res.json(); 
         
         membersCache = json.members || (Array.isArray(json) ? json : []);
         
-        if (currentUser.role === 'ADMIN') { 
+        if (currentUser.role === 'ADMIN') { 
             try {
                 const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
-                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כלל הארגון</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כלל הארגון</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
                 if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) fF.value = cur; }
                 if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל העובדים</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) cfF.value = cur; }
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור איזה צוות/עובד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
+                
+                // הזרקת כפתור ההזמנה לוואטסאפ מעל טבלת העובדים בטאב הצוות
+                const membersHeader = document.querySelector('#admin-members-tools .flex.justify-between.items-center');
+                if (membersHeader && !document.getElementById('btn-smart-invite-top')) {
+                    membersHeader.insertAdjacentHTML('beforeend', `
+                        <button id="btn-smart-invite-top" onclick="window.openSmartInviteModal()" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm border border-[#25D366]/20">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> הזמן עובד
+                        </button>
+                    `);
+                }
             } catch(err) {}
-        } 
+        } 
         
        try {
-            const c = getEl('members-list'); 
-            if(c) { 
-                c.innerHTML = ''; 
-                membersCache.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+            const c = getEl('members-list'); 
+            if(c) { 
+                c.innerHTML = ''; 
+                membersCache.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
                     
                     const adminSettingsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="mr-2 text-slate-500 hover:text-slate-700 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הגדרות שכר"><i class="fa-solid fa-gear text-sm"></i></button>` : '';
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="סיווג והרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="מחיקת עובד"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
                     
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null && m.balance !== undefined ? `₪${m.balance}` : '🔒'}</span>${adminSettingsBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
-                }); 
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null && m.balance !== undefined ? `₪${m.balance}` : '🔒'}</span>${adminSettingsBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
+                }); 
             }
         } catch(err) {}
         
         try {
-            const a = getEl('bank-accounts-list'); 
-            if (a && currentUser.role === 'ADMIN') { 
+            const a = getEl('bank-accounts-list'); 
+            if (a && currentUser.role === 'ADMIN') { 
                 a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
-                else children.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                else children.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
-                }); 
-            } 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                }); 
+            } 
         } catch(err) {}
     } catch(e) {}
 }
@@ -5685,107 +5746,136 @@ window.switchCustomerTab = function(tab) {
     }
 };
 
+window.generateStoreAliasLink = function() {
+    const aliasInput = document.getElementById('store-alias-input');
+    const linkInput = document.getElementById('store-public-link');
+    if (!aliasInput || !linkInput) return;
+    
+    // ניקוי אוטומטי של תווים לא חוקיים (רק אנגלית ומספרים מותרים)
+    let val = aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (val.length > 10) val = val.substring(0, 10);
+    aliasInput.value = val;
+    
+    const displayId = val || currentGroup.group_code;
+    linkInput.value = `${window.location.origin}/storefront.html?store=${displayId}`;
+};
+
+window.injectAliasUI = function(existingAlias) {
+    const linkInput = document.getElementById('store-public-link');
+    if (linkInput && !document.getElementById('store-alias-input')) {
+        const container = linkInput.parentNode.parentNode;
+        container.insertAdjacentHTML('afterbegin', `
+            <div class="mb-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                <label class="text-[10px] font-bold text-indigo-800 block mb-1">כינוי מותאם אישית ללינק (אופציונלי):</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="10" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-32 shadow-sm text-left dir-ltr">
+                    <span class="text-[10px] text-slate-500 font-medium">רק באנגלית ומספרים, עד 10 תווים. במקום קוד המספרים הארוך.</span>
+                </div>
+            </div>
+        `);
+    }
+};
+
 window.fetchStoreSettings = async function() {
-    try {
-        const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
-        const data = await res.json();
-        if (data.success && data.settings) {
-            const s = data.settings;
-            
-            // הגדרה חכמה שמעדכנת כל אלמנט רלוונטי ב-DOM (מונעת התנגשויות)
-            const syncInputs = (id, val) => {
-                document.querySelectorAll(`input[id*="${id}"], textarea[id*="${id}"], select[id*="${id}"]`).forEach(el => el.value = val);
-            };
-            const syncChecks = (id, checked) => {
-                document.querySelectorAll(`input[type="checkbox"][id*="${id}"]`).forEach(el => el.checked = checked);
-            };
+    try {
+        const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success && data.settings) {
+            const s = data.settings;
+            
+            const syncInputs = (id, val) => {
+                document.querySelectorAll(`input[id*="${id}"], textarea[id*="${id}"], select[id*="${id}"]`).forEach(el => el.value = val);
+            };
+            const syncChecks = (id, checked) => {
+                document.querySelectorAll(`input[type="checkbox"][id*="${id}"]`).forEach(el => el.checked = checked);
+            };
 
-            syncChecks('store-is-active', s.is_active);
-            syncInputs('store-welcome-msg', s.welcome_message || '');
-            syncInputs('store-phone', s.phone || '');
-            syncInputs('store-min-order', s.min_order || '');
-            syncInputs('store-slogan', s.slogan || '');
-            syncInputs('store-type', s.store_type || 'retail');
-            syncInputs('store-open-time', s.open_time || '');
-            syncInputs('store-close-time', s.close_time || '');
-            syncInputs('store-whatsapp', s.whatsapp_number || '');
-            syncInputs('store-public-link', `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`);
-            
-            const headerSlogan = document.getElementById('main-header-slogan');
-            if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
+            window.injectAliasUI(s.store_alias || '');
 
-            // משיכת הגדרות מע"מ אחידה, כמו בקופה (POS)
-            const vatSettings = window.getVatSettings();
-            syncChecks('store-include-vat', vatSettings.enabled);
-            syncInputs('store-vat-rate', vatSettings.rate);
-            localStorage.setItem('store_include_vat', vatSettings.enabled);
+            syncChecks('store-is-active', s.is_active);
+            syncInputs('store-welcome-msg', s.welcome_message || '');
+            syncInputs('store-phone', s.phone || '');
+            syncInputs('store-min-order', s.min_order || '');
+            syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-type', s.store_type || 'retail');
+            syncInputs('store-open-time', s.open_time || '');
+            syncInputs('store-close-time', s.close_time || '');
+            syncInputs('store-whatsapp', s.whatsapp_number || '');
+            
+            const displayId = s.store_alias || currentGroup.group_code;
+            syncInputs('store-public-link', `${window.location.origin}/storefront.html?store=${displayId}`);
+            
+            const headerSlogan = document.getElementById('main-header-slogan');
+            if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';
 
-            // טיפול בלוגו העסק
-            const hasLogo = s.logo_url && s.logo_url.trim() !== '' && s.logo_url !== 'DELETE' && s.logo_url !== 'null';
-            const logoUrl = hasLogo ? (s.logo_url.startsWith('http') ? s.logo_url : `/${s.logo_url}`) : '';
+            const vatSettings = window.getVatSettings();
+            syncChecks('store-include-vat', vatSettings.enabled);
+            syncInputs('store-vat-rate', vatSettings.rate);
+            localStorage.setItem('store_include_vat', vatSettings.enabled);
 
-            document.querySelectorAll('[id*="store-logo-preview"], [id*="wizard-logo-preview"], [id*="dash-logo-preview"]').forEach(el => {
-                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-            });
-            document.querySelectorAll('[id*="store-logo-placeholder"], [id*="wizard-logo-icon"], [id*="dash-logo-placeholder"]').forEach(el => {
-                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
-                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
-            });
-            document.querySelectorAll('[id*="store-logo-base64"], [id*="wizard-logo-base64"]').forEach(el => {
-                el.value = hasLogo ? s.logo_url : 'DELETE';
-            });
+            const hasLogo = s.logo_url && s.logo_url.trim() !== '' && s.logo_url !== 'DELETE' && s.logo_url !== 'null';
+            const logoUrl = hasLogo ? (s.logo_url.startsWith('http') || s.logo_url.startsWith('data:') ? s.logo_url : `/${s.logo_url}`) : '';
 
-            if(hasLogo) {
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
-            }
+            document.querySelectorAll('[id*="store-logo-preview"], [id*="wizard-logo-preview"], [id*="dash-logo-preview"]').forEach(el => {
+                if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+            });
+            document.querySelectorAll('[id*="store-logo-placeholder"], [id*="wizard-logo-icon"], [id*="dash-logo-placeholder"]').forEach(el => {
+                if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            });
+            document.querySelectorAll('[id*="store-logo-base64"], [id*="wizard-logo-base64"]').forEach(el => {
+                el.value = hasLogo ? s.logo_url : 'DELETE';
+            });
 
-            // טיפול בבאנר הראשי
-            const hasBanner = s.banner_url && s.banner_url.trim() !== '' && s.banner_url !== 'DELETE' && s.banner_url !== 'null';
-            const bannerUrl = hasBanner ? (s.banner_url.startsWith('http') ? s.banner_url : `/${s.banner_url}`) : '';
-            const headerBannerEl = document.getElementById('main-header-banner');
-            
-            if (hasBanner) {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${bannerUrl}')`;
-                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
-                    el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block';
-                });
-                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
-                    el.classList.add('hidden'); el.style.display = 'none';
-                });
-                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
-                    el.value = s.banner_url;
-                });
-                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            } else {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
-                    el.src = ''; el.classList.add('hidden'); el.style.display = 'none';
-                });
-                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
-                    el.classList.remove('hidden'); el.style.display = 'flex';
-                });
-                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
-                    el.value = 'DELETE';
-                });
-                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
-            }
+            if(hasLogo) {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+            }
 
-            if (s.modifier_presets) {
-                try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
-                if(typeof renderPresetSelector === 'function') renderPresetSelector();
-            }
-        }
-    } catch(e) { console.error("Fetch Settings Error:", e); }
+            const hasBanner = s.banner_url && s.banner_url.trim() !== '' && s.banner_url !== 'DELETE' && s.banner_url !== 'null';
+            const bannerUrl = hasBanner ? (s.banner_url.startsWith('http') || s.banner_url.startsWith('data:') ? s.banner_url : `/${s.banner_url}`) : '';
+            const headerBannerEl = document.getElementById('main-header-banner');
+            
+            if (hasBanner) {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${bannerUrl}')`;
+                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
+                    el.src = bannerUrl; el.classList.remove('hidden'); el.style.display = 'block';
+                });
+                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
+                    el.classList.add('hidden'); el.style.display = 'none';
+                });
+                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
+                    el.value = s.banner_url;
+                });
+                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
+                document.querySelectorAll('[id*="store-banner-preview"], [id*="wizard-banner-preview"]').forEach(el => {
+                    el.src = ''; el.classList.add('hidden'); el.style.display = 'none';
+                });
+                document.querySelectorAll('[id*="store-banner-placeholder"], [id*="wizard-banner-icon"]').forEach(el => {
+                    el.classList.remove('hidden'); el.style.display = 'flex';
+                });
+                document.querySelectorAll('[id*="store-banner-base64"], [id*="wizard-banner-base64"]').forEach(el => {
+                    el.value = 'DELETE';
+                });
+                document.querySelectorAll('[id*="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            if (s.modifier_presets) {
+                try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
+                if(typeof renderPresetSelector === 'function') renderPresetSelector();
+            }
+        }
+    } catch(e) { console.error("Fetch Settings Error:", e); }
 };
 
 async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        // שאיבת נתונים שמתעדפת שדות גלויים ומלאים מכל חלקי ה-DOM
         const getVal = (id) => {
             const els = Array.from(document.querySelectorAll(`input[id*="${id}"], textarea[id*="${id}"], select[id*="${id}"]`));
             const activeEl = els.find(el => el.value && el.value.trim() !== '' && el.value !== 'DELETE');
@@ -5800,13 +5890,15 @@ async function saveStoreSettings() {
         const includeVat = getChecked('store-include-vat');
         localStorage.setItem('store_include_vat', includeVat);
         
-        // שליפת תמונות אגרסיבית
         const getLogoBannerVal = (id) => {
             const els = Array.from(document.querySelectorAll(`[id*="${id}"]`));
             if (els.some(el => el.value === 'DELETE')) return 'DELETE';
             const valid = els.find(el => el.value && el.value.trim() !== '' && el.value !== 'DELETE' && el.value !== 'null');
             return valid ? valid.value : null;
         };
+
+        const aliasInput = document.getElementById('store-alias-input');
+        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 10) : '';
 
         const payload = { 
             groupId: currentGroup.id, 
@@ -5821,7 +5913,8 @@ async function saveStoreSettings() {
             openTime: getVal('store-open-time'), 
             closeTime: getVal('store-close-time'), 
             whatsappNumber: getVal('store-whatsapp'),
-            includeVat: includeVat
+            includeVat: includeVat,
+            storeAlias: storeAlias 
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -5837,8 +5930,7 @@ async function saveStoreSettings() {
 
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
-            // איפוס שדות התמונה כדי לא לשלוח שוב פעם הבאה
+            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
             document.querySelectorAll('[id*="store-logo-base64"]').forEach(el => el.value = '');
             document.querySelectorAll('[id*="store-banner-base64"]').forEach(el => el.value = '');
             fetchStoreSettings(); 
