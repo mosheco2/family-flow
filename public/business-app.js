@@ -1805,30 +1805,32 @@ window.submitPermissions = async function() {
 };
 
 const ALL_TABS = [
-    { id: 'feed', name: 'ראשי 🏠' },
-    { id: 'timeclock', name: 'נוכחות ⏱️' },
-    { id: 'shifts', name: 'משמרות 🗓️' },
-    { id: 'calendar', name: 'יומן ותורים 📅' },
-    { id: 'shop', name: 'רכש ארגוני 🛒' },
-    { id: 'pantry', name: 'ניהול מלאי 📦' },
-    { id: 'sales', name: 'מכירות / חנות 🛍️' },
-    { id: 'customers', name: 'לקוחות 🤝' },
-    { id: 'deliveries', name: 'שליחויות 🛵' },
-    { id: 'bank', name: 'כספים 💳' },
-    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
-    { id: 'budget', name: 'תקציבים 📊' },
-    { id: 'forecast', name: 'תשקיף 📅' },
-    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
-    { id: 'academy', name: 'מרכז הכשרות 🎓' },
-    { id: 'community', name: 'קהילות מחוברות 🏘️' },
-    { id: 'members', name: 'ניהול צוות 👥' }
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'timeclock', name: 'נוכחות ⏱️' },
+    { id: 'shifts', name: 'משמרות 🗓️' },
+    { id: 'calendar', name: 'יומן ותורים 📅' },
+    { id: 'shop', name: 'רכש ארגוני 🛒' },
+    { id: 'pantry', name: 'ניהול מלאי 📦' },
+    { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'pos', name: 'קופה (POS) 💰' },
+    { id: 'customers', name: 'לקוחות 🤝' },
+    { id: 'deliveries', name: 'שליחויות 🛵' },
+    { id: 'foodcost', name: 'תמחור ורווחיות 🍽️' },
+    { id: 'bank', name: 'כספים 💳' },
+    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
+    { id: 'budget', name: 'תקציבים 📊' },
+    { id: 'forecast', name: 'תשקיף 📅' },
+    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
+    { id: 'academy', name: 'מרכז הכשרות 🎓' },
+    { id: 'community', name: 'קהילות מחוברות 🏘️' },
+    { id: 'members', name: 'ניהול צוות 👥' }
 ];
 
 const ROLE_DEFAULTS = {
-    'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'calendar', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
-    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
-    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'calendar', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'pos', 'customers'],
+    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy', 'pos'],
+    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
 
 // =====================================
@@ -2120,18 +2122,21 @@ window.openBalanceAdjustmentModal = function(id, name) {
 window.submitBalanceAdjustment = async function() {
     const userId = document.getElementById('adjustment-user-id').value;
     const type = document.getElementById('adjustment-type').value;
-    const amount = parseFloat(document.getElementById('adjustment-amount').value);
+    const rawAmount = parseFloat(document.getElementById('adjustment-amount').value);
     const reason = document.getElementById('adjustment-reason').value || (type === 'add' ? 'בונוס/מענק מיוחד' : 'הפחתה תפעולית יזומה');
     
-    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין לביצוע הפעולה');
+    if(!rawAmount || rawAmount <= 0) return showToast('error', 'נא להזין סכום תקין לביצוע הפעולה');
     
+    // תיקון: אילוץ סכום שלילי אם נבחר "קנס/הפחתה" כדי שיקזז מהיתרה
+    const finalAmount = type === 'deduct' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+
     const btn = document.getElementById('btn-submit-adjustment');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     
     try {
         const res = await fetch(`${API}/admin/adjust-balance`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason })
+            body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: finalAmount, reason: reason })
         });
         const data = await res.json();
         
@@ -3525,7 +3530,7 @@ window.submitBankSettings = async function() {
         if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות עובד'; }
     }
 };
-async function triggerPayday() { if(!confirm('האם לאשר תשלום תקציבים ובונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
+async function triggerPayday() { if(!confirm('האם לאשר איפוס חודשי ותשלום בונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); if(typeof fetchMembers === 'function') fetchMembers(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
 function openGoalModal() { if(currentUser.role === 'ADMIN') { getEl('goal-user-select-container').classList.remove('hidden'); } getEl('goal-title').value = ''; getEl('goal-target').value = ''; getEl('goal-modal').classList.remove('hidden'); }
 function openDepositModal(id, title) { getEl('deposit-goal-id').value = id; getEl('deposit-goal-title').innerText = title; getEl('goal-deposit-modal').classList.remove('hidden'); }
 async function submitGoal() { const title = val('goal-title'); const target = parseFloat(val('goal-target')) || 0; const select = getEl('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && getEl('goal-user-select-container').style.display !== 'none') ? select.value : null; const res = await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target, groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { getEl('goal-modal').classList.add('hidden'); fetchData(); showToast('success', 'יעד הוגדר בהצלחה'); } else showToast('error', data.error); }
