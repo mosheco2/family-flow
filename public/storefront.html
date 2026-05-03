@@ -1144,14 +1144,25 @@ window.filterCategory = function(cat) {
 
         window.closeProductModal = function() { getEl('product-modal').classList.add('hidden'); };
         
-        window.updateCart = function(cartKey, delta, name, price, originalCatalogId = null) {
+window.updateCart = function(cartKey, delta, name, price, originalCatalogId = null) {
             const catId = originalCatalogId || cartKey; 
             if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
             
             cart[cartKey].qty += delta;
             if (cart[cartKey].qty <= 0) delete cart[cartKey];
 
-            window.renderCatalog(); window.updateCartFooter();
+            window.renderCatalog(); 
+            window.updateCartFooter();
+
+            // מנגנון חכם: אם מודאל הקופה פתוח, נרענן אותו או שנסגור אם העגלה התרוקנה
+            const checkoutModal = getEl('checkout-modal');
+            if (checkoutModal && !checkoutModal.classList.contains('hidden')) {
+                if (Object.keys(cart).length === 0) {
+                    window.closeCheckoutModal();
+                } else {
+                    window.openCheckoutModal(true); // קריאה עם דגל skipToggle כדי למנוע לופ
+                }
+            }
         };
 
         window.calculateCartDetails = function() {
@@ -1225,7 +1236,7 @@ window.filterCategory = function(cat) {
             } else footer.classList.add('hidden');
         };
 
-window.toggleDelivery = function(isDel, skipUpdate = false) {
+        window.toggleDelivery = function(isDel, skipUpdate = false) {
             getEl('is-delivery').value = isDel;
             const btnDel = getEl('btn-delivery-true');
             const btnPick = getEl('btn-delivery-false');
@@ -1246,11 +1257,17 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 getEl('cust-street').required = false;
                 getEl('cust-house').required = false;
             }
-            if (!skipUpdate) window.openCheckoutModal(); // חישוב מחדש, אלא אם התבקש דילוג
+            if (!skipUpdate) window.openCheckoutModal(); 
         };
 
-        window.openCheckoutModal = function() {
+        window.openCheckoutModal = function(skipToggle = false) {
             const calc = window.calculateCartDetails();
+            
+            if (calc.totalQty === 0) {
+                showToast('info', 'העגלה ריקה');
+                return;
+            }
+
             let itemsHtml = '';
             
             try {
@@ -1295,13 +1312,12 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
                 
-                // שימוש בארגומנט העקיפה (true) כדי למנוע לופ אינסופי של רענון
-                window.toggleDelivery(false, true); 
+                if(!skipToggle) window.toggleDelivery(false, true); 
                 
                 getEl('btn-time-asap').classList.add('hidden');
                 getEl('btn-time-future').classList.remove('flex-1');
                 getEl('btn-time-future').classList.add('w-full');
-                window.toggleTargetTime('future');
+                if(!skipToggle) window.toggleTargetTime('future');
             } else {
                 if(modalTitle) modalTitle.innerText = 'העגלה שלך';
                 getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
@@ -1334,10 +1350,13 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
             getEl('checkout-modal').classList.remove('hidden');
         };
 
-        window.closeCheckoutModal = function() { getEl('checkout-modal').classList.add('hidden'); };
+        window.closeCheckoutModal = function() { 
+            getEl('checkout-modal').classList.add('hidden'); 
+        };
 
- window.resetStoreAfterOrder = function() {
+        window.resetStoreAfterOrder = function() {
             getEl('success-screen').classList.add('hidden');
+            getEl('checkout-modal').classList.add('hidden'); // הגנה אקטיבית נוספת
             cart = {};
             window.renderCatalog();
             window.updateCartFooter();
@@ -1354,7 +1373,7 @@ window.toggleDelivery = function(isDel, skipUpdate = false) {
                 }
             } catch(e) {}
 
-            window.toggleDelivery(false);
+            window.toggleDelivery(false, true);
             window.toggleTargetTime('asap');
             window.scrollTo({top: 0, behavior: 'smooth'});
         };
