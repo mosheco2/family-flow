@@ -6648,38 +6648,6 @@ async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/c
 
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
-window.fetchStoreOrders = async function() { 
-    try { 
-        const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
-        let data = await res.json(); 
-        
-        let ordersArray = [];
-        if (Array.isArray(data)) ordersArray = data;
-        else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
-        else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
-
-        // פיצול חכם ומתוקן: הצעת מחיר מזוהה על פי orderType, order_type או סטטוס 
-        const isQuote = (o) => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer';
-        
-        const actualOrders = ordersArray.filter(o => !isQuote(o));
-        const embeddedQuotes = ordersArray.filter(o => isQuote(o));
-        
-        window.storeOrdersCache = actualOrders;
-        
-        if (embeddedQuotes.length > 0) {
-            if (!window.storeQuotesCache) window.storeQuotesCache = [];
-            embeddedQuotes.forEach(eq => {
-                if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
-                    window.storeQuotesCache.push(eq);
-                }
-            });
-            if(typeof window.renderStoreQuotes === 'function') window.renderStoreQuotes();
-        }
-        
-        window.renderStoreOrders(); 
-        if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
-    } catch(e) { console.error('Error fetching orders:', e); } 
-};
 // פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
 function getDeliveryMeta(order) {
     if (!order || !order.items) return null;
@@ -6765,17 +6733,50 @@ function toggleCardCollapse(cardId) {
     }
 }
 
+window.fetchStoreOrders = async function() { 
+    try { 
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
+        let data = await res.json(); 
+        
+        let ordersArray = [];
+        if (Array.isArray(data)) ordersArray = data;
+        else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
+        else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
+
+        // הצעת מחיר מזוהה על פי orderType, order_type או סטטוס של quote 
+        const isQuote = (o) => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer';
+        
+        const actualOrders = ordersArray.filter(o => !isQuote(o));
+        const embeddedQuotes = ordersArray.filter(o => isQuote(o));
+        
+        window.storeOrdersCache = actualOrders;
+        
+        if (embeddedQuotes.length > 0) {
+            if (!window.storeQuotesCache) window.storeQuotesCache = [];
+            embeddedQuotes.forEach(eq => {
+                if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
+                    window.storeQuotesCache.push(eq);
+                }
+            });
+            if(typeof window.renderStoreQuotes === 'function') window.renderStoreQuotes();
+        }
+        
+        window.renderStoreOrders(); 
+        if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
+    } catch(e) { console.error('Error fetching orders:', e); } 
+};
+
 window.renderStoreOrders = function() {
-    const list = getEl('store-orders-list');
-    const statusFilter = val('store-orders-filter') || 'all';
-    const typeFilter = val('store-orders-type-filter') || 'all';
-    const searchId = val('orders-search-id');
-    const storeOrdersSearch = val('store-orders-search');
+    const list = document.getElementById('store-orders-list');
+    const statusFilter = document.getElementById('store-orders-filter') ? document.getElementById('store-orders-filter').value : 'all';
+    const typeFilter = document.getElementById('store-orders-type-filter') ? document.getElementById('store-orders-type-filter').value : 'all';
+    const searchId = document.getElementById('orders-search-id') ? document.getElementById('orders-search-id').value : '';
+    const storeOrdersSearch = document.getElementById('store-orders-search') ? document.getElementById('store-orders-search').value : '';
 
     if (!window.storeOrdersCache) return;
     let filteredOrders = [...window.storeOrdersCache];
     
-    // סידור מחדש: הזמנות חדשות ופעילות תמיד למעלה, אלו שהושלמו/בוטלו יורדות למטה
+    // סידור: הזמנות חדשות ופעילות תמיד למעלה, השאר למטה (מושלם ובוטל)
     filteredOrders.sort((a, b) => {
         const aDone = (a.status === 'completed' || a.status === 'cancelled');
         const bDone = (b.status === 'completed' || b.status === 'cancelled');
@@ -6847,12 +6848,14 @@ window.renderStoreOrders = function() {
         let userNotes = '';
         try {
             const parsedNotes = JSON.parse(o.notes);
-            if (parsedNotes.notes) userNotes = parsedNotes.notes;
+            if (parsedNotes.notes) userNotes = parsedNotes.notes; 
         } catch(e) { userNotes = o.notes || ''; }
+        
+        userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
 
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
-            <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
+            <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="window.toggleCardCollapse('mng-${o.id}')">
                 
                 <div class="flex flex-col items-start gap-3 pl-2 shrink-0">
                     <span class="text-[11px] font-bold ${st.color} px-4 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
@@ -6890,23 +6893,25 @@ window.renderStoreOrders = function() {
 };
 
 window.openStoreOrderModal = function(orderId) {
-    currentStoreOrderId = orderId; 
+    window.currentStoreOrderId = orderId; 
     const order = window.storeOrdersCache.find(o => o.id === orderId); 
     if(!order) return;
     
-    getEl('so-modal-id').innerText = order.id;
-    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
-    getEl('so-modal-total').innerText = order.total_amount;
-    getEl('so-modal-customer').innerText = order.customer_name;
-    getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
-    const targetEl = getEl('so-modal-target');
+    document.getElementById('so-modal-id').innerText = order.id;
+    document.getElementById('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
+    document.getElementById('so-modal-total').innerText = order.total_amount;
+    document.getElementById('so-modal-customer').innerText = order.customer_name;
+    document.getElementById('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
+    const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
     let userNotes = '';
     try {
         const parsedNotes = JSON.parse(order.notes);
-        if (parsedNotes.notes) userNotes = parsedNotes.notes;
+        if (parsedNotes.notes) userNotes = parsedNotes.notes; 
     } catch(e) { userNotes = order.notes || ''; }
+    
+    userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
 
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
@@ -6926,14 +6931,19 @@ window.openStoreOrderModal = function(orderId) {
          itemsHtml += `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-solid fa-motorcycle ml-1"></i> דמי משלוח עיר</span><span class="font-bold text-indigo-800 text-sm">₪${meta.delivery_fee}</span></div>`;
     }
 
-    getEl('so-modal-items').innerHTML = itemsHtml;
-    getEl('store-order-modal').classList.remove('hidden');
+    document.getElementById('so-modal-items').innerHTML = itemsHtml;
+    document.getElementById('store-order-modal').classList.remove('hidden');
 };
 
-async function updateStoreOrderStatus(status) {
-    if(!currentStoreOrderId) return;
-    try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
-}
+window.updateStoreOrderStatus = async function(status) {
+    if(!window.currentStoreOrderId) return;
+    try { 
+        await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: window.currentStoreOrderId, status }) }); 
+        showToast('success', 'סטטוס ההזמנה עודכן!'); 
+        document.getElementById('store-order-modal').classList.add('hidden'); 
+        window.fetchStoreOrders(); 
+    } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+};
 
 async function generateStoreProductAI() {
     const name = val('sp-name'); if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
