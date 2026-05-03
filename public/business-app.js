@@ -5134,131 +5134,256 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 };
 
 window.renderQuoteItemsList = function() {
-    const selector = document.getElementById('quote-items-selector');
-    if (!selector || !window.storeCatalogCache) return;
+    const list = document.getElementById('quote-selected-items');
+    const grid = document.getElementById('quote-catalog-grid');
+    if (!list || !grid) return;
+    
+    window.renderQuoteSelectedItems();
+    window.renderQuoteCatalogGrid();
+};
 
+window.renderQuoteCatalogGrid = function() {
+    const grid = document.getElementById('quote-catalog-grid');
+    if (!grid || !window.storeCatalogCache) return;
+    
     const searchTerm = (document.getElementById('quote-search-item')?.value || '').toLowerCase();
     const catFilter = document.getElementById('quote-cat-filter')?.value || 'all';
-
-    let selectedCatalogItems = [];
-    let unselectedCatalogItems = [];
-
-    const isEditMode = Object.keys(window.selectedQuoteItems).length > 0;
-    const hasActiveFilter = searchTerm !== '' || catFilter !== 'all';
-
-    window.storeCatalogCache.forEach(p => {
-        const strId = String(p.id);
-        const isSelected = !!window.selectedQuoteItems[strId];
+    
+    let filtered = window.storeCatalogCache.filter(p => p.is_available);
+    
+    if (searchTerm) {
+        filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm));
+    } else if (catFilter !== 'all') {
+        filtered = filtered.filter(p => (p.category || 'כללי') === catFilter);
+    }
+    
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים תואמים לחיפוש.</div>';
+        return;
+    }
+    
+    grid.innerHTML = filtered.map(p => {
+        const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-24 object-cover rounded-t-xl">` : `<div class="w-full h-24 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-200"><i class="fa-solid ${isComplex ? 'fa-layer-group text-emerald-300' : 'fa-image text-slate-300'} text-3xl"></i></div>`;
+        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm z-10 border border-white">תפריט הרכבה</span>' : '';
         
-        // חיפוש טקסט חופשי גם בשם וגם בתיאור
-        const matchSearch = p.name.toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm);
-        
-        // עקיפה: אם מקלידים טקסט, נתעלם מהקטגוריה!
-        let matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
-        if (searchTerm !== '') matchCat = true; 
-        
-        if (isSelected) {
-            selectedCatalogItems.push(p);
-        } else if (matchSearch && matchCat) {
-            if (!isEditMode || hasActiveFilter) {
-                unselectedCatalogItems.push(p);
-            }
+        return `
+        <div onclick="window.addQuoteItemFromCatalog('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group">
+            ${badgeHtml}
+            ${imgHtml}
+            <div class="p-3 flex-1 flex flex-col justify-between">
+                <h5 class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h5>
+                <div class="flex justify-between items-center mt-auto">
+                    <span class="text-indigo-600 font-black text-sm dir-ltr">₪${parseFloat(p.price).toFixed(2)}</span>
+                    <button class="bg-slate-50 text-indigo-500 w-6 h-6 rounded-md group-hover:bg-indigo-600 group-hover:text-white transition flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.renderQuoteSelectedItems = function() {
+    const list = document.getElementById('quote-selected-items');
+    if (!list) return;
+
+    // חילוץ תפריטים מורכבים (אירועים) לשורות נפרדות מתוך הסל
+    let flattenedItems = [];
+    
+    Object.values(window.selectedQuoteItems).forEach(item => {
+        // שלב 1: האם זה פריט מורכב? נדחוף אותו כ"שורת אב" ירוקה ומוגנת
+        if (item.isComplex || item.complex_data) {
+            flattenedItems.push({ ...item, isParent: true });
+            
+            // שלב 2: שאיבת בחירות הלקוח והצגתן כשורות בודדות
+            try {
+                const parsed = JSON.parse(item.complex_data);
+                if (parsed.steps) {
+                    parsed.steps.forEach((step, sIdx) => {
+                        if (step.options) {
+                            step.options.forEach((opt, oIdx) => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    flattenedItems.push({
+                                        id: `${item.id}_cx_${sIdx}_${oIdx}`,
+                                        parentId: item.id,
+                                        isChild: true,
+                                        stepIdx: sIdx,
+                                        optIdx: oIdx,
+                                        name: opt.name,
+                                        quantity: (parseFloat(item.quantity) || 1) * (parseFloat(opt.qty) || 1), // הכפלת כמות תפריט בכמות הבחירה הפנימית!
+                                        price_at_order: parseFloat(opt.price) || 0,
+                                        note: `בחירה משלב: ${step.name}` + (opt.note ? ` | ${opt.note}` : '')
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch(e) {}
+            
+        } else {
+            // פריט רגיל (מוצר קטלוג)
+            flattenedItems.push(item);
         }
     });
 
-    const combinedToRender = [...selectedCatalogItems, ...unselectedCatalogItems];
-
-    if (combinedToRender.length === 0) {
-        selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים (כדאי לנקות חיפוש או קטגוריה)</p>';
+    if (flattenedItems.length === 0) {
+        list.innerHTML = '<div class="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl"><i class="fa-solid fa-file-invoice text-3xl text-slate-200 mb-2"></i><p class="text-[11px] font-bold text-slate-500">ההצעה ריקה.<br>בחרו מוצרים מהקטלוג כדי להתחיל.</p></div>';
         return;
     }
 
-    selector.innerHTML = combinedToRender.map(p => {
-        const strId = String(p.id);
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
-        const existingItem = window.selectedQuoteItems[strId];
-        const existingQty = existingItem ? existingItem.quantity : '';
-        const existingPrice = existingItem ? existingItem.price_at_order : (parseFloat(p.price) || 0);
-        const existingNote = existingItem ? existingItem.note : '';
-        
-        // בדיקה האם זהו מוצר מורכב (תפריט אירוע)
-        const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
+    list.innerHTML = flattenedItems.map(item => {
+        const rowTotal = (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
 
-        if (isComplex) {
-            // תצוגת מוצר מורכב - עם כפתור לפתיחת עורך התפריט
+        if (item.isParent) {
             return `
-            <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-emerald-300 shadow-md bg-emerald-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-emerald-200">
-                ${imgHtml}
-                <div class="flex-1 min-w-0">
-                    <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                    ${existingQty ? `
-                        <button onclick="window.openQuoteComplexEditor('${strId}')" class="mt-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
-                        <div class="text-[10px] text-slate-500 mt-1 truncate max-w-full">${safeStr(existingNote)}</div>
-                    ` : `<p class="text-[10px] text-slate-400 mt-1">הזן כמות כדי לערוך את המפרט</p>`}
+            <div class="flex flex-col p-3 bg-emerald-50/50 rounded-xl border border-emerald-200 shadow-sm mb-1 mt-3 gap-2 relative">
+                <button onclick="window.removeQuoteItem('${item.id}')" class="absolute -top-2 -left-2 w-6 h-6 bg-red-50 border border-red-200 text-red-500 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-500 hover:text-white transition z-10"><i class="fa-solid fa-times"></i></button>
+                <div class="flex justify-between items-center w-full">
+                    <span class="text-sm font-black text-emerald-800 leading-tight"><i class="fa-solid fa-layer-group opacity-50 mr-1"></i> מפרט תפריט אב: ${safeStr(item.name)}</span>
+                    <button onclick="window.openQuoteComplexEditor('${item.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
                 </div>
-                <div class="flex flex-col items-end gap-2 shrink-0 w-28">
-                    <div class="w-full relative pt-3">
-                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                        <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-emerald-50 text-emerald-700 font-bold border-emerald-200" placeholder="0.00">
+                <div class="flex items-center gap-2 mt-1">
+                    <div class="relative w-20">
+                        <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-emerald-50 px-1 font-bold">מחיר בסיס</span>
+                        <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-emerald-200">
                     </div>
-                    <div class="w-full relative pt-3">
-                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                        <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    <div class="relative w-20">
+                        <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-100 px-1 font-bold rounded">כמות מנות</span>
+                        <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-emerald-100 border-emerald-300 text-emerald-800 font-black shadow-inner">
                     </div>
                 </div>
             </div>`;
-        } else {
-            // תצוגת מוצר רגיל
+            
+        } else if (item.isChild) {
             return `
-            <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${existingQty ? 'border-indigo-300 shadow-md bg-indigo-50/10' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-indigo-200">
-                ${imgHtml}
-                <div class="flex-1 min-w-0">
-                    <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                    <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה (למשל: מידת עשייה)..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-16 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>
+            <div class="flex flex-col p-2.5 bg-white rounded-xl border-b border-l border-r border-slate-100 mb-1 mr-4 gap-2 relative group hover:bg-slate-50 transition">
+                <button onclick="window.removeQuoteChildItem('${item.parentId}', ${item.stepIdx}, ${item.optIdx})" class="absolute top-2 left-2 w-5 h-5 bg-slate-50 border border-slate-200 text-slate-400 rounded hover:bg-red-50 hover:text-red-500 hover:border-red-200 text-[10px] flex items-center justify-center transition opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
+                <div class="flex justify-between items-start pr-6 w-full">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-xs font-bold text-slate-700 block truncate leading-tight">${safeStr(item.name)}</span>
+                        <span class="text-[9px] text-slate-400 mt-0.5 block truncate">${safeStr(item.note)}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 pr-2">
+                        <div class="relative w-16">
+                            <span class="text-[8px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">מחיר ₪</span>
+                            <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteChildPrice('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
+                        </div>
+                        <div class="relative w-12">
+                            <span class="text-[8px] text-slate-400 absolute -top-1.5 right-1 bg-white px-1 font-bold">כמות</span>
+                            <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteChildQty('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
+                        </div>
+                        <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[35px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
+                    </div>
                 </div>
-                <div class="flex flex-col items-end gap-2 shrink-0 w-28">
-                    <div class="w-full relative pt-3">
-                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                        <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+            </div>`;
+            
+        } else {
+            // פריט רגיל לגמרי
+            const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-100">` : '';
+            return `
+            <div class="flex flex-col p-3 bg-white rounded-xl border border-indigo-100 shadow-sm mb-2 gap-2 transition-all hover:shadow-md relative">
+                <button onclick="window.removeQuoteItem('${item.id}')" class="absolute -top-2 -left-2 w-6 h-6 bg-slate-100 border border-slate-200 text-slate-500 hover:text-red-500 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-50 transition z-10"><i class="fa-solid fa-times"></i></button>
+                <div class="flex items-start gap-3 w-full">
+                    ${imgHtml}
+                    <div class="flex-1 min-w-0">
+                        <span class="text-sm font-bold text-slate-800 truncate block leading-tight">${safeStr(item.name)}</span>
+                        <div class="flex items-center gap-2 mt-2">
+                            <div class="relative w-20">
+                                <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">מחיר</span>
+                                <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-slate-200">
+                            </div>
+                            <div class="relative w-16">
+                                <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-indigo-50 px-1 font-bold rounded">כמות</span>
+                                <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-indigo-50 border-indigo-200 text-indigo-800 font-black shadow-inner">
+                            </div>
+                            <div class="text-[11px] font-black text-indigo-600 bg-white px-2 py-1.5 rounded-lg border border-indigo-100 shadow-sm dir-ltr shrink-0">₪${rowTotal.toFixed(2)}</div>
+                        </div>
                     </div>
-                    <div class="w-full relative pt-3">
-                        <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                        <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
-                    </div>
+                </div>
+                <div class="w-full mt-1 border-t border-slate-50 pt-2">
+                    <input type="text" value="${safeStr(item.note)}" onchange="window.updateQuoteItemNote('${item.id}', this.value)" placeholder="הערה תפעולית (למשל: ללא גלוטן)..." class="modern-input py-1.5 px-3 text-[10px] w-full bg-slate-50 border-slate-200 font-medium focus:bg-white transition">
                 </div>
             </div>`;
         }
     }).join('');
 };
 
-window.updateQuoteItem = function(id, name, imgUrl) {
-    const strId = String(id);
-    const qty = parseFloat(document.getElementById(`quote-qty-${id}`)?.value) || 0;
-    const price = parseFloat(document.getElementById(`quote-price-${id}`)?.value) || 0;
-    const noteEl = document.getElementById(`quote-note-${id}`);
-    
-    // אם זו שורה רגילה, ניקח טקסט מה-textarea. אם וירטואלית/מורכבת, נשמור את ההערה הקיימת בזיכרון (שתתעדכן מהמודאל הפנימי).
-    const note = noteEl ? noteEl.value : (window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].note : '');
-    
-    if (qty > 0) {
-        // שמירת ה-complex_data אם קיים כדי לא לדרוס את בחירות התפריט המורכב בזמן עדכון כמות מבחוץ
-        const existingData = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].complex_data : null;
-        
-        window.selectedQuoteItems[strId] = { 
-            id: strId, 
-            name, 
-            image_url: imgUrl, 
-            price_at_order: price, 
-            quantity: qty, 
-            note: note,
-            complex_data: existingData 
-        };
-    } else {
-        delete window.selectedQuoteItems[strId];
+window.updateQuoteItemPrice = function(id, val) {
+    if(window.selectedQuoteItems[String(id)]) {
+        window.selectedQuoteItems[String(id)].price_at_order = parseFloat(val) || 0;
+        window.calcQuoteTotal();
+        window.renderQuoteSelectedItems();
     }
-    
+};
+
+window.updateQuoteItemQty = function(id, val) {
+    if(window.selectedQuoteItems[String(id)]) {
+        window.selectedQuoteItems[String(id)].quantity = parseFloat(val) || 1;
+        window.calcQuoteTotal();
+        window.renderQuoteSelectedItems();
+    }
+};
+
+window.updateQuoteItemNote = function(id, val) {
+    if(window.selectedQuoteItems[String(id)]) {
+        window.selectedQuoteItems[String(id)].note = val;
+    }
+};
+
+window.removeQuoteItem = function(id) {
+    delete window.selectedQuoteItems[String(id)];
     window.calcQuoteTotal();
-    window.renderQuoteItemsList();
+    window.renderQuoteSelectedItems();
+};
+
+window.updateQuoteChildPrice = function(parentId, stepIdx, optIdx, val) {
+    const parent = window.selectedQuoteItems[String(parentId)];
+    if(parent && parent.complex_data) {
+        try {
+            const parsed = JSON.parse(parent.complex_data);
+            if(parsed.steps && parsed.steps[stepIdx] && parsed.steps[stepIdx].options && parsed.steps[stepIdx].options[optIdx]) {
+                parsed.steps[stepIdx].options[optIdx].price = parseFloat(val) || 0;
+                parent.complex_data = JSON.stringify(parsed);
+                window.calcQuoteTotal();
+                window.renderQuoteSelectedItems();
+            }
+        } catch(e) {}
+    }
+};
+
+window.updateQuoteChildQty = function(parentId, stepIdx, optIdx, val) {
+    const parent = window.selectedQuoteItems[String(parentId)];
+    if(parent && parent.complex_data) {
+        try {
+            const parsed = JSON.parse(parent.complex_data);
+            if(parsed.steps && parsed.steps[stepIdx] && parsed.steps[stepIdx].options && parsed.steps[stepIdx].options[optIdx]) {
+                // כמות של מנת הבן היא יחסית לכמות האב! לכן נחלק כדי לשמור את היחס הנכון
+                const parentQty = parseFloat(parent.quantity) || 1;
+                const newRelativeQty = (parseFloat(val) || 0) / parentQty;
+                
+                parsed.steps[stepIdx].options[optIdx].qty = newRelativeQty;
+                parent.complex_data = JSON.stringify(parsed);
+                window.calcQuoteTotal();
+                window.renderQuoteSelectedItems();
+            }
+        } catch(e) {}
+    }
+};
+
+window.removeQuoteChildItem = function(parentId, stepIdx, optIdx) {
+    const parent = window.selectedQuoteItems[String(parentId)];
+    if(parent && parent.complex_data) {
+        try {
+            const parsed = JSON.parse(parent.complex_data);
+            if(parsed.steps && parsed.steps[stepIdx] && parsed.steps[stepIdx].options && parsed.steps[stepIdx].options[optIdx]) {
+                parsed.steps[stepIdx].options[optIdx].selected = false;
+                parsed.steps[stepIdx].options[optIdx].qty = 0;
+                parent.complex_data = JSON.stringify(parsed);
+                window.calcQuoteTotal();
+                window.renderQuoteSelectedItems();
+            }
+        } catch(e) {}
+    }
 };
 
 window.openEditQuoteModal = async function(id) {
@@ -5279,11 +5404,12 @@ window.openEditQuoteModal = async function(id) {
     const actualItems = allItems.filter(i => !i.is_quote_metadata);
     
     window.selectedQuoteItems = {};
-    actualItems.forEach((item) => {
+    actualItems.forEach((item, idx) => {
         let itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
-        if (!itemId || itemId === 'undefined' || itemId === 'null') return;
+        if (!itemId || itemId === 'undefined' || itemId === 'null') {
+            itemId = 'custom_item_' + idx;
+        }
         
-        // יצירת מחרוזת התיאור היפה לתצוגה החיצונית
         let noteTxt = '';
         if (item.note && item.note !== 'undefined') noteTxt += item.note + '\n';
         if (item.notes && item.notes !== 'undefined') noteTxt += item.notes + '\n';
@@ -5293,20 +5419,18 @@ window.openEditQuoteModal = async function(id) {
             noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
         }
 
+        let isComplex = false;
+        let complexDataToSave = null;
+        
         if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
             try {
                 const parsed = JSON.parse(item.options_text);
-                if (parsed.isComplex && parsed.steps) {
-                    let summary = [];
-                    parsed.steps.forEach(step => {
-                       if (step.options && Array.isArray(step.options)) {
-                           const selectedOpts = step.options.filter(o => o.selected === true || o.selected === 'true');
-                           if (selectedOpts.length > 0) {
-                               summary.push(step.name + ': ' + selectedOpts.map(o => `${o.name} (x${o.qty||1})`).join(', '));
-                           }
-                       } 
-                    });
-                    if (summary.length > 0) noteTxt += summary.join(' | ') + '\n';
+                if (parsed.isComplex) {
+                    isComplex = true;
+                    complexDataToSave = item.options_text; 
+                } else if (parsed.selections) {
+                    if (Array.isArray(parsed.selections)) noteTxt += parsed.selections.map(s => typeof s === 'object' ? s.name : s).join(', ') + '\n';
+                    else noteTxt += parsed.selections + '\n';
                 }
             } catch (e) {
                 noteTxt += item.options_text + '\n';
@@ -5319,12 +5443,14 @@ window.openEditQuoteModal = async function(id) {
         if(qty > 0) {
             window.selectedQuoteItems[itemId] = { 
                 id: itemId, 
-                name: item.name || item.item_name || 'פריט מותאם אישית', 
+                real_id: item.real_id || item.catalog_id,
+                name: item.name || item.item_name || 'פריט', 
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
                 quantity: qty,
                 note: noteTxt,
-                complex_data: item.options_text // משמרים את האובייקט המקורי לעורך הפנימי!
+                complex_data: complexDataToSave,
+                isComplex: isComplex
             };
         }
     });
@@ -5343,9 +5469,6 @@ window.openEditQuoteModal = async function(id) {
     if(document.getElementById('quote-notes')) document.getElementById('quote-notes').value = pureNotes;
 
     window.calcQuoteTotal();
-    
-    const btnGen = document.getElementById('btn-generate-quote');
-    if(btnGen) btnGen.innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
 window.openQuoteComplexEditor = function(strId) {
     const item = window.selectedQuoteItems[strId];
