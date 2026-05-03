@@ -219,7 +219,7 @@
         </div>
     </div>
 
-    <!-- Checkout Modal -->
+<!-- Checkout Modal -->
     <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
             <div class="flex justify-between items-center p-5 border-b border-slate-100 shrink-0">
@@ -235,7 +235,6 @@
                         <span class="text-sm font-bold text-slate-600">סיכום ביניים:</span>
                         <span id="checkout-total" class="text-xl font-black text-slate-900">₪0</span>
                     </div>
-                    <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden mt-2 bg-red-50 p-1.5 rounded-lg border border-red-100"><i class="fa-solid fa-circle-exclamation"></i> מינימום להזמנה: ₪<span id="min-order-val"></span></p>
                 </div>
 
                 <form id="checkout-form" class="space-y-4">
@@ -267,7 +266,6 @@
                             <input type="text" id="cust-floor" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="קומה">
                             <input type="text" id="cust-apt" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="דירה">
                         </div>
-                        <textarea id="cust-notes" class="modern-input py-2 text-sm bg-white border-indigo-100 h-16" placeholder="הערות לשליח..."></textarea>
                     </div>
 
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4">
@@ -282,10 +280,18 @@
                         </div>
                         <input type="hidden" id="target-time-type" value="asap">
                     </div>
+
+                    <!-- NEW GENERAL NOTES FIELD -->
+                    <div class="mt-4">
+                        <label class="text-[10px] font-bold text-slate-400 mr-1">הערות להזמנה / בקשות מיוחדות</label>
+                        <textarea id="general-notes" class="modern-input py-2.5 text-sm bg-white border-slate-200 h-20" placeholder="הערות מיוחדות, אלרגיות, או בקשות..."></textarea>
+                    </div>
+
                 </form>
             </div>
 
-            <div class="p-5 border-t border-slate-100 bg-white shrink-0">
+            <div class="p-5 border-t border-slate-100 bg-white shrink-0 flex flex-col gap-3">
+                <p id="checkout-min-warning" class="text-[12px] font-bold text-red-600 text-center hidden bg-red-50 py-2 px-3 rounded-lg border border-red-200 m-0"><i class="fa-solid fa-circle-exclamation mr-1"></i> לא הגעת למינימום הזמנה: ₪<span id="min-order-val"></span></p>
                 <button type="button" onclick="window.submitOrder(event)" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl text-lg hover:bg-black transition active:scale-95 flex justify-center items-center gap-2">
                     <span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded"></span> <i class="fa-solid fa-paper-plane"></i>
                 </button>
