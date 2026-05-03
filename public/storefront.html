@@ -96,9 +96,11 @@
         </div>
         
         <div id="store-promotions-banner" class="w-full m-0 p-0 border-t border-slate-100"></div>
-    </header>
+    </header>
 
-    <div class="glass-header sticky top-0 z-40 shadow-sm border-b border-slate-100">
+    <div id="complex-banner-container" class="w-full max-w-4xl mx-auto px-4 pt-4 pb-1 hidden"></div>
+
+    <div class="glass-header sticky top-0 z-40 shadow-sm border-b border-slate-100 mt-2">
         <div class="p-3 flex flex-col gap-2">
             <div class="flex items-center justify-between gap-3">
                 <button onclick="window.toggleSideMenu(true)" class="w-10 h-10 shrink-0 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-black transition shadow-md" title="תפריט קטגוריות">
@@ -586,197 +588,238 @@
             }
         };
 
-        window.extractCategories = function() {
-            const container = getEl('categories-container'); 
-            const sideList = getEl('side-categories-list');
-            if (!storeData.catalog) return;
-            
-            const categories = new Set(); 
-            storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
-            
-            let htmlTop = '';
-            let htmlSide = '';
-            
-            const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
-            if (tabPromos.length > 0) {
-                htmlTop += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
-                htmlSide += `<button onclick="window.filterCategory('promotions')" id="side-btn-promotions" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-pink-50 transition text-pink-600"><span class="text-sm font-black"><i class="fa-solid fa-gift ml-1"></i> מבצעים חמים</span></button>`;
-            }
-            
-            htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
-            htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">כל המוצרים</span></button>`;
-
-            categories.forEach(cat => { 
-                const safeCat = safeStr(cat);
-                htmlTop += `<button onclick="window.filterCategory('${safeCat}')" id="cat-btn-${safeCat}" class="cat-btn shadow-sm">${safeCat}</button>`; 
-                htmlSide += `<button onclick="window.filterCategory('${safeCat}')" id="side-btn-${safeCat}" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition"><span class="text-sm text-slate-700">${safeCat}</span></button>`;
-            });
-            
-            if(container) container.innerHTML = htmlTop;
-            if(sideList) sideList.innerHTML = htmlSide;
-        };
-
-        window.filterCategory = function(cat) {
-            currentCategory = cat; 
-            
-            // עדכון פס קטגוריות עליון
-            document.querySelectorAll('.cat-btn').forEach(btn => { 
-                btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); btn.classList.remove('bg-slate-900', 'text-white'); 
-            });
-            const activeTopBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
-            if(activeTopBtn) { 
-                activeTopBtn.classList.add('cat-active'); activeTopBtn.classList.remove('shadow-sm'); 
-                if(cat === 'promotions') { activeTopBtn.classList.add('bg-slate-900', 'text-white'); activeTopBtn.classList.remove('bg-pink-50', 'text-pink-700', 'border-pink-200'); }
-            }
-
-            // עדכון תפריט צד (Sidebar)
-            document.querySelectorAll('#side-categories-list button').forEach(btn => {
-                btn.classList.remove('side-link-active');
-            });
-            const activeSideBtn = getEl(cat === 'all' ? 'side-btn-all' : `side-btn-${cat}`);
-            if(activeSideBtn) activeSideBtn.classList.add('side-link-active');
-
-            // עדכון ניווט פירורי לחם (Breadcrumbs)
-            const breadcrumb = getEl('breadcrumb-current');
-            if (breadcrumb) {
-                breadcrumb.innerText = cat === 'all' ? 'כל המוצרים' : (cat === 'promotions' ? 'מבצעים חמים' : cat);
-            }
-
-            window.toggleSideMenu(false); // סגור תפריט אחרי בחירה
-            window.renderCatalog();
-        };
-
-        window.handleSearch = function() { 
-            searchQuery = val('search-input').toLowerCase(); 
-            window.renderCatalog(); 
-        };
-
-        window.toggleViewMode = function() {
-            catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
-            const btn = getEl('view-mode-btn');
-            if (btn) {
-                btn.innerHTML = catalogViewMode === 'grid' 
-                    ? '<i class="fa-solid fa-list text-lg"></i>' 
-                    : '<i class="fa-solid fa-border-all text-lg"></i>';
-            }
-            window.renderCatalog();
-        };
-
-        window.renderCatalog = function() {
-            const container = getEl('catalog-container');
-            
-            if (currentCategory === 'promotions') {
-                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
-                if (tabPromos.length === 0) {
-                    container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
-                    return;
-                }
+window.extractCategories = function() {
+                const container = getEl('categories-container'); 
+                const sideList = getEl('side-categories-list');
+                const complexBanner = getEl('complex-banner-container');
+                if (!storeData.catalog) return;
                 
-                let html = '<div class="flex flex-col gap-4">';
-                tabPromos.forEach(p => {
-                    let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
-                    let targetArray = [];
-                    if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
-                    else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
-                    let targetDesc = p.target_type === 'all' ? 'חל על כל מוצרי החנות' : `תקף על קטגוריה: ${(targetArray || []).join(', ')}`;
-                    const bgClass = colorMap[p.bg_color] || colorMap['pink'];
-                    
-                    html += `
-                    <div class="bg-gradient-to-r ${bgClass} text-white p-5 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between border border-white/20 fade-in">
-                        <i class="fa-solid fa-tags absolute -left-2 -top-2 text-7xl opacity-20 transform -rotate-12"></i>
-                        <div>
-                            <h4 class="font-bold text-xl relative z-10 leading-tight mb-2 drop-shadow-sm">${safeStr(p.title)}</h4>
-                            <div class="relative z-10 flex flex-col items-start gap-2">
-                                <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/30 text-white shadow-sm">${desc}</span>
-                                <span class="text-xs font-medium opacity-90">${targetDesc}</span>
-                            </div>
-                        </div>
-                    </div>`;
-                });
-                container.innerHTML = html + '</div>';
-                return;
-            }
-
-            if (!storeData.catalog || storeData.catalog.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
-                return;
-            }
-
-            let filtered = storeData.catalog;
-            if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
-            if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
-
-            const activePromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.is_active)) : [];
-
-            let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
-
-            filtered.forEach(item => {
-                let badgeHtml = '';
-                let appliedPromo = null;
+                const categories = new Set(); 
+                let hasComplexItems = false;
                 
-                for (let promo of activePromos) {
-                    if (promo.target_type === 'all') { appliedPromo = promo; break; }
-                    if (promo.target_type === 'category') {
-                        let targetArray = [];
-                        if(Array.isArray(promo.target_ids)) targetArray = promo.target_ids;
-                        else if(typeof promo.target_ids === 'string') { try { targetArray = JSON.parse(promo.target_ids); } catch(e){} }
-                        if (targetArray.includes(item.category)) { appliedPromo = promo; break; }
+                storeData.catalog.forEach(item => { 
+                    if (item.product_type === 'complex_builder') {
+                        hasComplexItems = true;
+                    } else if (item.category) {
+                        categories.add(item.category.trim()); 
                     }
+                });
+
+                // כפתור בולט לתפריטי קייטרינג ופרויקטים שיופיע מעל שאר הקטגוריות
+                if (hasComplexItems && complexBanner) {
+                    complexBanner.innerHTML = `<button onclick="window.filterCategory('complex_view')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black py-4 px-5 rounded-2xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.4)] hover:shadow-lg transition-all flex items-center justify-between group active:scale-95"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-xl"><i class="fa-solid fa-bell-concierge"></i></div><div class="text-right"><span class="block text-base leading-tight">אירועים, קייטרינג ופרויקטים</span><span class="block text-[10px] font-medium opacity-80 mt-0.5">תפריטים ומפרטים מיוחדים לבחירה</span></div></div><i class="fa-solid fa-chevron-left bg-white/10 w-8 h-8 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform"></i></button>`;
+                    complexBanner.classList.remove('hidden');
+                } else if (complexBanner) {
+                    complexBanner.classList.add('hidden');
+                }
+                
+                let htmlTop = '';
+                let htmlSide = '';
+                
+                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
+                if (tabPromos.length > 0) {
+                    htmlTop += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
+                    htmlSide += `<button onclick="window.filterCategory('promotions')" id="side-btn-promotions" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-pink-50 transition text-pink-600"><span class="text-sm font-black"><i class="fa-solid fa-gift ml-1"></i> מבצעים חמים</span></button>`;
+                }
+                
+                htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
+                htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">כל המוצרים</span></button>`;
+
+                categories.forEach(cat => { 
+                    const safeCat = safeStr(cat);
+                    htmlTop += `<button onclick="window.filterCategory('${safeCat}')" id="cat-btn-${safeCat}" class="cat-btn shadow-sm">${safeCat}</button>`; 
+                    htmlSide += `<button onclick="window.filterCategory('${safeCat}')" id="side-btn-${safeCat}" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition"><span class="text-sm text-slate-700">${safeCat}</span></button>`;
+                });
+                
+                if(container) container.innerHTML = htmlTop;
+                if(sideList) sideList.innerHTML = htmlSide;
+            };
+
+            window.filterCategory = function(cat) {
+                currentCategory = cat; 
+                
+                document.querySelectorAll('.cat-btn').forEach(btn => { 
+                    btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); btn.classList.remove('bg-slate-900', 'text-white'); 
+                });
+                const activeTopBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
+                if(activeTopBtn) { 
+                    activeTopBtn.classList.add('cat-active'); activeTopBtn.classList.remove('shadow-sm'); 
+                    if(cat === 'promotions') { activeTopBtn.classList.add('bg-slate-900', 'text-white'); activeTopBtn.classList.remove('bg-pink-50', 'text-pink-700', 'border-pink-200'); }
                 }
 
-                if (appliedPromo) {
-                    let promoText = appliedPromo.promo_type === 'bogo' ? '1+1 מתנה' : (appliedPromo.promo_type === 'discount_pct' ? `${appliedPromo.promo_value}% הנחה` : `ב-₪${appliedPromo.promo_value}`);
-                    badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
+                document.querySelectorAll('#side-categories-list button').forEach(btn => {
+                    btn.classList.remove('side-link-active');
+                });
+                const activeSideBtn = getEl(cat === 'all' ? 'side-btn-all' : `side-btn-${cat}`);
+                if(activeSideBtn) activeSideBtn.classList.add('side-link-active');
+
+                const breadcrumb = getEl('breadcrumb-current');
+                if (breadcrumb) {
+                    if (cat === 'all') breadcrumb.innerText = 'כל המוצרים';
+                    else if (cat === 'promotions') breadcrumb.innerText = 'מבצעים חמים';
+                    else if (cat === 'complex_view') breadcrumb.innerText = 'אירועים, קייטרינג ופרויקטים';
+                    else breadcrumb.innerText = cat;
                 }
 
-                if (item.badge_text) {
-                    const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
-                    const bgClass = colors[item.badge_color] || 'bg-red-500';
-                    badgeHtml += `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
+                // אם נבחר עמוד האירועים - כופה תצוגת שורות (רשימה)
+                if (cat === 'complex_view') {
+                    catalogViewMode = 'list';
+                    const viewBtn = getEl('view-mode-btn');
+                    if (viewBtn) viewBtn.innerHTML = '<i class="fa-solid fa-list text-lg"></i>'; // אייקון תואם למצב List
                 }
+
+                window.toggleSideMenu(false);
+                window.renderCatalog();
+            };
+
+            window.handleSearch = function() { 
+                searchQuery = val('search-input').toLowerCase(); 
+                window.renderCatalog(); 
+            };
+
+            window.toggleViewMode = function() {
+                catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
+                const btn = getEl('view-mode-btn');
+                if (btn) {
+                    btn.innerHTML = catalogViewMode === 'grid' 
+                        ? '<i class="fa-solid fa-list text-lg"></i>' 
+                        : '<i class="fa-solid fa-border-all text-lg"></i>';
+                }
+                window.renderCatalog();
+            };
+
+            window.renderCatalog = function() {
+                const container = getEl('catalog-container');
                 
-                const imgClasses = catalogViewMode === 'grid' ? 'w-full h-32 sm:h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
-                const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
-                const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
-                
-                let priceHtml = '';
-                const orig = parseFloat(item.original_price);
-                const curr = parseFloat(item.price);
-                
-                if (orig && orig > curr) {
-                    priceHtml = `
-                        <div class="flex flex-col">
-                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs text-slate-400 line-through">₪${orig}</span>
-                                <span class="font-black text-emerald-600 text-base">₪${curr}</span>
+                if (currentCategory === 'promotions') {
+                    const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
+                    if (tabPromos.length === 0) {
+                        container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
+                        return;
+                    }
+                    
+                    let html = '<div class="flex flex-col gap-4">';
+                    tabPromos.forEach(p => {
+                        let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
+                        let targetArray = [];
+                        if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+                        else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+                        let targetDesc = p.target_type === 'all' ? 'חל על כל מוצרי החנות' : `תקף על קטגוריה: ${(targetArray || []).join(', ')}`;
+                        const bgClass = colorMap[p.bg_color] || colorMap['pink'];
+                        
+                        html += `
+                        <div class="bg-gradient-to-r ${bgClass} text-white p-5 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between border border-white/20 fade-in">
+                            <i class="fa-solid fa-tags absolute -left-2 -top-2 text-7xl opacity-20 transform -rotate-12"></i>
+                            <div>
+                                <h4 class="font-bold text-xl relative z-10 leading-tight mb-2 drop-shadow-sm">${safeStr(p.title)}</h4>
+                                <div class="relative z-10 flex flex-col items-start gap-2">
+                                    <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/30 text-white shadow-sm">${desc}</span>
+                                    <span class="text-xs font-medium opacity-90">${targetDesc}</span>
+                                </div>
                             </div>
                         </div>`;
-                } else {
-                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
+                    });
+                    container.innerHTML = html + '</div>';
+                    return;
                 }
 
-                const pType = item.product_type || 'retail';
-                let btnText = 'פרטים והוספה';
-                let onclickAction = `window.openProductModal(${item.id}); event.stopPropagation();`;
+                if (!storeData.catalog || storeData.catalog.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
+                    return;
+                }
+
+                let filtered = storeData.catalog;
                 
-                if (pType === 'pizza_builder') btnText = 'הרכב פיצה';
-                else if (pType === 'service') btnText = 'הזמן שירות';
-                else if (pType === 'food') btnText = 'בחר מנה';
-                else if (pType === 'complex_builder') {
-                    btnText = 'הרכב מפרט';
-                    onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
+                // סינון של אירועים וקייטרינג משאר המוצרים
+                if (currentCategory === 'complex_view') {
+                    filtered = filtered.filter(item => item.product_type === 'complex_builder');
+                } else {
+                    filtered = filtered.filter(item => item.product_type !== 'complex_builder');
+                    if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
                 }
 
-                const actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
-                if (catalogViewMode === 'grid') {
-                    html += `<div onclick="window.openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
-                } else {
-                    html += `<div onclick="window.openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
+                if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
+
+                const activePromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.is_active)) : [];
+
+                let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-400 py-12">לא נמצאו תוצאות.</p>';
+                    return;
                 }
-            });
-            container.innerHTML = html + '</div>';
-        };
+
+                filtered.forEach(item => {
+                    let badgeHtml = '';
+                    let appliedPromo = null;
+                    
+                    // מבצעים לא חלים על קייטרינג ופרויקטים
+                    if (item.product_type !== 'complex_builder') {
+                        for (let promo of activePromos) {
+                            if (promo.target_type === 'all') { appliedPromo = promo; break; }
+                            if (promo.target_type === 'category') {
+                                let targetArray = [];
+                                if(Array.isArray(promo.target_ids)) targetArray = promo.target_ids;
+                                else if(typeof promo.target_ids === 'string') { try { targetArray = JSON.parse(promo.target_ids); } catch(e){} }
+                                if (targetArray.includes(item.category)) { appliedPromo = promo; break; }
+                            }
+                        }
+                    }
+
+                    if (appliedPromo) {
+                        let promoText = appliedPromo.promo_type === 'bogo' ? '1+1 מתנה' : (appliedPromo.promo_type === 'discount_pct' ? `${appliedPromo.promo_value}% הנחה` : `ב-₪${appliedPromo.promo_value}`);
+                        badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
+                    }
+
+                    if (item.badge_text) {
+                        const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+                        const bgClass = colors[item.badge_color] || 'bg-red-500';
+                        badgeHtml += `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
+                    }
+                    
+                    const imgClasses = catalogViewMode === 'grid' ? 'w-full h-32 sm:h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
+                    const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                    const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
+                    
+                    let priceHtml = '';
+                    const orig = parseFloat(item.original_price);
+                    const curr = parseFloat(item.price);
+                    
+                    if (orig && orig > curr && item.product_type !== 'complex_builder') {
+                        priceHtml = `
+                            <div class="flex flex-col">
+                                <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-400 line-through">₪${orig}</span>
+                                    <span class="font-black text-emerald-600 text-base">₪${curr}</span>
+                                </div>
+                            </div>`;
+                    } else {
+                        priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
+                    }
+
+                    const pType = item.product_type || 'retail';
+                    let btnText = 'פרטים והוספה';
+                    let onclickAction = `window.openProductModal(${item.id}); event.stopPropagation();`;
+                    
+                    if (pType === 'pizza_builder') btnText = 'הרכב פיצה';
+                    else if (pType === 'service') btnText = 'הזמן שירות';
+                    else if (pType === 'food') btnText = 'בחר מנה';
+                    else if (pType === 'complex_builder') {
+                        btnText = 'צפייה במפרט';
+                        onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
+                    }
+
+                    const actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
+                    
+                    if (catalogViewMode === 'grid') {
+                        html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
+                    } else {
+                        html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
+                    }
+                });
+                container.innerHTML = html + '</div>';
+            };
 
         window.calculateModTotal = function() {
             let totalOptions = 0;
