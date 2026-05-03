@@ -4915,65 +4915,27 @@ window.calcQuoteTotal = function() {
     let total = 0;
     if (window.selectedQuoteItems) {
         Object.values(window.selectedQuoteItems).forEach(item => {
-            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
-        });
-    }
-    
-    const discountStr = document.getElementById('quote-discount') ? document.getElementById('quote-discount').value : '0';
-    let discount = parseFloat(discountStr) || 0;
-    if (discount > 100) discount = 100;
-    if (discount < 0) discount = 0;
-    
-    const beforeDiscount = total;
-    total = total - (total * (discount / 100));
-    
-    const totalEl = document.getElementById('quote-total-display');
-    const beforeEl = document.getElementById('quote-before-discount');
-    
-    if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
-    if (beforeEl) {
-        if (discount > 0) {
-            beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
-        } else {
-            beforeEl.innerText = '';
-        }
-    }
-};
-
-window.calcQuoteTotal = function() {
-    let total = 0;
-    if (window.selectedQuoteItems) {
-        Object.values(window.selectedQuoteItems).forEach(item => {
-            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
-        });
-    }
-    
-    const discountStr = document.getElementById('quote-discount') ? document.getElementById('quote-discount').value : '0';
-    let discount = parseFloat(discountStr) || 0;
-    if (discount > 100) discount = 100;
-    if (discount < 0) discount = 0;
-    
-    const beforeDiscount = total;
-    total = total - (total * (discount / 100));
-    
-    const totalEl = document.getElementById('quote-total-display');
-    const beforeEl = document.getElementById('quote-before-discount');
-    
-    if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
-    if (beforeEl) {
-        if (discount > 0) {
-            beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
-        } else {
-            beforeEl.innerText = '';
-        }
-    }
-};
-
-window.calcQuoteTotal = function() {
-    let total = 0;
-    if (window.selectedQuoteItems) {
-        Object.values(window.selectedQuoteItems).forEach(item => {
-            total += (parseFloat(item.price_at_order) || 0) * (parseFloat(item.quantity) || 0);
+            let rowBasePrice = (parseFloat(item.price_at_order) || 0);
+            
+            // חישוב מחירי התוספות מתוך המפרט המורכב (אם קיים)
+            if (item.complex_data) {
+                try {
+                    const parsed = JSON.parse(item.complex_data);
+                    if (parsed.steps) {
+                        parsed.steps.forEach(step => {
+                            if (step.options) {
+                                step.options.forEach(opt => {
+                                    if (opt.selected === true || opt.selected === 'true') {
+                                        rowBasePrice += (parseFloat(opt.price) || 0) * (parseFloat(opt.qty) || 1);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } catch(e){}
+            }
+            
+            total += rowBasePrice * (parseFloat(item.quantity) || 0);
         });
     }
     
@@ -5012,97 +4974,99 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 
     document.body.insertAdjacentHTML('beforeend', `
     <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
+        <div class="bg-white w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
             <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> יצירת הצעת מחיר</h3>
+            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> ${window.editingQuoteId ? 'עריכת הצעת מחיר' : 'יצירת הצעת מחיר'}</h3>
             
-            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
-                <div class="grid grid-cols-3 gap-2 mb-4">
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה:</label><input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white"></div>
-                </div>
-
-                <div id="quote-texts-container" class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
-                            <div class="flex gap-1">
-                                <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 outline-none w-16"><option value="">תבניות...</option></select>
-                                <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
-                            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6">
+                <!-- חלק ימין: פרטי לקוח וסל נבחר -->
+                <div class="w-full lg:w-1/2 flex flex-col">
+                    <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div class="col-span-2">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/עסק:</label>
+                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white font-bold text-slate-800">
                         </div>
-                        <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200"></textarea>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label><input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0"></div>
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label><input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום"></div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                            <div class="flex gap-1">
-                                <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 outline-none w-16"><option value="">תבניות...</option></select>
-                                <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
-                            </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label>
+                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left">
                         </div>
-                        <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200"></textarea>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (ימים):</label>
+                            <input type="text" id="quote-validity" class="modern-input py-2 text-sm text-center bg-white" value="14 יום">
+                        </div>
+                        <div class="col-span-2">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
+                                <div class="flex gap-1">
+                                    <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                                </div>
+                            </div>
+                            <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
+                        </div>
+                        <input type="hidden" id="quote-intro-text">
+                        <input type="hidden" id="quote-company-id">
                     </div>
+                    
+                    <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו להצעה:</h4>
+                    <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[150px]"></div>
                 </div>
 
-                <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
-                
-                <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש חופשי (מתעלם מקטגוריה)..." class="modern-input py-1.5 px-3 text-xs w-full bg-white font-bold">
-                    <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
-                        <option value="all">כל הקטגוריות</option>
-                    </select>
+                <!-- חלק שמאל: קטלוג לחיפוש והוספה -->
+                <div class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-1"></i> קטלוג מוצרים להוספה:</h4>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="quote-search-item" oninput="window.renderQuoteCatalogGrid()" placeholder="חיפוש מוצר חופשי..." class="modern-input py-2 px-3 text-sm w-full bg-white font-bold shadow-sm">
+                        <select id="quote-cat-filter" onchange="window.renderQuoteCatalogGrid()" class="modern-input py-2 px-2 text-xs w-1/2 bg-white font-bold text-indigo-700 shadow-sm">
+                            <option value="all">כל הקטגוריות</option>
+                        </select>
+                    </div>
+                    <div id="quote-catalog-grid" class="grid grid-cols-2 gap-3 flex-1 overflow-y-auto modal-scroll pr-1 content-start"></div>
                 </div>
-
-                <div id="quote-items-selector" class="space-y-2 mb-6"></div>
             </div>
             
             <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-sm font-bold text-slate-500" id="quote-before-discount"></span>
-                    <div class="text-left">
-                        <span class="text-xs font-bold text-slate-500 ml-2">סה"כ לתשלום:</span>
-                        <span id="quote-total-display" class="text-2xl font-black text-indigo-600 dir-ltr">₪0.00</span>
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-500">הנחה כוללת (%):</label>
+                        <input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 px-2 text-sm text-center dir-ltr bg-slate-50 w-20 font-bold" placeholder="0">
+                    </div>
+                    <div class="text-left flex items-center gap-3">
+                        <span class="text-sm font-bold text-slate-400" id="quote-before-discount"></span>
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">סה"כ לתשלום</span>
+                            <span id="quote-total-display" class="text-3xl font-black text-indigo-600 dir-ltr leading-none">₪0.00</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                    <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
+                    <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור הצעה <i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- SUB MODAL FOR COMPLEX ITEMS -->
-    <div id="quote-complex-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in border-2 border-emerald-100">
+    <!-- מודאל פנימי מיוחד לעריכת תפריטי קייטרינג / מפרטים מורכבים -->
+    <div id="quote-complex-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden border-2 border-emerald-100">
              <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-             <h3 class="text-xl font-black text-slate-800 mb-1 shrink-0"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> עריכת פריטי תפריט / מפרט</h3>
-             <p class="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-100 shrink-0">כאן תוכל להוסיף, להסיר, ולתמחר את מרכיבי המנה עבור הלקוח.</p>
+             <h3 class="text-xl font-black text-slate-800 mb-1 shrink-0"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> עריכת בחירות למפרט</h3>
+             <p class="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-100 shrink-0">סמנו את הפריטים שנבחרו, שנו כמויות והוסיפו הערות אישיות (מידת עשייה וכדומה).</p>
              
              <div class="relative mb-4 shrink-0">
                  <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                 <input type="text" id="complex-search-item" oninput="window.renderComplexEditorList()" placeholder="חפש תוספת או פריט מהתפריט (למשל: סלמון)..." class="modern-input py-2.5 pr-10 pl-4 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white font-bold transition">
+                 <input type="text" id="complex-search-item" oninput="window.renderComplexEditorList()" placeholder="חיפוש בתוך התפריט..." class="modern-input py-2.5 pr-10 pl-4 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white font-bold transition">
              </div>
              
-             <div id="complex-items-selector" class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-2"></div>
+             <div id="complex-items-selector" class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-4"></div>
              
              <div class="pt-4 border-t border-slate-100 shrink-0 bg-white flex gap-3">
-                 <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול שינויים</button>
-                 <button onclick="window.saveComplexEditor()" class="flex-[1.2] bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2">שמור פריטים <i class="fa-solid fa-check"></i></button>
+                 <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                 <button onclick="window.saveComplexEditor()" class="flex-[1.2] bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2">שמור בחירות בתפריט <i class="fa-solid fa-check"></i></button>
              </div>
         </div>
     </div>
     `);
-
-    const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
     const catSelect = document.getElementById('quote-cat-filter');
     if (catSelect && window.storeCatalogCache) {
@@ -5115,31 +5079,16 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) {
         document.getElementById('quote-cust-name').value = '';
         document.getElementById('quote-cust-phone').value = '';
-        document.getElementById('quote-company-id').value = savedCompanyId;
         document.getElementById('quote-notes').value = '';
         document.getElementById('quote-discount').value = '';
-        document.getElementById('quote-validity').value = '14 יום';
-        document.getElementById('quote-intro-text').value = '';
         document.getElementById('quote-total-display').innerText = '₪0.00';
         if(document.getElementById('quote-search-item')) document.getElementById('quote-search-item').value = '';
         if(document.getElementById('quote-cat-filter')) document.getElementById('quote-cat-filter').value = 'all';
-        const beforeEl = document.getElementById('quote-before-discount');
-        if(beforeEl) beforeEl.innerText = '';
-        document.getElementById('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
-    window.renderQuoteItemsList(); 
-    window.ensureQuoteHeaders(true);
-    document.getElementById('quote-modal').classList.remove('hidden');
-};
-
-window.renderQuoteItemsList = function() {
-    const list = document.getElementById('quote-selected-items');
-    const grid = document.getElementById('quote-catalog-grid');
-    if (!list || !grid) return;
-    
-    window.renderQuoteSelectedItems();
     window.renderQuoteCatalogGrid();
+    window.renderQuoteSelectedItems();
+    document.getElementById('quote-modal').classList.remove('hidden');
 };
 
 window.renderQuoteCatalogGrid = function() {
@@ -5152,23 +5101,24 @@ window.renderQuoteCatalogGrid = function() {
     let filtered = window.storeCatalogCache.filter(p => p.is_available);
     
     if (searchTerm) {
+        // התעלמות מקטגוריה במידה ויש חיפוש טקסטואלי חופשי
         filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(searchTerm) || (p.description || '').toLowerCase().includes(searchTerm));
     } else if (catFilter !== 'all') {
         filtered = filtered.filter(p => (p.category || 'כללי') === catFilter);
     }
     
     if (filtered.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים תואמים לחיפוש.</div>';
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים.</div>';
         return;
     }
     
     grid.innerHTML = filtered.map(p => {
         const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-24 object-cover rounded-t-xl">` : `<div class="w-full h-24 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-200"><i class="fa-solid ${isComplex ? 'fa-layer-group text-emerald-300' : 'fa-image text-slate-300'} text-3xl"></i></div>`;
-        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm z-10 border border-white">תפריט הרכבה</span>' : '';
+        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm">מפרט מורכב</span>' : '';
         
         return `
-        <div onclick="window.addQuoteItemFromCatalog('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group">
+        <div onclick="window.addQuoteItemFromCatalog(${p.id})" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group">
             ${badgeHtml}
             ${imgHtml}
             <div class="p-3 flex-1 flex flex-col justify-between">
@@ -5182,19 +5132,50 @@ window.renderQuoteCatalogGrid = function() {
     }).join('');
 };
 
+window.addQuoteItemFromCatalog = function(catalogId) {
+    const p = window.storeCatalogCache.find(x => String(x.id) === String(catalogId));
+    if(!p) return;
+    
+    const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
+    
+    // מזהה ייחודי למפרטים כדי שנוכל להוסיף כמה סוגי תפריטים במקביל
+    let strId = String(p.id);
+    if (isComplex) {
+        strId = strId + '_' + Date.now(); 
+    }
+    
+    if (window.selectedQuoteItems[strId] && !isComplex) {
+        window.selectedQuoteItems[strId].quantity++;
+    } else {
+        window.selectedQuoteItems[strId] = {
+            id: strId,
+            real_id: p.id,
+            name: p.name,
+            image_url: p.image_url,
+            price_at_order: parseFloat(p.price) || 0,
+            quantity: 1,
+            note: '',
+            complex_data: isComplex ? p.options_text : null,
+            isComplex: isComplex
+        };
+    }
+    
+    window.calcQuoteTotal();
+    window.renderQuoteSelectedItems();
+    showToast('success', isComplex ? 'התפריט נוסף להצעה! לחצו על "ערוך מפרט" לבחירת מנות.' : 'המוצר נוסף להצעה');
+};
+
 window.renderQuoteSelectedItems = function() {
     const list = document.getElementById('quote-selected-items');
     if (!list) return;
 
-    // חילוץ תפריטים מורכבים (אירועים) לשורות נפרדות מתוך הסל
     let flattenedItems = [];
     
     Object.values(window.selectedQuoteItems).forEach(item => {
-        // שלב 1: האם זה פריט מורכב? נדחוף אותו כ"שורת אב" ירוקה ומוגנת
+        // מוצר מורכב - אב ובנים
         if (item.isComplex || item.complex_data) {
             flattenedItems.push({ ...item, isParent: true });
             
-            // שלב 2: שאיבת בחירות הלקוח והצגתן כשורות בודדות
             try {
                 const parsed = JSON.parse(item.complex_data);
                 if (parsed.steps) {
@@ -5209,9 +5190,9 @@ window.renderQuoteSelectedItems = function() {
                                         stepIdx: sIdx,
                                         optIdx: oIdx,
                                         name: opt.name,
-                                        quantity: (parseFloat(item.quantity) || 1) * (parseFloat(opt.qty) || 1), // הכפלת כמות תפריט בכמות הבחירה הפנימית!
+                                        quantity: (parseFloat(item.quantity) || 1) * (parseFloat(opt.qty) || 1), // הכפלת מנות בסל
                                         price_at_order: parseFloat(opt.price) || 0,
-                                        note: `בחירה משלב: ${step.name}` + (opt.note ? ` | ${opt.note}` : '')
+                                        note: `מתוך: ${step.name}` + (opt.note ? ` | ${opt.note}` : '')
                                     });
                                 }
                             });
@@ -5221,13 +5202,13 @@ window.renderQuoteSelectedItems = function() {
             } catch(e) {}
             
         } else {
-            // פריט רגיל (מוצר קטלוג)
+            // מוצר רגיל
             flattenedItems.push(item);
         }
     });
 
     if (flattenedItems.length === 0) {
-        list.innerHTML = '<div class="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl"><i class="fa-solid fa-file-invoice text-3xl text-slate-200 mb-2"></i><p class="text-[11px] font-bold text-slate-500">ההצעה ריקה.<br>בחרו מוצרים מהקטלוג כדי להתחיל.</p></div>';
+        list.innerHTML = '<div class="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl"><i class="fa-solid fa-file-invoice text-3xl text-slate-200 mb-2"></i><p class="text-[11px] font-bold text-slate-500">סל ההצעה ריק.<br>בחרו מוצרים מהקטלוג משמאל.</p></div>';
         return;
     }
 
@@ -5239,7 +5220,7 @@ window.renderQuoteSelectedItems = function() {
             <div class="flex flex-col p-3 bg-emerald-50/50 rounded-xl border border-emerald-200 shadow-sm mb-1 mt-3 gap-2 relative">
                 <button onclick="window.removeQuoteItem('${item.id}')" class="absolute -top-2 -left-2 w-6 h-6 bg-red-50 border border-red-200 text-red-500 rounded-full text-xs shadow-sm flex items-center justify-center hover:bg-red-500 hover:text-white transition z-10"><i class="fa-solid fa-times"></i></button>
                 <div class="flex justify-between items-center w-full">
-                    <span class="text-sm font-black text-emerald-800 leading-tight"><i class="fa-solid fa-layer-group opacity-50 mr-1"></i> מפרט תפריט אב: ${safeStr(item.name)}</span>
+                    <span class="text-sm font-black text-emerald-800 leading-tight"><i class="fa-solid fa-layer-group opacity-50 mr-1"></i> ${safeStr(item.name)}</span>
                     <button onclick="window.openQuoteComplexEditor('${item.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i class="fa-solid fa-list-check"></i> ערוך בחירות תפריט</button>
                 </div>
                 <div class="flex items-center gap-2 mt-1">
@@ -5272,13 +5253,12 @@ window.renderQuoteSelectedItems = function() {
                             <span class="text-[8px] text-slate-400 absolute -top-1.5 right-1 bg-white px-1 font-bold">כמות</span>
                             <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteChildQty('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
                         </div>
-                        <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[35px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
+                        <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[45px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
                     </div>
                 </div>
             </div>`;
             
         } else {
-            // פריט רגיל לגמרי
             const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-100">` : '';
             return `
             <div class="flex flex-col p-3 bg-white rounded-xl border border-indigo-100 shadow-sm mb-2 gap-2 transition-all hover:shadow-md relative">
@@ -5296,16 +5276,26 @@ window.renderQuoteSelectedItems = function() {
                                 <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-indigo-50 px-1 font-bold rounded">כמות</span>
                                 <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-indigo-50 border-indigo-200 text-indigo-800 font-black shadow-inner">
                             </div>
-                            <div class="text-[11px] font-black text-indigo-600 bg-white px-2 py-1.5 rounded-lg border border-indigo-100 shadow-sm dir-ltr shrink-0">₪${rowTotal.toFixed(2)}</div>
+                            <div class="text-[11px] font-black text-indigo-600 bg-white px-2 py-1.5 rounded-lg border border-indigo-100 shadow-sm dir-ltr shrink-0 min-w-[45px] text-left">₪${rowTotal.toFixed(2)}</div>
                         </div>
                     </div>
                 </div>
                 <div class="w-full mt-1 border-t border-slate-50 pt-2">
-                    <input type="text" value="${safeStr(item.note)}" onchange="window.updateQuoteItemNote('${item.id}', this.value)" placeholder="הערה תפעולית (למשל: ללא גלוטן)..." class="modern-input py-1.5 px-3 text-[10px] w-full bg-slate-50 border-slate-200 font-medium focus:bg-white transition">
+                    <input type="text" value="${safeStr(item.note)}" onchange="window.updateQuoteItemNote('${item.id}', this.value)" placeholder="הערה תפעולית לשורה..." class="modern-input py-1.5 px-3 text-[10px] w-full bg-slate-50 border-slate-200 font-medium focus:bg-white transition">
                 </div>
             </div>`;
         }
     }).join('');
+};
+
+window.removeQuoteItem = function(id) {
+    delete window.selectedQuoteItems[String(id)];
+    window.calcQuoteTotal();
+    window.renderQuoteSelectedItems();
+};
+
+window.updateQuoteItemNote = function(id, val) {
+    if(window.selectedQuoteItems[String(id)]) window.selectedQuoteItems[String(id)].note = val;
 };
 
 window.updateQuoteItemPrice = function(id, val) {
@@ -5322,18 +5312,6 @@ window.updateQuoteItemQty = function(id, val) {
         window.calcQuoteTotal();
         window.renderQuoteSelectedItems();
     }
-};
-
-window.updateQuoteItemNote = function(id, val) {
-    if(window.selectedQuoteItems[String(id)]) {
-        window.selectedQuoteItems[String(id)].note = val;
-    }
-};
-
-window.removeQuoteItem = function(id) {
-    delete window.selectedQuoteItems[String(id)];
-    window.calcQuoteTotal();
-    window.renderQuoteSelectedItems();
 };
 
 window.updateQuoteChildPrice = function(parentId, stepIdx, optIdx, val) {
@@ -5357,10 +5335,8 @@ window.updateQuoteChildQty = function(parentId, stepIdx, optIdx, val) {
         try {
             const parsed = JSON.parse(parent.complex_data);
             if(parsed.steps && parsed.steps[stepIdx] && parsed.steps[stepIdx].options && parsed.steps[stepIdx].options[optIdx]) {
-                // כמות של מנת הבן היא יחסית לכמות האב! לכן נחלק כדי לשמור את היחס הנכון
                 const parentQty = parseFloat(parent.quantity) || 1;
                 const newRelativeQty = (parseFloat(val) || 0) / parentQty;
-                
                 parsed.steps[stepIdx].options[optIdx].qty = newRelativeQty;
                 parent.complex_data = JSON.stringify(parsed);
                 window.calcQuoteTotal();
@@ -5405,19 +5381,16 @@ window.openEditQuoteModal = async function(id) {
     
     window.selectedQuoteItems = {};
     actualItems.forEach((item, idx) => {
-        let itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
-        if (!itemId || itemId === 'undefined' || itemId === 'null') {
-            itemId = 'custom_item_' + idx;
+        let baseId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
+        if (!baseId || baseId === 'undefined' || baseId === 'null') {
+            baseId = 'custom_item';
         }
+        let itemId = baseId + '_' + idx; 
         
         let noteTxt = '';
         if (item.note && item.note !== 'undefined') noteTxt += item.note + '\n';
         if (item.notes && item.notes !== 'undefined') noteTxt += item.notes + '\n';
         if (item.cart_note && item.cart_note !== 'undefined') noteTxt += item.cart_note + '\n';
-
-        if (item.modifiers && Array.isArray(item.modifiers)) {
-            noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
-        }
 
         let isComplex = false;
         let complexDataToSave = null;
@@ -5469,15 +5442,19 @@ window.openEditQuoteModal = async function(id) {
     if(document.getElementById('quote-notes')) document.getElementById('quote-notes').value = pureNotes;
 
     window.calcQuoteTotal();
+    window.renderQuoteSelectedItems(); 
+    
+    const btnGen = document.getElementById('btn-generate-quote');
+    if(btnGen) btnGen.innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
+
 window.openQuoteComplexEditor = function(strId) {
     const item = window.selectedQuoteItems[strId];
     if (!item) return;
     
     window.currentEditingComplexId = strId;
-    let catalogItem = window.storeCatalogCache.find(c => String(c.id) === String(item.id));
+    let catalogItem = window.storeCatalogCache.find(c => String(c.id) === String(item.real_id || item.id));
     
-    // שליפת הנתונים מהעגלה / הצעת המחיר, או מהקטלוג אם זה מוצר חדש
     let savedData = { steps: [] };
     if (item.complex_data) {
         try { savedData = JSON.parse(item.complex_data); } catch(e) {}
@@ -5488,30 +5465,46 @@ window.openQuoteComplexEditor = function(strId) {
         try { catalogData = JSON.parse(catalogItem.options_text); } catch(e) {}
     }
 
-    // בניית מערך זמני ושטוח של כל פריטי הבן, תוך מיזוג בחירות מהעבר
     window.tempComplexItems = [];
+    let sIdxCounter = 0;
     
-    if (catalogData.steps) {
-        catalogData.steps.forEach((step, sIdx) => {
+    if (savedData.steps && savedData.steps.length > 0) {
+        savedData.steps.forEach((step) => {
             if (step.options) {
                 step.options.forEach((opt, oIdx) => {
-                    let savedOpt = null;
-                    if (savedData.steps && savedData.steps[sIdx] && savedData.steps[sIdx].options) {
-                        savedOpt = savedData.steps[sIdx].options.find(o => o.name === opt.name && (o.selected === true || o.selected === 'true'));
-                    }
-                    
                     window.tempComplexItems.push({
-                        stepIdx: sIdx,
-                        stepName: step.name,
+                        stepIdx: sIdxCounter,
+                        stepName: step.name || 'שלב כללי',
                         optIdx: oIdx,
-                        name: opt.name,
+                        name: opt.name || '',
                         base_price: parseFloat(opt.price) || 0,
-                        price: savedOpt ? (parseFloat(savedOpt.price) || 0) : (parseFloat(opt.price) || 0),
-                        qty: savedOpt ? (parseFloat(savedOpt.qty || savedOpt.quantity) || 1) : 0, // כמות 0 אומרת שלא נבחר
-                        note: savedOpt ? (savedOpt.note || '') : ''
+                        price: parseFloat(opt.price) || 0,
+                        qty: parseFloat(opt.qty || opt.quantity || (opt.selected ? 1 : 0)) || 0,
+                        note: opt.note || '',
+                        is_custom: false
                     });
                 });
             }
+            sIdxCounter++;
+        });
+    } else if (catalogData.steps && catalogData.steps.length > 0) {
+        catalogData.steps.forEach((step) => {
+            if (step.options) {
+                step.options.forEach((opt, oIdx) => {
+                    window.tempComplexItems.push({
+                        stepIdx: sIdxCounter,
+                        stepName: step.name || 'שלב כללי',
+                        optIdx: oIdx,
+                        name: opt.name || '',
+                        base_price: parseFloat(opt.price) || 0,
+                        price: parseFloat(opt.price) || 0,
+                        qty: 0, 
+                        note: '',
+                        is_custom: false
+                    });
+                });
+            }
+            sIdxCounter++;
         });
     }
     
@@ -5521,42 +5514,93 @@ window.openQuoteComplexEditor = function(strId) {
 };
 
 window.renderComplexEditorList = function() {
-    const query = (document.getElementById('complex-search-item').value || '').toLowerCase();
     const container = document.getElementById('complex-items-selector');
+    if(!container) return;
     
-    let filtered = window.tempComplexItems;
-    if (query) {
-         filtered = filtered.filter(i => i.name.toLowerCase().includes(query) || i.stepName.toLowerCase().includes(query));
-    }
+    const query = (document.getElementById('complex-search-item').value || '').toLowerCase();
     
-    // סידור: נבחרים קודם (לפי כמות > 0), ואז לפי סדר השלבים
-    filtered.sort((a, b) => {
-         if (a.qty > 0 && b.qty === 0) return -1;
-         if (a.qty === 0 && b.qty > 0) return 1;
-         return a.stepIdx - b.stepIdx;
+    const grouped = {};
+    window.tempComplexItems.forEach(item => {
+        if(!grouped[item.stepIdx]) grouped[item.stepIdx] = { name: item.stepName, items: [] };
+        
+        if (!query || item.name.toLowerCase().includes(query) || item.stepName.toLowerCase().includes(query)) {
+            grouped[item.stepIdx].items.push(item);
+        }
     });
     
-    container.innerHTML = filtered.map(item => {
-        const isSelected = item.qty > 0;
-        return `
-        <div class="flex items-start justify-between p-3 bg-white rounded-xl border ${isSelected ? 'border-emerald-300 shadow-md bg-emerald-50/20' : 'border-slate-100 shadow-sm'} mb-2 gap-3 transition-all hover:border-emerald-400">
-            <div class="flex-1 min-w-0">
-                <span class="text-sm font-bold text-slate-800 truncate block leading-tight">${safeStr(item.name)} <span class="text-[9px] text-slate-400 font-normal ml-1 bg-white px-1.5 py-0.5 rounded shadow-sm border border-slate-100">(${safeStr(item.stepName)})</span></span>
-                <textarea onchange="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'note', this.value)" placeholder="הערה לשורת תפריט זו (מידת עשייה, רגישות)..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-12 leading-tight shadow-sm">${safeStr(item.note)}</textarea>
-            </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר שורה ₪</span>
-                    <input type="number" min="0" step="0.01" value="${item.price}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'price', this.value)" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-white text-slate-700 font-bold border-slate-200 focus:border-emerald-400" placeholder="0.00">
-                </div>
-                <div class="w-full relative pt-3">
-                    <span class="text-[9px] ${isSelected ? 'text-emerald-600' : 'text-slate-400'} absolute top-0 right-1 font-bold">כמות (0 = לא נבחר)</span>
-                    <input type="number" min="0" value="${item.qty}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'qty', this.value)" class="modern-input py-1.5 px-2 text-sm text-center w-full ${isSelected ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-50 border-slate-200'}" placeholder="0">
-                </div>
-            </div>
-        </div>
+    let html = '';
+    Object.keys(grouped).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(sIdx => {
+        const group = grouped[sIdx];
+        if (group.items.length === 0 && !group.name.toLowerCase().includes(query)) return;
+
+        html += `
+        <div class="mb-4 bg-slate-50 rounded-2xl p-4 border border-slate-200 shadow-sm">
+            <h4 class="font-black text-emerald-800 text-sm mb-3 border-b border-emerald-100 pb-2 flex items-center gap-2"><i class="fa-solid fa-caret-left text-emerald-400"></i> ${safeStr(group.name)}</h4>
+            <div class="space-y-2">
         `;
-    }).join('');
+        
+        group.items.sort((a,b) => {
+            if (a.qty > 0 && b.qty === 0) return -1;
+            if (a.qty === 0 && b.qty > 0) return 1;
+            return 0;
+        });
+
+        group.items.forEach(item => {
+            const isSelected = item.qty > 0;
+            html += `
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-white rounded-xl border ${isSelected ? 'border-emerald-400 shadow-md ring-1 ring-emerald-100' : 'border-slate-100'} gap-3 transition-all">
+                <div class="flex-1 min-w-0 w-full">
+                    <div class="flex justify-between items-center w-full">
+                        <label class="flex items-center gap-2 cursor-pointer flex-1">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleTempComplexItem(${item.stepIdx}, ${item.optIdx}, this.checked)" class="w-4 h-4 accent-emerald-600">
+                            <span class="text-sm font-bold truncate ${isSelected ? 'text-emerald-700' : 'text-slate-700'}">${safeStr(item.name)}</span>
+                        </label>
+                        <span class="text-xs font-black text-slate-600 bg-slate-50 px-2 py-0.5 rounded dir-ltr border border-slate-100 shadow-sm">+₪${item.base_price}</span>
+                    </div>
+                    ${isSelected ? `
+                        <input type="text" onchange="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'note', this.value)" placeholder="הערות להכנה (מידת עשייה, רגישות)..." class="modern-input py-1.5 px-3 text-[10px] w-full mt-2 bg-slate-50 border-slate-200 shadow-inner font-medium text-slate-700" value="${safeStr(item.note)}">
+                    ` : ''}
+                </div>
+                ${isSelected ? `
+                <div class="flex items-center gap-2 shrink-0 bg-emerald-50 p-1.5 rounded-xl border border-emerald-100 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0">
+                    <div class="relative w-16">
+                        <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-50 px-1 font-bold">כמות בחירה</span>
+                        <input type="number" min="1" value="${item.qty}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'qty', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white border-emerald-200 font-black text-emerald-800">
+                    </div>
+                    <div class="relative w-20">
+                        <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-50 px-1 font-bold">מחיר תוספת</span>
+                        <input type="number" min="0" step="0.01" value="${item.price}" oninput="window.updateTempComplexItem(${item.stepIdx}, ${item.optIdx}, 'price', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white border-emerald-200 font-bold text-slate-700 dir-ltr">
+                    </div>
+                </div>
+                ` : ''}
+            </div>`;
+        });
+        
+        html += `
+            <button onclick="window.addCustomComplexItem(${sIdx}, '${safeStr(group.name)}')" class="mt-2 w-full bg-white text-emerald-600 py-2.5 rounded-xl border border-dashed border-emerald-300 text-[11px] font-bold hover:bg-emerald-50 transition shadow-sm">
+                <i class="fa-solid fa-plus"></i> הוסף פריט מותאם אישית לקטגוריה זו
+            </button>
+        </div></div>`;
+    });
+    
+    if (html === '') {
+        html = '<p class="text-center py-6 text-slate-400 text-xs">לא נמצאו תוצאות בחיפוש.</p>';
+    }
+    
+    container.innerHTML = html;
+};
+
+window.toggleTempComplexItem = function(sIdx, oIdx, isChecked) {
+    const item = window.tempComplexItems.find(i => i.stepIdx === sIdx && i.optIdx === oIdx);
+    if (item) {
+        if (isChecked) {
+            item.qty = 1;
+            item.price = item.base_price;
+        } else {
+            item.qty = 0;
+        }
+        window.renderComplexEditorList();
+    }
 };
 
 window.updateTempComplexItem = function(sIdx, oIdx, field, val) {
@@ -5564,10 +5608,23 @@ window.updateTempComplexItem = function(sIdx, oIdx, field, val) {
      if (item) {
          if (field === 'qty' || field === 'price') item[field] = parseFloat(val) || 0;
          else item[field] = val;
-         
-         // ריענון ויזואלי מיידי אם עברנו מ-0 בחירות ליותר מ-0
-         if (field === 'qty') window.renderComplexEditorList(); 
      }
+};
+
+window.addCustomComplexItem = function(sIdx, stepName) {
+    const newOptIdx = window.tempComplexItems.filter(i => i.stepIdx === sIdx).length;
+    window.tempComplexItems.push({
+        stepIdx: sIdx,
+        stepName: stepName,
+        optIdx: newOptIdx,
+        name: 'פריט מותאם אישית',
+        base_price: 0,
+        price: 0,
+        qty: 1, 
+        note: '',
+        is_custom: true 
+    });
+    window.renderComplexEditorList();
 };
 
 window.saveComplexEditor = function() {
@@ -5575,52 +5632,141 @@ window.saveComplexEditor = function() {
      const quoteItem = window.selectedQuoteItems[strId];
      if (!quoteItem) return;
      
-     // יצירת מבנה הנתונים המקורי מחדש
-     let catalogItem = window.storeCatalogCache.find(c => String(c.id) === String(quoteItem.id));
-     let newComplexData = { steps: [] };
-     if (catalogItem && catalogItem.options_text) {
-         try { newComplexData = JSON.parse(catalogItem.options_text); } catch(e) {}
-     }
+     let newComplexData = { isComplex: true, steps: [] };
      
-     // החדרת המידע המעודכן מהחלון הזמני חזרה לאובייקט
-     let summaryText = [];
-     if (newComplexData.steps) {
-         newComplexData.steps.forEach((step, sIdx) => {
-             if (step.options) {
-                 step.options.forEach((opt, oIdx) => {
-                     const tempItem = window.tempComplexItems.find(i => i.stepIdx === sIdx && i.optIdx === oIdx);
-                     if (tempItem && tempItem.qty > 0) {
-                         opt.selected = true;
-                         opt.qty = tempItem.qty;
-                         opt.price = tempItem.price;
-                         opt.note = tempItem.note;
-                         
-                         let itemStr = `${opt.name} (x${opt.qty})`;
-                         if(opt.note) itemStr += ` [${opt.note}]`;
-                         summaryText.push(itemStr);
-                     } else {
-                         opt.selected = false;
-                         opt.qty = 0;
-                     }
+     const grouped = {};
+     window.tempComplexItems.forEach(item => {
+         if(!grouped[item.stepIdx]) grouped[item.stepIdx] = { name: item.stepName, options: [] };
+         grouped[item.stepIdx].options.push(item);
+     });
+     
+     Object.keys(grouped).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(sIdx => {
+         const group = grouped[sIdx];
+         const stepObj = { name: group.name, options: [] };
+         
+         group.options.forEach(opt => {
+             if (opt.qty > 0) {
+                 stepObj.options.push({
+                     name: opt.name,
+                     price: opt.price,
+                     qty: opt.qty,
+                     note: opt.note,
+                     selected: true
                  });
              }
          });
-     }
+         if (stepObj.options.length > 0) {
+             newComplexData.steps.push(stepObj);
+         }
+     });
      
-     // עדכון שורת פריט האב עצמו
      quoteItem.complex_data = JSON.stringify(newComplexData);
-     if (summaryText.length > 0) {
-         quoteItem.note = "בחירות תפריט:\n" + summaryText.join(' | ');
-     } else {
-         quoteItem.note = "לא נבחרו פריטים בתפריט.";
-     }
      
      document.getElementById('quote-complex-modal').classList.add('hidden');
-     window.renderQuoteItemsList(); // מרענן את רשימת המוצרים כדי להראות את הטקסט המעודכן תחת האב
+     window.renderQuoteSelectedItems(); 
      window.calcQuoteTotal();
-     showToast('success', 'תפריט האירוע עודכן. יש ללחוץ למטה "שמור והפק" כדי לשמור את ההצעה סופית.');
+     showToast('success', 'התפריט עודכן! לחצו על "שמור הצעה" לסיום.');
 };
 
+window.submitNewQuote = async function() {
+    const custName = document.getElementById('quote-cust-name').value;
+    const custPhone = document.getElementById('quote-cust-phone').value;
+    const companyId = document.getElementById('quote-company-id') ? document.getElementById('quote-company-id').value : '';
+    const discount = document.getElementById('quote-discount').value;
+    const validity = document.getElementById('quote-validity').value;
+    const introText = document.getElementById('quote-intro-text') ? document.getElementById('quote-intro-text').value : '';
+    const notes = document.getElementById('quote-notes').value;
+    
+    if (!custName) return showToast('error', 'שם לקוח / עסק הוא שדה חובה');
+    if (Object.keys(window.selectedQuoteItems).length === 0) return showToast('error', 'יש לבחור לפחות פריט אחד להצעה מתוך הקטלוג');
+
+    const btn = document.getElementById('btn-generate-quote');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפיק הצעה...'; }
+
+    let items = [];
+    let totalAmount = 0;
+    
+    Object.values(window.selectedQuoteItems).forEach(item => {
+        let rowBasePrice = (parseFloat(item.price_at_order) || 0);
+        if (item.complex_data) {
+            try {
+                const parsed = JSON.parse(item.complex_data);
+                if (parsed.steps) {
+                    parsed.steps.forEach(step => {
+                        if (step.options) {
+                            step.options.forEach(opt => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    rowBasePrice += (parseFloat(opt.price) || 0) * (parseFloat(opt.qty) || 1);
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch(e){}
+        }
+        
+        const rowTotal = rowBasePrice * (parseFloat(item.quantity) || 1);
+        totalAmount += rowTotal;
+        
+        items.push({
+            catalogId: item.real_id || item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: rowBasePrice,
+            note: item.note,
+            options_text: item.complex_data || null,
+            image_url: item.image_url
+        });
+    });
+
+    let discountVal = parseFloat(discount) || 0;
+    if (discountVal > 100) discountVal = 100;
+    if (discountVal < 0) discountVal = 0;
+    totalAmount = totalAmount - (totalAmount * (discountVal / 100));
+
+    const metaNotes = {
+        companyId: companyId,
+        validity: validity,
+        discount: discountVal,
+        introText: introText,
+        notes: notes
+    };
+    
+    items.push({
+        catalogId: null,
+        is_quote_metadata: true,
+        data: JSON.stringify(metaNotes)
+    });
+
+    const payload = {
+        groupId: currentGroup.id,
+        customerName: custName,
+        customerPhone: custPhone,
+        items: items,
+        totalAmount: totalAmount,
+        notes: notes,
+        quoteId: window.editingQuoteId || null
+    };
+
+    try {
+        const url = window.editingQuoteId ? `${API}/store/quotes/${window.editingQuoteId}` : `${API}/store/quotes`;
+        const method = window.editingQuoteId ? 'PUT' : 'POST';
+        const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', window.editingQuoteId ? 'ההצעה עודכנה!' : 'הצעת המחיר הופקה בהצלחה!');
+            document.getElementById('quote-modal').classList.add('hidden');
+            if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת הצעה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = window.editingQuoteId ? 'עדכן הצעה <i class="fa-solid fa-check"></i>' : 'שמור הצעה <i class="fa-solid fa-paper-plane"></i>'; }
+    }
+};
 window.fetchStoreCustomers = async function() {
     try {
         const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
