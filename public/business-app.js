@@ -4912,19 +4912,17 @@ window.ensureQuoteHeaders = function(forceRefresh = false) {
 };
 
 window.openNewQuoteModal = async function(skipDataReset = false) {
-    if(!skipDataReset) { selectedQuoteItems = {}; editingQuoteId = null; }
+    if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
-    if(!storeCatalogCache || storeCatalogCache.length === 0) {
-        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); } catch(e) {}
+    if(!window.storeCatalogCache || window.storeCatalogCache.length === 0) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
     }
-    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם.');
     
-    // מחיקת טופס ישן אם קיים כדי לאתחל אותו נקי
-    const existingModal = getEl('quote-modal');
+    // מחיקת טופס ישן אם קיים כדי לאתחל אותו נקי מחדש ב-DOM
+    const existingModal = document.getElementById('quote-modal');
     if (existingModal && !skipDataReset) existingModal.remove();
 
-    // הזרקת המודאל עם המבנה החדש (טקסטים למעלה, חיפוש למטה)
-    if (!getEl('quote-modal')) {
+    if (!document.getElementById('quote-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
@@ -4985,7 +4983,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                     <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
                     
                     <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                        <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
+                        <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר להוספה..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
                         <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
                             <option value="all">כל הקטגוריות</option>
                         </select>
@@ -5015,34 +5013,33 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
-    // עדכון קטגוריות ב-Select
-    const catSelect = getEl('quote-cat-filter');
-    if (catSelect) {
-        const cats = [...new Set(storeCatalogCache.map(p => p.category || 'כללי'))];
+    const catSelect = document.getElementById('quote-cat-filter');
+    if (catSelect && window.storeCatalogCache) {
+        const cats = [...new Set(window.storeCatalogCache.map(p => p.category || 'כללי'))];
         let catOptions = '<option value="all">כל הקטגוריות</option>';
         cats.forEach(c => catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`);
         catSelect.innerHTML = catOptions;
     }
 
     if(!skipDataReset) {
-        getEl('quote-cust-name').value = '';
-        getEl('quote-cust-phone').value = '';
-        getEl('quote-company-id').value = savedCompanyId;
-        getEl('quote-notes').value = '';
-        getEl('quote-discount').value = '';
-        getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = '';
-        getEl('quote-total-display').innerText = '₪0.00';
-        if(getEl('quote-search-item')) getEl('quote-search-item').value = '';
-        if(getEl('quote-cat-filter')) getEl('quote-cat-filter').value = 'all';
-        const beforeEl = getEl('quote-before-discount');
+        document.getElementById('quote-cust-name').value = '';
+        document.getElementById('quote-cust-phone').value = '';
+        document.getElementById('quote-company-id').value = savedCompanyId;
+        document.getElementById('quote-notes').value = '';
+        document.getElementById('quote-discount').value = '';
+        document.getElementById('quote-validity').value = '14 יום';
+        document.getElementById('quote-intro-text').value = '';
+        document.getElementById('quote-total-display').innerText = '₪0.00';
+        if(document.getElementById('quote-search-item')) document.getElementById('quote-search-item').value = '';
+        if(document.getElementById('quote-cat-filter')) document.getElementById('quote-cat-filter').value = 'all';
+        const beforeEl = document.getElementById('quote-before-discount');
         if(beforeEl) beforeEl.innerText = '';
-        getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
+        document.getElementById('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
     window.renderQuoteItemsList(); 
     window.ensureQuoteHeaders(true);
-    getEl('quote-modal').classList.remove('hidden');
+    document.getElementById('quote-modal').classList.remove('hidden');
 };
 
 window.renderQuoteItemsList = function() {
@@ -5068,14 +5065,12 @@ window.renderQuoteItemsList = function() {
         if (isSelected) {
             selectedCatalogItems.push(p);
         } else if (matchSearch && matchCat) {
-            // אם אנחנו במצב עריכה - נציג פריטים אחרים רק אם המשתמש חיפש אותם אקטיבית
             if (!isEditMode || hasActiveFilter) {
                 unselectedCatalogItems.push(p);
             }
         }
     });
     
-    // יצירת פריטים וירטואליים אם הלקוח בחר משהו שלא קיים בקטלוג 1:1
     const catalogIds = window.storeCatalogCache.map(p => String(p.id));
     Object.values(window.selectedQuoteItems).forEach(sqi => {
         if (!catalogIds.includes(String(sqi.id))) {
@@ -5173,23 +5168,38 @@ window.openEditQuoteModal = async function(id) {
             itemId = 'custom_item_' + idx;
         }
         
-        // שליפה אגרסיבית של המפרט מהחנות הציבורית
-        let noteTxt = item.note || item.notes || item.description || item.cart_note || '';
+        let noteTxt = '';
         
-        if (!noteTxt && item.options_text) {
-            try {
-                let parsedOpts = JSON.parse(item.options_text);
-                if (parsedOpts.note) noteTxt = parsedOpts.note;
-                else if (parsedOpts.selections) noteTxt = parsedOpts.selections;
-            } catch(e) {}
-        }
-        
+        // עדיפות 1: נתונים ישירים
+        if (item.note) noteTxt += item.note + '\n';
+        if (item.notes) noteTxt += item.notes + '\n';
+        if (item.cart_note) noteTxt += item.cart_note + '\n';
+
+        // עדיפות 2: מודולים (תוספות בתשלום)
         if (item.modifiers && Array.isArray(item.modifiers)) {
-            const modsTxt = item.modifiers.map(m => m.name).join(', ');
-            if (noteTxt) noteTxt += ' | ' + modsTxt;
-            else noteTxt = modsTxt;
+            noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
+        }
+
+        // עדיפות 3: שדה options_text (בחירות מתוך מפרט מורכב)
+        if (item.options_text) {
+            try {
+                const parsed = JSON.parse(item.options_text);
+                if (Array.isArray(parsed)) {
+                    // טיפול במערך בחירות (למשל מודולים שנשמרו כמערך)
+                    noteTxt += parsed.map(p => typeof p === 'object' ? (p.name || JSON.stringify(p)) : p).join(', ') + '\n';
+                } else if (typeof parsed === 'object') {
+                    // טיפול באובייקט בחירות מורכב
+                    if (parsed.selections) noteTxt += parsed.selections + '\n';
+                    if (parsed.note) noteTxt += parsed.note + '\n';
+                } else {
+                    noteTxt += String(parsed) + '\n';
+                }
+            } catch (e) {
+                noteTxt += item.options_text + '\n';
+            }
         }
         
+        noteTxt = noteTxt.trim();
         const qty = parseFloat(item.quantity || item.qty) || 1;
         
         if(qty > 0 && itemId) {
