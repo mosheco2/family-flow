@@ -4528,33 +4528,42 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-async function fetchStoreQuotes() {
+window.fetchStoreQuotes = async function() {
     try {
-        console.log(`Fetching quotes for group: ${currentGroup.id}`);
         const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
         const data = await res.json();
-        console.log("Quotes data from server:", data);
         
         const list = getEl('store-quotes-list');
-        if(!list) {
-            console.warn("store-quotes-list element not found in DOM");
-            return;
-        }
         
         if (!data || !data.success || !data.quotes || data.quotes.length === 0) {
-            list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
-            storeQuotesCache = []; 
+            // לא נאפס את המטמון לחלוטין אם כבר קיבלנו נתונים מ-fetchStoreOrders
+            if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
+                if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
+                window.storeQuotesCache = []; 
+            } else {
+                window.renderStoreQuotes();
+            }
             return;
         }
 
-        storeQuotesCache = data.quotes;
-        renderStoreQuotes();
+        const fetchedQuotes = data.quotes;
+        if (!window.storeQuotesCache) window.storeQuotesCache = [];
+        
+        // מיזוג נתונים שמגיעים משני הראוטים (גם מאלו שתפסנו דרך ההזמנות)
+        fetchedQuotes.forEach(fq => {
+            if (!window.storeQuotesCache.find(q => q.id === fq.id)) {
+                window.storeQuotesCache.push(fq);
+            }
+        });
+        
+        window.renderStoreQuotes();
     } catch(e) {
-        console.error("Error fetching quotes:", e);
         const list = getEl('store-quotes-list');
-        if(list) list.innerHTML = '<p class="text-center text-red-500 py-8 bg-red-50 rounded-2xl border border-dashed border-red-200">שגיאה בטעינת הנתונים.</p>';
+        if(list && (!window.storeQuotesCache || window.storeQuotesCache.length === 0)) {
+            list.innerHTML = '<p class="text-center text-red-500 py-8 bg-red-50 rounded-2xl border border-dashed border-red-200">שגיאה בטעינת הנתונים.</p>';
+        }
     }
-}
+};
 
 function renderStoreQuotes() {
     const list = getEl('store-quotes-list');
@@ -6598,7 +6607,7 @@ async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/c
 
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
-async function fetchStoreOrders() { 
+window.fetchStoreOrders = async function() { 
     try { 
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
         let data = await res.json(); 
@@ -6612,12 +6621,27 @@ async function fetchStoreOrders() {
             ordersArray.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         }
         
-        storeOrdersCache = ordersArray;
+        // פיצול חכם: זיהוי בקשות הצעת מחיר שנשמרו תחת "הזמנות" (מהחנות) והעברתן לטאב הצעות המחיר
+        const actualOrders = ordersArray.filter(o => o.status !== 'quote' && o.orderType !== 'quote' && o.order_type !== 'quote' && (!o.quote_status || o.quote_status === 'approved' || o.quote_status === 'draft'));
+        const embeddedQuotes = ordersArray.filter(o => o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || (o.quote_status && o.quote_status !== 'approved' && o.quote_status !== 'draft'));
         
-        renderStoreOrders(); 
+        storeOrdersCache = actualOrders;
+        
+        if (embeddedQuotes.length > 0) {
+            if (!window.storeQuotesCache) window.storeQuotesCache = [];
+            embeddedQuotes.forEach(eq => {
+                // מניעת כפילויות במקרה של משיכה כפולה
+                if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
+                    window.storeQuotesCache.push(eq);
+                }
+            });
+            if(typeof window.renderStoreQuotes === 'function') window.renderStoreQuotes();
+        }
+        
+        window.renderStoreOrders(); 
         if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
     } catch(e) { console.error('Error fetching orders:', e); } 
-}
+};
 // פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
 function getDeliveryMeta(order) {
     if (!order || !order.items) return null;
