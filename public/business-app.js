@@ -11147,6 +11147,59 @@ window.fetchCalendarData = async function() {
     await window.syncQuotesToCalendar();
 };
 
+window.syncQuotesToCalendar = async function() {
+    if (!window.calEventsCache) return;
+    
+    // משיכת הצעות מחיר אם עדיין לא נטענו למטמון
+    if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
+        if(typeof window.fetchStoreQuotes === 'function') await window.fetchStoreQuotes();
+    }
+    if (!window.storeOrdersCache || window.storeOrdersCache.length === 0) {
+        if(typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+    }
+    
+    let allQuotes = [];
+    if (window.storeQuotesCache) allQuotes = [...window.storeQuotesCache];
+    if (window.storeOrdersCache) {
+        window.storeOrdersCache.forEach(o => {
+            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || (o.notes && o.notes.includes('[הצעת מחיר]'))) {
+                allQuotes.push(o);
+            }
+        });
+    }
+
+    let added = false;
+    allQuotes.forEach(q => {
+        if (q.target_datetime && (q.status === 'new' || q.status === 'quote' || q.status === 'draft' || q.quote_status === 'draft' || q.quote_status === 'waiting_customer' || (q.notes && q.notes.includes('[הצעת מחיר]')))) {
+            const fakeId = 'quote_' + q.id;
+            if (!window.calEventsCache.find(e => String(e.id) === fakeId)) {
+                const d = new Date(q.target_datetime);
+                window.calEventsCache.push({
+                    id: fakeId,
+                    title: `בקשת קייטרינג/פרויקט: ${safeStr(q.customer_name)}`,
+                    event_date: d.toISOString().split('T')[0],
+                    start_time: d.toTimeString().substring(0,5),
+                    customer_phone: q.customer_phone,
+                    notes: `ORDER_REF:${q.id} ` + (q.notes || '').replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim(),
+                    status: 'pending',
+                    service_id: null
+                });
+                added = true;
+            }
+        }
+    });
+    
+    if (added && typeof window.renderCalendarRequests === 'function') {
+        window.renderCalendarRequests();
+    }
+};
+
+const origFetchCalData = window.fetchCalendarData;
+window.fetchCalendarData = async function() {
+    if (origFetchCalData) await origFetchCalData();
+    await window.syncQuotesToCalendar();
+};
+
 window.approveCalendarEvent = async function(id) {
     if (String(id).startsWith('quote_')) {
         const qId = String(id).split('_')[1];
@@ -11161,6 +11214,22 @@ window.approveCalendarEvent = async function(id) {
     } catch(e) {}
 };
 
+window.deleteCalendarEvent = async function(id, isReject = false) {
+    if (String(id).startsWith('quote_')) {
+        if(!confirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
+        const qId = String(id).split('_')[1];
+        window.updateQuoteStatus(qId, 'cancelled');
+        window.calEventsCache = window.calEventsCache.filter(e => String(e.id) !== String(id));
+        if(typeof window.renderCalendarRequests === 'function') window.renderCalendarRequests();
+        return;
+    }
+    if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
+    try {
+        await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
+        showToast('info', isReject ? 'הבקשה נדחתה' : 'התור בוטל');
+        fetchCalendarData();
+    } catch(e) {}
+};
 window.deleteCalendarEvent = async function(id, isReject = false) {
     if (String(id).startsWith('quote_')) {
         if(!confirm(isReject ? 'האם לדחות ולבטל את בקשת האירוע מלקוח זה?' : 'האם למחוק בקשת אירוע זו?')) return;
