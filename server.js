@@ -135,9 +135,14 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           await client.query(`CREATE TABLE IF NOT EXISTS calendar_services (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(150) NOT NULL, duration_mins INT DEFAULT 30, price DECIMAL(10,2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
       } catch(e) {}
       
-      try { 
+     try { 
           await client.query(`CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, service_id INT REFERENCES calendar_services(id) ON DELETE SET NULL, title VARCHAR(200) NOT NULL, customer_phone VARCHAR(50), notes TEXT, event_date DATE NOT NULL, start_time TIME NOT NULL, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
       } catch(e) {}
+
+      // טבלת מערכת ההודעות החדשה (Inbox)
+      try {
+          await client.query(`CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+      } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
 
       client.release();
   })
@@ -387,12 +392,13 @@ app.get('/api/force-upgrade', async (req, res) => {
             'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION',
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb',
             'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)',
-            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT \'red\'',
-            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT \'retail\'',
-            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT',
-            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT',
-            'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)'
-        ];
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT \'red\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT \'retail\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT',
+            'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)',
+            'CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
+        ];
         
         for (let q of queries) {
             try { await client.query(q); results.push({ query: q, status: 'success' }); } catch (err) { results.push({ query: q, status: 'error', error: err.message }); }
@@ -424,6 +430,7 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS system_settings CASCADE; DROP TABLE IF EXISTS global_products CASCADE;
             DROP TABLE IF EXISTS communities CASCADE; DROP TABLE IF EXISTS community_businesses CASCADE; DROP TABLE IF EXISTS store_coupons CASCADE;
             DROP TABLE IF EXISTS store_customers CASCADE; DROP TABLE IF EXISTS store_orders CASCADE; DROP TABLE IF EXISTS store_order_items CASCADE;
+            DROP TABLE IF EXISTS inbox_messages CASCADE;
             
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (
@@ -459,6 +466,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
         res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
@@ -3497,6 +3505,89 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
 app.delete('/api/calendar/events/:id', async (req, res) => {
     try { await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
     catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- INBOX & MESSAGING ENDPOINTS ---
+// ============================================================
+
+// הבאת הודעות של עסק מסוים
+app.get('/api/inbox/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM inbox_messages WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סימון כנקרא/לא נקרא
+app.put('/api/inbox/:id/read', async (req, res) => {
+    try {
+        const { isRead } = req.body;
+        await pool.query('UPDATE inbox_messages SET is_read = $1 WHERE id = $2', [isRead, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת הודעה
+app.delete('/api/inbox/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM inbox_messages WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה מהחנות (לקוח -> עסק)
+app.post('/api/inbox/customer', async (req, res) => {
+    try {
+        const { groupId, name, contact, subject, content } = req.body;
+        if (!groupId || !content) return res.status(400).json({ error: 'חסרים נתונים' });
+        
+        await pool.query(
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מהחנות הציבורית', content]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעת תפוצה מהסופר-אדמין (SA -> עסקים)
+app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
+    try {
+        const { targetType, targetValue, subject, content } = req.body;
+        if (!subject || !content) return res.status(400).json({ error: 'חובה למלא נושא ותוכן' });
+
+        let groupIds = [];
+        
+        if (targetType === 'all') {
+            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS'");
+            groupIds = gRes.rows.map(g => g.id);
+        } else if (targetType === 'pro') {
+            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=TRUE");
+            groupIds = gRes.rows.map(g => g.id);
+        } else if (targetType === 'free') {
+            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=FALSE");
+            groupIds = gRes.rows.map(g => g.id);
+        } else if (targetType === 'specific') {
+            groupIds = [parseInt(targetValue)];
+        }
+
+        if (groupIds.length === 0) return res.status(404).json({ error: 'לא נמצאו נמענים מתאימים לסינון' });
+
+        // פתיחת טרנזקציה להכנסת כל ההודעות
+        await pool.query('BEGIN');
+        for (let gid of groupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
+                [gid, 'superadmin', 'מערכת', 'admin@oneflowlife.com', subject, content]
+            );
+        }
+        await pool.query('COMMIT');
+        
+        res.json({ success: true, count: groupIds.length });
+    } catch(e) { 
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
