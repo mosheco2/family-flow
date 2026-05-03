@@ -4918,98 +4918,96 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
     }
     
-    // מחיקת טופס ישן אם קיים כדי לאתחל אותו נקי מחדש ב-DOM
+    // מחיקת טופס ישן תמיד כדי לאתחל את ה-HTML מחדש (כולל שורת החיפוש)
     const existingModal = document.getElementById('quote-modal');
-    if (existingModal && !skipDataReset) existingModal.remove();
+    if (existingModal) existingModal.remove();
 
-    if (!document.getElementById('quote-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
-                <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> יצירת הצעת מחיר</h3>
-                
-                <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה (חובה):</label>
-                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: ישראל ישראלי">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון (לשליחת ההצעה):</label>
-                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label>
-                            <input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white" placeholder="נשמר אוטומטית">
-                        </div>
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
+            <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> יצירת הצעת מחיר</h3>
+            
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/חברה (חובה):</label>
+                        <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: ישראל ישראלי">
                     </div>
-
-                    <div id="quote-texts-container" class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
-                                <div class="flex gap-1">
-                                    <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                    <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                    <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-                                </div>
-                            </div>
-                            <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
-                                <input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
-                                <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                                <div class="flex gap-1">
-                                    <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
-                                    <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
-                                    <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
-                                </div>
-                            </div>
-                            <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
-                        </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון (לשליחת ההצעה):</label>
+                        <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="050-0000000">
                     </div>
-
-                    <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
-                    
-                    <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                        <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר להוספה..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
-                        <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
-                            <option value="all">כל הקטגוריות</option>
-                        </select>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label>
+                        <input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr bg-white" placeholder="נשמר אוטומטית">
                     </div>
-
-                    <div id="quote-items-selector" class="space-y-2 mb-6"></div>
-                    
                 </div>
-                
-                <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-sm font-bold text-slate-500" id="quote-before-discount"></span>
-                        <div class="text-left">
-                            <span class="text-xs font-bold text-slate-500 ml-2">סה"כ לתשלום:</span>
-                            <span id="quote-total-display" class="text-2xl font-black text-indigo-600 dir-ltr">₪0.00</span>
+
+                <div id="quote-texts-container" class="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
+                            <div class="flex gap-1">
+                                <button type="button" onclick="window.generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                                <select id="sel-preset-intro" onchange="window.applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
+                                <button type="button" onclick="window.saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
+                            </div>
+                        </div>
+                        <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-white border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
+                            <input type="number" id="quote-discount" min="0" max="100" oninput="window.calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
+                            <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
                         </div>
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
+                            <div class="flex gap-1">
+                                <button type="button" onclick="window.generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                                <select id="sel-preset-notes" onchange="window.applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option></select>
+                                <button type="button" onclick="window.saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
+                            </div>
+                        </div>
+                        <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white border-slate-200" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
                     </div>
+                </div>
+
+                <h4 class="font-bold text-slate-700 text-sm mb-3">בחירת מוצרים להצעה:</h4>
+                
+                <div id="quote-catalog-filters" class="flex gap-2 mb-3 bg-indigo-50 p-2 rounded-xl border border-indigo-100">
+                    <input type="text" id="quote-search-item" oninput="window.renderQuoteItemsList()" placeholder="חיפוש מוצר להוספה..." class="modern-input py-1.5 px-3 text-xs w-full bg-white">
+                    <select id="quote-cat-filter" onchange="window.renderQuoteItemsList()" class="modern-input py-1.5 px-2 text-xs w-2/3 bg-white font-bold text-indigo-700">
+                        <option value="all">כל הקטגוריות</option>
+                    </select>
+                </div>
+
+                <div id="quote-items-selector" class="space-y-2 mb-6"></div>
+                
+            </div>
+            
+            <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-bold text-slate-500" id="quote-before-discount"></span>
+                    <div class="text-left">
+                        <span class="text-xs font-bold text-slate-500 ml-2">סה"כ לתשלום:</span>
+                        <span id="quote-total-display" class="text-2xl font-black text-indigo-600 dir-ltr">₪0.00</span>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-generate-quote" onclick="window.submitNewQuote()" class="flex-[1.2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
-        `);
-    }
+    </div>
+    `);
 
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
@@ -5170,29 +5168,27 @@ window.openEditQuoteModal = async function(id) {
         
         let noteTxt = '';
         
-        // עדיפות 1: נתונים ישירים
         if (item.note) noteTxt += item.note + '\n';
         if (item.notes) noteTxt += item.notes + '\n';
         if (item.cart_note) noteTxt += item.cart_note + '\n';
 
-        // עדיפות 2: מודולים (תוספות בתשלום)
         if (item.modifiers && Array.isArray(item.modifiers)) {
             noteTxt += item.modifiers.map(m => m.name).join(', ') + '\n';
         }
 
-        // עדיפות 3: שדה options_text (בחירות מתוך מפרט מורכב)
         if (item.options_text) {
             try {
                 const parsed = JSON.parse(item.options_text);
-                if (Array.isArray(parsed)) {
-                    // טיפול במערך בחירות (למשל מודולים שנשמרו כמערך)
-                    noteTxt += parsed.map(p => typeof p === 'object' ? (p.name || JSON.stringify(p)) : p).join(', ') + '\n';
-                } else if (typeof parsed === 'object') {
-                    // טיפול באובייקט בחירות מורכב
-                    if (parsed.selections) noteTxt += parsed.selections + '\n';
-                    if (parsed.note) noteTxt += parsed.note + '\n';
-                } else {
-                    noteTxt += String(parsed) + '\n';
+                if (parsed.selections) {
+                    if (Array.isArray(parsed.selections)) {
+                        noteTxt += parsed.selections.map(s => typeof s === 'object' ? s.name : s).join(', ') + '\n';
+                    } else {
+                        noteTxt += parsed.selections + '\n';
+                    }
+                }
+                if (parsed.note) noteTxt += parsed.note + '\n';
+                if (parsed.toppings && Array.isArray(parsed.toppings)) {
+                    noteTxt += parsed.toppings.map(t => t.name).join(', ') + '\n';
                 }
             } catch (e) {
                 noteTxt += item.options_text + '\n';
