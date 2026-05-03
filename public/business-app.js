@@ -14835,7 +14835,7 @@ if (origFetchDataInboxHook) {
     };
 }
 // ============================================================
-// --- COMPLEX BUILDER (CATERING / PROJECTS) MODULE ---
+// --- COMPLEX BUILDER (CATERING / PROJECTS) MODULE V2 ---
 // ============================================================
 
 window.currentComplexStepsUI = [];
@@ -14848,7 +14848,7 @@ window.openComplexBuilderModal = function(id = null) {
     
     document.body.insertAdjacentHTML('beforeend', `
     <div id="complex-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
-        <div class="bg-slate-50 w-full max-w-2xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+        <div class="bg-slate-50 w-full max-w-4xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
             <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> מפרט פרויקט / תפריט קייטרינג</h3>
                 <button type="button" onclick="document.getElementById('complex-builder-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
@@ -14857,33 +14857,43 @@ window.openComplexBuilderModal = function(id = null) {
             <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
                 <input type="hidden" id="cx-id" value="">
                 
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-1">שם המפרט / התפריט (חובה):</label>
-                        <input type="text" id="cx-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: תפריט חתונה זהב 2026 / שיפוץ אמבטיה קומפלט">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1" title="ניתן להשאיר 0 אם התמחור מבוסס רק על הרכיבים בפנים">מחיר בסיס (₪):</label>
-                            <input type="number" id="cx-price" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white text-center dir-ltr" placeholder="0.00">
+                            <label class="text-xs font-bold text-slate-600 block mb-1">סוג המפרט (קובע את אופן החישוב בסל):</label>
+                            <select id="cx-type" class="modern-input py-2.5 text-sm font-bold text-emerald-700 shadow-sm bg-emerald-50 border-emerald-200 focus:bg-white transition outline-none cursor-pointer">
+                                <option value="catering">תפריט לאירוע (מחיר פר מנה X כמות מוזמנים)</option>
+                                <option value="project">מפרט פרויקט (מחיר בסיס + תוספות לפרויקט)</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה להצגה:</label>
-                            <input type="text" id="cx-category" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: תפריטי אירועים">
+                            <label class="text-xs font-bold text-slate-600 block mb-1">שם המפרט / התפריט (חובה):</label>
+                            <input type="text" id="cx-name" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="למשל: תפריט חתונה 2026 / שיפוץ חדר רחצה">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 mt-2">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1" title="ניתן להשאיר 0 אם התמחור מבוסס רק על הרכיבים בפנים">מחיר בסיס (למנה/לפרויקט):</label>
+                            <input type="number" id="cx-price" class="modern-input py-2.5 text-base font-black text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition text-center dir-ltr" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה בחנות:</label>
+                            <input type="text" id="cx-category" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white transition" placeholder="למשל: תפריטי אירועים">
                         </div>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">תיאור קצר (יופיע ללקוח):</label>
-                        <textarea id="cx-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white" placeholder="הסבר קצר על המפרט והאפשרויות..."></textarea>
+                        <textarea id="cx-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white transition" placeholder="הסבר קצר על המפרט והאפשרויות..."></textarea>
                     </div>
                 </div>
 
-                <div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 shadow-sm mt-4" id="cx-steps-wrapper">
-                    <div class="flex justify-between items-center mb-3 border-b border-emerald-200/50 pb-3">
-                        <label class="text-xs font-bold text-emerald-900 block"><i class="fa-solid fa-layer-group mr-1"></i> שלבי המפרט / בחירות:</label>
-                        <button type="button" onclick="window.addComplexStep()" class="text-[10px] font-bold text-white bg-emerald-600 px-3 py-2 rounded-lg shadow-sm hover:bg-emerald-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף שלב</button>
+                <div class="bg-emerald-50/50 p-4 sm:p-5 rounded-2xl border border-emerald-100 shadow-sm mt-4">
+                    <div class="flex justify-between items-center mb-4 border-b border-emerald-200/50 pb-3">
+                        <label class="text-sm font-black text-emerald-900 block"><i class="fa-solid fa-layer-group mr-1"></i> שלבי המפרט / בחירות:</label>
+                        <button type="button" onclick="window.addComplexStep()" class="text-[10px] sm:text-xs font-bold text-white bg-emerald-600 px-4 py-2 rounded-lg shadow-sm hover:bg-emerald-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף שלב</button>
                     </div>
-                    <div id="cx-steps-container" class="space-y-4"></div>
+                    <div id="cx-steps-container" class="space-y-6"></div>
                 </div>
             </div>
 
@@ -14911,10 +14921,15 @@ window.openComplexBuilderModal = function(id = null) {
                     const parsed = JSON.parse(p.options_text); 
                     if (parsed && parsed.isComplex) {
                         window.currentComplexStepsUI = parsed.steps || [];
+                        if(parsed.complexType) {
+                            document.getElementById('cx-type').value = parsed.complexType;
+                        }
                     }
                 } catch(e) { }
             }
         }
+    } else {
+        window.addComplexStep(); // מכין שלב ראשון ריק בדיפולט
     }
     
     window.renderComplexStepsUI(); 
@@ -14922,17 +14937,18 @@ window.openComplexBuilderModal = function(id = null) {
 };
 
 window.addComplexStep = function() {
-    window.currentComplexStepsUI.push({ name: '', min: 1, max: 1, options: [{name: '', price: 0}] });
+    window.currentComplexStepsUI.push({ name: '', min: 1, max: 1, stepPrice: 0, options: [{name: '', price: 0, note: ''}] });
     window.renderComplexStepsUI();
 };
 
 window.removeComplexStep = function(idx) {
+    if(!confirm('למחוק שלב זה על כל אפשרויותיו?')) return;
     window.currentComplexStepsUI.splice(idx, 1);
     window.renderComplexStepsUI();
 };
 
 window.addComplexOption = function(stepIdx) {
-    window.currentComplexStepsUI[stepIdx].options.push({name: '', price: 0});
+    window.currentComplexStepsUI[stepIdx].options.push({name: '', price: 0, note: ''});
     window.renderComplexStepsUI();
 };
 
@@ -14954,7 +14970,7 @@ window.renderComplexStepsUI = function() {
     if (!container) return;
     
     if (window.currentComplexStepsUI.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-300 font-medium">המפרט ריק.<br>לחצו על "הוסף שלב" למעלה כדי ליצור תפריט עשיר (למשל: "מנות פתיחה", "תוספות בתשלום").</p>';
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-8 bg-white rounded-2xl border border-dashed border-slate-300 font-medium shadow-sm">המפרט ריק.<br>לחצו על "הוסף שלב" למעלה כדי ליצור תפריט עשיר (למשל: "מנות פתיחה", "תוספות בתשלום").</p>';
         return;
     }
     
@@ -14963,40 +14979,55 @@ window.renderComplexStepsUI = function() {
         let optionsHtml = '';
         step.options.forEach((opt, optIdx) => {
             optionsHtml += `
-            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100 fade-in">
-                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-emerald-400 text-slate-700" value="${safeStr(opt.name)}" onchange="window.updateComplexOptionField(${stepIdx}, ${optIdx}, 'name', this.value)" placeholder="שם האופציה (למשל: סלמון / נקודת חשמל)">
-                <div class="w-20 relative">
-                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-emerald-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="window.updateComplexOptionField(${stepIdx}, ${optIdx}, 'price', parseFloat(this.value)||0)" placeholder="0">
-                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center mb-2 bg-slate-50 p-2 rounded-xl border border-slate-200 fade-in w-full group hover:border-emerald-300 transition shadow-sm">
+                <div class="w-full sm:w-[40%]">
+                    <input type="text" class="w-full bg-white border border-slate-200 rounded-lg text-xs px-3 py-2.5 outline-none focus:border-emerald-400 text-slate-700 font-bold" value="${safeStr(opt.name)}" onchange="window.updateComplexOptionField(${stepIdx}, ${optIdx}, 'name', this.value)" placeholder="שם האופציה (למשל: סלמון / נקודת חשמל)">
                 </div>
-                <button type="button" onclick="window.removeComplexOption(${stepIdx}, ${optIdx})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+                
+                <div class="w-full sm:w-[35%]">
+                    <input type="text" class="w-full bg-white border border-slate-200 rounded-lg text-xs px-3 py-2.5 outline-none focus:border-emerald-400 text-slate-500" value="${safeStr(opt.note || '')}" onchange="window.updateComplexOptionField(${stepIdx}, ${optIdx}, 'note', this.value)" placeholder="הערה תפעולית (אופציונלי)">
+                </div>
+
+                <div class="w-full sm:w-[25%] flex gap-2 items-center">
+                    <div class="relative w-full">
+                        <input type="number" class="w-full bg-white border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2.5 outline-none focus:border-emerald-400 text-emerald-700 font-bold text-left dir-ltr" value="${opt.price || ''}" onchange="window.updateComplexOptionField(${stepIdx}, ${optIdx}, 'price', parseFloat(this.value)||0)" placeholder="ללא תוספת">
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                    </div>
+                    <button type="button" onclick="window.removeComplexOption(${stepIdx}, ${optIdx})" class="text-slate-300 hover:text-red-500 w-8 h-8 shrink-0 flex items-center justify-center transition bg-white rounded-lg shadow-sm border border-slate-200"><i class="fa-solid fa-times text-xs"></i></button>
+                </div>
             </div>`;
         });
 
         html += `
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in group transition-all hover:border-emerald-300">
-            <button type="button" onclick="window.removeComplexStep(${stepIdx})" class="absolute top-2 left-2 text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100 z-10" title="מחיקת שלב"><i class="fa-solid fa-trash-can text-xs"></i></button>
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-200 shadow-sm relative flex flex-col gap-3 fade-in group transition-all">
+            <button type="button" onclick="window.removeComplexStep(${stepIdx})" class="absolute top-3 left-3 text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center transition bg-slate-50 hover:bg-red-500 rounded-lg border border-slate-200 z-10 shadow-sm" title="מחיקת שלב"><i class="fa-solid fa-trash-can text-sm"></i></button>
             
-            <div class="flex flex-col sm:flex-row gap-3 w-full pr-1 mb-2 border-b border-slate-100 pb-3">
-                <div class="flex-[2]">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 w-full border-b border-slate-100 pb-4 mb-2">
+                <div class="sm:col-span-6 pr-6 sm:pr-0">
                     <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת מנה ראשונה):</label>
-                    <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-emerald-400 text-slate-800 transition" value="${safeStr(step.name)}" onchange="window.updateComplexStepField(${stepIdx}, 'name', this.value)" placeholder="כותרת השלב">
+                    <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold px-3 py-2.5 outline-none focus:border-emerald-400 focus:bg-white text-slate-800 transition shadow-inner" value="${safeStr(step.name)}" onchange="window.updateComplexStepField(${stepIdx}, 'name', this.value)" placeholder="כותרת השלב ללקוח">
                 </div>
-                <div class="flex gap-2 flex-1 sm:max-w-[150px]">
+                
+                <div class="sm:col-span-3">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר בסיס לשלב (₪):</label>
+                    <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-center dir-ltr px-2 py-2.5 outline-none focus:border-emerald-400 focus:bg-white text-slate-800 transition" value="${step.stepPrice || ''}" onchange="window.updateComplexStepField(${stepIdx}, 'stepPrice', parseFloat(this.value)||0)" placeholder="חינם / מגולם">
+                </div>
+
+                <div class="sm:col-span-3 flex gap-2">
                     <div class="flex-1">
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">מינימום (0=רשות):</label>
-                        <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm text-center px-2 py-2 outline-none focus:border-emerald-400 text-slate-800 transition" value="${step.min}" onchange="window.updateComplexStepField(${stepIdx}, 'min', parseInt(this.value)||0)">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1 text-center">מינימום <span class="font-normal">(0=רשות):</span></label>
+                        <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-xl text-sm text-center px-2 py-2.5 outline-none focus:border-emerald-400 focus:bg-white text-slate-800 transition font-bold" value="${step.min}" onchange="window.updateComplexStepField(${stepIdx}, 'min', parseInt(this.value)||0)">
                     </div>
                     <div class="flex-1">
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">מקסימום (0=ללא):</label>
-                        <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm text-center px-2 py-2 outline-none focus:border-emerald-400 text-slate-800 transition" value="${step.max}" onchange="window.updateComplexStepField(${stepIdx}, 'max', parseInt(this.value)||0)">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1 text-center">מקסימום <span class="font-normal">(0=ללא):</span></label>
+                        <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-xl text-sm text-center px-2 py-2.5 outline-none focus:border-emerald-400 focus:bg-white text-slate-800 transition font-bold" value="${step.max}" onchange="window.updateComplexStepField(${stepIdx}, 'max', parseInt(this.value)||0)">
                     </div>
                 </div>
             </div>
             
             <div class="space-y-1">
                 ${optionsHtml}
-                <button type="button" onclick="window.addComplexOption(${stepIdx})" class="mt-1 w-full bg-emerald-50/50 border border-dashed border-emerald-200 text-emerald-600 py-2 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף אפשרות לשלב זה</button>
+                <button type="button" onclick="window.addComplexOption(${stepIdx})" class="mt-2 w-full bg-emerald-50/50 border border-dashed border-emerald-300 text-emerald-700 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף אפשרות בחירה לשלב זה</button>
             </div>
         </div>`;
     });
@@ -15005,6 +15036,7 @@ window.renderComplexStepsUI = function() {
 
 window.submitComplexBuilder = async function() {
     const id = document.getElementById('cx-id').value; 
+    const cxType = document.getElementById('cx-type').value; 
     const name = document.getElementById('cx-name').value; 
     const price = document.getElementById('cx-price').value;
     const category = document.getElementById('cx-category').value || 'פרויקטים וקייטרינג';
@@ -15018,12 +15050,19 @@ window.submitComplexBuilder = async function() {
     // ניקוי אפשרויות ריקות בתוך השלבים
     validSteps.forEach(s => {
         s.options = s.options.filter(o => o.name.trim() !== '');
+        s.stepPrice = parseFloat(s.stepPrice) || 0; // וידוא מספריות
     });
 
-    const finalOptionsText = JSON.stringify({ isComplex: true, steps: validSteps });
+    // המרת הנתונים לאובייקט Options מתקדם
+    const finalOptionsText = JSON.stringify({ 
+        isComplex: true, 
+        complexType: cxType,
+        steps: validSteps 
+    });
     
     const btn = document.getElementById('btn-submit-cx'); 
-    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+    
     try {
         const payload = { 
             groupId: currentGroup.id, 
@@ -15038,13 +15077,13 @@ window.submitComplexBuilder = async function() {
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         if (data.success) { 
-            showToast('success', 'המפרט / תפריט נשמר בהצלחה!'); 
+            showToast('success', 'המפרט נשמר בהצלחה והוא זמין ללקוחות בחנות!'); 
             document.getElementById('complex-builder-modal').remove(); 
             if (typeof fetchStoreCatalog === 'function') await fetchStoreCatalog();
             window.renderComplexList();
         } 
         else { showToast('error', data.error || 'שגיאה בשמירה'); }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור מפרט'; } }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור מפרט'; } }
 };
 
 window.renderComplexList = function() {
@@ -15066,30 +15105,35 @@ window.renderComplexList = function() {
     list.innerHTML = complexes.map(p => {
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
         let stepsCount = 0;
+        let cType = 'קייטרינג / פרויקט';
+        let iconType = 'fa-layer-group';
+
         try {
             const parsed = JSON.parse(p.options_text);
             if (parsed && parsed.steps) stepsCount = parsed.steps.length;
+            if (parsed && parsed.complexType === 'catering') { cType = 'תפריט אירועים'; iconType = 'fa-utensils'; }
+            if (parsed && parsed.complexType === 'project') { cType = 'מפרט פרויקט'; iconType = 'fa-helmet-safety'; }
         } catch(e){}
 
         return `
         <div class="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2 group hover:shadow-md transition hover:border-emerald-300">
-            <div class="flex items-start gap-3 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0">
-                    <i class="fa-solid fa-layer-group text-xl"></i>
+            <div class="flex items-start gap-4 min-w-0 flex-1">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-inner shrink-0 mt-1">
+                    <i class="fa-solid ${iconType} text-xl"></i>
                 </div>
                 <div class="min-w-0 flex-1">
-                    <h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1 flex gap-2">
-                        <span class="bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100"><i class="fa-solid fa-list-ol mr-0.5"></i> ${stepsCount} שלבים</span>
-                        <span class="bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100"><i class="fa-solid fa-tag mr-0.5"></i> ${safeStr(p.category)}</span>
+                    <h4 class="font-bold text-slate-800 text-base truncate pr-1">${safeStr(p.name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        <span class="bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 shadow-sm font-bold text-slate-600"><i class="fa-solid fa-list-ol mr-0.5 text-slate-400"></i> ${stepsCount} שלבים לבחירה</span>
+                        <span class="bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 shadow-sm">${cType}</span>
                     </p>
-                    <p class="text-xs font-black text-indigo-600 mt-1.5">₪${p.price} <span class="font-normal text-[9px] text-slate-400">(בסיס)</span></p>
+                    <p class="text-sm font-black text-emerald-600 mt-2">₪${p.price} <span class="font-normal text-[9px] text-slate-400 ml-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">מחיר בסיס התחלתי</span></p>
                 </div>
             </div>
             <div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין לחנות' : 'מוסתר'}</button>
-                <button onclick="window.openComplexBuilderModal(${p.id})" class="text-slate-500 hover:text-emerald-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100" title="עריכה"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100" title="מחיקה"><i class="fa-solid fa-trash text-xs"></i></button>
+                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-4 py-2 rounded-lg border transition shadow-sm ${activeColor}">${p.is_available ? 'זמין לחנות' : 'מוסתר'}</button>
+                <button onclick="window.openComplexBuilderModal(${p.id})" class="text-slate-500 hover:text-emerald-600 bg-white shadow-sm w-9 h-9 rounded-lg flex items-center justify-center transition border border-slate-100" title="עריכה"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-9 h-9 rounded-lg flex items-center justify-center transition border border-slate-100" title="מחיקה"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         </div>`;
     }).join('');
