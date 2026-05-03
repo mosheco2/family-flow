@@ -5055,6 +5055,9 @@ window.renderQuoteItemsList = function() {
     let selectedCatalogItems = [];
     let unselectedCatalogItems = [];
 
+    const isEditMode = Object.keys(window.selectedQuoteItems).length > 0;
+    const hasActiveFilter = searchTerm !== '' || catFilter !== 'all';
+
     window.storeCatalogCache.forEach(p => {
         const strId = String(p.id);
         const isSelected = !!window.selectedQuoteItems[strId];
@@ -5065,7 +5068,10 @@ window.renderQuoteItemsList = function() {
         if (isSelected) {
             selectedCatalogItems.push(p);
         } else if (matchSearch && matchCat) {
-            unselectedCatalogItems.push(p);
+            // אם אנחנו במצב עריכה - נציג פריטים אחרים רק אם המשתמש חיפש אותם אקטיבית
+            if (!isEditMode || hasActiveFilter) {
+                unselectedCatalogItems.push(p);
+            }
         }
     });
     
@@ -5102,7 +5108,7 @@ window.renderQuoteItemsList = function() {
             ${imgHtml}
             <div class="flex-1 min-w-0">
                 <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200 resize-none h-16 leading-tight">${safeStr(existingNote)}</textarea>
+                <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-white border-slate-200 resize-none h-24 leading-tight shadow-sm">${safeStr(existingNote)}</textarea>
             </div>
             <div class="flex flex-col items-end gap-2 shrink-0 w-28">
                 <div class="w-full relative pt-3">
@@ -5129,7 +5135,7 @@ window.updateQuoteItem = function(id, name, imgUrl) {
     } else {
         delete window.selectedQuoteItems[strId];
     }
-    window.calcQuoteTotal();
+    if(typeof window.calcQuoteTotal === 'function') window.calcQuoteTotal();
     
     const row = document.getElementById(`quote-qty-${id}`).closest('.flex.items-start');
     if (row) {
@@ -5167,7 +5173,17 @@ window.openEditQuoteModal = async function(id) {
             itemId = 'custom_item_' + idx;
         }
         
-        let noteTxt = item.note || item.notes || '';
+        // שליפה אגרסיבית של המפרט מהחנות הציבורית
+        let noteTxt = item.note || item.notes || item.description || item.cart_note || '';
+        
+        if (!noteTxt && item.options_text) {
+            try {
+                let parsedOpts = JSON.parse(item.options_text);
+                if (parsedOpts.note) noteTxt = parsedOpts.note;
+                else if (parsedOpts.selections) noteTxt = parsedOpts.selections;
+            } catch(e) {}
+        }
+        
         if (item.modifiers && Array.isArray(item.modifiers)) {
             const modsTxt = item.modifiers.map(m => m.name).join(', ');
             if (noteTxt) noteTxt += ' | ' + modsTxt;
