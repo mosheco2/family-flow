@@ -1972,7 +1972,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, storeAlias } = req.body;
         
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -1980,16 +1980,23 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_alias VARCHAR(50) UNIQUE`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
+        const aliasVal = storeAlias && storeAlias.trim() !== '' ? storeAlias.trim().toLowerCase() : null;
+
+        if (aliasVal) {
+            const aliasCheck = await pool.query('SELECT group_id FROM store_settings WHERE store_alias = $1 AND group_id != $2', [aliasVal, groupId]);
+            if (aliasCheck.rows.length > 0) return res.status(400).json({ error: 'הכינוי הזה כבר תפוס ע"י חנות אחרת, אנא בחרו כינוי אחר.' });
+        }
         
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, store_alias
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, 
                 NULLIF($8, 'DELETE'), 
                 NULLIF($9, 'DELETE'), 
-                $10, $11, $12, $13, $14) 
+                $10, $11, $12, $13, $14, $15) 
             ON CONFLICT (group_id) DO UPDATE SET 
                 is_active = EXCLUDED.is_active, 
                 welcome_message = EXCLUDED.welcome_message, 
@@ -2011,10 +2018,11 @@ app.post('/api/store/settings', async (req, res) => {
                 close_time = EXCLUDED.close_time, 
                 whatsapp_number = EXCLUDED.whatsapp_number, 
                 delivery_fee = EXCLUDED.delivery_fee, 
-                include_vat = EXCLUDED.include_vat
+                include_vat = EXCLUDED.include_vat,
+                store_alias = EXCLUDED.store_alias
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, aliasVal
         ]);
         
         res.json({ success: true });
@@ -2366,7 +2374,15 @@ app.put('/api/store/customers/:id', async (req, res) => {
 
 app.get('/api/storefront/:code', async (req, res) => {
     try {
-        const gRes = await pool.query("SELECT id, name FROM family_groups WHERE group_code = $1", [req.params.code.toUpperCase()]);
+        const codeOrAlias = req.params.code;
+        
+        const gRes = await pool.query(`
+            SELECT f.id, f.name 
+            FROM family_groups f
+            LEFT JOIN store_settings s ON f.id = s.group_id
+            WHERE f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
+        `, [codeOrAlias.toUpperCase(), codeOrAlias.toLowerCase()]);
+        
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'חנות לא נמצאה' });
         
         const groupId = gRes.rows[0].id;
@@ -3481,6 +3497,19 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
 app.delete('/api/calendar/events/:id', async (req, res) => {
     try { await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
     catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
+app.get('/:alias', (req, res, next) => {
+    const alias = req.params.alias;
+    
+    // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
+    if (alias.startsWith('api') || alias.includes('.') || alias === 'setup-db') {
+        return next();
+    }
+
+    // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
+    res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
 
 app.listen(port, () => {
