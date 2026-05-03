@@ -5161,9 +5161,11 @@ window.openEditQuoteModal = async function(id) {
     const actualItems = allItems.filter(i => !i.is_quote_metadata);
     
     window.selectedQuoteItems = {};
-    actualItems.forEach(item => {
-        // פיצוח מזהים מורכבים והוצאת המזהה האמיתי אם נשמר דרך החנות
-        const itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
+    actualItems.forEach((item, idx) => {
+        let itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
+        if (!itemId || itemId === 'undefined' || itemId === 'null') {
+            itemId = 'custom_item_' + idx;
+        }
         
         let noteTxt = item.note || item.notes || '';
         if (item.modifiers && Array.isArray(item.modifiers)) {
@@ -5172,11 +5174,12 @@ window.openEditQuoteModal = async function(id) {
             else noteTxt = modsTxt;
         }
         
-        const qty = parseFloat(item.quantity || item.qty) || 0;
+        const qty = parseFloat(item.quantity || item.qty) || 1;
+        
         if(qty > 0 && itemId) {
             window.selectedQuoteItems[itemId] = { 
                 id: itemId, 
-                name: item.name || item.item_name || '', 
+                name: item.name || item.item_name || 'פריט מותאם אישית', 
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
                 quantity: qty,
@@ -5198,8 +5201,9 @@ window.openEditQuoteModal = async function(id) {
     pureNotes = pureNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
     if(document.getElementById('quote-notes')) document.getElementById('quote-notes').value = pureNotes;
 
-    window.calcQuoteTotal();
-    document.getElementById('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
+    if(typeof window.calcQuoteTotal === 'function') window.calcQuoteTotal();
+    const btnGen = document.getElementById('btn-generate-quote');
+    if(btnGen) btnGen.innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
 
 window.fetchStoreCustomers = async function() {
@@ -11053,51 +11057,9 @@ window.renderCalendarServices = function() {
     `).join('');
 };
 
-window.syncQuotesToCalendar = function() {
-    if (!window.calEventsCache || !window.storeQuotesCache) return;
-    
-    let added = false;
-    window.storeQuotesCache.forEach(q => {
-        if (q.target_datetime && (q.status === 'new' || q.status === 'quote' || q.status === 'draft' || q.quote_status === 'draft' || q.quote_status === 'waiting_customer')) {
-            const fakeId = 'quote_' + q.id;
-            if (!window.calEventsCache.find(e => String(e.id) === fakeId)) {
-                const d = new Date(q.target_datetime);
-                window.calEventsCache.push({
-                    id: fakeId,
-                    title: `בקשה לאירוע/פרויקט: ${safeStr(q.customer_name)}`,
-                    event_date: d.toISOString().split('T')[0],
-                    start_time: d.toTimeString().substring(0,5),
-                    customer_phone: q.customer_phone,
-                    notes: `ORDER_REF:${q.id} ` + (q.notes || ''),
-                    status: 'pending',
-                    service_id: null
-                });
-                added = true;
-            }
-        }
-    });
-    
-    if (added && typeof window.renderCalendarRequests === 'function') {
-        window.renderCalendarRequests();
-    }
-};
-
-const origFetchCalData = window.fetchCalendarData;
-window.fetchCalendarData = async function() {
-    if (origFetchCalData) await origFetchCalData();
-    window.syncQuotesToCalendar();
-};
-
-const origFetchStoreQuotes = window.fetchStoreQuotes;
-window.fetchStoreQuotes = async function() {
-    if (origFetchStoreQuotes) await origFetchStoreQuotes();
-    window.syncQuotesToCalendar();
-};
-
 window.syncQuotesToCalendar = async function() {
     if (!window.calEventsCache) return;
     
-    // משיכת הצעות מחיר אם עדיין לא נטענו למטמון
     if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
         if(typeof window.fetchStoreQuotes === 'function') await window.fetchStoreQuotes();
     }
@@ -11141,64 +11103,22 @@ window.syncQuotesToCalendar = async function() {
     }
 };
 
-const origFetchCalData = window.fetchCalendarData;
-window.fetchCalendarData = async function() {
-    if (origFetchCalData) await origFetchCalData();
-    await window.syncQuotesToCalendar();
-};
+// יצירת הגנה מובנית שלא תאפשר הכפלה גם בריענון
+if (!window._origFetchCalDataProtected) {
+    window._origFetchCalDataProtected = window.fetchCalendarData;
+    window.fetchCalendarData = async function() {
+        if (window._origFetchCalDataProtected) await window._origFetchCalDataProtected();
+        if (typeof window.syncQuotesToCalendar === 'function') await window.syncQuotesToCalendar();
+    };
+}
 
-window.syncQuotesToCalendar = async function() {
-    if (!window.calEventsCache) return;
-    
-    // משיכת הצעות מחיר אם עדיין לא נטענו למטמון
-    if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
-        if(typeof window.fetchStoreQuotes === 'function') await window.fetchStoreQuotes();
-    }
-    if (!window.storeOrdersCache || window.storeOrdersCache.length === 0) {
-        if(typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-    }
-    
-    let allQuotes = [];
-    if (window.storeQuotesCache) allQuotes = [...window.storeQuotesCache];
-    if (window.storeOrdersCache) {
-        window.storeOrdersCache.forEach(o => {
-            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || (o.notes && o.notes.includes('[הצעת מחיר]'))) {
-                allQuotes.push(o);
-            }
-        });
-    }
-
-    let added = false;
-    allQuotes.forEach(q => {
-        if (q.target_datetime && (q.status === 'new' || q.status === 'quote' || q.status === 'draft' || q.quote_status === 'draft' || q.quote_status === 'waiting_customer' || (q.notes && q.notes.includes('[הצעת מחיר]')))) {
-            const fakeId = 'quote_' + q.id;
-            if (!window.calEventsCache.find(e => String(e.id) === fakeId)) {
-                const d = new Date(q.target_datetime);
-                window.calEventsCache.push({
-                    id: fakeId,
-                    title: `בקשת קייטרינג/פרויקט: ${safeStr(q.customer_name)}`,
-                    event_date: d.toISOString().split('T')[0],
-                    start_time: d.toTimeString().substring(0,5),
-                    customer_phone: q.customer_phone,
-                    notes: `ORDER_REF:${q.id} ` + (q.notes || '').replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim(),
-                    status: 'pending',
-                    service_id: null
-                });
-                added = true;
-            }
-        }
-    });
-    
-    if (added && typeof window.renderCalendarRequests === 'function') {
-        window.renderCalendarRequests();
-    }
-};
-
-const origFetchCalData = window.fetchCalendarData;
-window.fetchCalendarData = async function() {
-    if (origFetchCalData) await origFetchCalData();
-    await window.syncQuotesToCalendar();
-};
+if (!window._origFetchStoreQuotesProtected) {
+    window._origFetchStoreQuotesProtected = window.fetchStoreQuotes;
+    window.fetchStoreQuotes = async function() {
+        if (window._origFetchStoreQuotesProtected) await window._origFetchStoreQuotesProtected();
+        if (typeof window.syncQuotesToCalendar === 'function') await window.syncQuotesToCalendar();
+    };
+}
 
 window.approveCalendarEvent = async function(id) {
     if (String(id).startsWith('quote_')) {
