@@ -5052,18 +5052,45 @@ window.renderQuoteItemsList = function() {
     const searchTerm = (document.getElementById('quote-search-item')?.value || '').toLowerCase();
     const catFilter = document.getElementById('quote-cat-filter')?.value || 'all';
 
-    const filteredCatalog = window.storeCatalogCache.filter(p => {
+    let selectedCatalogItems = [];
+    let unselectedCatalogItems = [];
+
+    window.storeCatalogCache.forEach(p => {
+        const strId = String(p.id);
+        const isSelected = !!window.selectedQuoteItems[strId];
+        
         const matchSearch = p.name.toLowerCase().includes(searchTerm);
         const matchCat = catFilter === 'all' || (p.category || 'כללי') === catFilter;
-        return matchSearch && matchCat;
+        
+        if (isSelected) {
+            selectedCatalogItems.push(p);
+        } else if (matchSearch && matchCat) {
+            unselectedCatalogItems.push(p);
+        }
+    });
+    
+    // יצירת פריטים וירטואליים אם הלקוח בחר משהו שלא קיים בקטלוג 1:1
+    const catalogIds = window.storeCatalogCache.map(p => String(p.id));
+    Object.values(window.selectedQuoteItems).forEach(sqi => {
+        if (!catalogIds.includes(String(sqi.id))) {
+            selectedCatalogItems.push({
+                id: sqi.id,
+                name: sqi.name,
+                category: 'פריט מותאם אישית',
+                image_url: sqi.image_url,
+                price: sqi.price_at_order
+            });
+        }
     });
 
-    if (filteredCatalog.length === 0) {
+    const combinedToRender = [...selectedCatalogItems, ...unselectedCatalogItems];
+
+    if (combinedToRender.length === 0) {
         selector.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs bg-slate-50 rounded-xl border border-dashed">לא נמצאו מוצרים תואמים לחיפוש</p>';
         return;
     }
 
-    selector.innerHTML = filteredCatalog.map(p => {
+    selector.innerHTML = combinedToRender.map(p => {
         const strId = String(p.id);
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
         const existingQty = window.selectedQuoteItems[strId] ? window.selectedQuoteItems[strId].quantity : '';
@@ -5075,16 +5102,16 @@ window.renderQuoteItemsList = function() {
             ${imgHtml}
             <div class="flex-1 min-w-0">
                 <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)} <span class="text-[9px] text-slate-400 font-normal ml-1">(${safeStr(p.category || 'כללי')})</span></span>
-                <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="window.updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)..." class="modern-input py-1 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200">
+                <textarea id="quote-note-${p.id}" onchange="window.updateQuoteItem('${p.id}', '${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" placeholder="הערה לשורה, מפרט ותוספות..." class="modern-input py-1.5 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200 resize-none h-16 leading-tight">${safeStr(existingNote)}</textarea>
             </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-32">
+            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
                 </div>
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="window.updateQuoteItem('${p.id}','${safeStr(p.name).replace(/'/g,"\\'")}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
                 </div>
             </div>
         </div>
@@ -5093,7 +5120,7 @@ window.renderQuoteItemsList = function() {
 
 window.updateQuoteItem = function(id, name, imgUrl) {
     const strId = String(id);
-    const qty = parseInt(document.getElementById(`quote-qty-${id}`)?.value) || 0;
+    const qty = parseFloat(document.getElementById(`quote-qty-${id}`)?.value) || 0;
     const price = parseFloat(document.getElementById(`quote-price-${id}`)?.value) || 0;
     const note = document.getElementById(`quote-note-${id}`)?.value || '';
     
@@ -5135,15 +5162,25 @@ window.openEditQuoteModal = async function(id) {
     
     window.selectedQuoteItems = {};
     actualItems.forEach(item => {
-        const itemId = String(item.catalog_id || item.catalogId || item.id || '');
-        if(item.quantity > 0 && itemId) {
+        // פיצוח מזהים מורכבים והוצאת המזהה האמיתי אם נשמר דרך החנות
+        const itemId = String(item.real_id || item.catalog_id || item.catalogId || item.id || '');
+        
+        let noteTxt = item.note || item.notes || '';
+        if (item.modifiers && Array.isArray(item.modifiers)) {
+            const modsTxt = item.modifiers.map(m => m.name).join(', ');
+            if (noteTxt) noteTxt += ' | ' + modsTxt;
+            else noteTxt = modsTxt;
+        }
+        
+        const qty = parseFloat(item.quantity || item.qty) || 0;
+        if(qty > 0 && itemId) {
             window.selectedQuoteItems[itemId] = { 
                 id: itemId, 
                 name: item.name || item.item_name || '', 
                 image_url: item.image_url || '',
                 price_at_order: parseFloat(item.price_at_order || item.price) || 0, 
-                quantity: parseFloat(item.quantity || item.qty) || 0,
-                note: item.note || ''
+                quantity: qty,
+                note: noteTxt
             };
         }
     });
@@ -11057,6 +11094,59 @@ window.fetchStoreQuotes = async function() {
     window.syncQuotesToCalendar();
 };
 
+window.syncQuotesToCalendar = async function() {
+    if (!window.calEventsCache) return;
+    
+    // משיכת הצעות מחיר אם עדיין לא נטענו למטמון
+    if (!window.storeQuotesCache || window.storeQuotesCache.length === 0) {
+        if(typeof window.fetchStoreQuotes === 'function') await window.fetchStoreQuotes();
+    }
+    if (!window.storeOrdersCache || window.storeOrdersCache.length === 0) {
+        if(typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+    }
+    
+    let allQuotes = [];
+    if (window.storeQuotesCache) allQuotes = [...window.storeQuotesCache];
+    if (window.storeOrdersCache) {
+        window.storeOrdersCache.forEach(o => {
+            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || (o.notes && o.notes.includes('[הצעת מחיר]'))) {
+                allQuotes.push(o);
+            }
+        });
+    }
+
+    let added = false;
+    allQuotes.forEach(q => {
+        if (q.target_datetime && (q.status === 'new' || q.status === 'quote' || q.status === 'draft' || q.quote_status === 'draft' || q.quote_status === 'waiting_customer' || (q.notes && q.notes.includes('[הצעת מחיר]')))) {
+            const fakeId = 'quote_' + q.id;
+            if (!window.calEventsCache.find(e => String(e.id) === fakeId)) {
+                const d = new Date(q.target_datetime);
+                window.calEventsCache.push({
+                    id: fakeId,
+                    title: `בקשת קייטרינג/פרויקט: ${safeStr(q.customer_name)}`,
+                    event_date: d.toISOString().split('T')[0],
+                    start_time: d.toTimeString().substring(0,5),
+                    customer_phone: q.customer_phone,
+                    notes: `ORDER_REF:${q.id} ` + (q.notes || '').replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim(),
+                    status: 'pending',
+                    service_id: null
+                });
+                added = true;
+            }
+        }
+    });
+    
+    if (added && typeof window.renderCalendarRequests === 'function') {
+        window.renderCalendarRequests();
+    }
+};
+
+const origFetchCalData = window.fetchCalendarData;
+window.fetchCalendarData = async function() {
+    if (origFetchCalData) await origFetchCalData();
+    await window.syncQuotesToCalendar();
+};
+
 window.approveCalendarEvent = async function(id) {
     if (String(id).startsWith('quote_')) {
         const qId = String(id).split('_')[1];
@@ -11077,7 +11167,7 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
         const qId = String(id).split('_')[1];
         window.updateQuoteStatus(qId, 'cancelled');
         window.calEventsCache = window.calEventsCache.filter(e => String(e.id) !== String(id));
-        window.renderCalendarRequests();
+        if(typeof window.renderCalendarRequests === 'function') window.renderCalendarRequests();
         return;
     }
     if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
@@ -11087,7 +11177,6 @@ window.deleteCalendarEvent = async function(id, isReject = false) {
         fetchCalendarData();
     } catch(e) {}
 };
-
 window.convertEventToQuote = function(eventId) {
     const ev = calEventsCache.find(e => e.id === eventId);
     if (!ev) return;
