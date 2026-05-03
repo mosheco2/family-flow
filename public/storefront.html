@@ -83,6 +83,7 @@
                 
                 <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
                     <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
+                    <button onclick="window.openContactModal()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-regular fa-envelope text-xs"></i> צור קשר</button>
                     <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                     <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
                     <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
@@ -267,6 +268,31 @@
             <p id="success-order-id" class="text-3xl font-black text-slate-900 font-mono tracking-wider">#0000</p>
         </div>
         <button onclick="window.resetStoreAfterOrder()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
+    </div>
+
+    <div id="contact-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col overflow-hidden max-h-[90vh]">
+            <button onclick="document.getElementById('contact-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-2 border-b border-slate-100 pb-3 shrink-0"><i class="fa-regular fa-envelope text-indigo-500 mr-2"></i> צור קשר עם העסק</h3>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-4 pb-4 mt-2">
+                <p class="text-xs text-slate-500 mb-2">יש לך שאלה? הערה? נשמח לשמוע ממך!</p>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם מלא:</label>
+                    <input type="text" id="contact-name" class="modern-input py-2.5 text-sm bg-slate-50 border-slate-200 focus:bg-white" placeholder="ישראל ישראלי">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">טלפון לחזרה (אופציונלי):</label>
+                    <input type="tel" id="contact-phone" class="modern-input py-2.5 text-sm bg-slate-50 border-slate-200 focus:bg-white text-left dir-ltr" placeholder="050-0000000">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">תוכן הפנייה:</label>
+                    <textarea id="contact-content" class="modern-input py-2.5 text-sm h-24 bg-slate-50 border-slate-200 focus:bg-white" placeholder="הקלד/י כאן את פנייתך..."></textarea>
+                </div>
+            </div>
+            <div class="pt-4 border-t border-slate-100 flex justify-end shrink-0 bg-white">
+                <button id="btn-submit-contact" onclick="window.submitContactForm()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">שליחת פנייה <i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
     </div>
 
     <div id="booking-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -1574,6 +1600,55 @@ window.openBookingModal = async function() {
                 }, 1000); 
             }
         });
+
+        // ==========================================
+        // --- פונקציות טופס יצירת קשר ---
+        // ==========================================
+        window.openContactModal = function() {
+            const modal = document.getElementById('contact-modal');
+            if (modal) {
+                document.getElementById('contact-name').value = '';
+                document.getElementById('contact-phone').value = '';
+                document.getElementById('contact-content').value = '';
+                modal.classList.remove('hidden');
+            }
+        };
+
+        window.submitContactForm = async function() {
+            const name = document.getElementById('contact-name').value.trim();
+            const phone = document.getElementById('contact-phone').value.trim();
+            const content = document.getElementById('contact-content').value.trim();
+            
+            if (!name || !content) return showToast('error', 'יש למלא שם מלא ותוכן פנייה');
+            
+            const btn = document.getElementById('btn-submit-contact');
+            if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...'; }
+            
+            try {
+                const res = await fetch(`${API}/inbox/customer`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        groupId: storeData.groupId,
+                        name: name,
+                        contact: phone,
+                        content: content
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('success', 'תודה! הפנייה שלך נשלחה בהצלחה לבעל העסק.');
+                    document.getElementById('contact-modal').classList.add('hidden');
+                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                } else {
+                    showToast('error', data.error || 'אירעה שגיאה בשליחת הפנייה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת תקשורת מול השרת');
+            } finally {
+                if(btn) { btn.disabled = false; btn.innerHTML = 'שליחת פנייה <i class="fa-solid fa-paper-plane"></i>'; }
+            }
+        };
 
         initStore();
     </script>
