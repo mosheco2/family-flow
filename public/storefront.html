@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
+        .hide-arrows::-webkit-outer-spin-button, .hide-arrows::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .hide-arrows { -moz-appearance: textfield; }
         body { font-family: 'Heebo', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #000; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
@@ -174,7 +176,7 @@
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-between bg-slate-100 rounded-xl p-1 w-28 shrink-0">
                         <button onclick="window.updateModalQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
-                        <span id="prod-modal-qty" class="font-bold text-slate-900 text-sm">1</span>
+                        <input type="number" id="prod-modal-qty" value="1" min="1" onchange="window.handleModalQtyInput(this)" class="w-10 text-center font-bold text-slate-900 text-sm bg-transparent border-none outline-none focus:ring-0 p-0 m-0 hide-arrows">
                         <button onclick="window.updateModalQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <button id="btn-add-with-mod" class="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center items-center gap-2 text-base">
@@ -188,7 +190,7 @@
     <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
             <div class="flex justify-between items-center p-5 border-b border-slate-100 shrink-0">
-                <h3 class="text-2xl font-black text-slate-900">העגלה שלך</h3>
+            <h3 id="checkout-modal-title" class="text-2xl font-black text-slate-900">העגלה שלך</h3>
                 <button onclick="window.closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
@@ -289,7 +291,7 @@
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-between bg-slate-100 rounded-xl p-1 w-28 shrink-0">
                         <button onclick="window.updateComplexQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
-                        <span id="cx-modal-qty" class="font-bold text-slate-900 text-sm">1</span>
+                        <input type="number" id="cx-modal-qty" value="1" min="1" onchange="window.handleComplexQtyInput(this)" class="w-10 text-center font-bold text-slate-900 text-sm bg-transparent border-none outline-none focus:ring-0 p-0 m-0 hide-arrows">
                         <button onclick="window.updateComplexQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <button id="btn-submit-complex" onclick="window.submitComplexProduct()" class="flex-1 bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2 text-base">
@@ -797,13 +799,7 @@
             if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
         };
 
-        window.updateModalQty = function(delta) {
-            currentModalQty += delta;
-            if(currentModalQty < 1) currentModalQty = 1;
-            getEl('prod-modal-qty').innerText = currentModalQty;
-            window.calculateModTotal();
-        };
-
+        
         window.openProductModal = function(itemId) {
             const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
             currentModifierProduct = item; 
@@ -1138,15 +1134,37 @@
             window.renderCatalog(); window.updateCartFooter();
         };
 
+        window.updateModalQty = function(delta) {
+            currentModalQty += delta;
+            if(currentModalQty < 1) currentModalQty = 1;
+            getEl('prod-modal-qty').value = currentModalQty;
+            window.calculateModTotal();
+        };
+
+        window.handleModalQtyInput = function(el) {
+            let val = parseInt(el.value);
+            if (isNaN(val) || val < 1) val = 1;
+            currentModalQty = val;
+            el.value = val;
+            window.calculateModTotal();
+        };
+
         window.calculateCartDetails = function() {
             let baseTotal = 0; let totalQty = 0;
             let itemsForPromo = [];
+            let hasComplexItems = false; // נוסף לבדיקת סל עם הצעת מחיר
             
             Object.values(cart).forEach(item => {
                 baseTotal += (item.qty * item.price);
                 totalQty += item.qty;
                 const catalogItem = storeData.catalog.find(c => String(c.id) === String(item.catalogId));
-                itemsForPromo.push({ ...item, category: catalogItem ? catalogItem.category : '' });
+                
+                // בדיקה האם מדובר במפרט/קייטרינג - אם כן, הוא לא זכאי להנחות!
+                if (catalogItem && catalogItem.product_type === 'complex_builder') {
+                    hasComplexItems = true;
+                } else {
+                    itemsForPromo.push({ ...item, category: catalogItem ? catalogItem.category : '' });
+                }
             });
 
             let finalTotal = baseTotal;
@@ -1154,7 +1172,7 @@
 
             if (storeData.promotions && storeData.promotions.length > 0) {
                 storeData.promotions.forEach(promo => {
-                    let relevantItems = itemsForPromo;
+                    let relevantItems = itemsForPromo; // רק מוצרים רגילים מקבלים מבצעים
                     if (promo.target_type === 'category') {
                         let cats = [];
                         if(Array.isArray(promo.target_ids)) cats = promo.target_ids;
@@ -1186,7 +1204,7 @@
 
             if (discountAmount > baseTotal) discountAmount = baseTotal;
             finalTotal = baseTotal - discountAmount;
-            return { baseTotal, finalTotal, discountAmount, totalQty };
+            return { baseTotal, finalTotal, discountAmount, totalQty, hasComplexItems };
         };
 
         window.updateCartFooter = function() {
@@ -1223,11 +1241,11 @@
             window.openCheckoutModal(); // חישוב מחדש של הסה"כ עם דמי משלוח
         };
 
-        window.openCheckoutModal = function() {
+window.openCheckoutModal = function() {
             const calc = window.calculateCartDetails();
             let itemsHtml = '';
             
-            // מילוי אוטומטי של שם המשתמש אם הוא הגיע מתוך אפליקציית המשפחות!
+            // מילוי אוטומטי של שם המשתמש
             try {
                 const session = JSON.parse(localStorage.getItem('ofl_session'));
                 if (session && session.user && session.user.nickname) {
@@ -1241,17 +1259,15 @@
                 itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="window.updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
             
-            // תוספת דמי משלוח
             let delFee = 0;
             const isDelivery = getEl('is-delivery').value === 'true';
-            if (isDelivery) {
-                // שולף מהגדרות החנות (או 30 ש"ח דיפולט אם לא הוגדר)
+            // אם מדובר בהצעת מחיר - לרוב לא נחייב דמי משלוח סטנדרטיים של פיצריה, אבל נשאיר תמיכה גמישה.
+            if (isDelivery && !calc.hasComplexItems) {
                 delFee = parseFloat(storeData.settings?.delivery_fee) || 30; 
                 itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">דמי משלוח</span></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
             }
             
             getEl('checkout-items').innerHTML = itemsHtml; 
-            
             const totalWithDelivery = calc.finalTotal + delFee;
 
             if (calc.discountAmount > 0) {
@@ -1263,14 +1279,39 @@
                 const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
             }
             
-            getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
+            // התאמת ממשק הקופה להצעת מחיר (קייטרינג/פרויקט)
+            const modalTitle = getEl('checkout-modal-title');
+            const btnSubmit = getEl('btn-submit-order');
+            
+            if (calc.hasComplexItems) {
+                if(modalTitle) modalTitle.innerText = 'בקשה להצעת מחיר / קייטרינג';
+                getEl('final-submit-price').innerText = ''; 
+                if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                
+                // הסתרת משלוח (העסק יתמחר זאת)
+                getEl('btn-delivery-false').parentElement.classList.add('hidden');
+                window.toggleDelivery(false);
+                
+                // כפיית בחירת תאריך מיומן
+                getEl('btn-time-asap').classList.add('hidden');
+                getEl('btn-time-future').classList.remove('flex-1');
+                getEl('btn-time-future').classList.add('w-full');
+                window.toggleTargetTime('future');
+            } else {
+                if(modalTitle) modalTitle.innerText = 'העגלה שלך';
+                getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
+                if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                
+                getEl('btn-delivery-false').parentElement.classList.remove('hidden');
+                getEl('btn-time-asap').classList.remove('hidden');
+                getEl('btn-time-future').classList.add('flex-1');
+                getEl('btn-time-future').classList.remove('w-full');
+            }
 
             const minOrder = parseFloat(storeData.settings?.min_order) || 0; 
-            const btnSubmit = getEl('btn-submit-order'); 
             const warning = getEl('checkout-min-warning');
             
-            // המינימום חל רק על מוצרים, ללא דמי המשלוח
-            if (minOrder > 0 && calc.finalTotal < minOrder) { 
+            if (minOrder > 0 && calc.finalTotal < minOrder && !calc.hasComplexItems) { 
                 getEl('min-order-val').innerText = minOrder; 
                 warning.classList.remove('hidden'); 
                 btnSubmit.disabled = true; 
@@ -1373,16 +1414,31 @@
                 const res = await fetch(`${API}/store/orders`, { 
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
-                        groupId: storeData.groupId, 
-                        customerName: val('cust-name'), 
-                        customerPhone: val('cust-phone'), 
-                        items: items, 
-                        totalAmount: finalTotalWithDelivery, 
-                        isDelivery: isDelivery, 
-                        deliveryFee: delFee, 
-                        deliveryDetails: deliveryData, 
-                        familyGroupId: familyId 
-                    }) 
+                        const timeType = getEl('target-time-type').value;
+            const targetTimeVal = getEl('target-time-input').value;
+            
+            if (calc.hasComplexItems && (timeType !== 'future' || !targetTimeVal)) {
+                btn.disabled = false; 
+                btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
+            }
+
+            let extraNotes = '';
+            if (calc.hasComplexItems) extraNotes = '[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.';
+
+            const payload = { 
+                groupId: storeData.groupId, 
+                customerName: val('cust-name'), 
+                customerPhone: val('cust-phone'), 
+                items: items, 
+                totalAmount: finalTotalWithDelivery, 
+                isDelivery: isDelivery, 
+                deliveryFee: delFee, 
+                deliveryDetails: deliveryData, 
+                familyGroupId: familyId,
+                notes: extraNotes,
+                orderType: calc.hasComplexItems ? 'quote' : 'order' // סימון לעסק שזו הצעת מחיר
+            };
                 });
                 
                 const data = await res.json();
@@ -1727,7 +1783,15 @@ window.openBookingModal = async function() {
         window.updateComplexQty = function(delta) {
             currentComplexQty += delta;
             if(currentComplexQty < 1) currentComplexQty = 1;
-            document.getElementById('cx-modal-qty').innerText = currentComplexQty;
+            document.getElementById('cx-modal-qty').value = currentComplexQty;
+            window.calculateComplexTotal();
+        };
+
+        window.handleComplexQtyInput = function(el) {
+            let val = parseInt(el.value);
+            if (isNaN(val) || val < 1) val = 1;
+            currentComplexQty = val;
+            el.value = val;
             window.calculateComplexTotal();
         };
 
