@@ -4559,11 +4559,10 @@ window.fetchStoreQuotes = async function() {
 };
 
 window.renderStoreQuotes = function() {
-    const list = getEl('store-quotes-list');
+    const list = document.getElementById('store-quotes-list');
     if(!list) return;
 
-    // הזרקת סרגל חיפוש וסינון אוטומטית לתוך הטאב
-    if (!getEl('quotes-search-bar')) {
+    if (!document.getElementById('quotes-search-bar')) {
         list.insertAdjacentHTML('beforebegin', `
             <div id="quotes-search-bar" class="flex flex-col sm:flex-row gap-2 mb-4">
                 <div class="relative flex-1">
@@ -4586,15 +4585,15 @@ window.renderStoreQuotes = function() {
         return;
     }
 
-    const searchQuery = (val('quote-search-input') || '').toLowerCase();
-    const statusFilter = val('quote-status-filter') || 'all';
+    const searchQuery = (document.getElementById('quote-search-input')?.value || '').toLowerCase();
+    const statusFilter = document.getElementById('quote-status-filter')?.value || 'all';
 
     let filteredQuotes = window.storeQuotesCache.filter(q => {
         const matchSearch = String(q.id).includes(searchQuery) || (q.customer_name && q.customer_name.toLowerCase().includes(searchQuery)) || (q.customer_phone && q.customer_phone.includes(searchQuery));
         
         let qStatusRaw = q.quote_status || q.status;
         if (qStatusRaw === 'new' || qStatusRaw === 'quote') qStatusRaw = 'draft';
-        if (qStatusRaw === 'waiting_customer') qStatusRaw = 'sent'; // תאימות לאחור
+        if (qStatusRaw === 'waiting_customer') qStatusRaw = 'sent'; 
         
         const matchStatus = statusFilter === 'all' || qStatusRaw === statusFilter;
         
@@ -4633,21 +4632,23 @@ window.renderStoreQuotes = function() {
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
             const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'}) : "תאריך לא ידוע";
             
-            let userNotes = '';
+            let internalNote = '';
             try {
-                const parsed = JSON.parse(q.notes);
-                if (parsed.notes) userNotes = parsed.notes; 
-            } catch(e) { userNotes = q.notes || ''; }
-
-            userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+                const parsedNotes = JSON.parse(q.notes);
+                internalNote = parsedNotes.internalNote || '';
+                // Fallback for older quotes before internalNote was added
+                if (!internalNote && parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
+                     internalNote = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+                }
+            } catch(e) {}
 
             let approveBtnHtml = '';
             if (isApproved) {
-                 approveBtnHtml = `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> עבר להזמנות</span>`;
+                 approveBtnHtml = `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1 mt-2 w-full justify-center bg-green-50 py-1.5 rounded-lg border border-green-100"><i class="fa-solid fa-check-circle"></i> עברה לתור הזמנות</span>`;
             } else if (isCustomerApproved) {
-                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center animate-pulse"><i class="fa-solid fa-check-double"></i> העבר להזמנות</button>`;
+                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center animate-pulse mt-2"><i class="fa-solid fa-check-double"></i> המרה לתור הזמנות</button>`;
             } else {
-                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check"></i> אישור כפוי (עוקף לקוח)</button>`;
+                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור כפוי (העברה להזמנות)</button>`;
             }
 
             html += `
@@ -4657,16 +4658,16 @@ window.renderStoreQuotes = function() {
                         <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
-                        ${userNotes ? `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(userNotes)}</div>` : ''}
+                        ${internalNote ? `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(internalNote)}</div>` : ''}
                     </div>
-                    <div class="flex flex-col items-end gap-2 shrink-0">
+                    <div class="flex flex-col items-end gap-1 shrink-0">
                         <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : (isCustomerApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600')} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
                             ${optionsHtml}
                         </select>
                         ${approveBtnHtml}
                     </div>
                 </div>
-                <div class="flex gap-2 border-t border-slate-100 pt-3">
+                <div class="flex gap-2 border-t border-slate-100 pt-3 mt-1">
                     <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
                     <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-[1.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> שליחה לאישור</button>
                     <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
@@ -4771,54 +4772,65 @@ window.editOrderTargetDate = async function(orderId, currentDate) {
 };
 
 window.submitTargetDatetime = async function() {
-    const targetDate = getEl('target-datetime-input').value;
+    const targetDate = document.getElementById('target-datetime-input').value;
     if (!targetDate && window.currentActionType === 'quote') {
-        if (!confirm('לא הוזן תאריך יעד לאירוע. האם להמשיך ללא שיבוץ ביומן?')) return;
+        if (!confirm('לא הוזן תאריך יעד לאירוע/לאספקה. האם להמשיך ללא שיבוץ ביומן?')) return;
     }
 
-    const btn = getEl('btn-submit-target-date');
+    const btn = document.getElementById('btn-submit-target-date');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאשר וממיר...';
     
     try {
         if (window.currentActionType === 'quote') {
             const q = window.storeQuotesCache.find(x => String(x.id) === String(window.currentActionTargetId));
-            let isEmbeddedOrder = false;
             
-            if (q) {
-                if (q.status === 'new' || q.status === 'quote' || q.orderType === 'quote' || q.order_type === 'quote' || (q.notes && q.notes.includes('[הצעת מחיר]'))) {
-                    isEmbeddedOrder = true;
-                }
-            }
-            
-            if (isEmbeddedOrder) {
-                await fetch(`${API}/store/orders/status`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
-                });
+            let approvalSuccess = false;
+            let errorMsg = '';
 
-                await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
-                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ quoteStatus: 'approved' })
-                }).catch(e=>{});
-                
-                if (targetDate) {
-                    await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
-                        method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ targetDatetime: targetDate })
-                    });
-                }
-            } else {
-                const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
+            // ניסיון 1: מול טבלת ההצעות
+            try {
+                const res1 = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ targetDatetime: targetDate })
                 });
-                const data = await res.json();
-                if(!data.success) {
-                    throw new Error(data.error || 'שגיאה באישור ההצעה');
-                }
+                const data1 = await res1.json();
+                if (data1.success) approvalSuccess = true;
+                else errorMsg = data1.error;
+            } catch(e) { errorMsg = 'שגיאת רשת בבקשת ההמרה הראשונה'; }
+
+            // ניסיון 2: המעקף החכם במידה וטבלת ההצעות מחזירה שגיאה
+            if (!approvalSuccess && (errorMsg.includes('לא קיימת') || errorMsg.includes('כבר הועברה'))) {
+                try {
+                    const res2 = await fetch(`${API}/store/orders/status`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
+                    });
+                    const data2 = await res2.json();
+                    
+                    if (data2.success) {
+                        approvalSuccess = true;
+                        
+                        if (targetDate) {
+                            await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
+                                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ targetDatetime: targetDate })
+                            });
+                        }
+                        
+                        await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
+                            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ quoteStatus: 'approved' })
+                        }).catch(e=>{});
+                    } else {
+                        errorMsg = data2.error || errorMsg;
+                    }
+                } catch(e) {}
             }
 
-            // התיקון הקריטי: יצירת אירוע ממשי במסד הנתונים של היומן!
+            if (!approvalSuccess) {
+                throw new Error(errorMsg || 'שגיאה באישור ההצעה והפיכתה להזמנה.');
+            }
+
             if (targetDate) {
                 const d = new Date(targetDate);
                 const payload = {
@@ -4834,11 +4846,11 @@ window.submitTargetDatetime = async function() {
                 await fetch(`${API}/calendar/events`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
-                }).catch(e => console.error("Calendar Sync Error", e));
+                }).catch(e => {});
             }
             
-            showToast('success', 'הצעת המחיר אושרה, הומרה להזמנה, והתאריך ננעל ביומן!');
-            getEl('target-datetime-modal').classList.add('hidden');
+            showToast('success', 'הצעת המחיר אושרה והועברה לתור ההזמנות בהצלחה!');
+            document.getElementById('target-datetime-modal').classList.add('hidden');
             
             if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
             if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
@@ -4852,7 +4864,7 @@ window.submitTargetDatetime = async function() {
             const data = await res.json();
             if(data.success) {
                 showToast('success', 'יעד האספקה / האירוע עודכן בהזמנה!');
-                getEl('target-datetime-modal').classList.add('hidden');
+                document.getElementById('target-datetime-modal').classList.add('hidden');
                 if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
             } else {
                 showToast('error', data.error || 'שגיאה בעדכון יעד');
@@ -4867,6 +4879,90 @@ window.submitTargetDatetime = async function() {
 
 let selectedQuoteItems = {};
 let editingQuoteId = null;
+
+window.openEditQuoteModal = function(quoteId) {
+    const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
+    if (!q) return;
+
+    window.editingQuoteId = quoteId;
+    window.selectedQuoteItems = {};
+
+    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
+
+    rawItems.forEach(i => {
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+
+        let isComplex = false;
+        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
+            try {
+                const p = JSON.parse(i.options_text);
+                if (p && p.isComplex) isComplex = true;
+            } catch(e) {}
+        }
+
+        let strId = String(i.catalogId || i.id || Date.now());
+        if (isComplex) {
+            strId = strId + '_' + Date.now() + Math.random().toString(36).substr(2, 5);
+        }
+
+        window.selectedQuoteItems[strId] = {
+            id: strId,
+            real_id: i.catalogId,
+            name: i.item_name || i.name,
+            image_url: i.image_url || '',
+            price_at_order: parseFloat(i.price_at_order || i.price || 0),
+            quantity: parseFloat(i.quantity) || 1,
+            note: i.note || '',
+            complex_data: i.options_text || null,
+            isComplex: isComplex
+        };
+    });
+
+    window.openNewQuoteModal(true);
+
+    setTimeout(() => {
+        document.getElementById('quote-cust-name').value = q.customer_name || '';
+        document.getElementById('quote-cust-phone').value = q.customer_phone || '';
+
+        let userNotes = '';
+        let introText = '';
+        let validity = '';
+        let companyId = '';
+        let myCompanyId = '';
+        let internalNote = '';
+
+        try {
+            const parsedNotes = JSON.parse(q.notes);
+            userNotes = parsedNotes.notes || '';
+            introText = parsedNotes.introText || '';
+            validity = parsedNotes.validity || '';
+            companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || '';
+            myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || '';
+            internalNote = parsedNotes.internalNote || '';
+        } catch(e) { userNotes = q.notes || ''; }
+
+        userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
+
+        document.getElementById('quote-notes').value = userNotes;
+        if(document.getElementById('quote-intro-text')) document.getElementById('quote-intro-text').value = introText;
+        if(document.getElementById('quote-validity')) document.getElementById('quote-validity').value = validity;
+        if(document.getElementById('quote-company-id')) document.getElementById('quote-company-id').value = companyId;
+        if(document.getElementById('quote-my-company-id')) document.getElementById('quote-my-company-id').value = myCompanyId;
+        if(document.getElementById('quote-internal-note')) document.getElementById('quote-internal-note').value = internalNote;
+
+        const metaItem = rawItems.find(i => i.is_quote_metadata);
+        if (metaItem) {
+            try {
+                const meta = JSON.parse(metaItem.data);
+                if(meta.discount) document.getElementById('quote-discount').value = meta.discount;
+                if(meta.internalNote && !internalNote) document.getElementById('quote-internal-note').value = meta.internalNote;
+            } catch(e) {}
+        }
+
+        window.calcQuoteTotal();
+        window.renderQuoteSelectedItems();
+    }, 100);
+};
 
 window.getQuotePresets = function(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
@@ -5091,11 +5187,15 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                     
                     <div class="mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3 shrink-0">
                         <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הערה פנימית (תוצג רק לך בתור הזמנות, לא ב-PDF):</label>
+                            <textarea id="quote-internal-note" class="modern-input py-1.5 text-xs h-10 bg-white border-slate-200" placeholder="למשל: הובטח ללקוח צ'ופר אם יסגור השבוע..."></textarea>
+                        </div>
+                        <div>
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (יופיע בראש המסמך):</label>
                             <textarea id="quote-intro-text" class="modern-input py-1.5 text-xs h-12 bg-white border-slate-200"></textarea>
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותנאים (יופיעו בתחתית המסמך):</label>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותנאים משפטיים (יופיעו בתחתית ה-PDF):</label>
                             <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
                         </div>
                     </div>
@@ -5140,14 +5240,11 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
              <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
              <h3 class="text-xl font-black text-slate-800 mb-1 shrink-0"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i> עריכת בחירות למפרט</h3>
              <p class="text-xs text-slate-500 mb-4 pb-3 border-b border-slate-100 shrink-0">סמנו את הפריטים שנבחרו, שנו כמויות והוסיפו הערות אישיות (מידת עשייה וכדומה).</p>
-             
              <div class="relative mb-4 shrink-0">
                  <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                  <input type="text" id="complex-search-item" oninput="window.renderComplexEditorList()" placeholder="חיפוש בתוך התפריט..." class="modern-input py-2.5 pr-10 pl-4 text-sm w-full bg-slate-50 border-slate-200 focus:bg-white font-bold transition">
              </div>
-             
              <div id="complex-items-selector" class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-4"></div>
-             
              <div class="pt-4 border-t border-slate-100 shrink-0 bg-white flex gap-3">
                  <button onclick="document.getElementById('quote-complex-modal').classList.add('hidden')" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                  <button onclick="window.saveComplexEditor()" class="flex-[1.2] bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2">שמור בחירות בתפריט <i class="fa-solid fa-check"></i></button>
@@ -5168,6 +5265,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         document.getElementById('quote-cust-name').value = '';
         document.getElementById('quote-cust-phone').value = '';
         document.getElementById('quote-notes').value = '';
+        document.getElementById('quote-internal-note').value = '';
         document.getElementById('quote-intro-text').value = '';
         document.getElementById('quote-discount').value = '';
         document.getElementById('quote-company-id').value = localStorage.getItem('ofl_company_id') || '';
@@ -5398,6 +5496,7 @@ window.submitNewQuote = async function() {
     const discount = document.getElementById('quote-discount').value;
     const validity = document.getElementById('quote-validity').value;
     const introText = document.getElementById('quote-intro-text') ? document.getElementById('quote-intro-text').value : '';
+    const internalNote = document.getElementById('quote-internal-note') ? document.getElementById('quote-internal-note').value : '';
     const notes = document.getElementById('quote-notes').value;
     
     if (!custName) return showToast('error', 'שם לקוח / עסק הוא שדה חובה');
@@ -5453,6 +5552,7 @@ window.submitNewQuote = async function() {
         validity: validity,
         discount: discountVal,
         introText: introText,
+        internalNote: internalNote,
         notes: notes
     };
     
@@ -5560,10 +5660,36 @@ window.openQuotePreview = function(quoteId) {
     const dateObj = new Date(q.created_at || Date.now());
     const dateStr = dateObj.toLocaleDateString('he-IL');
     
-    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : '';
-    const logoHtml = (logoBase64 && logoBase64 !== 'DELETE') ? `<img src="${logoBase64}" style="max-height:80px; max-width:200px; border-radius:12px;">` : `<h2 style="margin:0; color:#4f46e5; font-size:24px;">${safeStr(currentGroup.name)}</h2>`;
+    let logoBase64 = '';
+    const logoInput = document.getElementById('store-logo-base64');
+    const dashLogo = document.getElementById('dash-logo-preview');
+    if (logoInput && logoInput.value && logoInput.value !== 'DELETE') {
+        logoBase64 = logoInput.value;
+    } else if (dashLogo && dashLogo.src && dashLogo.src.includes('data:image')) {
+        logoBase64 = dashLogo.src;
+    }
+    
+    const logoHtml = logoBase64 ? `<img src="${logoBase64}" style="max-height:80px; max-width:200px; border-radius:12px;">` : `<h2 style="margin:0; color:#4f46e5; font-size:24px;">${safeStr(currentGroup.name)}</h2>`;
     const slogan = document.getElementById('store-slogan') ? document.getElementById('store-slogan').value : '';
     const phone = document.getElementById('store-phone') ? document.getElementById('store-phone').value : '';
+    
+    const vatSettings = window.getVatSettings();
+    let vatHtml = '';
+    let totalAmount = parseFloat(q.total_amount || 0);
+
+    if (vatSettings && vatSettings.enabled) {
+        const vatRate = vatSettings.rate || 18;
+        const totalBeforeVat = totalAmount / (1 + (vatRate / 100));
+        const vatAmountCalc = totalAmount - totalBeforeVat;
+        vatHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:15px; color:#475569;" dir="rtl">
+                <span>סה"כ לפני מע"מ:</span><span dir="ltr">₪${totalBeforeVat.toFixed(2)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:5px; color:#475569;" dir="rtl">
+                <span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmountCalc.toFixed(2)}</span>
+            </div>
+        `;
+    }
     
     const receiptHtml = `
         <html dir="rtl">
@@ -5588,7 +5714,7 @@ window.openQuotePreview = function(quoteId) {
                 <div>
                     <div style="font-size:12px; color:#64748b; margin-bottom:4px;">לכבוד:</div>
                     <div style="font-size:18px; font-weight:bold; color:#1e293b;">${safeStr(q.customer_name)}</div>
-                    ${companyId ? `<div style="font-size:12px; color:#475569; margin-top:2px;"><b>ח.פ/ע.מ:</b> ${safeStr(companyId)}</div>` : ''}
+                    ${companyId ? `<div style="font-size:12px; color:#475569; margin-top:2px;"><b>ח.פ/ע.מ לקוח:</b> ${safeStr(companyId)}</div>` : ''}
                 </div>
                 <div style="text-align:left;">
                     <div style="font-size:12px; color:#64748b; margin-bottom:4px;">טלפון לקוח:</div>
@@ -5604,8 +5730,10 @@ window.openQuotePreview = function(quoteId) {
                 ${itemsHtml}
             </div>
             
-            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:20px;">
-                <span>סה"כ לתשלום משוער:</span><span dir="ltr" style="color:#4f46e5;">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
+            ${vatHtml}
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:10px;">
+                <span>סה"כ לתשלום:</span><span dir="ltr" style="color:#4f46e5;">₪${totalAmount.toFixed(2)}</span>
             </div>
             
             ${userNotes ? `<div style="margin-top:40px; font-size:13px; line-height:1.6; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
@@ -5634,7 +5762,6 @@ window.openQuotePreview = function(quoteId) {
         showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
     }, 500);
 };
-
 window.openStoreOrderModal = function(orderId) {
     window.currentStoreOrderId = orderId; 
     const order = window.storeOrdersCache.find(o => o.id === orderId); 
