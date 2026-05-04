@@ -4754,7 +4754,11 @@ window.sendQuoteToCustomer = function(id) {
         return showToast('error', 'לא מוגדר מספר טלפון ללקוח בהצעת מחיר זו.');
     }
 
-    const publicUrl = `${window.location.origin}/quote.html?id=${q.id}&store=${currentGroup.group_code}`;
+    // מפנים לכתובת החנות הציבורית (ללא quote.html השבור)
+    const storeAlias = document.getElementById('store-alias-input') ? document.getElementById('store-alias-input').value : '';
+    const displayId = storeAlias || currentGroup.group_code;
+    const publicUrl = `${window.location.origin}/${displayId}`;
+    
     const cleanPhone = q.customer_phone.replace(/\D/g, '');
     let waPhone = cleanPhone;
     if (cleanPhone.startsWith('0')) {
@@ -4764,14 +4768,11 @@ window.sendQuoteToCustomer = function(id) {
     const amount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
     
     let text = `שלום ${safeStr(q.customer_name)}, בהמשך לפנייתך,\n`;
-    text += `מצורפת הצעת מחיר מעודכנת (מס' ${q.id}) על סך ₪${amount}.\n\n`;
-    text += `לאישור ההצעה וצפייה בפרטים מלאים לחץ כאן:\n${publicUrl}\n\n`;
-    text += `בברכה,\n${currentGroup.name}`;
+    text += `הכנו עבורך הצעת מחיר (מס' ${q.id}) על סך ₪${amount}.\n\n`;
+    text += `ההצעה המלאה תימסר לך כמסמך PDF. במקביל, ניתן להתרשם ממוצרי החנות שלנו בקישור הבא:\n${publicUrl}\n\n`;
+    text += `נשמח לעמוד לרשותך לכל שאלה,\n${currentGroup.name}`;
 
-    // עדכון הסטטוס ל"נשלח"
     window.updateQuoteStatus(q.id, 'sent');
-    
-    // פתיחת וואטסאפ
     window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
 };
 
@@ -4816,53 +4817,18 @@ window.submitTargetDatetime = async function() {
         if (window.currentActionType === 'quote') {
             const q = window.storeQuotesCache.find(x => String(x.id) === String(window.currentActionTargetId));
             
-            let approvalSuccess = false;
-            let errorMsg = '';
-
-            // ניסיון 1: מול טבלת ההצעות
-            try {
-                const res1 = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ targetDatetime: targetDate })
-                });
-                const data1 = await res1.json();
-                if (data1.success) approvalSuccess = true;
-                else errorMsg = data1.error;
-            } catch(e) { errorMsg = 'שגיאת רשת בבקשת ההמרה הראשונה'; }
-
-            // ניסיון 2: המעקף החכם במידה וטבלת ההצעות מחזירה שגיאה
-            if (!approvalSuccess && (errorMsg.includes('לא קיימת') || errorMsg.includes('כבר הועברה'))) {
-                try {
-                    const res2 = await fetch(`${API}/store/orders/status`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
-                    });
-                    const data2 = await res2.json();
-                    
-                    if (data2.success) {
-                        approvalSuccess = true;
-                        
-                        if (targetDate) {
-                            await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
-                                method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({ targetDatetime: targetDate })
-                            });
-                        }
-                        
-                        await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
-                            method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ quoteStatus: 'approved' })
-                        }).catch(e=>{});
-                    } else {
-                        errorMsg = data2.error || errorMsg;
-                    }
-                } catch(e) {}
+            // המרה חלקה: שולחים אך ורק בקשת שינוי סטטוס, והשרת מטפל בזה
+            const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
+                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ quoteStatus: 'approved' })
+            });
+            
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.error || 'שגיאה באישור ההצעה והפיכתה להזמנה.');
             }
 
-            if (!approvalSuccess) {
-                throw new Error(errorMsg || 'שגיאה באישור ההצעה והפיכתה להזמנה.');
-            }
-
+            // יצירת אירוע ביומן במידה ונבחר תאריך
             if (targetDate) {
                 const d = new Date(targetDate);
                 const payload = {
@@ -5487,11 +5453,11 @@ window.renderQuoteSelectedItems = function() {
                 <div class="flex items-center gap-2 mt-1">
                     <div class="relative w-24">
                         <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-emerald-50 px-1 font-bold">מחיר בסיס</span>
-                        <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-emerald-200">
+                        <input type="number" min="0" step="0.01" value="${item.price_at_order}" onchange="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-emerald-200">
                     </div>
                     <div class="relative w-20">
                         <span class="text-[9px] text-emerald-600 absolute -top-1.5 right-2 bg-emerald-100 px-1 font-bold rounded">כמות</span>
-                        <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-emerald-100 border-emerald-300 text-emerald-800 font-black shadow-inner">
+                        <input type="number" min="1" value="${item.quantity}" onchange="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-emerald-100 border-emerald-300 text-emerald-800 font-black shadow-inner">
                     </div>
                 </div>
             </div>`;
@@ -5508,11 +5474,11 @@ window.renderQuoteSelectedItems = function() {
                     <div class="flex items-center gap-2 shrink-0 pl-1">
                         <div class="relative w-16">
                             <span class="text-[8px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">מחיר ₪</span>
-                            <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteChildPrice('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
+                            <input type="number" min="0" step="0.01" value="${item.price_at_order}" onchange="window.updateQuoteChildPrice('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
                         </div>
                         <div class="relative w-12">
                             <span class="text-[8px] text-slate-400 absolute -top-1.5 right-1 bg-white px-1 font-bold">כמות</span>
-                            <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteChildQty('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
+                            <input type="number" min="1" value="${item.quantity}" onchange="window.updateQuoteChildQty('${item.parentId}', ${item.stepIdx}, ${item.optIdx}, this.value)" class="modern-input py-1 px-1 text-[10px] text-center w-full bg-white text-slate-600 font-bold border-slate-200 shadow-sm">
                         </div>
                         <div class="text-[10px] font-black text-slate-800 dir-ltr min-w-[40px] text-left mt-2">₪${rowTotal.toFixed(2)}</div>
                     </div>
@@ -5531,11 +5497,11 @@ window.renderQuoteSelectedItems = function() {
                         <div class="flex items-center gap-2 mt-2">
                             <div class="relative w-20">
                                 <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">מחיר</span>
-                                <input type="number" min="0" step="0.01" value="${item.price_at_order}" oninput="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-slate-200">
+                                <input type="number" min="0" step="0.01" value="${item.price_at_order}" onchange="window.updateQuoteItemPrice('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-white text-slate-700 font-bold border-slate-200">
                             </div>
                             <div class="relative w-16">
                                 <span class="text-[9px] text-slate-400 absolute -top-1.5 right-2 bg-indigo-50 px-1 font-bold rounded">כמות</span>
-                                <input type="number" min="1" value="${item.quantity}" oninput="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-indigo-50 border-indigo-200 text-indigo-800 font-black shadow-inner">
+                                <input type="number" min="1" value="${item.quantity}" onchange="window.updateQuoteItemQty('${item.id}', this.value)" class="modern-input py-1 px-1 text-xs text-center w-full bg-indigo-50 border-indigo-200 text-indigo-800 font-black shadow-inner">
                             </div>
                             <div class="text-[11px] font-black text-indigo-600 bg-white px-2 py-1.5 rounded-lg border border-indigo-100 shadow-sm dir-ltr shrink-0 min-w-[45px] text-left">₪${rowTotal.toFixed(2)}</div>
                         </div>
@@ -5672,8 +5638,8 @@ window.openQuotePreview = function(quoteId) {
         }
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
         
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px; text-align:right;">הערת שורה: ${safeStr(i.note)}</div>`;
+        itemsHtml += `<div class="avoid-break" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div class="avoid-break" style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px; text-align:right;">הערת שורה: ${safeStr(i.note)}</div>`;
         
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
             try {
@@ -5692,13 +5658,13 @@ window.openQuotePreview = function(quoteId) {
                             });
                         }
                         if (stepItemsHtml) {
-                            itemsHtml += `<div style="margin-top:6px; padding-right:10px; border-right:2px solid #cbd5e1;"><div style="font-size:11px; font-weight:bold; color:#94a3b8; margin-bottom:4px; padding-right:5px; text-align:right;">${safeStr(step.name)}</div>${stepItemsHtml}</div>`;
+                            itemsHtml += `<div class="avoid-break" style="margin-top:6px; padding-right:10px; border-right:2px solid #cbd5e1;"><div style="font-size:11px; font-weight:bold; color:#94a3b8; margin-bottom:4px; padding-right:5px; text-align:right;">${safeStr(step.name)}</div>${stepItemsHtml}</div>`;
                         }
                     });
                 } else if (Array.isArray(parsed)) {
                     parsed.forEach(opt => {
                         if (opt.name) {
-                             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:13px; color:#334155;"><span style="text-align:right;">- ${safeStr(opt.name)}</span></div>`;
+                             itemsHtml += `<div class="avoid-break" style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:13px; color:#334155;"><span style="text-align:right;">- ${safeStr(opt.name)}</span></div>`;
                         }
                     });
                 }
@@ -5765,6 +5731,8 @@ window.openQuotePreview = function(quoteId) {
             @page { size: A4 portrait; margin: 0mm; }
             body { font-family:sans-serif; margin: 0; padding: 15mm 20mm 35mm 20mm; font-size:14px; max-width: 800px; margin-left: auto; margin-right: auto; background:#fff; color:#0f172a; text-align:right; position: relative; min-height: 100vh; box-sizing: border-box; }
             .print-footer { position: fixed; bottom: 10mm; left: 0; right: 0; text-align: center; font-size: 13px; color: #64748b; font-weight: bold; }
+            .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+            @media print { .avoid-break { page-break-inside: avoid; break-inside: avoid; } }
         </style>
         </head>
         <body>
@@ -5781,7 +5749,7 @@ window.openQuotePreview = function(quoteId) {
                 </div>
             </div>
 
-            <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; direction:rtl;">
+            <div class="avoid-break" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; direction:rtl;">
                 <div style="text-align:right;">
                     <div style="font-size:12px; color:#64748b; margin-bottom:4px;">לכבוד:</div>
                     <div style="font-size:18px; font-weight:bold; color:#1e293b;">${safeStr(q.customer_name)}</div>
@@ -5798,16 +5766,17 @@ window.openQuotePreview = function(quoteId) {
             
             <div style="padding:10px 0; margin-bottom:20px; text-align:right;">${itemsHtml}</div>
             
-            ${discountHtml}
-            ${vatHtml}
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:10px; direction:rtl;">
-                <span>סה"כ לתשלום:</span><span dir="ltr" style="color:#4f46e5;">₪${totalAmount.toFixed(2)}</span>
+            <div class="avoid-break">
+                ${discountHtml}
+                ${vatHtml}
+                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:10px; direction:rtl;">
+                    <span>סה"כ לתשלום:</span><span dir="ltr" style="color:#4f46e5;">₪${totalAmount.toFixed(2)}</span>
+                </div>
             </div>
             
-            ${userNotes ? `<div style="margin-top:40px; font-size:13px; line-height:1.6; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:right;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
+            ${userNotes ? `<div class="avoid-break" style="margin-top:40px; font-size:13px; line-height:1.6; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:right;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
             
-            <div style="text-align:center; margin-top:50px; font-size:14px; font-weight:bold; color:#64748b; border-top:1px solid #e2e8f0; padding-top:20px;">
+            <div class="avoid-break" style="text-align:center; margin-top:50px; font-size:14px; font-weight:bold; color:#64748b; border-top:1px solid #e2e8f0; padding-top:20px;">
                 נשמח לעמוד לשירותכם!<br>${safeStr(currentGroup.name)}
             </div>
             <div class="print-footer">Oneflowlife.co.il כל מה שאתם צריכים במערכת אחת</div>
@@ -5829,7 +5798,7 @@ window.openQuotePreview = function(quoteId) {
     setTimeout(() => {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
-        showToast('info', 'המסמך נפתח לשמירה/הדפסה כ-PDF!');
+        showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
     }, 500);
 };
 
