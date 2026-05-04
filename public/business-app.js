@@ -5020,6 +5020,25 @@ window.calcQuoteTotal = function() {
     }
 };
 
+window.toggleQuoteExpandedView = function() {
+    const catCol = document.getElementById('quote-catalog-col');
+    const itemsCol = document.getElementById('quote-items-col');
+    const btn = document.getElementById('btn-quote-expand');
+    if (!catCol || !itemsCol || !btn) return;
+
+    if (catCol.classList.contains('hidden')) {
+        catCol.classList.remove('hidden');
+        itemsCol.classList.remove('lg:w-full');
+        itemsCol.classList.add('lg:w-1/2');
+        btn.innerHTML = '<i class="fa-solid fa-expand"></i> תצוגה מורחבת';
+    } else {
+        catCol.classList.add('hidden');
+        itemsCol.classList.remove('lg:w-1/2');
+        itemsCol.classList.add('lg:w-full');
+        btn.innerHTML = '<i class="fa-solid fa-compress"></i> הצג קטלוג';
+    }
+};
+
 window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
@@ -5038,36 +5057,47 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> ${window.editingQuoteId ? 'עריכת הצעת מחיר' : 'יצירת הצעת מחיר'}</h3>
             
-            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6">
-                <div class="w-full lg:w-1/2 flex flex-col">
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6 transition-all">
+                <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300">
                     <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div class="col-span-2">
+                        <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/עסק:</label>
                             <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white font-bold text-slate-800">
                         </div>
-                        <div>
+                        <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label>
                             <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left">
                         </div>
-                        <div>
+                        <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (ימים):</label>
                             <input type="text" id="quote-validity" class="modern-input py-2 text-sm text-center bg-white" value="14 יום">
                         </div>
-                        <div class="col-span-2">
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                            </div>
-                            <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
+                        <div class="col-span-2 sm:col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ מלקוח:</label>
+                            <input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-center bg-white dir-ltr">
                         </div>
-                        <input type="hidden" id="quote-intro-text">
-                        <input type="hidden" id="quote-company-id">
                     </div>
                     
-                    <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו להצעה:</h4>
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
+                        <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו:</h4>
+                        <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> תצוגה מורחבת</button>
+                    </div>
+                    
                     <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[150px]"></div>
+                    
+                    <div class="mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (יופיע בראש המסמך):</label>
+                            <textarea id="quote-intro-text" class="modern-input py-1.5 text-xs h-12 bg-white border-slate-200"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותנאים (יופיעו בתחתית המסמך):</label>
+                            <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col">
+                <div id="quote-catalog-col" class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col transition-all duration-300">
                     <h4 class="font-bold text-slate-700 text-sm mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-1"></i> קטלוג מוצרים להוספה:</h4>
                     <div class="flex gap-2 mb-4">
                         <input type="text" id="quote-search-item" oninput="window.renderQuoteCatalogGrid()" placeholder="חיפוש מוצר חופשי..." class="modern-input py-2 px-3 text-sm w-full bg-white font-bold shadow-sm">
@@ -5134,7 +5164,9 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
         document.getElementById('quote-cust-name').value = '';
         document.getElementById('quote-cust-phone').value = '';
         document.getElementById('quote-notes').value = '';
+        document.getElementById('quote-intro-text').value = '';
         document.getElementById('quote-discount').value = '';
+        document.getElementById('quote-company-id').value = localStorage.getItem('ofl_company_id') || '';
         document.getElementById('quote-total-display').innerText = '₪0.00';
         if(document.getElementById('quote-search-item')) document.getElementById('quote-search-item').value = '';
         if(document.getElementById('quote-cat-filter')) document.getElementById('quote-cat-filter').value = 'all';
