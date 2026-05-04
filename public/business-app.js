@@ -8602,7 +8602,6 @@ function getOrderHtmlTemplate(orderInfo) {
         else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
     } catch(e) { itemsArr = []; }
 
-    // מחליף רווחים רגילים ב-&nbsp; כדי למנוע אכילת רווחים ב-Canvas של html2canvas עבור טקסט RTL עברי
     const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
 
     let itemsHtml = '';
@@ -8629,76 +8628,7 @@ function getOrderHtmlTemplate(orderInfo) {
     const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('טלפון:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
     const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('דוא"ל:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierEmail)}</span></div>` : '';
 
-    return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 16px 20px; text-align: right;" dir="rtl">
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 12px; padding-bottom: 10px;" dir="rtl">
-                <tr>
-                    <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
-                        <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #334155;">הזמנת&nbsp;רכש&#x200F; <span dir="ltr" style="font-size: 15px; color:#64748b;">(Purchase Order)</span></h1>
-                        <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            ${fixLabel('מספר\u00A0הזמנה:')} <b dir="ltr" style="color: #4f46e5; display: inline-block;">#${orderInfo.orderId || 'חדש'}</b>
-                        </div>
-                    </td>
-                    <td style="vertical-align: middle; text-align: left; width: 40%;" dir="ltr">
-                        <table cellpadding="0" cellspacing="0" dir="ltr" style="display: inline-table; text-align: left;">
-                            <tr>
-                                <td style="vertical-align: middle;">
-                                    <span style="font-size: 20px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif;">
-                                        ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
-                                    </span>
-                                </td>
-                                <td style="vertical-align: middle; padding-left: 10px;">
-                                    <img src="/logo.png" style="height: 36px; display: block;" onerror="this.style.display='none'">
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;" dir="rtl">
-                <tr>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #4f46e5; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('שם\u00A0העסק:')} <span style="display: inline-block;">${nb(safeStr(currentGroup.name))}</span></div>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('איש\u00A0קשר:')} <span style="display: inline-block;">${nb(safeStr(currentUser.nickname))}</span></div>
-                        ${branchHtml}
-                        ${customerNumHtml}
-                        <div style="margin-top: 8px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl">${fixLabel('הופק\u00A0ב:')} <span dir="ltr" style="display: inline-block;">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
-                    </td>
-                    <td style="width: 4%;"></td>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הספק:&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('לכבוד:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.supplierName))}</span></div>
-                        ${phoneHtml}
-                        ${emailHtml}
-                    </td>
-                </tr>
-            </table>
-
-            <div style="margin-bottom: 10px; font-size: 13px; line-height: 1.5; color: #334155; text-align: right;" dir="rtl">
-                <b>שלום&nbsp;רב,&#x200F;</b>&nbsp;
-                מצ"ב&nbsp;פירוט&nbsp;הזמנת&nbsp;רכש&nbsp;מאושרת&nbsp;ממערכת&nbsp;ההזמנות&nbsp;שלנו.
-                נא&nbsp;לספק&nbsp;את&nbsp;הסחורה&nbsp;המפורטת&nbsp;מטה&nbsp;בהקדם&nbsp;האפשרי&nbsp;ולפי&nbsp;תנאי&nbsp;הסחר&nbsp;והמחירון&nbsp;שסוכמו.&#x200F;
-            </div>
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 12px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
-                <thead>
-                    <tr style="background-color: #4f46e5; color: white;">
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 12%;">מק"ט</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 15%;">כמות</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 15%;">מחיר&nbsp;יח'</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 16%;">סה"כ&nbsp;שורה</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-
-            const totalCalcAmount = orderInfo.totalAmount || orderInfo.total || 0;
+    const totalCalcAmount = orderInfo.totalAmount || orderInfo.total || 0;
     const vatSettings = window.getVatSettings();
     let finalVatHtml = '';
     
@@ -8787,7 +8717,6 @@ function getOrderHtmlTemplate(orderInfo) {
                 <div style="color: #64748b; font-size: 11px; margin-top: 5px;">*&nbsp;ייתכנו&nbsp;שינויים&nbsp;במחיר&nbsp;הסופי&nbsp;בהתאם&nbsp;לשקילה&nbsp;ולמחירון&nbsp;העדכני&nbsp;בעת&nbsp;האספקה.&#x200F;</div>
             </div>
         </div>
-    `;
     `;
 }
 
