@@ -635,13 +635,18 @@ app.get('/api/banners', async (req, res) => {
         const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
         result.rows.forEach(r => { let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_'); banners[k] = r.value; });
+        
+        // כאן אנחנו מחזירים את התמונות בדיוק כפי שהן ללא שינוי, כדי לתמוך ב-Base64
         res.json({ success: true, banners: { 
-            banner_top_text: banners['banner_text_top'] || '', banner_top_link: banners['banner_link_top'] || '', banner_top_img: banners['banner_img_top'] || '', 
-            banner_bottom_text: banners['banner_text_bottom'] || '', banner_bottom_link: banners['banner_link_bottom'] || '', banner_bottom_img: banners['banner_img_bottom'] || ''
+            banner_top_text: banners['banner_text_top'] || '', 
+            banner_top_link: banners['banner_link_top'] || '', 
+            banner_top_img: banners['banner_img_top'] || '', 
+            banner_bottom_text: banners['banner_text_bottom'] || '', 
+            banner_bottom_link: banners['banner_link_bottom'] || '', 
+            banner_bottom_img: banners['banner_img_bottom'] || ''
         } });
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
 });
-
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg } = req.body;
     const items = [ 
