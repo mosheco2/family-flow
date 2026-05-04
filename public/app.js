@@ -132,15 +132,23 @@ function applyBannersToDOM(banners) {
     
     const renderBanner = (el, text, link, img, isTop = false) => {
         if(!el) return;
+        
+        const formatImgSrc = (imgStr) => {
+            if(!imgStr) return '';
+            if(imgStr.startsWith('data:image') || imgStr.startsWith('http')) return imgStr;
+            return '/' + imgStr;
+        };
+
         if(text || img) { 
             let html = ''; 
             if(img) { 
-                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                html += `<img src="${imgSrc}" alt="Ad" class="w-full h-full object-cover block">`; 
+                const imgSrc = formatImgSrc(img); 
+                // Changed from object-cover to object-contain, adjusted sizes
+                html += `<img src="${imgSrc}" alt="Ad" class="absolute inset-0 w-full h-full object-contain opacity-100 z-0 block">`; 
             }
             if(text) {
-                const padding = img ? 'p-1' : 'p-3';
-                html += `<span class="${padding} block w-full text-center">${text}</span>`; 
+                const bgStyle = img ? 'bg-slate-900/60 backdrop-blur-sm px-4 py-1.5 rounded-full text-white' : 'p-3 block w-full text-center text-slate-800';
+                html += `<div class="relative z-10 ${bgStyle}">${text}</div>`; 
             }
             el.innerHTML = html; 
             el.href = link || '#'; 
@@ -155,7 +163,6 @@ function applyBannersToDOM(banners) {
     renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img, true); 
     renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
 }
-
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
