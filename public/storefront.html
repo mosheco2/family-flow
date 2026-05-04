@@ -1307,7 +1307,6 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             
             if (calc.hasComplexItems) {
                 if(modalTitle) modalTitle.innerText = 'בקשה להצעת מחיר / אירוע';
-                getEl('final-submit-price').innerText = ''; 
                 if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
                 
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
@@ -1320,8 +1319,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 if(!skipToggle) window.toggleTargetTime('future');
             } else {
                 if(modalTitle) modalTitle.innerText = 'העגלה שלך';
-                getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
-                if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
                 
                 getEl('btn-delivery-false').parentElement.classList.remove('hidden');
                 getEl('btn-time-asap').classList.remove('hidden');
