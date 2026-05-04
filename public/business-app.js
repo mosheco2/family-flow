@@ -5039,6 +5039,25 @@ window.toggleQuoteExpandedView = function() {
     }
 };
 
+window.toggleQuoteExpandedView = function() {
+    const catCol = document.getElementById('quote-catalog-col');
+    const itemsCol = document.getElementById('quote-items-col');
+    const btn = document.getElementById('btn-quote-expand');
+    if (!catCol || !itemsCol || !btn) return;
+
+    if (catCol.classList.contains('hidden')) {
+        catCol.classList.remove('hidden');
+        itemsCol.classList.remove('lg:w-full');
+        itemsCol.classList.add('lg:w-1/2');
+        btn.innerHTML = '<i class="fa-solid fa-expand"></i> תצוגה מורחבת';
+    } else {
+        catCol.classList.add('hidden');
+        itemsCol.classList.remove('lg:w-1/2');
+        itemsCol.classList.add('lg:w-full');
+        btn.innerHTML = '<i class="fa-solid fa-compress"></i> הצג קטלוג';
+    }
+};
+
 window.openNewQuoteModal = async function(skipDataReset = false) {
     if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
     
@@ -5058,8 +5077,8 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> ${window.editingQuoteId ? 'עריכת הצעת מחיר' : 'יצירת הצעת מחיר'}</h3>
             
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6 transition-all">
-                <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300">
-                    <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300 min-h-[400px]">
+                    <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
                         <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/עסק:</label>
                             <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white font-bold text-slate-800">
@@ -5078,14 +5097,14 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                         </div>
                     </div>
                     
-                    <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2 shrink-0">
                         <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו:</h4>
                         <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> תצוגה מורחבת</button>
                     </div>
                     
-                    <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[150px]"></div>
+                    <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[250px]"></div>
                     
-                    <div class="mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+                    <div class="mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3 shrink-0">
                         <div>
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (יופיע בראש המסמך):</label>
                             <textarea id="quote-intro-text" class="modern-input py-1.5 text-xs h-12 bg-white border-slate-200"></textarea>
