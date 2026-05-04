@@ -5358,6 +5358,16 @@ window.removeQuoteChildItem = function(parentId, stepIdx, optIdx) {
 };
 
 window.openEditQuoteModal = async function(id) {
+    // שלב קריטי וחדש: נוודא שיש לנו את הקטלוג המלא מהשרת לפני הכל, נחכה לטעינה!
+    if(!window.storeCatalogCache || window.storeCatalogCache.length === 0) {
+        try { 
+            const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); 
+            window.storeCatalogCache = await res.json(); 
+        } catch(e) {
+            console.error('Failed to pre-fetch catalog for editing quote', e);
+        }
+    }
+
     const quote = window.storeQuotesCache.find(q => String(q.id) === String(id));
     if(!quote) return;
     window.editingQuoteId = id;
@@ -5390,7 +5400,7 @@ window.openEditQuoteModal = async function(id) {
         let isComplex = false;
         let complexDataToSave = null;
         
-        // תיקון: מנגנון הגיבוי שבודק בקטלוג אם המוצר הוא בעצם מוצר מורכב גם אם נשמר ללא הפלאג JSON
+        // עכשיו הקטלוג בוודאות קיים ואפשר לסרוק אותו כדי להחזיר את הכפתור הירוק
         if (window.storeCatalogCache && Array.isArray(window.storeCatalogCache)) {
             const catItem = window.storeCatalogCache.find(c => String(c.id) === String(item.real_id || item.catalog_id || item.catalogId || item.id));
             if (catItem && (catItem.product_type === 'complex_builder' || catItem.product_type === 'catering' || catItem.product_type === 'project' || (catItem.options_text && catItem.options_text.includes('isComplex')))) {
@@ -5402,7 +5412,6 @@ window.openEditQuoteModal = async function(id) {
         if (item.options_text && item.options_text !== 'undefined' && item.options_text !== 'null') {
             try {
                 const parsed = JSON.parse(item.options_text);
-                // בדיקה עמידה יותר - או שיש את הפלאג, או שיש לו מערך Steps
                 if (parsed.isComplex || Array.isArray(parsed.steps)) {
                     isComplex = true;
                     complexDataToSave = item.options_text; 
@@ -5671,6 +5680,64 @@ window.saveComplexEditor = function() {
      window.renderQuoteSelectedItems(); 
      window.calcQuoteTotal();
      showToast('success', 'התפריט עודכן! לחצו על "שמור הצעה" לסיום.');
+};
+
+// פונקציית העזר החדשה - מאפשרת חיפוש עמוק בתוך הקטלוג עבור פריטי מפרט הבן (options_text)
+window.renderQuoteCatalogGrid = function() {
+    const grid = document.getElementById('quote-catalog-grid');
+    if (!grid) return;
+    
+    if (!window.storeCatalogCache || !Array.isArray(window.storeCatalogCache)) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">טוען נתונים...</div>';
+        return;
+    }
+    
+    const searchTerm = (document.getElementById('quote-search-item')?.value || '').toLowerCase();
+    const catFilter = document.getElementById('quote-cat-filter')?.value || 'all';
+    
+    let filtered = window.storeCatalogCache.filter(p => p.is_available);
+    
+    if (searchTerm) {
+        // סינון רגיל ומורחב
+        filtered = filtered.filter(p => {
+            const nameMatch = (p.name || '').toLowerCase().includes(searchTerm);
+            const descMatch = (p.description || '').toLowerCase().includes(searchTerm);
+            let optionsMatch = false;
+            
+            // השדרוג: חיפוש עמוק בתוך המנות של התפריטים (options_text)
+            if (p.options_text && p.options_text.toLowerCase().includes(searchTerm)) {
+                optionsMatch = true;
+            }
+            
+            return nameMatch || descMatch || optionsMatch;
+        });
+    } else if (catFilter !== 'all') {
+        filtered = filtered.filter(p => (p.category || 'כללי') === catFilter);
+    }
+    
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">לא נמצאו מוצרים תואמים לחיפוש.</div>';
+        return;
+    }
+    
+    grid.innerHTML = filtered.map(p => {
+        const isComplex = p.product_type === 'complex_builder' || p.product_type === 'catering' || p.product_type === 'project' || (p.options_text && p.options_text.includes('isComplex'));
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-24 object-cover rounded-t-xl shrink-0 border-b border-slate-100">` : `<div class="w-full h-24 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-200 shrink-0"><i class="fa-solid ${isComplex ? 'fa-layer-group text-emerald-300' : 'fa-image text-slate-300'} text-3xl"></i></div>`;
+        const badgeHtml = isComplex ? '<span class="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg shadow-sm z-10">מפרט מורכב</span>' : '';
+        
+        return `
+        <div onclick="window.addQuoteItemFromCatalog('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-indigo-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden relative group min-h-[140px]">
+            ${badgeHtml}
+            ${imgHtml}
+            <div class="p-3 flex-1 flex flex-col justify-between">
+                <h5 class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h5>
+                <div class="flex justify-between items-center mt-auto pt-1">
+                    <span class="text-indigo-600 font-black text-sm dir-ltr">₪${parseFloat(p.price || 0).toFixed(2)}</span>
+                    <button class="bg-slate-50 text-indigo-500 w-6 h-6 rounded-md group-hover:bg-indigo-600 group-hover:text-white transition flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
 };
 
 window.submitNewQuote = async function() {
