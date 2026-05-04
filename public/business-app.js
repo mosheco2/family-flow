@@ -7540,24 +7540,51 @@ window.renderStoreOrders = function() {
         const receivedTimeStr = createDate.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
         const receivedDateStr = createDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'2-digit'});
 
-        // שאיבת הערות מתוקנת
-        let userNotes = '';
-        let displayNote = '';
+        // שאיבת הערות (תמיכה גם ב-quote_metadata אם הגיעה מהצעת מחיר)
+        let internalNote = '';
+        let customerNote = '';
+        
         try {
-            const parsedNotes = JSON.parse(o.notes);
-            if (parsedNotes.internalNote) {
-                userNotes = parsedNotes.internalNote;
-                displayNote = `<div class="mb-3 bg-amber-50 p-3 rounded-xl text-xs font-bold text-amber-800 border border-amber-200 shadow-sm text-right"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(userNotes)}</div>`;
-            } else if (parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
-                userNotes = parsedNotes.notes.replace('הערות לקוח:', '').trim();
-                displayNote = `<div class="mb-3 bg-indigo-50 p-3 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(userNotes)}</div>`;
+            const rawItems = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
+            const metaItem = rawItems.find(i => i.is_quote_metadata);
+            if (metaItem) {
+                const parsedMeta = JSON.parse(metaItem.data);
+                if (parsedMeta.internalNote) internalNote = parsedMeta.internalNote;
+                if (parsedMeta.customerNote) customerNote = parsedMeta.customerNote;
+                if (parsedMeta.notes && !customerNote) customerNote = parsedNotes.notes;
             }
-        } catch(e) { 
-            if(o.notes && o.notes.includes('הערות לקוח:')) {
-                userNotes = o.notes.replace('הערות לקוח:', '').trim();
-                displayNote = `<div class="mb-3 bg-indigo-50 p-3 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(userNotes)}</div>`;
+        } catch(e){}
+
+        if (!internalNote && !customerNote && o.notes) {
+            try {
+                const parsedNotes = JSON.parse(o.notes);
+                if (parsedNotes.internalNote) internalNote = parsedNotes.internalNote;
+                if (parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
+                    customerNote = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+                } else if (parsedNotes.notes && !parsedNotes.internalNote) {
+                    internalNote = parsedNotes.notes; // fallback for older structure
+                }
+            } catch(e) {
+                if (o.notes.includes('הערות לקוח:')) {
+                    customerNote = o.notes.replace('הערות לקוח:', '').trim();
+                } else {
+                    internalNote = o.notes;
+                }
             }
         }
+        
+        internalNote = internalNote.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
+        customerNote = customerNote.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
+
+        let displayNoteHtml = '';
+        if(internalNote) {
+            displayNoteHtml += `<div class="mb-2 bg-amber-50 p-2.5 rounded-xl text-xs font-bold text-amber-800 border border-amber-200 shadow-sm text-right"><i class="fa-solid fa-lock mr-1"></i> עסק: ${safeStr(internalNote)}</div>`;
+        }
+        if (customerNote) {
+            displayNoteHtml += `<div class="mb-2 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(customerNote)}</div>`;
+        }
+        
+        const isQuoteOrigin = o.quote_status === 'approved' ? `<span class="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-lg border border-purple-200 ml-1 font-bold shadow-sm"><i class="fa-solid fa-file-invoice mr-0.5"></i> הצעת מחיר במקור</span>` : '';
 
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
@@ -7580,14 +7607,14 @@ window.renderStoreOrders = function() {
                     </div>
 
                     <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1">
-                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag}
+                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag} ${isQuoteOrigin}
                     </div>
                 </div>
             </div>
             
             <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
                 ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
-                ${displayNote}
+                ${displayNoteHtml}
                 ${buildOrderLogHtml(o.status, o.created_at)}
                 <div class="flex justify-end mt-4">
                     <button onclick="window.openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
@@ -12821,32 +12848,75 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     rawItems.forEach(i => {
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
+        
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:4px; padding-right:10px;">${safeStr(i.note)}</div>`;
+        
+        // חילוץ תוספות ומנות בן לקבלה
+        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
+            try {
+                const parsed = JSON.parse(i.options_text);
+                if (parsed && parsed.isComplex && parsed.steps) {
+                    parsed.steps.forEach(step => {
+                        if (step.options) {
+                            step.options.forEach(opt => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
+                                    const optPrice = (parseFloat(opt.price) || 0) * optQty;
+                                    itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:11px; color:#333;"><span style="text-align:right;">- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span dir="ltr">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
+                                    if (opt.note) itemsHtml += `<div style="font-size:10px; color:#777; margin-bottom:2px; padding-right:25px; text-align:right;">* הערה: ${safeStr(opt.note)}</div>`;
+                                }
+                            });
+                        }
+                    });
+                } else if (Array.isArray(parsed)) {
+                    parsed.forEach(opt => {
+                        if (opt.name) {
+                             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:11px; color:#333;"><span style="text-align:right;">- ${safeStr(opt.name)}</span></div>`;
+                        }
+                    });
+                }
+            } catch(e) {}
+        }
+        itemsHtml += `<div style="height:6px;"></div>`; // מרווח קטן בין פריטים עליונים
     });
     
-    let vatHtml = '';
-    let paymentsHtml = '';
     let titleStr = 'קבלה';
+    let paymentsHtml = '';
+    
+    const totalAmount = parseFloat(order.total_amount || order.total || 0);
+    const vatSettings = window.getVatSettings();
+    let vatHtml = '';
+    
+    // חישוב המע"מ הכללי לקבלה אם הוא פעיל בחנות
+    if (vatSettings && vatSettings.enabled) {
+        const vatRate = vatSettings.rate || 18;
+        const totalBeforeVat = totalAmount / (1 + (vatRate / 100));
+        const vatAmountCalc = totalAmount - totalBeforeVat;
+        vatHtml = `
+            <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>סה"כ לפני מע"מ:</span><span dir="ltr">₪${totalBeforeVat.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmountCalc.toFixed(2)}</span></div>
+            </div>
+        `;
+    }
     
     try {
-        const metaStr = order.notes;
+        let metaStr = order.notes;
+        if (!metaStr || !metaStr.includes('{')) {
+            const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+            const metaItem = rawItems.find(i => i.is_quote_metadata);
+            if (metaItem) metaStr = metaItem.data;
+        }
+
         if(metaStr && metaStr.includes('{')) {
             const meta = JSON.parse(metaStr);
             if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
             
-            if (meta.vat && meta.vat.enabled) {
-                vatHtml = `
-                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
-                        <div style="display:flex; justify-content:space-between;"><span>סכום ביניים נטו:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
-                        <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
-                    </div>
-                `;
-            }
             if (meta.payments && meta.payments.length > 0) {
                 paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
                 meta.payments.forEach(p => {
-                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span>${p.name || p.method}</span><span dir="ltr">₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
                 });
                 paymentsHtml += `</div>`;
             }
@@ -12855,25 +12925,33 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     const dateObj = new Date(order.created_at || Date.now());
     const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
-    const docTitle = `${titleStr}-${order.id}_${dateStr}`;
+    const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}:${String(dateObj.getSeconds()).padStart(2, '0')}`;
+    const docTitle = `קבלה-${order.id}_${dateStr}`;
     
     const receiptHtml = `
+        <!DOCTYPE html>
         <html dir="rtl">
-        <head><title>${docTitle}</title>
-        <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+        <head>
+        <title>${docTitle}</title>
+        <style>
+            @page { size: auto; margin: 0mm; }
+            body { font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto; position: relative; min-height: 100vh; box-sizing: border-box; } 
+            .print-footer { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 11px; color: #64748b; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 5px; }
+        </style>
         </head>
         <body>
-            <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
-            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr.replace('_',' ')} #${order.id}<br>${dateObj.toLocaleString('he-IL')}</div>
+            <h2 style="text-align:center; margin-bottom:5px;">${safeStr(typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה')}</h2>
+            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr.replace('_',' ')} #${order.id}<br>${timeStr} ,${dateStr}</div>
             <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
                 ${itemsHtml}
             </div>
             ${vatHtml}
             <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
-                <span>סה"כ תשלום:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
+                <span>סה"כ לתשלום:</span><span dir="ltr">₪${totalAmount.toFixed(2)}</span>
             </div>
             ${paymentsHtml}
             <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
+            <div class="print-footer">Oneflowlife.co.il כל מה שאתם צריכים במערכת אחת</div>
         </body>
         </html>
     `;
