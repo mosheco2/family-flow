@@ -243,8 +243,10 @@ function applyBannersToDOM(banners) {
         if(text || img) { 
             let html = ''; 
             if(img) { 
-                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover z-0">`; 
+                // תמיכה ב-Base64 ובלינקים חיצוניים ללא תוספת לוכסן מיותר
+                const imgSrc = (img.startsWith('http') || img.startsWith('data:image')) ? img : `/${img}`; 
+                // שינוי ל-object-contain כדי שהתמונה לא תיחתך
+                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-contain z-0">`; 
             }
             if(text) {
                 html += `<div class="absolute inset-0 bg-black/20 z-0"></div>`; 
