@@ -4966,20 +4966,10 @@ window.openEditQuoteModal = function(quoteId) {
         if(document.getElementById('quote-my-company-id')) document.getElementById('quote-my-company-id').value = myCompanyId;
         if(document.getElementById('quote-internal-note')) document.getElementById('quote-internal-note').value = internalNote;
 
-        const metaItem = rawItems.find(i => i.is_quote_metadata);
-        if (metaItem) {
-            try {
-                const meta = JSON.parse(metaItem.data);
-                if(meta.discount) document.getElementById('quote-discount').value = meta.discount;
-                if(meta.internalNote && !internalNote) document.getElementById('quote-internal-note').value = meta.internalNote;
-            } catch(e) {}
-        }
-
         window.calcQuoteTotal();
         window.renderQuoteSelectedItems();
     }, 100);
 };
-
 window.getQuotePresets = function(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
 };
