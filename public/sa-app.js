@@ -174,23 +174,41 @@ async function loadSAData() {
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
 
         const setVal = (id, v) => { const e = getEl(id); if (e) e.value = v || ''; };
-        setVal('sa-new-username', data.saUsername);
-        setVal('sa-new-email', data.saEmail);
-        setVal('sa-welcome-msg', data.welcomeMsg);
-        setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
-        setVal('sa-banner-top-text', data.adBannerTextTop);
-        setVal('sa-banner-top-link', data.adBannerLinkTop);
-        setVal('sa-banner-top-img', data.adBannerImgTop);
-        setVal('sa-banner-bottom-text', data.adBannerTextBottom);
-        setVal('sa-banner-bottom-link', data.adBannerLinkBottom);
-        setVal('sa-banner-bottom-img', data.adBannerImgBottom);
-        setVal('sa-biz-banner-top-text', data.bizBannerTextTop);
-        setVal('sa-biz-banner-top-link', data.bizBannerLinkTop);
-        setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
-        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom);
-        setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom);
-        setVal('sa-biz-banner-bottom-img', data.bizBannerImgBottom);
+        
+        // פונקציית עזר לטעינת התצוגה המקדימה של הבאנרים בסופר אדמין
+        const setImgPreview = (baseId, val) => {
+            setVal(baseId + '-img', val);
+            const preview = getEl(baseId + '-preview');
+            const placeholder = getEl(baseId + '-placeholder') || getEl(baseId + '-icon');
+            if (val && val.length > 10) {
+                if (preview) { preview.src = val.startsWith('http') || val.startsWith('data:') ? val : '/' + val; preview.classList.remove('hidden'); preview.style.display = 'block'; }
+                if (placeholder) { placeholder.classList.add('hidden'); placeholder.style.display = 'none'; }
+            } else {
+                if (preview) { preview.src = ''; preview.classList.add('hidden'); preview.style.display = 'none'; }
+                if (placeholder) { placeholder.classList.remove('hidden'); placeholder.style.display = 'flex'; }
+            }
+        };
 
+        setVal('sa-new-username', data.saUsername);
+        setVal('sa-new-email', data.saEmail);
+        setVal('sa-welcome-msg', data.welcomeMsg);
+        setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        
+        setVal('sa-banner-top-text', data.adBannerTextTop);
+        setVal('sa-banner-top-link', data.adBannerLinkTop);
+        setImgPreview('sa-banner-top', data.adBannerImgTop);
+        
+        setVal('sa-banner-bottom-text', data.adBannerTextBottom);
+        setVal('sa-banner-bottom-link', data.adBannerLinkBottom);
+        setImgPreview('sa-banner-bottom', data.adBannerImgBottom);
+        
+        setVal('sa-biz-banner-top-text', data.bizBannerTextTop);
+        setVal('sa-biz-banner-top-link', data.bizBannerLinkTop);
+        setImgPreview('sa-biz-banner-top', data.bizBannerImgTop);
+        
+        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom);
+        setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom);
+        setImgPreview('sa-biz-banner-bottom', data.bizBannerImgBottom);
         const setTxt = (id, v) => { const e = getEl(id); if (e) e.innerText = v || 0; };
         if (data.stats) {
             setTxt('sa-stat-families', data.stats.families);
