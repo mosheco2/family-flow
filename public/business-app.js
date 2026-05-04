@@ -4754,7 +4754,6 @@ window.sendQuoteToCustomer = function(id) {
         return showToast('error', 'לא מוגדר מספר טלפון ללקוח בהצעת מחיר זו.');
     }
 
-    // מפנים לכתובת החנות הציבורית (ללא quote.html השבור)
     const storeAlias = document.getElementById('store-alias-input') ? document.getElementById('store-alias-input').value : '';
     const displayId = storeAlias || currentGroup.group_code;
     const publicUrl = `${window.location.origin}/${displayId}`;
@@ -4769,8 +4768,11 @@ window.sendQuoteToCustomer = function(id) {
     
     let text = `שלום ${safeStr(q.customer_name)}, בהמשך לפנייתך,\n`;
     text += `הכנו עבורך הצעת מחיר (מס' ${q.id}) על סך ₪${amount}.\n\n`;
-    text += `ההצעה המלאה תימסר לך כמסמך PDF. במקביל, ניתן להתרשם ממוצרי החנות שלנו בקישור הבא:\n${publicUrl}\n\n`;
-    text += `נשמח לעמוד לרשותך לכל שאלה,\n${currentGroup.name}`;
+    text += `ההצעה המלאה תצורף לכאן כמסמך PDF.\n`;
+    text += `לצפייה במוצרים נוספים בחנות שלנו:\n${publicUrl}\n\n`;
+    text += `אנא השב/י להודעה זו במילה "מאשר" או "לא מאשר" כדי שנוכל להתקדם.\n\n`;
+    text += `בברכה,\n${currentGroup.name}\n\n`;
+    text += `Oneflowlife.co.il תכירו, המערכת המושלמת לניהול משפחות ועסקים.`;
 
     window.updateQuoteStatus(q.id, 'sent');
     window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
@@ -4817,20 +4819,35 @@ window.submitTargetDatetime = async function() {
         if (window.currentActionType === 'quote') {
             const q = window.storeQuotesCache.find(x => String(x.id) === String(window.currentActionTargetId));
             
-            // המרה חלקה: שולחים אך ורק בקשת שינוי סטטוס, והשרת מטפל בזה
-            const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
-                method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ quoteStatus: 'approved' })
-            });
-            
-            const data = await res.json();
-            if (!data.success) {
-                throw new Error(data.error || 'שגיאה באישור ההצעה והפיכתה להזמנה.');
+            let approvalSuccess = false;
+
+            // נעדכן את הסטטוס הראשי של ההזמנה בשרת כדי שתעבור למסך ההזמנות הפעילות
+            try {
+                const res = await fetch(`${API}/store/orders/status`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
+                });
+                const data = await res.json();
+                if (data.success) approvalSuccess = true;
+            } catch(e) {}
+
+            // במקביל, נעדכן ספציפית את סטטוס ההצעה ל"אושרה"
+            try {
+                await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
+                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ quoteStatus: 'approved' })
+                });
+                approvalSuccess = true;
+            } catch(e) {}
+
+            if (!approvalSuccess) {
+                throw new Error('שגיאה באישור ההצעה מול השרת.');
             }
 
-            // יצירת אירוע ביומן במידה ונבחר תאריך
             if (targetDate) {
                 const d = new Date(targetDate);
+                
+                // שיבוץ אירוע ביומן
                 const payload = {
                     groupId: currentGroup.id,
                     title: `ביצוע פרויקט/אירוע: ${q ? safeStr(q.customer_name) : ''}`,
@@ -4841,18 +4858,47 @@ window.submitTargetDatetime = async function() {
                     status: 'approved',
                     customerPhone: q ? q.customer_phone : ''
                 };
-                await fetch(`${API}/calendar/events`, {
+                fetch(`${API}/calendar/events`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 }).catch(e => {});
+
+                // עדכון התאריך בהזמנה
+                fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
+                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ targetDatetime: targetDate })
+                }).catch(e=>{});
+            }
+
+            // עדכון המטמון המקומי כדי שההעברה תשוקף מיד למשתמש
+            if (q) {
+                q.status = 'processing';
+                q.quote_status = 'approved';
+                
+                // נוודא שהיא נכנסת למטמון ההזמנות
+                if (window.storeOrdersCache) {
+                    const existingOrder = window.storeOrdersCache.find(o => String(o.id) === String(q.id));
+                    if (!existingOrder) {
+                        window.storeOrdersCache.push(q);
+                    } else {
+                        existingOrder.status = 'processing';
+                        existingOrder.quote_status = 'approved';
+                    }
+                }
             }
             
             showToast('success', 'הצעת המחיר אושרה והועברה לתור ההזמנות בהצלחה!');
             document.getElementById('target-datetime-modal').classList.add('hidden');
             
-            if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
-            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
-            if(typeof window.fetchCalendarData === 'function') window.fetchCalendarData();
+            // רינדור מחדש של המסכים ללא צורך בהמתנה לקריאת שרת
+            if(typeof window.renderStoreQuotes === 'function') window.renderStoreQuotes();
+            if(typeof window.renderStoreOrders === 'function') window.renderStoreOrders();
+            
+            // משיכה שקטה ברקע לאימות
+            setTimeout(() => {
+                if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+                if(typeof window.fetchCalendarData === 'function') window.fetchCalendarData();
+            }, 1000);
             
         } else if (window.currentActionType === 'order') {
             const res = await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
