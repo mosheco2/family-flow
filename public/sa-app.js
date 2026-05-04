@@ -1250,6 +1250,40 @@ window.removeCityTag = function(type, index) {
 }
 
 window.handleCommImageUpload = function(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width; let height = img.height;
+            const maxSize = 600;
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (type === 'create') {
+                getEl('sa-comm-image-base64').value = base64;
+                getEl('sa-comm-img-preview').src = base64;
+                getEl('sa-comm-img-preview-container').classList.remove('hidden');
+            } else {
+                getEl('sa-edit-comm-image-base64').value = base64;
+                getEl('sa-edit-comm-img-preview').src = base64;
+                getEl('sa-edit-comm-img-preview').classList.remove('hidden');
+                const placeholder = getEl('sa-edit-comm-img-placeholder');
+                if (placeholder) placeholder.classList.add('hidden');
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+window.handleBannerImageUpload = function(event, targetInputId, previewId) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -1257,31 +1291,36 @@ window.handleCommImageUpload = function(event, type) {
         const img = new Image();
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            let width = img.width; let height = img.height;
-            const maxSize = 600;
-            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
-            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-            canvas.width = width; canvas.height = height;
+            let width = img.width;
+            let height = img.height;
+            const maxWidth = 1200; 
+            
+            if (width > maxWidth) {
+                height = Math.round(height * (maxWidth / width));
+                width = maxWidth;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
             
-            if (type === 'create') {
-                getEl('sa-comm-image-base64').value = base64;
-                getEl('sa-comm-img-preview').src = base64;
-                getEl('sa-comm-img-preview-container').classList.remove('hidden');
-            } else {
-                getEl('sa-edit-comm-image-base64').value = base64;
-                getEl('sa-edit-comm-img-preview').src = base64;
-                getEl('sa-edit-comm-img-preview').classList.remove('hidden');
-                const placeholder = getEl('sa-edit-comm-img-placeholder');
-                if (placeholder) placeholder.classList.add('hidden');
+            const base64 = canvas.toDataURL('image/jpeg', 0.85);
+            
+            const targetInput = document.getElementById(targetInputId);
+            if (targetInput) targetInput.value = base64;
+            
+            const previewImg = document.getElementById(previewId);
+            if (previewImg) {
+                previewImg.src = base64;
+                previewImg.classList.remove('hidden');
             }
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
+
 // ==========================================
 // --- ניהול קריאות שירות (Super Admin) ---
 // ==========================================
