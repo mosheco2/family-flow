@@ -147,19 +147,23 @@
         }
         .introjs-bullets ul li a.active { background: #0f172a !important; }
 
-        /* Accessibility Classes */
-        body.acc-text-lg { font-size: 110%; }
-        body.acc-text-lg .text-xs { font-size: 0.85rem; }
-        body.acc-text-lg .text-sm { font-size: 1rem; }
-        body.acc-text-lg .text-base { font-size: 1.125rem; }
-        body.acc-grayscale { filter: grayscale(100%); }
-        body.acc-contrast { filter: contrast(125%) saturate(120%); }
-        body.acc-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px; }
-        body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
+      /* Accessibility Classes */
+        body.acc-text-lg { font-size: 110%; }
+        body.acc-text-lg .text-xs { font-size: 0.85rem; }
+        body.acc-text-lg .text-sm { font-size: 1rem; }
+        body.acc-text-lg .text-base { font-size: 1.125rem; }
+        body.acc-grayscale { filter: grayscale(100%); }
+        body.acc-contrast { filter: contrast(125%) saturate(120%); }
+        body.acc-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px; }
+        body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
 
-        /* Hide broken banner images */
-        img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
-    </style>
+        /* Hide broken banner images */
+        img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
+
+        /* התאמת באנרים לתצוגה מלאה ללא חיתוך */
+        #app-banner-top, #app-banner-bottom { display: flex !important; align-items: center; justify-content: center; background-color: transparent !important; padding: 0 !important; }
+        #app-banner-top img, #app-banner-bottom img { object-fit: contain !important; width: 100% !important; height: auto !important; max-height: 120px !important; margin: 0 auto; display: block; }
+    </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
     <datalist id="israel-cities">
