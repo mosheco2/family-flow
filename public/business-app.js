@@ -4573,7 +4573,6 @@ window.renderStoreQuotes = function() {
                     <option value="all">כל הסטטוסים</option>
                     <option value="draft">טיוטות והצעות חדשות</option>
                     <option value="sent">נשלחו ללקוח</option>
-                    <option value="customer_approved">אושרו ע"י לקוח</option>
                     <option value="approved">אושרו (הפכו להזמנות)</option>
                 </select>
             </div>
@@ -4594,6 +4593,7 @@ window.renderStoreQuotes = function() {
         let qStatusRaw = q.quote_status || q.status;
         if (qStatusRaw === 'new' || qStatusRaw === 'quote') qStatusRaw = 'draft';
         if (qStatusRaw === 'waiting_customer') qStatusRaw = 'sent'; 
+        if (qStatusRaw === 'customer_approved') qStatusRaw = 'approved'; 
         
         const matchStatus = statusFilter === 'all' || qStatusRaw === statusFilter;
         
@@ -4610,10 +4610,10 @@ window.renderStoreQuotes = function() {
     const statuses = {
         'draft': 'טיוטה (טרם נשלחה)',
         'sent': 'נשלחה ללקוח',
-        'customer_approved': 'אושרה ע"י לקוח',
+        'customer_approved': 'אישור לקוח (העבר להזמנות)',
         'frozen': 'הוקפאה / הושהתה',
         'cancelled': 'בוטלה ע"י הלקוח',
-        'approved': 'אושרה (הפכה להזמנה)'
+        'approved': 'אושרה בהצלחה'
     };
 
     let html = '';
@@ -4624,9 +4624,7 @@ window.renderStoreQuotes = function() {
             if (currentStatus === 'new' || currentStatus === 'quote') currentStatus = 'draft';
             if (currentStatus === 'waiting_customer') currentStatus = 'sent';
             
-            const isApproved = currentStatus === 'approved';
-            const isCustomerApproved = currentStatus === 'customer_approved';
-            
+            const isApproved = (currentStatus === 'approved' || currentStatus === 'customer_approved');
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
             
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -4635,33 +4633,50 @@ window.renderStoreQuotes = function() {
             let internalNote = '';
             let customerNote = '';
             try {
-                const parsedNotes = JSON.parse(q.notes);
-                internalNote = parsedNotes.internalNote || '';
-                if(parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
-                    customerNote = parsedNotes.notes;
+                const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
+                const metaItem = rawItems.find(i => i.is_quote_metadata);
+                if (metaItem) {
+                    const parsedMeta = JSON.parse(metaItem.data);
+                    if (parsedMeta.internalNote) internalNote = parsedMeta.internalNote;
+                    if (parsedMeta.customerNote) customerNote = parsedMeta.customerNote;
                 }
-            } catch(e) {
-                if(q.notes && q.notes.includes('הערות לקוח:')) customerNote = q.notes;
+            } catch(e){}
+
+            if (!internalNote && q.notes) {
+                if (q.notes.includes('הערות לקוח:')) {
+                    customerNote = q.notes.replace('הערות לקוח:', '').trim();
+                } else {
+                    try {
+                        const parsedNotes = JSON.parse(q.notes);
+                        if (parsedNotes.internalNote) internalNote = parsedNotes.internalNote;
+                        if (parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) customerNote = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+                    } catch(e) {
+                        internalNote = q.notes;
+                    }
+                }
             }
+            internalNote = internalNote.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
             
             let displayNote = '';
             if(internalNote) {
-                displayNote = `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(internalNote)}</div>`;
-            } else if (customerNote) {
-                displayNote = `<div class="mt-2 bg-indigo-50 p-2.5 rounded-lg text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(customerNote)}</div>`;
+                displayNote += `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> עסק: ${safeStr(internalNote)}</div>`;
+            }
+            if (customerNote) {
+                displayNote += `<div class="mt-2 bg-indigo-50 p-2.5 rounded-lg text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(customerNote)}</div>`;
             }
 
             let approveBtnHtml = '';
+            let cardStyle = 'border-slate-200 shadow-sm bg-white hover:shadow-md hover:border-indigo-300';
+            
             if (isApproved) {
-                 approveBtnHtml = `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1 mt-2 w-full justify-center bg-green-50 py-1.5 rounded-lg border border-green-100"><i class="fa-solid fa-check-circle"></i> עברה לתור הזמנות</span>`;
-            } else if (isCustomerApproved) {
-                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center animate-pulse mt-2"><i class="fa-solid fa-check-double"></i> המרה לתור הזמנות</button>`;
+                 cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
+                 approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
             } else {
-                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור כפוי (העברה להזמנות)</button>`;
+                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
             }
 
             html += `
-            <div class="bg-white p-4 rounded-2xl border ${isApproved ? 'border-green-300 shadow-md bg-green-50/20' : (isCustomerApproved ? 'border-emerald-400 shadow-md bg-emerald-50/10' : 'border-slate-200 shadow-sm')} flex flex-col mb-3 hover:shadow-md transition">
+            <div class="p-4 rounded-2xl border ${cardStyle} flex flex-col mb-3 transition-all">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
@@ -4670,16 +4685,16 @@ window.renderStoreQuotes = function() {
                         ${displayNote}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
-                        <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : (isCustomerApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600')} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
+                        <select id="quote-sel-${q.id}" onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-800 border-green-300' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
                             ${optionsHtml}
                         </select>
                         ${approveBtnHtml}
                     </div>
                 </div>
-                <div class="flex gap-2 border-t border-slate-100 pt-3 mt-1">
-                    <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
-                    <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-[1.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> שליחה לאישור</button>
-                    <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
+                <div class="flex gap-2 border-t ${isApproved ? 'border-green-200' : 'border-slate-100'} pt-3 mt-1">
+                    <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-pen"></i> ערוך</button>
+                    <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-[1.5] bg-[#25D366] text-white hover:bg-[#1ebd58] py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> שליחה לאישור</button>
+                    <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
                 </div>
             </div>`;
         } catch(err) {}
@@ -4689,6 +4704,16 @@ window.renderStoreQuotes = function() {
 };
 
 window.updateQuoteStatus = async function(id, status) {
+    if (status === 'approved' || status === 'customer_approved') {
+        const selectEl = document.getElementById(`quote-sel-${id}`);
+        if(selectEl) {
+            const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
+            selectEl.value = q ? (q.quote_status || q.status) : 'draft'; 
+        }
+        window.approveQuoteToOrder(id);
+        return;
+    }
+
     try {
         const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
         let isEmbeddedOrder = false;
@@ -4700,13 +4725,11 @@ window.updateQuoteStatus = async function(id, status) {
         }
 
         if (isEmbeddedOrder) {
-            // מעדכנים דרך מערכת ההזמנות
             await fetch(`${API}/store/orders/status`, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ orderId: id, status: status })
             });
         } else {
-            // מעדכנים דרך מערכת ההצעות
             await fetch(`${API}/store/quotes/${id}/status`, {
                 method: 'PATCH', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ quoteStatus: status })
@@ -5640,7 +5663,6 @@ window.openQuotePreview = function(quoteId) {
     
     let itemsHtml = '';
     const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
-    
     let metaData = null;
     
     rawItems.forEach(i => {
@@ -5648,7 +5670,6 @@ window.openQuotePreview = function(quoteId) {
             try { metaData = JSON.parse(i.data); } catch(e){}
             return;
         }
-        
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
         
         itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
@@ -5685,31 +5706,12 @@ window.openQuotePreview = function(quoteId) {
         }
     });
 
-    let userNotes = '';
-    let introText = '';
-    let validity = '';
-    let companyId = '';
-    let myCompanyId = '';
-    let discountVal = 0;
-    
+    let userNotes = ''; let introText = ''; let validity = ''; let companyId = ''; let myCompanyId = ''; let discountVal = 0;
     if (metaData) {
-        userNotes = metaData.notes || '';
-        introText = metaData.introText || '';
-        validity = metaData.validity || '';
-        companyId = metaData.companyId || '';
-        myCompanyId = metaData.myCompanyId || '';
-        discountVal = metaData.discount || 0;
+        userNotes = metaData.notes || ''; introText = metaData.introText || ''; validity = metaData.validity || ''; companyId = metaData.companyId || ''; myCompanyId = metaData.myCompanyId || ''; discountVal = metaData.discount || 0;
     } else {
-        try {
-            const parsedNotes = JSON.parse(q.notes);
-            userNotes = parsedNotes.notes || '';
-            introText = parsedNotes.introText || '';
-            validity = parsedNotes.validity || '';
-            companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || '';
-            myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || '';
-        } catch(e) { userNotes = q.notes || ''; }
+        try { const parsedNotes = JSON.parse(q.notes); userNotes = parsedNotes.notes || ''; introText = parsedNotes.introText || ''; validity = parsedNotes.validity || ''; companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || ''; myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || ''; } catch(e) { userNotes = q.notes || ''; }
     }
-    
     userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
 
     const dateObj = new Date(q.created_at || Date.now());
@@ -5718,19 +5720,15 @@ window.openQuotePreview = function(quoteId) {
     let logoBase64 = '';
     const logoInput = document.getElementById('store-logo-base64');
     const dashLogo = document.getElementById('dash-logo-preview');
-    if (logoInput && logoInput.value && logoInput.value !== 'DELETE') {
-        logoBase64 = logoInput.value;
-    } else if (dashLogo && dashLogo.src && dashLogo.src.includes('data:image')) {
-        logoBase64 = dashLogo.src;
-    }
+    if (logoInput && logoInput.value && logoInput.value !== 'DELETE') logoBase64 = logoInput.value;
+    else if (dashLogo && dashLogo.src && dashLogo.src.includes('data:image')) logoBase64 = dashLogo.src;
     
     const logoHtml = logoBase64 ? `<img src="${logoBase64}" style="max-height:80px; max-width:200px; border-radius:12px;">` : `<h2 style="margin:0; color:#4f46e5; font-size:24px;">${safeStr(currentGroup.name)}</h2>`;
     const slogan = document.getElementById('store-slogan') ? document.getElementById('store-slogan').value : '';
     const phone = document.getElementById('store-phone') ? document.getElementById('store-phone').value : '';
     
     const vatSettings = window.getVatSettings();
-    let vatHtml = '';
-    let totalAmount = parseFloat(q.total_amount || 0);
+    let vatHtml = ''; let totalAmount = parseFloat(q.total_amount || 0);
 
     if (vatSettings && vatSettings.enabled) {
         const vatRate = vatSettings.rate || 18;
@@ -5756,10 +5754,18 @@ window.openQuotePreview = function(quoteId) {
         `;
     }
     
+    const printDocTitle = `${safeStr(q.customer_name || 'לקוח')} - ${safeStr(currentGroup.name)} - הצעת מחיר ${q.id} - ${dateStr.replace(/\./g, '-')}`;
+    
     const receiptHtml = `
+        <!DOCTYPE html>
         <html dir="rtl">
-        <head><title>הצעת מחיר #${q.id}</title>
-        <style>body{font-family:sans-serif; padding:30px; font-size:14px; max-width: 800px; margin:0 auto; background:#fff; color:#0f172a; text-align:right;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+        <head>
+        <title>${printDocTitle}</title>
+        <style>
+            @page { size: A4 portrait; margin: 0mm; }
+            body { font-family:sans-serif; margin: 0; padding: 15mm 20mm 35mm 20mm; font-size:14px; max-width: 800px; margin-left: auto; margin-right: auto; background:#fff; color:#0f172a; text-align:right; position: relative; min-height: 100vh; box-sizing: border-box; }
+            .print-footer { position: fixed; bottom: 10mm; left: 0; right: 0; text-align: center; font-size: 13px; color: #64748b; font-weight: bold; }
+        </style>
         </head>
         <body>
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:20px; margin-bottom:20px; direction:rtl;">
@@ -5788,12 +5794,9 @@ window.openQuotePreview = function(quoteId) {
             </div>
             
             ${validity ? `<div style="font-size:12px; font-weight:bold; color:#ef4444; margin-bottom:20px; text-align:right;">* תוקף ההצעה: ${safeStr(validity)}</div>` : ''}
-            
             ${introText ? `<div style="margin-bottom:20px; font-size:14px; line-height:1.6; text-align:right;">${safeStr(introText).replace(/\n/g, '<br/>')}</div>` : ''}
             
-            <div style="padding:10px 0; margin-bottom:20px; text-align:right;">
-                ${itemsHtml}
-            </div>
+            <div style="padding:10px 0; margin-bottom:20px; text-align:right;">${itemsHtml}</div>
             
             ${discountHtml}
             ${vatHtml}
@@ -5807,6 +5810,7 @@ window.openQuotePreview = function(quoteId) {
             <div style="text-align:center; margin-top:50px; font-size:14px; font-weight:bold; color:#64748b; border-top:1px solid #e2e8f0; padding-top:20px;">
                 נשמח לעמוד לשירותכם!<br>${safeStr(currentGroup.name)}
             </div>
+            <div class="print-footer">Oneflowlife.co.il כל מה שאתם צריכים במערכת אחת</div>
         </body>
         </html>
     `;
@@ -5825,7 +5829,104 @@ window.openQuotePreview = function(quoteId) {
     setTimeout(() => {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
-        showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
+        showToast('info', 'המסמך נפתח לשמירה/הדפסה כ-PDF!');
+    }, 500);
+};
+
+window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
+    const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
+    if(!idToPrint && !rawOrderObj) return;
+    
+    let order = rawOrderObj;
+    if (!order) {
+        order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
+        if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
+    }
+    
+    let itemsHtml = '';
+    const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
+    
+    rawItems.forEach(i => {
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
+    });
+    
+    let vatHtml = '';
+    let paymentsHtml = '';
+    let titleStr = 'קבלה / קופה';
+    
+    try {
+        const metaStr = order.notes;
+        if(metaStr && metaStr.includes('{')) {
+            const meta = JSON.parse(metaStr);
+            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
+            
+            if (meta.vat && meta.vat.enabled) {
+                vatHtml = `
+                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between;"><span>סכום ביניים נטו:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
+                        <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
+                    </div>
+                `;
+            }
+            if (meta.payments && meta.payments.length > 0) {
+                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
+                meta.payments.forEach(p => {
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
+                });
+                paymentsHtml += `</div>`;
+            }
+        }
+    } catch(e) {}
+    
+    const dateObj = new Date(order.created_at || Date.now());
+    const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+    const docTitle = `${safeStr(order.customer_name || 'לקוח')} - ${safeStr(typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'עסק')} - הזמנה ${order.id} - ${dateStr}`;
+    
+    const receiptHtml = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+        <title>${docTitle}</title>
+        <style>
+            @page { size: auto; margin: 0mm; }
+            body { font-family:sans-serif; padding:10px 10px 40px 10px; font-size:13px; max-width: 300px; margin:0 auto; position: relative; min-height: 100vh; box-sizing: border-box; } 
+            .print-footer { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 11px; color: #64748b; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 5px; }
+        </style>
+        </head>
+        <body>
+            <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
+            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr.replace('_',' ')} #${order.id}<br>${dateObj.toLocaleString('he-IL')}</div>
+            <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
+                ${itemsHtml}
+            </div>
+            ${vatHtml}
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+                <span>סה"כ תשלום:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
+            </div>
+            ${paymentsHtml}
+            <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
+            <div class="print-footer">Oneflowlife.co.il כל מה שאתם צריכים במערכת אחת</div>
+        </body>
+        </html>
+    `;
+
+    let iframe = document.getElementById('receipt-printer-frame');
+    if(!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt-printer-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(receiptHtml);
+    iframe.contentWindow.document.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        showToast('info', 'הקבלה נשלחה להדפסה!');
     }, 500);
 };
 window.openStoreOrderModal = function(orderId) {
@@ -15968,4 +16069,128 @@ window.renderComplexList = function() {
             </div>
         </div>`;
     }).join('');
+};
+window.editingComplexItemId = null;
+
+window.openQuoteComplexEditor = function(itemId) {
+    const item = window.selectedQuoteItems[itemId];
+    if(!item) return;
+    window.editingComplexItemId = itemId;
+    const searchInput = document.getElementById('complex-search-item');
+    if (searchInput) searchInput.value = '';
+    window.renderComplexEditorList();
+    document.getElementById('quote-complex-modal').classList.remove('hidden');
+};
+
+window.renderComplexEditorList = function() {
+    const itemId = window.editingComplexItemId;
+    const item = window.selectedQuoteItems[itemId];
+    const list = document.getElementById('complex-items-selector');
+    if (!list) return;
+    const searchInput = document.getElementById('complex-search-item');
+    const searchQ = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    if(!item || !item.complex_data) return;
+    let parsed = { steps: [] };
+    try { parsed = JSON.parse(item.complex_data); } catch(e){}
+    
+    let html = '';
+    parsed.steps.forEach((step, sIdx) => {
+        let optionsHtml = '';
+        step.options.forEach((opt, oIdx) => {
+            if(searchQ && !opt.name.toLowerCase().includes(searchQ)) return;
+            
+            const isChecked = (opt.selected === true || opt.selected === 'true') ? 'checked' : '';
+            optionsHtml += `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white border border-slate-200 rounded-xl mb-2 hover:border-emerald-300 transition gap-2">
+                <label class="flex items-center gap-3 cursor-pointer flex-1">
+                    <input type="${step.qty === 1 ? 'radio' : 'checkbox'}" name="cx_step_${sIdx}" value="${oIdx}" ${isChecked} onchange="window.toggleComplexOption(${sIdx}, ${oIdx}, this)" class="w-4 h-4 accent-emerald-600">
+                    <span class="font-bold text-slate-700 text-sm">${safeStr(opt.name)}</span>
+                </label>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    ${opt.price > 0 ? `<span class="text-xs font-bold text-emerald-600 dir-ltr bg-emerald-50 px-2 py-1 rounded border border-emerald-100">+₪${opt.price}</span>` : ''}
+                    <div class="relative w-16 shrink-0">
+                        <span class="text-[8px] text-slate-400 absolute -top-1.5 right-2 bg-white px-1 font-bold">כמות</span>
+                        <input type="number" min="1" value="${opt.qty || 1}" onchange="window.updateComplexOptionData(${sIdx}, ${oIdx}, 'qty', this.value)" class="modern-input py-1.5 px-1 text-xs text-center w-full bg-slate-50 border-slate-200 shadow-sm">
+                    </div>
+                    <input type="text" value="${safeStr(opt.note || '')}" onchange="window.updateComplexOptionData(${sIdx}, ${oIdx}, 'note', this.value)" placeholder="הערה לטבח..." class="modern-input py-1.5 px-2 text-xs w-full sm:w-32 bg-slate-50 border-slate-200 shadow-sm flex-1 sm:flex-none">
+                </div>
+            </div>`;
+        });
+        
+        if(optionsHtml) {
+            html += `
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+                <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                    <h4 class="font-bold text-slate-800"><i class="fa-solid fa-caret-left text-emerald-500 mr-1"></i> ${safeStr(step.name)}</h4>
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">בחר ${step.qty} פריטים</span>
+                </div>
+                <div class="bundle-options-wrapper" data-max="${step.qty}" data-step="${sIdx}">
+                    ${optionsHtml}
+                </div>
+            </div>`;
+        }
+    });
+    list.innerHTML = html || '<p class="text-center text-xs text-slate-400 py-4">אין אפשרויות תואמות לחיפוש.</p>';
+};
+
+window.toggleComplexOption = function(sIdx, oIdx, el) {
+    const itemId = window.editingComplexItemId;
+    const item = window.selectedQuoteItems[itemId];
+    let parsed = JSON.parse(item.complex_data);
+    
+    const step = parsed.steps[sIdx];
+    if (step.qty === 1) {
+        step.options.forEach(o => o.selected = false);
+        step.options[oIdx].selected = el.checked;
+    } else {
+        const currentlyChecked = step.options.filter(o => o.selected === true || o.selected === 'true').length;
+        if (el.checked && currentlyChecked >= step.qty) {
+            el.checked = false;
+            showToast('info', `ניתן לבחור עד ${step.qty} פריטים בשלב זה.`);
+            return;
+        }
+        step.options[oIdx].selected = el.checked;
+    }
+    item.complex_data = JSON.stringify(parsed);
+};
+
+window.updateComplexOptionData = function(sIdx, oIdx, field, val) {
+    const itemId = window.editingComplexItemId;
+    const item = window.selectedQuoteItems[itemId];
+    let parsed = JSON.parse(item.complex_data);
+    parsed.steps[sIdx].options[oIdx][field] = val;
+    item.complex_data = JSON.stringify(parsed);
+};
+
+window.saveComplexEditor = function() {
+    document.getElementById('quote-complex-modal').classList.add('hidden');
+    window.calcQuoteTotal();
+    window.renderQuoteSelectedItems();
+};
+
+window.updateQuoteItemPrice = function(id, val) {
+    if (window.selectedQuoteItems[id]) {
+        window.selectedQuoteItems[id].price_at_order = parseFloat(val) || 0;
+        window.calcQuoteTotal();
+        window.renderQuoteSelectedItems();
+    }
+};
+
+window.updateQuoteItemQty = function(id, val) {
+    if (window.selectedQuoteItems[id]) {
+        window.selectedQuoteItems[id].quantity = parseFloat(val) || 1;
+        window.calcQuoteTotal();
+        window.renderQuoteSelectedItems();
+    }
+};
+
+window.updateQuoteItemNote = function(id, val) {
+    if (window.selectedQuoteItems[id]) window.selectedQuoteItems[id].note = val;
+};
+
+window.removeQuoteItem = function(id) {
+    delete window.selectedQuoteItems[id];
+    window.calcQuoteTotal();
+    window.renderQuoteSelectedItems();
 };
