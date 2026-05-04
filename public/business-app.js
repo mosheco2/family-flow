@@ -4791,28 +4791,23 @@ window.submitTargetDatetime = async function() {
             }
             
             if (isEmbeddedOrder) {
-                // 1. קודם כל נעדכן את הסטטוס להזמנה פעילה ("בטיפול") במקום הצעת מחיר
                 await fetch(`${API}/store/orders/status`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
                 });
 
-                // 2. בנוסף, נוודא שסטטוס ההצעה הפנימי מוגדר כ-approved
                 await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
                     method: 'PATCH', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ quoteStatus: 'approved' })
                 }).catch(e=>{});
                 
-                // 3. עדכון התאריך בהזמנה
                 if (targetDate) {
                     await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
                         method: 'PATCH', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ targetDatetime: targetDate })
                     });
                 }
-                
             } else {
-                // המרה של הצעה "נקייה" במערכת להזמנה
                 const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ targetDatetime: targetDate })
@@ -4823,24 +4818,28 @@ window.submitTargetDatetime = async function() {
                 }
             }
 
-            // 4. סנכרון ליומן - אנחנו בודקים אם יש אירוע ביומן שמקושר להצעה הזו (לפי Fake ID) 
-            // ומעדכנים אותו ל"Approved" וגם נועלים את התאריך שנבחר כאן!
-            if (window.calEventsCache) {
-                const fakeEventId = 'quote_' + window.currentActionTargetId;
-                const calEvent = window.calEventsCache.find(e => String(e.id) === fakeEventId);
-                
-                if (calEvent && targetDate) {
-                     const d = new Date(targetDate);
-                     calEvent.event_date = d.toISOString().split('T')[0];
-                     calEvent.start_time = d.toTimeString().substring(0,5);
-                     calEvent.status = 'approved';
-                }
+            // התיקון הקריטי: יצירת אירוע ממשי במסד הנתונים של היומן!
+            if (targetDate) {
+                const d = new Date(targetDate);
+                const payload = {
+                    groupId: currentGroup.id,
+                    title: `ביצוע פרויקט/אירוע: ${q ? safeStr(q.customer_name) : ''}`,
+                    eventDate: d.toISOString().split('T')[0],
+                    startTime: d.toTimeString().substring(0,5),
+                    serviceId: null,
+                    notes: `ORDER_REF:${window.currentActionTargetId}`,
+                    status: 'approved',
+                    customerPhone: q ? q.customer_phone : ''
+                };
+                await fetch(`${API}/calendar/events`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                }).catch(e => console.error("Calendar Sync Error", e));
             }
             
-            showToast('success', 'הצעת המחיר אושרה, הומרה להזמנה, והתאריך ננעל במערכת!');
+            showToast('success', 'הצעת המחיר אושרה, הומרה להזמנה, והתאריך ננעל ביומן!');
             getEl('target-datetime-modal').classList.add('hidden');
             
-            // רענון כללי של המידע כדי שהטאבים יהיו מעודכנים
             if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
             if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
             if(typeof window.fetchCalendarData === 'function') window.fetchCalendarData();
@@ -7296,6 +7295,81 @@ function toggleCardCollapse(cardId) {
     }
 }
 
+window.openQuotePreview = function(quoteId) {
+    const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
+    if (!q) return showToast('error', 'לא נמצאו נתוני הצעה להדפסה');
+    
+    let itemsHtml = '';
+    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
+    
+    rawItems.forEach(i => {
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${safeStr(i.note)}</div>`;
+    });
+
+    let userNotes = '';
+    let validity = '';
+    try {
+        const parsedNotes = JSON.parse(q.notes);
+        userNotes = parsedNotes.notes || '';
+        validity = parsedNotes.validity || '';
+    } catch(e) { userNotes = q.notes || ''; }
+    userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
+
+    const dateObj = new Date(q.created_at || Date.now());
+    const dateStr = dateObj.toLocaleDateString('he-IL');
+    
+    const receiptHtml = `
+        <html dir="rtl">
+        <head><title>הצעת מחיר #${q.id}</title>
+        <style>body{font-family:sans-serif; padding:20px; font-size:14px; max-width: 600px; margin:0 auto; background:#fff;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+        </head>
+        <body>
+            <h1 style="text-align:center; margin-bottom:5px; color:#4f46e5;">הצעת מחיר</h1>
+            <h3 style="text-align:center; margin-top:0;">${safeStr(currentGroup.name)}</h3>
+            <div style="margin-bottom:20px; font-size:13px; border-bottom:1px solid #ccc; padding-bottom:10px;">
+                <div><b>תאריך:</b> ${dateStr}</div>
+                <div><b>לכבוד:</b> ${safeStr(q.customer_name)}</div>
+                <div><b>טלפון:</b> ${safeStr(q.customer_phone || 'לא הוזן')}</div>
+                ${validity ? `<div><b>תוקף ההצעה:</b> ${safeStr(validity)}</div>` : ''}
+            </div>
+            
+            <div style="padding:10px 0; margin-bottom:10px;">
+                ${itemsHtml}
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; font-weight:900; font-size:18px; border-top:2px solid #000; padding-top:10px; margin-top:10px;">
+                <span>סה"כ משוער:</span><span dir="ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
+            </div>
+            
+            ${userNotes ? `<div style="margin-top:30px; font-size:12px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
+            
+            <div style="text-align:center; margin-top:40px; font-size:12px; font-weight:bold; color:#64748b;">
+                נשמח לעמוד לשירותכם!<br>${safeStr(currentGroup.name)}
+            </div>
+        </body>
+        </html>
+    `;
+
+    let iframe = document.getElementById('receipt-printer-frame');
+    if(!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt-printer-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(receiptHtml);
+    iframe.contentWindow.document.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
+    }, 500);
+};
+
 window.fetchStoreOrders = async function() { 
     try { 
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
@@ -7306,9 +7380,10 @@ window.fetchStoreOrders = async function() {
         else if (data.orders && Array.isArray(data.orders)) ordersArray = data.orders;
         else if (data.data && Array.isArray(data.data)) ordersArray = data.data;
 
-        // פיצול סופר-חכם: מזהה הצעות מחיר גם על פי הסטטוס וגם על פי תגית בהערות מהחנות
+        // התיקון הקריטי: אם הזמנה היא בסטטוס פעיל מתקדם, היא בוודאות לא הצעת מחיר
         const isQuote = (o) => {
-            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer') return true;
+            if (o.status === 'processing' || o.status === 'ready' || o.status === 'shipped' || o.status === 'completed') return false; 
+            if (o.status === 'quote' || o.orderType === 'quote' || o.order_type === 'quote' || o.quote_status === 'draft' || o.quote_status === 'sent' || o.quote_status === 'waiting_customer' || o.quote_status === 'customer_approved') return true;
             if (o.notes && o.notes.includes('[הצעת מחיר]')) return true;
             return false;
         };
@@ -7321,7 +7396,6 @@ window.fetchStoreOrders = async function() {
         if (embeddedQuotes.length > 0) {
             if (!window.storeQuotesCache) window.storeQuotesCache = [];
             embeddedQuotes.forEach(eq => {
-                // מניעת כפילויות במטמון
                 if (!window.storeQuotesCache.find(q => q.id === eq.id)) {
                     window.storeQuotesCache.push(eq);
                 }
