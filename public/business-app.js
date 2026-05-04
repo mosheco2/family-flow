@@ -4574,8 +4574,8 @@ window.renderStoreQuotes = function() {
                     <option value="all">כל הסטטוסים</option>
                     <option value="draft">טיוטות והצעות חדשות</option>
                     <option value="sent">נשלחו ללקוח</option>
-                    <option value="waiting_customer">ממתין לאישור</option>
-                    <option value="approved">אושרו (הזמנות)</option>
+                    <option value="customer_approved">אושרו ע"י לקוח</option>
+                    <option value="approved">אושרו (הפכו להזמנות)</option>
                 </select>
             </div>
         `);
@@ -4594,6 +4594,7 @@ window.renderStoreQuotes = function() {
         
         let qStatusRaw = q.quote_status || q.status;
         if (qStatusRaw === 'new' || qStatusRaw === 'quote') qStatusRaw = 'draft';
+        if (qStatusRaw === 'waiting_customer') qStatusRaw = 'sent'; // תאימות לאחור
         
         const matchStatus = statusFilter === 'all' || qStatusRaw === statusFilter;
         
@@ -4610,7 +4611,7 @@ window.renderStoreQuotes = function() {
     const statuses = {
         'draft': 'טיוטה (טרם נשלחה)',
         'sent': 'נשלחה ללקוח',
-        'waiting_customer': 'ממתין לאישור לקוח',
+        'customer_approved': 'אושרה ע"י לקוח',
         'frozen': 'הוקפאה / הושהתה',
         'cancelled': 'בוטלה ע"י הלקוח',
         'approved': 'אושרה (הפכה להזמנה)'
@@ -4622,7 +4623,10 @@ window.renderStoreQuotes = function() {
         try {
             let currentStatus = q.quote_status || q.status;
             if (currentStatus === 'new' || currentStatus === 'quote') currentStatus = 'draft';
+            if (currentStatus === 'waiting_customer') currentStatus = 'sent';
+            
             const isApproved = currentStatus === 'approved';
+            const isCustomerApproved = currentStatus === 'customer_approved';
             
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
             
@@ -4637,8 +4641,17 @@ window.renderStoreQuotes = function() {
 
             userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
 
+            let approveBtnHtml = '';
+            if (isApproved) {
+                 approveBtnHtml = `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> עבר להזמנות</span>`;
+            } else if (isCustomerApproved) {
+                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center animate-pulse"><i class="fa-solid fa-check-double"></i> העבר להזמנות</button>`;
+            } else {
+                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check"></i> אישור כפוי (עוקף לקוח)</button>`;
+            }
+
             html += `
-            <div class="bg-white p-4 rounded-2xl border ${isApproved ? 'border-green-300 shadow-md bg-green-50/20' : 'border-slate-200 shadow-sm'} flex flex-col mb-3 hover:shadow-md transition">
+            <div class="bg-white p-4 rounded-2xl border ${isApproved ? 'border-green-300 shadow-md bg-green-50/20' : (isCustomerApproved ? 'border-emerald-400 shadow-md bg-emerald-50/10' : 'border-slate-200 shadow-sm')} flex flex-col mb-3 hover:shadow-md transition">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
@@ -4647,16 +4660,16 @@ window.renderStoreQuotes = function() {
                         ${userNotes ? `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(userNotes)}</div>` : ''}
                     </div>
                     <div class="flex flex-col items-end gap-2 shrink-0">
-                        <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
+                        <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : (isCustomerApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600')} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
                             ${optionsHtml}
                         </select>
-                        ${!isApproved ? `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>` : `<span class="text-[10px] font-bold text-green-700 flex items-center gap-1"><i class="fa-solid fa-check-circle"></i> עבר להזמנות</span>`}
+                        ${approveBtnHtml}
                     </div>
                 </div>
                 <div class="flex gap-2 border-t border-slate-100 pt-3">
                     <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
-                    <button onclick="window.openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
-                    <button onclick="window.shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone || '')}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                    <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-[1.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> שליחה לאישור</button>
+                    <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
                 </div>
             </div>`;
         } catch(err) {}
@@ -4700,6 +4713,35 @@ window.updateQuoteStatus = async function(id, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 };
 
+window.sendQuoteToCustomer = function(id) {
+    const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
+    if (!q) return;
+
+    if (!q.customer_phone) {
+        return showToast('error', 'לא מוגדר מספר טלפון ללקוח בהצעת מחיר זו.');
+    }
+
+    const publicUrl = `${window.location.origin}/quote.html?id=${q.id}&store=${currentGroup.group_code}`;
+    const cleanPhone = q.customer_phone.replace(/\D/g, '');
+    let waPhone = cleanPhone;
+    if (cleanPhone.startsWith('0')) {
+        waPhone = '972' + cleanPhone.substring(1);
+    }
+    
+    const amount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
+    
+    let text = `שלום ${safeStr(q.customer_name)}, בהמשך לפנייתך,\n`;
+    text += `מצורפת הצעת מחיר מעודכנת (מס' ${q.id}) על סך ₪${amount}.\n\n`;
+    text += `לאישור ההצעה וצפייה בפרטים מלאים לחץ כאן:\n${publicUrl}\n\n`;
+    text += `בברכה,\n${currentGroup.name}`;
+
+    // עדכון הסטטוס ל"נשלח"
+    window.updateQuoteStatus(q.id, 'sent');
+    
+    // פתיחת וואטסאפ
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank');
+};
+
 window.currentActionTargetId = null;
 window.currentActionType = null; 
 
@@ -4707,8 +4749,8 @@ window.approveQuoteToOrder = function(id) {
     window.currentActionTargetId = id;
     window.currentActionType = 'quote';
     getEl('target-datetime-input').value = '';
-    getEl('target-date-modal-title').innerText = 'אישור הצעת מחיר';
-    getEl('target-date-modal-desc').innerText = 'ההצעה תאושר ותעבור מיד לרשימת ההזמנות. ניתן להגדיר תאריך ושעת יעד לאספקה:';
+    getEl('target-date-modal-title').innerText = 'המרה להזמנה';
+    getEl('target-date-modal-desc').innerText = 'ההצעה תעבור לתור ההזמנות (וישובץ אירוע ביומן במידת הצורך). בחר תאריך ושעת יעד לאספקה/הגעה:';
     getEl('target-datetime-modal').classList.remove('hidden');
 };
 
@@ -4730,8 +4772,12 @@ window.editOrderTargetDate = async function(orderId, currentDate) {
 
 window.submitTargetDatetime = async function() {
     const targetDate = getEl('target-datetime-input').value;
+    if (!targetDate && window.currentActionType === 'quote') {
+        if (!confirm('לא הוזן תאריך יעד לאירוע. האם להמשיך ללא שיבוץ ביומן?')) return;
+    }
+
     const btn = getEl('btn-submit-target-date');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאשר...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאשר וממיר...';
     
     try {
         if (window.currentActionType === 'quote') {
@@ -4745,12 +4791,19 @@ window.submitTargetDatetime = async function() {
             }
             
             if (isEmbeddedOrder) {
-                // המרה להזמנה רגילה
+                // 1. קודם כל נעדכן את הסטטוס להזמנה פעילה ("בטיפול") במקום הצעת מחיר
                 await fetch(`${API}/store/orders/status`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ orderId: window.currentActionTargetId, status: 'processing' })
                 });
+
+                // 2. בנוסף, נוודא שסטטוס ההצעה הפנימי מוגדר כ-approved
+                await fetch(`${API}/store/quotes/${window.currentActionTargetId}/status`, {
+                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ quoteStatus: 'approved' })
+                }).catch(e=>{});
                 
+                // 3. עדכון התאריך בהזמנה
                 if (targetDate) {
                     await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
                         method: 'PATCH', headers: {'Content-Type': 'application/json'},
@@ -4758,28 +4811,39 @@ window.submitTargetDatetime = async function() {
                     });
                 }
                 
-                showToast('success', 'הצעת המחיר אושרה והפכה להזמנה פעילה!');
-                getEl('target-datetime-modal').classList.add('hidden');
-                
-                if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
-                if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
-                
             } else {
-                // הצעה סטנדרטית 
+                // המרה של הצעה "נקייה" במערכת להזמנה
                 const res = await fetch(`${API}/store/quotes/${window.currentActionTargetId}/approve`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ targetDatetime: targetDate })
                 });
                 const data = await res.json();
-                if(data.success) {
-                    showToast('success', 'הצעת המחיר אושרה והפכה להזמנה!');
-                    getEl('target-datetime-modal').classList.add('hidden');
-                    if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
-                    if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
-                } else {
-                    showToast('error', data.error || 'שגיאה באישור ההצעה');
+                if(!data.success) {
+                    throw new Error(data.error || 'שגיאה באישור ההצעה');
                 }
             }
+
+            // 4. סנכרון ליומן - אנחנו בודקים אם יש אירוע ביומן שמקושר להצעה הזו (לפי Fake ID) 
+            // ומעדכנים אותו ל"Approved" וגם נועלים את התאריך שנבחר כאן!
+            if (window.calEventsCache) {
+                const fakeEventId = 'quote_' + window.currentActionTargetId;
+                const calEvent = window.calEventsCache.find(e => String(e.id) === fakeEventId);
+                
+                if (calEvent && targetDate) {
+                     const d = new Date(targetDate);
+                     calEvent.event_date = d.toISOString().split('T')[0];
+                     calEvent.start_time = d.toTimeString().substring(0,5);
+                     calEvent.status = 'approved';
+                }
+            }
+            
+            showToast('success', 'הצעת המחיר אושרה, הומרה להזמנה, והתאריך ננעל במערכת!');
+            getEl('target-datetime-modal').classList.add('hidden');
+            
+            // רענון כללי של המידע כדי שהטאבים יהיו מעודכנים
+            if(typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+            if(typeof window.fetchCalendarData === 'function') window.fetchCalendarData();
             
         } else if (window.currentActionType === 'order') {
             const res = await fetch(`${API}/store/orders/${window.currentActionTargetId}/target-date`, {
@@ -4788,15 +4852,15 @@ window.submitTargetDatetime = async function() {
             });
             const data = await res.json();
             if(data.success) {
-                showToast('success', 'יעד האספקה עודכן!');
+                showToast('success', 'יעד האספקה / האירוע עודכן בהזמנה!');
                 getEl('target-datetime-modal').classList.add('hidden');
                 if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
             } else {
-                showToast('error', data.error || 'שגיאה בעדכון');
+                showToast('error', data.error || 'שגיאה בעדכון יעד');
             }
         }
     } catch(e) {
-        showToast('error', 'שגיאת תקשורת מול השרת');
+        showToast('error', e.message || 'שגיאת תקשורת מול השרת בביצוע ההמרה');
     } finally {
         btn.disabled = false; btn.innerHTML = 'אישור ועדכון';
     }
