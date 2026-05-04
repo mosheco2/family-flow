@@ -4924,22 +4924,38 @@ window.openEditQuoteModal = function(quoteId) {
         document.getElementById('quote-cust-name').value = q.customer_name || '';
         document.getElementById('quote-cust-phone').value = q.customer_phone || '';
 
-        let userNotes = '';
+        let userNotes = q.notes || '';
         let introText = '';
-        let validity = '';
-        let companyId = '';
-        let myCompanyId = '';
+        let validity = '14 יום';
+        let companyId = localStorage.getItem('ofl_company_id') || '';
+        let myCompanyId = localStorage.getItem('ofl_my_company_id') || '';
         let internalNote = '';
 
-        try {
-            const parsedNotes = JSON.parse(q.notes);
-            userNotes = parsedNotes.notes || '';
-            introText = parsedNotes.introText || '';
-            validity = parsedNotes.validity || '';
-            companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || '';
-            myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || '';
-            internalNote = parsedNotes.internalNote || '';
-        } catch(e) { userNotes = q.notes || ''; }
+        // חיפוש המידע בפורמט החדש (מתוך המטא-דאטה של הפריטים)
+        const metaItem = rawItems.find(i => i.is_quote_metadata);
+        if (metaItem) {
+            try {
+                const meta = JSON.parse(metaItem.data);
+                if(meta.discount !== undefined) document.getElementById('quote-discount').value = meta.discount;
+                if(meta.internalNote) internalNote = meta.internalNote;
+                if(meta.introText) introText = meta.introText;
+                if(meta.validity) validity = meta.validity;
+                if(meta.companyId) companyId = meta.companyId;
+                if(meta.myCompanyId) myCompanyId = meta.myCompanyId;
+                if(meta.notes) userNotes = meta.notes; // התנאים המשפטיים
+            } catch(e) {}
+        } else {
+            // תאימות לאחור להצעות מחיר ישנות שנוצרו לפני העדכון
+            try {
+                const parsedNotes = JSON.parse(q.notes);
+                userNotes = parsedNotes.notes || '';
+                introText = parsedNotes.introText || '';
+                validity = parsedNotes.validity || '';
+                companyId = parsedNotes.companyId || companyId;
+                myCompanyId = parsedNotes.myCompanyId || myCompanyId;
+                internalNote = parsedNotes.internalNote || '';
+            } catch(e) {}
+        }
 
         userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
 
@@ -5572,7 +5588,7 @@ window.submitNewQuote = async function() {
         customerPhone: custPhone,
         items: items,
         totalAmount: totalAmount,
-        notes: notes,
+        notes: internalNote, // תיקון קריטי: שומרים את ההערה הפנימית כהערה הראשית להזמנה!
         quoteId: window.editingQuoteId || null
     };
 
@@ -5603,8 +5619,16 @@ window.openQuotePreview = function(quoteId) {
     let itemsHtml = '';
     const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
     
+    let metaData = null;
+    
     rawItems.forEach(i => {
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        // משיכת המידע הכללי מהמטא-דאטה החדש
+        if (i.is_quote_metadata) {
+            try { metaData = JSON.parse(i.data); } catch(e){}
+            return;
+        }
+        
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
         
         itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
         if (i.note) itemsHtml += `<div style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px;">הערת שורה: ${safeStr(i.note)}</div>`;
@@ -5621,7 +5645,7 @@ window.openQuotePreview = function(quoteId) {
                                     const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
                                     const optPrice = (parseFloat(opt.price) || 0) * optQty;
                                     stepItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-right:15px; font-size:13px; color:#334155;"><span>- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span dir="ltr">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
-                                    if (opt.note) stepItemsHtml += `<div style="font-size:11px; color:#94a3b8; margin-bottom:4px; padding-right:25px;">* הערה: ${safeStr(opt.note)}</div>`;
+                                    if (opt.note) stepItemsHtml += `<div style="font-size:11px; color:#94a3b8; margin-bottom:4px; padding-right:25px;">* הערה למנה: ${safeStr(opt.note)}</div>`;
                                 }
                             });
                         }
@@ -5646,20 +5670,30 @@ window.openQuotePreview = function(quoteId) {
     let companyId = '';
     let myCompanyId = '';
     
-    try {
-        const parsedNotes = JSON.parse(q.notes);
-        userNotes = parsedNotes.notes || '';
-        introText = parsedNotes.introText || '';
-        validity = parsedNotes.validity || '';
-        companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || '';
-        myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || '';
-    } catch(e) { userNotes = q.notes || ''; }
+    if (metaData) {
+        userNotes = metaData.notes || '';
+        introText = metaData.introText || '';
+        validity = metaData.validity || '';
+        companyId = metaData.companyId || '';
+        myCompanyId = metaData.myCompanyId || '';
+    } else {
+        // גיבוי למקרה של הצעות מחיר מאוד ישנות
+        try {
+            const parsedNotes = JSON.parse(q.notes);
+            userNotes = parsedNotes.notes || '';
+            introText = parsedNotes.introText || '';
+            validity = parsedNotes.validity || '';
+            companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || '';
+            myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || '';
+        } catch(e) { userNotes = q.notes || ''; }
+    }
     
     userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
 
     const dateObj = new Date(q.created_at || Date.now());
     const dateStr = dateObj.toLocaleDateString('he-IL');
     
+    // משיכת הלוגו
     let logoBase64 = '';
     const logoInput = document.getElementById('store-logo-base64');
     const dashLogo = document.getElementById('dash-logo-preview');
@@ -5673,6 +5707,7 @@ window.openQuotePreview = function(quoteId) {
     const slogan = document.getElementById('store-slogan') ? document.getElementById('store-slogan').value : '';
     const phone = document.getElementById('store-phone') ? document.getElementById('store-phone').value : '';
     
+    // חישוב מע"מ להצעה
     const vatSettings = window.getVatSettings();
     let vatHtml = '';
     let totalAmount = parseFloat(q.total_amount || 0);
@@ -5682,7 +5717,7 @@ window.openQuotePreview = function(quoteId) {
         const totalBeforeVat = totalAmount / (1 + (vatRate / 100));
         const vatAmountCalc = totalAmount - totalBeforeVat;
         vatHtml = `
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:15px; color:#475569;" dir="rtl">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:15px; color:#475569; padding-top:10px; border-top:1px solid #e2e8f0;" dir="rtl">
                 <span>סה"כ לפני מע"מ:</span><span dir="ltr">₪${totalBeforeVat.toFixed(2)}</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:5px; color:#475569;" dir="rtl">
@@ -5775,13 +5810,19 @@ window.openStoreOrderModal = function(orderId) {
     const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
-    let userNotes = '';
-    try {
-        const parsedNotes = JSON.parse(order.notes);
-        if (parsedNotes.notes) userNotes = parsedNotes.notes; 
-    } catch(e) { userNotes = order.notes || ''; }
-    
-    userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+    // חילוץ והצגת הערות הלקוח (או הערה פנימית במקרה של הצעה שהומרה)
+        let userNotes = '';
+        try {
+            const parsedNotes = JSON.parse(o.notes);
+            // אם זו הצעת מחיר שהומרה - נחפש הערה פנימית ספציפית
+            if (parsedNotes.internalNote) {
+                userNotes = parsedNotes.internalNote;
+            } else if (parsedNotes.notes) {
+                userNotes = parsedNotes.notes; 
+            }
+        } catch(e) { userNotes = o.notes || ''; }
+        
+        userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();עדן
 
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
@@ -7511,10 +7552,14 @@ window.openStoreOrderModal = function(orderId) {
     const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
-    let userNotes = '';
+  let userNotes = '';
     try {
         const parsedNotes = JSON.parse(order.notes);
-        if (parsedNotes.notes) userNotes = parsedNotes.notes; 
+        if (parsedNotes.internalNote) {
+            userNotes = parsedNotes.internalNote;
+        } else if (parsedNotes.notes) {
+            userNotes = parsedNotes.notes; 
+        }
     } catch(e) { userNotes = order.notes || ''; }
     
     userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
