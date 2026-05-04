@@ -7304,8 +7304,30 @@ window.openQuotePreview = function(quoteId) {
     
     rawItems.forEach(i => {
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${safeStr(i.note)}</div>`;
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:8px; font-weight:bold;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:2px; padding-right:10px;">הערת שורה: ${safeStr(i.note)}</div>`;
+        
+        // תוספת קריטית לחילוץ פריטי הבן (מפרט) לתוך ה-PDF
+        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
+            try {
+                const parsed = JSON.parse(i.options_text);
+                if (parsed && parsed.isComplex && parsed.steps) {
+                    parsed.steps.forEach(step => {
+                        if (step.options) {
+                            step.options.forEach(opt => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
+                                    const optPrice = (parseFloat(opt.price) || 0) * optQty;
+                                    itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:12px; color:#475569;"><span>- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span>${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
+                                    if (opt.note) itemsHtml += `<div style="font-size:10px; color:#94a3b8; margin-bottom:2px; padding-right:25px;">* הערה למנה: ${safeStr(opt.note)}</div>`;
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch(e) {}
+        }
+        itemsHtml += `<div style="border-bottom:1px dashed #e2e8f0; margin-bottom:6px; padding-bottom:4px;"></div>`;
     });
 
     let userNotes = '';
@@ -7563,7 +7585,41 @@ window.openStoreOrderModal = function(orderId) {
     }
 
     if (rawItems.length > 0) {
-        rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order || i.price}</span></div>`; });
+        rawItems.forEach(i => { 
+            let subItemsHtml = '';
+            
+            // שאיבת פריטי הבן גם למסך ניהול ההזמנה!
+            if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
+                try {
+                    const parsed = JSON.parse(i.options_text);
+                    if (parsed && parsed.isComplex && parsed.steps) {
+                        parsed.steps.forEach(step => {
+                            if (step.options) {
+                                step.options.forEach(opt => {
+                                    if (opt.selected === true || opt.selected === 'true') {
+                                        const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
+                                        const optPrice = (parseFloat(opt.price) || 0) * optQty;
+                                        subItemsHtml += `<div class="flex justify-between items-center pr-3 py-1 mt-1 border-t border-slate-50"><span class="text-xs text-slate-500"><i class="fa-solid fa-arrow-turn-down fa-rotate-90 text-[10px] ml-1 opacity-50"></i> ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span class="text-[10px] text-slate-400 font-bold">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
+                                        if (opt.note) {
+                                            subItemsHtml += `<div class="pr-7 text-[10px] text-slate-400 italic mb-1">- הערה: ${safeStr(opt.note)}</div>`;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            itemsHtml += `
+            <div class="bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span>
+                    <span class="font-bold text-slate-600 text-sm">₪${i.price_at_order || i.price}</span>
+                </div>
+                ${subItemsHtml}
+            </div>`; 
+        });
     } else {
         itemsHtml += '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
     }
