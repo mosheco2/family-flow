@@ -4633,14 +4633,23 @@ window.renderStoreQuotes = function() {
             const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'}) : "תאריך לא ידוע";
             
             let internalNote = '';
+            let customerNote = '';
             try {
                 const parsedNotes = JSON.parse(q.notes);
                 internalNote = parsedNotes.internalNote || '';
-                // Fallback for older quotes before internalNote was added
-                if (!internalNote && parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
-                     internalNote = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+                if(parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
+                    customerNote = parsedNotes.notes;
                 }
-            } catch(e) {}
+            } catch(e) {
+                if(q.notes && q.notes.includes('הערות לקוח:')) customerNote = q.notes;
+            }
+            
+            let displayNote = '';
+            if(internalNote) {
+                displayNote = `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(internalNote)}</div>`;
+            } else if (customerNote) {
+                displayNote = `<div class="mt-2 bg-indigo-50 p-2.5 rounded-lg text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(customerNote)}</div>`;
+            }
 
             let approveBtnHtml = '';
             if (isApproved) {
@@ -4658,7 +4667,7 @@ window.renderStoreQuotes = function() {
                         <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
-                        ${internalNote ? `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(internalNote)}</div>` : ''}
+                        ${displayNote}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
                         <select onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${isApproved ? 'bg-green-100 text-green-700 border-green-200' : (isCustomerApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-50 border-slate-200 text-slate-600')} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
@@ -5109,16 +5118,37 @@ window.calcQuoteTotal = function() {
     const beforeDiscount = total;
     total = total - (total * (discount / 100));
     
+    // חישוב מע"מ אם מופעל
+    let vatHtml = '';
+    const vatSettings = window.getVatSettings();
+    if (vatSettings && vatSettings.enabled) {
+        const vatRate = vatSettings.rate || 18;
+        const totalBeforeVat = total / (1 + (vatRate / 100));
+        const vatAmountCalc = total - totalBeforeVat;
+        vatHtml = `<div class="text-[10px] text-indigo-400 mt-1">סכום נטו: ₪${totalBeforeVat.toFixed(2)} | מע"מ: ₪${vatAmountCalc.toFixed(2)}</div>`;
+    }
+
     const totalEl = document.getElementById('quote-total-display');
     const beforeEl = document.getElementById('quote-before-discount');
+    const vatDisplayEl = document.getElementById('quote-vat-display');
     
     if (totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
+    
     if (beforeEl) {
         if (discount > 0) {
             beforeEl.innerHTML = `<span class="line-through">₪${beforeDiscount.toFixed(2)}</span> (-${discount}%)`;
         } else {
             beforeEl.innerText = '';
         }
+    }
+
+    // עדכון או יצירת תצוגת מע"מ מתחת לסך הכל
+    if (vatDisplayEl) {
+        vatDisplayEl.innerHTML = vatHtml;
+    } else if (totalEl && vatHtml) {
+        totalEl.insertAdjacentHTML('afterend', `<div id="quote-vat-display" class="font-bold text-left">${vatHtml}</div>`);
+    } else if (vatDisplayEl && !vatHtml) {
+        vatDisplayEl.innerHTML = '';
     }
 };
 
@@ -5161,6 +5191,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6 transition-all">
                 <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300 min-h-[400px]">
+                    
                     <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
                         <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/עסק:</label>
@@ -5184,14 +5215,8 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                         </div>
                     </div>
                     
-                    <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2 shrink-0">
-                        <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו:</h4>
-                        <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> תצוגה מורחבת</button>
-                    </div>
-                    
-                    <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 pb-4 min-h-[250px]"></div>
-                    
-                    <div class="mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3 shrink-0">
+                    <!-- אזור הטקסטים וההערות - הוקפץ מעל הפריטים -->
+                    <div class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3 shrink-0">
                         <div>
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">הערה פנימית (תוצג רק לך בתור הזמנות, לא ב-PDF):</label>
                             <textarea id="quote-internal-note" class="modern-input py-1.5 text-xs h-10 bg-white border-slate-200" placeholder="למשל: הובטח ללקוח צ'ופר אם יסגור השבוע..."></textarea>
@@ -5205,6 +5230,13 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
                             <textarea id="quote-notes" class="modern-input py-1.5 text-xs h-16 bg-white border-slate-200"></textarea>
                         </div>
                     </div>
+
+                    <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2 shrink-0">
+                        <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו:</h4>
+                        <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> תצוגה מורחבת</button>
+                    </div>
+                    
+                    <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 min-h-[150px]"></div>
                 </div>
 
                 <div id="quote-catalog-col" class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col transition-all duration-300">
@@ -5612,7 +5644,6 @@ window.openQuotePreview = function(quoteId) {
     let metaData = null;
     
     rawItems.forEach(i => {
-        // משיכת המידע הכללי מהמטא-דאטה החדש
         if (i.is_quote_metadata) {
             try { metaData = JSON.parse(i.data); } catch(e){}
             return;
@@ -5620,8 +5651,8 @@ window.openQuotePreview = function(quoteId) {
         
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
         
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px;">הערת שורה: ${safeStr(i.note)}</div>`;
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px; text-align:right;">הערת שורה: ${safeStr(i.note)}</div>`;
         
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
             try {
@@ -5634,19 +5665,19 @@ window.openQuotePreview = function(quoteId) {
                                 if (opt.selected === true || opt.selected === 'true') {
                                     const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
                                     const optPrice = (parseFloat(opt.price) || 0) * optQty;
-                                    stepItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-right:15px; font-size:13px; color:#334155;"><span>- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span dir="ltr">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
-                                    if (opt.note) stepItemsHtml += `<div style="font-size:11px; color:#94a3b8; margin-bottom:4px; padding-right:25px;">* הערה למנה: ${safeStr(opt.note)}</div>`;
+                                    stepItemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; padding-right:15px; font-size:13px; color:#334155;"><span style="text-align:right;">- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span dir="ltr">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
+                                    if (opt.note) stepItemsHtml += `<div style="font-size:11px; color:#94a3b8; margin-bottom:4px; padding-right:25px; text-align:right;">* הערה למנה: ${safeStr(opt.note)}</div>`;
                                 }
                             });
                         }
                         if (stepItemsHtml) {
-                            itemsHtml += `<div style="margin-top:6px; padding-right:10px; border-right:2px solid #cbd5e1;"><div style="font-size:11px; font-weight:bold; color:#94a3b8; margin-bottom:4px; padding-right:5px;">${safeStr(step.name)}</div>${stepItemsHtml}</div>`;
+                            itemsHtml += `<div style="margin-top:6px; padding-right:10px; border-right:2px solid #cbd5e1;"><div style="font-size:11px; font-weight:bold; color:#94a3b8; margin-bottom:4px; padding-right:5px; text-align:right;">${safeStr(step.name)}</div>${stepItemsHtml}</div>`;
                         }
                     });
                 } else if (Array.isArray(parsed)) {
                     parsed.forEach(opt => {
                         if (opt.name) {
-                             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:13px; color:#334155;"><span>- ${safeStr(opt.name)}</span></div>`;
+                             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:13px; color:#334155;"><span style="text-align:right;">- ${safeStr(opt.name)}</span></div>`;
                         }
                     });
                 }
@@ -5659,6 +5690,7 @@ window.openQuotePreview = function(quoteId) {
     let validity = '';
     let companyId = '';
     let myCompanyId = '';
+    let discountVal = 0;
     
     if (metaData) {
         userNotes = metaData.notes || '';
@@ -5666,8 +5698,8 @@ window.openQuotePreview = function(quoteId) {
         validity = metaData.validity || '';
         companyId = metaData.companyId || '';
         myCompanyId = metaData.myCompanyId || '';
+        discountVal = metaData.discount || 0;
     } else {
-        // גיבוי למקרה של הצעות מחיר מאוד ישנות
         try {
             const parsedNotes = JSON.parse(q.notes);
             userNotes = parsedNotes.notes || '';
@@ -5683,7 +5715,6 @@ window.openQuotePreview = function(quoteId) {
     const dateObj = new Date(q.created_at || Date.now());
     const dateStr = dateObj.toLocaleDateString('he-IL');
     
-    // משיכת הלוגו
     let logoBase64 = '';
     const logoInput = document.getElementById('store-logo-base64');
     const dashLogo = document.getElementById('dash-logo-preview');
@@ -5697,7 +5728,6 @@ window.openQuotePreview = function(quoteId) {
     const slogan = document.getElementById('store-slogan') ? document.getElementById('store-slogan').value : '';
     const phone = document.getElementById('store-phone') ? document.getElementById('store-phone').value : '';
     
-    // חישוב מע"מ להצעה
     const vatSettings = window.getVatSettings();
     let vatHtml = '';
     let totalAmount = parseFloat(q.total_amount || 0);
@@ -5716,14 +5746,24 @@ window.openQuotePreview = function(quoteId) {
         `;
     }
     
+    let discountHtml = '';
+    if(discountVal > 0) {
+        const valueBeforeDiscount = totalAmount / (1 - (discountVal / 100));
+        discountHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; margin-top:10px; color:#ef4444;" dir="rtl">
+                <span>הנחה מיוחדת (${discountVal}%):</span><span dir="ltr">-₪${(valueBeforeDiscount - totalAmount).toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
     const receiptHtml = `
         <html dir="rtl">
         <head><title>הצעת מחיר #${q.id}</title>
-        <style>body{font-family:sans-serif; padding:30px; font-size:14px; max-width: 800px; margin:0 auto; background:#fff; color:#0f172a;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+        <style>body{font-family:sans-serif; padding:30px; font-size:14px; max-width: 800px; margin:0 auto; background:#fff; color:#0f172a; text-align:right;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
         </head>
         <body>
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:20px; margin-bottom:20px;">
-                <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:20px; margin-bottom:20px; direction:rtl;">
+                <div style="text-align:right;">
                     ${logoHtml}
                     ${slogan ? `<div style="font-size:12px; color:#64748b; margin-top:5px;">${safeStr(slogan)}</div>` : ''}
                 </div>
@@ -5735,8 +5775,8 @@ window.openQuotePreview = function(quoteId) {
                 </div>
             </div>
 
-            <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-                <div>
+            <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; direction:rtl;">
+                <div style="text-align:right;">
                     <div style="font-size:12px; color:#64748b; margin-bottom:4px;">לכבוד:</div>
                     <div style="font-size:18px; font-weight:bold; color:#1e293b;">${safeStr(q.customer_name)}</div>
                     ${companyId ? `<div style="font-size:12px; color:#475569; margin-top:2px;"><b>ח.פ/ע.מ לקוח:</b> ${safeStr(companyId)}</div>` : ''}
@@ -5747,21 +5787,22 @@ window.openQuotePreview = function(quoteId) {
                 </div>
             </div>
             
-            ${validity ? `<div style="font-size:12px; font-weight:bold; color:#ef4444; margin-bottom:20px;">* תוקף ההצעה: ${safeStr(validity)}</div>` : ''}
+            ${validity ? `<div style="font-size:12px; font-weight:bold; color:#ef4444; margin-bottom:20px; text-align:right;">* תוקף ההצעה: ${safeStr(validity)}</div>` : ''}
             
-            ${introText ? `<div style="margin-bottom:20px; font-size:14px; line-height:1.6;">${safeStr(introText).replace(/\n/g, '<br/>')}</div>` : ''}
+            ${introText ? `<div style="margin-bottom:20px; font-size:14px; line-height:1.6; text-align:right;">${safeStr(introText).replace(/\n/g, '<br/>')}</div>` : ''}
             
-            <div style="padding:10px 0; margin-bottom:20px;">
+            <div style="padding:10px 0; margin-bottom:20px; text-align:right;">
                 ${itemsHtml}
             </div>
             
+            ${discountHtml}
             ${vatHtml}
             
-            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:22px; border-top:2px solid #000; padding-top:15px; margin-top:10px; direction:rtl;">
                 <span>סה"כ לתשלום:</span><span dir="ltr" style="color:#4f46e5;">₪${totalAmount.toFixed(2)}</span>
             </div>
             
-            ${userNotes ? `<div style="margin-top:40px; font-size:13px; line-height:1.6; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
+            ${userNotes ? `<div style="margin-top:40px; font-size:13px; line-height:1.6; background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:right;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
             
             <div style="text-align:center; margin-top:50px; font-size:14px; font-weight:bold; color:#64748b; border-top:1px solid #e2e8f0; padding-top:20px;">
                 נשמח לעמוד לשירותכם!<br>${safeStr(currentGroup.name)}
@@ -7268,103 +7309,6 @@ function toggleCardCollapse(cardId) {
     }
 }
 
-window.openQuotePreview = function(quoteId) {
-    const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
-    if (!q) return showToast('error', 'לא נמצאו נתוני הצעה להדפסה');
-    
-    let itemsHtml = '';
-    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
-    
-    rawItems.forEach(i => {
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-top:8px; font-weight:bold;"><span>${safeStr(i.item_name || i.name)} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:2px; padding-right:10px;">הערת שורה: ${safeStr(i.note)}</div>`;
-        
-        // תוספת קריטית לחילוץ פריטי הבן (מפרט) לתוך ה-PDF
-        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
-            try {
-                const parsed = JSON.parse(i.options_text);
-                if (parsed && parsed.isComplex && parsed.steps) {
-                    parsed.steps.forEach(step => {
-                        if (step.options) {
-                            step.options.forEach(opt => {
-                                if (opt.selected === true || opt.selected === 'true') {
-                                    const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
-                                    const optPrice = (parseFloat(opt.price) || 0) * optQty;
-                                    itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:12px; color:#475569;"><span>- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span>${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
-                                    if (opt.note) itemsHtml += `<div style="font-size:10px; color:#94a3b8; margin-bottom:2px; padding-right:25px;">* הערה למנה: ${safeStr(opt.note)}</div>`;
-                                }
-                            });
-                        }
-                    });
-                }
-            } catch(e) {}
-        }
-        itemsHtml += `<div style="border-bottom:1px dashed #e2e8f0; margin-bottom:6px; padding-bottom:4px;"></div>`;
-    });
-
-    let userNotes = '';
-    let validity = '';
-    try {
-        const parsedNotes = JSON.parse(q.notes);
-        userNotes = parsedNotes.notes || '';
-        validity = parsedNotes.validity || '';
-    } catch(e) { userNotes = q.notes || ''; }
-    userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
-
-    const dateObj = new Date(q.created_at || Date.now());
-    const dateStr = dateObj.toLocaleDateString('he-IL');
-    
-    const receiptHtml = `
-        <html dir="rtl">
-        <head><title>הצעת מחיר #${q.id}</title>
-        <style>body{font-family:sans-serif; padding:20px; font-size:14px; max-width: 600px; margin:0 auto; background:#fff;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
-        </head>
-        <body>
-            <h1 style="text-align:center; margin-bottom:5px; color:#4f46e5;">הצעת מחיר</h1>
-            <h3 style="text-align:center; margin-top:0;">${safeStr(currentGroup.name)}</h3>
-            <div style="margin-bottom:20px; font-size:13px; border-bottom:1px solid #ccc; padding-bottom:10px;">
-                <div><b>תאריך:</b> ${dateStr}</div>
-                <div><b>לכבוד:</b> ${safeStr(q.customer_name)}</div>
-                <div><b>טלפון:</b> ${safeStr(q.customer_phone || 'לא הוזן')}</div>
-                ${validity ? `<div><b>תוקף ההצעה:</b> ${safeStr(validity)}</div>` : ''}
-            </div>
-            
-            <div style="padding:10px 0; margin-bottom:10px;">
-                ${itemsHtml}
-            </div>
-            
-            <div style="display:flex; justify-content:space-between; font-weight:900; font-size:18px; border-top:2px solid #000; padding-top:10px; margin-top:10px;">
-                <span>סה"כ משוער:</span><span dir="ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
-            </div>
-            
-            ${userNotes ? `<div style="margin-top:30px; font-size:12px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;"><b>הערות ותנאים:</b><br/>${safeStr(userNotes).replace(/\n/g, '<br/>')}</div>` : ''}
-            
-            <div style="text-align:center; margin-top:40px; font-size:12px; font-weight:bold; color:#64748b;">
-                נשמח לעמוד לשירותכם!<br>${safeStr(currentGroup.name)}
-            </div>
-        </body>
-        </html>
-    `;
-
-    let iframe = document.getElementById('receipt-printer-frame');
-    if(!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'receipt-printer-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(receiptHtml);
-    iframe.contentWindow.document.close();
-    
-    setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        showToast('info', 'הצעת המחיר נפתחה להדפסה/שמירה כ-PDF!');
-    }, 500);
-};
-
 window.fetchStoreOrders = async function() { 
     try { 
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
@@ -7413,7 +7357,6 @@ window.renderStoreOrders = function() {
     if (!window.storeOrdersCache) return;
     let filteredOrders = [...window.storeOrdersCache];
     
-    // סידור: הזמנות חדשות ופעילות תמיד למעלה, השאר למטה (מושלם ובוטל)
     filteredOrders.sort((a, b) => {
         const aDone = (a.status === 'completed' || a.status === 'cancelled');
         const bDone = (b.status === 'completed' || b.status === 'cancelled');
@@ -7481,14 +7424,24 @@ window.renderStoreOrders = function() {
         const receivedTimeStr = createDate.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
         const receivedDateStr = createDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'2-digit'});
 
-        // חילוץ והצגת הערות הלקוח
+        // שאיבת הערות מתוקנת
         let userNotes = '';
+        let displayNote = '';
         try {
             const parsedNotes = JSON.parse(o.notes);
-            if (parsedNotes.notes) userNotes = parsedNotes.notes; 
-        } catch(e) { userNotes = o.notes || ''; }
-        
-        userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+            if (parsedNotes.internalNote) {
+                userNotes = parsedNotes.internalNote;
+                displayNote = `<div class="mb-3 bg-amber-50 p-3 rounded-xl text-xs font-bold text-amber-800 border border-amber-200 shadow-sm text-right"><i class="fa-solid fa-lock mr-1"></i> פנימי: ${safeStr(userNotes)}</div>`;
+            } else if (parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
+                userNotes = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+                displayNote = `<div class="mb-3 bg-indigo-50 p-3 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(userNotes)}</div>`;
+            }
+        } catch(e) { 
+            if(o.notes && o.notes.includes('הערות לקוח:')) {
+                userNotes = o.notes.replace('הערות לקוח:', '').trim();
+                displayNote = `<div class="mb-3 bg-indigo-50 p-3 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(userNotes)}</div>`;
+            }
+        }
 
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
@@ -7518,7 +7471,7 @@ window.renderStoreOrders = function() {
             
             <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
                 ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
-                ${userNotes ? `<div class="mb-3 bg-amber-50 p-3 rounded-xl text-xs font-bold text-amber-800 border border-amber-200 shadow-sm text-right"><i class="fa-regular fa-comment-dots mr-1"></i> ${safeStr(userNotes)}</div>` : ''}
+                ${displayNote}
                 ${buildOrderLogHtml(o.status, o.created_at)}
                 <div class="flex justify-end mt-4">
                     <button onclick="window.openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
@@ -7542,30 +7495,33 @@ window.openStoreOrderModal = function(orderId) {
     const targetEl = document.getElementById('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
-  let userNotes = '';
+    let displayNote = '';
     try {
         const parsedNotes = JSON.parse(order.notes);
         if (parsedNotes.internalNote) {
-            userNotes = parsedNotes.internalNote;
-        } else if (parsedNotes.notes) {
-            userNotes = parsedNotes.notes; 
+            displayNote = `<div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 shadow-sm"><span class="font-bold text-amber-800 text-sm"><i class="fa-solid fa-lock ml-1"></i> הערה פנימית: ${safeStr(parsedNotes.internalNote)}</span></div>`;
+        } else if (parsedNotes.notes && parsedNotes.notes.includes('הערות לקוח:')) {
+            const customerNote = parsedNotes.notes.replace('הערות לקוח:', '').trim();
+            displayNote = `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-200 mb-4 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-regular fa-comment-dots ml-1"></i> הערות מהלקוח: ${safeStr(customerNote)}</span></div>`;
         }
-    } catch(e) { userNotes = order.notes || ''; }
-    
-    userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').replace('הערות לקוח:', '').trim();
+    } catch(e) {
+        if(order.notes && order.notes.includes('הערות לקוח:')) {
+            const customerNote = order.notes.replace('הערות לקוח:', '').trim();
+            displayNote = `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-200 mb-4 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-regular fa-comment-dots ml-1"></i> הערות מהלקוח: ${safeStr(customerNote)}</span></div>`;
+        }
+    }
 
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
     
-    if (userNotes) {
-         itemsHtml += `<div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200 mb-4 shadow-sm"><span class="font-bold text-amber-800 text-sm"><i class="fa-regular fa-comment-dots ml-1"></i> הערות מהלקוח: ${safeStr(userNotes)}</span></div>`;
+    if (displayNote) {
+         itemsHtml += displayNote;
     }
 
     if (rawItems.length > 0) {
         rawItems.forEach(i => { 
             let subItemsHtml = '';
             
-            // שאיבת פריטי הבן גם למסך ניהול ההזמנה!
             if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
                 try {
                     const parsed = JSON.parse(i.options_text);
@@ -7609,7 +7565,6 @@ window.openStoreOrderModal = function(orderId) {
     document.getElementById('so-modal-items').innerHTML = itemsHtml;
     document.getElementById('store-order-modal').classList.remove('hidden');
 };
-
 window.updateStoreOrderStatus = async function(status) {
     if(!window.currentStoreOrderId) return;
     try { 
@@ -8743,11 +8698,96 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
 
+            const totalCalcAmount = orderInfo.totalAmount || orderInfo.total || 0;
+    const vatSettings = window.getVatSettings();
+    let finalVatHtml = '';
+    
+    if (vatSettings && vatSettings.enabled) {
+        const vatRate = vatSettings.rate || 18;
+        const totalBeforeVat = totalCalcAmount / (1 + (vatRate / 100));
+        const vatAmountCalc = totalCalcAmount - totalBeforeVat;
+        finalVatHtml = `
+            <div style="font-size: 14px; color: #475569; margin-top: 10px;" dir="rtl">סה"כ&nbsp;לפני&nbsp;מע"מ:&nbsp;&#x20AA;${totalBeforeVat.toFixed(2)}</div>
+            <div style="font-size: 14px; color: #475569; margin-top: 5px;" dir="rtl">מע"מ&nbsp;(${vatRate}%):&nbsp;&#x20AA;${vatAmountCalc.toFixed(2)}</div>
+        `;
+    }
+
+    return `
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 16px 20px; text-align: right;" dir="rtl">
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 12px; padding-bottom: 10px;" dir="rtl">
+                <tr>
+                    <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
+                        <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #334155;">הזמנת&nbsp;רכש&#x200F; <span dir="ltr" style="font-size: 15px; color:#64748b;">(Purchase Order)</span></h1>
+                        <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            ${fixLabel('מספר\u00A0הזמנה:')} <b dir="ltr" style="color: #4f46e5; display: inline-block;">#${orderInfo.orderId || 'חדש'}</b>
+                        </div>
+                    </td>
+                    <td style="vertical-align: middle; text-align: left; width: 40%;" dir="ltr">
+                        <table cellpadding="0" cellspacing="0" dir="ltr" style="display: inline-table; text-align: left;">
+                            <tr>
+                                <td style="vertical-align: middle;">
+                                    <span style="font-size: 20px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif;">
+                                        ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
+                                    </span>
+                                </td>
+                                <td style="vertical-align: middle; padding-left: 10px;">
+                                    <img src="/logo.png" style="height: 36px; display: block;" onerror="this.style.display='none'">
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;" dir="rtl">
+                <tr>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 8px 0; color: #4f46e5; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&#x200F;</h3>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('שם\u00A0העסק:')} <span style="display: inline-block;">${nb(safeStr(currentGroup.name))}</span></div>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('איש\u00A0קשר:')} <span style="display: inline-block;">${nb(safeStr(currentUser.nickname))}</span></div>
+                        ${branchHtml}
+                        ${customerNumHtml}
+                        <div style="margin-top: 8px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl">${fixLabel('הופק\u00A0ב:')} <span dir="ltr" style="display: inline-block;">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הספק:&#x200F;</h3>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('לכבוד:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.supplierName))}</span></div>
+                        ${phoneHtml}
+                        ${emailHtml}
+                    </td>
+                </tr>
+            </table>
+
+            <div style="margin-bottom: 10px; font-size: 13px; line-height: 1.5; color: #334155; text-align: right;" dir="rtl">
+                <b>שלום&nbsp;רב,&#x200F;</b>&nbsp;
+                מצ"ב&nbsp;פירוט&nbsp;הזמנת&nbsp;רכש&nbsp;מאושרת&nbsp;ממערכת&nbsp;ההזמנות&nbsp;שלנו.
+                נא&nbsp;לספק&nbsp;את&nbsp;הסחורה&nbsp;המפורטת&nbsp;מטה&nbsp;בהקדם&nbsp;האפשרי&nbsp;ולפי&nbsp;תנאי&nbsp;הסחר&nbsp;והמחירון&nbsp;שסוכמו.&#x200F;
+            </div>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 12px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
+                <thead>
+                    <tr style="background-color: #4f46e5; color: white;">
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 12%;">מק"ט</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 15%;">כמות</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 15%;">מחיר&nbsp;יח'</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 16%;">סה"כ&nbsp;שורה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
             <div class="avoid-break" style="border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: right;" dir="rtl">
-                <h2 style="margin: 0; font-size: 18px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&#x200F; <span dir="ltr" style="color: #4f46e5; display: inline-block;">&#x20AA;${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                ${finalVatHtml}
+                <h2 style="margin: 10px 0 0 0; font-size: 18px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&#x200F; <span dir="ltr" style="color: #4f46e5; display: inline-block;">&#x20AA;${totalCalcAmount.toFixed(2)}</span></h2>
                 <div style="color: #64748b; font-size: 11px; margin-top: 5px;">*&nbsp;ייתכנו&nbsp;שינויים&nbsp;במחיר&nbsp;הסופי&nbsp;בהתאם&nbsp;לשקילה&nbsp;ולמחירון&nbsp;העדכני&nbsp;בעת&nbsp;האספקה.&#x200F;</div>
             </div>
         </div>
+    `;
     `;
 }
 
