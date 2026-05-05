@@ -1768,13 +1768,44 @@
             <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
         
-        <a href="https://wa.me/972504000024" target="_blank" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-40 hidden">
-            <i class="fa-brands fa-whatsapp"></i>
-        </a>
+<button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-24 right-6 w-12 h-12 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 hover:bg-indigo-700 transition z-40 hidden group">
+            <i class="fa-solid fa-comments"></i>
+            <span id="team-chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
+        </button>
 
         <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-slate-800 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-slate-100 transition z-40 border border-slate-200">
             <i class="fa-solid fa-universal-access"></i>
         </button>
+
+        <div id="team-chat-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-2 sm:p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col h-[85vh] max-h-[800px] overflow-hidden fade-in">
+                <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex items-center justify-between z-10 shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-500 text-xl shadow-sm border border-indigo-100">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-base leading-tight">צ'אט צוות</h3>
+                            <p class="text-[10px] text-slate-500 font-medium">שיחה פנים ארגונית</p>
+                        </div>
+                    </div>
+                    <button onclick="closeTeamChatModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div id="chat-messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 modal-scroll flex flex-col">
+                    <p class="text-xs text-slate-400 text-center py-4 mt-auto">טוען שיחה...</p>
+                </div>
+                
+                <div class="p-3 bg-white border-t border-slate-100 shrink-0">
+                    <form onsubmit="window.submitChatMessage(event)" class="flex items-center gap-2">
+                        <input type="text" id="chat-message-input" class="modern-input flex-1 py-3 px-4 text-sm bg-slate-50 border border-slate-200 rounded-full focus:bg-white focus:border-indigo-400 transition outline-none" placeholder="הקלד הודעה לצוות..." autocomplete="off">
+                        <button type="submit" id="btn-send-chat" class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition shrink-0">
+                            <i class="fa-solid fa-paper-plane text-sm -translate-x-0.5"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
@@ -3647,12 +3678,12 @@
             
             document.body.insertAdjacentHTML('beforeend', pristineHTML);
 
-            // 4. חשיפת הכפתורים אך ורק כשהמערכת פועלת והמשתמש מחובר
+// 4. חשיפת הכפתורים אך ורק כשהמערכת פועלת והמשתמש מחובר
             setInterval(() => {
                 const dash = document.getElementById('dashboard-container');
                 const isDashVisible = dash && !dash.classList.contains('hidden');
                 
-                ['fab-container', 'ai-assistant-wrapper', 'whatsapp-btn-wrapper'].forEach(id => {
+                ['fab-container', 'ai-assistant-wrapper', 'team-chat-btn-wrapper'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
                         if (isDashVisible) el.classList.remove('hidden');
