@@ -16065,7 +16065,7 @@ window.exportTeamChat = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    showToast('success', "היסטוריית הצ'אט ירדה בהצלחה למכשירך");
+    showToast('success', 'היסטוריית הצ'אט ירדה בהצלחה למכשירך');
 };
 
 window.submitChatMessage = async function(e) {
