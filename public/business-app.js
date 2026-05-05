@@ -13165,56 +13165,85 @@ window.togglePOSFullscreen = function() {
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     
-    if (!document.fullscreenElement) {
-        try {
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) docEl.requestFullscreen();
-            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
-            
-            posContainer.classList.add('fixed', 'inset-0', 'bg-slate-100', 'p-2', 'sm:p-4', 'z-[50000]', 'overflow-y-auto');
-            posContainer.classList.remove('pb-20', 'mt-4');
-            posContainer.style.height = '100vh';
-            
-            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
-            if(wrapper) {
-                wrapper.classList.remove('h-[85vh]');
-                wrapper.classList.add('h-full');
-            }
-        } catch(e) {}
+    const isFullscreen = posContainer.classList.contains('pos-is-fullscreen');
+    
+    if (!isFullscreen) {
+        // הפיכת הקופה למסך מלא ועצמאי לחלוטין (בלי תלות ב-API הדפדפן)
+        posContainer.classList.add('pos-is-fullscreen');
+        
+        posContainer.style.position = 'fixed';
+        posContainer.style.top = '0';
+        posContainer.style.left = '0';
+        posContainer.style.width = '100vw';
+        posContainer.style.height = '100vh';
+        posContainer.style.zIndex = '9999999';
+        posContainer.style.backgroundColor = '#f8fafc'; 
+        posContainer.style.padding = '1rem';
+        posContainer.style.margin = '0';
+        
+        const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.firstElementChild;
+        if(wrapper) {
+            wrapper.style.height = '100%';
+        }
+        
+        const btn = document.getElementById('btn-pos-fullscreen');
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+        
     } else {
-        try {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            else if (document.msExitFullscreen) document.msExitFullscreen();
-        } catch(e) {}
+        // החזרת הקופה למצב רגיל
+        posContainer.classList.remove('pos-is-fullscreen');
+        
+        posContainer.style.position = '';
+        posContainer.style.top = '';
+        posContainer.style.left = '';
+        posContainer.style.width = '';
+        posContainer.style.height = '';
+        posContainer.style.zIndex = '';
+        posContainer.style.backgroundColor = '';
+        posContainer.style.padding = '';
+        posContainer.style.margin = '';
+        
+        const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.firstElementChild;
+        if(wrapper) {
+            wrapper.style.height = '';
+        }
+        
+        const btn = document.getElementById('btn-pos-fullscreen');
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
     }
 };
 
-document.addEventListener('fullscreenchange', () => {
-    const posContainer = document.getElementById('content-pos');
-    if (!posContainer) return;
+// פונקציות ניהול לוגו העוזרת הפיננסית AI
+window.handleAILogoUpload = function(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const base64 = e.target.result;
+        localStorage.setItem('ofl_custom_ai_logo', base64);
+        window.applyCustomAILogo();
+        showToast('success', 'לוגו העוזרת האישית עודכן בהצלחה!');
+    };
+    reader.readAsDataURL(file);
+};
+
+window.applyCustomAILogo = function() {
+    const customLogo = localStorage.getItem('ofl_custom_ai_logo');
+    const defaultLogo = 'logo.png';
+    const imgSrc = customLogo ? customLogo : defaultLogo;
     
-    const btn = document.getElementById('btn-pos-fullscreen');
-    const wrapper = posContainer.querySelector('.h-full') || posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+    const mainImg = document.getElementById('ai-assistant-logo-img');
+    if(mainImg) mainImg.src = imgSrc;
     
-    if (!document.fullscreenElement) {
-        posContainer.classList.remove('fixed', 'inset-0', 'bg-slate-100', 'p-2', 'sm:p-4', 'z-[50000]', 'overflow-y-auto');
-        posContainer.classList.add('pb-20', 'mt-4');
-        posContainer.style.height = '';
-        if(wrapper) {
-            wrapper.classList.remove('h-full');
-            wrapper.classList.add('h-[85vh]');
-        }
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-    } else {
-        if(wrapper) {
-            wrapper.classList.remove('h-[85vh]');
-            wrapper.classList.add('h-full');
-        }
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
-    }
-});
+    const previewImg = document.getElementById('ai-custom-logo-preview');
+    if(previewImg) previewImg.src = imgSrc;
+};
+
+// עדכון תקופתי להחלת הלוגו
+setInterval(() => {
+    if(typeof window.applyCustomAILogo === 'function') window.applyCustomAILogo();
+}, 5000);
+setTimeout(() => { if(typeof window.applyCustomAILogo === 'function') window.applyCustomAILogo(); }, 1000);
 
 // ==========================================
 // MASTER FIX BLOCK - MODIFIERS & PRODUCT MODAL
