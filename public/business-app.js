@@ -15867,7 +15867,7 @@ if (origFetchDataInboxHook) {
 }
 
 // ============================================================
-// --- TEAM CHAT MODULE (MODAL VERSION) ---
+// --- TEAM CHAT MODULE (MODAL VERSION WITH SEARCH & EXPORT) ---
 // ============================================================
 
 window.teamChatCache = [];
@@ -15924,10 +15924,9 @@ window.fetchTeamChat = async function(isSilent = false) {
     if (!currentGroup || !currentGroup.id) return;
     
     const container = document.getElementById('chat-messages-container');
-    const isModalOpen = !document.getElementById('team-chat-modal').classList.contains('hidden');
+    const isModalOpen = document.getElementById('team-chat-modal') && !document.getElementById('team-chat-modal').classList.contains('hidden');
 
-    // מציג "טוען שיחה" רק אם המודאל נפתח אקטיבית וכרגע אין בו הודעות מרונדרות
-    if (!isSilent && isModalOpen && (!container.innerHTML.includes('bg-white') && !container.innerHTML.includes('bg-indigo-100'))) {
+    if (!isSilent && isModalOpen && container && (!container.innerHTML.includes('bg-white') && !container.innerHTML.includes('bg-indigo-100'))) {
         container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 mt-auto"><i class="fa-solid fa-spinner fa-spin"></i> טוען שיחה...</p>';
     }
 
@@ -15941,9 +15940,7 @@ window.fetchTeamChat = async function(isSilent = false) {
             
             window.updateTeamChatBadge();
             
-            // ברגע שהמודאל פתוח, תמיד נרנדר כדי שלא יתקע על "טוען שיחה..."
             if (isModalOpen) {
-                // גוללים למטה אם זו פתיחה יזומה על ידי המשתמש (לא שקטה) או אם נוספו הודעות חדשות ברקע
                 const shouldScroll = !isSilent || isNewMessages;
                 window.renderTeamChat(shouldScroll);
                 
@@ -15985,7 +15982,6 @@ window.renderTeamChat = function(scrollToBottom = false) {
     let html = '<div class="flex-1 min-h-0"></div>'; 
     let currentDateGroup = '';
 
-    // פלטת צבעים שונה לכל חבר צוות כדי שיהיה קל לזהות
     const otherColors = [
         { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', name: 'text-emerald-600' },
         { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', name: 'text-rose-600' },
@@ -16016,7 +16012,6 @@ window.renderTeamChat = function(scrollToBottom = false) {
                 <span class="text-[9px] text-slate-400 mt-1 ml-1">${timeStr} <i class="fa-solid fa-check text-indigo-300"></i></span>
             </div>`;
         } else {
-            // בחירת צבע באופן קבוע לפי ה-ID של המשתמש כדי שישאר יציב
             const colorIndex = parseInt(msg.user_id || 0) % otherColors.length;
             const colorObj = otherColors[colorIndex];
             
@@ -16083,7 +16078,7 @@ window.submitChatMessage = async function(e) {
     btn.disabled = true;
     
     const tempMsg = {
-        id: 99999999, // מספר גבוה זמני כדי שייספר כנקרא
+        id: 99999999,
         user_id: currentUser.id,
         user_name: currentUser.nickname,
         message: msg,
@@ -16117,6 +16112,14 @@ window.submitChatMessage = async function(e) {
         input.focus(); 
     }
 };
+
+if (origFetchDataInboxHook) {
+    window.fetchData = async function() {
+        await origFetchDataInboxHook();
+        window.fetchInboxMessages();
+        if (typeof window.fetchTeamChat === 'function') window.fetchTeamChat(true);
+    };
+}
 // ============================================================
 // --- COMPLEX BUILDER (CATERING / PROJECTS) MODULE V2 ---
 // ============================================================
