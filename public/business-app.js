@@ -887,12 +887,24 @@ window.togglePOSFullscreen = function() {
         
         document.body.appendChild(posContainer);
         
-        posContainer.classList.add('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
+        posContainer.classList.add('pos-is-fullscreen');
+        
+        // החלת סגנונות ישירים כדי לעקוף בעיות זיהוי של Tailwind
+        posContainer.style.position = 'fixed';
+        posContainer.style.top = '0';
+        posContainer.style.left = '0';
+        posContainer.style.width = '100vw';
+        posContainer.style.height = '100vh';
+        posContainer.style.zIndex = '9999999';
+        posContainer.style.backgroundColor = '#f8fafc'; 
+        posContainer.style.padding = '1rem';
+        posContainer.style.margin = '0';
+        
         posContainer.classList.remove('pb-20', 'mt-4', 'relative');
         
         if(wrapper) {
             wrapper.classList.remove('h-[85vh]');
-            wrapper.classList.add('h-full', '!h-full');
+            wrapper.style.height = '100%';
         }
         
         document.body.style.overflow = 'hidden';
@@ -903,6 +915,7 @@ window.togglePOSFullscreen = function() {
             btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
         }
         
+        // יצירת סרגל ניווט מהיר בתוך הקופה
         let posNav = document.getElementById('pos-quick-nav');
         if (!posNav) {
             posNav = document.createElement('div');
@@ -920,6 +933,12 @@ window.togglePOSFullscreen = function() {
         }
         if (posNav) posNav.classList.remove('hidden');
 
+        // הבטחה שמסך התשלום יצוץ מעל הקופה
+        const tenderModal = document.getElementById('pos-tender-modal');
+        if (tenderModal) {
+            tenderModal.style.zIndex = '999999999';
+        }
+
     } else {
         toggleBrowserFullscreen(false);
         
@@ -928,11 +947,13 @@ window.togglePOSFullscreen = function() {
             placeholder.parentNode.insertBefore(posContainer, placeholder);
         }
         
-        posContainer.classList.remove('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
+        posContainer.classList.remove('pos-is-fullscreen');
+        posContainer.style.cssText = ''; 
+        
         posContainer.classList.add('pb-20', 'mt-4', 'relative');
         
         if(wrapper) {
-            wrapper.classList.remove('h-full', '!h-full');
+            wrapper.style.height = '';
             wrapper.classList.add('h-[85vh]');
         }
         
@@ -947,13 +968,17 @@ window.togglePOSFullscreen = function() {
         const posNav = document.getElementById('pos-quick-nav');
         if (posNav) posNav.classList.add('hidden');
         
-        // ניקוי המודאלים המרחפים בסגירה
+        // סגירת המסכים המרחפים באיפוס הקופה
         document.querySelectorAll('.pos-quick-overlay').forEach(el => {
             el.classList.add('hidden');
-            el.classList.remove('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+            el.classList.remove('pos-quick-overlay');
+            el.style.cssText = '';
         });
         const closeBtn = document.getElementById('pos-overlay-close-btn');
         if(closeBtn) closeBtn.remove();
+        
+        const tenderModal = document.getElementById('pos-tender-modal');
+        if (tenderModal) tenderModal.style.zIndex = '';
     }
 };
 
@@ -961,28 +986,40 @@ window.posQuickNavigate = function(tabName) {
     let targetId = 'content-' + tabName;
     if (tabName === 'quotes') {
         targetId = 'content-sales';
-        window.switchSalesTab('quotes');
+        if(typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes');
+    } else if (tabName === 'deliveries') {
+        if(typeof window.switchDeliveryTab === 'function') window.switchDeliveryTab('active');
     }
     
     const targetEl = document.getElementById(targetId);
     if (!targetEl) return;
     
-    // מוסיף קלאסים להפיכת הטאב לשכבה צפה מעל מסך הקופה המלא
-    targetEl.classList.remove('hidden');
-    targetEl.classList.add('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+    // הפיכת הטאב המבוקש למודאל מרחף *מעל* הקופה הפתוחה
+    targetEl.style.position = 'fixed';
+    targetEl.style.top = '0';
+    targetEl.style.left = '0';
+    targetEl.style.width = '100vw';
+    targetEl.style.height = '100vh';
+    targetEl.style.zIndex = '99999999'; // גבוה יותר ממסך הקופה!
+    targetEl.style.backgroundColor = '#f8fafc';
+    targetEl.style.padding = '3rem 1rem 1rem 1rem'; // ריווח לכפתור הסגירה
+    targetEl.style.overflowY = 'auto';
     
-    // מוסיף כפתור סגירה לשכבה אם לא קיים
+    targetEl.classList.remove('hidden');
+    targetEl.classList.add('pos-quick-overlay');
+    
     if (!document.getElementById('pos-overlay-close-btn')) {
         const closeBtn = document.createElement('button');
         closeBtn.id = 'pos-overlay-close-btn';
-        closeBtn.className = 'fixed top-4 left-4 sm:top-6 sm:left-6 w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100 transition shadow-lg z-[999999999] border border-red-200';
-        closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-xl"></i>';
+        closeBtn.className = 'fixed top-4 left-4 sm:top-6 sm:left-6 w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100 transition shadow-2xl z-[999999999] border border-red-200';
+        closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-2xl"></i>';
         closeBtn.onclick = function() {
             targetEl.classList.add('hidden');
-            targetEl.classList.remove('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+            targetEl.classList.remove('pos-quick-overlay');
+            targetEl.style.cssText = ''; 
             this.remove();
         };
-        targetEl.appendChild(closeBtn);
+        document.body.appendChild(closeBtn); // מוזרק לבודי כדי לא להיתקע בתוך ה-DOM של הטאב
     }
 };
 
