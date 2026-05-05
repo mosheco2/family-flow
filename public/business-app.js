@@ -16003,7 +16003,7 @@ window.renderTeamChat = function(scrollToBottom = false) {
             currentDateGroup = dateStr;
         }
 
-        if (isMe) {
+        62if (isMe) {
             html += `
             <div class="flex flex-col items-start w-full mb-1">
                 <div class="bg-indigo-100 text-indigo-900 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border border-indigo-200/50 break-words">
@@ -16038,7 +16038,7 @@ window.renderTeamChat = function(scrollToBottom = false) {
 
 window.exportTeamChat = function() {
     if (!window.teamChatCache || window.teamChatCache.length === 0) {
-        return showToast('error', 'אין הודעות לייצוא בקבוצה זו');
+        return showToast('error', "אין הודעות לייצוא בקבוצה זו");
     }
     
     const dateNow = new Date();
@@ -16065,7 +16065,7 @@ window.exportTeamChat = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    showToast('success', 'היסטוריית הצ\\'אט ירדה בהצלחה למכשירך');
+    showToast('success', "היסטוריית הצ'אט ירדה בהצלחה למכשירך");
 };
 
 window.submitChatMessage = async function(e) {
