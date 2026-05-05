@@ -893,6 +893,7 @@ window.togglePOSFullscreen = function(forceState) {
         
         posContainer.classList.add('pos-is-fullscreen');
         
+        // הגדרות CSS חזקות שמבטיחות שהקופה תישאר מתוחה, לא משנה מה הדפדפן עושה
         posContainer.style.position = 'fixed';
         posContainer.style.top = '0';
         posContainer.style.left = '0';
@@ -940,10 +941,9 @@ window.togglePOSFullscreen = function(forceState) {
         if (tenderModal) {
             tenderModal.style.zIndex = '999999999';
         }
-        
-        window._needsFullscreenRestore = false;
 
     } else {
+        // כפתור יציאה יזום - מחזירים הכל לקדמותו
         toggleBrowserFullscreen(false);
         
         const placeholder = document.getElementById('pos-placeholder');
@@ -1000,8 +1000,6 @@ window.togglePOSFullscreen = function(forceState) {
         
         const tenderModal = document.getElementById('pos-tender-modal');
         if (tenderModal) tenderModal.style.zIndex = '';
-        
-        window._needsFullscreenRestore = false;
     }
 };
 
@@ -1065,49 +1063,21 @@ window.posQuickNavigate = function(tabName) {
     };
 };
 
-// --- מנגנון מתקדם לשמירה על מסך מלא לאחר הדפסה ---
-window._isPrinting = false;
-window._needsFullscreenRestore = false;
-
-window.addEventListener('beforeprint', () => {
-    window._isPrinting = true;
-});
-
-window.addEventListener('afterprint', () => {
-    setTimeout(() => {
-        window._isPrinting = false;
-        const posContainer = document.getElementById('content-pos');
-        if (posContainer && posContainer.classList.contains('pos-is-fullscreen') && !document.fullscreenElement) {
-            // הדפדפן שבר את המסך המלא בגלל ההדפסה - נאמר למערכת לשחזר בקליק הבא
-            window._needsFullscreenRestore = true;
-        }
-    }, 500);
-});
-
-// מאזין ללחיצה הראשונה של המשתמש אחרי שהקבלה הודפסה כדי להחזיר את F11
-document.addEventListener('click', () => {
-    if (window._needsFullscreenRestore) {
-        try {
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) docEl.requestFullscreen();
-            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-        } catch(e) {}
-        window._needsFullscreenRestore = false;
+// כלי מניעה: מוודאים שסיום הזמנה לא הורס לנו את מצב הקופה המלאה
+if (!window.originalFinalizePOSOrderOverridden) {
+    const originalFinalizePOSOrder = window.finalizePOSOrder;
+    if (typeof originalFinalizePOSOrder === 'function') {
+        window.finalizePOSOrder = async function(...args) {
+            try {
+                await originalFinalizePOSOrder.apply(this, args);
+            } catch(e) {
+                console.error(e);
+            }
+            // ברגע שזה מסיים את התשלום, אנחנו לא עושים כלום. הקופה נשארת איך שהיא כרגע מתוחה ב-CSS.
+        };
+        window.originalFinalizePOSOrderOverridden = true;
     }
-});
-
-document.addEventListener('fullscreenchange', () => {
-    if (window._isPrinting) return; // לא לבטל את עיצוב הקופה בזמן שהדפדפן סוגר את F11 להדפסה
-    
-    const posContainer = document.getElementById('content-pos');
-    if (!posContainer) return;
-    const isCustomFullscreen = posContainer.classList.contains('pos-is-fullscreen');
-    
-    // אם המשתמש לחץ ESC וביטל את המסך המלא ידנית (ולא בגלל הדפסה) - סגור את הקופה המלאה
-    if (!document.fullscreenElement && isCustomFullscreen && !window._needsFullscreenRestore) {
-         window.togglePOSFullscreen(false);
-    }
-});
+}
 
 window.removeQuoteItem = function(id) {
     delete window.selectedQuoteItems[id];
