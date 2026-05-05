@@ -16003,7 +16003,7 @@ window.renderTeamChat = function(scrollToBottom = false) {
             currentDateGroup = dateStr;
         }
 
-        62if (isMe) {
+       if (isMe) {
             html += `
             <div class="flex flex-col items-start w-full mb-1">
                 <div class="bg-indigo-100 text-indigo-900 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border border-indigo-200/50 break-words">
