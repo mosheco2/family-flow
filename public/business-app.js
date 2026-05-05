@@ -858,18 +858,36 @@ window.togglePOSFullscreen = function() {
     
     if (!document.fullscreenElement) {
         try {
+            // יצירת שומר מקום כדי לדעת לאן להחזיר את הקופה
+            let placeholder = document.getElementById('pos-placeholder');
+            if (!placeholder) {
+                placeholder = document.createElement('div');
+                placeholder.id = 'pos-placeholder';
+                posContainer.parentNode.insertBefore(placeholder, posContainer);
+            }
+            
+            // תלישת הקופה ל-body כדי לעקוף חסימות מסגרת
+            document.body.appendChild(posContainer);
+            
             if (posContainer.requestFullscreen) posContainer.requestFullscreen();
             else if (posContainer.webkitRequestFullscreen) posContainer.webkitRequestFullscreen();
             else if (posContainer.msRequestFullscreen) posContainer.msRequestFullscreen();
             
-            posContainer.classList.add('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
-            posContainer.classList.remove('pb-20', 'mt-4', 'relative');
+            posContainer.classList.add('fixed', 'inset-0', 'z-[9999999]', 'bg-slate-100', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
+            posContainer.classList.remove('pb-20', 'mt-4', 'relative', 'rounded-[2rem]');
             
-            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]') || posContainer.querySelector('.min-h-full');
             if(wrapper) {
                 wrapper.classList.remove('h-[85vh]');
-                wrapper.classList.add('min-h-full', 'h-full');
+                wrapper.classList.add('min-h-screen');
             }
+            
+            // הסרת הפינות העגולות מהפאנלים למראה מסך מלא אמיתי
+            const leftPanel = posContainer.querySelector('.md\\:w-\\[65\\%\\]');
+            const rightPanel = posContainer.querySelector('.md\\:w-\\[35\\%\\]');
+            if(leftPanel) leftPanel.classList.remove('rounded-3xl', 'border');
+            if(rightPanel) rightPanel.classList.remove('rounded-3xl', 'border');
+            
         } catch(e) {}
     } else {
         try {
@@ -885,22 +903,30 @@ document.addEventListener('fullscreenchange', () => {
     if (!posContainer) return;
     
     const btn = document.getElementById('btn-pos-fullscreen');
-    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full');
+    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-screen');
+    const leftPanel = posContainer.querySelector('.md\\:w-\\[65\\%\\]');
+    const rightPanel = posContainer.querySelector('.md\\:w-\\[35\\%\\]');
     
     if (!document.fullscreenElement) {
-        posContainer.classList.remove('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
-        posContainer.classList.add('pb-20', 'mt-4', 'relative');
+        // החזרת הקופה למקומה
+        const placeholder = document.getElementById('pos-placeholder');
+        if (placeholder && posContainer.parentNode === document.body) {
+            placeholder.parentNode.insertBefore(posContainer, placeholder);
+        }
+        
+        posContainer.classList.remove('fixed', 'inset-0', 'z-[9999999]', 'bg-slate-100', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
+        posContainer.classList.add('pb-20', 'mt-4', 'relative', 'rounded-[2rem]');
         
         if(wrapper) {
-            wrapper.classList.remove('min-h-full', 'h-full');
+            wrapper.classList.remove('min-h-screen');
             wrapper.classList.add('h-[85vh]');
         }
+        
+        if(leftPanel) leftPanel.classList.add('rounded-3xl', 'border');
+        if(rightPanel) rightPanel.classList.add('rounded-3xl', 'border');
+        
         if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
     } else {
-        if(wrapper) {
-            wrapper.classList.remove('h-[85vh]');
-            wrapper.classList.add('min-h-full', 'h-full');
-        }
         if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     }
 });
@@ -2810,6 +2836,14 @@ function buildAndRenderFeed() {
     renderUnifiedFeed();
 }
 
+window.currentFeedPage = 1;
+
+window.changeFeedPage = function(direction) {
+    window.currentFeedPage += direction;
+    if (window.currentFeedPage < 1) window.currentFeedPage = 1;
+    renderUnifiedFeed();
+};
+
 function renderUnifiedFeed() {
     const userFilter = val('feed-user-filter') || 'all'; const dateFilter = val('feed-date-filter') || 'all'; const list = getEl('unified-feed-list'); if (!list) return;
     let filtered = feedCache;
@@ -2817,9 +2851,9 @@ function renderUnifiedFeed() {
     else if (userFilter !== 'all' && userFilter !== '') { filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); }
     if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(item => item.date && item.date >= cutoffDate); }
     
+    // פגינציה חכמה (15 פריטים בעמוד)
     const itemsPerPage = 15;
     const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-    
     if (window.currentFeedPage > totalPages) window.currentFeedPage = totalPages;
     if (window.currentFeedPage < 1) window.currentFeedPage = 1;
 
@@ -2830,13 +2864,11 @@ function renderUnifiedFeed() {
     const controls = document.getElementById('feed-pagination-controls');
     if (controls) {
         if (filtered.length > itemsPerPage) {
-            controls.classList.remove('hidden');
-            controls.classList.add('flex');
+            controls.classList.remove('hidden'); controls.classList.add('flex');
             const pageInfo = document.getElementById('feed-page-info');
             if (pageInfo) pageInfo.innerText = `עמוד ${window.currentFeedPage} מתוך ${totalPages}`;
         } else {
-            controls.classList.add('hidden');
-            controls.classList.remove('flex');
+            controls.classList.add('hidden'); controls.classList.remove('flex');
         }
     }
 
