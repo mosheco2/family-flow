@@ -1054,43 +1054,8 @@ window.posQuickNavigate = function(tabName) {
         this.remove();
     };
 };
+// הוסר המאזין ל-fullscreenchange כדי למנוע את כיווץ מסך הקופה בעת הפקת קבלה (PDF/Print)
 
-if (!window.originalFinalizePOSOrderOverridden) {
-    const originalFinalizePOSOrder = window.finalizePOSOrder;
-    if (typeof originalFinalizePOSOrder === 'function') {
-        window.finalizePOSOrder = async function(...args) {
-            const posContainer = document.getElementById('content-pos');
-            const wasFullscreen = posContainer && posContainer.classList.contains('pos-is-fullscreen');
-            
-            window._ignoreFullscreenChange = true;
-            
-            try {
-                await originalFinalizePOSOrder.apply(this, args);
-            } catch(e) {
-                console.error(e);
-            }
-            
-            if (wasFullscreen) {
-                window.togglePOSFullscreen(true);
-            }
-            
-            setTimeout(() => { window._ignoreFullscreenChange = false; }, 500);
-        };
-        window.originalFinalizePOSOrderOverridden = true;
-    }
-}
-
-document.addEventListener('fullscreenchange', () => {
-    if (window._ignoreFullscreenChange) return;
-    
-    const posContainer = document.getElementById('content-pos');
-    if (!posContainer) return;
-    const isCustomFullscreen = posContainer.classList.contains('pos-is-fullscreen');
-    
-    if (!document.fullscreenElement && isCustomFullscreen) {
-         window.togglePOSFullscreen(false);
-    }
-});
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
         const tabShop = getEl('tab-shop');
