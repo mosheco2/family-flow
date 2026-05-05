@@ -12457,17 +12457,72 @@ window.addPOSItem = function(id) {
     window.renderPOSCart();
 };
 
+window.calcPOSPromotions = function(cartTotal, cartItems) {
+    if (!window.storePromotionsCache || window.storePromotionsCache.length === 0) return { amount: 0, text: '' };
+    
+    const activePromos = window.storePromotionsCache.filter(p => {
+        if(p.is_active !== true && p.is_active != 1 && String(p.is_active) !== 'true') return false;
+        if(p.start_date && new Date(p.start_date) > new Date()) return false;
+        if(p.end_date && new Date(p.end_date) < new Date()) return false;
+        return true;
+    });
+    
+    let bestDiscount = 0;
+    let bestPromoText = '';
+    
+    activePromos.forEach(p => {
+        let eligibleTotal = 0;
+        if (p.target_type === 'all') {
+            eligibleTotal = cartTotal;
+        } else if (p.target_type === 'category' && p.target_ids && p.target_ids.length > 0) {
+            const targetCat = p.target_ids[0];
+            cartItems.forEach(item => {
+                const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
+                if (catItem && catItem.category === targetCat) {
+                    eligibleTotal += (item.price * item.qty);
+                }
+            });
+        }
+        
+        if (eligibleTotal > 0) {
+            let currentDiscount = 0;
+            if (p.promo_type === 'discount_pct') {
+                currentDiscount = eligibleTotal * (p.promo_value / 100);
+            } else if (p.promo_type === 'discount_fixed') {
+                currentDiscount = Math.min(eligibleTotal, p.promo_value);
+            } else if (p.promo_type === 'bogo') {
+                currentDiscount = Math.min(eligibleTotal / 2, p.promo_value); 
+            }
+            
+            if (currentDiscount > bestDiscount) {
+                bestDiscount = currentDiscount;
+                bestPromoText = p.title;
+            }
+        }
+    });
+    
+    return { amount: bestDiscount, text: bestPromoText };
+};
+
 window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
     let vatDisplay = document.getElementById('pos-vat-display');
-    if (!vatDisplay && totalEl) {
+    let promoDisplay = document.getElementById('pos-promo-display');
+
+    if (totalEl) {
         const totalContainer = totalEl.parentNode;
         if(totalContainer) {
-            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">סכום נטו: ₪<span id="pos-net-val">0.00</span> | מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
-            vatDisplay = document.getElementById('pos-vat-display');
+            if (!promoDisplay) {
+                totalContainer.insertAdjacentHTML('afterend', `<div id="pos-promo-display" class="text-left text-[11px] text-pink-500 font-bold mb-1 hidden">מבצע <span id="pos-promo-name"></span>: -₪<span id="pos-promo-val">0.00</span></div>`);
+                promoDisplay = document.getElementById('pos-promo-display');
+            }
+            if (!vatDisplay) {
+                totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">סכום נטו: ₪<span id="pos-net-val">0.00</span> | מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+                vatDisplay = document.getElementById('pos-vat-display');
+            }
         }
     }
 
@@ -12477,6 +12532,7 @@ window.renderPOSCart = function() {
         if(totalEl) totalEl.innerText = '₪0.00'; 
         if(countEl) countEl.innerText = '0 פריטים'; 
         if(vatDisplay) vatDisplay.classList.add('hidden');
+        if(promoDisplay) promoDisplay.classList.add('hidden');
         return;
     }
     
@@ -12494,7 +12550,6 @@ window.renderPOSCart = function() {
                 </div>
                 <div class="text-left">
                     <span class="font-black text-slate-800 text-sm dir-ltr block">₪${rowTotal.toFixed(2)}</span>
-                    <span class="text-[9px] text-slate-400">מחיר נטו</span>
                 </div>
             </div>
             <div class="flex justify-between items-center bg-slate-50 rounded-xl p-1.5 border border-slate-100 pr-2">
@@ -12508,19 +12563,37 @@ window.renderPOSCart = function() {
         </div>`;
     }).join('');
     
-    let grandTotal = netTotal;
-    
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    
+    let promo = { amount: 0, text: '' };
+    if (!isDebtPayment) {
+         promo = window.calcPOSPromotions(netTotal, window.posCart);
+    }
+    
+    let grandTotal = netTotal - promo.amount;
+    if (grandTotal < 0) grandTotal = 0;
+    
+    window.currentPOSDiscount = promo.amount; // נשמר עבור מסך התשלום והקבלה
+    
+    if (promoDisplay) {
+        if (promo.amount > 0) {
+            document.getElementById('pos-promo-name').innerText = promo.text;
+            document.getElementById('pos-promo-val').innerText = promo.amount.toFixed(2);
+            promoDisplay.classList.remove('hidden');
+        } else {
+            promoDisplay.classList.add('hidden');
+        }
+    }
 
     if(vatDisplay) {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled && !isDebtPayment) {
             const rate = vatSettings.rate || 18;
-            const vatAmount = netTotal * (rate / 100);
-            grandTotal = netTotal + vatAmount;
+            const totalBeforeVat = grandTotal / (1 + (rate / 100));
+            const vatAmount = grandTotal - totalBeforeVat;
             
             const netValEl = document.getElementById('pos-net-val');
-            if(netValEl) netValEl.innerText = netTotal.toFixed(2);
+            if(netValEl) netValEl.innerText = totalBeforeVat.toFixed(2);
             const vatValEl = document.getElementById('pos-vat-val');
             if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
             vatDisplay.classList.remove('hidden');
@@ -12603,9 +12676,11 @@ window.openPOSTender = function(skipCheck = false) {
     window.posSplitPayments = []; window.tenderMethod = 'cash';
     
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
-    let grandTotal = netTotal;
-    
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
     
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
@@ -12621,11 +12696,11 @@ window.openPOSTender = function(skipCheck = false) {
         const vatSettings = window.getVatSettings();
         if (vatSettings && vatSettings.enabled && !isDebtPayment) {
             const rate = vatSettings.rate || 18;
-            const vatAmount = netTotal * (rate / 100);
-            grandTotal = netTotal + vatAmount;
+            const totalBeforeVat = grandTotal / (1 + (rate / 100));
+            const vatAmount = grandTotal - totalBeforeVat;
             
             const tNetVal = document.getElementById('tender-net-val');
-            if(tNetVal) tNetVal.innerText = netTotal.toFixed(2);
+            if(tNetVal) tNetVal.innerText = totalBeforeVat.toFixed(2);
             const tVatVal = document.getElementById('tender-vat-val');
             if(tVatVal) tVatVal.innerText = vatAmount.toFixed(2);
             tenderVatDisplay.classList.remove('hidden');
@@ -12643,11 +12718,8 @@ window.openPOSTender = function(skipCheck = false) {
         if (modal.parentNode !== targetNode) {
             targetNode.appendChild(modal);
         }
-        
-        // תיקון חיוני: הקפצת המודאל מעל המסך המלא הרמטית
         modal.style.position = 'fixed';
         modal.style.zIndex = '999999999';
-        
         modal.classList.remove('hidden');
     }
 
@@ -12690,14 +12762,9 @@ window.addPaymentToSplit = function() {
 window.updateTenderDisplay = function() {
     const list = document.getElementById('tender-payments-list');
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
-    let grandTotal = netTotal;
-    
-    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
-    const vatSettings = window.getVatSettings();
-    
-    if (vatSettings && vatSettings.enabled && !isDebtPayment) {
-        grandTotal += netTotal * ((vatSettings.rate || 18) / 100);
-    }
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
     
     let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
     
@@ -12705,7 +12772,7 @@ window.updateTenderDisplay = function() {
     
     const balance = grandTotal - paid;
     const btn = document.getElementById('btn-finalize-pos');
-    if (balance <= 0) {
+    if (balance <= 0.01) {
         document.getElementById('tender-balance-label').innerText = "עודף להחזרה:"; document.getElementById('tender-balance-val').innerText = `₪${Math.abs(balance).toFixed(2)}`;
         btn.disabled = false; btn.classList.replace('bg-slate-300', 'bg-emerald-500'); btn.classList.remove('cursor-not-allowed', 'opacity-50');
     } else {
@@ -12722,7 +12789,7 @@ window.openPOSModifiersModal = function(p, mods) {
     if (modal) modal.remove();
     
     let html = `
-    <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+    <div id="pos-modifiers-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
             <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-ul text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
@@ -12780,7 +12847,7 @@ window.openPOSPizzaModal = function(p, pizzaData) {
     if (modal) modal.remove();
     
     let html = `
-    <div id="pos-pizza-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+    <div id="pos-pizza-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
             <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-pizza-slice text-orange-500 mr-2"></i> הרכבת ${safeStr(p.name)}</h3>
@@ -12855,7 +12922,7 @@ window.openPOSBundleModal = function(p, bundleData) {
     if (modal) modal.remove();
     
     let html = `
-    <div id="pos-bundle-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+    <div id="pos-bundle-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
             <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
@@ -12905,7 +12972,6 @@ window.openPOSBundleModal = function(p, bundleData) {
     const targetNode = document.fullscreenElement || document.body;
     targetNode.insertAdjacentHTML('beforeend', html);
     
-    // Add event listeners to enforce max selections for checkboxes
     steps.forEach((step, idx) => {
         if (step.qty > 1) {
             const inputs = document.querySelectorAll(`.bundle-step-input-${idx}`);
@@ -12937,7 +13003,7 @@ window.submitPOSBundle = function() {
             isValid = false;
         }
         checked.forEach(inp => {
-            selected.push({ name: inp.value, price: 0 }); // Bundle items are included in base price
+            selected.push({ name: inp.value, price: 0 }); 
         });
     });
     
@@ -12955,7 +13021,9 @@ window.finalizePOSOrder = async function() {
     
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
-    let grandTotal = netTotal;
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
     
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
@@ -12966,15 +13034,14 @@ window.finalizePOSOrder = async function() {
     let vatDetails = null;
     if (vatSettings && vatSettings.enabled && !isDebtPayment) {
         const rate = vatSettings.rate || 18;
-        const vatAmount = netTotal * (rate / 100);
-        grandTotal = netTotal + vatAmount;
-        vatDetails = { enabled: true, rate: rate, subtotal: netTotal, vatAmount: vatAmount };
+        const totalBeforeVat = grandTotal / (1 + (rate / 100));
+        const vatAmount = grandTotal - totalBeforeVat;
+        vatDetails = { enabled: true, rate: rate, subtotal: totalBeforeVat, vatAmount: vatAmount };
     }
     
-    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment };
+    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
-    // סגירה מיידית של חלון הסליקה
     const modal = document.getElementById('pos-tender-modal');
     if (modal) modal.classList.add('hidden');
 
@@ -13006,33 +13073,6 @@ window.finalizePOSOrder = async function() {
             };
             try { window.printPOSReceipt(newOrderId, rawOrderObj); } catch(e){}
 
-            try {
-                const waCheckbox = document.getElementById('tender-send-receipt');
-                if(waCheckbox && waCheckbox.checked && phone) {
-                    let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
-                    waMsg += `------------------------\n`;
-                    window.posCart.forEach(item => {
-                        waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
-                        if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
-                    });
-                    waMsg += `------------------------\n`;
-                    if (vatDetails && !isDebtPayment) {
-                        waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
-                        waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
-                    }
-                    waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
-                    if (window.posSplitPayments.length > 0) {
-                        waMsg += `*אמצעי תשלום:*\n`;
-                        window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
-                    }
-                    waMsg += `\nתודה שקנית אצלנו! 🙏`;
-                    
-                    setTimeout(() => {
-                        window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
-                    }, 1500);
-                }
-            } catch(e){}
-            
             showToast('success', 'העסקה הושלמה ונשמרה בהצלחה!'); 
             try { triggerConfetti(); } catch(e){}
             setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
@@ -13071,7 +13111,6 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
         if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:4px; padding-right:10px;">${safeStr(i.note)}</div>`;
         
-        // חילוץ תוספות ומנות בן לקבלה
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
             try {
                 const parsed = JSON.parse(i.options_text);
@@ -13097,7 +13136,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
                 }
             } catch(e) {}
         }
-        itemsHtml += `<div style="height:6px;"></div>`; // מרווח קטן בין פריטים עליונים
+        itemsHtml += `<div style="height:6px;"></div>`; 
     });
     
     let titleStr = 'קבלה';
@@ -13106,8 +13145,37 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     const totalAmount = parseFloat(order.total_amount || order.total || 0);
     const vatSettings = window.getVatSettings();
     let vatHtml = '';
+    let promoHtml = '';
     
-    // חישוב המע"מ הכללי לקבלה אם הוא פעיל בחנות
+    try {
+        let metaStr = order.notes;
+        if (!metaStr || !metaStr.includes('{')) {
+            const rawMetaItem = rawItems.find(i => i.is_quote_metadata);
+            if (rawMetaItem) metaStr = rawMetaItem.data;
+        }
+
+        if(metaStr && metaStr.includes('{')) {
+            const meta = JSON.parse(metaStr);
+            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
+            
+            if (meta.promoDiscount && meta.promoDiscount > 0) {
+                promoHtml = `
+                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between; color:#ef4444; font-weight:bold;"><span>הנחת מבצעים:</span><span dir="ltr">-₪${meta.promoDiscount.toFixed(2)}</span></div>
+                    </div>
+                `;
+            }
+            
+            if (meta.payments && meta.payments.length > 0) {
+                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
+                meta.payments.forEach(p => {
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span>${p.name || p.method}</span><span dir="ltr">₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
+                });
+                paymentsHtml += `</div>`;
+            }
+        }
+    } catch(e) {}
+    
     if (vatSettings && vatSettings.enabled) {
         const vatRate = vatSettings.rate || 18;
         const totalBeforeVat = totalAmount / (1 + (vatRate / 100));
@@ -13119,28 +13187,6 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
             </div>
         `;
     }
-    
-    try {
-        let metaStr = order.notes;
-        if (!metaStr || !metaStr.includes('{')) {
-            const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
-            const metaItem = rawItems.find(i => i.is_quote_metadata);
-            if (metaItem) metaStr = metaItem.data;
-        }
-
-        if(metaStr && metaStr.includes('{')) {
-            const meta = JSON.parse(metaStr);
-            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
-            
-            if (meta.payments && meta.payments.length > 0) {
-                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
-                meta.payments.forEach(p => {
-                    paymentsHtml += `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span>${p.name || p.method}</span><span dir="ltr">₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
-                });
-                paymentsHtml += `</div>`;
-            }
-        }
-    } catch(e) {}
     
     const dateObj = new Date(order.created_at || Date.now());
     const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
@@ -13164,6 +13210,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
             <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
                 ${itemsHtml}
             </div>
+            ${promoHtml}
             ${vatHtml}
             <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
                 <span>סה"כ לתשלום:</span><span dir="ltr">₪${totalAmount.toFixed(2)}</span>
