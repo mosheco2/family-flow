@@ -12428,16 +12428,78 @@ window.renderPOSCatalog = function(cat = 'all') {
     if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
 
     grid.innerHTML = products.map(p => {
-        const hasMods = p.options_text && p.options_text.length > 10;
+        // זיהוי אם מדובר במוצר מורכב (מארז, פיצה, תוספות)
+        let isComplex = false;
+        if (p.options_text && p.options_text.length > 10) {
+            try {
+                const parsed = JSON.parse(p.options_text);
+                if (Array.isArray(parsed) || parsed.isBundle || parsed.isPizza || parsed.isComplex) isComplex = true;
+            } catch(e){}
+        }
+        
+        // --- עיבוד דיגולים ומבצעים לתצוגה הויזואלית ---
+        let badgesHtml = `<div class="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">`;
+        let promoBadge = '';
+        let finalPrice = parseFloat(p.price) || 0;
+        let originalPrice = finalPrice;
+        
+        if (window.storePromotionsCache && window.storePromotionsCache.length > 0) {
+            const activePromos = window.storePromotionsCache.filter(promo => {
+                if(promo.is_active !== true && promo.is_active != 1 && String(promo.is_active) !== 'true') return false;
+                if(promo.start_date && new Date(promo.start_date) > new Date()) return false;
+                if(promo.end_date && new Date(promo.end_date) < new Date()) return false;
+                return true;
+            });
+
+            let bestDiscount = 0;
+            activePromos.forEach(promo => {
+                let applies = false;
+                if (promo.target_type === 'all') applies = true;
+                if (promo.target_type === 'category' && promo.target_ids && promo.target_ids.length > 0 && promo.target_ids[0] === (p.category || 'כללי')) applies = true;
+                
+                if (applies) {
+                    if (promo.promo_type === 'discount_pct') {
+                        let discountAmt = originalPrice * (promo.promo_value / 100);
+                        if (discountAmt > bestDiscount) {
+                            bestDiscount = discountAmt;
+                            promoBadge = `<div class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-pink-400">-${promo.promo_value}%</div>`;
+                        }
+                    } else if (promo.promo_type === 'bogo' && bestDiscount === 0) {
+                        promoBadge = `<div class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-pink-400">1+1 מתנה</div>`;
+                    }
+                }
+            });
+            finalPrice = originalPrice - bestDiscount;
+        }
+        
+        if (promoBadge) badgesHtml += promoBadge;
+        
+        // הוספת הדיגול הכללי מהקטלוג ("ללא גלוטן", "מבצע" וכו')
+        if (p.badge_text) {
+            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900', 'pink':'bg-pink-500' };
+            const bgClass = colors[p.badge_color] || 'bg-red-500';
+            badgesHtml += `<div class="${bgClass} text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-white/50">${safeStr(p.badge_text)}</div>`;
+        }
+        badgesHtml += `</div>`;
+        
+        // חיתוך מחירים אם יש מבצע
+        let priceHtml = '';
+        if (finalPrice < originalPrice) {
+            priceHtml = `<div class="flex items-center justify-end gap-1 mt-1"><span class="text-[10px] text-slate-400 line-through">₪${originalPrice.toFixed(2)}</span> <span class="font-black text-pink-600 text-base dir-ltr">₪${finalPrice.toFixed(2)}</span></div>`;
+        } else {
+            priceHtml = `<span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${originalPrice.toFixed(2)}</span>`;
+        }
+        
         return `
         <div onclick="window.addPOSItem(${p.id})" class="bg-white rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full">
-            ${hasMods ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-10"><i class="fa-solid fa-list-ul ml-1"></i>הרכבה</span>` : ''}
-            <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden">
+            ${badgesHtml}
+            ${isComplex ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-20"><i class="fa-solid fa-layer-group ml-1"></i>הרכבה</span>` : ''}
+            <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden relative z-0">
                 ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-utensils text-3xl text-slate-300"></i>`}
             </div>
             <div class="p-4 flex-1 flex flex-col justify-between text-right">
                 <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
-                <span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${parseFloat(p.price).toFixed(2)}</span>
+                ${priceHtml}
             </div>
         </div>`;
     }).join('');
@@ -12445,15 +12507,22 @@ window.renderPOSCatalog = function(cat = 'all') {
 
 window.addPOSItem = function(id) {
     const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
+    
+    // ניווט למוצרי הרכבה מסוגים שונים בהתאם לפיילוט (פיצות, מארזים, תוספות חופשיות)
     if (p.options_text && p.options_text.length > 10) {
         try { 
             const parsed = JSON.parse(p.options_text);
+            if (parsed && parsed.isBundle) { window.openPOSBundleModal(p, parsed); return; }
+            if (parsed && parsed.isPizza) { window.openPOSPizzaModal(p, parsed); return; }
             if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); return; }
         } catch(e) {}
     }
+    
+    // הוספת המוצר הרגיל לעגלה
     const existing = window.posCart.find(i => i.real_id === p.id && !i.modifiers);
     if(existing) existing.qty++;
     else window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: p.name, price: parseFloat(p.price), qty: 1, modifiers: null });
+    
     window.renderPOSCart();
 };
 
