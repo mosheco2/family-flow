@@ -852,232 +852,35 @@ window.injectBusinessUI = function() {
     }
 };
 
-window.togglePOSFullscreen = function(forceState) {
+// --- מנגנון אוטומטי ואגרסיבי לשמירה על מסך מלא (Auto-Restore) ---
+// דפדפנים יוצאים ממסך מלא אוטומטית בעת הורדת קובץ או הדפסה מטעמי אבטחה.
+// הקוד הבא מזהה שהקופה אמורה להיות פתוחה, ומחזיר את הדפדפן למסך מלא בלחיצה הראשונה במסך.
+document.addEventListener('click', (e) => {
+    const posContainer = document.getElementById('content-pos');
+    // אם אנחנו לא במצב קופה במסך מלא - אל תעשה כלום
+    if (!posContainer || !posContainer.classList.contains('pos-is-fullscreen')) return;
+    
+    // אם לחצו על כפתור "יציאה מהקופה" - אל תחזיר למסך מלא
+    if (e.target.closest('#btn-pos-fullscreen')) return;
+    
+    // אם הדפדפן לא במסך מלא (כי נזרקנו החוצה בגלל PDF), נחזיר אותו מיד
+    if (!document.fullscreenElement) {
+        try {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+        } catch(err) {}
+    }
+});
+
+document.addEventListener('fullscreenchange', () => {
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     
-    const isFullscreen = posContainer.classList.contains('pos-is-fullscreen');
-    const shouldBeFullscreen = forceState !== undefined ? forceState : !isFullscreen;
-    
-    if (shouldBeFullscreen === isFullscreen && forceState === undefined) return;
-
-    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full') || posContainer.querySelector('.h-\\[85vh\\]');
-    const btn = document.getElementById('btn-pos-fullscreen');
-    
-    const toggleBrowserFullscreen = (forceOn) => {
-        try {
-            if (forceOn && !document.fullscreenElement) {
-                const docEl = document.documentElement;
-                if (docEl.requestFullscreen) docEl.requestFullscreen();
-                else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-                else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
-            } else if (!forceOn && document.fullscreenElement) {
-                if (document.exitFullscreen) document.exitFullscreen();
-                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-                else if (document.msExitFullscreen) document.msExitFullscreen();
-            }
-        } catch(e) {}
-    };
-
-    if (shouldBeFullscreen) {
-        toggleBrowserFullscreen(true);
-        
-        let placeholder = document.getElementById('pos-placeholder');
-        if (!placeholder) {
-            placeholder = document.createElement('div');
-            placeholder.id = 'pos-placeholder';
-            posContainer.parentNode.insertBefore(placeholder, posContainer);
-        }
-        
-        document.body.appendChild(posContainer);
-        
-        posContainer.classList.add('pos-is-fullscreen');
-        
-        // הגדרות CSS חזקות שמבטיחות שהקופה תישאר מתוחה, לא משנה מה הדפדפן עושה
-        posContainer.style.position = 'fixed';
-        posContainer.style.top = '0';
-        posContainer.style.left = '0';
-        posContainer.style.width = '100vw';
-        posContainer.style.height = '100vh';
-        posContainer.style.zIndex = '9999999';
-        posContainer.style.backgroundColor = '#f8fafc'; 
-        posContainer.style.padding = '1rem';
-        posContainer.style.margin = '0';
-        posContainer.style.display = 'flex';
-        
-        posContainer.classList.remove('pb-20', 'mt-4', 'relative', 'hidden');
-        
-        if(wrapper) {
-            wrapper.classList.remove('h-[85vh]');
-            wrapper.style.height = '100%';
-        }
-        
-        document.body.style.overflow = 'hidden';
-        
-        if(btn) {
-            btn.innerHTML = '<i class="fa-solid fa-compress text-lg"></i> <span class="hidden sm:inline mr-2">יציאה מהקופה</span>';
-            btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600', 'border-red-600');
-            btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
-        }
-        
-        let posNav = document.getElementById('pos-quick-nav');
-        if (!posNav) {
-            posNav = document.createElement('div');
-            posNav.id = 'pos-quick-nav';
-            posNav.className = 'flex gap-2 mr-auto sm:mr-4 fade-in';
-            posNav.innerHTML = `
-                <button onclick="window.posQuickNavigate('deliveries')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="שליחויות"><i class="fa-solid fa-motorcycle sm:mr-1"></i> <span class="hidden sm:inline">שליחויות</span></button>
-                <button onclick="window.posQuickNavigate('quotes')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="הזמנות/הצעות"><i class="fa-solid fa-file-signature sm:mr-1"></i> <span class="hidden sm:inline">הזמנות</span></button>
-                <button onclick="window.posQuickNavigate('customers')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="לקוחות"><i class="fa-solid fa-users sm:mr-1"></i> <span class="hidden sm:inline">לקוחות</span></button>
-            `;
-            const searchBarContainer = posContainer.querySelector('.bg-white.border-b.border-slate-200.flex.gap-2.items-center');
-            if(searchBarContainer && btn) {
-                searchBarContainer.insertBefore(posNav, btn);
-            }
-        }
-        if (posNav) posNav.classList.remove('hidden');
-
-        const tenderModal = document.getElementById('pos-tender-modal');
-        if (tenderModal) {
-            tenderModal.style.zIndex = '999999999';
-        }
-
-    } else {
-        // כפתור יציאה יזום - מחזירים הכל לקדמותו
-        toggleBrowserFullscreen(false);
-        
-        const placeholder = document.getElementById('pos-placeholder');
-        if (placeholder && posContainer.parentNode === document.body) {
-            placeholder.parentNode.insertBefore(posContainer, placeholder);
-        }
-        
-        posContainer.classList.remove('pos-is-fullscreen');
-        posContainer.style.position = '';
-        posContainer.style.top = '';
-        posContainer.style.left = '';
-        posContainer.style.width = '';
-        posContainer.style.height = '';
-        posContainer.style.zIndex = '';
-        posContainer.style.backgroundColor = '';
-        posContainer.style.padding = '';
-        posContainer.style.margin = '';
-        posContainer.style.display = '';
-        
-        posContainer.classList.add('pb-20', 'mt-4', 'relative');
-        
-        if(wrapper) {
-            wrapper.style.height = '';
-            wrapper.classList.add('h-[85vh]');
-        }
-        
-        document.body.style.overflow = '';
-        
-        if(btn) {
-            btn.innerHTML = '<i class="fa-solid fa-expand text-lg"></i>';
-            btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600', 'border-red-600');
-            btn.classList.add('bg-slate-800', 'hover:bg-slate-700');
-        }
-        
-        const posNav = document.getElementById('pos-quick-nav');
-        if (posNav) posNav.classList.add('hidden');
-        
-        document.querySelectorAll('.pos-quick-overlay').forEach(el => {
-            el.style.display = '';
-            el.classList.add('hidden');
-            el.classList.remove('pos-quick-overlay');
-            el.style.cssText = '';
-            
-            if(el.id === 'content-sales') el.classList.add('pb-20', 'mt-4');
-            if(el.id === 'content-deliveries') el.classList.add('pb-20', 'px-1', 'mt-0');
-            
-            const ph = document.getElementById(el.id + '-placeholder');
-            if (ph && el.parentNode === document.body) {
-                ph.parentNode.insertBefore(el, ph);
-            }
-        });
-        const closeBtn = document.getElementById('pos-overlay-close-btn');
-        if(closeBtn) closeBtn.remove();
-        
-        const tenderModal = document.getElementById('pos-tender-modal');
-        if (tenderModal) tenderModal.style.zIndex = '';
-    }
-};
-
-window.posQuickNavigate = function(tabName) {
-    let targetId = 'content-' + tabName;
-    if (tabName === 'quotes') {
-        targetId = 'content-sales';
-        if(typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes');
-    } else if (tabName === 'deliveries') {
-        if(typeof window.switchDeliveryTab === 'function') window.switchDeliveryTab('active');
-    }
-    
-    const targetEl = document.getElementById(targetId);
-    if (!targetEl) return;
-    
-    let placeholder = document.getElementById(targetId + '-placeholder');
-    if (!placeholder) {
-        placeholder = document.createElement('div');
-        placeholder.id = targetId + '-placeholder';
-        targetEl.parentNode.insertBefore(placeholder, targetEl);
-    }
-    
-    document.body.appendChild(targetEl);
-    
-    targetEl.style.position = 'fixed';
-    targetEl.style.top = '0';
-    targetEl.style.left = '0';
-    targetEl.style.right = '0';
-    targetEl.style.bottom = '0';
-    targetEl.style.zIndex = '99999999';
-    targetEl.style.backgroundColor = '#f8fafc';
-    targetEl.style.padding = '4rem 1rem 1rem 1rem'; 
-    targetEl.style.overflowY = 'auto';
-    targetEl.style.display = 'block'; 
-    
-    targetEl.classList.remove('hidden', 'pb-20', 'mt-4', 'px-1');
-    targetEl.classList.add('pos-quick-overlay');
-    
-    if (!document.getElementById('pos-overlay-close-btn')) {
-        const closeBtn = document.createElement('button');
-        closeBtn.id = 'pos-overlay-close-btn';
-        closeBtn.className = 'fixed top-4 left-4 sm:top-6 sm:left-6 w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100 transition shadow-2xl z-[999999999] border border-red-200';
-        closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-2xl"></i>';
-        document.body.appendChild(closeBtn);
-    }
-    
-    const closeBtn = document.getElementById('pos-overlay-close-btn');
-    closeBtn.onclick = function() {
-        targetEl.classList.add('hidden');
-        targetEl.classList.remove('pos-quick-overlay');
-        targetEl.style.cssText = ''; 
-        
-        if(targetId === 'content-sales') targetEl.classList.add('pb-20', 'mt-4');
-        if(targetId === 'content-deliveries') targetEl.classList.add('pb-20', 'px-1', 'mt-0');
-        
-        const ph = document.getElementById(targetId + '-placeholder');
-        if (ph && targetEl.parentNode === document.body) {
-            ph.parentNode.insertBefore(targetEl, ph);
-        }
-        this.remove();
-    };
-};
-
-// כלי מניעה: מוודאים שסיום הזמנה לא הורס לנו את מצב הקופה המלאה
-if (!window.originalFinalizePOSOrderOverridden) {
-    const originalFinalizePOSOrder = window.finalizePOSOrder;
-    if (typeof originalFinalizePOSOrder === 'function') {
-        window.finalizePOSOrder = async function(...args) {
-            try {
-                await originalFinalizePOSOrder.apply(this, args);
-            } catch(e) {
-                console.error(e);
-            }
-            // ברגע שזה מסיים את התשלום, אנחנו לא עושים כלום. הקופה נשארת איך שהיא כרגע מתוחה ב-CSS.
-        };
-        window.originalFinalizePOSOrderOverridden = true;
-    }
-}
+    // אין צורך לעשות כאן כלום.
+    // אם הדפדפן יצא ממסך מלא (ESC או הורדת PDF), אנחנו נשארים בעיצוב הקופה שלנו.
+    // הלחיצה הבאה במסך פשוט תחזיר אותנו למסך מלא (בזכות ה-click listener).
+});
 
 window.removeQuoteItem = function(id) {
     delete window.selectedQuoteItems[id];
