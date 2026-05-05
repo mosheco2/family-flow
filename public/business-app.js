@@ -15926,7 +15926,8 @@ window.fetchTeamChat = async function(isSilent = false) {
     const container = document.getElementById('chat-messages-container');
     const isModalOpen = !document.getElementById('team-chat-modal').classList.contains('hidden');
 
-    if (!isSilent && isModalOpen && window.teamChatCache.length === 0 && container) {
+    // מציג "טוען שיחה" רק אם המודאל נפתח אקטיבית וכרגע אין בו הודעות מרונדרות
+    if (!isSilent && isModalOpen && (!container.innerHTML.includes('bg-white') && !container.innerHTML.includes('bg-indigo-100'))) {
         container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 mt-auto"><i class="fa-solid fa-spinner fa-spin"></i> טוען שיחה...</p>';
     }
 
@@ -15940,14 +15941,17 @@ window.fetchTeamChat = async function(isSilent = false) {
             
             window.updateTeamChatBadge();
             
-            // אנחנו מרנדרים את התוכן פנימה רק אם המודאל פתוח עכשיו
-            if (isModalOpen && isNewMessages) {
-                window.renderTeamChat(true); // גולל למטה כשנוספה הודעה
-                lastReadChatId = window.teamChatCache[window.teamChatCache.length - 1].id;
-                localStorage.setItem('ofl_last_chat_read', lastReadChatId);
-                window.updateTeamChatBadge();
-            } else if (isModalOpen && window.teamChatCache.length === 0) {
-                window.renderTeamChat(false);
+            // ברגע שהמודאל פתוח, תמיד נרנדר כדי שלא יתקע על "טוען שיחה..."
+            if (isModalOpen) {
+                // גוללים למטה אם זו פתיחה יזומה על ידי המשתמש (לא שקטה) או אם נוספו הודעות חדשות ברקע
+                const shouldScroll = !isSilent || isNewMessages;
+                window.renderTeamChat(shouldScroll);
+                
+                if (window.teamChatCache.length > 0) {
+                    lastReadChatId = window.teamChatCache[window.teamChatCache.length - 1].id;
+                    localStorage.setItem('ofl_last_chat_read', lastReadChatId);
+                    window.updateTeamChatBadge();
+                }
             }
         }
     } catch(e) { console.error('Error fetching chat', e); }
