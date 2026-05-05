@@ -15859,8 +15859,204 @@ if (origFetchDataInboxHook) {
     window.fetchData = async function() {
         await origFetchDataInboxHook(); // קורא קודם לפונקציה המקורית
         window.fetchInboxMessages(); // ואז מושך גם את תיבת ההודעות ברקע!
+        // משיכה שקטה של הצ'אט ברקע - אם יש הודעות חדשות, זה יקפיץ את הבועה האדומה
+        if (typeof window.fetchTeamChat === 'function') {
+            window.fetchTeamChat(true);
+        }
     };
 }
+
+// ============================================================
+// --- TEAM CHAT MODULE (MODAL VERSION) ---
+// ============================================================
+
+window.teamChatCache = [];
+let lastReadChatId = parseInt(localStorage.getItem('ofl_last_chat_read') || 0);
+
+window.openTeamChatModal = function() {
+    const modal = document.getElementById('team-chat-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        window.fetchTeamChat();
+        
+        // סימון הכל כנקרא
+        if (window.teamChatCache.length > 0) {
+            lastReadChatId = window.teamChatCache[window.teamChatCache.length - 1].id;
+            localStorage.setItem('ofl_last_chat_read', lastReadChatId);
+            window.updateTeamChatBadge();
+        }
+        
+        // גלילה למטה ברגע שהמודאל נפתח
+        setTimeout(() => {
+            const container = document.getElementById('chat-messages-container');
+            if(container) container.scrollTop = container.scrollHeight;
+        }, 100);
+    }
+};
+
+window.closeTeamChatModal = function() {
+    const modal = document.getElementById('team-chat-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        // סימון כנקרא שוב בסגירה ליתר ביטחון
+        if (window.teamChatCache.length > 0) {
+            lastReadChatId = window.teamChatCache[window.teamChatCache.length - 1].id;
+            localStorage.setItem('ofl_last_chat_read', lastReadChatId);
+            window.updateTeamChatBadge();
+        }
+    }
+};
+
+window.updateTeamChatBadge = function() {
+    const badge = document.getElementById('team-chat-unread-badge');
+    if (!badge) return;
+
+    const unreadCount = window.teamChatCache.filter(m => m.id > lastReadChatId).length;
+    if (unreadCount > 0) {
+        badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+};
+
+window.fetchTeamChat = async function(isSilent = false) {
+    if (!currentGroup || !currentGroup.id) return;
+    
+    const container = document.getElementById('chat-messages-container');
+    const isModalOpen = !document.getElementById('team-chat-modal').classList.contains('hidden');
+
+    if (!isSilent && isModalOpen && window.teamChatCache.length === 0 && container) {
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 mt-auto"><i class="fa-solid fa-spinner fa-spin"></i> טוען שיחה...</p>';
+    }
+
+    try {
+        const res = await fetch(`${API}/chat/${currentGroup.id}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            const isNewMessages = data.messages.length > window.teamChatCache.length;
+            window.teamChatCache = data.messages || [];
+            
+            window.updateTeamChatBadge();
+            
+            // אנחנו מרנדרים את התוכן פנימה רק אם המודאל פתוח עכשיו
+            if (isModalOpen && isNewMessages) {
+                window.renderTeamChat(true); // גולל למטה כשנוספה הודעה
+                lastReadChatId = window.teamChatCache[window.teamChatCache.length - 1].id;
+                localStorage.setItem('ofl_last_chat_read', lastReadChatId);
+                window.updateTeamChatBadge();
+            } else if (isModalOpen && window.teamChatCache.length === 0) {
+                window.renderTeamChat(false);
+            }
+        }
+    } catch(e) { console.error('Error fetching chat', e); }
+};
+
+window.renderTeamChat = function(scrollToBottom = false) {
+    const container = document.getElementById('chat-messages-container');
+    if (!container) return;
+
+    if (window.teamChatCache.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full opacity-50 mt-auto mb-auto">
+                <i class="fa-regular fa-comments text-5xl text-slate-300 mb-3"></i>
+                <p class="text-sm font-bold text-slate-500">אין הודעות עדיין.</p>
+                <p class="text-[10px] text-slate-400 mt-1">שלחו הודעה ראשונה לצוות!</p>
+            </div>`;
+        return;
+    }
+
+    let html = '<div class="flex-1 min-h-0"></div>'; 
+    let currentDateGroup = '';
+
+    window.teamChatCache.forEach(msg => {
+        const isMe = String(msg.user_id) === String(currentUser.id);
+        const msgDate = new Date(msg.created_at);
+        const dateStr = msgDate.toLocaleDateString('he-IL');
+        const timeStr = msgDate.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+
+        if (dateStr !== currentDateGroup) {
+            const todayStr = new Date().toLocaleDateString('he-IL');
+            const displayDate = dateStr === todayStr ? 'היום' : dateStr;
+            html += `<div class="flex justify-center my-3"><span class="bg-slate-200/60 text-slate-500 text-[9px] font-bold px-3 py-1 rounded-full">${displayDate}</span></div>`;
+            currentDateGroup = dateStr;
+        }
+
+        if (isMe) {
+            html += `
+            <div class="flex flex-col items-start w-full mb-1">
+                <div class="bg-indigo-100 text-indigo-900 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border border-indigo-200/50 break-words">
+                    ${safeStr(msg.message)}
+                </div>
+                <span class="text-[9px] text-slate-400 mt-1 ml-1">${timeStr} <i class="fa-solid fa-check text-indigo-300"></i></span>
+            </div>`;
+        } else {
+            html += `
+            <div class="flex flex-col items-end w-full mb-1">
+                <span class="text-[10px] font-bold text-slate-500 mb-0.5 mr-1">${safeStr(msg.user_name)}</span>
+                <div class="bg-white text-slate-800 px-4 py-2 rounded-2xl rounded-tr-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border border-slate-200 break-words">
+                    ${safeStr(msg.message)}
+                </div>
+                <span class="text-[9px] text-slate-400 mt-1 mr-1">${timeStr}</span>
+            </div>`;
+        }
+    });
+
+    const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+    container.innerHTML = html;
+
+    if (scrollToBottom || isScrolledToBottom) {
+        setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+        }, 50);
+    }
+};
+
+window.submitChatMessage = async function(e) {
+    e.preventDefault();
+    const input = document.getElementById('chat-message-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    const btn = document.getElementById('btn-send-chat');
+    btn.disabled = true;
+    
+    const tempMsg = {
+        id: 99999999, // מספר גבוה זמני כדי שייספר כנקרא
+        user_id: currentUser.id,
+        user_name: currentUser.nickname,
+        message: msg,
+        created_at: new Date().toISOString()
+    };
+    
+    window.teamChatCache.push(tempMsg);
+    window.renderTeamChat(true); 
+    input.value = '';
+
+    try {
+        const res = await fetch(`${API}/chat`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, message: msg })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            window.fetchTeamChat(true); 
+        } else {
+            showToast('error', 'שגיאה בשליחת ההודעה');
+            window.teamChatCache.pop(); 
+            window.renderTeamChat(true);
+        }
+    } catch(err) {
+        showToast('error', 'שגיאת רשת בשליחה');
+        window.teamChatCache.pop();
+        window.renderTeamChat(true);
+    } finally {
+        btn.disabled = false;
+        input.focus(); 
+    }
+};
 // ============================================================
 // --- COMPLEX BUILDER (CATERING / PROJECTS) MODULE V2 ---
 // ============================================================
