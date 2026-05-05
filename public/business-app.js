@@ -5204,7 +5204,7 @@ window.toggleQuoteExpandedView = function() {
         catCol.classList.add('hidden');
         itemsCol.classList.remove('lg:w-1/2');
         itemsCol.classList.add('lg:w-full');
-        btn.innerHTML = '<i class="fa-solid fa-compress"></i> הצג קטלוג';
+        btn.innerHTML = '<i class="fa-solid fa-compress"></i> תצוגה רגילה';
     }
 };
 
@@ -16113,7 +16113,7 @@ window.submitChatMessage = async function(e) {
     }
 };
 
-// ירושה בטוחה ונקייה לשאיבת נתונים ברקע
+// ירושה בטוחה לשאיבת נתונים ברקע
 const _originalFetchData = window.fetchData;
 window.fetchData = async function() {
     if (typeof _originalFetchData === 'function') await _originalFetchData();
