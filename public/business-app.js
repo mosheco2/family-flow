@@ -980,10 +980,14 @@ window.togglePOSFullscreen = function(forceState) {
         if (posNav) posNav.classList.add('hidden');
         
         document.querySelectorAll('.pos-quick-overlay').forEach(el => {
-            el.style.display = '';
             el.classList.add('hidden');
             el.classList.remove('pos-quick-overlay');
             el.style.cssText = '';
+            
+            // תיקון חיוני: וידוא שהקלאסים המקוריים של התצוגה חוזרים
+            if(el.id === 'content-sales') el.classList.add('pb-20', 'mt-4');
+            if(el.id === 'content-deliveries') el.classList.add('pb-20', 'px-1', 'mt-0');
+            
             const ph = document.getElementById(el.id + '-placeholder');
             if (ph && el.parentNode === document.body) {
                 ph.parentNode.insertBefore(el, ph);
@@ -1029,7 +1033,7 @@ window.posQuickNavigate = function(tabName) {
     targetEl.style.overflowY = 'auto';
     targetEl.style.display = 'block'; 
     
-    targetEl.classList.remove('hidden');
+    targetEl.classList.remove('hidden', 'pb-20', 'mt-4', 'px-1', 'mt-0');
     targetEl.classList.add('pos-quick-overlay');
     
     if (!document.getElementById('pos-overlay-close-btn')) {
@@ -1042,10 +1046,13 @@ window.posQuickNavigate = function(tabName) {
     
     const closeBtn = document.getElementById('pos-overlay-close-btn');
     closeBtn.onclick = function() {
-        targetEl.style.display = '';
         targetEl.classList.add('hidden');
         targetEl.classList.remove('pos-quick-overlay');
         targetEl.style.cssText = ''; 
+        
+        // החזרת הקלאסים המקוריים בהתאם לטאב שנסגר
+        if(targetId === 'content-sales') targetEl.classList.add('pb-20', 'mt-4');
+        if(targetId === 'content-deliveries') targetEl.classList.add('pb-20', 'px-1', 'mt-0');
         
         const ph = document.getElementById(targetId + '-placeholder');
         if (ph && targetEl.parentNode === document.body) {
@@ -1054,8 +1061,14 @@ window.posQuickNavigate = function(tabName) {
         this.remove();
     };
 };
+
 // הוסר המאזין ל-fullscreenchange כדי למנוע את כיווץ מסך הקופה בעת הפקת קבלה (PDF/Print)
 
+window.removeQuoteItem = function(id) {
+    delete window.selectedQuoteItems[id];
+    window.calcQuoteTotal();
+    window.renderQuoteSelectedItems();
+};
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
         const tabShop = getEl('tab-shop');
