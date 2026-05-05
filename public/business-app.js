@@ -856,78 +856,134 @@ window.togglePOSFullscreen = function() {
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     
-    if (!document.fullscreenElement) {
-        try {
-            // יצירת שומר מקום כדי לדעת לאן להחזיר את הקופה
-            let placeholder = document.getElementById('pos-placeholder');
-            if (!placeholder) {
-                placeholder = document.createElement('div');
-                placeholder.id = 'pos-placeholder';
-                posContainer.parentNode.insertBefore(placeholder, posContainer);
-            }
-            
-            // תלישת הקופה ל-body כדי לעקוף חסימות מסגרת
-            document.body.appendChild(posContainer);
-            
-            if (posContainer.requestFullscreen) posContainer.requestFullscreen();
-            else if (posContainer.webkitRequestFullscreen) posContainer.webkitRequestFullscreen();
-            else if (posContainer.msRequestFullscreen) posContainer.msRequestFullscreen();
-            
-            posContainer.classList.add('fixed', 'inset-0', 'z-[9999999]', 'bg-slate-100', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
-            posContainer.classList.remove('pb-20', 'mt-4', 'relative', 'rounded-[2rem]');
-            
-            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]') || posContainer.querySelector('.min-h-full');
-            if(wrapper) {
-                wrapper.classList.remove('h-[85vh]');
-                wrapper.classList.add('min-h-screen');
-            }
-            
-            // הסרת הפינות העגולות מהפאנלים למראה מסך מלא אמיתי
-            const leftPanel = posContainer.querySelector('.md\\:w-\\[65\\%\\]');
-            const rightPanel = posContainer.querySelector('.md\\:w-\\[35\\%\\]');
-            if(leftPanel) leftPanel.classList.remove('rounded-3xl', 'border');
-            if(rightPanel) rightPanel.classList.remove('rounded-3xl', 'border');
-            
-        } catch(e) {}
-    } else {
-        try {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            else if (document.msExitFullscreen) document.msExitFullscreen();
-        } catch(e) {}
-    }
-};
-
-document.addEventListener('fullscreenchange', () => {
-    const posContainer = document.getElementById('content-pos');
-    if (!posContainer) return;
-    
+    const isFullscreen = posContainer.classList.contains('pos-is-fullscreen');
+    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full') || posContainer.querySelector('.h-\\[85vh\\]');
     const btn = document.getElementById('btn-pos-fullscreen');
-    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-screen');
-    const leftPanel = posContainer.querySelector('.md\\:w-\\[65\\%\\]');
-    const rightPanel = posContainer.querySelector('.md\\:w-\\[35\\%\\]');
     
-    if (!document.fullscreenElement) {
-        // החזרת הקופה למקומה
+    // קריאה לפונקציית API של הדפדפן להסתרה של שורת הכתובות במידת האפשר
+    const toggleBrowserFullscreen = (forceOn) => {
+        try {
+            if (forceOn && !document.fullscreenElement) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) docEl.requestFullscreen();
+                else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+                else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+            } else if (!forceOn && document.fullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+            }
+        } catch(e) {}
+    };
+
+    if (!isFullscreen) {
+        toggleBrowserFullscreen(true);
+        
+        // יצירת שומר מקום כדי להחזיר את האלמנט חזרה לדשבורד
+        let placeholder = document.getElementById('pos-placeholder');
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.id = 'pos-placeholder';
+            posContainer.parentNode.insertBefore(placeholder, posContainer);
+        }
+        
+        // תלישת הקופה לתוך ה-body כדי לעקוף כל הגבלת CSS
+        document.body.appendChild(posContainer);
+        
+        // שינוי מחלקות Tailwind כך שיכסה 100% מסך
+        posContainer.classList.add('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0', '!pb-4');
+        posContainer.classList.remove('pb-20', 'mt-4', 'relative');
+        
+        if(wrapper) {
+            wrapper.classList.remove('h-[85vh]');
+            wrapper.classList.add('h-full', '!h-full');
+        }
+        
+        // עצירת גלילה של גוף האתר שמאחורי הקופה
+        document.body.style.overflow = 'hidden';
+        
+        // עדכון כפתור המסך המלא
+        if(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-compress text-lg"></i> <span class="hidden sm:inline">יציאה מהקופה</span>';
+            btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600', 'border-red-600');
+            btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
+        }
+        
+        // בניית תפריט הניווט המהיר (שליחויות, לקוחות וכו') בתוך הקופה כשהיא במסך מלא
+        let posNav = document.getElementById('pos-quick-nav');
+        if (!posNav) {
+            posNav = document.createElement('div');
+            posNav.id = 'pos-quick-nav';
+            posNav.className = 'flex gap-2 ml-auto lg:ml-4 fade-in';
+            posNav.innerHTML = `
+                <button onclick="window.posQuickNavigate('deliveries')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="שליחויות ומסופון"><i class="fa-solid fa-motorcycle mr-1"></i> שליחויות</button>
+                <button onclick="window.posQuickNavigate('quotes')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="הצעות מחיר והזמנות"><i class="fa-solid fa-file-signature mr-1"></i> הזמנות</button>
+                <button onclick="window.posQuickNavigate('customers')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="מועדון לקוחות"><i class="fa-solid fa-users mr-1"></i> לקוחות</button>
+            `;
+            // הוספת הניווט ליד ה-Search bar של הקופה
+            const searchBarContainer = posContainer.querySelector('.bg-white.border-b.border-slate-200.flex.gap-2.items-center');
+            if(searchBarContainer && btn) {
+                searchBarContainer.insertBefore(posNav, btn);
+            }
+        }
+        if (posNav) posNav.classList.remove('hidden');
+
+    } else {
+        // --- חזרה ממסך מלא למצב קופה רגילה ---
+        toggleBrowserFullscreen(false);
+        
         const placeholder = document.getElementById('pos-placeholder');
         if (placeholder && posContainer.parentNode === document.body) {
             placeholder.parentNode.insertBefore(posContainer, placeholder);
         }
         
-        posContainer.classList.remove('fixed', 'inset-0', 'z-[9999999]', 'bg-slate-100', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
-        posContainer.classList.add('pb-20', 'mt-4', 'relative', 'rounded-[2rem]');
+        posContainer.classList.remove('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0', '!pb-4');
+        posContainer.classList.add('pb-20', 'mt-4', 'relative');
         
         if(wrapper) {
-            wrapper.classList.remove('min-h-screen');
+            wrapper.classList.remove('h-full', '!h-full');
             wrapper.classList.add('h-[85vh]');
         }
         
-        if(leftPanel) leftPanel.classList.add('rounded-3xl', 'border');
-        if(rightPanel) rightPanel.classList.add('rounded-3xl', 'border');
+        document.body.style.overflow = '';
         
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-    } else {
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+        if(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-expand text-lg"></i>';
+            btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600', 'border-red-600');
+            btn.classList.add('bg-slate-800', 'hover:bg-slate-700');
+        }
+        
+        const posNav = document.getElementById('pos-quick-nav');
+        if (posNav) posNav.classList.add('hidden');
+    }
+};
+
+window.posQuickNavigate = function(tabName) {
+    // קודם סוגרים את המסך המלא (אחרת נשאר תקוע על המסך השחור)
+    window.togglePOSFullscreen();
+    
+    // ניווט לטאב הנבחר עם השהייה קלה כדי לאפשר לאנימציה לסיים
+    setTimeout(() => {
+        if (tabName === 'quotes') {
+            window.switchTab('sales');
+            setTimeout(() => window.switchSalesTab('quotes'), 100);
+        } else if (tabName === 'deliveries') {
+            window.switchTab('deliveries');
+        } else if (tabName === 'customers') {
+            window.switchTab('customers');
+        }
+    }, 300);
+};
+
+// האזנה ליציאה "טבעית" ממסך מלא (כפתור Esc במקלדת)
+document.addEventListener('fullscreenchange', () => {
+    const posContainer = document.getElementById('content-pos');
+    if (!posContainer) return;
+    const isCustomFullscreen = posContainer.classList.contains('pos-is-fullscreen');
+    
+    // אם הדפדפן מדווח שאין מסך מלא אבל המערכת שלנו עדיין במצב מסך מלא -> נתקן
+    if (!document.fullscreenElement && isCustomFullscreen) {
+         window.togglePOSFullscreen();
     }
 });
     const menuContainer = getEl('slider-scroll');
