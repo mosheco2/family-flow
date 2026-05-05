@@ -857,10 +857,9 @@ window.togglePOSFullscreen = function() {
     if (!posContainer) return;
     
     const isFullscreen = posContainer.classList.contains('pos-is-fullscreen');
-    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-screen') || posContainer.querySelector('.min-h-full') || posContainer.querySelector('.h-\\[85vh\\]');
+    const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full') || posContainer.querySelector('.h-\\[85vh\\]');
     const btn = document.getElementById('btn-pos-fullscreen');
     
-    // קריאה לפונקציית API של הדפדפן להסתרה של שורת הכתובות במידת האפשר
     const toggleBrowserFullscreen = (forceOn) => {
         try {
             if (forceOn && !document.fullscreenElement) {
@@ -879,7 +878,6 @@ window.togglePOSFullscreen = function() {
     if (!isFullscreen) {
         toggleBrowserFullscreen(true);
         
-        // יצירת שומר מקום כדי להחזיר את האלמנט חזרה לדשבורד
         let placeholder = document.getElementById('pos-placeholder');
         if (!placeholder) {
             placeholder = document.createElement('div');
@@ -887,11 +885,9 @@ window.togglePOSFullscreen = function() {
             posContainer.parentNode.insertBefore(placeholder, posContainer);
         }
         
-        // תלישת הקופה לתוך ה-body כדי לעקוף כל הגבלת עיצוב
         document.body.appendChild(posContainer);
         
-        // שינוי מחלקות Tailwind שדורסות הכל כדי לכסות 100% מסך בצורה נקייה
-        posContainer.classList.add('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-100', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
+        posContainer.classList.add('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
         posContainer.classList.remove('pb-20', 'mt-4', 'relative');
         
         if(wrapper) {
@@ -899,17 +895,14 @@ window.togglePOSFullscreen = function() {
             wrapper.classList.add('h-full', '!h-full');
         }
         
-        // עצירת גלילה של גוף האתר שמאחורי הקופה (מונע כפילות גלילה)
         document.body.style.overflow = 'hidden';
         
-        // עדכון כפתור המסך המלא שיהפוך לכפתור יציאה
         if(btn) {
-            btn.innerHTML = '<i class="fa-solid fa-compress text-lg"></i> <span class="hidden sm:inline mr-2">יציאה</span>';
+            btn.innerHTML = '<i class="fa-solid fa-compress text-lg"></i> <span class="hidden sm:inline mr-2">יציאה מהקופה</span>';
             btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600', 'border-red-600');
             btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
         }
         
-        // בניית תפריט הניווט המהיר (שליחויות, הזמנות, לקוחות) בתוך הקופה
         let posNav = document.getElementById('pos-quick-nav');
         if (!posNav) {
             posNav = document.createElement('div');
@@ -920,7 +913,6 @@ window.togglePOSFullscreen = function() {
                 <button onclick="window.posQuickNavigate('quotes')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="הזמנות/הצעות"><i class="fa-solid fa-file-signature sm:mr-1"></i> <span class="hidden sm:inline">הזמנות</span></button>
                 <button onclick="window.posQuickNavigate('customers')" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-200 shadow-sm shrink-0" title="לקוחות"><i class="fa-solid fa-users sm:mr-1"></i> <span class="hidden sm:inline">לקוחות</span></button>
             `;
-            // הוספת הניווט ליד ה-Search bar של הקופה
             const searchBarContainer = posContainer.querySelector('.bg-white.border-b.border-slate-200.flex.gap-2.items-center');
             if(searchBarContainer && btn) {
                 searchBarContainer.insertBefore(posNav, btn);
@@ -929,7 +921,6 @@ window.togglePOSFullscreen = function() {
         if (posNav) posNav.classList.remove('hidden');
 
     } else {
-        // חזרה ממסך מלא למצב קופה רגילה
         toggleBrowserFullscreen(false);
         
         const placeholder = document.getElementById('pos-placeholder');
@@ -937,7 +928,7 @@ window.togglePOSFullscreen = function() {
             placeholder.parentNode.insertBefore(posContainer, placeholder);
         }
         
-        posContainer.classList.remove('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-100', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
+        posContainer.classList.remove('pos-is-fullscreen', '!fixed', '!inset-0', '!z-[9999999]', '!bg-slate-50', '!p-4', '!m-0', '!w-screen', '!h-screen', '!mt-0');
         posContainer.classList.add('pb-20', 'mt-4', 'relative');
         
         if(wrapper) {
@@ -955,31 +946,51 @@ window.togglePOSFullscreen = function() {
         
         const posNav = document.getElementById('pos-quick-nav');
         if (posNav) posNav.classList.add('hidden');
+        
+        // ניקוי המודאלים המרחפים בסגירה
+        document.querySelectorAll('.pos-quick-overlay').forEach(el => {
+            el.classList.add('hidden');
+            el.classList.remove('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+        });
+        const closeBtn = document.getElementById('pos-overlay-close-btn');
+        if(closeBtn) closeBtn.remove();
     }
 };
 
 window.posQuickNavigate = function(tabName) {
-    // סוגר קודם את מסך הקופה המלא
-    window.togglePOSFullscreen();
+    let targetId = 'content-' + tabName;
+    if (tabName === 'quotes') {
+        targetId = 'content-sales';
+        window.switchSalesTab('quotes');
+    }
     
-    // ניווט לטאב הנבחר עם השהייה קלה לסיום האנימציה
-    setTimeout(() => {
-        if (tabName === 'quotes') {
-            window.switchTab('sales');
-            setTimeout(() => window.switchSalesTab('quotes'), 100);
-        } else {
-            window.switchTab(tabName);
-        }
-    }, 300);
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+    
+    // מוסיף קלאסים להפיכת הטאב לשכבה צפה מעל מסך הקופה המלא
+    targetEl.classList.remove('hidden');
+    targetEl.classList.add('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+    
+    // מוסיף כפתור סגירה לשכבה אם לא קיים
+    if (!document.getElementById('pos-overlay-close-btn')) {
+        const closeBtn = document.createElement('button');
+        closeBtn.id = 'pos-overlay-close-btn';
+        closeBtn.className = 'fixed top-4 left-4 sm:top-6 sm:left-6 w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100 transition shadow-lg z-[999999999] border border-red-200';
+        closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-xl"></i>';
+        closeBtn.onclick = function() {
+            targetEl.classList.add('hidden');
+            targetEl.classList.remove('!fixed', '!inset-0', '!z-[99999999]', '!bg-slate-50', '!p-4', '!sm:p-8', '!overflow-y-auto', 'pos-quick-overlay');
+            this.remove();
+        };
+        targetEl.appendChild(closeBtn);
+    }
 };
 
-// האזנה ליציאה "טבעית" ממסך מלא (כפתור Esc במקלדת)
 document.addEventListener('fullscreenchange', () => {
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     const isCustomFullscreen = posContainer.classList.contains('pos-is-fullscreen');
     
-    // אם הדפדפן מדווח שאין מסך מלא אבל המערכת עדיין במצב מסך מלא -> נכבה
     if (!document.fullscreenElement && isCustomFullscreen) {
          window.togglePOSFullscreen();
     }
