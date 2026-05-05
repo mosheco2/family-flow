@@ -858,25 +858,17 @@ window.togglePOSFullscreen = function() {
     
     if (!document.fullscreenElement) {
         try {
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) docEl.requestFullscreen();
-            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+            if (posContainer.requestFullscreen) posContainer.requestFullscreen();
+            else if (posContainer.webkitRequestFullscreen) posContainer.webkitRequestFullscreen();
+            else if (posContainer.msRequestFullscreen) posContainer.msRequestFullscreen();
             
-            // תלישת הקופה מהדף ופריסה מלאה הרמטית
-            posContainer.classList.add('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto');
+            posContainer.classList.add('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
             posContainer.classList.remove('pb-20', 'mt-4', 'relative');
-            
-            // הסתרת תפריט עליון ותפריט גלילה
-            const mainHeader = document.querySelector('header');
-            const sliderScroll = document.getElementById('slider-scroll');
-            if (mainHeader) mainHeader.style.display = 'none';
-            if (sliderScroll) sliderScroll.style.display = 'none';
             
             const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
             if(wrapper) {
                 wrapper.classList.remove('h-[85vh]');
-                wrapper.classList.add('min-h-full');
+                wrapper.classList.add('min-h-full', 'h-full');
             }
         } catch(e) {}
     } else {
@@ -896,25 +888,18 @@ document.addEventListener('fullscreenchange', () => {
     const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full');
     
     if (!document.fullscreenElement) {
-        // החזרת הקופה למקומה הרגיל
-        posContainer.classList.remove('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto');
+        posContainer.classList.remove('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-2', 'sm:p-4', 'overflow-y-auto', 'w-full', 'h-screen');
         posContainer.classList.add('pb-20', 'mt-4', 'relative');
         
-        // החזרת הניווט
-        const mainHeader = document.querySelector('header');
-        const sliderScroll = document.getElementById('slider-scroll');
-        if (mainHeader) mainHeader.style.display = '';
-        if (sliderScroll) sliderScroll.style.display = '';
-        
         if(wrapper) {
-            wrapper.classList.remove('min-h-full');
+            wrapper.classList.remove('min-h-full', 'h-full');
             wrapper.classList.add('h-[85vh]');
         }
         if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
     } else {
         if(wrapper) {
             wrapper.classList.remove('h-[85vh]');
-            wrapper.classList.add('min-h-full');
+            wrapper.classList.add('min-h-full', 'h-full');
         }
         if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
     }
@@ -2763,18 +2748,27 @@ async function submitShift() {
 async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
 async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקשה?')) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
 
+window.currentFeedPage = 1;
+
+window.changeFeedPage = function(direction) {
+    window.currentFeedPage += direction;
+    if (window.currentFeedPage < 1) window.currentFeedPage = 1;
+    renderUnifiedFeed();
+};
+
 function buildAndRenderFeed() {
-    feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+    window.currentFeedPage = 1;
+    feedCache = [];
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
 
-    if(Array.isArray(allTransactions)) {
-        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
-    }
+    if(Array.isArray(allTransactions)) {
+        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
+    }
 
-    if(Array.isArray(allTasks)) {
-        allTasks.forEach(t => {
-            if(t.title && !t.title.startsWith('SHIFT|')) {
-                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
+    if(Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            if(t.title && !t.title.startsWith('SHIFT|')) {
+                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
                 
                 let displayTitle = t.title || 'ללא שם';
                 let isSop = false;
@@ -2789,31 +2783,31 @@ function buildAndRenderFeed() {
                 }
                 const prefix = isSop ? 'נוהל' : 'משימה';
 
-                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `${prefix}: ${displayTitle} (${statusLabel})`, amount: t.reward || 0, status: t.status });
-            }
-        });
-    }
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `${prefix}: ${displayTitle} (${statusLabel})`, amount: t.reward || 0, status: t.status });
+            }
+        });
+    }
 
-    if(Array.isArray(bundlesCache)) {
-        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
-    }
+    if(Array.isArray(bundlesCache)) {
+        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
+    }
 
-    if(Array.isArray(b2bOrdersHistory)) {
-        b2bOrdersHistory.forEach(o => {
-            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
-            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
-        });
-    }
+    if(Array.isArray(b2bOrdersHistory)) {
+        b2bOrdersHistory.forEach(o => {
+            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
+            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
+        });
+    }
 
-    feedCache.sort((a, b) => {
-        const timeA = (a.date && !isNaN(a.date.getTime())) ? a.date.getTime() : 0;
-        const timeB = (b.date && !isNaN(b.date.getTime())) ? b.date.getTime() : 0;
-        return timeB - timeA;
-    });
-    
-    const filterEl = getEl('feed-user-filter');
-    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
-    renderUnifiedFeed();
+    feedCache.sort((a, b) => {
+        const timeA = (a.date && !isNaN(a.date.getTime())) ? a.date.getTime() : 0;
+        const timeB = (b.date && !isNaN(b.date.getTime())) ? b.date.getTime() : 0;
+        return timeB - timeA;
+    });
+    
+    const filterEl = getEl('feed-user-filter');
+    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
+    renderUnifiedFeed();
 }
 
 function renderUnifiedFeed() {
@@ -2822,11 +2816,34 @@ function renderUnifiedFeed() {
     if (currentUser.role !== 'ADMIN') { filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); } 
     else if (userFilter !== 'all' && userFilter !== '') { filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); }
     if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(item => item.date && item.date >= cutoffDate); }
-    filtered = filtered.slice(0, 30); 
-    if(filtered.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
+    
+    const itemsPerPage = 15;
+    const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+    
+    if (window.currentFeedPage > totalPages) window.currentFeedPage = totalPages;
+    if (window.currentFeedPage < 1) window.currentFeedPage = 1;
+
+    const startIndex = (window.currentFeedPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = filtered.slice(startIndex, endIndex);
+
+    const controls = document.getElementById('feed-pagination-controls');
+    if (controls) {
+        if (filtered.length > itemsPerPage) {
+            controls.classList.remove('hidden');
+            controls.classList.add('flex');
+            const pageInfo = document.getElementById('feed-page-info');
+            if (pageInfo) pageInfo.innerText = `עמוד ${window.currentFeedPage} מתוך ${totalPages}`;
+        } else {
+            controls.classList.add('hidden');
+            controls.classList.remove('flex');
+        }
+    }
+
+    if(paginatedItems.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
     
     let html = '';
-    filtered.forEach(item => {
+    paginatedItems.forEach(item => {
         if(!item.date || isNaN(item.date.getTime())) return;
         const colorClass = item.type === 'system' ? 'bg-blue-50 border-blue-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
         const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
