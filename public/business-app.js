@@ -15961,12 +15961,23 @@ window.renderTeamChat = function(scrollToBottom = false) {
     const container = document.getElementById('chat-messages-container');
     if (!container) return;
 
-    if (window.teamChatCache.length === 0) {
+    const searchInput = document.getElementById('team-chat-search');
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    
+    let filteredChat = window.teamChatCache;
+    if (searchTerm) {
+        filteredChat = window.teamChatCache.filter(m => 
+            (m.message && m.message.toLowerCase().includes(searchTerm)) || 
+            (m.user_name && m.user_name.toLowerCase().includes(searchTerm))
+        );
+    }
+
+    if (filteredChat.length === 0) {
         container.innerHTML = `
             <div class="flex flex-col items-center justify-center h-full opacity-50 mt-auto mb-auto">
                 <i class="fa-regular fa-comments text-5xl text-slate-300 mb-3"></i>
-                <p class="text-sm font-bold text-slate-500">אין הודעות עדיין.</p>
-                <p class="text-[10px] text-slate-400 mt-1">שלחו הודעה ראשונה לצוות!</p>
+                <p class="text-sm font-bold text-slate-500">${searchTerm ? 'לא נמצאו הודעות תואמות לחיפוש.' : 'אין הודעות עדיין.'}</p>
+                <p class="text-[10px] text-slate-400 mt-1">${searchTerm ? 'נסו לחפש מילה אחרת.' : 'שלחו הודעה ראשונה לצוות!'}</p>
             </div>`;
         return;
     }
@@ -15974,7 +15985,16 @@ window.renderTeamChat = function(scrollToBottom = false) {
     let html = '<div class="flex-1 min-h-0"></div>'; 
     let currentDateGroup = '';
 
-    window.teamChatCache.forEach(msg => {
+    // פלטת צבעים שונה לכל חבר צוות כדי שיהיה קל לזהות
+    const otherColors = [
+        { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', name: 'text-emerald-600' },
+        { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', name: 'text-rose-600' },
+        { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', name: 'text-amber-600' },
+        { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-900', name: 'text-cyan-600' },
+        { bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', text: 'text-fuchsia-900', name: 'text-fuchsia-600' }
+    ];
+
+    filteredChat.forEach(msg => {
         const isMe = String(msg.user_id) === String(currentUser.id);
         const msgDate = new Date(msg.created_at);
         const dateStr = msgDate.toLocaleDateString('he-IL');
@@ -15996,10 +16016,14 @@ window.renderTeamChat = function(scrollToBottom = false) {
                 <span class="text-[9px] text-slate-400 mt-1 ml-1">${timeStr} <i class="fa-solid fa-check text-indigo-300"></i></span>
             </div>`;
         } else {
+            // בחירת צבע באופן קבוע לפי ה-ID של המשתמש כדי שישאר יציב
+            const colorIndex = parseInt(msg.user_id || 0) % otherColors.length;
+            const colorObj = otherColors[colorIndex];
+            
             html += `
             <div class="flex flex-col items-end w-full mb-1">
-                <span class="text-[10px] font-bold text-slate-500 mb-0.5 mr-1">${safeStr(msg.user_name)}</span>
-                <div class="bg-white text-slate-800 px-4 py-2 rounded-2xl rounded-tr-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border border-slate-200 break-words">
+                <span class="text-[10px] font-bold ${colorObj.name} mb-0.5 mr-1">${safeStr(msg.user_name)}</span>
+                <div class="${colorObj.bg} ${colorObj.text} px-4 py-2 rounded-2xl rounded-tr-sm max-w-[85%] shadow-sm relative text-sm leading-relaxed border ${colorObj.border} break-words">
                     ${safeStr(msg.message)}
                 </div>
                 <span class="text-[9px] text-slate-400 mt-1 mr-1">${timeStr}</span>
@@ -16015,6 +16039,38 @@ window.renderTeamChat = function(scrollToBottom = false) {
             container.scrollTop = container.scrollHeight;
         }, 50);
     }
+};
+
+window.exportTeamChat = function() {
+    if (!window.teamChatCache || window.teamChatCache.length === 0) {
+        return showToast('error', 'אין הודעות לייצוא בקבוצה זו');
+    }
+    
+    const dateNow = new Date();
+    const dateStrFormatted = `${dateNow.toLocaleDateString('he-IL')} ${dateNow.toLocaleTimeString('he-IL')}`;
+    
+    let content = `היסטוריית צ'אט צוות - ${currentGroup.name}\n`;
+    content += `הופק בתאריך: ${dateStrFormatted}\n`;
+    content += `(שים לב: ההיסטוריה נשמרת אוטומטית ל-3 חודשים בלבד)\n`;
+    content += `====================================================\n\n`;
+    
+    window.teamChatCache.forEach(msg => {
+        const msgDate = new Date(msg.created_at);
+        const dateStr = `${msgDate.toLocaleDateString('he-IL')} ${msgDate.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
+        content += `[${dateStr}] ${msg.user_name}: ${msg.message}\n`;
+    });
+    
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Chat_History_${currentGroup.name}_${dateNow.toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('success', 'היסטוריית הצ\\'אט ירדה בהצלחה למכשירך');
 };
 
 window.submitChatMessage = async function(e) {
