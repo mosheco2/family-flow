@@ -208,8 +208,10 @@
                         <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
                         <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
                     </div>
-                    <img src="logo.png" alt="Logo" class="w-48 sm:w-64 h-auto mx-auto mb-6 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
-                    <div id="auth-logo-fallback" class="w-32 h-32 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-6 flex items-center justify-center text-6xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
+                    <div class="w-full flex justify-center mb-6 px-4">
+                        <img src="logo.png" alt="Logo" class="w-full max-w-[280px] sm:max-w-[320px] h-auto object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
+                    </div>
+                    <div id="auth-logo-fallback" class="w-40 h-40 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-6 flex items-center justify-center text-7xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
                     <div class="w-full flex justify-between items-end px-2 mt-2">
                         <div class="text-left flex flex-col items-start">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Member</p>
@@ -540,21 +542,21 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap justify-end gap-2 items-center w-full md:w-auto shrink-0 mt-2 md:mt-0">
-                            <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
+                       <div class="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3 items-center w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
+                            <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition shrink-0" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
                                 <i class="fa-solid fa-desktop text-sm"></i>
                             </button>
-                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative bg-emerald-50 hover:bg-emerald-100 text-emerald-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
+                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative bg-emerald-50 hover:bg-emerald-100 text-emerald-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-emerald-100 transition shrink-0" title="תיבת הודעות נכנסות">
                                 <i class="fa-regular fa-envelope text-sm"></i>
                                 <span id="inbox-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
                             </button>
-                            <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
+                            <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition shrink-0" title="מרכז שירות ותמיכה">
                                 <i class="fa-solid fa-headset text-sm"></i>
                             </button>
-                            <button onclick="openProfileModal();" class="bg-slate-50 hover:bg-slate-100 text-slate-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
+                            <button onclick="openProfileModal();" class="bg-slate-50 hover:bg-slate-100 text-slate-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-slate-200 transition shrink-0" title="הגדרות פרופיל">
                                 <i class="fa-solid fa-gear text-sm"></i>
                             </button>
-                            <button onclick="logout();" class="bg-red-50 hover:bg-red-100 text-red-500 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-red-100 transition" title="התנתקות">
+                            <button onclick="logout();" class="bg-red-50 hover:bg-red-100 text-red-500 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-red-100 transition shrink-0" title="התנתקות">
                                 <i class="fa-solid fa-power-off text-sm"></i>
                             </button>
                         </div>
@@ -3625,11 +3627,11 @@
                 <button id="tour-fab-btn" onclick="document.getElementById('fab-container').classList.toggle('fab-open')" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
             </div>
 
-           <div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else document.getElementById('global-ai-modal').classList.remove('hidden');">
-                <div class="w-24 h-24 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border-2 border-slate-100 overflow-hidden">
-                    <img src="logo.png" alt="FamliAI" class="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
+<div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else document.getElementById('global-ai-modal').classList.remove('hidden');">
+                <div class="w-14 h-14 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border border-slate-100 p-2 overflow-hidden">
+                    <img src="logo.png" id="ai-assistant-logo-img" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
                 </div>
-                <p class="text-[11px] font-bold text-slate-700 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-slate-200">העוזרת העסקית</p>
+                <p class="text-[9px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-slate-200">העוזרת העסקית</p>
             </div>
             
 <button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-24 right-6 w-12 h-12 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 hover:bg-indigo-700 transition z-[90] hidden group">
