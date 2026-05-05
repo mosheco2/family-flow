@@ -81,6 +81,17 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
 
+      // טבלת צ'אט צוות פנימי
+      try {
+          await client.query(`CREATE TABLE IF NOT EXISTS team_chat (
+              id SERIAL PRIMARY KEY,
+              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+              user_id INT REFERENCES users(id) ON DELETE CASCADE,
+              message TEXT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )`);
+      } catch(e) { console.error('Error creating team_chat table:', e.message); }
+
       // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       // עדכון שדות חדשים למסד נתונים קיים
@@ -3593,6 +3604,39 @@ app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
         await pool.query('ROLLBACK');
         res.status(500).json({ error: e.message }); 
     }
+});
+
+// ============================================================
+// --- TEAM CHAT ENDPOINTS ---
+// ============================================================
+
+// שליפת היסטוריית הצ'אט של הקבוצה
+app.get('/api/chat/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, u.nickname as user_name 
+            FROM team_chat c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.group_id = $1 
+            ORDER BY c.created_at ASC
+            LIMIT 200
+        `, [req.params.groupId]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעת צ'אט חדשה
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { groupId, userId, message } = req.body;
+        if (!message || message.trim() === '') return res.status(400).json({ error: 'הודעה ריקה' });
+        
+        await pool.query(
+            'INSERT INTO team_chat (group_id, user_id, message) VALUES ($1, $2, $3)',
+            [groupId, userId, message]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
