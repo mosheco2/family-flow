@@ -3613,6 +3613,9 @@ app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
 // שליפת היסטוריית הצ'אט של הקבוצה
 app.get('/api/chat/:groupId', async (req, res) => {
     try {
+        // מחיקת הודעות ישנות מ-3 חודשים (תחזוקה אוטומטית)
+        await pool.query(`DELETE FROM team_chat WHERE group_id = $1 AND created_at < NOW() - INTERVAL '3 months'`, [req.params.groupId]);
+
         const result = await pool.query(`
             SELECT c.*, u.nickname as user_name 
             FROM team_chat c
