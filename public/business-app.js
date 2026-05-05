@@ -12584,7 +12584,7 @@ window.handlePosTenderClick = function() {
             const targetNode = document.fullscreenElement || document.body;
             
             targetNode.insertAdjacentHTML('beforeend', `
-                <div id="pos-debt-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+                <div id="pos-debt-alert-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
                     <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-red-100">
                         <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-red-100">
                             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -12649,6 +12649,11 @@ window.openPOSTender = function(skipCheck = false) {
         if (modal.parentNode !== targetNode) {
             targetNode.appendChild(modal);
         }
+        
+        // תיקון חיוני: הקפצת המודאל מעל המסך המלא הרמטית
+        modal.style.position = 'fixed';
+        modal.style.zIndex = '999999999';
+        
         modal.classList.remove('hidden');
     }
 
