@@ -1066,22 +1066,16 @@ document.addEventListener('click', (e) => {
         } catch(err) {}
     }
 });
-
-document.addEventListener('fullscreenchange', () => {
-    const posContainer = document.getElementById('content-pos');
-    if (!posContainer) return;
-    
-    // אם משתמש לחץ על Esc במקלדת באופן יזום - אנחנו מכבדים ויוצאים גם מעיצוב הקופה
-    if (!document.fullscreenElement && window._isInFullscreenPOS) {
-        // בודק אם ה-CSS עדיין קשיח (כלומר לא יצאנו דרך הכפתור האדום אלא רק כפיית דפדפן)
-        // השהייה קלה כדי לבדוק האם זה Escape או הדפסה
-        setTimeout(() => {
-           // אם אחרי חצי שנייה זה עדיין לא מסך מלא ומשתמש לא החזיר אותו בקליק - סוגרים סופית
-           if (!document.fullscreenElement && window._isInFullscreenPOS) {
-               window.togglePOSFullscreen(false);
-           }
-        }, 800);
+// מאזין ליציאה יזומה בעזרת מקש Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && window._isInFullscreenPOS) {
+        window.togglePOSFullscreen(false);
     }
+});
+
+// ביטלנו את ההקטנה האוטומטית ב-fullscreenchange כדי שחלון ההדפסה לא יכווץ את הקופה בשום מצב
+document.addEventListener('fullscreenchange', () => {
+    // ה-CSS שומר על המסך מתוח ל-100% עד שהמשתמש ילחץ על יציאה אדומה או Escape
 });
 
 // הגנה שלא שוברת את ה-Full Screen לאחר תשלום
