@@ -852,11 +852,15 @@ window.injectBusinessUI = function() {
     }
 };
 
-window.togglePOSFullscreen = function() {
+window.togglePOSFullscreen = function(forceState) {
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     
     const isFullscreen = posContainer.classList.contains('pos-is-fullscreen');
+    const shouldBeFullscreen = forceState !== undefined ? forceState : !isFullscreen;
+    
+    if (shouldBeFullscreen === isFullscreen && forceState === undefined) return;
+
     const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.min-h-full') || posContainer.querySelector('.h-\\[85vh\\]');
     const btn = document.getElementById('btn-pos-fullscreen');
     
@@ -875,7 +879,7 @@ window.togglePOSFullscreen = function() {
         } catch(e) {}
     };
 
-    if (!isFullscreen) {
+    if (shouldBeFullscreen) {
         toggleBrowserFullscreen(true);
         
         let placeholder = document.getElementById('pos-placeholder');
@@ -889,7 +893,6 @@ window.togglePOSFullscreen = function() {
         
         posContainer.classList.add('pos-is-fullscreen');
         
-        // החלת סגנונות ישירים כדי לעקוף בעיות זיהוי של Tailwind
         posContainer.style.position = 'fixed';
         posContainer.style.top = '0';
         posContainer.style.left = '0';
@@ -899,8 +902,9 @@ window.togglePOSFullscreen = function() {
         posContainer.style.backgroundColor = '#f8fafc'; 
         posContainer.style.padding = '1rem';
         posContainer.style.margin = '0';
+        posContainer.style.display = 'flex'; // מבטיח תצוגה גם אם יוסתר בהמשך
         
-        posContainer.classList.remove('pb-20', 'mt-4', 'relative');
+        posContainer.classList.remove('pb-20', 'mt-4', 'relative', 'hidden');
         
         if(wrapper) {
             wrapper.classList.remove('h-[85vh]');
@@ -915,7 +919,6 @@ window.togglePOSFullscreen = function() {
             btn.classList.remove('bg-slate-800', 'hover:bg-slate-700');
         }
         
-        // יצירת סרגל ניווט מהיר בתוך הקופה
         let posNav = document.getElementById('pos-quick-nav');
         if (!posNav) {
             posNav = document.createElement('div');
@@ -933,7 +936,6 @@ window.togglePOSFullscreen = function() {
         }
         if (posNav) posNav.classList.remove('hidden');
 
-        // הבטחה שמסך התשלום יצוץ מעל הקופה
         const tenderModal = document.getElementById('pos-tender-modal');
         if (tenderModal) {
             tenderModal.style.zIndex = '999999999';
@@ -948,7 +950,16 @@ window.togglePOSFullscreen = function() {
         }
         
         posContainer.classList.remove('pos-is-fullscreen');
-        posContainer.style.cssText = ''; 
+        posContainer.style.position = '';
+        posContainer.style.top = '';
+        posContainer.style.left = '';
+        posContainer.style.width = '';
+        posContainer.style.height = '';
+        posContainer.style.zIndex = '';
+        posContainer.style.backgroundColor = '';
+        posContainer.style.padding = '';
+        posContainer.style.margin = '';
+        posContainer.style.display = '';
         
         posContainer.classList.add('pb-20', 'mt-4', 'relative');
         
@@ -968,11 +979,15 @@ window.togglePOSFullscreen = function() {
         const posNav = document.getElementById('pos-quick-nav');
         if (posNav) posNav.classList.add('hidden');
         
-        // סגירת המסכים המרחפים באיפוס הקופה
         document.querySelectorAll('.pos-quick-overlay').forEach(el => {
+            el.style.display = '';
             el.classList.add('hidden');
             el.classList.remove('pos-quick-overlay');
             el.style.cssText = '';
+            const ph = document.getElementById(el.id + '-placeholder');
+            if (ph && el.parentNode === document.body) {
+                ph.parentNode.insertBefore(el, ph);
+            }
         });
         const closeBtn = document.getElementById('pos-overlay-close-btn');
         if(closeBtn) closeBtn.remove();
@@ -994,16 +1009,25 @@ window.posQuickNavigate = function(tabName) {
     const targetEl = document.getElementById(targetId);
     if (!targetEl) return;
     
-    // הפיכת הטאב המבוקש למודאל מרחף *מעל* הקופה הפתוחה
+    let placeholder = document.getElementById(targetId + '-placeholder');
+    if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.id = targetId + '-placeholder';
+        targetEl.parentNode.insertBefore(placeholder, targetEl);
+    }
+    
+    document.body.appendChild(targetEl);
+    
     targetEl.style.position = 'fixed';
     targetEl.style.top = '0';
     targetEl.style.left = '0';
-    targetEl.style.width = '100vw';
-    targetEl.style.height = '100vh';
-    targetEl.style.zIndex = '99999999'; // גבוה יותר ממסך הקופה!
+    targetEl.style.right = '0';
+    targetEl.style.bottom = '0';
+    targetEl.style.zIndex = '99999999';
     targetEl.style.backgroundColor = '#f8fafc';
-    targetEl.style.padding = '3rem 1rem 1rem 1rem'; // ריווח לכפתור הסגירה
+    targetEl.style.padding = '4rem 1rem 1rem 1rem'; 
     targetEl.style.overflowY = 'auto';
+    targetEl.style.display = 'block'; 
     
     targetEl.classList.remove('hidden');
     targetEl.classList.add('pos-quick-overlay');
@@ -1013,23 +1037,58 @@ window.posQuickNavigate = function(tabName) {
         closeBtn.id = 'pos-overlay-close-btn';
         closeBtn.className = 'fixed top-4 left-4 sm:top-6 sm:left-6 w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100 transition shadow-2xl z-[999999999] border border-red-200';
         closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-2xl"></i>';
-        closeBtn.onclick = function() {
-            targetEl.classList.add('hidden');
-            targetEl.classList.remove('pos-quick-overlay');
-            targetEl.style.cssText = ''; 
-            this.remove();
-        };
-        document.body.appendChild(closeBtn); // מוזרק לבודי כדי לא להיתקע בתוך ה-DOM של הטאב
+        document.body.appendChild(closeBtn);
     }
+    
+    const closeBtn = document.getElementById('pos-overlay-close-btn');
+    closeBtn.onclick = function() {
+        targetEl.style.display = '';
+        targetEl.classList.add('hidden');
+        targetEl.classList.remove('pos-quick-overlay');
+        targetEl.style.cssText = ''; 
+        
+        const ph = document.getElementById(targetId + '-placeholder');
+        if (ph && targetEl.parentNode === document.body) {
+            ph.parentNode.insertBefore(targetEl, ph);
+        }
+        this.remove();
+    };
 };
 
+if (!window.originalFinalizePOSOrderOverridden) {
+    const originalFinalizePOSOrder = window.finalizePOSOrder;
+    if (typeof originalFinalizePOSOrder === 'function') {
+        window.finalizePOSOrder = async function(...args) {
+            const posContainer = document.getElementById('content-pos');
+            const wasFullscreen = posContainer && posContainer.classList.contains('pos-is-fullscreen');
+            
+            window._ignoreFullscreenChange = true;
+            
+            try {
+                await originalFinalizePOSOrder.apply(this, args);
+            } catch(e) {
+                console.error(e);
+            }
+            
+            if (wasFullscreen) {
+                window.togglePOSFullscreen(true);
+            }
+            
+            setTimeout(() => { window._ignoreFullscreenChange = false; }, 500);
+        };
+        window.originalFinalizePOSOrderOverridden = true;
+    }
+}
+
 document.addEventListener('fullscreenchange', () => {
+    if (window._ignoreFullscreenChange) return;
+    
     const posContainer = document.getElementById('content-pos');
     if (!posContainer) return;
     const isCustomFullscreen = posContainer.classList.contains('pos-is-fullscreen');
     
     if (!document.fullscreenElement && isCustomFullscreen) {
-         window.togglePOSFullscreen();
+         window.togglePOSFullscreen(false);
     }
 });
     const menuContainer = getEl('slider-scroll');
