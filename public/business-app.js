@@ -12387,6 +12387,7 @@ window.tenderMethod = 'cash';
 window.posCurrentCustomer = null;
 window.currentPOSProduct = null;
 window.currentPOSModifiers = [];
+window.currentPOSDiscount = 0;
 
 window.getVatSettings = function() {
     try {
@@ -12405,12 +12406,33 @@ window.forceLoadCatalog = async function(e) {
         if(typeof fetchStorePromotions === 'function') await fetchStorePromotions();
         if(typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory);
         if(typeof window.renderPOSCart === 'function') window.renderPOSCart();
-        showToast('success', 'הקטלוג סונכרן בהצלחה!');
+        showToast('success', 'הקטלוג והמבצעים סונכרנו בהצלחה!');
     } catch(err) {
         showToast('error', 'שגיאה ברענון הקטלוג');
     } finally {
         if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> טען מוצרים';
     }
+};
+
+window.fetchStorePromotions = async function() {
+    try {
+        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
+        const data = await res.json();
+        if(data.success) {
+            window.storePromotionsCache = data.promotions || [];
+        } else {
+            window.storePromotionsCache = [];
+        }
+    } catch(e) { 
+        console.error('Error fetching promotions', e); 
+        window.storePromotionsCache = [];
+    }
+    
+    if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
+    if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
+    
+    if (typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory || 'all');
+    if (typeof window.renderPOSCart === 'function') window.renderPOSCart();
 };
 
 window.calcPOSPromotions = function(cartTotal, cartItems) {
@@ -12426,7 +12448,6 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
     let totalDiscount = 0;
     let appliedPromos = new Set();
     
-    // ניכוי מבצעי אחוזים ופיקס לכל פריט
     cartItems.forEach(item => {
         const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
         if (!catItem) return;
@@ -12453,6 +12474,8 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
                     discountPerUnit = promoVal; 
                 }
                 
+                if (discountPerUnit < 0) discountPerUnit = 0;
+                
                 if (discountPerUnit > bestItemDiscount && discountPerUnit <= item.price) {
                     bestItemDiscount = discountPerUnit;
                     bestPromoName = promo.title;
@@ -12466,7 +12489,6 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         }
     });
     
-    // חישוב למבצעי 1+1 (BOGO)
     activePromos.filter(p => p.promo_type === 'bogo').forEach(promo => {
         let eligibleItemsPrices = [];
         cartItems.forEach(item => {
@@ -12516,10 +12538,6 @@ window.renderPOSCatalog = function(cat = 'all') {
     const grid = document.getElementById('pos-catalog-grid');
     const catTabs = document.getElementById('pos-categories-tabs');
     if(!grid || !catTabs) return;
-
-    if (!window.storePromotionsCache && typeof fetchStorePromotions === 'function') {
-        fetchStorePromotions();
-    }
 
     const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
     catTabs.innerHTML = categories.map(c => 
@@ -12724,7 +12742,6 @@ window.renderPOSCart = function() {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled && !isDebtPayment) {
             const rate = vatSettings.rate || 18;
-            // ניכוי כלפי מטה: חילוק הסכום הסופי ב-1.17
             const totalBeforeVat = grandTotal / (1 + (rate / 100));
             const vatAmount = grandTotal - totalBeforeVat;
             
@@ -12748,9 +12765,643 @@ window.renderPOSCart = function() {
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
 window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
-// דחיפה אוטומטית של טעינת מבצעים ברקע בקליק על הטאב
-setTimeout(() => {
-    if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
+
+window.checkPOSCustomer = function() {
+    const phone = document.getElementById('pos-customer-phone').value;
+    const indicator = document.getElementById('pos-cust-indicator');
+    
+    if (phone.length >= 9 && storeCustomersCache) {
+        const c = storeCustomersCache.find(x => x.phone === phone);
+        if (c) { 
+            window.posCurrentCustomer = c; 
+            if(indicator) {
+                const debt = window.getCustomerDebt(c.phone);
+                if (debt > 0) {
+                    indicator.innerHTML = `<span class="text-red-700 bg-red-50 px-3 py-1.5 rounded-xl border border-red-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-triangle-exclamation"></i> לקוח מזוהה (חוב: ₪${debt.toFixed(2)}): <strong>${safeStr(c.name)}</strong></span>`;
+                } else {
+                    indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
+                }
+                indicator.classList.remove('hidden');
+            }
+            return;
+        }
+    }
+    window.posCurrentCustomer = null; 
+    if(indicator) indicator.classList.add('hidden'); 
+};
+
+window.handlePosTenderClick = function() {
+    if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
+    
+    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    
+    if (window.posCurrentCustomer && !isDebtPayment) {
+        const debt = window.getCustomerDebt(window.posCurrentCustomer.phone);
+        if (debt > 0) {
+            let modal = document.getElementById('pos-debt-alert-modal');
+            if(modal) modal.remove();
+            
+            const targetNode = document.fullscreenElement || document.body;
+            
+            targetNode.insertAdjacentHTML('beforeend', `
+                <div id="pos-debt-alert-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+                    <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-red-100">
+                        <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-red-100">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-800 mb-2">חוב פתוח ללקוח!</h3>
+                        <p class="text-sm text-slate-600 mb-6 leading-relaxed">ללקוח <strong>${safeStr(window.posCurrentCustomer.name)}</strong> קיים חוב פתוח על סך <strong class="text-red-600 dir-ltr inline-block">₪${debt.toFixed(2)}</strong>.<br>האם להמשיך בסליקת ההזמנה החדשה?</p>
+                        <div class="flex gap-3">
+                            <button onclick="document.getElementById('pos-debt-alert-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm">ביטול סליקה</button>
+                            <button onclick="document.getElementById('pos-debt-alert-modal').remove(); window.openPOSTender(true);" class="flex-[1.5] bg-red-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-600 transition text-sm flex items-center justify-center gap-2">המשך סליקה <i class="fa-solid fa-arrow-left"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            return;
+        }
+    }
+    
+    window.openPOSTender(true);
+};
+
+window.openPOSTender = function(skipCheck = false) {
+    window.posSplitPayments = []; window.tenderMethod = 'cash';
+    
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
+    
+    let tenderVatDisplay = document.getElementById('tender-vat-display');
+    if (!tenderVatDisplay) {
+        const tenderDueEl = document.getElementById('tender-total-due');
+        if (tenderDueEl && tenderDueEl.parentNode) {
+            tenderDueEl.parentNode.classList.add('relative');
+            tenderDueEl.parentNode.insertAdjacentHTML('beforeend', `<div id="tender-vat-display" class="absolute bottom-2 left-0 right-0 text-[10px] text-indigo-400 font-bold hidden">סכום נטו: ₪<span id="tender-net-val">0.00</span> | מע"מ: ₪<span id="tender-vat-val">0.00</span></div>`);
+            tenderVatDisplay = document.getElementById('tender-vat-display');
+        }
+    }
+
+    if (tenderVatDisplay) {
+        const vatSettings = window.getVatSettings();
+        if (vatSettings && vatSettings.enabled && !isDebtPayment) {
+            const rate = vatSettings.rate || 18;
+            const totalBeforeVat = grandTotal / (1 + (rate / 100));
+            const vatAmount = grandTotal - totalBeforeVat;
+            
+            const tNetVal = document.getElementById('tender-net-val');
+            if(tNetVal) tNetVal.innerText = totalBeforeVat.toFixed(2);
+            const tVatVal = document.getElementById('tender-vat-val');
+            if(tVatVal) tVatVal.innerText = vatAmount.toFixed(2);
+            tenderVatDisplay.classList.remove('hidden');
+        } else {
+            tenderVatDisplay.classList.add('hidden');
+        }
+    }
+    
+    document.getElementById('tender-total-due').innerText = `₪${grandTotal.toFixed(2)}`;
+    document.getElementById('tender-input-amount').value = grandTotal.toFixed(2);
+
+    const modal = document.getElementById('pos-tender-modal');
+    if (modal) {
+        const targetNode = document.fullscreenElement || document.body;
+        if (modal.parentNode !== targetNode) {
+            targetNode.appendChild(modal);
+        }
+        modal.style.position = 'fixed';
+        modal.style.zIndex = '999999999';
+        modal.classList.remove('hidden');
+    }
+
+    window.setTenderMethod('cash'); window.updateTenderDisplay();
+};
+
+window.setTenderMethod = function(m) {
+    if (m === 'on_account' && !window.posCurrentCustomer) {
+        showToast('error', 'חובה להזין טלפון ולזהות לקוח כדי לרשום הקפה!');
+        document.getElementById('pos-customer-phone').focus();
+        return;
+    }
+
+    window.tenderMethod = m;
+    const btnCash = document.getElementById('btn-tender-cash');
+    const btnCredit = document.getElementById('btn-tender-credit');
+    const btnAccount = document.getElementById('btn-tender-account');
+    
+    if(btnCash) btnCash.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    if(btnCredit) btnCredit.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    if(btnAccount) btnAccount.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    
+    let activeBtn;
+    if(m === 'cash') activeBtn = btnCash;
+    if(m === 'credit') activeBtn = btnCredit;
+    if(m === 'on_account') activeBtn = btnAccount;
+    
+    if(activeBtn) activeBtn.classList.add('border-indigo-600', 'bg-indigo-50/50');
+};
+
+window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
+
+window.addPaymentToSplit = function() {
+    const amt = parseFloat(document.getElementById('tender-input-amount').value) || 0; if(amt <= 0) return;
+    const names = { 'cash': 'מזומן', 'credit': 'אשראי', 'on_account': 'הקפה' };
+    window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod], amount: amt });
+    window.updateTenderDisplay();
+};
+
+window.updateTenderDisplay = function() {
+    const list = document.getElementById('tender-payments-list');
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
+    
+    let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
+    
+    list.innerHTML = window.posSplitPayments.map((p, i) => `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm mb-2"><span class="font-bold text-slate-700">${p.name}</span><div class="flex items-center gap-3"><strong class="text-base text-slate-800">₪${p.amount.toFixed(2)}</strong><button onclick="window.posSplitPayments.splice(${i},1); window.updateTenderDisplay();" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button></div></div>`).join('');
+    
+    const balance = grandTotal - paid;
+    const btn = document.getElementById('btn-finalize-pos');
+    if (balance <= 0.01) {
+        document.getElementById('tender-balance-label').innerText = "עודף להחזרה:"; document.getElementById('tender-balance-val').innerText = `₪${Math.abs(balance).toFixed(2)}`;
+        btn.disabled = false; btn.classList.replace('bg-slate-300', 'bg-emerald-500'); btn.classList.remove('cursor-not-allowed', 'opacity-50');
+    } else {
+        document.getElementById('tender-balance-label').innerText = "יתרה לתשלום:"; document.getElementById('tender-balance-val').innerText = `₪${balance.toFixed(2)}`;
+        document.getElementById('tender-input-amount').value = balance.toFixed(2);
+        btn.disabled = true; btn.classList.replace('bg-emerald-500', 'bg-slate-300'); btn.classList.add('cursor-not-allowed', 'opacity-50');
+    }
+};
+
+window.openPOSModifiersModal = function(p, mods) {
+    window.currentPOSProduct = p; window.currentPOSModifiers = mods;
+    
+    let modal = document.getElementById('pos-modifiers-modal');
+    if (modal) modal.remove();
+    
+    let html = `
+    <div id="pos-modifiers-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-ul text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-modifiers-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4">
+                ${mods.map((g, gi) => `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                            <h4 class="font-black text-slate-800 text-base">${safeStr(g.name)}</h4>
+                            <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md shadow-sm">${g.type==='multiple' ? 'בחירה חופשית' : 'חובה (1)'}</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${g.options.map((o, oi) => `
+                                <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition group shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <input type="${g.type==='multiple'?'checkbox':'radio'}" name="mod_g_${gi}" value="${oi}" class="w-4 h-4 accent-indigo-600" ${!g.type==='multiple' && oi===0 ? 'checked' : ''}>
+                                        <span class="text-xs font-bold text-slate-700 group-hover:text-indigo-800">${safeStr(o.name)}</span>
+                                    </div>
+                                    ${o.price>0?`<span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 shadow-sm dir-ltr">+₪${o.price}</span>`:''}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">הוסף לעגלה</button>
+            </div>
+        </div>
+    </div>`;
+    
+    const targetNode = document.fullscreenElement || document.body;
+    targetNode.insertAdjacentHTML('beforeend', html);
+};
+
+window.submitPOSModifiers = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    window.currentPOSModifiers.forEach((g, gi) => {
+        const checked = document.querySelectorAll(`input[name="mod_g_${gi}"]:checked`);
+        checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
+    });
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    const modal = document.getElementById('pos-modifiers-modal');
+    if(modal) modal.remove(); 
+    window.renderPOSCart();
+};
+
+window.openPOSPizzaModal = function(p, pizzaData) {
+    window.currentPOSProduct = p;
+    const toppings = pizzaData.toppings || [];
+    
+    let modal = document.getElementById('pos-pizza-modal');
+    if (modal) modal.remove();
+    
+    let html = `
+    <div id="pos-pizza-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-pizza-slice text-orange-500 mr-2"></i> הרכבת ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-pizza-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4">
+                <p class="text-xs text-slate-500 font-bold mb-2">בחרו תוספות והיכן למקם אותן על המגש:</p>
+                ${toppings.map((top, idx) => `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-700 text-sm">${safeStr(top.name)}</span>
+                            <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded dir-ltr border border-orange-100">+₪${top.price} למגש</span>
+                        </div>
+                        <div class="flex gap-1 mt-1">
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0" class="peer hidden" checked>
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-400 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">ללא</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="1" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">שלם</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0.5" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">חצי</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0.25" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">רבע</div>
+                            </label>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSPizza()" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition">הוסף פיצה להזמנה</button>
+            </div>
+        </div>
+    </div>`;
+    
+    const targetNode = document.fullscreenElement || document.body;
+    targetNode.insertAdjacentHTML('beforeend', html);
+};
+
+window.submitPOSPizza = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    const parsed = JSON.parse(window.currentPOSProduct.options_text);
+    parsed.toppings.forEach((top, idx) => {
+        const checkedEl = document.querySelector(`input[name="pizza_top_${idx}"]:checked`);
+        if (checkedEl) {
+            const val = parseFloat(checkedEl.value);
+            if (val > 0) {
+                const addPrice = parseFloat(top.price) * val;
+                finalPrice += addPrice;
+                let portion = val === 1 ? 'מגש שלם' : (val === 0.5 ? 'חצי' : 'רבע');
+                selected.push({ name: `${top.name} (${portion})`, price: addPrice });
+            }
+        }
+    });
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    const modal = document.getElementById('pos-pizza-modal');
+    if (modal) modal.remove(); 
+    window.renderPOSCart();
+};
+
+window.openPOSBundleModal = function(p, bundleData) {
+    window.currentPOSProduct = p;
+    const steps = bundleData.steps || [];
+    
+    let modal = document.getElementById('pos-bundle-modal');
+    if (modal) modal.remove();
+    
+    let html = `
+    <div id="pos-bundle-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-bundle-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-4 pb-4">
+                ${steps.map((step, idx) => {
+                    let availableItems = [];
+                    if (step.selectionType === 'category') {
+                        availableItems = storeCatalogCache.filter(c => c.category === step.category && c.is_available);
+                    } else {
+                        availableItems = storeCatalogCache.filter(c => step.items && step.items.includes(c.id) && c.is_available);
+                    }
+                    
+                    let optionsHtml = '';
+                    if (availableItems.length === 0) {
+                        optionsHtml = '<p class="text-[10px] text-slate-400 font-bold bg-white p-3 rounded-lg border border-dashed text-center">אין פריטים זמינים לבחירה בשלב זה.</p>';
+                    } else {
+                        optionsHtml = availableItems.map((item, itemIdx) => `
+                            <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 transition shadow-sm mb-2 group relative">
+                                <div class="flex items-center gap-3">
+                                    <input type="${step.qty === 1 ? 'radio' : 'checkbox'}" name="bundle_step_${idx}" value="${safeStr(item.name)}" data-price="${item.price}" class="w-4 h-4 accent-indigo-600 bundle-step-input-${idx}" ${step.qty === 1 && itemIdx === 0 ? 'checked' : ''}>
+                                    <span class="font-bold text-slate-700 text-sm group-hover:text-indigo-800">${safeStr(item.name)}</span>
+                                </div>
+                            </label>
+                        `).join('');
+                    }
+                    
+                    return `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                            <h4 class="font-bold text-slate-800 text-sm">${safeStr(step.name)}</h4>
+                            <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 shadow-sm">בחר ${step.qty} ${step.qty===1 ? 'פריט' : 'פריטים'}</span>
+                        </div>
+                        <div class="bundle-options-wrapper" data-max="${step.qty}">
+                            ${optionsHtml}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSBundle()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">סיים הרכבה והוסף לעגלה</button>
+            </div>
+        </div>
+    </div>`;
+    
+    const targetNode = document.fullscreenElement || document.body;
+    targetNode.insertAdjacentHTML('beforeend', html);
+    
+    steps.forEach((step, idx) => {
+        if (step.qty > 1) {
+            const inputs = document.querySelectorAll(`.bundle-step-input-${idx}`);
+            inputs.forEach(inp => {
+                inp.addEventListener('change', () => {
+                    const checked = document.querySelectorAll(`.bundle-step-input-${idx}:checked`);
+                    if (checked.length > step.qty) {
+                        inp.checked = false;
+                        showToast('info', `ניתן לבחור עד ${step.qty} פריטים בשלב: ${step.name}`);
+                    }
+                });
+            });
+        }
+    });
+};
+
+window.submitPOSBundle = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    const parsed = JSON.parse(window.currentPOSProduct.options_text);
+    const steps = parsed.steps || [];
+    
+    let isValid = true;
+    
+    steps.forEach((step, idx) => {
+        const checked = document.querySelectorAll(`input[name="bundle_step_${idx}"]:checked`);
+        if (checked.length === 0) {
+            showToast('error', `חובה לבחור פריטים בשלב: ${step.name}`);
+            isValid = false;
+        }
+        checked.forEach(inp => {
+            selected.push({ name: inp.value, price: 0 }); 
+        });
+    });
+    
+    if (!isValid) return;
+
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    const modal = document.getElementById('pos-bundle-modal');
+    if (modal) modal.remove(); 
+    window.renderPOSCart();
+};
+
+window.finalizePOSOrder = async function() {
+    const btn = document.getElementById('btn-finalize-pos'); 
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק ומדפיס...';
+    
+    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    let promoAmount = window.currentPOSDiscount || 0;
+    let grandTotal = netTotal - promoAmount;
+    if (grandTotal < 0) grandTotal = 0;
+    
+    const phone = document.getElementById('pos-customer-phone').value;
+    const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
+    
+    const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
+    
+    const vatSettings = window.getVatSettings();
+    let vatDetails = null;
+    if (vatSettings && vatSettings.enabled && !isDebtPayment) {
+        const rate = vatSettings.rate || 18;
+        const totalBeforeVat = grandTotal / (1 + (rate / 100));
+        const vatAmount = grandTotal - totalBeforeVat;
+        vatDetails = { enabled: true, rate: rate, subtotal: totalBeforeVat, vatAmount: vatAmount };
+    }
+    
+    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount };
+    items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
+
+    const modal = document.getElementById('pos-tender-modal');
+    if (modal) modal.classList.add('hidden');
+
+    try {
+        const res = await fetch(`${API}/store/orders`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            const newOrderId = data.orderId || data.id;
+            
+            try {
+                if (newOrderId) {
+                    fetch(`${API}/store/orders/status`, { 
+                        method: 'POST', headers: {'Content-Type':'application/json'}, 
+                        body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                    }).catch(e=>{});
+                }
+            } catch(e){}
+
+            const rawOrderObj = {
+                id: newOrderId || 'קופה',
+                created_at: new Date().toISOString(),
+                total_amount: grandTotal,
+                items: items,
+                notes: JSON.stringify(metaData)
+            };
+            try { window.printPOSReceipt(newOrderId, rawOrderObj); } catch(e){}
+
+            showToast('success', 'העסקה הושלמה ונשמרה בהצלחה!'); 
+            try { triggerConfetti(); } catch(e){}
+            setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
+
+            window.posCart = []; window.renderPOSCart(); 
+            const phoneInput = document.getElementById('pos-customer-phone');
+            if(phoneInput) phoneInput.value = '';
+            try { window.checkPOSCustomer(); } catch(e){}
+            
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ההזמנה במסד הנתונים');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בסיום העסקה. העסקה לא נשמרה בשרת.'); 
+    } finally { 
+        btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; 
+    }
+};
+
+window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
+    const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
+    if(!idToPrint && !rawOrderObj) return;
+    
+    let order = rawOrderObj;
+    if (!order) {
+        order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
+        if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
+    }
+    
+    let itemsHtml = '';
+    const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
+    
+    rawItems.forEach(i => {
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:4px; padding-right:10px;">${safeStr(i.note)}</div>`;
+        
+        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
+            try {
+                const parsed = JSON.parse(i.options_text);
+                if (parsed && parsed.isComplex && parsed.steps) {
+                    parsed.steps.forEach(step => {
+                        if (step.options) {
+                            step.options.forEach(opt => {
+                                if (opt.selected === true || opt.selected === 'true') {
+                                    const optQty = (parseFloat(i.quantity) || 1) * (parseFloat(opt.qty) || 1);
+                                    const optPrice = (parseFloat(opt.price) || 0) * optQty;
+                                    itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:11px; color:#333;"><span style="text-align:right;">- ${safeStr(opt.name)} ${optQty !== 1 ? `(x${optQty})` : ''}</span><span dir="ltr">${optPrice > 0 ? `+₪${optPrice.toFixed(2)}` : ''}</span></div>`;
+                                    if (opt.note) itemsHtml += `<div style="font-size:10px; color:#777; margin-bottom:2px; padding-right:25px; text-align:right;">* הערה: ${safeStr(opt.note)}</div>`;
+                                }
+                            });
+                        }
+                    });
+                } else if (Array.isArray(parsed)) {
+                    parsed.forEach(opt => {
+                        if (opt.name) {
+                             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:2px; padding-right:15px; font-size:11px; color:#333;"><span style="text-align:right;">- ${safeStr(opt.name)}</span></div>`;
+                        }
+                    });
+                }
+            } catch(e) {}
+        }
+        itemsHtml += `<div style="height:6px;"></div>`; 
+    });
+    
+    let titleStr = 'קבלה';
+    let paymentsHtml = '';
+    
+    const totalAmount = parseFloat(order.total_amount || order.total || 0);
+    const vatSettings = window.getVatSettings();
+    let vatHtml = '';
+    let promoHtml = '';
+    
+    try {
+        let metaStr = order.notes;
+        if (!metaStr || !metaStr.includes('{')) {
+            const rawMetaItem = rawItems.find(i => i.is_quote_metadata);
+            if (rawMetaItem) metaStr = rawMetaItem.data;
+        }
+
+        if(metaStr && metaStr.includes('{')) {
+            const meta = JSON.parse(metaStr);
+            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
+            
+            if (meta.promoDiscount && meta.promoDiscount > 0) {
+                promoHtml = `
+                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between; color:#ef4444; font-weight:bold;"><span>הנחת מבצעים:</span><span dir="ltr">-₪${meta.promoDiscount.toFixed(2)}</span></div>
+                    </div>
+                `;
+            }
+            
+            if (meta.payments && meta.payments.length > 0) {
+                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
+                meta.payments.forEach(p => {
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span>${p.name || p.method}</span><span dir="ltr">₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
+                });
+                paymentsHtml += `</div>`;
+            }
+        }
+    } catch(e) {}
+    
+    if (vatSettings && vatSettings.enabled) {
+        const vatRate = vatSettings.rate || 18;
+        const totalBeforeVat = totalAmount / (1 + (vatRate / 100));
+        const vatAmountCalc = totalAmount - totalBeforeVat;
+        vatHtml = `
+            <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span>סה"כ לפני מע"מ:</span><span dir="ltr">₪${totalBeforeVat.toFixed(2)}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmountCalc.toFixed(2)}</span></div>
+            </div>
+        `;
+    }
+    
+    const dateObj = new Date(order.created_at || Date.now());
+    const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+    const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}:${String(dateObj.getSeconds()).padStart(2, '0')}`;
+    const docTitle = `קבלה-${order.id}_${dateStr}`;
+    
+    const receiptHtml = `
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+        <title>${docTitle}</title>
+        <style>
+            @page { size: auto; margin: 0mm; }
+            body { font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto; position: relative; min-height: 100vh; box-sizing: border-box; } 
+            .print-footer { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 11px; color: #64748b; font-weight: bold; border-top: 1px dashed #ccc; padding-top: 5px; }
+        </style>
+        </head>
+        <body>
+            <h2 style="text-align:center; margin-bottom:5px;">${safeStr(typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה')}</h2>
+            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr.replace('_',' ')} #${order.id}<br>${timeStr} ,${dateStr}</div>
+            <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
+                ${itemsHtml}
+            </div>
+            ${promoHtml}
+            ${vatHtml}
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+                <span>סה"כ לתשלום:</span><span dir="ltr">₪${totalAmount.toFixed(2)}</span>
+            </div>
+            ${paymentsHtml}
+            <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
+            <div class="print-footer">Oneflowlife.co.il כל מה שאתם צריכים במערכת אחת</div>
+        </body>
+        </html>
+    `;
+
+    let iframe = document.getElementById('receipt-printer-frame');
+    if(!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt-printer-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(receiptHtml);
+    iframe.contentWindow.document.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        showToast('info', 'הקבלה נשלחה להדפסה!');
+    }, 500);
+};
+
+// הפעלה אוטומטית של רענון המבצעים כדי למנוע צורך ברענון ידני
+let _promoFetchInterval = setInterval(() => {
+    if (typeof currentGroup !== 'undefined' && currentGroup && currentGroup.id) {
+        if (!window.storePromotionsCache || window.storePromotionsCache.length === 0) {
+            if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
+        } else {
+            clearInterval(_promoFetchInterval);
+        }
+    }
 }, 2000);
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
