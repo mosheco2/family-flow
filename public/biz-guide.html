@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oneflow Life BIZ | מדריך למשתמש עסקי</title>
+    
+    <link rel="icon" href="/logo.png" type="image/png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; }
+        .guide-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; transition: transform 0.2s; }
+        .guide-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
+        .guide-icon { width: 4rem; height: 4rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem; }
+        .guide-section-title { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
+        .guide-text { color: #475569; line-height: 1.8; margin-bottom: 1rem; font-size: 0.95rem; }
+        .guide-list { list-style-type: none; padding: 0; margin: 0 0 1rem 0; }
+        .guide-list li { position: relative; padding-right: 1.5rem; margin-bottom: 0.75rem; color: #334155; font-size: 0.95rem; }
+        .guide-list li::before { content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; right: 0; color: #4f46e5; font-size: 0.85rem; top: 0.25rem; }
+        .highlight-box { background: #e0e7ff; border-right: 4px solid #4f46e5; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: 500; color: #312e81; font-size: 0.9rem; }
+        .modern-input { width: 100%; padding: 0.75rem 1rem; border-radius: 9999px; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
+        .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+    </style>
+</head>
+<body class="text-slate-800 antialiased pb-20">
+
+    <header class="bg-indigo-900 text-white pt-16 pb-20 px-6 relative overflow-hidden text-center shadow-xl">
+        <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div class="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
+        <div class="relative z-10 max-w-3xl mx-auto">
+            <img src="/logo.png" alt="Oneflow Logo" class="h-16 w-auto mx-auto mb-6 drop-shadow-lg">
+            <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight leading-tight">Oneflow Life BIZ</h1>
+            <p class="text-indigo-200 text-lg md:text-xl font-medium max-w-xl mx-auto leading-relaxed">המדריך השלם לניהול העסק, העובדים והלקוחות מתוך פלטפורמה אחת חכמה.</p>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 -mt-10 relative z-20">
+        
+        <div class="guide-card">
+            <div class="guide-icon bg-indigo-50 text-indigo-600"><i class="fa-solid fa-rocket"></i></div>
+            <h2 class="guide-section-title">ברוכים הבאים למערכת BIZ</h2>
+            <p class="guide-text">Oneflow Life BIZ תוכננה לרכז את כל הכלים שהעסק שלך צריך במקום אחד: מקופה וירטואלית, דרך ניהול ספקים ומלאי, ועד שעון נוכחות מבוסס GPS לעובדים. המערכת מבוססת על מנוע AI שעוזר לך לקבל החלטות בזמן אמת ולהוזיל עלויות.</p>
+            <div class="highlight-box">
+                <i class="fa-solid fa-lightbulb mr-2"></i> טיפ: השתמשו בתפריט הצד (אייקון 3 השורות העליון) כדי לנווט במהירות בין מודולי המערכת השונים.
+            </div>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-chart-pie"></i></div>
+            <h2 class="guide-section-title">1. לוח בקרה ואנליטיקה (Dashboard)</h2>
+            <p class="guide-text">המסך הראשי ממנו מנהלים את העסק במבט-על. מרכז את כל הנתונים החיים:</p>
+            <ul class="guide-list">
+                <li><strong>סקירה פיננסית:</strong> מחזור הכנסות יומי/חודשי, הוצאות (ספקים/שכר) והרווח הנקי.</li>
+                <li><strong>דופק חי (Live Pulse):</strong> פיד המתעדכן בזמן אמת על כל פעולה שמתבצעת (הזמנה, כניסת עובד, רכש).</li>
+                <li><strong>משימות פתוחות:</strong> סטטוס מטלות שהוקצו לעובדים או משימות אישיות שלך.</li>
+                <li><strong>אנליסט AI:</strong> לחיצה על כפתור התובנות מפיקה דוח חכם שמנתח את המכירות והמלאי וממליץ על צעדים להמשך.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-emerald-50 text-emerald-600"><i class="fa-solid fa-cash-register"></i></div>
+            <h2 class="guide-section-title">2. קופה וירטואלית והצעות מחיר (Store & POS)</h2>
+            <p class="guide-text">הלב הפועם של המכירות בעסק - קופה מהירה, קטלוג חכם וניהול עגלות.</p>
+            <ul class="guide-list">
+                <li><strong>ניהול קטלוג (Menu/Products):</strong> הוספת מוצרים, סיווג לקטגוריות, תמונות, והגדרת "מפרט מורכב" (פיצות חצאים, תוספות עם/בלי תשלום).</li>
+                <li><strong>ביצוע הזמנה (Checkout):</strong> הוספת פריטים לעגלה, הזנת פרטי לקוח ממועדון הלקוחות, ובחירה בין איסוף למשלוח.</li>
+                <li><strong>הצעות מחיר (Quotes):</strong> בניית עגלה גדולה או הצעת מחיר לאירוע (B2B/Catering) ושמירתה כ"הצעה". לקוחות יכולים לאשר הצעה מאוחר יותר והיא הופכת אוטומטית להזמנה לייצור.</li>
+                <li><strong>ניהול הזמנות (Kanban):</strong> מסך תפעול ויזואלי של ההזמנות החדשות, הזמנות בהכנה והזמנות שיצאו למשלוח.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-amber-50 text-amber-600"><i class="fa-solid fa-truck-fast"></i></div>
+            <h2 class="guide-section-title">3. רכש ספקים (B2B Procurement)</h2>
+            <p class="guide-text">מודול המייעל את רכש חומרי הגלם ומונע טעויות מול ספקים.</p>
+            <ul class="guide-list">
+                <li><strong>ניהול ספקים:</strong> הגדרת פרטי הספק, מינימום הזמנה, ימי חלוקה ושעות קאט-אוף (Cut-off time).</li>
+                <li><strong>קטלוג ספק:</strong> הזנת מחירון הספק לכל פריט. ניתן להשתמש ב-AI כדי לבנות קטלוג בסיסי בשניות.</li>
+                <li><strong>הזמנות רכש (PO):</strong> יצירת עגלת רכש חכמה. המערכת שולחת אוטומטית מייל מקצועי עם קובץ PDF מסודר לספק.</li>
+                <li><strong>קבלת סחורה (Receive Goods):</strong> כשהסחורה מגיעה, מסמנים מה התקבל. פריטים שהתקבלו מעדכנים מיד את המלאי. על פריטים חסרים נפתחת אוטומטית 'הזמנת טיוטה' חוזרת.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-rose-50 text-rose-600"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <h2 class="guide-section-title">4. מלאי ועץ מוצר (Inventory & Food Cost)</h2>
+            <p class="guide-text">שליטה הדוקה בחומרי הגלם וניתוח רווחיות של כל מנה או מוצר בעסק.</p>
+            <ul class="guide-list">
+                <li><strong>המזווה העסקי (Pantry):</strong> מעקב אחרי המלאי הקיים בעסק. מלאי נכנס מרכש (B2B) ויוצא באופן ידני או דרך מכירות.</li>
+                <li><strong>פוד-קוסט ועץ מוצר (Bill of Materials):</strong> קישור בין חומרי גלם מהמלאי למוצר שנמכר בקופה. המערכת מחשבת אוטומטית את העלות הישירה, מוסיפה הוצאות עקיפות, ומציגה באחוזים את הרווחיות המדויקת של המנה!</li>
+                <li><strong>התראות AI:</strong> עוזרת ה-AI מנתחת את צריכת המלאי מול הרכש ומתריעה בפניך על מוצרים שעומדים להיגמר או על חריגות בעלויות מול הספקים.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-purple-50 text-purple-600"><i class="fa-solid fa-users-gear"></i></div>
+            <h2 class="guide-section-title">5. צוות עובדים ושעון נוכחות (HR)</h2>
+            <p class="guide-text">ניהול מלא של כוח האדם בעסק - משעות עבודה ועד משימות ואקדמיה.</p>
+            <ul class="guide-list">
+                <li><strong>שעון נוכחות מבוסס מיקום:</strong> עובדים נכנסים ויוצאים ממשמרת דרך האפליקציה שלהם. המערכת מוודאת דרך GPS שהם אכן נמצאים פיזית במתחם העסק (עד 150 מטר).</li>
+                <li><strong>ניהול עובדים:</strong> הוספת עובדים, עדכון הרשאות לאילו מודולים הם רשאים להיכנס (קופה, מלאי, רכש וכו').</li>
+                <li><strong>משימות (Tasks):</strong> הקצאת משימות לעובד ספציפי או לצוות כולו, כולל תגמול/בונוס על ביצוען. עובד יכול להעלות תמונה לסיום משימה, וה-AI יבדוק ויאשר אותה אוטומטית!</li>
+                <li><strong>הלוואות ומקדמות:</strong> עובד יכול לבקש מקדמה. במידה ותאשר, הסכום ינוהל תחת "מערכת הלוואות" פנימית להורדה מהמשכורת.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-teal-50 text-teal-600"><i class="fa-solid fa-bullhorn"></i></div>
+            <h2 class="guide-section-title">6. קהילות, שיווק ומועדון לקוחות</h2>
+            <p class="guide-text">חיבור העסק החוצה למעגלי צרכנות, והנעת מכירות פנימה.</p>
+            <ul class="guide-list">
+                <li><strong>חיבור לקהילות (B2B2C):</strong> איתור קהילות / ועדים מקומיים של Oneflow. ניתן להציע להם הנחה ייעודית, ואם מנהל הקהילה מאשר, החנות שלך תופיע למאות משפחות הקהילה באפליקציה שלהן!</li>
+                <li><strong>מועדון לקוחות (CRM):</strong> שמירת פרטי הלקוחות שקונים בעסק, ניהול היסטוריית הזמנות ושמירת הערות.</li>
+                <li><strong>מבצעים (Promotions):</strong> יצירת מבצעים מסוג "אחוז הנחה", "1+1" או מחיר פיקס. אפשרות להקפיץ את המבצע כבאנר רוחבי שיופיע לכל מי שייכנס לחנות.</li>
+                <li><strong>קופונים:</strong> יצירת קודי קופון (למשל: VIP20) למתן הנחות בעגלת הקניות.</li>
+            </ul>
+        </div>
+
+        <div class="guide-card">
+            <div class="guide-icon bg-orange-50 text-orange-600"><i class="fa-solid fa-graduation-cap"></i></div>
+            <h2 class="guide-section-title">7. אקדמיה ונהלים (Academy)</h2>
+            <p class="guide-text">הדרך החכמה להכשיר עובדים חדשים ולשמור על סטנדרט מקצועי.</p>
+            <ul class="guide-list">
+                <li><strong>בניית מערכי שיעור:</strong> כתיבת נהלי עבודה (למשל: "נוהל פתיחת קופה" או "בטיחות במטבח").</li>
+                <li><strong>יצירת מבחנים ב-AI:</strong> מקלידים נושא (למשל: "היגיינה"), וה-AI מייצר בשניות מבחן אמריקאי מקצועי עם שאלות ותשובות נכונות.</li>
+                <li><strong>חפיפה ובונוסים:</strong> העובד עובר את המבחן. אם עבר את ציון העובר (Threshold), הוא מקבל את בונוס ההכשרה שהוגדר לו ישירות למאזן הבונוסים שלו.</li>
+            </ul>
+        </div>
+
+        <div class="text-center py-6">
+            <p class="text-slate-500 text-sm font-medium">יש לכם שאלה שלא נענתה כאן? לחצו על סמל העוזרת הווירטואלית בפינה התחתונה!</p>
+        </div>
+
+    </main>
+
+    <div id="guide-chat-wrapper" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div id="guide-chat-window" class="hidden w-[90vw] sm:w-96 bg-white rounded-3xl shadow-2xl border border-indigo-100 mb-4 overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0">
+            <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm"><i class="fa-solid fa-robot"></i></div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-none">FamliAI BIZ</h3>
+                        <p class="text-indigo-200 text-xs mt-1">עוזרת הדרכה למערכת</p>
+                    </div>
+                </div>
+                <button onclick="toggleGuideChat()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="guide-chat-messages" class="h-80 sm:h-96 overflow-y-auto p-4 space-y-4 bg-slate-50 flex flex-col">
+                <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 self-start max-w-[95%] leading-relaxed text-sm">
+                    שלום! 👋 אני עוזרת ה-AI של המערכת. אני מכירה את המדריך לעסקים בעל פה. מוזמנים לשאול אותי כל שאלה על איך לתפעל מודול מסוים (למשל: "איך עובד שעון הנוכחות?").
+                </div>
+            </div>
+            
+            <div class="p-3 bg-white border-t border-slate-100">
+                <form id="guide-chat-form" onsubmit="sendGuideMessage(event)" class="flex gap-2 relative">
+                    <input type="text" id="guide-chat-input" class="modern-input py-3 pr-4 pl-12 text-sm bg-slate-50" placeholder="הקלד שאלה כאן..." autocomplete="off">
+                    <button type="submit" class="absolute left-1 top-1 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-sm">
+                        <i class="fa-solid fa-paper-plane text-xs -translate-x-0.5"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <button onclick="toggleGuideChat()" id="guide-fab" class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full shadow-2xl flex items-center justify-center text-white text-3xl hover:scale-110 hover:rotate-6 transition-all duration-300 relative border-4 border-white">
+            <i class="fa-solid fa-robot"></i>
+            <span class="absolute top-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
+        </button>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('guide-chat-window');
+        const msgs = document.getElementById('guide-chat-messages');
+        const input = document.getElementById('guide-chat-input');
+        
+        function toggleGuideChat() {
+            if (chatWindow.classList.contains('hidden')) {
+                chatWindow.classList.remove('hidden');
+                setTimeout(() => {
+                    chatWindow.classList.remove('scale-95', 'opacity-0');
+                    chatWindow.classList.add('scale-100', 'opacity-100');
+                    input.focus();
+                }, 10);
+            } else {
+                chatWindow.classList.remove('scale-100', 'opacity-100');
+                chatWindow.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => chatWindow.classList.add('hidden'), 300);
+            }
+        }
+
+        async function sendGuideMessage(e) {
+            e.preventDefault();
+            const text = input.value.trim();
+            if(!text) return;
+            
+            // הוספת שאלת המשתמש
+            msgs.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm self-end max-w-[85%] text-sm">${text}</div>`;
+            input.value = '';
+            msgs.scrollTop = msgs.scrollHeight;
+            
+            // הוספת הודעת טעינה
+            const loadingId = 'load-' + Date.now();
+            msgs.innerHTML += `<div id="${loadingId}" class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-400 self-start text-xs flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i> מקלידה תשובה...</div>`;
+            msgs.scrollTop = msgs.scrollHeight;
+            
+            try {
+                // קריאה לשרת - שימו לב שהוספנו guideType: 'BIZ'
+                const res = await fetch('/api/guide/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question: text, guideType: 'BIZ' })
+                });
+                const data = await res.json();
+                
+                document.getElementById(loadingId).remove();
+                
+                if(data.success) {
+                    let formatted = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    msgs.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 self-start max-w-[95%] leading-relaxed text-sm">${formatted}</div>`;
+                } else {
+                    msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">אופס, שגיאה: ${data.error}</div>`;
+                }
+            } catch(e) {
+                document.getElementById(loadingId).remove();
+                msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">תקלת רשת. ודאו שאתם מחוברים לאינטרנט.</div>`;
+            }
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+    </script>
+</body>
+</html>
