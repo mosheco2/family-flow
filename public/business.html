@@ -198,24 +198,33 @@
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
-            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 sm:rounded-b-[3rem] shadow-2xl pt-8 pb-10 flex-shrink-0 border-b-4 border-blue-500/30">
-                <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                <p class="absolute inset-0 flex items-center justify-center text-white/5 font-mono text-5xl font-bold tracking-[0.2em] pointer-events-none select-none z-0" style="top: 50%; transform: translateY(-50%);">**** ****</p>
-                
-                <div class="relative z-10 flex flex-col items-center" dir="ltr">
-                    <div class="w-full flex justify-between items-center mb-4 px-2">
+           <!-- פאנל עליון עם תמיכה בקרוסלת התחברות דינמית -->
+            <div id="login-header-panel" class="w-full h-64 sm:h-72 relative overflow-hidden bg-slate-900 sm:rounded-b-[3rem] shadow-2xl flex-shrink-0 border-b-4 border-blue-500/30">
+                <!-- מכולת קרוסלת התמונות (Slider) -->
+                <div id="login-slider-wrapper" class="absolute inset-0 z-20 hidden">
+                    <div id="login-slider-scroll" class="flex overflow-x-auto w-full h-full hide-scrollbar snap-x snap-mandatory scroll-smooth">
+                        <!-- יוזרק דינמית ב-JS -->
+                    </div>
+                    <div id="login-slider-dots" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-30">
+                        <!-- יוזרק דינמית -->
+                    </div>
+                </div>
+
+                <!-- עיצוב כרטיס האשראי כדיפולט (יוסתר אם יש שקופיות) -->
+                <div id="login-default-credit" class="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 transition-opacity duration-500" dir="ltr">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <p class="absolute inset-0 flex items-center justify-center text-white/5 font-mono text-5xl font-bold tracking-[0.2em] pointer-events-none select-none z-0" style="top: 50%; transform: translateY(-50%);">**** ****</p>
+                    <div class="w-full flex justify-between items-center mb-4 px-2 relative z-10">
                         <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
                         <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
                     </div>
-                    <div class="w-full flex justify-center mb-6 px-4">
-                        <img src="logo.png" alt="Logo" class="w-full max-w-[280px] sm:max-w-[320px] h-auto object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
-                    </div>
-                    <div id="auth-logo-fallback" class="w-40 h-40 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-6 flex items-center justify-center text-7xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
-                    <div class="w-full flex justify-between items-end px-2 mt-2">
+                    <img src="logo.png" alt="Logo" class="w-28 sm:w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl relative z-10" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
+                    <div id="auth-logo-fallback" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden relative z-10"><i class="fa-solid fa-wallet"></i></div>
+                    <div class="w-full flex justify-between items-end px-2 mt-2 relative z-10">
                         <div class="text-left flex flex-col items-start">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Member</p>
-                            <p class="text-blue-100 text-xs font-medium tracking-widest uppercase">Oneflow life BIZ</p>
+                            <p class="text-blue-100 text-xs font-medium tracking-widest uppercase">Oneflow Life</p>
                         </div>
                         <div class="text-right flex flex-col items-end">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Valid Thru</p>
