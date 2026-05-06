@@ -17009,13 +17009,20 @@ window.submitPromotion = async function() {
         const val = document.getElementById('promo-value') ? parseFloat(document.getElementById('promo-value').value) : 0;
         const tType = document.getElementById('promo-target-type').value;
         const tCat = document.getElementById('promo-target-category') ? document.getElementById('promo-target-category').value : '';
-        const startDate = document.getElementById('promo-start-date') ? document.getElementById('promo-start-date').value : null;
-        const endDate = document.getElementById('promo-end-date') ? document.getElementById('promo-end-date').value : null;
+        
+        // תיקון 1: מוודאים שאם השדה ריק, אנחנו שולחים null למסד הנתונים ולא שרשרת ריקה
+        const sdInput = document.getElementById('promo-start-date');
+        const edInput = document.getElementById('promo-end-date');
+        const startDate = (sdInput && sdInput.value) ? sdInput.value : null;
+        const endDate = (edInput && edInput.value) ? edInput.value : null;
         
         const showBannerCb = document.getElementById('promo-show-banner');
         const showTabCb = document.getElementById('promo-show-tab');
-        const showBanner = showBannerCb ? showBannerCb.checked : true;
-        const showTab = showTabCb ? showTabCb.checked : true;
+        
+        // תיקון 2: המרת צ'קבוקס ל-1 ו-0 באופן הרמטי עבור שרתים שמצפים למספר בוליאני
+        const showBanner = showBannerCb ? (showBannerCb.checked ? 1 : 0) : 1;
+        const showTab = showTabCb ? (showTabCb.checked ? 1 : 0) : 1;
+        
         const bgColor = document.getElementById('promo-bg-color') ? document.getElementById('promo-bg-color').value : 'pink';
 
         if(!title) {
@@ -17026,8 +17033,6 @@ window.submitPromotion = async function() {
 
         const targetIdsVal = tType === 'category' ? JSON.stringify([tCat.replace(/[\[\]"']/g, '').trim()]) : 'all';
 
-        // התיקון הקריטי: אנחנו שולחים את המידע גם ב-camelCase וגם ב-snake_case
-        // כדי לוודא שהשרת יתפוס את הנתונים ולא יתעלם מהם, לא משנה איזה מבנה הוא מצפה לקבל
         const payload = {
             groupId: currentGroup.id,
             title: title,
@@ -17039,8 +17044,8 @@ window.submitPromotion = async function() {
             target_type: tType,
             targetIds: targetIdsVal,
             target_ids: targetIdsVal,
-            isActive: true,
-            is_active: true,
+            isActive: 1,
+            is_active: 1,
             startDate: startDate,
             start_date: startDate,
             endDate: endDate,
@@ -17129,8 +17134,9 @@ window.openPromotionModal = function(id = null) {
                 document.getElementById('promo-target-category').value = '';
             }
 
+            // פונקציית המרת תאריכים מחוזקת המונעת קריסות או התאפסות
             const formatDateTimeLocal = (dateString) => {
-                if (!dateString || dateString === 'null') return '';
+                if (!dateString || dateString === 'null' || dateString === 'undefined' || dateString.startsWith('0000')) return '';
                 try {
                     const date = new Date(dateString);
                     if(isNaN(date.getTime())) return '';
@@ -17141,15 +17147,23 @@ window.openPromotionModal = function(id = null) {
             document.getElementById('promo-start-date').value = formatDateTimeLocal(promo.startDate || promo.start_date);
             document.getElementById('promo-end-date').value = formatDateTimeLocal(promo.endDate || promo.end_date);
             
-            const sBanner = promo.showBanner !== undefined ? promo.showBanner : (promo.show_banner !== undefined ? promo.show_banner : promo.show_in_banner);
-            const sTab = promo.showTab !== undefined ? promo.showTab : (promo.show_tab !== undefined ? promo.show_tab : promo.show_in_tab);
+            // משיכת נתוני הצ'קבוקסים מהשרת
+            let sBanner = true;
+            if (promo.showBanner !== undefined) sBanner = promo.showBanner;
+            else if (promo.show_banner !== undefined) sBanner = promo.show_banner;
+            else if (promo.show_in_banner !== undefined) sBanner = promo.show_in_banner;
             
-            // התיקון הקריטי: המרת הערך למחרוזת מוודאת שהבדיקה שלנו ל-"false" תתפוס גם ערך בוליאני וגם טקסטואלי
+            let sTab = true;
+            if (promo.showTab !== undefined) sTab = promo.showTab;
+            else if (promo.show_tab !== undefined) sTab = promo.show_tab;
+            else if (promo.show_in_tab !== undefined) sTab = promo.show_in_tab;
+            
+            // בדיקה קפדנית לאישור דלוק (הגנה מפני ערך 0 או 'false' שחוזרים מהשרת)
             const bannerCb = document.getElementById('promo-show-banner');
-            if(bannerCb) bannerCb.checked = (sBanner !== false && String(sBanner) !== 'false' && sBanner !== 0);
+            if(bannerCb) bannerCb.checked = (sBanner === true || String(sBanner) === 'true' || sBanner === 1 || String(sBanner) === '1');
             
             const tabCb = document.getElementById('promo-show-tab');
-            if(tabCb) tabCb.checked = (sTab !== false && String(sTab) !== 'false' && sTab !== 0);
+            if(tabCb) tabCb.checked = (sTab === true || String(sTab) === 'true' || sTab === 1 || String(sTab) === '1');
             
             const colorSel = document.getElementById('promo-bg-color');
             if(colorSel) colorSel.value = promo.bgColor || promo.bg_color || 'pink';
