@@ -531,18 +531,32 @@
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer) return;
             
-            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_banner)) : [];
+            // תמיכה בפורמט החדש של השדות וסינון חכם יותר
+            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => {
+                const showBanner = p.showBanner !== undefined ? p.showBanner : (p.show_banner !== undefined ? p.show_banner : p.show_in_banner);
+                return showBanner !== false && showBanner !== 'false' && showBanner !== 0; 
+            }) : [];
+            
             if (bannerPromos.length === 0) { bannerContainer.innerHTML = ''; return; }
             
             let promoHtml = `<div class="flex overflow-x-auto w-full modal-scroll snap-x snap-mandatory">`;
             bannerPromos.forEach(p => {
-                let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
+                const pType = p.promoType || p.promo_type;
+                const pVal = p.promoValue || p.promo_value;
+                const tType = p.targetType || p.target_type;
+                const tIds = p.targetIds || p.target_ids;
+                const bColor = p.bgColor || p.bg_color || 'pink';
+
+                let desc = pType === 'bogo' ? '1+1 מתנה!' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal} בלבד`);
                 let targetArray = [];
-                if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
-                else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
-                let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `תקף על: ${(targetArray || []).join(', ')}`;
+                if(Array.isArray(tIds)) targetArray = tIds;
+                else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
                 
-                const bgClass = colorMap[p.bg_color] || colorMap['pink'];
+                // הסרת תווים מיותרים להצגה יפה בחנות
+                const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
+                let targetDesc = tType === 'all' ? 'על כל החנות' : `תקף על: ${cleanCategory}`;
+                
+                const bgClass = colorMap[bColor] || colorMap['pink'];
 
                 promoHtml += `
                 <div class="bg-gradient-to-r ${bgClass} text-white py-5 px-6 min-w-full w-full shrink-0 snap-center relative overflow-hidden flex flex-col justify-center text-right shadow-inner border-b border-black/10">
@@ -706,11 +720,15 @@ window.filterCategory = function(cat) {
             window.renderCatalog();
         };
 
-        window.renderCatalog = function() {
+window.renderCatalog = function() {
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
-                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
+                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => {
+                    const showTab = p.showTab !== undefined ? p.showTab : (p.show_tab !== undefined ? p.show_tab : p.show_in_tab);
+                    return showTab !== false && showTab !== 'false' && showTab !== 0; 
+                }) : [];
+                
                 if (tabPromos.length === 0) {
                     container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
                     return;
@@ -718,12 +736,20 @@ window.filterCategory = function(cat) {
                 
                 let html = '<div class="flex flex-col gap-4">';
                 tabPromos.forEach(p => {
-                    let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
+                    const pType = p.promoType || p.promo_type;
+                    const pVal = p.promoValue || p.promo_value;
+                    const tType = p.targetType || p.target_type;
+                    const tIds = p.targetIds || p.target_ids;
+                    const bColor = p.bgColor || p.bg_color || 'pink';
+
+                    let desc = pType === 'bogo' ? '1+1 מתנה!' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal} בלבד`);
                     let targetArray = [];
-                    if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
-                    else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
-                    let targetDesc = p.target_type === 'all' ? 'חל על כל מוצרי החנות' : `תקף על קטגוריה: ${(targetArray || []).join(', ')}`;
-                    const bgClass = colorMap[p.bg_color] || colorMap['pink'];
+                    if(Array.isArray(tIds)) targetArray = tIds;
+                    else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
+                    
+                    const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
+                    let targetDesc = tType === 'all' ? 'חל על כל מוצרי החנות' : `תקף על קטגוריה: ${cleanCategory}`;
+                    const bgClass = colorMap[bColor] || colorMap['pink'];
                     
                     html += `
                     <div class="bg-gradient-to-r ${bgClass} text-white p-5 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between border border-white/20 fade-in">
@@ -757,7 +783,10 @@ window.filterCategory = function(cat) {
 
             if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
 
-            const activePromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.is_active)) : [];
+            const activePromos = storeData.promotions ? storeData.promotions.filter(p => {
+                const isActive = p.isActive !== undefined ? p.isActive : p.is_active;
+                return isActive !== false && isActive !== 'false' && isActive !== 0;
+            }) : [];
 
             let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
 
@@ -772,18 +801,25 @@ window.filterCategory = function(cat) {
                 
                 if (item.product_type !== 'complex_builder') {
                     for (let promo of activePromos) {
-                        if (promo.target_type === 'all') { appliedPromo = promo; break; }
-                        if (promo.target_type === 'category') {
+                        const tType = promo.targetType || promo.target_type;
+                        const tIds = promo.targetIds || promo.target_ids;
+
+                        if (tType === 'all') { appliedPromo = promo; break; }
+                        if (tType === 'category') {
                             let targetArray = [];
-                            if(Array.isArray(promo.target_ids)) targetArray = promo.target_ids;
-                            else if(typeof promo.target_ids === 'string') { try { targetArray = JSON.parse(promo.target_ids); } catch(e){} }
-                            if (targetArray.includes(item.category)) { appliedPromo = promo; break; }
+                            if(Array.isArray(tIds)) targetArray = tIds;
+                            else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
+                            
+                            const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
+                            if (cleanCategory.includes(item.category)) { appliedPromo = promo; break; }
                         }
                     }
                 }
 
                 if (appliedPromo) {
-                    let promoText = appliedPromo.promo_type === 'bogo' ? '1+1 מתנה' : (appliedPromo.promo_type === 'discount_pct' ? `${appliedPromo.promo_value}% הנחה` : `ב-₪${appliedPromo.promo_value}`);
+                    const pType = appliedPromo.promoType || appliedPromo.promo_type;
+                    const pVal = appliedPromo.promoValue || appliedPromo.promo_value;
+                    let promoText = pType === 'bogo' ? '1+1 מתנה' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal}`);
                     badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
                 }
 
