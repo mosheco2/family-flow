@@ -167,82 +167,6 @@ function renderLivePulse(activityData, stats) {
     }).join('');
 }
 
-async function loadSAData() {
-    try {
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-
-        const setVal = (id, v) => { const e = getEl(id); if (e) e.value = v || ''; };
-        
-        // פונקציית עזר לטעינת התצוגה המקדימה של הבאנרים בסופר אדמין
-        const setImgPreview = (baseId, val) => {
-            setVal(baseId + '-img', val);
-            const preview = getEl(baseId + '-preview');
-            const placeholder = getEl(baseId + '-placeholder') || getEl(baseId + '-icon');
-            if (val && val.length > 10) {
-                if (preview) { preview.src = val.startsWith('http') || val.startsWith('data:') ? val : '/' + val; preview.classList.remove('hidden'); preview.style.display = 'block'; }
-                if (placeholder) { placeholder.classList.add('hidden'); placeholder.style.display = 'none'; }
-            } else {
-                if (preview) { preview.src = ''; preview.classList.add('hidden'); preview.style.display = 'none'; }
-                if (placeholder) { placeholder.classList.remove('hidden'); placeholder.style.display = 'flex'; }
-            }
-        };
-
-        setVal('sa-new-username', data.saUsername);
-        setVal('sa-new-email', data.saEmail);
-        setVal('sa-welcome-msg', data.welcomeMsg);
-        setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
-        
-        setVal('sa-banner-top-text', data.adBannerTextTop);
-        setVal('sa-banner-top-link', data.adBannerLinkTop);
-        setImgPreview('sa-banner-top', data.adBannerImgTop);
-        
-        setVal('sa-banner-bottom-text', data.adBannerTextBottom);
-        setVal('sa-banner-bottom-link', data.adBannerLinkBottom);
-        setImgPreview('sa-banner-bottom', data.adBannerImgBottom);
-        
-        setVal('sa-biz-banner-top-text', data.bizBannerTextTop);
-        setVal('sa-biz-banner-top-link', data.bizBannerLinkTop);
-        setImgPreview('sa-biz-banner-top', data.bizBannerImgTop);
-        
-        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom);
-        setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom);
-        setImgPreview('sa-biz-banner-bottom', data.bizBannerImgBottom);
-        const setTxt = (id, v) => { const e = getEl(id); if (e) e.innerText = v || 0; };
-        if (data.stats) {
-            setTxt('sa-stat-families', data.stats.families);
-            setTxt('sa-stat-businesses', data.stats.businesses);
-            setTxt('sa-stat-family-users', data.stats.familyUsers);
-            setTxt('sa-stat-biz-users', data.stats.businessUsers);
-        }
-
-        // ניתוב הנתונים למסך הדופק החדש
-        if (data.activity && data.stats) {
-            renderLivePulse(data.activity, data.stats);
-        }
-        
-        // יתירות (Fallback) במקרה שמישהו גולל חזרה לטאב הישן של הסטטיסטיקות
-        const actList = getEl('sa-activity-list');
-        if (actList) {
-            actList.innerHTML = data.activity.map(a => {
-                const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">פעולה</span>`;
-                return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`;
-            }).join('');
-            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
-        }
-
-       saAllGroups = data.groups || [];
-        saAllUsers = data.users || [];
-        
-        // פונקציות שאחראיות על רינדור המסכים האחרים
-        if(typeof renderSAGroups === 'function') renderSAGroups();
-        if(typeof loadSACommunityData === 'function') loadSACommunityData();
-        if(typeof loadSATickets === 'function') loadSATickets();
-        if(typeof loadSAPartners === 'function') loadSAPartners(); // <-- הוספנו פונקציה זו
-        
-    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
-}
 async function loadSATickets() {
     const list = getEl('sa-tickets-list');
     if(!list) return;
@@ -335,23 +259,210 @@ async function updateSACredentials() {
         } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
     } catch (e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
-
-async function saveAllBanners() {
+async function loadSAData() {
     try {
-        const res = await fetch(`${API}/superadmin/banners`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({
-                topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'),
-                bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'),
-                bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'),
-                bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img')
-            })
-        });
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
-        if (data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch (e) { showToast('error', 'תקלת רשת מול השרת'); }
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+
+        const setVal = (id, v) => { const e = getEl(id); if (e) e.value = v || ''; };
+        
+        const setImgPreview = (baseId, val) => {
+            setVal(baseId + '-img', val);
+            const preview = getEl(baseId + '-preview');
+            const placeholder = getEl(baseId + '-placeholder') || getEl(baseId + '-icon');
+            if (val && val.length > 10) {
+                if (preview) { preview.src = val.startsWith('http') || val.startsWith('data:') ? val : '/' + val; preview.classList.remove('hidden'); preview.style.display = 'block'; }
+                if (placeholder) { placeholder.classList.add('hidden'); placeholder.style.display = 'none'; }
+            } else {
+                if (preview) { preview.src = ''; preview.classList.add('hidden'); preview.style.display = 'none'; }
+                if (placeholder) { placeholder.classList.remove('hidden'); placeholder.style.display = 'flex'; }
+            }
+        };
+
+        setVal('sa-new-username', data.saUsername);
+        setVal('sa-new-email', data.saEmail);
+        setVal('sa-welcome-msg', data.welcomeMsg);
+        setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        
+        setVal('sa-banner-top-text', data.adBannerTextTop);
+        setVal('sa-banner-top-link', data.adBannerLinkTop);
+        setImgPreview('sa-banner-top', data.adBannerImgTop);
+        
+        setVal('sa-banner-bottom-text', data.adBannerTextBottom);
+        setVal('sa-banner-bottom-link', data.adBannerLinkBottom);
+        setImgPreview('sa-banner-bottom', data.adBannerImgBottom);
+        
+        setVal('sa-biz-banner-top-text', data.bizBannerTextTop);
+        setVal('sa-biz-banner-top-link', data.bizBannerLinkTop);
+        setImgPreview('sa-biz-banner-top', data.bizBannerImgTop);
+        
+        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom);
+        setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom);
+        setImgPreview('sa-biz-banner-bottom', data.bizBannerImgBottom);
+        const setTxt = (id, v) => { const e = getEl(id); if (e) e.innerText = v || 0; };
+        if (data.stats) {
+            setTxt('sa-stat-families', data.stats.families);
+            setTxt('sa-stat-businesses', data.stats.businesses);
+            setTxt('sa-stat-family-users', data.stats.familyUsers);
+            setTxt('sa-stat-biz-users', data.stats.businessUsers);
+        }
+
+        if (data.activity && data.stats) {
+            renderLivePulse(data.activity, data.stats);
+        }
+        
+        const actList = getEl('sa-activity-list');
+        if (actList) {
+            actList.innerHTML = data.activity.map(a => {
+                const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">פעולה</span>`;
+                return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`;
+            }).join('');
+            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        }
+
+        saAllGroups = data.groups || [];
+        saAllUsers = data.users || [];
+        
+        // טעינת ההגדרות הגלובליות החדשות!
+        window.loginSlidesCache = data.loginSlides || [];
+        
+        const globalAiLogoPreview = getEl('sa-global-ai-logo-preview');
+        const globalAiLogoIcon = getEl('sa-global-ai-logo-icon');
+        getEl('sa-global-ai-logo-base64').value = data.globalAiLogo || '';
+        if (data.globalAiLogo) {
+            if(globalAiLogoPreview) { globalAiLogoPreview.src = data.globalAiLogo; globalAiLogoPreview.classList.remove('hidden'); }
+            if(globalAiLogoIcon) globalAiLogoIcon.classList.add('hidden');
+        } else {
+            if(globalAiLogoPreview) { globalAiLogoPreview.src = ''; globalAiLogoPreview.classList.add('hidden'); }
+            if(globalAiLogoIcon) globalAiLogoIcon.classList.remove('hidden');
+        }
+        
+        if(typeof renderLoginSlidesAdmin === 'function') renderLoginSlidesAdmin();
+        if(typeof renderSAGroups === 'function') renderSAGroups();
+        if(typeof loadSACommunityData === 'function') loadSACommunityData();
+        if(typeof loadSATickets === 'function') loadSATickets();
+        if(typeof loadSAPartners === 'function') loadSAPartners();
+        
+    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
+window.saveAllBanners = async function() {
+    try {
+        const payload = {
+            topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'),
+            bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'),
+            bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'),
+            bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img'),
+            globalAiLogo: val('sa-global-ai-logo-base64'),
+            loginSlides: window.loginSlidesCache
+        };
+
+        const res = await fetch(`${API}/superadmin/banners`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההגדרות והמיתוג הגלובלי נשמרו בהצלחה!'); } else { showToast('error', 'שגיאה בשמירת נתונים'); }
+    } catch (e) { showToast('error', 'תקלת רשת מול השרת'); }
+};
+
+// --- פונקציות ניהול מיתוג ושקופיות סופר אדמין ---
+window.loginSlidesCache = [];
+
+window.handleGlobalLogoUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxSize = 512;
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/png'); // שומרים PNG בשביל שקיפות הלוגו
+            
+            getEl('sa-global-ai-logo-base64').value = base64;
+            getEl('sa-global-ai-logo-preview').src = base64;
+            getEl('sa-global-ai-logo-preview').classList.remove('hidden');
+            if(getEl('sa-global-ai-logo-icon')) getEl('sa-global-ai-logo-icon').classList.add('hidden');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearGlobalLogo = function() {
+    getEl('sa-global-ai-logo-base64').value = '';
+    getEl('sa-global-ai-logo-preview').src = '';
+    getEl('sa-global-ai-logo-preview').classList.add('hidden');
+    if(getEl('sa-global-ai-logo-icon')) getEl('sa-global-ai-logo-icon').classList.remove('hidden');
+};
+
+window.addLoginSlideImage = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxSize = 800;
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/png');
+            
+            window.loginSlidesCache.push({ id: 'slide_' + Date.now(), image: base64, active: true });
+            if(typeof window.renderLoginSlidesAdmin === 'function') window.renderLoginSlidesAdmin();
+            event.target.value = '';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.toggleLoginSlide = function(idx) {
+    if(window.loginSlidesCache[idx]) {
+        window.loginSlidesCache[idx].active = !window.loginSlidesCache[idx].active;
+        if(typeof window.renderLoginSlidesAdmin === 'function') window.renderLoginSlidesAdmin();
+    }
+};
+
+window.deleteLoginSlide = function(idx) {
+    window.loginSlidesCache.splice(idx, 1);
+    if(typeof window.renderLoginSlidesAdmin === 'function') window.renderLoginSlidesAdmin();
+};
+
+window.renderLoginSlidesAdmin = function() {
+    const list = getEl('sa-login-slides-list');
+    if(!list) return;
+    if(window.loginSlidesCache.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed">אין שקופיות. יוצג כרטיס האשראי כברירת מחדל.</p>';
+        return;
+    }
+    
+    list.innerHTML = window.loginSlidesCache.map((s, idx) => `
+        <div class="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-xl mb-2">
+            <div class="flex items-center gap-3">
+                <img src="${s.image}" class="w-12 h-12 object-contain bg-slate-200/50 rounded-lg">
+                <span class="text-xs font-bold text-slate-700">שקופית ${idx + 1}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="window.toggleLoginSlide(${idx})" class="text-[10px] font-bold px-2 py-1 rounded-lg transition ${s.active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}">${s.active ? 'מוצג' : 'מוסתר'}</button>
+                <button onclick="window.deleteLoginSlide(${idx})" class="w-7 h-7 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+            </div>
+        </div>
+    `).join('');
+};
 async function saveWelcomeMsg(type = 'FAMILY') {
     const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
     try {
