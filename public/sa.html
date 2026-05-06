@@ -409,7 +409,42 @@
                     </div>
                 </div>
 
-                <div id="sa-view-content" class="hidden space-y-8 fade-in">
+<div id="sa-view-content" class="hidden space-y-8 fade-in">
+                    
+                    <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
+                        <h2 class="text-xl font-black mb-4 text-indigo-900"><i class="fa-solid fa-paint-roller text-indigo-500 mr-2"></i> מיתוג גלובלי מערכתי (White-Label)</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                <h3 class="font-bold text-slate-700 mb-2 border-b border-slate-100 pb-2">לוגו העוזרת הווירטואלית / סמל דפדפן</h3>
+                                <p class="text-[10px] text-slate-500 mb-4">יופיע בכל בועות ה-Chatbot (למשפחות ועסקים) ויחליף את ה-Favicon של המערכת. יחס 1:1, מומלץ PNG ללא רקע (512x512).</p>
+                                <div class="flex items-center gap-4">
+                                    <div class="relative w-20 h-20 bg-slate-100 rounded-full border border-slate-200 shadow-inner flex items-center justify-center overflow-hidden shrink-0">
+                                        <img id="sa-global-ai-logo-preview" src="" class="w-full h-full object-cover hidden">
+                                        <i id="sa-global-ai-logo-icon" class="fa-solid fa-robot text-3xl text-slate-300"></i>
+                                    </div>
+                                    <div class="flex-1 flex flex-col gap-2">
+                                        <input type="file" id="sa-global-ai-logo-upload" accept="image/*" class="hidden" onchange="handleGlobalLogoUpload(event)">
+                                        <input type="hidden" id="sa-global-ai-logo-base64">
+                                        <button type="button" onclick="document.getElementById('sa-global-ai-logo-upload').click()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה לוגו</button>
+                                        <button type="button" onclick="clearGlobalLogo()" class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-200 hover:bg-red-100 transition shadow-sm w-full">הסר (חזור למקור)</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                <h3 class="font-bold text-slate-700 mb-2 border-b border-slate-100 pb-2">קרוסלת מסך ההתחברות (Login Slider)</h3>
+                                <p class="text-[10px] text-slate-500 mb-4">התמונות שירוצו במסך הראשי ללקוחות שטרם התחברו למערכת. יחס מומלץ 1:1, רקע שקוף.</p>
+                                
+                                <div id="sa-login-slides-list" class="space-y-2 mb-4 max-h-40 overflow-y-auto modal-scroll pr-1">
+                                    <p class="text-xs text-slate-400 text-center py-2">טוען שקופיות...</p>
+                                </div>
+                                
+                                <input type="file" id="sa-login-slide-upload" accept="image/*" class="hidden" onchange="addLoginSlideImage(event)">
+                                <button type="button" onclick="document.getElementById('sa-login-slide-upload').click()" class="bg-emerald-50 text-emerald-600 border border-emerald-200 w-full px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-plus"></i> הוסף שקופית חדשה לקרוסלה</button>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
@@ -493,7 +528,7 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg">
+                    <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
                         <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
                     </button>
                 </div>
