@@ -17153,78 +17153,71 @@ window.fetchData = async function() {
 };
 
 // ==========================================
-// --- POS PROMOTIONS OVERRIDE (SAFE WORKAROUND) V3 ---
+// --- POS PROMOTIONS OVERRIDE (SAFE BULLETPROOF V2) ---
 // ==========================================
+// בלוק זה מיועד לאכוף את כל לוגיקת המבצעים בקופה (תצוגה, דיגולים, וחישוב עגלה)
+// תוך התגברות על תקלות של פירמוט נתונים מול שרת, בצורה בטוחה בסוף הקובץ.
 
 window.fetchStorePromotions = async function() {
     try {
         const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
         const data = await res.json();
-        if(data.success) {
-            // השרת יכול להחזיר את המבצעים בתוך 'promotions' או בתוך 'data'
-            window.storePromotionsCache = data.promotions || data.data || [];
-        } else {
-            window.storePromotionsCache = [];
-        }
+        // השרת עלול להחזיר תחת 'promotions' או 'data' או כמערך ישיר
+        window.storePromotionsCache = data.promotions || data.data || (Array.isArray(data) ? data : []);
     } catch(e) { 
-        console.error('Error fetching promotions', e); 
         window.storePromotionsCache = [];
     }
     
     if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
     if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
     
-    if (typeof window._internalRenderPOSCatalog === 'function') window._internalRenderPOSCatalog(window.posCurrentCategory || 'all');
+    // רענון אוטומטי של תצוגת הקופה
+    if (typeof window._internalRenderPOSCatalog === 'function') {
+        window._internalRenderPOSCatalog(window.posCurrentCategory || 'all');
+    } else if (typeof window.renderPOSCatalog === 'function') {
+         window.renderPOSCatalog(window.posCurrentCategory || 'all');
+    }
     if (typeof window.renderPOSCart === 'function') window.renderPOSCart();
 };
 
-const isPromoActive = (p) => {
-    // בדיקת סטטוס בטוחה (למקרה שהשרת מחזיר is_active או isActive)
+const isPromoActiveSafe = (p) => {
+    // בדיקה סלחנית לסטטוס הפעילות
     const isActive = p.is_active !== undefined ? p.is_active : p.isActive;
-    if(isActive !== true && isActive != 1 && String(isActive) !== 'true') return false;
+    if (isActive !== true && isActive != 1 && String(isActive) !== 'true') return false;
     
-    const now = new Date();
-    // איפוס שעות כדי לא להסתבך עם הבדלי אזורי זמן ופג תוקף באותו יום
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
-    
-    const sDate = p.start_date || p.startDate;
-    if(sDate) {
-        const sd = new Date(sDate).getTime();
-        if (sd > todayEnd) return false;
+    // התעלמות משגיאות אזורי זמן - בדיקה בסיסית בלבד לגבי פג תוקף
+    if (p.end_date || p.endDate) {
+        const ed = new Date(p.end_date || p.endDate);
+        if (!isNaN(ed) && ed.setHours(23,59,59,999) < new Date().getTime()) return false;
     }
-    const eDate = p.end_date || p.endDate;
-    if(eDate) {
-        const ed = new Date(eDate).getTime();
-        if (ed < todayStart) return false;
-    }
-    return true;
+    return true; // אם פעיל ולא פג תוקף - מוחזר כפעיל
 };
 
-const checkPromoApplies = (promo, category) => {
+const checkPromoAppliesSafe = (promo, itemCategory) => {
     const tType = promo.target_type || promo.targetType;
     if (tType === 'all') return true;
     
     let tIds = promo.target_ids || promo.targetIds;
     if (!tIds) return false;
     
+    // פענוח גמיש של מבנה הקטגוריות
     if (typeof tIds === 'string') {
         try { tIds = JSON.parse(tIds); } catch(e) { tIds = [tIds]; }
     }
     if (!Array.isArray(tIds)) tIds = [tIds];
     
-    const itemCat = category || 'כללי';
-    return tIds.includes(itemCat);
+    const cat = String(itemCategory || 'כללי').trim();
+    return tIds.some(id => String(id).trim() === cat);
 };
 
 window.calcPOSPromotions = function(cartTotal, cartItems) {
     if (!window.storePromotionsCache || window.storePromotionsCache.length === 0) return { amount: 0, text: '' };
     
-    const activePromos = window.storePromotionsCache.filter(isPromoActive);
+    const activePromos = window.storePromotionsCache.filter(isPromoActiveSafe);
     let totalDiscount = 0;
     let appliedPromos = new Set();
     
-    // חישוב למבצעי אחוזים וסכום קבוע
+    // 1. חישוב מבצעי אחוזים והנחה קבועה
     cartItems.forEach(item => {
         const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
         if (!catItem) return;
@@ -17233,7 +17226,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         let bestPromoName = '';
         
         activePromos.forEach(promo => {
-            if (checkPromoApplies(promo, catItem.category)) {
+            if (checkPromoAppliesSafe(promo, catItem.category)) {
                 const pType = promo.promo_type || promo.promoType;
                 const pVal = parseFloat(promo.promo_value || promo.promoValue) || 0;
                 let discountPerUnit = 0;
@@ -17246,6 +17239,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
                 
                 if (discountPerUnit < 0) discountPerUnit = 0;
                 
+                // לוקח את המבצע שהכי משתלם ללקוח (אבל לא יותר ממחיר הפריט עצמו)
                 if (discountPerUnit > bestItemDiscount && discountPerUnit <= item.price) {
                     bestItemDiscount = discountPerUnit;
                     bestPromoName = promo.title;
@@ -17259,14 +17253,13 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         }
     });
     
-    // חישוב למבצעי 1+1 (BOGO)
+    // 2. חישוב מבצעי 1+1 (BOGO)
     activePromos.filter(p => (p.promo_type || p.promoType) === 'bogo').forEach(promo => {
         let eligibleItemsPrices = [];
         cartItems.forEach(item => {
             const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
             if (!catItem) return;
-            
-            if (checkPromoApplies(promo, catItem.category)) {
+            if (checkPromoAppliesSafe(promo, catItem.category)) {
                 for(let i=0; i<item.qty; i++) {
                     eligibleItemsPrices.push(item.price);
                 }
@@ -17274,10 +17267,10 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         });
         
         if (eligibleItemsPrices.length >= 2) {
-            eligibleItemsPrices.sort((a,b) => a - b); // מעניקים את המוצר הזול ביותר חינם
+            eligibleItemsPrices.sort((a,b) => a - b); // מיישם הנחה על הפריט הזול מביניהם
             let freeCount = Math.floor(eligibleItemsPrices.length / 2);
             let bogoDiscount = 0;
-            let pVal = parseFloat(promo.promo_value || promo.promoValue) || 99999; 
+            let pVal = parseFloat(promo.promo_value || promo.promoValue) || 999999; 
             
             for(let i=0; i<freeCount; i++) {
                 bogoDiscount += Math.min(eligibleItemsPrices[i], pVal);
@@ -17297,27 +17290,26 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
     return { amount: totalDiscount, text: Array.from(appliedPromos).join(', ') };
 };
 
-// עטיפה של הרנדור כדי לוודא משיכה של המבצעים במידה ולא נטענו
-window.renderPOSCatalog = function(cat = 'all') {
-    if (!window.storePromotionsCache && typeof window.fetchStorePromotions === 'function') {
-        window.storePromotionsCache = []; // מניעת לולאה אין סופית
-        window.fetchStorePromotions();
-        return; // הפונקציה תיקרא שוב אוטומטית לאחר סיום המשיכה מהשרת
-    }
-    window._internalRenderPOSCatalog(cat);
-};
+// עטיפה לפונקציה המרנדרת כדי לוודא שאיבת מבצעים
+window._internalRenderPOSCatalog = window.renderPOSCatalog; 
 
-window._internalRenderPOSCatalog = function(cat = 'all') {
+window.renderPOSCatalog = function(cat = 'all') {
+    // בודק אם המבצעים נטענו אי פעם, אם לא - מבקש מהשרת ומרנדר שוב
+    if (!window._posPromosInitialized && typeof window.fetchStorePromotions === 'function') {
+        window._posPromosInitialized = true;
+        window.fetchStorePromotions();
+    }
+    
     window.posCurrentCategory = cat;
     const grid = document.getElementById('pos-catalog-grid');
     const catTabs = document.getElementById('pos-categories-tabs');
     if(!grid || !catTabs) return;
 
-    const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
+    let categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
     
-    // הוספת טאב מבצעים אם קיימים מבצעים פעילים
-    const hasActivePromos = window.storePromotionsCache && window.storePromotionsCache.some(isPromoActive);
-    if (hasActivePromos) categories.push('promotions_tab');
+    // הוספת טאב "מבצעים" דינמי אם יש כאלו
+    const activePromos = (window.storePromotionsCache || []).filter(isPromoActiveSafe);
+    if (activePromos.length > 0) categories.push('promotions_tab');
 
     catTabs.innerHTML = categories.map(c => {
         let label = c === 'all' ? 'הכל' : safeStr(c);
@@ -17334,15 +17326,10 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
 
     let products = storeCatalogCache.filter(p => p.is_available);
     
+    // סינון להצגת מוצרי המבצעים בלבד בעת לחיצה על הטאב
     if (cat === 'promotions_tab') {
         products = products.filter(p => {
-             let hasDiscount = false;
-             if (window.storePromotionsCache) {
-                 window.storePromotionsCache.filter(isPromoActive).forEach(promo => {
-                     if (checkPromoApplies(promo, p.category)) hasDiscount = true;
-                 });
-             }
-             return hasDiscount;
+             return activePromos.some(promo => checkPromoAppliesSafe(promo, p.category));
         });
     } else if(cat !== 'all') {
         products = products.filter(p => (p.category || 'כללי') === cat);
@@ -17351,6 +17338,7 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
     const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
     if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
 
+    // רינדור קלפי המוצר עם הדיגולים (Badges) והמחירים החתוכים
     grid.innerHTML = products.map(p => {
         let isComplex = false;
         if (p.options_text && p.options_text.length > 10) {
@@ -17365,12 +17353,10 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
         let finalPrice = parseFloat(p.price) || 0;
         let originalPrice = finalPrice;
         
-        if (window.storePromotionsCache && window.storePromotionsCache.length > 0) {
-            const activePromos = window.storePromotionsCache.filter(isPromoActive);
-
+        if (activePromos.length > 0) {
             let bestDiscount = 0;
             activePromos.forEach(promo => {
-                if (checkPromoApplies(promo, p.category)) {
+                if (checkPromoAppliesSafe(promo, p.category)) {
                     const pType = promo.promo_type || promo.promoType;
                     const pVal = parseFloat(promo.promo_value || promo.promoValue) || 0;
                     let currentDiscount = 0;
@@ -17428,26 +17414,7 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
     }).join('');
 };
 
-window.addPOSItem = function(id) {
-    const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
-    
-    if (p.options_text && p.options_text.length > 10) {
-        try { 
-            const parsed = JSON.parse(p.options_text);
-            if (parsed && parsed.isBundle) { window.openPOSBundleModal(p, parsed); return; }
-            if (parsed && parsed.isPizza) { window.openPOSPizzaModal(p, parsed); return; }
-            if (parsed && parsed.isComplex) { window.openPOSBundleModal(p, parsed); return; }
-            if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); return; }
-        } catch(e) {}
-    }
-    
-    const existing = window.posCart.find(i => i.real_id === p.id && !i.modifiers);
-    if(existing) existing.qty++;
-    else window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: p.name, price: parseFloat(p.price), qty: 1, modifiers: null });
-    
-    window.renderPOSCart();
-};
-
+window._internalRenderPOSCart = window.renderPOSCart;
 window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
@@ -17533,6 +17500,7 @@ window.renderPOSCart = function() {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled && !isDebtPayment) {
             const rate = vatSettings.rate || 18;
+            // ניכוי כלפי מטה (חלקי 1.17)
             const totalBeforeVat = grandTotal / (1 + (rate / 100));
             const vatAmount = grandTotal - totalBeforeVat;
             
