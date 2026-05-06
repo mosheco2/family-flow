@@ -3494,6 +3494,15 @@
     ```
 <script>
         window.addEventListener('load', () => {
+            // מנקה כפילויות חכם: משמיד כל אלמנט כפול ב-HTML כדי לתקן את חלונות יצירת המבצעים
+            const seenIds = new Set();
+            document.querySelectorAll('[id]').forEach(el => {
+                if (seenIds.has(el.id)) {
+                    el.remove();
+                } else {
+                    seenIds.add(el.id);
+                }
+            });
             // 1. רשימת המזהים (IDs) שגורמים לקריסה בגלל כפילויות
             const brokenIds = [
                 'transaction-modal', 'trans-modal-title', 'trans-type', 'btn-trans-onetime', 'btn-trans-recurring', 'trans-is-recurring', 'trans-amount', 'trans-desc', 'trans-cat', 'trans-date', 'trans-end-date-container', 'trans-end-month', 'btn-submit-transaction',
