@@ -200,9 +200,10 @@
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
            <!-- פאנל עליון עם תמיכה בקרוסלת התחברות דינמית -->
             <div id="login-header-panel" class="w-full h-64 sm:h-72 relative overflow-hidden bg-slate-900 sm:rounded-b-[3rem] shadow-2xl flex-shrink-0 border-b-4 border-blue-500/30">
-                <!-- מכולת קרוסלת התמונות (Slider) -->
+               <!-- מכולת קרוסלת התמונות (Slider) -->
                 <div id="login-slider-wrapper" class="absolute inset-0 z-20 hidden">
-                    <div id="login-slider-scroll" class="flex overflow-x-auto w-full h-full hide-scrollbar snap-x snap-mandatory scroll-smooth">
+                    <!-- הפיכת הגלילה לנסתרת כך שאין פס גלילה ואין משיכה ידנית, רק דרך הנקודות -->
+                    <div id="login-slider-scroll" class="flex overflow-hidden w-full h-full snap-x snap-mandatory scroll-smooth">
                         <!-- יוזרק דינמית ב-JS -->
                     </div>
                     <div id="login-slider-dots" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-30">
