@@ -17012,15 +17012,19 @@ window.submitPromotion = async function() {
         
         const sdInput = document.getElementById('promo-start-date');
         const edInput = document.getElementById('promo-end-date');
-        const startDate = (sdInput && sdInput.value) ? sdInput.value : null;
-        const endDate = (edInput && edInput.value) ? edInput.value : null;
+        let startDateStr = (sdInput && sdInput.value) ? sdInput.value : null;
+        let endDateStr = (edInput && edInput.value) ? edInput.value : null;
+        
+        // תיקון: הבטחה ששדה ריק יישלח כ-null ולא כמחרוזת ריקה שגורמת לבעיות במסד
+        if (startDateStr === '') startDateStr = null;
+        if (endDateStr === '') endDateStr = null;
         
         const showBannerCb = document.getElementById('promo-show-banner');
         const showTabCb = document.getElementById('promo-show-tab');
         
-        // כפייה מוחלטת ל-1 או 0 כדי שמסד הנתונים ייאלץ לשמור את זה
-        const showBannerInt = showBannerCb ? (showBannerCb.checked ? 1 : 0) : 1;
-        const showTabInt = showTabCb ? (showTabCb.checked ? 1 : 0) : 1;
+        // תיקון קריטי לבאנר: שולחים בוליאני טהור, ומציפים את כל סוגי המפתחות לשרת
+        const isBanner = showBannerCb ? !!showBannerCb.checked : true;
+        const isTab = showTabCb ? !!showTabCb.checked : true;
         
         const bgColor = document.getElementById('promo-bg-color') ? document.getElementById('promo-bg-color').value : 'pink';
 
@@ -17043,18 +17047,21 @@ window.submitPromotion = async function() {
             target_type: tType,
             targetIds: targetIdsVal,
             target_ids: targetIdsVal,
-            isActive: 1,
-            is_active: 1,
-            startDate: startDate,
-            start_date: startDate,
-            endDate: endDate,
-            end_date: endDate,
-            showBanner: showBannerInt,
-            show_banner: showBannerInt,
-            show_in_banner: showBannerInt,
-            showTab: showTabInt,
-            show_tab: showTabInt,
-            show_in_tab: showTabInt,
+            isActive: true,
+            is_active: true,
+            startDate: startDateStr,
+            start_date: startDateStr,
+            endDate: endDateStr,
+            end_date: endDateStr,
+            // מציפים כל שם שדה אפשרי כדי שהשרת יקלוט בוודאות את ה-false
+            showBanner: isBanner,
+            show_banner: isBanner,
+            showInBanner: isBanner,
+            show_in_banner: isBanner,
+            showTab: isTab,
+            show_tab: isTab,
+            showInTab: isTab,
+            show_in_tab: isTab,
             bgColor: bgColor,
             bg_color: bgColor
         };
@@ -17133,22 +17140,31 @@ window.openPromotionModal = function(id = null) {
                 document.getElementById('promo-target-category').value = '';
             }
 
-            const formatDateTimeLocal = (dateString) => {
+            // תיקון מקיף לתאריכים: שולף את התאריך ישירות כמחרוזת ללא שימוש באובייקט Date שמשבש אזורי זמן
+            const formatDateForInput = (dateString, inputType) => {
                 if (!dateString || dateString === 'null' || dateString === 'undefined' || String(dateString).startsWith('0000')) return '';
-                try {
-                    const date = new Date(dateString);
-                    if(isNaN(date.getTime())) return '';
-                    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
-                } catch(e) { return ''; }
+                let str = String(dateString).trim();
+                if (str.length >= 10) {
+                    const ymd = str.substring(0, 10); // חילוץ מדויק של YYYY-MM-DD
+                    if (inputType === 'date') return ymd;
+                    if (inputType === 'datetime-local') {
+                        if (str.length >= 16 && str.includes('T')) return str.substring(0, 16);
+                        return ymd + "T00:00";
+                    }
+                    return ymd; // Fallback
+                }
+                return '';
             };
 
-            document.getElementById('promo-start-date').value = formatDateTimeLocal(promo.startDate || promo.start_date);
-            document.getElementById('promo-end-date').value = formatDateTimeLocal(promo.endDate || promo.end_date);
+            const sdInput = document.getElementById('promo-start-date');
+            const edInput = document.getElementById('promo-end-date');
             
-            // פונקציית פענוח בוליאנית הרמטית - אם השרת מחזיר 0 או '0', זה חד משמעית יכבה את התיבה
+            if (sdInput) sdInput.value = formatDateForInput(promo.startDate || promo.start_date, sdInput.type);
+            if (edInput) edInput.value = formatDateForInput(promo.endDate || promo.end_date, edInput.type);
+            
             const parseBoolStrict = (val, defaultVal) => {
                 if (val === undefined || val === null) return defaultVal;
-                if (val === 0 || val === '0' || val === false || val === 'false') return false;
+                if (val === 0 || val === '0' || val === false || String(val) === 'false') return false;
                 return true;
             };
 
