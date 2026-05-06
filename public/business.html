@@ -532,8 +532,8 @@
                 </div>
 
 <div class="bg-white rounded-b-[2rem] shadow-sm border border-slate-100 mb-6 relative fade-in z-30 p-4 sm:p-5">
-                        <div class="flex flex-wrap justify-between items-center gap-4">
-                            <div class="flex items-center gap-3 sm:gap-4 flex-1 min-w-[200px]">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-center gap-3 sm:gap-4 w-full">
                                 <button onclick="openSidebar()" class="text-slate-600 hover:text-indigo-600 transition text-2xl pr-1 outline-none shrink-0" title="תפריט ניווט">
                                     <i class="fa-solid fa-bars"></i>
                                 </button>
@@ -552,9 +552,13 @@
                                 </div>
                             </div>
 
-                           <div class="flex flex-wrap justify-end gap-2 sm:gap-3 items-center w-full sm:w-auto shrink-0 mt-2 sm:mt-0">
+                           <div class="flex flex-wrap justify-end gap-2 sm:gap-3 items-center w-full shrink-0 border-t border-slate-100 pt-4">
                                 <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition shrink-0" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
                                     <i class="fa-solid fa-desktop text-sm"></i>
+                                </button>
+                                <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative bg-emerald-50 hover:bg-emerald-100 text-emerald-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-emerald-100 transition shrink-0" title="תיבת הודעות נכנסות">
+                                    <i class="fa-regular fa-envelope text-sm"></i>
+                                    <span id="inbox-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
                                 </button>
                                 <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition shrink-0" title="מרכז שירות ותמיכה">
                                     <i class="fa-solid fa-headset text-sm"></i>
