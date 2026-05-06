@@ -15501,42 +15501,10 @@ window.fetchData = async function() {
 };
 
 // ==========================================
-// --- לוגיקת קופה, מבצעים, מע"מ והדפסות (ULTIMATE POS ENGINE) ---
+// --- POS PROMOTIONS OVERRIDE (ULTIMATE FIX) ---
 // ==========================================
 
-window.posCart = [];
-window.posCurrentCategory = 'all';
-window.posSplitPayments = [];
-window.tenderMethod = 'cash';
-window.posCurrentCustomer = null;
-window.currentPOSProduct = null;
-window.currentPOSModifiers = [];
-window.currentPOSDiscount = 0;
-
-window.getVatSettings = function() {
-    try {
-        const id = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : '';
-        const savedVat = localStorage.getItem('ofl_vat_' + id);
-        return savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
-    } catch(e) { return { enabled: true, rate: 18 }; }
-};
-
-window.forceLoadCatalog = async function(e) {
-    if(e) { e.preventDefault(); e.stopPropagation(); }
-    const btn = e ? e.currentTarget : null;
-    if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...';
-    try {
-        if(typeof fetchStoreCatalog === 'function') await fetchStoreCatalog();
-        if(typeof window.fetchStorePromotions === 'function') await window.fetchStorePromotions();
-        if(typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory);
-        if(typeof window.renderPOSCart === 'function') window.renderPOSCart();
-        showToast('success', 'הקטלוג והמבצעים סונכרנו בהצלחה!');
-    } catch(err) {
-        showToast('error', 'שגיאה ברענון הקטלוג');
-    } finally {
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> טען מוצרים';
-    }
-};
+window._posPromosLoaded = false;
 
 window.fetchStorePromotions = async function() {
     try {
@@ -15548,25 +15516,32 @@ window.fetchStorePromotions = async function() {
             window.storePromotionsCache = [];
         }
     } catch(e) { 
-        console.error('Error fetching promotions', e); 
         window.storePromotionsCache = [];
     }
+    
+    window._posPromosLoaded = true;
     
     if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
     if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
     
-    if (typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory || 'all');
-    if (typeof window.renderPOSCart === 'function') window.renderPOSCart();
+    const grid = document.getElementById('pos-catalog-grid');
+    if (grid) {
+        window._internalRenderPOSCatalog(window.posCurrentCategory || 'all');
+        window.renderPOSCart();
+    }
 };
 
 window.isPromoActive = function(p) {
-    const isActive = p.is_active !== undefined ? p.is_active : p.isActive;
-    if (isActive === false || isActive === 0 || String(isActive) === 'false') return false;
+    const active = p.is_active !== undefined ? p.is_active : p.isActive;
+    if (active === false || active === 0 || String(active) === 'false') return false;
     
     const now = new Date().getTime();
-    if (p.start_date && new Date(p.start_date).getTime() > now) return false;
-    if (p.end_date) {
-        let ed = new Date(p.end_date);
+    const sDate = p.start_date || p.startDate;
+    if (sDate && new Date(sDate).getTime() > now) return false;
+    
+    const eDate = p.end_date || p.endDate;
+    if (eDate) {
+        let ed = new Date(eDate);
         ed.setHours(23,59,59,999);
         if (ed.getTime() < now) return false;
     }
@@ -15576,11 +15551,13 @@ window.isPromoActive = function(p) {
 window.checkPromoApplies = function(promo, category) {
     const tType = promo.target_type || promo.targetType;
     if (tType === 'all') return true;
+    
     if (tType === 'category') {
         let tIds = promo.target_ids || promo.targetIds;
         if (typeof tIds === 'string') { try { tIds = JSON.parse(tIds); } catch(e) { tIds = [tIds]; } }
         if (!Array.isArray(tIds)) tIds = [tIds];
-        return tIds.includes(category || 'כללי');
+        const catStr = String(category || 'כללי').trim();
+        return tIds.some(id => String(id).trim() === catStr);
     }
     return false;
 };
@@ -15591,7 +15568,6 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
     let totalDiscount = 0;
     let appliedPromos = new Set();
     
-    // PCT & FIXED
     cartItems.forEach(item => {
         const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
         if (!catItem) return;
@@ -15603,6 +15579,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
                 const pType = promo.promo_type || promo.promoType;
                 const pVal = parseFloat(promo.promo_value || promo.promoValue) || 0;
                 let currentDiscount = 0;
+                
                 if (pType === 'discount_pct') currentDiscount = item.price * (pVal / 100);
                 else if (pType === 'discount_fixed') currentDiscount = pVal;
                 
@@ -15618,7 +15595,6 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         }
     });
     
-    // BOGO
     activePromos.filter(p => (p.promo_type || p.promoType) === 'bogo').forEach(promo => {
         let eligibleItemsPrices = [];
         cartItems.forEach(item => {
@@ -15649,10 +15625,14 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
 };
 
 window.renderPOSCatalog = async function(cat = 'all') {
-    if (!window.storePromotionsCache && typeof window.fetchStorePromotions === 'function') {
-        window.storePromotionsCache = []; 
+    if (!window._posPromosLoaded && typeof window.fetchStorePromotions === 'function') {
+        window._posPromosLoaded = true;
         await window.fetchStorePromotions();
     }
+    window._internalRenderPOSCatalog(cat);
+};
+
+window._internalRenderPOSCatalog = function(cat = 'all') {
     window.posCurrentCategory = cat;
     const grid = document.getElementById('pos-catalog-grid');
     const catTabs = document.getElementById('pos-categories-tabs');
@@ -15661,7 +15641,9 @@ window.renderPOSCatalog = async function(cat = 'all') {
     let categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
     
     const activePromos = (window.storePromotionsCache || []).filter(window.isPromoActive);
-    if (activePromos.length > 0) categories.push('promotions_tab');
+    if (activePromos.length > 0 && !categories.includes('promotions_tab')) {
+        categories.push('promotions_tab');
+    }
 
     catTabs.innerHTML = categories.map(c => {
         let label = c === 'all' ? 'הכל' : safeStr(c);
@@ -15670,7 +15652,7 @@ window.renderPOSCatalog = async function(cat = 'all') {
             label = '🔥 מבצעים';
             activeClass = c === cat ? 'bg-pink-500 text-white shadow-md border-pink-500' : 'bg-pink-50 text-pink-600 hover:bg-pink-100 border border-pink-200';
         }
-        return `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${activeClass}">${label}</button>`;
+        return `<button onclick="window._internalRenderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${activeClass}">${label}</button>`;
     }).join('');
 
     let products = storeCatalogCache.filter(p => p.is_available);
@@ -15778,7 +15760,6 @@ window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
-    
     let vatDisplay = document.getElementById('pos-vat-display');
     let promoDisplay = document.getElementById('pos-promo-display');
 
@@ -15834,10 +15815,9 @@ window.renderPOSCart = function() {
     }).join('');
     
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
-    
     let promo = { amount: 0, text: '' };
     if (!isDebtPayment) {
-         promo = window.calcPOSPromotions(netTotal, window.posCart);
+        promo = window.calcPOSPromotions(netTotal, window.posCart);
     }
     
     let grandTotal = netTotal - promo.amount;
@@ -15891,7 +15871,7 @@ window.checkPOSCustomer = function() {
         if (c) { 
             window.posCurrentCustomer = c; 
             if(indicator) {
-                const debt = window.getCustomerDebt ? window.getCustomerDebt(c.phone) : 0;
+                const debt = window.getCustomerDebt(c.phone);
                 if (debt > 0) {
                     indicator.innerHTML = `<span class="text-red-700 bg-red-50 px-3 py-1.5 rounded-xl border border-red-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-triangle-exclamation"></i> לקוח מזוהה (חוב: ₪${debt.toFixed(2)}): <strong>${safeStr(c.name)}</strong></span>`;
                 } else {
@@ -15908,17 +15888,14 @@ window.checkPOSCustomer = function() {
 
 window.handlePosTenderClick = function() {
     if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
-    
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     
-    if (window.posCurrentCustomer && !isDebtPayment && typeof window.getCustomerDebt === 'function') {
+    if (window.posCurrentCustomer && !isDebtPayment) {
         const debt = window.getCustomerDebt(window.posCurrentCustomer.phone);
         if (debt > 0) {
             let modal = document.getElementById('pos-debt-alert-modal');
             if(modal) modal.remove();
-            
             const targetNode = document.fullscreenElement || document.body;
-            
             targetNode.insertAdjacentHTML('beforeend', `
                 <div id="pos-debt-alert-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
                     <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-red-100">
@@ -15937,13 +15914,11 @@ window.handlePosTenderClick = function() {
             return;
         }
     }
-    
     window.openPOSTender(true);
 };
 
 window.openPOSTender = function(skipCheck = false) {
     window.posSplitPayments = []; window.tenderMethod = 'cash';
-    
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     
@@ -15991,7 +15966,6 @@ window.openPOSTender = function(skipCheck = false) {
         modal.style.zIndex = '999999999';
         modal.classList.remove('hidden');
     }
-
     window.setTenderMethod('cash'); window.updateTenderDisplay();
 };
 
@@ -16001,7 +15975,6 @@ window.setTenderMethod = function(m) {
         document.getElementById('pos-customer-phone').focus();
         return;
     }
-
     window.tenderMethod = m;
     const btnCash = document.getElementById('btn-tender-cash');
     const btnCredit = document.getElementById('btn-tender-credit');
@@ -16015,7 +15988,6 @@ window.setTenderMethod = function(m) {
     if(m === 'cash') activeBtn = btnCash;
     if(m === 'credit') activeBtn = btnCredit;
     if(m === 'on_account') activeBtn = btnAccount;
-    
     if(activeBtn) activeBtn.classList.add('border-indigo-600', 'bg-indigo-50/50');
 };
 
@@ -16053,10 +16025,8 @@ window.updateTenderDisplay = function() {
 
 window.openPOSModifiersModal = function(p, mods) {
     window.currentPOSProduct = p; window.currentPOSModifiers = mods;
-    
     let modal = document.getElementById('pos-modifiers-modal');
     if (modal) modal.remove();
-    
     let html = `
     <div id="pos-modifiers-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -16090,7 +16060,6 @@ window.openPOSModifiersModal = function(p, mods) {
             </div>
         </div>
     </div>`;
-    
     const targetNode = document.fullscreenElement || document.body;
     targetNode.insertAdjacentHTML('beforeend', html);
 };
@@ -16111,10 +16080,8 @@ window.submitPOSModifiers = function() {
 window.openPOSPizzaModal = function(p, pizzaData) {
     window.currentPOSProduct = p;
     const toppings = pizzaData.toppings || [];
-    
     let modal = document.getElementById('pos-pizza-modal');
     if (modal) modal.remove();
-    
     let html = `
     <div id="pos-pizza-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -16156,7 +16123,6 @@ window.openPOSPizzaModal = function(p, pizzaData) {
             </div>
         </div>
     </div>`;
-    
     const targetNode = document.fullscreenElement || document.body;
     targetNode.insertAdjacentHTML('beforeend', html);
 };
@@ -16186,10 +16152,8 @@ window.submitPOSPizza = function() {
 window.openPOSBundleModal = function(p, bundleData) {
     window.currentPOSProduct = p;
     const steps = bundleData.steps || [];
-    
     let modal = document.getElementById('pos-bundle-modal');
     if (modal) modal.remove();
-    
     let html = `
     <div id="pos-bundle-modal" style="z-index: 999999999 !important;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -16205,7 +16169,6 @@ window.openPOSBundleModal = function(p, bundleData) {
                     } else {
                         availableItems = storeCatalogCache.filter(c => step.items && step.items.includes(c.id) && c.is_available);
                     }
-                    
                     let optionsHtml = '';
                     if (availableItems.length === 0) {
                         optionsHtml = '<p class="text-[10px] text-slate-400 font-bold bg-white p-3 rounded-lg border border-dashed text-center">אין פריטים זמינים לבחירה בשלב זה.</p>';
@@ -16219,7 +16182,6 @@ window.openPOSBundleModal = function(p, bundleData) {
                             </label>
                         `).join('');
                     }
-                    
                     return `
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
                         <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
@@ -16237,7 +16199,6 @@ window.openPOSBundleModal = function(p, bundleData) {
             </div>
         </div>
     </div>`;
-    
     const targetNode = document.fullscreenElement || document.body;
     targetNode.insertAdjacentHTML('beforeend', html);
     
@@ -16262,7 +16223,6 @@ window.submitPOSBundle = function() {
     let selected = [];
     const parsed = JSON.parse(window.currentPOSProduct.options_text);
     const steps = parsed.steps || [];
-    
     let isValid = true;
     
     steps.forEach((step, idx) => {
@@ -16277,7 +16237,6 @@ window.submitPOSBundle = function() {
     });
     
     if (!isValid) return;
-
     window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
     const modal = document.getElementById('pos-bundle-modal');
     if (modal) modal.remove(); 
@@ -16296,7 +16255,6 @@ window.finalizePOSOrder = async function() {
     
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
-    
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
     const vatSettings = window.getVatSettings();
@@ -16323,7 +16281,6 @@ window.finalizePOSOrder = async function() {
         
         if(data.success) {
             const newOrderId = data.orderId || data.id;
-            
             try {
                 if (newOrderId) {
                     fetch(`${API}/store/orders/status`, { 
@@ -16410,7 +16367,6 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     let titleStr = 'קבלה';
     let paymentsHtml = '';
-    
     const totalAmount = parseFloat(order.total_amount || order.total || 0);
     const vatSettings = window.getVatSettings();
     let vatHtml = '';
@@ -16509,14 +16465,12 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     }, 500);
 };
 
-// רענון אוטומטי למבצעים שמונע תלות בלחיצת כפתור ידנית
+// רענון מבצעים תקופתי כדי לא לדרוש ריפרש דף שלם
 setInterval(() => {
     if (typeof currentGroup !== 'undefined' && currentGroup && currentGroup.id) {
-        if (!window.storePromotionsCache || window.storePromotionsCache.length === 0) {
-            if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
-        }
+        if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
     }
-}, 3000);
+}, 30000);
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
 window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
