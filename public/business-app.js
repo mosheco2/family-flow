@@ -17024,20 +17024,35 @@ window.submitPromotion = async function() {
             return;
         }
 
+        const targetIdsVal = tType === 'category' ? JSON.stringify([tCat.replace(/[\[\]"']/g, '').trim()]) : 'all';
+
+        // התיקון הקריטי: אנחנו שולחים את המידע גם ב-camelCase וגם ב-snake_case
+        // כדי לוודא שהשרת יתפוס את הנתונים ולא יתעלם מהם, לא משנה איזה מבנה הוא מצפה לקבל
         const payload = {
             groupId: currentGroup.id,
             title: title,
             promoType: type,
+            promo_type: type,
             promoValue: val || 0,
+            promo_value: val || 0,
             targetType: tType,
-            // ניקוי אוטומטי של תווים לא רצויים לפני שמירה למסד
-            targetIds: tType === 'category' ? JSON.stringify([tCat.replace(/[\[\]"']/g, '').trim()]) : 'all',
+            target_type: tType,
+            targetIds: targetIdsVal,
+            target_ids: targetIdsVal,
             isActive: true,
+            is_active: true,
             startDate: startDate,
+            start_date: startDate,
             endDate: endDate,
+            end_date: endDate,
             showBanner: showBanner,
+            show_banner: showBanner,
+            show_in_banner: showBanner,
             showTab: showTab,
-            bgColor: bgColor
+            show_tab: showTab,
+            show_in_tab: showTab,
+            bgColor: bgColor,
+            bg_color: bgColor
         };
 
         const promoId = document.getElementById('promo-id') ? document.getElementById('promo-id').value : null;
@@ -17063,7 +17078,6 @@ window.submitPromotion = async function() {
             const modal = document.getElementById('promotion-modal');
             if (modal) modal.classList.add('hidden');
             
-            // איפוס מטמון כדי למנוע כפילויות בתצוגה
             window.storePromotionsCache = [];
             
             if (typeof window.fetchStorePromotions === 'function') {
@@ -17083,7 +17097,6 @@ window.submitPromotion = async function() {
 };
 
 window.openPromotionModal = function(id = null) {
-    // מניעת כפילות של המודאל עצמו ב-DOM
     const modals = document.querySelectorAll('#promotion-modal');
     if (modals.length > 1) {
         for(let i=1; i<modals.length; i++) { modals[i].remove(); }
@@ -17109,7 +17122,6 @@ window.openPromotionModal = function(id = null) {
             if (typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
             
             if (promo.targetType === 'category' || promo.target_type === 'category') {
-                // התיקון הקריטי: הסרת סוגריים ומרכאות מהשדה בחלון העריכה!
                 let rawCat = promo.targetIds || promo.target_ids || '';
                 let cleanCat = rawCat.toString().replace(/[\[\]"']/g, '').trim();
                 document.getElementById('promo-target-category').value = cleanCat;
@@ -17117,7 +17129,6 @@ window.openPromotionModal = function(id = null) {
                 document.getElementById('promo-target-category').value = '';
             }
 
-            // תיקון תאריכים
             const formatDateTimeLocal = (dateString) => {
                 if (!dateString || dateString === 'null') return '';
                 try {
@@ -17133,11 +17144,12 @@ window.openPromotionModal = function(id = null) {
             const sBanner = promo.showBanner !== undefined ? promo.showBanner : (promo.show_banner !== undefined ? promo.show_banner : promo.show_in_banner);
             const sTab = promo.showTab !== undefined ? promo.showTab : (promo.show_tab !== undefined ? promo.show_tab : promo.show_in_tab);
             
+            // התיקון הקריטי: המרת הערך למחרוזת מוודאת שהבדיקה שלנו ל-"false" תתפוס גם ערך בוליאני וגם טקסטואלי
             const bannerCb = document.getElementById('promo-show-banner');
-            if(bannerCb) bannerCb.checked = (sBanner !== false && sBanner !== 'false' && sBanner !== 0);
+            if(bannerCb) bannerCb.checked = (sBanner !== false && String(sBanner) !== 'false' && sBanner !== 0);
             
             const tabCb = document.getElementById('promo-show-tab');
-            if(tabCb) tabCb.checked = (sTab !== false && sTab !== 'false' && sTab !== 0);
+            if(tabCb) tabCb.checked = (sTab !== false && String(sTab) !== 'false' && sTab !== 0);
             
             const colorSel = document.getElementById('promo-bg-color');
             if(colorSel) colorSel.value = promo.bgColor || promo.bg_color || 'pink';
