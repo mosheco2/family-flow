@@ -17153,16 +17153,16 @@ window.fetchData = async function() {
 };
 
 // ==========================================
-// --- POS PROMOTIONS OVERRIDE (SAFE WORKAROUND) V2 ---
+// --- POS PROMOTIONS OVERRIDE (SAFE WORKAROUND) V3 ---
 // ==========================================
-// קוד זה דורס בבטחה את פונקציות הקופה הקודמות ומחיל את מערכת המבצעים עם פענוח נתונים אגרסיבי
 
 window.fetchStorePromotions = async function() {
     try {
         const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
         const data = await res.json();
         if(data.success) {
-            window.storePromotionsCache = data.promotions || [];
+            // השרת יכול להחזיר את המבצעים בתוך 'promotions' או בתוך 'data'
+            window.storePromotionsCache = data.promotions || data.data || [];
         } else {
             window.storePromotionsCache = [];
         }
@@ -17174,28 +17174,29 @@ window.fetchStorePromotions = async function() {
     if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
     if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
     
-    // רענון אוטומטי של הקופה כדי להציג מבצעים מעודכנים ברגע שסיימו לרדת
     if (typeof window._internalRenderPOSCatalog === 'function') window._internalRenderPOSCatalog(window.posCurrentCategory || 'all');
     if (typeof window.renderPOSCart === 'function') window.renderPOSCart();
 };
 
-// פונקציות עזר לפענוח נתוני מבצעים מהשרת
 const isPromoActive = (p) => {
-    if(p.is_active !== true && p.is_active != 1 && String(p.is_active) !== 'true') return false;
+    // בדיקת סטטוס בטוחה (למקרה שהשרת מחזיר is_active או isActive)
+    const isActive = p.is_active !== undefined ? p.is_active : p.isActive;
+    if(isActive !== true && isActive != 1 && String(isActive) !== 'true') return false;
     
     const now = new Date();
-    const nowStart = new Date(now.setHours(0,0,0,0));
-    const nowEnd = new Date(now.setHours(23,59,59,999));
+    // איפוס שעות כדי לא להסתבך עם הבדלי אזורי זמן ופג תוקף באותו יום
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
     
-    if(p.start_date) {
-        let sd = new Date(p.start_date);
-        sd.setHours(0,0,0,0);
-        if (sd > nowEnd) return false;
+    const sDate = p.start_date || p.startDate;
+    if(sDate) {
+        const sd = new Date(sDate).getTime();
+        if (sd > todayEnd) return false;
     }
-    if(p.end_date) {
-        let ed = new Date(p.end_date);
-        ed.setHours(23,59,59,999);
-        if (ed < nowStart) return false;
+    const eDate = p.end_date || p.endDate;
+    if(eDate) {
+        const ed = new Date(eDate).getTime();
+        if (ed < todayStart) return false;
     }
     return true;
 };
@@ -17223,7 +17224,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
     let totalDiscount = 0;
     let appliedPromos = new Set();
     
-    // 1. ניכוי מבצעי אחוזים ופיקס לכל פריט
+    // חישוב למבצעי אחוזים וסכום קבוע
     cartItems.forEach(item => {
         const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
         if (!catItem) return;
@@ -17258,7 +17259,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
         }
     });
     
-    // 2. חישוב למבצעי 1+1 (BOGO)
+    // חישוב למבצעי 1+1 (BOGO)
     activePromos.filter(p => (p.promo_type || p.promoType) === 'bogo').forEach(promo => {
         let eligibleItemsPrices = [];
         cartItems.forEach(item => {
@@ -17313,12 +17314,40 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
     if(!grid || !catTabs) return;
 
     const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
-    catTabs.innerHTML = categories.map(c => 
-        `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${c === cat ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-200'}">${c === 'all' ? 'הכל' : safeStr(c)}</button>`
-    ).join('');
+    
+    // הוספת טאב מבצעים אם קיימים מבצעים פעילים
+    const hasActivePromos = window.storePromotionsCache && window.storePromotionsCache.some(isPromoActive);
+    if (hasActivePromos) categories.push('promotions_tab');
+
+    catTabs.innerHTML = categories.map(c => {
+        let label = c === 'all' ? 'הכל' : safeStr(c);
+        let activeClass = c === cat ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-200';
+        
+        if (c === 'promotions_tab') {
+            label = '🔥 מבצעים';
+            if (c === cat) activeClass = 'bg-pink-500 text-white shadow-md border-pink-500';
+            else activeClass = 'bg-pink-50 text-pink-600 hover:bg-pink-100 border border-pink-200';
+        }
+        
+        return `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${activeClass}">${label}</button>`;
+    }).join('');
 
     let products = storeCatalogCache.filter(p => p.is_available);
-    if(cat !== 'all') products = products.filter(p => (p.category || 'כללי') === cat);
+    
+    if (cat === 'promotions_tab') {
+        products = products.filter(p => {
+             let hasDiscount = false;
+             if (window.storePromotionsCache) {
+                 window.storePromotionsCache.filter(isPromoActive).forEach(promo => {
+                     if (checkPromoApplies(promo, p.category)) hasDiscount = true;
+                 });
+             }
+             return hasDiscount;
+        });
+    } else if(cat !== 'all') {
+        products = products.filter(p => (p.category || 'כללי') === cat);
+    }
+    
     const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
     if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
 
@@ -17487,6 +17516,7 @@ window.renderPOSCart = function() {
     
     let grandTotal = netTotal - promo.amount;
     if (grandTotal < 0) grandTotal = 0;
+    
     window.currentPOSDiscount = promo.amount; 
     
     if (promoDisplay) {
@@ -17503,7 +17533,6 @@ window.renderPOSCart = function() {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled && !isDebtPayment) {
             const rate = vatSettings.rate || 18;
-            // ניכוי המע"מ כלפי מטה (מחיר סופי חלקי 1.17)
             const totalBeforeVat = grandTotal / (1 + (rate / 100));
             const vatAmount = grandTotal - totalBeforeVat;
             
