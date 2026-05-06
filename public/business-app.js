@@ -16500,6 +16500,348 @@ window.fetchData = async function() {
     if (typeof window.fetchInboxMessages === 'function') window.fetchInboxMessages();
     if (typeof window.fetchTeamChat === 'function') window.fetchTeamChat(true);
 };
+
+// ==========================================
+// --- POS PROMOTIONS OVERRIDE (SAFE WORKAROUND) ---
+// ==========================================
+// קוד זה דורס בבטחה את פונקציות הקופה הקודמות ללא מחיקתן, ומחיל את מערכת המבצעים!
+
+window.fetchStorePromotions = async function() {
+    try {
+        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
+        const data = await res.json();
+        if(data.success) {
+            window.storePromotionsCache = data.promotions || [];
+        } else {
+            window.storePromotionsCache = [];
+        }
+    } catch(e) { 
+        console.error('Error fetching promotions', e); 
+        window.storePromotionsCache = [];
+    }
+    
+    if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
+    if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
+    
+    // רענון אוטומטי של הקופה כדי להציג מבצעים מעודכנים
+    if (typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory || 'all');
+    if (typeof window.renderPOSCart === 'function') window.renderPOSCart();
+};
+
+window.calcPOSPromotions = function(cartTotal, cartItems) {
+    if (!window.storePromotionsCache || window.storePromotionsCache.length === 0) return { amount: 0, text: '' };
+    
+    const activePromos = window.storePromotionsCache.filter(p => {
+        if(p.is_active !== true && p.is_active != 1 && String(p.is_active) !== 'true') return false;
+        if(p.start_date && new Date(p.start_date).setHours(0,0,0,0) > new Date().setHours(0,0,0,0)) return false;
+        if(p.end_date && new Date(p.end_date).setHours(23,59,59,999) < new Date().getTime()) return false;
+        return true;
+    });
+    
+    let totalDiscount = 0;
+    let appliedPromos = new Set();
+    
+    // ניכוי מבצעי אחוזים ופיקס לכל פריט
+    cartItems.forEach(item => {
+        const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
+        if (!catItem) return;
+        
+        let bestItemDiscount = 0;
+        let bestPromoName = '';
+        
+        activePromos.forEach(promo => {
+            let applies = false;
+            if (promo.target_type === 'all') applies = true;
+            else if (promo.target_type === 'category' && promo.target_ids) {
+                let tIds = Array.isArray(promo.target_ids) ? promo.target_ids : [];
+                try { if(typeof promo.target_ids === 'string') tIds = JSON.parse(promo.target_ids); } catch(e){}
+                if (tIds.length > 0 && tIds[0] === (catItem.category || 'כללי')) applies = true;
+            }
+            
+            if (applies) {
+                let promoVal = parseFloat(promo.promo_value) || 0;
+                let discountPerUnit = 0;
+                
+                if (promo.promo_type === 'discount_pct') {
+                    discountPerUnit = item.price * (promoVal / 100);
+                } else if (promo.promo_type === 'discount_fixed') {
+                    discountPerUnit = promoVal; 
+                }
+                
+                if (discountPerUnit < 0) discountPerUnit = 0;
+                
+                if (discountPerUnit > bestItemDiscount && discountPerUnit <= item.price) {
+                    bestItemDiscount = discountPerUnit;
+                    bestPromoName = promo.title;
+                }
+            }
+        });
+        
+        if (bestItemDiscount > 0) {
+            totalDiscount += (bestItemDiscount * item.qty);
+            appliedPromos.add(bestPromoName);
+        }
+    });
+    
+    // חישוב למבצעי 1+1 (BOGO)
+    activePromos.filter(p => p.promo_type === 'bogo').forEach(promo => {
+        let eligibleItemsPrices = [];
+        cartItems.forEach(item => {
+            const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
+            if (!catItem) return;
+            let applies = false;
+            if (promo.target_type === 'all') applies = true;
+            else if (promo.target_type === 'category' && promo.target_ids) {
+                let tIds = Array.isArray(promo.target_ids) ? promo.target_ids : [];
+                try { if(typeof promo.target_ids === 'string') tIds = JSON.parse(promo.target_ids); } catch(e){}
+                if (tIds.length > 0 && tIds[0] === (catItem.category || 'כללי')) applies = true;
+            }
+            
+            if (applies) {
+                for(let i=0; i<item.qty; i++) {
+                    eligibleItemsPrices.push(item.price);
+                }
+            }
+        });
+        
+        if (eligibleItemsPrices.length >= 2) {
+            eligibleItemsPrices.sort((a,b) => a - b); // מסדרים מהזול ליקר כדי לתת את הזול חינם
+            let freeCount = Math.floor(eligibleItemsPrices.length / 2);
+            let bogoDiscount = 0;
+            let promoVal = parseFloat(promo.promo_value) || 99999; 
+            
+            for(let i=0; i<freeCount; i++) {
+                bogoDiscount += Math.min(eligibleItemsPrices[i], promoVal);
+            }
+            
+            if (bogoDiscount > totalDiscount) {
+                totalDiscount = bogoDiscount;
+                appliedPromos.clear();
+                appliedPromos.add(promo.title);
+            } else if (bogoDiscount > 0 && totalDiscount === 0) {
+                totalDiscount = bogoDiscount;
+                appliedPromos.add(promo.title);
+            }
+        }
+    });
+    
+    return { amount: totalDiscount, text: Array.from(appliedPromos).join(', ') };
+};
+
+window.renderPOSCatalog = function(cat = 'all') {
+    window.posCurrentCategory = cat;
+    const grid = document.getElementById('pos-catalog-grid');
+    const catTabs = document.getElementById('pos-categories-tabs');
+    if(!grid || !catTabs) return;
+
+    const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
+    catTabs.innerHTML = categories.map(c => 
+        `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${c === cat ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-200'}">${c === 'all' ? 'הכל' : safeStr(c)}</button>`
+    ).join('');
+
+    let products = storeCatalogCache.filter(p => p.is_available);
+    if(cat !== 'all') products = products.filter(p => (p.category || 'כללי') === cat);
+    const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
+    if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
+
+    grid.innerHTML = products.map(p => {
+        let isComplex = false;
+        if (p.options_text && p.options_text.length > 10) {
+            try {
+                const parsed = JSON.parse(p.options_text);
+                if (Array.isArray(parsed) || parsed.isBundle || parsed.isPizza || parsed.isComplex || parsed.complexType) isComplex = true;
+            } catch(e){}
+        }
+        
+        let badgesHtml = '<div class="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">';
+        let promoBadge = '';
+        let finalPrice = parseFloat(p.price) || 0;
+        let originalPrice = finalPrice;
+        
+        if (window.storePromotionsCache && window.storePromotionsCache.length > 0) {
+            const activePromos = window.storePromotionsCache.filter(promo => {
+                if(promo.is_active !== true && promo.is_active != 1 && String(promo.is_active) !== 'true') return false;
+                if(promo.start_date && new Date(promo.start_date).setHours(0,0,0,0) > new Date().setHours(0,0,0,0)) return false;
+                if(promo.end_date && new Date(promo.end_date).setHours(23,59,59,999) < new Date().getTime()) return false;
+                return true;
+            });
+
+            let bestDiscount = 0;
+            activePromos.forEach(promo => {
+                let applies = false;
+                if (promo.target_type === 'all') applies = true;
+                else if (promo.target_type === 'category' && promo.target_ids) {
+                    let tIds = Array.isArray(promo.target_ids) ? promo.target_ids : [];
+                    try { if(typeof promo.target_ids === 'string') tIds = JSON.parse(promo.target_ids); } catch(e){}
+                    if (tIds.length > 0 && tIds[0] === (p.category || 'כללי')) applies = true;
+                }
+                
+                if (applies) {
+                    let currentDiscount = 0;
+                    let badgeText = '';
+                    let promoVal = parseFloat(promo.promo_value) || 0;
+
+                    if (promo.promo_type === 'discount_pct') {
+                        currentDiscount = originalPrice * (promoVal / 100);
+                        badgeText = `-${promoVal}%`;
+                    } else if (promo.promo_type === 'discount_fixed') {
+                        currentDiscount = promoVal;
+                        badgeText = `₪${promoVal} הנחה`;
+                    } else if (promo.promo_type === 'bogo') {
+                        badgeText = '1+1 מתנה';
+                        if (bestDiscount === 0) promoBadge = `<div class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-pink-400">${badgeText}</div>`;
+                    }
+                    
+                    if (currentDiscount > bestDiscount && currentDiscount <= originalPrice) {
+                        bestDiscount = currentDiscount;
+                        promoBadge = `<div class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-pink-400">${badgeText}</div>`;
+                    }
+                }
+            });
+            finalPrice = originalPrice - bestDiscount;
+        }
+        
+        if (promoBadge) badgesHtml += promoBadge;
+        
+        if (p.badge_text) {
+            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900', 'pink':'bg-pink-500' };
+            const bgClass = colors[p.badge_color] || 'bg-red-500';
+            badgesHtml += `<div class="${bgClass} text-white text-[10px] font-black px-2 py-1 rounded-lg shadow-sm border border-white/50">${safeStr(p.badge_text)}</div>`;
+        }
+        badgesHtml += '</div>';
+        
+        let priceHtml = '';
+        if (finalPrice < originalPrice && finalPrice > 0) {
+            priceHtml = `<div class="flex items-center justify-end gap-1 mt-1"><span class="text-[10px] text-slate-400 line-through">₪${originalPrice.toFixed(2)}</span> <span class="font-black text-pink-600 text-base dir-ltr">₪${finalPrice.toFixed(2)}</span></div>`;
+        } else {
+            priceHtml = `<span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${originalPrice.toFixed(2)}</span>`;
+        }
+        
+        return `
+        <div onclick="window.addPOSItem(${p.id})" class="bg-white rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full">
+            ${badgesHtml}
+            ${isComplex ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-20"><i class="fa-solid fa-layer-group ml-1"></i>הרכבה</span>` : ''}
+            <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden relative z-0">
+                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-utensils text-3xl text-slate-300"></i>`}
+            </div>
+            <div class="p-4 flex-1 flex flex-col justify-between text-right">
+                <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
+                ${priceHtml}
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.renderPOSCart = function() {
+    const list = document.getElementById('pos-cart-list');
+    const totalEl = document.getElementById('pos-total-display');
+    const countEl = document.getElementById('pos-items-count');
+    
+    let vatDisplay = document.getElementById('pos-vat-display');
+    let promoDisplay = document.getElementById('pos-promo-display');
+
+    if (totalEl) {
+        const totalContainer = totalEl.parentNode;
+        if(totalContainer) {
+            if (!promoDisplay) {
+                totalContainer.insertAdjacentHTML('afterend', `<div id="pos-promo-display" class="text-left text-[11px] text-pink-500 font-bold mb-1 hidden">מבצע <span id="pos-promo-name"></span>: -₪<span id="pos-promo-val">0.00</span></div>`);
+                promoDisplay = document.getElementById('pos-promo-display');
+            }
+            if (!vatDisplay) {
+                totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">סכום נטו: ₪<span id="pos-net-val">0.00</span> | מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+                vatDisplay = document.getElementById('pos-vat-display');
+            }
+        }
+    }
+
+    if(!list) return;
+    if(window.posCart.length === 0) {
+        list.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300 py-10 opacity-60"><i class="fa-solid fa-cart-shopping text-5xl mb-4"></i><p class="font-bold text-sm">העגלה ריקה</p></div>`;
+        if(totalEl) totalEl.innerText = '₪0.00'; 
+        if(countEl) countEl.innerText = '0 פריטים'; 
+        if(vatDisplay) vatDisplay.classList.add('hidden');
+        if(promoDisplay) promoDisplay.classList.add('hidden');
+        return;
+    }
+    
+    let netTotal = 0; let count = 0;
+    list.innerHTML = window.posCart.map((item, idx) => {
+        const rowTotal = item.price * item.qty; netTotal += rowTotal; count += item.qty;
+        const modTxt = item.modifiers ? `<div class="text-[10px] text-slate-500 mt-2 font-medium leading-relaxed">${item.modifiers.map(m => `<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 ml-1 inline-block">+ ${m.name}</span>`).join('')}</div>` : '';
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 slide-up text-right relative overflow-hidden">
+            <div class="absolute right-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-2xl"></div>
+            <div class="flex justify-between items-start mb-3 pr-2">
+                <div class="flex-1 pr-1 overflow-hidden">
+                    <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h5>
+                    ${modTxt}
+                </div>
+                <div class="text-left">
+                    <span class="font-black text-slate-800 text-sm dir-ltr block">₪${rowTotal.toFixed(2)}</span>
+                </div>
+            </div>
+            <div class="flex justify-between items-center bg-slate-50 rounded-xl p-1.5 border border-slate-100 pr-2">
+                <button onclick="window.posRemoveItem(${idx})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                <div class="flex items-center gap-4 bg-white rounded-lg border border-slate-200 shadow-sm px-1.5">
+                    <button onclick="window.updatePOSQty(${idx}, -1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">-</button>
+                    <span class="font-black text-base w-6 text-center text-slate-800">${item.qty}</span>
+                    <button onclick="window.updatePOSQty(${idx}, 1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">+</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    
+    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
+    
+    let promo = { amount: 0, text: '' };
+    if (!isDebtPayment) {
+         promo = window.calcPOSPromotions(netTotal, window.posCart);
+    }
+    
+    let grandTotal = netTotal - promo.amount;
+    if (grandTotal < 0) grandTotal = 0;
+    
+    window.currentPOSDiscount = promo.amount; 
+    
+    if (promoDisplay) {
+        if (promo.amount > 0) {
+            document.getElementById('pos-promo-name').innerText = promo.text;
+            document.getElementById('pos-promo-val').innerText = promo.amount.toFixed(2);
+            promoDisplay.classList.remove('hidden');
+        } else {
+            promoDisplay.classList.add('hidden');
+        }
+    }
+
+    if(vatDisplay) {
+        const vatSettings = window.getVatSettings();
+        if(vatSettings && vatSettings.enabled && !isDebtPayment) {
+            const rate = vatSettings.rate || 18;
+            // חילוץ המע"מ כלפי מטה (חלקי 1.18) מבלי לשנות את הסכום הסופי
+            const totalBeforeVat = grandTotal / (1 + (rate / 100));
+            const vatAmount = grandTotal - totalBeforeVat;
+            
+            const netValEl = document.getElementById('pos-net-val');
+            if(netValEl) netValEl.innerText = totalBeforeVat.toFixed(2);
+            const vatValEl = document.getElementById('pos-vat-val');
+            if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
+            vatDisplay.classList.remove('hidden');
+        } else {
+            vatDisplay.classList.add('hidden');
+        }
+    }
+    
+    if(totalEl) totalEl.innerText = `₪${grandTotal.toFixed(2)}`;
+    if(countEl) countEl.innerText = `${count} פריטים`;
+    
+    const btnSubmitPos = document.getElementById('btn-submit-pos');
+    if (btnSubmitPos) btnSubmitPos.setAttribute('onclick', 'window.handlePosTenderClick()');
+};
+
+// הפעלה כפויה של מבצעים בעת טעינת האפליקציה למניעת המתנה
+setTimeout(() => {
+    if(typeof window.fetchStorePromotions === 'function') window.fetchStorePromotions();
+}, 2000);
 // ============================================================
 // --- COMPLEX BUILDER (CATERING / PROJECTS) MODULE V2 ---
 // ============================================================
