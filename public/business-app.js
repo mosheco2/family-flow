@@ -17010,7 +17010,6 @@ window.submitPromotion = async function() {
         const tType = document.getElementById('promo-target-type').value;
         const tCat = document.getElementById('promo-target-category') ? document.getElementById('promo-target-category').value : '';
         
-        // תיקון 1: מוודאים שאם השדה ריק, אנחנו שולחים null למסד הנתונים ולא שרשרת ריקה
         const sdInput = document.getElementById('promo-start-date');
         const edInput = document.getElementById('promo-end-date');
         const startDate = (sdInput && sdInput.value) ? sdInput.value : null;
@@ -17019,9 +17018,9 @@ window.submitPromotion = async function() {
         const showBannerCb = document.getElementById('promo-show-banner');
         const showTabCb = document.getElementById('promo-show-tab');
         
-        // תיקון 2: המרת צ'קבוקס ל-1 ו-0 באופן הרמטי עבור שרתים שמצפים למספר בוליאני
-        const showBanner = showBannerCb ? (showBannerCb.checked ? 1 : 0) : 1;
-        const showTab = showTabCb ? (showTabCb.checked ? 1 : 0) : 1;
+        // שליחה של בוליאני אמיתי (True / False) ולא 1 או 0
+        const showBanner = showBannerCb ? showBannerCb.checked : true;
+        const showTab = showTabCb ? showTabCb.checked : true;
         
         const bgColor = document.getElementById('promo-bg-color') ? document.getElementById('promo-bg-color').value : 'pink';
 
@@ -17044,8 +17043,8 @@ window.submitPromotion = async function() {
             target_type: tType,
             targetIds: targetIdsVal,
             target_ids: targetIdsVal,
-            isActive: 1,
-            is_active: 1,
+            isActive: true,
+            is_active: true,
             startDate: startDate,
             start_date: startDate,
             endDate: endDate,
@@ -17134,36 +17133,44 @@ window.openPromotionModal = function(id = null) {
                 document.getElementById('promo-target-category').value = '';
             }
 
-            // פונקציית המרת תאריכים מחוזקת המונעת קריסות או התאפסות
-            const formatDateTimeLocal = (dateString) => {
-                if (!dateString || dateString === 'null' || dateString === 'undefined' || dateString.startsWith('0000')) return '';
+            // תיקון תאריכים מוחלט: מתאים עצמו אוטומטית לסוג השדה ב-HTML (date או datetime-local)
+            const formatDateForInput = (dateString, inputType) => {
+                if (!dateString || dateString === 'null' || dateString === 'undefined' || String(dateString).startsWith('0000')) return '';
                 try {
-                    const date = new Date(dateString);
-                    if(isNaN(date.getTime())) return '';
-                    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+                    const d = new Date(dateString);
+                    if (isNaN(d.getTime())) return '';
+                    const pad = n => n.toString().padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    const mm = pad(d.getMonth() + 1);
+                    const dd = pad(d.getDate());
+                    const hh = pad(d.getHours());
+                    const mins = pad(d.getMinutes());
+                    // אם זה שדה תאריך פשוט, הוא מקבל רק YYYY-MM-DD. אם זה שדה עם שעה, הוא מקבל את הפורמט המלא.
+                    return inputType === 'datetime-local' ? `${yyyy}-${mm}-${dd}T${hh}:${mins}` : `${yyyy}-${mm}-${dd}`;
                 } catch(e) { return ''; }
             };
 
-            document.getElementById('promo-start-date').value = formatDateTimeLocal(promo.startDate || promo.start_date);
-            document.getElementById('promo-end-date').value = formatDateTimeLocal(promo.endDate || promo.end_date);
+            const sdInput = document.getElementById('promo-start-date');
+            const edInput = document.getElementById('promo-end-date');
             
-            // משיכת נתוני הצ'קבוקסים מהשרת
-            let sBanner = true;
-            if (promo.showBanner !== undefined) sBanner = promo.showBanner;
-            else if (promo.show_banner !== undefined) sBanner = promo.show_banner;
-            else if (promo.show_in_banner !== undefined) sBanner = promo.show_in_banner;
+            if (sdInput) sdInput.value = formatDateForInput(promo.startDate || promo.start_date, sdInput.type);
+            if (edInput) edInput.value = formatDateForInput(promo.endDate || promo.end_date, edInput.type);
             
-            let sTab = true;
-            if (promo.showTab !== undefined) sTab = promo.showTab;
-            else if (promo.show_tab !== undefined) sTab = promo.show_tab;
-            else if (promo.show_in_tab !== undefined) sTab = promo.show_in_tab;
+            // פונקציית Parser בוליאנית נוקשה שמתמודדת עם נתוני שרת (מספר 0, "0", "false")
+            const parseBool = (val, defaultVal = true) => {
+                if (val === undefined || val === null) return defaultVal;
+                if (val === false || val === 'false' || val === 0 || val === '0') return false;
+                return true;
+            };
+
+            const sBannerRaw = promo.showBanner !== undefined ? promo.showBanner : (promo.show_banner !== undefined ? promo.show_banner : promo.show_in_banner);
+            const sTabRaw = promo.showTab !== undefined ? promo.showTab : (promo.show_tab !== undefined ? promo.show_tab : promo.show_in_tab);
             
-            // בדיקה קפדנית לאישור דלוק (הגנה מפני ערך 0 או 'false' שחוזרים מהשרת)
             const bannerCb = document.getElementById('promo-show-banner');
-            if(bannerCb) bannerCb.checked = (sBanner === true || String(sBanner) === 'true' || sBanner === 1 || String(sBanner) === '1');
+            if(bannerCb) bannerCb.checked = parseBool(sBannerRaw, true);
             
             const tabCb = document.getElementById('promo-show-tab');
-            if(tabCb) tabCb.checked = (sTab === true || String(sTab) === 'true' || sTab === 1 || String(sTab) === '1');
+            if(tabCb) tabCb.checked = parseBool(sTabRaw, true);
             
             const colorSel = document.getElementById('promo-bg-color');
             if(colorSel) colorSel.value = promo.bgColor || promo.bg_color || 'pink';
