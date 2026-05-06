@@ -1894,26 +1894,42 @@ app.post('/api/academy/tutor', async (req, res) => {
 
 app.post('/api/guide/chat', async (req, res) => {
     try {
-        const { question } = req.body;
+        const { question, guideType } = req.body;
         if (!genAI) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
 
         let guideText = "";
+        let fileName = guideType === 'BIZ' ? 'biz-guide.html' : 'guide.html';
+        
         try {
-            guideText = fs.readFileSync(path.join(__dirname, 'public', 'guide.html'), 'utf-8');
+            guideText = fs.readFileSync(path.join(__dirname, 'public', fileName), 'utf-8');
         } catch(e) {
-            guideText = "Oneflow Life is a family financial and task management app.";
+            guideText = guideType === 'BIZ' ? "Oneflow Life BIZ is a business management app." : "Oneflow Life is a family management app.";
         }
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' app. 
-        A user is reading the user guide and asked a question to understand the system better.
-        Here is the full content of the guide HTML:
-        ${guideText}
         
-        User's question: "${question}"
-        
-        Answer directly in Hebrew based ONLY on the guide content above. 
-        Be concise (3-4 sentences max), friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding where needed.`;
+        let prompt = "";
+        if (guideType === 'BIZ') {
+            prompt = `You are 'FamliAI', the professional business AI assistant for the 'Oneflow Life BIZ' app. 
+            A user is reading the business user guide and asked a question to understand the system better.
+            Here is the full content of the business guide HTML:
+            ${guideText}
+            
+            User's question: "${question}"
+            
+            Answer directly in Hebrew based ONLY on the guide content above. 
+            Be concise (3-4 sentences max), professional yet friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+        } else {
+            prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' family app. 
+            A user is reading the user guide and asked a question to understand the system better.
+            Here is the full content of the guide HTML:
+            ${guideText}
+            
+            User's question: "${question}"
+            
+            Answer directly in Hebrew based ONLY on the guide content above. 
+            Be concise (3-4 sentences max), friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
+        }
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, answer: result.response.text().trim() });
