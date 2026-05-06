@@ -15527,7 +15527,7 @@ window.forceLoadCatalog = async function(e) {
     const btn = e ? e.currentTarget : null;
     if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...';
     try {
-        if(typeof fetchStoreCatalog === 'function') await fetchStoreCatalog();
+        if(typeof window.fetchStoreCatalog === 'function') await window.fetchStoreCatalog();
         await window.fetchStorePromotions();
         window.renderPOSCatalog(window.posCurrentCategory);
         window.renderPOSCart();
@@ -15552,8 +15552,12 @@ window.fetchStorePromotions = async function() {
         window.storePromotionsCache = [];
     }
     window._posPromosLoaded = true;
+    
     if (typeof window.renderStorePromotions === 'function') window.renderStorePromotions();
     if (typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
+    
+    window._internalRenderPOSCatalog(window.posCurrentCategory || 'all');
+    window.renderPOSCart();
 };
 
 window.isPromoActive = function(p) {
@@ -15654,8 +15658,12 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
 window.renderPOSCatalog = async function(cat = 'all') {
     if (!window._posPromosLoaded && typeof window.fetchStorePromotions === 'function') {
         await window.fetchStorePromotions();
+    } else {
+        window._internalRenderPOSCatalog(cat);
     }
-    
+};
+
+window._internalRenderPOSCatalog = function(cat = 'all') {
     window.posCurrentCategory = cat;
     const grid = document.getElementById('pos-catalog-grid');
     const catTabs = document.getElementById('pos-categories-tabs');
@@ -15675,7 +15683,7 @@ window.renderPOSCatalog = async function(cat = 'all') {
             label = '🔥 מבצעים';
             activeClass = c === cat ? 'bg-pink-500 text-white shadow-md border-pink-500' : 'bg-pink-50 text-pink-600 hover:bg-pink-100 border border-pink-200';
         }
-        return `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${activeClass}">${label}</button>`;
+        return `<button onclick="window._internalRenderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${activeClass}">${label}</button>`;
     }).join('');
 
     let products = storeCatalogCache.filter(p => p.is_available);
