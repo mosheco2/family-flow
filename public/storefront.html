@@ -527,20 +527,32 @@
             }
         }
         
+// ==========================================
+        // --- מנגנון קרוסלת מבצעים - חנות ציבורית ---
+        // ==========================================
+        window.promoInterval = null;
+        window.currentPromoIndex = 0;
+        window.totalPromos = 0;
+
         window.renderPromotionsBanner = function() {
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer) return;
             
-            // תמיכה בפורמט החדש של השדות וסינון חכם יותר
+            // תמיכה בשני הפורמטים במקביל כדי שלא יפספס אף מבצע
             const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => {
                 const showBanner = p.showBanner !== undefined ? p.showBanner : (p.show_banner !== undefined ? p.show_banner : p.show_in_banner);
-                return showBanner !== false && showBanner !== 'false' && showBanner !== 0; 
+                return showBanner !== false && String(showBanner) !== 'false' && showBanner !== 0 && String(showBanner) !== '0'; 
             }) : [];
             
             if (bannerPromos.length === 0) { bannerContainer.innerHTML = ''; return; }
             
-            let promoHtml = `<div class="flex overflow-x-auto w-full modal-scroll snap-x snap-mandatory">`;
-            bannerPromos.forEach(p => {
+            let promoHtml = `<div class="relative w-full group">`;
+            promoHtml += `<div id="promo-banner-scroll" class="flex overflow-x-auto w-full hide-scrollbar snap-x snap-mandatory scroll-smooth">`;
+            
+            // מכיל את הנקודות במידה ויש יותר ממבצע אחד
+            let dotsHtml = `<div class="absolute bottom-2.5 left-0 right-0 flex justify-center gap-1.5 z-20">`;
+
+            bannerPromos.forEach((p, idx) => {
                 const pType = p.promoType || p.promo_type;
                 const pVal = p.promoValue || p.promo_value;
                 const tType = p.targetType || p.target_type;
@@ -552,14 +564,13 @@
                 if(Array.isArray(tIds)) targetArray = tIds;
                 else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
                 
-                // הסרת תווים מיותרים להצגה יפה בחנות
                 const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
                 let targetDesc = tType === 'all' ? 'על כל החנות' : `תקף על: ${cleanCategory}`;
-                
                 const bgClass = colorMap[bColor] || colorMap['pink'];
 
+                // עיצוב שקופית המבצע (הוספתי פדינג למטה כדי שיהיה מקום לנקודות)
                 promoHtml += `
-                <div class="bg-gradient-to-r ${bgClass} text-white py-5 px-6 min-w-full w-full shrink-0 snap-center relative overflow-hidden flex flex-col justify-center text-right shadow-inner border-b border-black/10">
+                <div id="promo-slide-${idx}" class="bg-gradient-to-r ${bgClass} text-white pt-5 pb-8 px-6 min-w-full w-full shrink-0 snap-center relative overflow-hidden flex flex-col justify-center text-right shadow-inner border-b border-black/10">
                     <i class="fa-solid fa-gift absolute -left-4 -bottom-6 text-9xl opacity-20 transform -rotate-12"></i>
                     <h4 class="font-black text-2xl relative z-10 leading-tight mb-2 drop-shadow-md">${safeStr(p.title)}</h4>
                     <div class="relative z-10 flex items-center gap-2">
@@ -567,9 +578,94 @@
                         <span class="text-xs font-medium opacity-90">${targetDesc}</span>
                     </div>
                 </div>`;
+                
+                // יצירת נקודה (Dot) עבור שקופית זו
+                dotsHtml += `<button onclick="window.goToPromoSlide(${idx})" id="promo-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/50 hover:bg-white/80 w-2 h-2'} shadow-sm"></button>`;
             });
-            promoHtml += `</div>`;
+            
+            promoHtml += `</div>`; // סגירת גולל
+            dotsHtml += `</div>`; // סגירת נקודות
+            
+            if (bannerPromos.length > 1) {
+                promoHtml += dotsHtml;
+            }
+            promoHtml += `</div>`; // סגירת מעטפת
+            
             bannerContainer.innerHTML = promoHtml;
+            
+            // אתחול האוטומציה רק אם יש מעל מבצע אחד
+            if (bannerPromos.length > 1) {
+                setTimeout(() => window.initPromoAutoScroll(bannerPromos.length), 100);
+            }
+        };
+
+        window.initPromoAutoScroll = function(total) {
+            window.totalPromos = total;
+            window.currentPromoIndex = 0;
+            if (window.promoInterval) clearInterval(window.promoInterval);
+            
+            const scrollContainer = document.getElementById('promo-banner-scroll');
+            if(scrollContainer) {
+                // עדכון נקודות כשלקוח גולל עם האצבע
+                scrollContainer.addEventListener('scroll', () => {
+                    const slideWidth = scrollContainer.clientWidth;
+                    if(slideWidth === 0) return;
+                    const scrollPos = Math.abs(scrollContainer.scrollLeft);
+                    const newIndex = Math.round(scrollPos / slideWidth);
+                    if (newIndex !== window.currentPromoIndex && newIndex >= 0 && newIndex < window.totalPromos) {
+                        window.currentPromoIndex = newIndex;
+                        window.updatePromoDots();
+                    }
+                }, { passive: true });
+            }
+
+            window.startPromoAutoScroll();
+        };
+
+        window.startPromoAutoScroll = function() {
+            if (window.promoInterval) clearInterval(window.promoInterval);
+            // העברת מבצע כל 4 שניות (4000 מילישניות)
+            window.promoInterval = setInterval(() => {
+                window.currentPromoIndex++;
+                if (window.currentPromoIndex >= window.totalPromos) {
+                    window.currentPromoIndex = 0;
+                }
+                window.goToPromoSlide(window.currentPromoIndex, false);
+            }, 4000); 
+        };
+
+        window.goToPromoSlide = function(index, restartTimer = true) {
+            window.currentPromoIndex = index;
+            const scrollContainer = document.getElementById('promo-banner-scroll');
+            if (scrollContainer) {
+                const slideWidth = scrollContainer.clientWidth;
+                // מחשב כיוון בהתאם לשפה (RTL)
+                const isRTL = window.getComputedStyle(scrollContainer).direction === 'rtl';
+                const sign = isRTL ? -1 : 1;
+                scrollContainer.scrollTo({
+                    left: index * slideWidth * sign,
+                    behavior: 'smooth'
+                });
+            }
+            window.updatePromoDots();
+            
+            // אם המשתמש לחץ על נקודה ידנית, מאפסים את השעון כדי שלא יברח לו מיד
+            if (restartTimer) {
+                window.startPromoAutoScroll();
+            }
+        };
+
+        window.updatePromoDots = function() {
+            for (let i = 0; i < window.totalPromos; i++) {
+                const dot = document.getElementById(`promo-dot-${i}`);
+                if (dot) {
+                    if (i === window.currentPromoIndex) {
+                        dot.className = 'w-5 h-2 rounded-full transition-all duration-300 bg-white shadow-sm';
+                    } else {
+                        dot.className = 'w-2 h-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white/80 shadow-sm';
+                    }
+                }
+            }
         };
 
         window.renderHeader = function() {
