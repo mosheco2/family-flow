@@ -17018,9 +17018,9 @@ window.submitPromotion = async function() {
         const showBannerCb = document.getElementById('promo-show-banner');
         const showTabCb = document.getElementById('promo-show-tab');
         
-        // שליחה של בוליאני אמיתי (True / False) ולא 1 או 0
-        const showBanner = showBannerCb ? showBannerCb.checked : true;
-        const showTab = showTabCb ? showTabCb.checked : true;
+        // כפייה מוחלטת ל-1 או 0 כדי שמסד הנתונים ייאלץ לשמור את זה
+        const showBannerInt = showBannerCb ? (showBannerCb.checked ? 1 : 0) : 1;
+        const showTabInt = showTabCb ? (showTabCb.checked ? 1 : 0) : 1;
         
         const bgColor = document.getElementById('promo-bg-color') ? document.getElementById('promo-bg-color').value : 'pink';
 
@@ -17043,18 +17043,18 @@ window.submitPromotion = async function() {
             target_type: tType,
             targetIds: targetIdsVal,
             target_ids: targetIdsVal,
-            isActive: true,
-            is_active: true,
+            isActive: 1,
+            is_active: 1,
             startDate: startDate,
             start_date: startDate,
             endDate: endDate,
             end_date: endDate,
-            showBanner: showBanner,
-            show_banner: showBanner,
-            show_in_banner: showBanner,
-            showTab: showTab,
-            show_tab: showTab,
-            show_in_tab: showTab,
+            showBanner: showBannerInt,
+            show_banner: showBannerInt,
+            show_in_banner: showBannerInt,
+            showTab: showTabInt,
+            show_tab: showTabInt,
+            show_in_tab: showTabInt,
             bgColor: bgColor,
             bg_color: bgColor
         };
@@ -17133,33 +17133,22 @@ window.openPromotionModal = function(id = null) {
                 document.getElementById('promo-target-category').value = '';
             }
 
-            // תיקון תאריכים מוחלט: מתאים עצמו אוטומטית לסוג השדה ב-HTML (date או datetime-local)
-            const formatDateForInput = (dateString, inputType) => {
+            const formatDateTimeLocal = (dateString) => {
                 if (!dateString || dateString === 'null' || dateString === 'undefined' || String(dateString).startsWith('0000')) return '';
                 try {
-                    const d = new Date(dateString);
-                    if (isNaN(d.getTime())) return '';
-                    const pad = n => n.toString().padStart(2, '0');
-                    const yyyy = d.getFullYear();
-                    const mm = pad(d.getMonth() + 1);
-                    const dd = pad(d.getDate());
-                    const hh = pad(d.getHours());
-                    const mins = pad(d.getMinutes());
-                    // אם זה שדה תאריך פשוט, הוא מקבל רק YYYY-MM-DD. אם זה שדה עם שעה, הוא מקבל את הפורמט המלא.
-                    return inputType === 'datetime-local' ? `${yyyy}-${mm}-${dd}T${hh}:${mins}` : `${yyyy}-${mm}-${dd}`;
+                    const date = new Date(dateString);
+                    if(isNaN(date.getTime())) return '';
+                    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
                 } catch(e) { return ''; }
             };
 
-            const sdInput = document.getElementById('promo-start-date');
-            const edInput = document.getElementById('promo-end-date');
+            document.getElementById('promo-start-date').value = formatDateTimeLocal(promo.startDate || promo.start_date);
+            document.getElementById('promo-end-date').value = formatDateTimeLocal(promo.endDate || promo.end_date);
             
-            if (sdInput) sdInput.value = formatDateForInput(promo.startDate || promo.start_date, sdInput.type);
-            if (edInput) edInput.value = formatDateForInput(promo.endDate || promo.end_date, edInput.type);
-            
-            // פונקציית Parser בוליאנית נוקשה שמתמודדת עם נתוני שרת (מספר 0, "0", "false")
-            const parseBool = (val, defaultVal = true) => {
+            // פונקציית פענוח בוליאנית הרמטית - אם השרת מחזיר 0 או '0', זה חד משמעית יכבה את התיבה
+            const parseBoolStrict = (val, defaultVal) => {
                 if (val === undefined || val === null) return defaultVal;
-                if (val === false || val === 'false' || val === 0 || val === '0') return false;
+                if (val === 0 || val === '0' || val === false || val === 'false') return false;
                 return true;
             };
 
@@ -17167,10 +17156,10 @@ window.openPromotionModal = function(id = null) {
             const sTabRaw = promo.showTab !== undefined ? promo.showTab : (promo.show_tab !== undefined ? promo.show_tab : promo.show_in_tab);
             
             const bannerCb = document.getElementById('promo-show-banner');
-            if(bannerCb) bannerCb.checked = parseBool(sBannerRaw, true);
+            if(bannerCb) bannerCb.checked = parseBoolStrict(sBannerRaw, true);
             
             const tabCb = document.getElementById('promo-show-tab');
-            if(tabCb) tabCb.checked = parseBool(sTabRaw, true);
+            if(tabCb) tabCb.checked = parseBoolStrict(sTabRaw, true);
             
             const colorSel = document.getElementById('promo-bg-color');
             if(colorSel) colorSel.value = promo.bgColor || promo.bg_color || 'pink';
