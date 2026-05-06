@@ -4113,16 +4113,11 @@ window.initPublicConfig = async function() {
                     document.head.appendChild(newLink);
                 }
                 
-                // החלפת התמונות בבועת ה-AI במסכים השונים
-                const botImg = document.getElementById('ai-assistant-logo-img');
-                if (botImg) botImg.src = data.globalAiLogo;
-                
-                // תמיכה ב-HTML של משפחות
-                const botImgFam = document.querySelector('.fixed.bottom-40.right-6 img[alt="FamliAI"]');
-                if (botImgFam) botImgFam.src = data.globalAiLogo;
-                
-                const chatLogo = document.querySelector('#global-ai-modal img[alt="FamliAI Logo"]');
-                if (chatLogo) chatLogo.src = data.globalAiLogo;
+                // החלפה גורפת ואגרסיבית של כל תמונות העוזרת הווירטואלית במסך
+                // מכסה את כפתורי הריחוף, המודאלים הפנימיים, ותמונת הכותרת בתוך הבועה
+                document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
+                    img.src = data.globalAiLogo;
+                });
             }
 
             // בניית קרוסלת ההתחברות (Login Slider) רק אם קיימות תמונות פעילות
