@@ -4090,3 +4090,119 @@ setTimeout(enforcePermissions, 1500);
         document.body.appendChild(badge);
     }
 })();
+// =========================================================
+// --- מנגנון מיתוג גלובלי ומסך התחברות חכם ---
+// =========================================================
+
+window.loginSliderInterval = null;
+window.currentLoginSlideIndex = 0;
+
+window.initPublicConfig = async function() {
+    try {
+        const res = await fetch(`${API}/system/public-config`);
+        const data = await res.json();
+        
+        if (data.success) {
+            // החלפת סמל הדפדפן (Favicon)
+            if (data.globalAiLogo) {
+                const link = document.querySelector("link[rel~='icon']");
+                if (link) link.href = data.globalAiLogo;
+                else {
+                    const newLink = document.createElement('link');
+                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
+                    document.head.appendChild(newLink);
+                }
+                
+                // החלפת התמונות בבועת ה-AI במסכים השונים
+                const botImg = document.getElementById('ai-assistant-logo-img');
+                if (botImg) botImg.src = data.globalAiLogo;
+                
+                // תמיכה ב-HTML של משפחות
+                const botImgFam = document.querySelector('.fixed.bottom-40.right-6 img[alt="FamliAI"]');
+                if (botImgFam) botImgFam.src = data.globalAiLogo;
+                
+                const chatLogo = document.querySelector('#global-ai-modal img[alt="FamliAI Logo"]');
+                if (chatLogo) chatLogo.src = data.globalAiLogo;
+            }
+
+            // בניית קרוסלת ההתחברות (Login Slider) רק אם קיימות תמונות פעילות
+            if (data.loginSlides && data.loginSlides.length > 0) {
+                const wrapper = document.getElementById('login-slider-wrapper');
+                const scroll = document.getElementById('login-slider-scroll');
+                const dots = document.getElementById('login-slider-dots');
+                const defaultCredit = document.getElementById('login-default-credit');
+                
+                if (wrapper && scroll && dots && defaultCredit) {
+                    // כיבוי הפאנל הדיפולטי והדלקת הקרוסלה
+                    defaultCredit.classList.add('hidden');
+                    wrapper.classList.remove('hidden');
+                    
+                    let slidesHtml = '';
+                    let dotsHtml = '';
+                    
+                    data.loginSlides.forEach((slide, idx) => {
+                        slidesHtml += `
+                        <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
+                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
+                        </div>`;
+                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10"></button>`;
+                    });
+                    
+                    scroll.innerHTML = slidesHtml;
+                    dots.innerHTML = data.loginSlides.length > 1 ? dotsHtml : ''; 
+                    
+                    if (data.loginSlides.length > 1) {
+                        window.startLoginAutoScroll(data.loginSlides.length);
+                        
+                        scroll.addEventListener('scroll', () => {
+                            const w = scroll.clientWidth;
+                            if(w === 0) return;
+                            const pos = Math.abs(scroll.scrollLeft);
+                            const newIdx = Math.round(pos / w);
+                            if (newIdx !== window.currentLoginSlideIndex && newIdx >= 0 && newIdx < data.loginSlides.length) {
+                                window.currentLoginSlideIndex = newIdx;
+                                window.updateLoginDots(data.loginSlides.length);
+                            }
+                        }, { passive: true });
+                    }
+                }
+            }
+        }
+    } catch(e) { console.error('Failed to load public config', e); }
+};
+
+window.startLoginAutoScroll = function(total) {
+    if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
+    window.loginSliderInterval = setInterval(() => {
+        window.currentLoginSlideIndex++;
+        if (window.currentLoginSlideIndex >= total) {
+            window.currentLoginSlideIndex = 0;
+        }
+        window.goToLoginSlide(window.currentLoginSlideIndex);
+    }, 4500); 
+};
+
+window.goToLoginSlide = function(index) {
+    window.currentLoginSlideIndex = index;
+    const scroll = document.getElementById('login-slider-scroll');
+    if (scroll) {
+        const w = scroll.clientWidth;
+        const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
+        scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
+    }
+    const dotsDiv = document.getElementById('login-slider-dots');
+    if(dotsDiv) window.updateLoginDots(dotsDiv.children.length);
+};
+
+window.updateLoginDots = function(total) {
+    for (let i = 0; i < total; i++) {
+        const dot = document.getElementById(`login-dot-${i}`);
+        if (dot) {
+            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.initPublicConfig();
+});
