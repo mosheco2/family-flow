@@ -16996,3 +16996,170 @@ window.submitPromotion = async function() {
         if(btn) { btn.disabled = false; btn.innerHTML = 'שמור והפעל'; }
     }
 };
+// ==========================================
+// --- תיקון מנגנון יצירת מבצעים - גרסה סופית ---
+// ==========================================
+window.submitPromotion = async function() {
+    const btn = document.getElementById('btn-submit-promo');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+
+    try {
+        const title = document.getElementById('promo-title').value;
+        const type = document.getElementById('promo-type').value;
+        const val = document.getElementById('promo-value') ? parseFloat(document.getElementById('promo-value').value) : 0;
+        const tType = document.getElementById('promo-target-type').value;
+        const tCat = document.getElementById('promo-target-category') ? document.getElementById('promo-target-category').value : '';
+        const startDate = document.getElementById('promo-start-date') ? document.getElementById('promo-start-date').value : null;
+        const endDate = document.getElementById('promo-end-date') ? document.getElementById('promo-end-date').value : null;
+        
+        const showBannerCb = document.getElementById('promo-show-banner');
+        const showTabCb = document.getElementById('promo-show-tab');
+        const showBanner = showBannerCb ? showBannerCb.checked : true;
+        const showTab = showTabCb ? showTabCb.checked : true;
+        const bgColor = document.getElementById('promo-bg-color') ? document.getElementById('promo-bg-color').value : 'pink';
+
+        if(!title) {
+            showToast('error', 'חובה להזין שם מבצע');
+            if(btn) { btn.disabled = false; btn.innerHTML = 'שמור והפעל'; }
+            return;
+        }
+
+        const payload = {
+            groupId: currentGroup.id,
+            title: title,
+            promoType: type,
+            promoValue: val || 0,
+            targetType: tType,
+            // ניקוי אוטומטי של תווים לא רצויים לפני שמירה למסד
+            targetIds: tType === 'category' ? JSON.stringify([tCat.replace(/[\[\]"']/g, '').trim()]) : 'all',
+            isActive: true,
+            startDate: startDate,
+            endDate: endDate,
+            showBanner: showBanner,
+            showTab: showTab,
+            bgColor: bgColor
+        };
+
+        const promoId = document.getElementById('promo-id') ? document.getElementById('promo-id').value : null;
+        let res;
+        
+        if (promoId) {
+            res = await fetch(`${API}/store/promotions/${promoId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+        } else {
+            res = await fetch(`${API}/store/promotions`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+        }
+        
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', promoId ? 'המבצע עודכן בהצלחה!' : 'המבצע נשמר והופעל בהצלחה!');
+            const modal = document.getElementById('promotion-modal');
+            if (modal) modal.classList.add('hidden');
+            
+            // איפוס מטמון כדי למנוע כפילויות בתצוגה
+            window.storePromotionsCache = [];
+            
+            if (typeof window.fetchStorePromotions === 'function') {
+                await window.fetchStorePromotions();
+            } else {
+                window.location.reload();
+            }
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת המבצע');
+        }
+    } catch(e) {
+        console.error(e);
+        showToast('error', 'שגיאת רשת בשמירת המבצע');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = 'שמור והפעל'; }
+    }
+};
+
+window.openPromotionModal = function(id = null) {
+    // מניעת כפילות של המודאל עצמו ב-DOM
+    const modals = document.querySelectorAll('#promotion-modal');
+    if (modals.length > 1) {
+        for(let i=1; i<modals.length; i++) { modals[i].remove(); }
+    }
+    
+    const modal = document.getElementById('promotion-modal');
+    if(!modal) return;
+
+    if (id) {
+        const promo = window.storePromotionsCache.find(p => String(p.id) === String(id));
+        if (promo) {
+            document.getElementById('promo-id').value = promo.id;
+            document.getElementById('promo-title').value = promo.title || '';
+            document.getElementById('promo-type').value = promo.promoType || promo.promo_type || 'discount_pct';
+            
+            if (typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
+            
+            if(document.getElementById('promo-value')) {
+                document.getElementById('promo-value').value = promo.promoValue || promo.promo_value || '';
+            }
+            
+            document.getElementById('promo-target-type').value = promo.targetType || promo.target_type || 'all';
+            if (typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
+            
+            if (promo.targetType === 'category' || promo.target_type === 'category') {
+                // התיקון הקריטי: הסרת סוגריים ומרכאות מהשדה בחלון העריכה!
+                let rawCat = promo.targetIds || promo.target_ids || '';
+                let cleanCat = rawCat.toString().replace(/[\[\]"']/g, '').trim();
+                document.getElementById('promo-target-category').value = cleanCat;
+            } else {
+                document.getElementById('promo-target-category').value = '';
+            }
+
+            // תיקון תאריכים
+            const formatDateTimeLocal = (dateString) => {
+                if (!dateString || dateString === 'null') return '';
+                try {
+                    const date = new Date(dateString);
+                    if(isNaN(date.getTime())) return '';
+                    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+                } catch(e) { return ''; }
+            };
+
+            document.getElementById('promo-start-date').value = formatDateTimeLocal(promo.startDate || promo.start_date);
+            document.getElementById('promo-end-date').value = formatDateTimeLocal(promo.endDate || promo.end_date);
+            
+            const sBanner = promo.showBanner !== undefined ? promo.showBanner : (promo.show_banner !== undefined ? promo.show_banner : promo.show_in_banner);
+            const sTab = promo.showTab !== undefined ? promo.showTab : (promo.show_tab !== undefined ? promo.show_tab : promo.show_in_tab);
+            
+            const bannerCb = document.getElementById('promo-show-banner');
+            if(bannerCb) bannerCb.checked = (sBanner !== false && sBanner !== 'false' && sBanner !== 0);
+            
+            const tabCb = document.getElementById('promo-show-tab');
+            if(tabCb) tabCb.checked = (sTab !== false && sTab !== 'false' && sTab !== 0);
+            
+            const colorSel = document.getElementById('promo-bg-color');
+            if(colorSel) colorSel.value = promo.bgColor || promo.bg_color || 'pink';
+        }
+    } else {
+        document.getElementById('promo-id').value = '';
+        document.getElementById('promo-title').value = '';
+        document.getElementById('promo-type').value = 'discount_pct';
+        if (typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
+        if(document.getElementById('promo-value')) document.getElementById('promo-value').value = '';
+        
+        document.getElementById('promo-target-type').value = 'all';
+        if (typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
+        document.getElementById('promo-target-category').value = '';
+        
+        document.getElementById('promo-start-date').value = '';
+        document.getElementById('promo-end-date').value = '';
+        
+        if(document.getElementById('promo-show-banner')) document.getElementById('promo-show-banner').checked = true;
+        if(document.getElementById('promo-show-tab')) document.getElementById('promo-show-tab').checked = true;
+        if(document.getElementById('promo-bg-color')) document.getElementById('promo-bg-color').value = 'pink';
+    }
+
+    modal.classList.remove('hidden');
+};
