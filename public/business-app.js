@@ -16943,3 +16943,56 @@ window.removeQuoteItem = function(id) {
     window.calcQuoteTotal();
     window.renderQuoteSelectedItems();
 };
+// ==========================================
+// --- תיקון מנגנון יצירת מבצעים ---
+// ==========================================
+window.submitPromotion = async function() {
+    const btn = document.getElementById('btn-submit-promo');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+
+    try {
+        const title = document.getElementById('promo-title').value;
+        const type = document.getElementById('promo-type').value;
+        const val = document.getElementById('promo-value') ? parseFloat(document.getElementById('promo-value').value) : 0;
+        const tType = document.getElementById('promo-target-type').value;
+        const tCat = document.getElementById('promo-target-category') ? document.getElementById('promo-target-category').value : '';
+        
+        if(!title) return showToast('error', 'חובה להזין שם מבצע');
+
+        // בניית אובייקט חסין תקלות - מוגדר כפעיל תמיד
+        const payload = {
+            groupId: currentGroup.id,
+            title: title,
+            promoType: type,
+            promoValue: val || 0,
+            targetType: tType,
+            targetIds: tType === 'category' ? JSON.stringify([tCat]) : 'all',
+            isActive: true 
+        };
+
+        const res = await fetch(`${API}/store/promotions`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'המבצע נשמר והופעל בהצלחה!');
+            const modal = document.getElementById('promotion-modal');
+            if (modal) modal.classList.add('hidden');
+            
+            // רענון אוטומטי של המבצעים כדי שיקפצו מיד בקופה
+            if (typeof window.fetchStorePromotions === 'function') {
+                await window.fetchStorePromotions();
+            }
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת המבצע במסד הנתונים');
+        }
+    } catch(e) {
+        console.error(e);
+        showToast('error', 'שגיאת רשת בשמירת המבצע');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = 'שמור והפעל'; }
+    }
+};
