@@ -254,7 +254,7 @@
             
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת סביבה חדשה</h2>
-       <form onsubmit="handleCreate(event)" class="space-y-4">
+<form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
                         <button type="button" onclick="handleTypeSelection('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
                         <button type="button" onclick="handleTypeSelection('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
@@ -269,22 +269,22 @@
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     
                     <div class="flex flex-col gap-2 mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div class="flex items-start gap-2">
-                            <label class="cursor-pointer flex items-start gap-2">
-                                <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
-                            </label>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <label class="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים והטבות מ-Oneflowlife Pro (רשות)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד ייחודי לסביבה שלכם.</p>
-                </form>
+                        <div class="flex items-start gap-2">
+                            <label class="cursor-pointer flex items-start gap-2">
+                                <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
+                            </label>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים והטבות מ-Oneflowlife Pro (רשות)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
+                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד ייחודי לסביבה שלכם.</p>
+                </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
             
