@@ -3965,11 +3965,12 @@ function enforcePermissions() {
     enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
     enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
     enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
     enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
     enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
     // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
     enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
-
+ 
     // הגבלת אלמנטים של העוזרת הווירטואלית AI
     const aiBtnMain = getEl('btn-global-ai');
     if (features.ai !== undefined && !features.ai) {
@@ -4112,14 +4113,20 @@ window.initPublicConfig = async function() {
                     document.head.appendChild(newLink);
                 }
                 
-                // החלפה גורפת ואגרסיבית של כל תמונות העוזרת הווירטואלית במסך
-                // מכסה את כפתורי הריחוף, המודאלים הפנימיים, ותמונת הכותרת בתוך הבועה
-                document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
-                    img.src = data.globalAiLogo;
-                });
+                // פתרון לתקלת ה"החלפה לשנייה אחת":
+                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
+                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
+                setInterval(() => {
+                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
+                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
+                        if (img.getAttribute('src') !== data.globalAiLogo) {
+                            img.src = data.globalAiLogo;
+                        }
+                    });
+                }, 500);
             }
 
-            // בניית קרוסלת ההתחברות (Login Slider) רק אם קיימות תמונות פעילות
+            // בניית קרוסלת ההתחברות (Login Slider)
             if (data.loginSlides && data.loginSlides.length > 0) {
                 const wrapper = document.getElementById('login-slider-wrapper');
                 const scroll = document.getElementById('login-slider-scroll');
@@ -4127,9 +4134,14 @@ window.initPublicConfig = async function() {
                 const defaultCredit = document.getElementById('login-default-credit');
                 
                 if (wrapper && scroll && dots && defaultCredit) {
-                    // כיבוי הפאנל הדיפולטי והדלקת הקרוסלה
                     defaultCredit.classList.add('hidden');
                     wrapper.classList.remove('hidden');
+                    
+                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
+                    scroll.classList.remove('overflow-x-auto');
+                    scroll.classList.add('overflow-hidden');
+                    scroll.style.overflow = 'hidden';
+                    scroll.style.touchAction = 'none'; 
                     
                     let slidesHtml = '';
                     let dotsHtml = '';
@@ -4139,7 +4151,7 @@ window.initPublicConfig = async function() {
                         <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
                             <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
                         </div>`;
-                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10"></button>`;
+                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
                     });
                     
                     scroll.innerHTML = slidesHtml;
@@ -4147,17 +4159,6 @@ window.initPublicConfig = async function() {
                     
                     if (data.loginSlides.length > 1) {
                         window.startLoginAutoScroll(data.loginSlides.length);
-                        
-                        scroll.addEventListener('scroll', () => {
-                            const w = scroll.clientWidth;
-                            if(w === 0) return;
-                            const pos = Math.abs(scroll.scrollLeft);
-                            const newIdx = Math.round(pos / w);
-                            if (newIdx !== window.currentLoginSlideIndex && newIdx >= 0 && newIdx < data.loginSlides.length) {
-                                window.currentLoginSlideIndex = newIdx;
-                                window.updateLoginDots(data.loginSlides.length);
-                            }
-                        }, { passive: true });
                     }
                 }
             }
@@ -4172,31 +4173,42 @@ window.startLoginAutoScroll = function(total) {
         if (window.currentLoginSlideIndex >= total) {
             window.currentLoginSlideIndex = 0;
         }
-        window.goToLoginSlide(window.currentLoginSlideIndex);
+        window.goToLoginSlide(window.currentLoginSlideIndex, total);
     }, 4500); 
 };
 
-window.goToLoginSlide = function(index) {
+window.goToLoginSlide = function(index, totalSlides) {
     window.currentLoginSlideIndex = index;
     const scroll = document.getElementById('login-slider-scroll');
     if (scroll) {
         const w = scroll.clientWidth;
         const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
+        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
         scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
     }
+    
     const dotsDiv = document.getElementById('login-slider-dots');
-    if(dotsDiv) window.updateLoginDots(dotsDiv.children.length);
+    const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
+    window.updateLoginDots(total);
+    
+    // איפוס הטיימר לאחר לחיצה ידנית
+    if (total > 1) {
+        window.startLoginAutoScroll(total);
+    }
 };
 
 window.updateLoginDots = function(total) {
     for (let i = 0; i < total; i++) {
         const dot = document.getElementById(`login-dot-${i}`);
         if (dot) {
-            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
+            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
         }
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.initPublicConfig();
+// במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        window.initPublicConfig();
+    }, 200);
 });
