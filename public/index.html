@@ -677,26 +677,8 @@
                             
                         </div>
                     </div>
-                   <div id="content-members" class="hidden space-y-4">
-                        <div class="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm mx-2 mt-2">
-                            <div class="flex items-center gap-4">
-                                <div class="relative w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-200 shadow-inner">
-                                    <i class="fa-solid fa-camera text-slate-300 text-xl" id="mgmt-group-logo-icon"></i>
-                                    <img id="mgmt-group-logo-preview" src="" class="w-full h-full object-cover hidden">
-                                </div>
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-slate-800 text-sm">תמונת מיתוג המשפחה</h4>
-                                    <p class="text-[10px] text-slate-400 mb-2">תמונה זו תופיע בראש האפליקציה לכל בני המשפחה</p>
-                                    <button onclick="document.getElementById('family-photo-upload').click()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition">
-                                        <i class="fa-solid fa-upload mr-1"></i> העלה תמונה
-                                    </button>
-                                    <input type="file" id="family-photo-upload" accept="image/*" class="hidden" onchange="handleFamilyPhotoUpload(event)">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
-                        
+                        <div id="content-members" class="hidden space-y-4">
+                                                <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                         <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
                             <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
                                 <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) למשפחה
@@ -715,8 +697,7 @@
                     </div>
             </div>
 
-            <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden py-3"></a>
-        </div>
+<a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center text-base sm:text-lg font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden py-5 sm:py-6 sm:rounded-b-[2rem]"></a>        </div>
 
     </div>
 
