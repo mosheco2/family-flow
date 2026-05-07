@@ -818,7 +818,7 @@ async function fetchData() {
 
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
 
-        // הפעלת אשף ההקמה (Onboarding) להורה (ADMIN) בכניסה הראשונה
+// הפעלת אשף ההקמה (Onboarding) להורה (ADMIN) בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
             setTimeout(showOnboardingWizard, 1000);
         }
@@ -826,8 +826,6 @@ async function fetchData() {
     } catch(e) {}
 }
 
-    } catch(e) { console.error("Fetch data error:", e); }
-}
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
