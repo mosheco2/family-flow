@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+        html { scroll-behavior: smooth; scroll-padding-top: 100px; }
         body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; }
         
         .guide-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; transition: transform 0.2s; }
@@ -27,7 +27,7 @@
         .guide-list li { position: relative; padding-right: 1.5rem; margin-bottom: 0.75rem; color: #334155; font-size: 0.95rem; }
         .guide-list li::before { content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; right: 0; color: #4f46e5; font-size: 0.85rem; top: 0.25rem; }
         
-        .highlight-box { background: #e0e7ff; border-right: 4px solid #4f46e5; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: 500; color: #312e81; font-size: 0.9rem; }
+        .highlight-box { background: #e0e7ff; border-left: 4px solid #4f46e5; border-right: none; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: 500; color: #312e81; font-size: 0.9rem; }
         
         .modern-input { width: 100%; padding: 0.75rem 1rem; border-radius: 9999px; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
         .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
@@ -35,17 +35,17 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* עיצוב ניווט מהיר מותאם ללחיצה */
+        /* עיצוב ניווט מהיר */
         .nav-chip { 
-            flex: 0 0 auto; white-space: nowrap; padding: 0.5rem 1.25rem; 
+            flex: 0 0 auto; white-space: nowrap; padding: 0.6rem 1.25rem; 
             background: white; border: 1px solid #e2e8f0; border-radius: 9999px; 
             font-size: 0.875rem; font-weight: 600; color: #475569; 
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             cursor: pointer;
         }
         .nav-chip:hover { 
-            transform: translateY(-2px); 
+            transform: translateY(-1px); 
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
             color: #4f46e5; border-color: #cbd5e1; 
         }
@@ -54,26 +54,24 @@
             transform: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); 
         }
         
-        /* עיצוב אחיד לתמונות מסך - מונע תפיסת מסך שלם */
+        /* עיצוב תמונות מדריך (נצמד לתמונה עצמה ללא חללים ריקים) */
         .guide-img {
-            width: 100%;
-            max-height: 320px;
-            object-fit: contain;
-            background-color: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 1rem;
-            padding: 0.5rem;
-            margin-top: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-        }
-        @media (max-width: 640px) {
-            .guide-img { max-height: 220px; }
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            max-height: 400px; /* תמונה תהיה גדולה וברורה אך לא מוגזמת */
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            margin: 1.5rem auto 0 auto;
+            display: block;
         }
         
         /* תמונה חסרה */
         .guide-img-fallback {
-            margin-top: 1.5rem;
+            margin: 1.5rem auto 0 auto;
             height: 180px;
+            max-width: 400px;
             background: #f8fafc;
             border: 2px dashed #cbd5e1;
             border-radius: 1rem;
@@ -103,7 +101,7 @@
     </header>
 
     <div class="sticky top-0 z-40 bg-slate-50/90 backdrop-blur-md border-b border-slate-200 py-3 shadow-sm mb-6">
-        <div class="max-w-4xl mx-auto px-4 flex gap-2 overflow-x-auto hide-scrollbar">
+        <div class="max-w-4xl mx-auto px-4 flex gap-3 overflow-x-auto hide-scrollbar pt-1 pb-2">
             <a href="#intro" class="nav-chip active-chip">מבוא</a>
             <a href="#dashboard" class="nav-chip">לוח בקרה</a>
             <a href="#pos" class="nav-chip">קופה וחנות</a>
@@ -123,7 +121,7 @@
             <h2 class="guide-section-title">ברוכים הבאים למערכת BIZ</h2>
             <p class="guide-text">Oneflow Life BIZ תוכננה לרכז את כל הכלים שהעסק שלך צריך במקום אחד: מקופה וירטואלית, דרך ניהול ספקים ומלאי, ועד שעון נוכחות מבוסס GPS לעובדים. המערכת מבוססת על מנוע AI שעוזר לך לקבל החלטות בזמן אמת ולהוזיל עלויות.</p>
             
-            <img src="/guide-biz-intro.png" alt="סקירת מערכת BIZ" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת סקירת מערכת - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-intro.png" class="guide-img" alt="סקירת מערכת BIZ" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת סקירת מערכת - תתווסף בקרוב</span></div>'">
 
             <div class="highlight-box mt-6">
                 <i class="fa-solid fa-lightbulb mr-2"></i> טיפ: השתמשו בתפריט הצד (אייקון 3 השורות העליון) כדי לנווט במהירות בין מודולי המערכת השונים.
@@ -140,7 +138,7 @@
                 <li><strong>אנליסט AI:</strong> לחיצה על כפתור התובנות מפיקה דוח חכם שמנתח את המכירות והמלאי.</li>
             </ul>
             
-            <img src="/guide-biz-dashboard.png" alt="לוח בקרה עסקי" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת דשבורד - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-dashboard.png" class="guide-img" alt="לוח בקרה עסקי" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת לוח בקרה (Dashboard) - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="pos" class="guide-card">
@@ -153,7 +151,7 @@
                 <li><strong>הצעות מחיר (Quotes):</strong> בניית הצעה לאירוע או לקוח B2B ושמירתה כ"הצעה" לאישור עתידי.</li>
             </ul>
             
-            <img src="/guide-biz-pos.png" alt="ממשק קופה וחנות" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת הקופה - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-pos.png" class="guide-img" alt="ממשק קופה וחנות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת הקופה - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="procurement" class="guide-card">
@@ -166,7 +164,7 @@
                 <li><strong>קבלת סחורה:</strong> סימון פריטים שהגיעו לעדכון מלאי אוטומטי ויצירת השלמות לחוסרים.</li>
             </ul>
             
-            <img src="/guide-biz-procurement.png" alt="ניהול רכש וספקים" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת רכש וספקים - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-procurement.png" class="guide-img" alt="ניהול רכש וספקים" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת רכש וספקים - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="inventory" class="guide-card">
@@ -178,7 +176,7 @@
                 <li><strong>תחזית מלאי:</strong> עוזרת ה-AI מתריעה על מוצרים שעומדים להיגמר על סמך קצב המכירה.</li>
             </ul>
             
-            <img src="/guide-biz-inventory.png" alt="ניהול מלאי ועלויות" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת ניהול מלאי - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-inventory.png" class="guide-img" alt="ניהול מלאי ועלויות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת ניהול מלאי - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="hr" class="guide-card">
@@ -190,7 +188,7 @@
                 <li><strong>אישור משימות ב-AI:</strong> העובד מעלה תמונה של סיום המשימה והמערכת מאשרת לו בונוס.</li>
             </ul>
             
-            <img src="/guide-biz-hr.png" alt="ניהול עובדים ונוכחות" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שעון נוכחות וצוות - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-hr.png" class="guide-img" alt="ניהול עובדים ונוכחות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שעון נוכחות וצוות - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="marketing" class="guide-card">
@@ -202,7 +200,7 @@
                 <li><strong>מבצעים ובאנרים:</strong> יצירת מבצעי 1+1 או הנחות שקופצות כבאנר ללקוחות החנות.</li>
             </ul>
             
-            <img src="/guide-biz-marketing.png" alt="קהילות ושיווק" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שיווק וקהילות - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-marketing.png" class="guide-img" alt="קהילות ושיווק" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שיווק וקהילות - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="academy" class="guide-card">
@@ -214,7 +212,7 @@
                 <li><strong>בונוס למידה:</strong> תגמול כספי אוטומטי לעובד שעובר את המבחן בהצלחה.</li>
             </ul>
             
-            <img src="/guide-biz-academy.png" alt="אקדמיה והכשרות" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת האקדמיה - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-academy.png" class="guide-img" alt="אקדמיה והכשרות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת האקדמיה - תתווסף בקרוב</span></div>'">
         </div>
 
         <div id="storefront" class="guide-card">
@@ -228,7 +226,7 @@
                 <li><strong>מיתוג אישי:</strong> אפשרות להעלות לוגו ובאנר עליון ייעודי לחנות הציבורית דרך הגדרות החנות.</li>
             </ul>
             
-            <img src="/guide-biz-storefront.png" alt="חנות ציבורית" class="guide-img" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת החנות הציבורית - תתווסף בקרוב</span></div>'">
+            <img src="/guide-biz-storefront.png" class="guide-img" alt="חנות ציבורית" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת החנות הציבורית - תתווסף בקרוב</span></div>'">
         </div>
 
         <div class="text-center py-6 mb-8">
@@ -237,17 +235,19 @@
 
     </main>
 
-    <div id="guide-chat-window" class="fixed bottom-28 right-4 sm:right-6 z-[9999] hidden w-[90vw] sm:w-[400px] max-h-[75vh] bg-slate-50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0 overflow-hidden">
+    <div id="guide-chat-window" class="fixed bottom-28 right-4 sm:right-6 z-[9999] hidden w-[90vw] sm:w-[380px] max-h-[70vh] bg-slate-50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0 overflow-hidden">
         
         <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0 shadow-md relative z-10">
             <div class="flex items-center gap-3">
                 <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-inner border border-indigo-400 overflow-hidden relative shrink-0 bg-white/20 backdrop-blur-md">
-                    <i class="fa-solid fa-robot text-white z-10 absolute"></i>
-                    <img src="/familai_avatar.png" id="ai-chat-avatar" class="w-full h-full object-cover relative z-20 bg-white" onerror="this.style.display='none';">
+                    <i class="fa-solid fa-robot text-white z-10 absolute" id="chat-robot-icon"></i>
+                    <img src="/logo.png" id="ai-chat-avatar" class="w-full h-full object-contain relative z-20 bg-white" 
+                         onload="document.getElementById('chat-robot-icon').style.display='none';" 
+                         onerror="this.style.display='none'; document.getElementById('chat-robot-icon').style.display='block';">
                 </div>
                 <div>
-                    <h3 class="font-bold text-lg leading-none">FamliAI BIZ</h3>
-                    <p class="text-indigo-200 text-xs mt-1">העוזרת הווירטואלית שלך</p>
+                    <h3 class="font-bold text-lg leading-none tracking-wide">FamliAI BIZ</h3>
+                    <p class="text-indigo-200 text-[10px] mt-1 uppercase tracking-wider font-bold">העוזרת הווירטואלית שלך</p>
                 </div>
             </div>
             <button onclick="toggleGuideChat()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
@@ -261,7 +261,7 @@
         
         <div class="p-3 bg-white border-t border-slate-200 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
             <form id="guide-chat-form" onsubmit="sendGuideMessage(event)" class="flex gap-2 relative items-center">
-                <input type="text" id="guide-chat-input" class="w-full bg-slate-100 border border-transparent focus:border-indigo-300 focus:bg-white transition-all duration-200 rounded-full py-3 pr-4 pl-12 text-sm outline-none text-slate-700" placeholder="הקלידו שאלה כאן..." autocomplete="off">
+                <input type="text" id="guide-chat-input" class="w-full bg-slate-100 border border-transparent focus:border-indigo-300 focus:bg-white transition-all duration-200 rounded-full py-3 pr-4 pl-14 text-sm outline-none text-slate-700" placeholder="הקלידו שאלה כאן..." autocomplete="off">
                 <button type="submit" class="absolute left-1.5 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-md hover:scale-105 active:scale-95">
                     <i class="fa-solid fa-paper-plane text-sm -translate-x-0.5"></i>
                 </button>
@@ -269,15 +269,17 @@
         </div>
     </div>
 
-    <div class="fixed bottom-6 right-4 sm:right-6 z-[9999]">
+    <div class="fixed bottom-6 right-4 sm:right-6 z-[9999] group cursor-pointer" onclick="toggleGuideChat()">
         <div class="relative w-16 h-16">
-            <button onclick="toggleGuideChat()" id="guide-fab" class="w-full h-full bg-white rounded-full shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transition-transform duration-300 border-4 border-white overflow-hidden group relative cursor-pointer outline-none">
-                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 z-0"></div>
-                <i class="fa-solid fa-robot text-white z-10 absolute"></i>
-                <img src="/familai_avatar.png" id="ai-fab-avatar" class="w-full h-full object-cover relative z-20 bg-white" onerror="this.style.display='none';">
+            <button id="guide-fab" class="w-full h-full bg-white rounded-full shadow-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300 border-4 border-white overflow-hidden relative outline-none p-1">
+                <i class="fa-solid fa-robot text-slate-700 z-10 absolute" id="fab-robot-icon"></i>
+                <img src="/logo.png" id="ai-fab-avatar" class="w-full h-full object-contain relative z-20 bg-white" 
+                     onload="document.getElementById('fab-robot-icon').style.display='none';" 
+                     onerror="this.style.display='none'; document.getElementById('fab-robot-icon').style.display='block';">
             </button>
             <span class="absolute top-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full z-30 pointer-events-none shadow-sm"></span>
         </div>
+        <p class="text-[10px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-slate-200 mt-2 text-center absolute left-1/2 transform -translate-x-1/2 w-max transition-opacity duration-300">עוזרת הדרכה</p>
     </div>
 
     <script>
@@ -285,12 +287,13 @@
         const msgs = document.getElementById('guide-chat-messages');
         const input = document.getElementById('guide-chat-input');
 
-        // מנגנון הוספת המחלקה "פעיל" (Active) לתפריט הניווט בעת גלילה
+        // מנגנון זיהוי גלילה להדגשת הנושא הנכון בתפריט ללא קפיצות מסך
         window.addEventListener('scroll', () => {
             let current = '';
-            document.querySelectorAll('.guide-card').forEach(card => {
+            const cards = document.querySelectorAll('.guide-card');
+            cards.forEach(card => {
                 const cardTop = card.offsetTop;
-                if (scrollY >= cardTop - 120) {
+                if (scrollY >= cardTop - 150) {
                     current = card.getAttribute('id');
                 }
             });
@@ -298,8 +301,6 @@
                 chip.classList.remove('active-chip');
                 if (chip.getAttribute('href') === `#${current}`) {
                     chip.classList.add('active-chip');
-                    // גלילת תפריט הניווט אופקית כך שהנושא הפעיל יישאר במרכז ראייה
-                    chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
             });
         });
@@ -324,24 +325,24 @@
             }
         }
 
-        // שליחת הודעה בצ'אט
+        // שליחת הודעה בצ'אט (כולל עיצוב בועות עם זנב)
         async function sendGuideMessage(e) {
             e.preventDefault();
             const text = input.value.trim();
             if(!text) return;
             
-            // הוספת שאלת המשתמש (בועה בצבע כחול אינדיגו עם פינה ימנית חדה)
-            msgs.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm self-end max-w-[85%] text-sm leading-relaxed">${text}</div>`;
+            // הוספת שאלת המשתמש (בועה בצבע כחול אינדיגו עם פינה ימנית עליונה חדה)
+            msgs.innerHTML += `<div class="bg-indigo-600 text-white p-3.5 rounded-2xl rounded-tl-none shadow-sm self-end max-w-[85%] text-sm leading-relaxed">${text}</div>`;
             input.value = '';
             msgs.scrollTop = msgs.scrollHeight;
             
             // הוספת הודעת טעינה
             const loadingId = 'load-' + Date.now();
-            msgs.innerHTML += `<div id="${loadingId}" class="bg-white p-3 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-400 self-start text-xs flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> מקלידה תשובה...</div>`;
+            msgs.innerHTML += `<div id="${loadingId}" class="bg-white p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-400 self-start text-xs flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> מקלידה תשובה...</div>`;
             msgs.scrollTop = msgs.scrollHeight;
             
             try {
-                // קריאה לשרת - שימו לב שמתווסף פרמטר מיוחד למדריך העסקים
+                // קריאה לשרת ל-Endpoint של המדריך העסקי
                 const res = await fetch('/api/guide/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -353,14 +354,14 @@
                 
                 if(data.success) {
                     let formatted = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-                    // תשובת הרובוט (בועה לבנה עם פינה שמאלית חדה)
-                    msgs.innerHTML += `<div class="bg-white p-3 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-700 self-start max-w-[95%] leading-relaxed text-sm">${formatted}</div>`;
+                    // תשובת הרובוט (בועה לבנה עם פינה שמאלית עליונה חדה)
+                    msgs.innerHTML += `<div class="bg-white p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-700 self-start max-w-[95%] leading-relaxed text-sm">${formatted}</div>`;
                 } else {
-                    msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">אופס, שגיאה: ${data.error}</div>`;
+                    msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">אופס, שגיאה: ${data.error}</div>`;
                 }
             } catch(e) {
                 document.getElementById(loadingId).remove();
-                msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">תקלת תקשורת. ודאו שאתם מחוברים לאינטרנט ונסו שוב.</div>`;
+                msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">תקלת תקשורת. ודאו שאתם מחוברים לאינטרנט ונסו שוב.</div>`;
             }
             msgs.scrollTop = msgs.scrollHeight;
         }
