@@ -4137,4 +4137,5 @@ window.addEventListener('load', () => {
     setTimeout(() => {
         window.initPublicConfig();
     }, 200);
+    } 
 });
