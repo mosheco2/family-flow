@@ -3891,12 +3891,12 @@ function enforcePermissions() {
     enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
     enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
     enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
-    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות ותגמולים');
     enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
     enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
     // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
     enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
-}
+
     // הגבלת אלמנטים של העוזרת הווירטואלית AI
     const aiBtnMain = getEl('btn-global-ai');
     if (features.ai !== undefined && !features.ai) {
