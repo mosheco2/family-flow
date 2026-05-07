@@ -143,7 +143,6 @@ function applyBannersToDOM(banners) {
             let html = ''; 
             if(img) { 
                 const imgSrc = formatImgSrc(img); 
-                // Changed from object-cover to object-contain, adjusted sizes
                 html += `<img src="${imgSrc}" alt="Ad" class="absolute inset-0 w-full h-full object-contain opacity-100 z-0 block">`; 
             }
             if(text) {
@@ -163,6 +162,7 @@ function applyBannersToDOM(banners) {
     renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img, true); 
     renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
 }
+
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
@@ -194,7 +194,6 @@ async function loadSAData() {
         }
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
         
-        // כאן קוראים לטעינת הקהילות מיד כשהמנהל נכנס!
         loadSACommunityData();
         
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
@@ -252,7 +251,6 @@ function renderSAGroups() {
     groupsList.innerHTML = gHtml;
 }
 
-// פונקציות העריכה
 function openSAEditGroupModal(id, name) {
     getEl('sa-edit-group-id').value = id;
     getEl('sa-edit-group-name').value = name;
@@ -410,154 +408,154 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
-function switchTab(t) { 
-    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-    }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
-    else { try { renderShopList(); } catch(e) {} }
-    
-    if (t === 'pantry') try { renderPantry(); } catch(e) {}
-    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
-    if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
-    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
-    if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
+function switchTab(t) { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
+    
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    else { try { renderShopList(); } catch(e) {} }
+    
+    if (t === 'pantry') try { renderPantry(); } catch(e) {}
+    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
+    if (t === 'forecast') try { renderForecast(); } catch(e) {}
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
+    if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
 }
 
 let myOrdersCache = [];
 
 async function fetchMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
-    
-    try {
-        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
-        const data = await res.json();
-        
-        if (data.success) {
-            myOrdersCache = data.orders || [];
-            renderMyOrders();
-        } else {
-            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
-        }
-    } catch (e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
-    }
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            myOrdersCache = data.orders || [];
+            renderMyOrders();
+        } else {
+            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
+        }
+    } catch (e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
+    }
 }
 
 function renderMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    
-    if (myOrdersCache.length === 0) {
-        list.innerHTML = `
-        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
-            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
-            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
-            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
-        </div>`;
-        return;
-    }
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    
+    if (myOrdersCache.length === 0) {
+        list.innerHTML = `
+        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
+            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
+        </div>`;
+        return;
+    }
 
-    let html = '';
-    myOrdersCache.forEach(o => {
-        let statusColor = '';
-        let statusText = '';
-        let progressPct = 0;
-        let statusIcon = '';
-        
-        switch(o.status) {
-            case 'quote':
-                statusColor = 'border-slate-300 bg-slate-100'; 
-                statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
-                progressPct = 10; 
-                statusIcon = 'fa-file-invoice';
-                break;
-            case 'new': 
-                statusColor = 'border-blue-200 bg-blue-50'; 
-                statusText = 'התקבל בעסק'; 
-                progressPct = 25; 
-                statusIcon = 'fa-clock';
-                break;
-            case 'processing': 
-                statusColor = 'border-orange-200 bg-orange-50'; 
-                statusText = 'באריזה / הכנה'; 
-                progressPct = 50; 
-                statusIcon = 'fa-box';
-                break;
-            case 'ready': 
-                statusColor = 'border-purple-200 bg-purple-50'; 
-                statusText = 'מוכן לאיסוף'; 
-                progressPct = 75; 
-                statusIcon = 'fa-bag-shopping';
-                break;
-            case 'shipped': 
-                statusColor = 'border-indigo-200 bg-indigo-50'; 
-                statusText = o.is_delivery ? 'בדרך אליך! 🛵' : 'בדרך אלייך!'; 
-                progressPct = 90; 
-                statusIcon = o.is_delivery ? 'fa-motorcycle' : 'fa-truck-fast';
-                break;
-            case 'completed': 
-                statusColor = 'border-green-200 bg-green-50'; 
-                statusText = 'הושלם ונמסר'; 
-                progressPct = 100; 
-                statusIcon = 'fa-check-double';
-                break;
-            default: 
-                statusColor = 'border-slate-200 bg-slate-50'; 
-                statusText = 'בטיפול'; 
-                progressPct = 10;
-                statusIcon = 'fa-spinner fa-spin';
-        }
+    let html = '';
+    myOrdersCache.forEach(o => {
+        let statusColor = '';
+        let statusText = '';
+        let progressPct = 0;
+        let statusIcon = '';
+        
+        switch(o.status) {
+            case 'quote':
+                statusColor = 'border-slate-300 bg-slate-100'; 
+                statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
+                progressPct = 10; 
+                statusIcon = 'fa-file-invoice';
+                break;
+            case 'new': 
+                statusColor = 'border-blue-200 bg-blue-50'; 
+                statusText = 'התקבל בעסק'; 
+                progressPct = 25; 
+                statusIcon = 'fa-clock';
+                break;
+            case 'processing': 
+                statusColor = 'border-orange-200 bg-orange-50'; 
+                statusText = 'באריזה / הכנה'; 
+                progressPct = 50; 
+                statusIcon = 'fa-box';
+                break;
+            case 'ready': 
+                statusColor = 'border-purple-200 bg-purple-50'; 
+                statusText = 'מוכן לאיסוף'; 
+                progressPct = 75; 
+                statusIcon = 'fa-bag-shopping';
+                break;
+            case 'shipped': 
+                statusColor = 'border-indigo-200 bg-indigo-50'; 
+                statusText = o.is_delivery ? 'בדרך אליך! 🛵' : 'בדרך אלייך!'; 
+                progressPct = 90; 
+                statusIcon = o.is_delivery ? 'fa-motorcycle' : 'fa-truck-fast';
+                break;
+            case 'completed': 
+                statusColor = 'border-green-200 bg-green-50'; 
+                statusText = 'הושלם ונמסר'; 
+                progressPct = 100; 
+                statusIcon = 'fa-check-double';
+                break;
+            default: 
+                statusColor = 'border-slate-200 bg-slate-50'; 
+                statusText = 'בטיפול'; 
+                progressPct = 10;
+                statusIcon = 'fa-spinner fa-spin';
+        }
 
-        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {hour: '2-digit', minute:'2-digit'});
-        
-        html += `
-        <div class="bg-white rounded-2xl shadow-sm border ${statusColor} overflow-hidden transition-all hover:shadow-md cursor-pointer" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')">
-            <div class="p-4 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0 border border-slate-100">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(o.store_name || 'עסק מקומי')}</h4>
-                        <p class="text-[10px] text-slate-500"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} • ${dateStr}</p>
-                    </div>
-                </div>
-                <div class="flex flex-col items-end">
-                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[9px] text-slate-400 font-mono tracking-widest mt-0.5">#${o.id}</span>
-                </div>
-            </div>
-            
-            <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
-                <div class="mb-4 ${o.status === 'quote' ? 'hidden' : ''}">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                        <span>התקבל</span>
-                        <span>בהכנה</span>
-                        <span>במשלוח</span>
-                        <span>נמסר</span>
-                    </div>
-                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
-                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
-                    </div>
-                </div>
-                <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p class="font-bold mb-2">פירוט ההזמנה/ההצעה:</p>
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
+        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {hour: '2-digit', minute:'2-digit'});
+        
+        html += `
+        <div class="bg-white rounded-2xl shadow-sm border ${statusColor} overflow-hidden transition-all hover:shadow-md cursor-pointer" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')">
+            <div class="p-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0 border border-slate-100">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(o.store_name || 'עסק מקומי')}</h4>
+                        <p class="text-[10px] text-slate-500"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} • ${dateStr}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                    <span class="text-[9px] text-slate-400 font-mono tracking-widest mt-0.5">#${o.id}</span>
+                </div>
+            </div>
+            
+            <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
+                <div class="mb-4 ${o.status === 'quote' ? 'hidden' : ''}">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                        <span>התקבל</span>
+                        <span>בהכנה</span>
+                        <span>במשלוח</span>
+                        <span>נמסר</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
+                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p class="font-bold mb-2">פירוט ההזמנה/ההצעה:</p>
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
                     ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
-                </div>
-            </div>
-        </div>
-        `;
-    });
-    list.innerHTML = html;
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    list.innerHTML = html;
 }
 
 function updateBatteryUI() {
@@ -643,322 +641,42 @@ function executeWithAIWarning(actionFn) {
 }
 
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-}
-
-window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
-
-window.submitBalanceAdjustment = async function() {
-    const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
-    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
-    try {
-        const res = await fetch(`${API}/admin/adjust-balance`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason }) });
-        const data = await res.json();
-        if (data.success) { showToast('success', 'היתרה עודכנה בהצלחה!'); getEl('balance-adjustment-modal').classList.add('hidden'); fetchData(); fetchMembers(); } else showToast('error', data.error || 'שגיאה בעדכון');
-    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
-};
-
-async function fetchMembers() { 
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
-        membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
-        if (currentUser.role === 'ADMIN') { 
-            try {
-                const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
-                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
-                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) fF.value = cur; }
-                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) cfF.value = cur; }
-                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
-            } catch(err) {}
-        } 
-        try {
-            const c = getEl('members-list'); 
-            if(c) { 
-                c.innerHTML = ''; 
-                membersCache.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
-                }); 
-            }
-        } catch(err) {}
-        try {
-            const a = getEl('bank-accounts-list'); 
-            if (a && currentUser.role === 'ADMIN') { 
-                a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
-                if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
-                else children.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-blue-600">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="קנס/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
-                }); 
-            } 
-        } catch(err) {}
-    } catch(e) {}
-}
-
-async function sendCredentialsEmail() {
-    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של בני המשפחה למייל שלך?')) return;
-    const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
-    const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח למייל...';
-    try {
-        const res = await fetch(`${API}/admin/send-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id }) }); const data = await res.json();
-        if (data.success) { showToast('success', 'הפרטים נשלחו בהצלחה למייל המנהל!'); } else { showToast('error', data.error || 'שגיאה בשליחת המייל'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { btn.disabled = false; btn.innerHTML = originalText; }
+    const isAdmin = currentUser.role === 'ADMIN';
+    if(isAdmin) { 
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
+        const profileUp = getEl('profile-upgrade-section');
+        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
+    } else { 
+        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
+        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
+        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
+    }
+    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
+    
+    try {
+        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
+        try { fetchBanners(); } catch(e){}
+        try { await fetchMembers(); } catch(e){}
+        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
+        try { await fetchData(); } catch(e){}
+        try { await fetchLoans(); } catch(e){}
+    } catch (e) {
+        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
+    } finally {
+        const preloader = getEl('app-preloader'); 
+        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
+        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
+    }
 }
 
 async function fetchData() {
-    try {
-        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
-        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-        if (!data || !data.user) return;
-        
-        currentUser.balance = data.user.balance; 
-        if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
-            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-            const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
-            
-            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל/הורה
-            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-fam')) {
-                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-fam" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
-            }
-        }
-
-        if (currentUser.role === 'ADMIN') {
-            const balEl = getEl('user-balance'); 
-            if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
-                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
-                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
-            }
-        } else {
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
-        }
-        
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-        
-        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
-        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
-        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
-
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-        try { fetchBudget(); } catch(e) {}
-        try { renderForecast(); } catch(e) {}
-        
-        // קריאה לרינדור הקהילות ממש כאן!
-        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
-        
-        try {
-            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
-            if (goalsList) { 
-                goalsList.innerHTML = ''; 
-                if(data.goals && data.goals.length > 0) { 
-                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                    data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
-            }
-        } catch(e) {}
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-            }
-        } catch(e) {}
-
-        try {
-            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
-        } catch(e) { allTransactions = []; }
-
-        try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-
-window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden');
-window.submitBalanceAdjustment = async function() {
-    const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
-    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
-    try {
-        const res = await fetch(`${API}/admin/adjust-balance`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason }) });
-        const data = await res.json();
-        if (data.success) { showToast('success', 'היתרה עודכנה בהצלחה!'); getEl('balance-adjustment-modal').classList.add('hidden'); fetchData(); fetchMembers(); } else showToast('error', data.error || 'שגיאה בעדכון');
-    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
-};
-
-async function fetchMembers() { 
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
-        membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
-        if (currentUser.role === 'ADMIN') { 
-            try {
-                const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
-                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
-                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) fF.value = cur; }
-                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) cfF.value = cur; }
-                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
-            } catch(err) {}
-        } 
-        try {
-            const c = getEl('members-list'); 
-            if(c) { 
-                c.innerHTML = ''; 
-                membersCache.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
-                }); 
-            }
-        } catch(err) {}
-        try {
-            const a = getEl('bank-accounts-list'); 
-            if (a && currentUser.role === 'ADMIN') { 
-                a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
-                if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
-                else children.forEach(m => { 
-                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-blue-600">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="קנס/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
-                }); 
-            } 
-        } catch(err) {}
-    } catch(e) {}
-}
-
-async function sendCredentialsEmail() {
-    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של בני המשפחה למייל שלך?')) return;
-    const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
-    const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח למייל...';
-    try {
-        const res = await fetch(`${API}/admin/send-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id }) }); const data = await res.json();
-        if (data.success) { showToast('success', 'הפרטים נשלחו בהצלחה למייל המנהל!'); } else { showToast('error', data.error || 'שגיאה בשליחת המייל'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { btn.disabled = false; btn.innerHTML = originalText; }
-}
-
-async function fetchData() {
-    try {
-        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
-        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-        if (!data || !data.user) return;
-        
-        currentUser.balance = data.user.balance; 
-       if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
-            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-            const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
-            
-            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל/הורה
-            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-fam')) {
-                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-fam" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
-            }
-        }
-        if (currentUser.role === 'ADMIN') {
-            const balEl = getEl('user-balance'); 
-            if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
-                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
-                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
-            }
-        } else {
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
-        }
-        
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-        
-        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
-        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
-        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
-
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-        try { fetchBudget(); } catch(e) {}
-        try { renderForecast(); } catch(e) {}
-        
-        // קריאה לרינדור הקהילות ממש כאן!
-        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
-        
-        try {
-            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
-            if (goalsList) { 
-                goalsList.innerHTML = ''; 
-                if(data.goals && data.goals.length > 0) { 
-                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                    data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
-            }
-        } catch(e) {}
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-            }
-        } catch(e) {}
-
-        try {
-            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
-        } catch(e) { allTransactions = []; }
-
-        try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-    } catch(e) {}
-}async function fetchData() {
     try {
         if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
         const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
@@ -1030,13 +748,66 @@ async function fetchData() {
         } catch(e) { allTransactions = []; }
 
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
+    } catch(e) {}
+}
+window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
+window.submitBalanceAdjustment = async function() {
+    const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
+    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
+    try {
+        const res = await fetch(`${API}/admin/adjust-balance`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ adminId: currentUser.id, groupId: currentGroup.id, childId: userId, type: type, amount: amount, reason: reason }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'היתרה עודכנה בהצלחה!'); getEl('balance-adjustment-modal').classList.add('hidden'); fetchData(); fetchMembers(); } else showToast('error', data.error || 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
+};
 
-        // הפעלת אשף ההקמה (Onboarding) להורה (ADMIN) בכניסה הראשונה
-        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
-            setTimeout(showOnboardingWizard, 1000);
-        }
+async function fetchMembers() { 
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
+        membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
+        if (currentUser.role === 'ADMIN') { 
+            try {
+                const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) bF.value = cur; } 
+                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) fF.value = cur; }
+                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if(cur) cfF.value = cur; }
+                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
+            } catch(err) {}
+        } 
+        try {
+            const c = getEl('members-list'); 
+            if(c) { 
+                c.innerHTML = ''; 
+                membersCache.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                }); 
+            }
+        } catch(err) {}
+        try {
+            const a = getEl('bank-accounts-list'); 
+            if (a && currentUser.role === 'ADMIN') { 
+                a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
+                if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
+                else children.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-blue-600">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="קנס/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                }); 
+            } 
+        } catch(err) {}
+    } catch(e) {}
+}
 
-    } catch(e) {}
+async function sendCredentialsEmail() {
+    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של בני המשפחה למייל שלך?')) return;
+    const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
+    const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח למייל...';
+    try {
+        const res = await fetch(`${API}/admin/send-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id }) }); const data = await res.json();
+        if (data.success) { showToast('success', 'הפרטים נשלחו בהצלחה למייל המנהל!'); } else { showToast('error', data.error || 'שגיאה בשליחת המייל'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
 function showFamilAIModal(title, text) {
@@ -1366,943 +1137,6 @@ async function updatePantryQty(id, newQty) {
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 
-function openPantryUseModal(name, unit, qty, upp) { 
-    const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
-    getEl('use-pantry-title').innerText = `מה לקחת מ: ${name}?`; 
-    getEl('use-pantry-name').value = name; 
-    
-    let dynContainer = getEl('pantry-dyn-container');
-    if (!dynContainer) {
-        const origInput = getEl('use-pantry-qty');
-        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
-            dynContainer = document.createElement('div');
-            dynContainer.id = 'pantry-dyn-container';
-            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
-            origInput.parentElement.style.display = 'none';
-        }
-    }
-    
-    if (dynContainer) {
-        dynContainer.innerHTML = `
-            <div class="text-center mb-4 bg-orange-50 text-orange-700 py-2.5 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
-                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות)</span>
-            </div>
-            
-            <div class="space-y-3">
-                <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">כמה יחידות לקחת?</label>
-                    <input type="number" id="use-pantry-units-dyn" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-orange-500 transition">
-                </div>
-                
-                <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: שימוש לפי מארז / משקל שלם</label>
-                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
-                </div>
-            </div>
-        `;
-    }
-    
-    const display = getEl('use-pantry-unit-display');
-    if(display) display.innerText = unit || "יח'"; 
-    getEl('pantry-use-modal').classList.remove('hidden'); 
-}
-
-async function submitPantryUse() {
-    const name = val('use-pantry-name'); 
-    const dynQty = val('use-pantry-qty-dyn');
-    const origQty = val('use-pantry-qty');
-    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
-    
-    const dynUnits = val('use-pantry-units-dyn');
-    const origUnits = val('use-pantry-units');
-    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
-
-    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
-    
-    try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
-}
-
-async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
-
-function renderChildTodo() {
-    const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
-    if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
-    let hasItems = false; let htmlStr = '';
-    const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
-    myTasks.forEach(t => {
-        hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-blue-50 transition mb-2" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(t.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • משימה • תגמול: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
-    });
-    const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
-    myQuizzes.forEach(b => {
-        hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
-        if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
-        const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
-    });
-    if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
-}
-
-function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id').value = id; getEl('approve-task-title').innerText = title; getEl('approve-task-reward').value = currentReward || 0; getEl('approve-task-modal').classList.remove('hidden'); }
-
-async function submitTaskApproval() {
-    const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
-    getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
-    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
-    const data = await res.json();
-    if(data.success) { showToast('success', 'המשימה אושרה והתגמול הועבר!'); fetchData(); } else showToast('error', data.error);
-}
-
-function renderTasks(tasks) {
-    const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
-    tasks.forEach(t => {
-        const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
-        let statusColor = 'bg-white border-slate-50'; let statusBadge = ''; let actionBtn = '';
-        if (t.status === 'pending') { if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`; } else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לילד</span>`; } } 
-        else if (t.status === 'done') { statusColor = 'bg-yellow-50 border-yellow-100'; if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } else { statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } } 
-        else if (t.status === 'approved') { statusColor = 'bg-green-50 border-green-100'; statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`; }
-        const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
-        let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>`; else deadlineBadge = `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
-        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}"><div><p class="font-bold text-slate-800">${safeStr(t.title)} ${deadlineBadge}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-1">${actionBtn}${statusBadge}</div></div>`;
-    });
-    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; else list.innerHTML = htmlStr;
-}
-
-async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-
-function buildAndRenderFeed() {
-    feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
-    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
-    if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
-    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
-    
-    // הוספת עדכוני הקהילה לתוך הפיד 
-    if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-        window.communityUpdatesCache.forEach(update => { 
-            // המרת התאריך הטקסטואלי לאובייקט כדי למנוע קריסה
-            update.date = new Date(update.date);
-            // העברת ה-description ל-title עבור תאימות לרינדור של הפיד
-            update.title = update.description || update.title;
-            feedCache.push(update); 
-        });
-    }
-
-    feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
-    const filterEl = getEl('feed-user-filter');
-    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
-    renderUnifiedFeed();
-}
-function buildAndRenderFeed() {
-    try {
-        feedCache = [];
-        
-        // 1. הודעת מערכת (פתיחת משפחה)
-        if (currentGroup && currentGroup.created_at) { 
-            feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
-        }
-        
-        // 2. תנועות עובר ושב
-        if(Array.isArray(allTransactions)) { 
-            allTransactions.forEach(t => { 
-                feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
-            }); 
-        }
-        
-        // 3. משימות (רק מאושרות)
-        if(Array.isArray(allTasks)) { 
-            allTasks.forEach(t => { 
-                if(t.status === 'approved') { 
-                    feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); 
-                } 
-            }); 
-        }
-        
-        // 4. חידונים (אקדמיה)
-        if(Array.isArray(bundlesCache)) { 
-            bundlesCache.forEach(b => { 
-                feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
-            }); 
-        }
-        
-        // 5. עדכוני קהילה - טיפול בטוח באובייקטים המגיעים מהשרת
-        if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-            window.communityUpdatesCache.forEach(update => { 
-                feedCache.push({
-                    type: 'system',
-                    id: update.id || ('comm_' + Math.random()),
-                    user_id: 0,
-                    user_name: 'קהילה',
-                    date: update.date ? new Date(update.date) : new Date(),
-                    title: update.description || update.title || 'עדכון מהקהילה',
-                    amount: 0
-                });
-            });
-        }
-
-        // מיון לפי תאריך יורד בצורה בטוחה
-        feedCache.sort((a, b) => {
-            const dA = a.date instanceof Date && !isNaN(a.date) ? a.date.getTime() : 0;
-            const dB = b.date instanceof Date && !isNaN(b.date) ? b.date.getTime() : 0;
-            return dB - dA;
-        });
-        
-        // טיפול בפילטר הראשי
-        const filterEl = getEl('feed-user-filter');
-        if (filterEl && currentUser) { 
-            if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); 
-            else filterEl.classList.add('hidden'); 
-        }
-        
-        renderUnifiedFeed();
-    } catch (err) {
-        console.error("Error in buildAndRenderFeed:", err);
-    }
-}
-
-function renderUnifiedFeed() {
-    try {
-        const list = getEl('unified-feed-list'); 
-        if (!list) return;
-        
-        if (!currentUser) return;
-
-        const userFilter = val('feed-user-filter') || 'all'; 
-        const dateFilter = val('feed-date-filter') || 'all'; 
-        
-        let filtered = feedCache;
-        
-        // סינון לפי משתמש
-        if (currentUser.role !== 'ADMIN') { 
-            filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); 
-        } else if (userFilter !== 'all' && userFilter !== '') { 
-            filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); 
-        }
-        
-        // סינון לפי תאריך
-        if (dateFilter !== 'all') { 
-            const monthsBack = parseInt(dateFilter); 
-            const cutoffDate = new Date(); 
-            cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); 
-            filtered = filtered.filter(item => item.date && item.date >= cutoffDate); 
-        }
-        
-        // מקסימום 30 פעולות למניעת עומס
-        filtered = filtered.slice(0, 30); 
-        
-        // אם אין פעולות
-        if(filtered.length === 0) { 
-            list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; 
-            return; 
-        }
-        
-        let html = '';
-        const today = new Date();
-        
-        filtered.forEach(item => {
-            // טיפול בטוח בתאריכים
-            if(!item.date || !(item.date instanceof Date) || isNaN(item.date.getTime())) return;
-            
-            const userIdNum = parseInt(item.user_id) || 0;
-            const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[userIdNum % userColors.length] || 'bg-white border-slate-50'); 
-            
-            const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
-            
-            const d = item.date; 
-            const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-            const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
-            const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
-            
-            let contentHtml = '';
-            if (item.type === 'transaction') {
-                const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-                const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; 
-                const prefix = item.isIncome ? '+' : '-';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
-            } else if (item.type === 'task') {
-                const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; 
-                let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); 
-                let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-            } else if (item.type === 'quiz') {
-                const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; 
-                let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); 
-                let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-            } else if (item.type === 'system') {
-                const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
-            }
-            
-            html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
-        });
-        
-        list.innerHTML = html;
-    } catch (err) {
-        console.error("Error in renderUnifiedFeed:", err);
-    }
-}
-
-function renderCashflow() {
-    const list = getEl('cashflow-list'); if (!list) return;
-    const userFilter = val('cashflow-user-filter') || 'all'; const dateFilter = val('cashflow-date-filter') || 'all';
-    let filtered = allTransactions; 
-    if (currentUser.role !== 'ADMIN') { filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); } 
-    else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); } }
-    if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
-    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
-    let html = '';
-    filtered.forEach(t => {
-        const isIncome = t.type === 'income'; const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-        const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; const prefix = isIncome ? '+' : '-';
-        const d = new Date(t.date); const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
-        const userName = t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${safeStr(t.user_name)}</span>` : '';
-        const catLabel = BUDGET_LABELS[t.category] || t.category || ''; const catBadge = catLabel ? `<span class="text-[9px] text-slate-400 border border-slate-200 px-1.5 rounded-full mr-2">${catLabel}</span>` : '';
-        const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeStr(t.description)}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
-        html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition"><div class="flex-1 overflow-hidden pr-2"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${safeStr(t.description)}</span> ${userName}</p><p class="text-[10px] text-slate-400 mt-1">${dateStr} ${catBadge}</p></div><div class="flex items-center gap-3 pl-1"><span class="font-bold text-base ${amountClass} whitespace-nowrap" dir="ltr">${prefix}₪${t.amount}</span>${editBtn}</div></div>`;
-    });
-    list.innerHTML = html;
-}
-
-function openEditTransactionModal(id, amount, desc, cat, type) {
-    getEl('edit-trans-id').value = id; getEl('edit-trans-old-amount').value = amount; getEl('edit-trans-type').value = type; getEl('edit-trans-amount').value = amount; getEl('edit-trans-desc').value = desc;
-    const catSelect = getEl('edit-trans-cat'); catSelect.innerHTML = '';
-    if(CATEGORIES[type]) { CATEGORIES[type].forEach(c => { const selected = c.value === cat ? 'selected' : ''; catSelect.innerHTML += `<option value="${c.value}" ${selected}>${c.label}</option>`; }); } else { catSelect.innerHTML += `<option value="${cat}" selected>${cat}</option>`; }
-    getEl('edit-transaction-modal').classList.remove('hidden');
-}
-
-async function submitEditTransaction() {
-    const id = val('edit-trans-id'); const amount = val('edit-trans-amount'); const desc = val('edit-trans-desc'); const cat = val('edit-trans-cat');
-    if(!amount) return showToast('error', 'נא להזין סכום');
-    const btn = getEl('btn-submit-edit-transaction'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try {
-        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'הפעולה עודכנה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בעדכון'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור שינויים'; } }
-}
-
-async function deleteTransaction() {
-    const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
-    try {
-        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
-        if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-}
-
-function updateAssignDetails() { const select = getEl('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { getEl('assign-reward').value = bundle.reward; } }
-function openAssignModal() {
-    const cSelect = getEl('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
-    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
-    const bSelect = getEl('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
-    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${safeStr(b.title)} (${b.age_group})</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>'; }
-    getEl('assign-reward').value = ''; getEl('assign-days').value = ''; getEl('assign-quiz-modal').classList.remove('hidden');
-}
-function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() => { const select = getEl('assign-bundle-select'); if (select) { select.value = bundleId; updateAssignDetails(); } }, 100); }
-async function submitAssignQuiz() {
-    const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
-    if(!childId) return showToast('error', 'אנא בחר ילד להקצאה'); if(!bundleId) return showToast('error', 'אנא בחר אתגר להקצאה');
-    const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
-    const data = await res.json();
-    if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData(); } else showToast('error', data.error);
-}
-
-function renderAdminAcademy() {
-    const list = getEl('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
-    let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
-    if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>'; } else {
-        html += '<div class="space-y-2 mb-8">';
-        allBundles.forEach(b => {
-            const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button></div>`;
-        }); html += '</div>';
-    }
-    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
-    if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
-        html += '<div class="space-y-2 pb-20">';
-        bundlesCache.forEach(b => {
-            let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${safeStr(b.assignee_name)}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
-        }); html += '</div>';
-    } list.innerHTML = html;
-}
-
-function renderLibrary() {
-    try {
-        const libList = getEl('library-list'); if (!libList) return;
-        const ageFilter = val('lib-age-filter') || 'all'; const catFilter = val('lib-cat-filter') || 'all';
-        let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
-        if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
-        if(Array.isArray(bundlesCache)) { const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id)); filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id))); }
-        if (filtered.length === 0) { libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>'; return; }
-        const getIcon = (type) => { if (type === 'math') return '<i class="fa-solid fa-calculator"></i>'; if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>'; return '<i class="fa-solid fa-chart-line"></i>'; };
-        let libHtml = '';
-        filtered.forEach(b => {
-            const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button></div>`;
-        }); libList.innerHTML = libHtml;
-    } catch(err) { console.error(err); }
-}
-
-function renderMyAssignments(bundles) {
-    const list = getEl('my-assignments-list'); const histList = getEl('academy-history-list'); const histCont = getEl('academy-history-container');
-    if (!list) return; list.innerHTML = ''; if (histList) histList.innerHTML = ''; let histCount = 0; let actCount = 0;
-    if(Array.isArray(bundles)) {
-        bundles.forEach(b => {
-            const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
-            if (b.status === 'assigned') {
-                actCount++; let dMsg = ""; if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500 font-bold bg-orange-50 px-1 rounded ml-2">עוד ${diff} ימים</span>` : `<span class="text-red-500 font-bold bg-red-50 px-1 rounded ml-2">איחור!</span>`; }
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center mb-3"><div class="flex-1"><h4 class="font-bold text-slate-800">${safeStr(b.title)}</h4><p class="text-xs text-slate-500 mt-1">תמריץ מעבר: ₪${reward} ${dMsg}</p></div><button onclick="startQuiz(${b.bundle_id})" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> התחל</button></div>`;
-            } else {
-                histCount++; if(histList) { let sColor = b.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'; let sText = b.status === 'completed' ? 'הושלם' : 'נכשל';
-                histList.innerHTML += `<div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-700 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-400 mt-1">ציון: ${b.score}% • תמריץ: ₪${b.status==='completed'?reward:0}</p></div><span class="text-[10px] font-bold px-2 py-1 rounded ${sColor}">${sText}</span></div>`; }
-            }
-        });
-    }
-    if (actCount === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מטלות למידה פתוחות.</p>';
-    if (histCount > 0 && histCont) histCont.classList.remove('hidden'); else if(histCont) histCont.classList.add('hidden');
-}
-
-async function requestChallenge(bundleId = null) {
-    const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
-    try {
-        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId, groupId: currentGroup.id }) }); const data = await res.json();
-        if (data.success) { triggerConfetti(); showToast('success', 'הלומדה שויכה בהצלחה!'); fetchData(); } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
-}
-
-async function startQuiz(bundleId) {
-    const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
-    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; 
-    getEl('quiz-title').innerText = bundle.title; getEl('btn-tutor').classList.add('hidden'); 
-    const textContainer = getEl('quiz-text-container');
-    if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
-    getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
-}
-
-function renderQuestion() {
-    const q = currentQuizData.questions[currentQuestionIndex];
-    getEl('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; getEl('q-text').innerText = q.q;
-    const optsContainer = getEl('q-options'); optsContainer.innerHTML = '';
-    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; });
-}
-
-async function submitAnswer(selectedIdx) {
-    const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option');
-    btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
-    if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); }
-    if(isCorrect) quizScore++;
-    setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000);
-}
-
-async function finishQuiz() {
-    const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold;
-    getEl('question-container').classList.add('hidden'); getEl('quiz-text-container').classList.add('hidden'); getEl('quiz-result').classList.remove('hidden');
-    getEl('quiz-icon').innerHTML = passed ? '🏆' : '📚'; getEl('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא, אפשר לנסות שוב...'; getEl('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; getEl('quiz-score-display').innerText = `ציון סופי: ${finalScore}%`;
-    if (!passed && currentWrongAnswers.length > 0) getEl('btn-tutor').classList.remove('hidden');
-    if (passed) triggerConfetti();
-    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
-    fetchData(); 
-}
-
-function closeQuiz() { getEl('quiz-runner-modal').classList.add('hidden'); getEl('question-container').classList.remove('hidden'); getEl('quiz-result').classList.add('hidden'); }
-
-function filterSuggestions(v) { const list = getEl('suggestions'); list.innerHTML = ''; if (!v) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(v)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { getEl('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
-
-async function submitShopItem() { 
-    const itemInput = getEl('shop-item'); const btn = getEl('btn-submit-shop'); 
-    const item = itemInput.value; const qty = parseFloat(val('shop-quantity')) || 1; const est = parseFloat(val('shop-est-price')) || 0; const unit = val('shop-unit') || "יח'"; const upp = parseInt(val('shop-upp')) || 1;
-    if(!item) return; if (btn && btn.disabled) return; 
-    if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
-    try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
-        const data = await res.json(); 
-        if (data.success) { 
-            getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden'); 
-            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
-            showToast('success', 'נוסף לרשימה'); fetchData(); 
-        } else { showToast('error', data.error || 'שגיאת שרת בהוספת פריט לרכש'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } } 
-}
-
-async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
-
-async function clearEntireCart() {
-    if(!confirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.')) return;
-    try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
-}
-
-function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
-
-function renderShopList() {
-    if (document.activeElement.classList.contains('price-input')) return;
-    const list = getEl('shop-list'); const reqList = getEl('shop-requests-list'); const reqContainer = getEl('shop-requests-container');
-    const activeItems = []; const requestedItems = [];
-    shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
-    
-    let reqHtml = '';
-    if (requestedItems.length > 0) {
-        reqContainer.classList.remove('hidden');
-        requestedItems.forEach(i => {
-            const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להורה</span>`;
-            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">בקשה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
-        });
-        reqList.innerHTML = reqHtml;
-    } else { reqContainer.classList.add('hidden'); }
-
-    const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
-
-    if(activeItems.length === 0) { 
-        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
-        const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
-        const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
-        return; 
-    }
-    
-    if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
-    else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
-    
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
-    let currentCat = ''; let shopHtml = '';
-    activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
-        const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
-        const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
-        const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
-        let bestPriceHtml = '';
-        
-        if (i.best_price && i.best_price.price_per_unit > 0) { 
-            const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
-            const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL');
-            const sourceText = i.best_price.is_local ? 'קנית בעבר' : 'חוכמת ההמונים';
-            const badgeColor = i.best_price.is_local ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600';
-            const icon = i.best_price.is_local ? 'fa-clock-rotate-left' : 'fa-users';
-            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
-        }
-
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
-    });
-    list.innerHTML = shopHtml; calcRunningTotal();
-}
-
-async function updateRow(id, type, value) {
-    if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
-    else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
-    if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
-}
-
-function toggleMissingLocal(id) { const row = getEl(`row-${id}`); const btn = getEl(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; getEl(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר בספק'; } calcRunningTotal(); }
-
-function calcRunningTotal() { 
-    let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); 
-        if (isChecked && !isMissing) { 
-            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
-            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; 
-            total += (unitPrice * qty); 
-        } 
-    }); 
-    getEl('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
-}
-
-function openCheckoutSummary() { 
-    let count = 0; let missing = 0; let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        if (row.classList.contains('missing')) missing++; 
-        else if (row.querySelector('input[type="checkbox"]').checked) { 
-            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
-            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; total += (unitPrice * qty); 
-        } 
-    }); 
-    if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום לאישור'); return; } 
-    getEl('summ-count').innerText = count; getEl('summ-missing').innerText = missing; getEl('summ-total').innerText = `₪${total.toFixed(2)}`; getEl('confirm-checkout-modal').classList.remove('hidden'); 
-}
-
-async function submitFinalCheckout() {
-    const store = val('checkout-store') || 'סופר כללי'; const branch = val('checkout-branch'); let total = 0; const boughtItems = []; const missingItems = [];
-    document.querySelectorAll('.shop-row').forEach(row => {
-        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
-        if (row.classList.contains('missing')) { missingItems.push({ id }); } 
-        else if (row.querySelector('input[type="checkbox"]').checked) {
-            const unitPrice = parseFloat(getEl(`price-${id}`).value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; const rowTotal = unitPrice * qty; total += rowTotal;
-            boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
-        }
-    });
-    const res = await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
-    const data = await res.json();
-    if(data.success) { getEl('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הקניה בוצעה ואושרה למזווה!'); fetchData(); } else showToast('error', data.error);
-}
-
-async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
-
-function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
-function sendWhatsAppInvite(role) { 
-    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
-    let text = role === 'ADMIN' ? `היי! פתחנו בנק משפחתי ב-Oneflow Life 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד המשפחה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflow Life 🚀\n\nקוד המשפחה לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); getEl('invite-modal').classList.add('hidden'); 
-}
-
-function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
-
-async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
-function openBankSettings(id, name, allowance, interest) { getEl('bank-user-id').value = id; getEl('bank-user-name').innerText = `תקציב דמי כיס: ${name}`; getEl('bank-allowance').value = allowance; getEl('bank-interest').value = interest; getEl('bank-settings-modal').classList.remove('hidden'); }
-async function submitBankSettings() { const uid = val('bank-user-id'); const allowance = val('bank-allowance'); const interest = val('bank-interest'); await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); getEl('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-async function triggerPayday() { if(!confirm('האם לחלק דמי כיס וריבית לכל הילדים כעת?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לקופות הילדים!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
-function openGoalModal() { if(currentUser.role === 'ADMIN') { getEl('goal-user-select-container').classList.remove('hidden'); } getEl('goal-title').value = ''; getEl('goal-target').value = ''; getEl('goal-modal').classList.remove('hidden'); }
-function openDepositModal(id, title) { getEl('deposit-goal-id').value = id; getEl('deposit-goal-title').innerText = title; getEl('goal-deposit-modal').classList.remove('hidden'); }
-async function submitGoal() { const title = val('goal-title'); const target = parseFloat(val('goal-target')) || 0; const select = getEl('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && getEl('goal-user-select-container').style.display !== 'none') ? select.value : null; const res = await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target, groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { getEl('goal-modal').classList.add('hidden'); fetchData(); showToast('success', 'יעד הוגדר בהצלחה'); } else showToast('error', data.error); }
-async function submitDeposit() { const goalId = val('deposit-goal-id'); const amount = parseFloat(val('deposit-amount')) || 0; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount, groupId: currentGroup.id }) }); const data = await res.json(); if (data.success) { getEl('goal-deposit-modal').classList.add('hidden'); fetchData(); showToast('success', 'העברה בוצעה'); } else showToast('error', data.error); }
-
-function openTransactionModal(t) { 
-    getEl('trans-type').value=t; getEl('trans-modal-title').innerText=t==='income'?'הכנסה':'הוצאה'; 
-    const s=getEl('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); 
-    getEl('trans-date').value = new Date().toISOString().split('T')[0]; window.toggleTransType('onetime'); getEl('transaction-modal').classList.remove('hidden'); 
-}
-
-async function submitTransaction() { 
-    const amount = parseFloat(val('trans-amount')) || 0; if(!amount) return showToast('error', 'נא להזין סכום תקין'); 
-    const btn = getEl('btn-submit-transaction'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    const isRecurring = val('trans-is-recurring') === 'true'; let transDate = val('trans-date'); if (!transDate) transDate = new Date().toISOString().split('T')[0];
-    try {
-        const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
-        const data = await res.json();
-        if (data.success) { getEl('transaction-modal').classList.add('hidden'); showToast('success', 'נרשם בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה ברישום הפעולה'); }
-    } catch(e) { showToast('error', 'שגיאת שרת בשמירת פעולה'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'רשום פעולה'; } }
-}
-
-function openShopModal() { getEl('shop-modal').classList.remove('hidden'); }
-function openLoanModal() { getEl('loan-modal').classList.remove('hidden'); }
-
-async function submitLoan() { 
-    const amount = parseFloat(val('loan-amount')) || 0; if(amount <= 0) return showToast('error', 'נא להזין סכום תקין');
-    const btn = getEl('btn-submit-loan'); if (btn) { btn.disabled = true; btn.innerText = 'שולח...'; }
-    try {
-        const res = await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:amount, reason:val('loan-reason'), groupId: currentGroup.id})}); 
-        const data = await res.json();
-        if (data.success) { getEl('loan-modal').classList.add('hidden'); showToast('success', 'בקשת ההלוואה נשלחה להורה 📨'); fetchData(); fetchLoans(); } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאה בשליחת בקשה'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שלח'; } }
-}
-
-async function fetchLoans() {
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/loans?groupId=${currentGroup.id}`); const loans = await res.json();
-        const myLoansList = getEl('my-loans-list'); const adminLoansList = getEl('admin-loans-list'); const adminPanel = getEl('admin-loans-panel');
-        if (myLoansList) {
-            myLoansList.innerHTML = ''; const myLoans = loans.filter(l => String(l.user_id) === String(currentUser.id));
-            if(myLoans.length === 0) myLoansList.innerHTML = '<p class="text-sm text-slate-400 py-2">אין בקשות פעילות.</p>';
-            myLoans.forEach(l => {
-                let statusHtml = '';
-                if(l.status === 'pending') statusHtml = '<span class="text-xs text-orange-500 font-bold bg-orange-100 px-2 py-1 rounded">ממתין לאישור</span>';
-                else if(l.status === 'approved') statusHtml = '<span class="text-xs text-green-600 font-bold bg-green-100 px-2 py-1 rounded">אושר</span>';
-                else statusHtml = '<span class="text-xs text-red-500 font-bold bg-red-100 px-2 py-1 rounded">נדחה</span>';
-                myLoansList.innerHTML += `<div class="bg-white p-3 rounded-xl border border-slate-100 mb-2 flex justify-between items-center shadow-sm"><div><span class="font-bold text-slate-800">₪${l.amount}</span><p class="text-xs text-slate-500">${safeStr(l.reason)}</p></div>${statusHtml}</div>`;
-            });
-        }
-        if (currentUser.role === 'ADMIN' && adminLoansList && adminPanel) {
-            const pendingLoans = loans.filter(l => l.status === 'pending'); adminLoansList.innerHTML = '';
-            if (pendingLoans.length > 0) {
-                adminPanel.classList.remove('hidden');
-                pendingLoans.forEach(l => { adminLoansList.innerHTML += `<div class="bg-white p-3 rounded-xl mb-2 shadow-sm border border-orange-100"><div class="flex justify-between items-center mb-2"><span class="font-bold text-slate-800">${safeStr(l.nickname)} מבקש/ת ₪${l.amount}</span><span class="text-[10px] text-slate-400">${new Date(l.created_at).toLocaleDateString('he-IL')}</span></div><p class="text-xs text-slate-600 mb-3">${safeStr(l.reason)}</p><div class="flex gap-2"><button onclick="approveLoan(${l.id}, ${l.user_id}, ${l.amount})" class="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-green-600 transition">אשר בקשה</button><button onclick="rejectLoan(${l.id})" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">דחה</button></div></div>`; });
-            } else { adminPanel.classList.add('hidden'); }
-        }
-    } catch(e) {}
-}
-
-window.approveLoan = async function(loanId, userId, amount) {
-    if(!confirm(`האם לאשר העברה ע"ס ₪${amount}?`)) return;
-    try { await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, userId, amount, adminId: currentUser.id }) }); showToast('success', 'בקשה אושרה'); fetchLoans(); fetchData(); fetchMembers(); } catch(e) { showToast('error', 'שגיאה באיתור בקשה'); }
-};
-
-window.rejectLoan = async function(loanId) {
-    if(!confirm('האם לדחות את הבקשה?')) return;
-    try { await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId }) }); showToast('info', 'בקשה נדחתה'); fetchLoans(); } catch(e) { showToast('error', 'שגיאה בדחיית בקשה'); }
-};
-
-async function fetchBudget() {
-    const cat = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id;
-    try {
-        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
-        let data = await res.json(); if (!Array.isArray(data)) data = []; 
-        const list = getEl('budget-list'); list.innerHTML = '';
-        const baseCategories = CATEGORIES.expense.map(c => c.value);
-        data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
-        baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
-        let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
-        data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
-
-        const createRow = (category, spent, limit, isSub = false) => {
-            const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
-            const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
-            const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
-            const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
-            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
-        };
-
-        if (childrenItems.length > 0) {
-            const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
-            const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
-            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי ילדים ודמי כיס' : 'התקציב שלי';
-            list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
-        }
-        otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
-    } catch(e) {}
-}
-
-function openAddBudgetCategoryModal() { getEl('new-budget-cat-name').value = ''; getEl('add-budget-cat-modal').classList.remove('hidden'); }
-async function submitNewBudgetCat() { 
-    const catName = val('new-budget-cat-name'); if(!catName) return; 
-    const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
-    const btn = getEl('btn-submit-budget-cat'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); getEl('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); } catch(e) { showToast('error', 'שגיאה בשמירת סעיף'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הוסף לתקציב'; } }
-}
-
-function openPasteListModal() { getEl('paste-list-text').value = ''; getEl('paste-list-modal').classList.remove('hidden'); }
-
-async function submitPastedList() {
-    const text = val('paste-list-text'); if (!text.trim()) return;
-    const btn = getEl('btn-submit-paste'); btn.disabled = true; btn.innerText = 'קולט...';
-    const lines = text.split('\n').filter(l => l.trim() !== '');
-    try {
-        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
-        getEl('paste-list-modal').classList.add('hidden'); showToast('success', `נקלטו ${lines.length} שורות!`); fetchData();
-    } catch(e) { showToast('error', 'שגיאה בקליטה'); } finally { btn.disabled = false; btn.innerText = 'קלוט רשימה'; }
-}
-
-function exportShopToWhatsApp() {
-    const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
-    if (activeItems.length === 0) return showToast('error', 'הרשימה ריקה');
-    let text = `*רשימת קניות מ-Oneflow Life:*\n\n`; activeItems.forEach(i => { text += `• ${i.item_name} (${i.quantity} ${i.unit || "יח'"})\n`; });
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-}
-
-function openBudgetModal(catId, catName, currentLimit) { getEl('budget-cat-name').innerText = catName; getEl('budget-cat-id').value = catId; getEl('budget-limit').value = currentLimit > 0 ? currentLimit : ''; getEl('budget-modal').classList.remove('hidden'); }
-async function submitBudgetUpdate() { 
-    const cat = val('budget-cat-id'); const limit = parseFloat(val('budget-limit')) || 0; 
-    const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
-    const btn = getEl('btn-submit-budget-update'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); getEl('budget-modal').classList.add('hidden'); fetchBudget(); } catch(e) { showToast('error', 'שגיאת בעדכון'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'עדכן יעד'; } }
-}
-
-// -------------------------------------
-// פונקציות לתשקיף חכם (Forecast)
-// -------------------------------------
-
-window.toggleForecastMode = function(mode) {
-    currentForecastMode = mode;
-    getEl('btn-forecast-monthly').className = mode === 'monthly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    getEl('btn-forecast-yearly').className = mode === 'yearly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    getEl('forecast-month-filter').classList.toggle('hidden', mode !== 'monthly'); getEl('forecast-year-filter').classList.toggle('hidden', mode !== 'yearly');
-    renderForecast();
-};
-
-function populateForecastPeriods() {
-    const mSelect = getEl('forecast-month-filter'); const ySelect = getEl('forecast-year-filter');
-    if (mSelect && mSelect.options.length === 0) { const now = new Date(); for(let i=0; i<12; i++) { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; const label = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }); mSelect.innerHTML += `<option value="${monthStr}">${label}</option>`; } }
-    if (ySelect && ySelect.options.length === 0) { const curYear = new Date().getFullYear(); for(let i=0; i<5; i++) { ySelect.innerHTML += `<option value="${curYear + i}">שנת ${curYear + i}</option>`; } }
-}
-
-async function renderForecast() {
-    populateForecastPeriods();
-    const list = getEl('forecast-list'); if(!list) return; if(!currentGroup || !currentGroup.id) return;
-    const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-    const periodVal = currentForecastMode === 'monthly' ? val('forecast-month-filter') : val('forecast-year-filter');
-    
-    let startDate, endDate;
-    if (currentForecastMode === 'monthly') {
-        if (!periodVal) { const now = new Date(); startDate = new Date(now.getFullYear(), now.getMonth(), 1); endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); } 
-        else { const [year, month] = periodVal.split('-'); startDate = new Date(year, parseInt(month) - 1, 1); endDate = new Date(year, parseInt(month), 0, 23, 59, 59); }
-    } else {
-        const year = periodVal ? parseInt(periodVal) : new Date().getFullYear(); startDate = new Date(year, 0, 1); endDate = new Date(year, 11, 31, 23, 59, 59);
-    }
-    
-    let startingBalance = 0;
-    if (targetUserId === 'all') { startingBalance = membersCache.reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0); } 
-    else { const user = membersCache.find(m => String(m.id) === String(targetUserId)); if (user) startingBalance = parseFloat(user.balance) || 0; }
-    
-    const items = [];
-    let txList = targetUserId !== 'all' ? allTransactions.filter(t => String(t.user_id) === String(targetUserId)) : allTransactions;
-    
-    txList.forEach(t => {
-        const txDate = new Date(t.date); const amt = parseFloat(t.amount); const isRecurring = t.is_recurring === true || String(t.is_recurring).toLowerCase() === 'true';
-        if (!isRecurring) {
-            if (txDate >= startDate && txDate <= endDate) items.push({ ...t, amount: amt, date_str: txDate.toLocaleDateString('he-IL') });
-        } else {
-            let txStartMonth = new Date(txDate.getFullYear(), txDate.getMonth(), 1); let validEnd = true; let endD = null;
-            if (t.end_month) { const [endYear, endMonth] = t.end_month.split('-'); endD = new Date(endYear, parseInt(endMonth), 0, 23, 59, 59); if (startDate > endD) validEnd = false; }
-            if (endDate < txStartMonth) validEnd = false;
-            if (validEnd) {
-                if (currentForecastMode === 'monthly') { items.push({ ...t, amount: amt, date_str: 'קבוע (חודשי)' }); } 
-                else if (currentForecastMode === 'yearly') {
-                    let monthsActive = 0;
-                    for (let m = 0; m < 12; m++) { let checkStart = new Date(startDate.getFullYear(), m, 1); let checkEnd = new Date(startDate.getFullYear(), m + 1, 0, 23, 59, 59); let isActive = checkStart >= txStartMonth; if (endD && checkEnd > endD) isActive = false; if (isActive) monthsActive++; }
-                    if (monthsActive > 0) items.push({ ...t, amount: amt * monthsActive, description: `${t.description} (x${monthsActive} ח')`, date_str: 'קבוע (שנתי)' });
-                }
-            }
-        }
-    });
-    forecastCache = { startingBalance, items };
-    const itemsToRender = forecastCache.items || [];
-    let totalIncome = 0; let totalExpense = 0; let projectedNetChange = 0;
-    const incomeData = {}; const expenseData = {};
-    let html = ''; const now = new Date();
-    
-    if(itemsToRender.length === 0) { html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>'; } 
-    else {
-        itemsToRender.forEach(item => {
-            const isIncome = item.type === 'income'; const amt = parseFloat(item.amount); const itemDate = new Date(item.date); const isRecurring = item.is_recurring === true || String(item.is_recurring).toLowerCase() === 'true';
-            if(isIncome) { totalIncome += amt; incomeData[item.category] = (incomeData[item.category] || 0) + amt; } else { totalExpense += amt; expenseData[item.category] = (expenseData[item.category] || 0) + amt; }
-            if (isRecurring || itemDate > now) { if (isIncome) projectedNetChange += amt; else projectedNetChange -= amt; }
-            const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-            const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; const prefix = isIncome ? '+' : '-';
-            const recBadge = isRecurring ? '<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
-            const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${safeStr(item.user_name)}</span>` : '';
-            html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-slate-200 transition"><div class="flex-1 overflow-hidden"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${safeStr(item.description)}</span> ${userName} ${recBadge}</p><p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p></div><span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span></div>`;
-        });
-    }
-    list.innerHTML = html;
-    const projectedBalance = parseFloat(forecastCache.startingBalance) + projectedNetChange;
-    getEl('forecast-net-change').innerText = `₪${projectedNetChange.toFixed(2)}`;
-    getEl('forecast-net-change').className = `text-lg font-bold ${projectedNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
-    getEl('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
-    
-    drawForecastCharts({ income: totalIncome }, { expense: totalExpense }, totalIncome, totalExpense);
-}
-
-function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) {
-    const container = getEl('forecast-charts'); if(!container) return;
-    container.className = "mt-6 border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-center gap-6";
-    
-    let sumsHtml = `
-        <div class="flex flex-col gap-3 w-full md:w-auto text-center md:text-right">
-            <div class="bg-green-50 border border-green-100 p-3 rounded-xl">
-                <span class="text-[10px] text-green-600 font-bold block mb-1">סה"כ הכנסות צפויות:</span>
-                <span class="text-lg font-black text-green-700">₪${totalIncome.toFixed(2)}</span>
-            </div>
-            <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
-                <span class="text-[10px] text-red-600 font-bold block mb-1">סה"כ הוצאות צפויות:</span>
-                <span class="text-lg font-black text-red-700">₪${totalExpense.toFixed(2)}</span>
-            </div>
-        </div>
-    `;
-
-    container.innerHTML = `
-        ${sumsHtml}
-        <div class="w-full max-w-[200px]">
-            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">יחס (הכנסות/הוצאות)</h4>
-            <div class="relative h-40 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
-        </div>
-    `;
-    const ctx = getEl('ratioChart'); if(!ctx) return;
-    if(forecastRatioChart) forecastRatioChart.destroy();
-    if(totalIncome > 0 || totalExpense > 0) {
-        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalIncome, totalExpense], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 w-full">אין פעולות עתידיות להצגת נתונים</p>'; }
-}
-
-function getForecastInsight() {
-    executeWithAIWarning(async () => {
-        showAIModal('רואת העתידות', null); getEl('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי...';
-        try {
-            const periodVal = currentForecastMode === 'monthly' ? val('forecast-month-filter') : val('forecast-year-filter');
-            const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const res = await fetch(`${API}/forecast/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, period: periodVal, mode: currentForecastMode, targetUserId: targetUserId }) }); 
-            const data = await res.json();
-            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success && data.insight) { showAIModal('רואת העתידות', data.insight); } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
-        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
-    });
-}
-
-function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
-function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = getEl(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
-function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
-function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
-function openAccessibilityModal() { getEl('accessibility-modal').classList.remove('hidden'); }
-function closeAccessibilityModal() { getEl('accessibility-modal').classList.add('hidden'); }
-
-async function fetchPendingUsers() { 
-    try { 
-        if(!currentGroup || !currentGroup.id) return; 
-        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
-        if (users && users.length > 0) { 
-            container.classList.remove('hidden'); list.innerHTML = ''; 
-            users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר צוות</button></div></div>`; }); 
-        } else { if(container) container.classList.add('hidden'); } 
-    } catch(e) {} 
-}
-
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
-function openProfileModal() { getEl('old-password').value = ''; getEl('new-password').value = ''; getEl('profile-modal').classList.remove('hidden'); }
-async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
-async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
-
-async function open360Report(groupId) {
-    showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
-    try {
-        let url, headers = {};
-        if (saToken) { url = `${API}/superadmin/group-360/${groupId}`; headers = { 'Authorization': saToken }; } 
-        else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
-
-        const res = await fetch(url, { headers }); const data = await res.json();
-        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
-
-        const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
-        getEl('report-360-group-name').innerText = safeStr(data.group.name);
-        getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
-        getEl('report-360-group-code').innerText = data.group.group_code;
-        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
-        getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        const usersList = getEl('report-360-users-list');
-        let usersHtml = ''; let totalBalances = 0;
-        data.users.forEach(u => {
-            const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
-            const bal = parseFloat(u.balance) || 0; totalBalances += bal;
-            usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
-        });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
-        usersList.innerHTML = usersHtml;
-
-        const txList = getEl('report-360-tx-list');
-        let txHtml = '';
-        if(data.transactions && data.transactions.length > 0) {
-            data.transactions.forEach(t => {
-                const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
-                const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
-                txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
-            });
-        } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
-        txList.innerHTML = txHtml;
-
-        const tasksList = getEl('report-360-tasks-list');
-        let tasksHtml = '';
-        if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
-            data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
-        tasksList.innerHTML = tasksHtml;
-
-        getEl('report-360-modal').classList.remove('hidden');
-    } catch(e) { showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח'); }
-}
-
-function download360PDF() {
-    const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
-}
-
-// === פונקציות המזווה - תמיכה ביחידות ===
 function openPantryUseModal(name, unit, qty, upp) { 
     const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
     getEl('use-pantry-title').innerText = `מה לקחת מ: ${name}?`; 
@@ -3299,695 +2133,701 @@ function closeWelcomeModal() {
     checkAndStartTour(forceTourStart);
     forceTourStart = false;
 }
+
 function checkAndStartTour(force = false) {
-    setTimeout(() => {
-        try {
-            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
-            if (force || !localStorage.getItem(tourKey)) {
-                localStorage.setItem(tourKey, 'true');
-                switchTab('feed');
-                if (currentUser.role === 'ADMIN') startAdminTour();
-                else startChildTour();
-            }
-        } catch(e) {}
-    }, 1000);
+    setTimeout(() => {
+        try {
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
+            if (force || !localStorage.getItem(tourKey)) {
+                localStorage.setItem(tourKey, 'true');
+                switchTab('feed');
+                if (currentUser.role === 'ADMIN') startAdminTour();
+                else startChildTour();
+            }
+        } catch(e) {}
+    }, 1000);
 }
 
 function triggerManualTour() {
-    getEl('profile-modal').classList.add('hidden');
-    setTimeout(() => {
-        switchTab('feed');
-        if (currentUser.role === 'ADMIN') startAdminTour();
-        else startChildTour();
-    }, 300);
+    getEl('profile-modal').classList.add('hidden');
+    setTimeout(() => {
+        switchTab('feed');
+        if (currentUser.role === 'ADMIN') startAdminTour();
+        else startChildTour();
+    }, 300);
 }
 
 function openAlertModal(title, text) {
-    const titleEl = getEl('generic-alert-title');
-    const textEl = getEl('generic-alert-text');
-    const modal = getEl('generic-alert-modal');
-    if(titleEl && textEl && modal) {
-        titleEl.innerText = title;
-        textEl.innerText = text;
-        modal.classList.remove('hidden');
-    }
+    const titleEl = getEl('generic-alert-title');
+    const textEl = getEl('generic-alert-text');
+    const modal = getEl('generic-alert-modal');
+    if(titleEl && textEl && modal) {
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        modal.classList.remove('hidden');
+    }
 }
-
 async function linkBizToCommunity() {
-    const communityId = val('sa-link-comm'); 
-    const businessId = val('sa-link-biz'); 
-    let discountPct = val('sa-link-discount');
-    discountPct = discountPct ? parseFloat(discountPct) : 0;
-    
-    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
-    
-    try {
-        const res = await fetch(`${API}/sa/community-business`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
-            }, 
-            body: JSON.stringify({ communityId, businessId, discountPct })
-        });
-        
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'העסק שויך לקהילה!'); 
-            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
-            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
-            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
-        }
-    } catch(e) { 
-        console.error('Network Error linking biz:', e);
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    }
+    const communityId = val('sa-link-comm'); 
+    const businessId = val('sa-link-biz'); 
+    let discountPct = val('sa-link-discount');
+    discountPct = discountPct ? parseFloat(discountPct) : 0;
+    
+    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
+    
+    try {
+        const res = await fetch(`${API}/sa/community-business`, { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
+            }, 
+            body: JSON.stringify({ communityId, businessId, discountPct })
+        });
+        
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'העסק שויך לקהילה!'); 
+            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
+            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
+            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
+        }
+    } catch(e) { 
+        console.error('Network Error linking biz:', e);
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    }
 }
 
 async function loadCommunityBusinesses() {
-    const communityId = val('sa-link-comm');
-    const list = getEl('sa-comm-biz-list');
-    if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
-    
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
-    try {
-        const res = await fetch(`${API}/sa/community-business/${communityId}`);
-        const data = await res.json();
-        if(data.success) {
-            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
-            list.innerHTML = data.connections.map(c => `
-                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
-                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
-                </div>
-            `).join('');
-        }
-    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
+    const communityId = val('sa-link-comm');
+    const list = getEl('sa-comm-biz-list');
+    if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
+    
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
+    try {
+        const res = await fetch(`${API}/sa/community-business/${communityId}`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
+            list.innerHTML = data.connections.map(c => `
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
+                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
 }
 
 async function removeBizFromCommunity(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יקבלו יותר את ההנחה של העסק הזה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
-    } catch(e) {}
+    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יקבלו יותר את ההנחה של העסק הזה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
+    } catch(e) {}
 }
 
 // -- ניהול עסקים כולל (דרישה 5) --
 function renderSABusinessesTable() {
-    const tbody = getEl('sa-businesses-table-body');
-    if (!tbody) return;
+    const tbody = getEl('sa-businesses-table-body');
+    if (!tbody) return;
 
-    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
-    let filtered = [...saBusinessesCache];
-    
-    if (query) {
-        filtered = filtered.filter(b => 
-            (b.name && b.name.toLowerCase().includes(query)) || 
-            (b.group_code && b.group_code.toLowerCase().includes(query))
-        );
-    }
+    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
+    let filtered = [...saBusinessesCache];
+    
+    if (query) {
+        filtered = filtered.filter(b => 
+            (b.name && b.name.toLowerCase().includes(query)) || 
+            (b.group_code && b.group_code.toLowerCase().includes(query))
+        );
+    }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
-        return;
-    }
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
+        return;
+    }
 
-    tbody.innerHTML = filtered.map(b => `
-        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">
-                ${safeStr(b.name)}
-                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
-            </td>
-            <td class="px-4 py-4 text-right">
-                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
-            </td>
-        </tr>
-    `).join('');
+    // מאחר ואין לנו Endpoint שמחזיר את כל החיבורים יחד, נצטרך לעשות Fetch פר עסק בעת פתיחת המודאל.
+    // בטבלה נציג נתונים כלליים ונגישות לחלון הניהול
+    tbody.innerHTML = filtered.map(b => `
+        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-4 font-bold text-slate-800 text-right">
+                ${safeStr(b.name)}
+                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
+            </td>
+            <td class="px-4 py-4 text-right">
+                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
 function filterSABusinessesTable() { renderSABusinessesTable(); }
 
 async function openSABusinessModal(bizId) {
-    const biz = saBusinessesCache.find(b => b.id == bizId);
-    if (!biz) return;
-    
-    getEl('sa-edit-biz-title').innerText = biz.name;
-    getEl('sa-edit-biz-code').innerText = biz.group_code;
-    
-    const list = getEl('sa-edit-biz-communities-list');
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
-    
-    getEl('sa-business-modal').classList.remove('hidden');
+    const biz = saBusinessesCache.find(b => b.id == bizId);
+    if (!biz) return;
+    
+    getEl('sa-edit-biz-title').innerText = biz.name;
+    getEl('sa-edit-biz-code').innerText = biz.group_code;
+    
+    const list = getEl('sa-edit-biz-communities-list');
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
+    
+    getEl('sa-business-modal').classList.remove('hidden');
 
-    try {
-        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
-        const data = await res.json();
-        
-        if (data.success && data.communities) {
-            if (data.communities.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
-            } else {
-                list.innerHTML = data.communities.map(c => `
-                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
-                        <div>
-                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
-                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
-                        </div>
-                        <div class="flex flex-col items-end gap-2">
-                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
-                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-    } catch(e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
-    }
+    try {
+        // מכיוון שאנחנו כאדמין ראשי, יש לנו גישה לנתיב החיבורים של העסק (Biz App route)
+        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
+        const data = await res.json();
+        
+        if (data.success && data.communities) {
+            if (data.communities.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
+            } else {
+                list.innerHTML = data.communities.map(c => `
+                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
+                        <div>
+                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
+                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
+                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
+    }
 }
 
 async function removeBizFromCommunityInModal(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { 
-            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
-            openSABusinessModal(bizId); 
-            loadSACommunityData(); 
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { 
+            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
+            openSABusinessModal(bizId); // טעינה מחדש של החלון
+            loadSACommunityData(); // רענון נתוני הרקע
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
-    window.loadSADashboard = async function() {
-        const userDash = document.getElementById('dashboard-container');
-        if (userDash) userDash.classList.add('hidden');
-        
-        await originalLoadSADashboard();
-        loadSACommunityData();
-        
-        setTimeout(() => {
-            if (userDash) userDash.classList.add('hidden');
-        }, 100);
-    };
+    window.loadSADashboard = async function() {
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        loadSACommunityData();
+        
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
 window.saCommLoaded = true;
 }
 
+// ==========================================
+// --- ONBOARDING WIZARD (אשף הקמה למשפחה) ---
+// ==========================================
 let currentWizardStep = 1;
 let wizardProducts = [];
 
 function showOnboardingWizard() {
-    if (document.getElementById('onboarding-wizard-modal')) {
-        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
-        return;
-    }
+    if (document.getElementById('onboarding-wizard-modal')) {
+        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
+        return;
+    }
 
-    const modalHtml = `
-    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-            
-            <div class="w-full bg-slate-100 h-1.5 shrink-0">
-                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
-            </div>
+    const modalHtml = `
+    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+            
+            <div class="w-full bg-slate-100 h-1.5 shrink-0">
+                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
+            </div>
 
-            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
-                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
-                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
-            </div>
+            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
+                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
+                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
+            </div>
 
-            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
-                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> המשפחה שלנו</h3>
-                    <div class="space-y-4">
-                        <div class="flex flex-col items-center justify-center mb-6">
-                            <label class="text-xs font-bold text-slate-500 mb-2">תמונה משפחתית (אופציונלי):</label>
-                            <div class="relative w-24 h-24 bg-white rounded-full border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
-                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
-                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
-                            </div>
-                            <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
-                            <input type="hidden" id="wizard-logo-base64">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">משפט מפתח / מוטו משפחתי:</label>
-                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="משפחה שכזאת / המשפחה הכי טובה בעולם">
-                        </div>
-                    </div>
-                </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
+                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> המשפחה שלנו</h3>
+                    <div class="space-y-4">
+                        <div class="flex flex-col items-center justify-center mb-6">
+                            <label class="text-xs font-bold text-slate-500 mb-2">תמונה משפחתית (אופציונלי):</label>
+                            <div class="relative w-24 h-24 bg-white rounded-full border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
+                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
+                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
+                            </div>
+                            <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                            <input type="hidden" id="wizard-logo-base64">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">משפט מפתח / מוטו משפחתי:</label>
+                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="משפחה שכזאת / המשפחה הכי טובה בעולם">
+                        </div>
+                    </div>
+                </div>
 
-                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-piggy-bank text-indigo-500"></i> תקציב חודשי</h3>
-                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהו התקציב הפנוי או ההכנסה המשותפת שתרצו לנהל ולעקוב אחריה החודש באפליקציה.</p>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                        <label class="text-sm font-bold text-slate-700 block mb-2">התקציב החודשי (₪):</label>
-                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
-                        <p class="text-[10px] text-slate-400 mt-3">* אל דאגה, תוכלו לשנות או לאפס את זה בכל רגע.</p>
-                    </div>
-                </div>
+                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-piggy-bank text-indigo-500"></i> תקציב חודשי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהו התקציב הפנוי או ההכנסה המשותפת שתרצו לנהל ולעקוב אחריה החודש באפליקציה.</p>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                        <label class="text-sm font-bold text-slate-700 block mb-2">התקציב החודשי (₪):</label>
+                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
+                        <p class="text-[10px] text-slate-400 mt-3">* אל דאגה, תוכלו לשנות או לאפס את זה בכל רגע.</p>
+                    </div>
+                </div>
 
-                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית המזווה המשפחתי</h3>
-                    <p class="text-xs text-slate-500 text-center mb-4">נוסיף עכשיו את המוצרים שתמיד צריכים להיות בבית. אפשר לתת ל-AI שלנו לנחש בשבילכם!</p>
-                    
-                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
-                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ מילוי מזווה אוטומטי ב-AI</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תארו אתכם (למשל: משפחה טבעונית, או משפחה עם תינוק)">
-                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">מלא מזווה</button>
-                        </div>
-                    </div>
+                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית המזווה המשפחתי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-4">נוסיף עכשיו את המוצרים שתמיד צריכים להיות בבית. אפשר לתת ל-AI שלנו לנחש בשבילכם!</p>
+                    
+                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
+                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ מילוי מזווה אוטומטי ב-AI</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תארו אתכם (למשל: משפחה טבעונית, או משפחה עם תינוק)">
+                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">מלא מזווה</button>
+                        </div>
+                    </div>
 
-                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
-                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="wiz-add-name" placeholder="שם מוצר (חלב 3%)" class="modern-input py-2 text-xs flex-1">
-                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs w-24 shrink-0">
-                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs shrink-0">הוסף</button>
-                        </div>
-                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
+                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wiz-add-name" placeholder="שם מוצר (חלב 3%)" class="modern-input py-2 text-xs flex-1">
+                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs w-24 shrink-0">
+                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs shrink-0">הוסף</button>
+                        </div>
+                    </div>
 
-                    <div class="flex justify-between items-center mb-2 px-1">
-                        <h4 class="font-bold text-slate-700 text-sm">מוצרים במזווה (<span id="wiz-prod-count">0</span>/25):</h4>
-                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
-                    </div>
-                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
-                        <p class="text-xs text-slate-400 text-center py-4">אין מוצרים במזווה עדיין.</p>
-                    </div>
-                </div>
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <h4 class="font-bold text-slate-700 text-sm">מוצרים במזווה (<span id="wiz-prod-count">0</span>/25):</h4>
+                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
+                    </div>
+                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
+                        <p class="text-xs text-slate-400 text-center py-4">אין מוצרים במזווה עדיין.</p>
+                    </div>
+                </div>
 
-                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
-                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את המשפחה</h3>
-                    <p class="text-sm text-slate-500 mb-8">הסביבה מוכנה! שלחו עכשיו הזמנה לשאר בני הבית כדי שיתחילו לקבל דמי כיס ולעזור במשימות.</p>
-                    
-                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-brands fa-whatsapp text-lg"></i> הזמנת ילד/ה בוואטסאפ
-                    </button>
-                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה שותף
-                    </button>
-                </div>
-            </div>
+                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
+                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את המשפחה</h3>
+                    <p class="text-sm text-slate-500 mb-8">הסביבה מוכנה! שלחו עכשיו הזמנה לשאר בני הבית כדי שיתחילו לקבל דמי כיס ולעזור במשימות.</p>
+                    
+                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-brands fa-whatsapp text-lg"></i> הזמנת ילד/ה בוואטסאפ
+                    </button>
+                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה שותף
+                    </button>
+                </div>
+            </div>
 
-            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
-                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
-                <div class="flex gap-2">
-                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
-                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
+                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
+                <div class="flex gap-2">
+                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
+                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function handleWizardLogo(event) {
-    const file = event.target.files[0]; if(!file) return;
-    compressImage(file, 300, 300, 0.8, (base64) => {
-        getEl('wizard-logo-preview').src = base64;
-        getEl('wizard-logo-preview').classList.remove('hidden');
-        getEl('wizard-logo-icon').classList.add('hidden');
-        getEl('wizard-logo-base64').value = base64;
-    });
+    const file = event.target.files[0]; if(!file) return;
+    compressImage(file, 300, 300, 0.8, (base64) => {
+        getEl('wizard-logo-preview').src = base64;
+        getEl('wizard-logo-preview').classList.remove('hidden');
+        getEl('wizard-logo-icon').classList.add('hidden');
+        getEl('wizard-logo-base64').value = base64;
+    });
 }
 
 function addWizardProduct() {
-    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בבת אחת.');
-    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי';
-    if (!name) return showToast('error', 'יש להזין שם מוצר');
-    wizardProducts.push({ name, category: cat });
-    getEl('wiz-add-name').value = ''; getEl('wiz-add-cat').value = '';
-    renderWizardProducts();
+    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בבת אחת.');
+    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי';
+    if (!name) return showToast('error', 'יש להזין שם מוצר');
+    wizardProducts.push({ name, category: cat });
+    getEl('wiz-add-name').value = ''; getEl('wiz-add-cat').value = '';
+    renderWizardProducts();
 }
 
 function removeWizardProduct(idx) { wizardProducts.splice(idx, 1); renderWizardProducts(); }
 
 function renderWizardProducts() {
-    const list = getEl('wizard-products-list');
-    getEl('wiz-prod-count').innerText = wizardProducts.length;
-    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">המזווה ריק.</p>'; return; }
-    list.innerHTML = wizardProducts.map((p, idx) => `
-        <div class="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
-            <div class="flex-1 pr-2 overflow-hidden">
-                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)}</div>
-                <div class="text-[10px] text-slate-400 truncate">${safeStr(p.category)}</div>
-            </div>
-            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
-        </div>
-    `).join('');
+    const list = getEl('wizard-products-list');
+    getEl('wiz-prod-count').innerText = wizardProducts.length;
+    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">המזווה ריק.</p>'; return; }
+    list.innerHTML = wizardProducts.map((p, idx) => `
+        <div class="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
+            <div class="flex-1 pr-2 overflow-hidden">
+                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)}</div>
+                <div class="text-[10px] text-slate-400 truncate">${safeStr(p.category)}</div>
+            </div>
+            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `).join('');
 }
 
 async function generateWizardCatalog() {
-    const prompt = val('wizard-ai-prompt');
-    if(!prompt) return showToast('error', 'רשמו למשל: משפחה של 5 נפשות שומרת כשרות');
-    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch(`${API}/ai/generate-catalog`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ promptText: prompt, type: 'FAMILY', groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        if (data.success && data.items) {
-            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
-            renderWizardProducts(); showToast('success', 'המזווה התמלא!');
-        } else { showToast('error', data.error || 'שגיאה ביצירת מזווה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
-    finally { btn.disabled = false; btn.innerText = 'מלא מזווה'; }
+    const prompt = val('wizard-ai-prompt');
+    if(!prompt) return showToast('error', 'רשמו למשל: משפחה של 5 נפשות שומרת כשרות');
+    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ promptText: prompt, type: 'FAMILY', groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success && data.items) {
+            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
+            renderWizardProducts(); showToast('success', 'המזווה התמלא!');
+        } else { showToast('error', data.error || 'שגיאה ביצירת מזווה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
+    finally { btn.disabled = false; btn.innerText = 'מלא מזווה'; }
 }
 
 function updateWizardUI() {
-    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
-    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
-    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
-    
-    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
-    const btnNext = getEl('wizard-btn-next');
-    if (currentWizardStep === 4) {
-        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
-        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
-    } else {
-        btnNext.innerText = 'המשך';
-        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
-    }
+    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
+    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
+    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
+    
+    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
+    const btnNext = getEl('wizard-btn-next');
+    if (currentWizardStep === 4) {
+        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
+        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
+    } else {
+        btnNext.innerText = 'המשך';
+        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
+    }
 }
 
 async function nextWizardStep() {
-    const btnNext = getEl('wizard-btn-next');
-    
-    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        try {
-            // משתמש ב-Settings Store סתם כדי לשמור את התמונה והסלוגן המשפחתי גם אם זה Family
-            await fetch(`${API}/store/settings`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ groupId: currentGroup.id, isActive: false, slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
-            });
-        } catch(e) {}
-    }
-    
-    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
-        const budget = parseFloat(val('wizard-initial-budget')) || 0;
-        if (budget > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            try {
-                await fetch(`${API}/transaction`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
-                });
-            } catch(e) {}
-        }
-    }
-    
-    else if (currentWizardStep === 3) { // העלאת מוצרי מזווה
-        if (wizardProducts.length > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
-            try {
-                for (let p of wizardProducts) {
-                    await fetch(`${API}/pantry/add`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
-                    });
-                }
-            } catch(e) {}
-        }
-    }
-    
-   else if (currentWizardStep === 4) { // סיום
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
-        try {
-            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
-            currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
-            getEl('onboarding-wizard-modal').classList.add('hidden');
-            triggerConfetti(); fetchData();
-        } catch(e) {}
-        return;
-    }
-    currentWizardStep++;
-    updateWizardUI();
+    const btnNext = getEl('wizard-btn-next');
+    
+    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            // משתמש ב-Settings Store סתם כדי לשמור את התמונה והסלוגן המשפחתי גם אם זה Family
+            await fetch(`${API}/store/settings`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, isActive: false, slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
+            });
+        } catch(e) {}
+    }
+    
+    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
+        const budget = parseFloat(val('wizard-initial-budget')) || 0;
+        if (budget > 0) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                await fetch(`${API}/transaction`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
+                });
+            } catch(e) {}
+        }
+    }
+    
+    else if (currentWizardStep === 3) { // העלאת מוצרי מזווה
+        if (wizardProducts.length > 0) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
+            try {
+                for (let p of wizardProducts) {
+                    await fetch(`${API}/pantry/add`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
+                    });
+                }
+            } catch(e) {}
+        }
+    }
+    
+   else if (currentWizardStep === 4) { // סיום
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
+        try {
+            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
+            currentGroup.is_onboarded = true;
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
+            getEl('onboarding-wizard-modal').classList.add('hidden');
+            triggerConfetti(); fetchData();
+        } catch(e) {}
+        return;
+    }
+    currentWizardStep++;
+    updateWizardUI();
 }
 
 function prevWizardStep() {
-    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
+    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
 }
 
 function skipWizardStep() {
-    if (currentWizardStep === 4) nextWizardStep(); // סיום
-    else { currentWizardStep++; updateWizardUI(); }
+    if (currentWizardStep === 4) nextWizardStep(); // סיום
+    else { currentWizardStep++; updateWizardUI(); }
 }
 
 // --- ניהול תמונת זהות משפחתית ---
 window.handleFamilyPhotoUpload = async function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    showToast('info', 'מעלה ומעבד תמונה...');
-    compressImage(file, 600, 600, 0.8, async (base64) => {
-        
-        // 1. תצוגה מיידית למשתמש ושמירה במטמון לפני תשובת שרת
-        if (currentGroup) currentGroup.logo_url = base64;
-        const headerImg = getEl('header-group-img');
-        const headerFallback = getEl('header-group-icon-fallback');
-        const mgmtImg = getEl('mgmt-group-logo-preview');
-        const mgmtIcon = getEl('mgmt-group-logo-icon');
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showToast('info', 'מעלה ומעבד תמונה...');
+    compressImage(file, 600, 600, 0.8, async (base64) => {
+        
+        // 1. תצוגה מיידית למשתמש ושמירה במטמון לפני תשובת שרת
+        if (currentGroup) currentGroup.logo_url = base64;
+        const headerImg = getEl('header-group-img');
+        const headerFallback = getEl('header-group-icon-fallback');
+        const mgmtImg = getEl('mgmt-group-logo-preview');
+        const mgmtIcon = getEl('mgmt-group-logo-icon');
 
-        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
-        if (headerFallback) headerFallback.classList.add('hidden');
-        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
-        if (mgmtIcon) mgmtIcon.classList.add('hidden');
+        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
 
-        // 2. שמירה בשרת
-        try {
-            const res = await fetch(`${API}/store/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    groupId: currentGroup.id,
-                    logoUrl: base64,
-                    isActive: true
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
-            } else {
-                showToast('error', 'שגיאה בשמירת התמונה בשרת');
-            }
-        } catch (e) {
-            showToast('error', 'תקלת רשת בעדכון תמונה');
-        }
-    });
+        // 2. שמירה בשרת
+        try {
+            const res = await fetch(`${API}/store/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    groupId: currentGroup.id,
+                    logoUrl: base64,
+                    isActive: true
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
+            } else {
+                showToast('error', 'שגיאה בשמירת התמונה בשרת');
+            }
+        } catch (e) {
+            showToast('error', 'תקלת רשת בעדכון תמונה');
+        }
+    });
 };
 
 // =====================================
 // ניהול הרשאות ופיצ'רים (Feature Flags)
 // =====================================
 const ALL_TABS = [
-    { id: 'feed', name: 'ראשי 🏠' },
-    { id: 'tasks', name: 'משימות הבית ✅' },
-    { id: 'shop', name: 'רשימת סופר 🛒' },
-    { id: 'myorders', name: 'משלוחים 🛵' },
-    { id: 'bank', name: 'הבנק המשפחתי 🏦' },
-    { id: 'cashflow', name: 'תזרים עו"ש 💸' },
-    { id: 'community', name: 'קהילה מקומית 🏘️' },
-    { id: 'academy', name: 'לומדות חינוך 🎓' },
-    { id: 'members', name: 'ניהול משפחה 👨‍👩‍👧‍👦' },
-    { id: 'budget', name: 'ניהול תקציב 📊' },
-    { id: 'pantry', name: 'ניהול מזווה 📦' },
-    { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
-    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'tasks', name: 'משימות הבית ✅' },
+    { id: 'shop', name: 'רשימת סופר 🛒' },
+    { id: 'myorders', name: 'משלוחים 🛵' },
+    { id: 'bank', name: 'הבנק המשפחתי 🏦' },
+    { id: 'cashflow', name: 'תזרים עו"ש 💸' },
+    { id: 'community', name: 'קהילה מקומית 🏘️' },
+    { id: 'academy', name: 'לומדות חינוך 🎓' },
+    { id: 'members', name: 'ניהול משפחה 👨‍👩‍👧‍👦' },
+    { id: 'budget', name: 'ניהול תקציב 📊' },
+    { id: 'pantry', name: 'ניהול מזווה 📦' },
+    { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
+    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
 ];
 
 const ROLE_DEFAULTS = {
-    'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
-    'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
-    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
+    'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
+    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
 };
 
 function enforcePermissions() {
-    if (!currentUser || !currentGroup) return;
-    const isAdmin = currentUser.role === 'ADMIN';
-    let userTabs = [];
-    try {
-        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
-    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
-    // במערכת המשפחתית שמות המודולים טיפה שונים, אנחנו עושים תאימות:
-    let features = { store: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, ai: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, recipes: true };
-    
-    if (currentGroup.features) {
-        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
-    }
+    // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
+    // במערכת המשפחתית שמות המודולים טיפה שונים, אנחנו עושים תאימות:
+    let features = { store: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, ai: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, recipes: true };
+    
+    if (currentGroup.features) {
+        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
+    }
 
-    // 1. הסתרה מוחלטת לפי תפקיד הילד/הורה (Role) - מבוצע רק עבור מי שאינו הורה מנהל
-    ALL_TABS.forEach(tab => {
-        const btn = getEl(`tab-${tab.id}`);
-        if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-    });
+    // 1. הסתרה מוחלטת לפי תפקיד הילד/הורה (Role) - מבוצע רק עבור מי שאינו הורה מנהל
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
 
-    // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
-    const enforceModule = (flag, tabId, moduleName) => {
-        const btn = getEl(`tab-${tabId}`);
-        if (!btn || btn.style.display === 'none') return; 
-        
-        const isModuleActive = flag !== undefined ? flag : true;
+    // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
+    const enforceModule = (flag, tabId, moduleName) => {
+        const btn = getEl(`tab-${tabId}`);
+        if (!btn || btn.style.display === 'none') return; 
+        
+        const isModuleActive = flag !== undefined ? flag : true;
 
-        if (!isModuleActive) {
-            // המודול ננעל - הופכים לאפור ושמים מנעול
-            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
-            btn.dataset.lockedName = moduleName;
-            if (!btn.querySelector('.fa-lock')) {
-                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
-            }
-        } else {
-            // שחרור מנעול
-            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
-            const lockIcon = btn.querySelector('.fa-lock');
-            if (lockIcon) lockIcon.remove();
-        }
-    };
+        if (!isModuleActive) {
+            // המודול ננעל - הופכים לאפור ושמים מנעול
+            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
+            btn.dataset.lockedName = moduleName;
+            if (!btn.querySelector('.fa-lock')) {
+                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
+            }
+        } else {
+            // שחרור מנעול
+            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
+            const lockIcon = btn.querySelector('.fa-lock');
+            if (lockIcon) lockIcon.remove();
+        }
+    };
 
-    // הפעלת האכיפה לפי המודולים במסך העריכה באדמין:
-    enforceModule(features.store, 'shop', 'רשימת קניות חכמה');
-    enforceModule(features.academy, 'academy', 'מרכז הכשרות ואתגרים');
-    enforceModule(features.finance, 'bank', 'הבנק המשפחתי ודמי כיס');
-    enforceModule(features.inventory, 'pantry', 'ניהול מלאי בבית');
-    enforceModule(features.crm, 'myorders', 'הזמנות מקהילות'); 
-    enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
-    enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
-    enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
-    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
-    enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
-    enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
-    // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
-    enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
+    // הפעלת האכיפה לפי המודולים במסך העריכה באדמין:
+    enforceModule(features.store, 'shop', 'רשימת קניות חכמה');
+    enforceModule(features.academy, 'academy', 'מרכז הכשרות ואתגרים');
+    enforceModule(features.finance, 'bank', 'הבנק המשפחתי ודמי כיס');
+    enforceModule(features.inventory, 'pantry', 'ניהול מלאי בבית');
+    enforceModule(features.crm, 'myorders', 'הזמנות מקהילות'); 
+    enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
+    enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
+    enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
+    enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
+    enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
+    // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
+    enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
 
-    // הגבלת אלמנטים של העוזרת הווירטואלית AI
-    const aiBtnMain = getEl('btn-global-ai');
-    if (features.ai !== undefined && !features.ai) {
-        if (aiBtnMain) aiBtnMain.style.display = 'none';
-        document.querySelectorAll('.fa-wand-magic-sparkles').forEach(icon => {
-            const parentBtn = icon.closest('button');
-            if (parentBtn && !parentBtn.classList.contains('locked-module')) {
-                parentBtn.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
-                parentBtn.onclick = (e) => { e.stopPropagation(); openLockedModuleModal('כלי בינה מלאכותית חכמים'); };
-            }
-        });
-    }
+    // הגבלת אלמנטים של העוזרת הווירטואלית AI
+    const aiBtnMain = getEl('btn-global-ai');
+    if (features.ai !== undefined && !features.ai) {
+        if (aiBtnMain) aiBtnMain.style.display = 'none';
+        document.querySelectorAll('.fa-wand-magic-sparkles').forEach(icon => {
+            const parentBtn = icon.closest('button');
+            if (parentBtn && !parentBtn.classList.contains('locked-module')) {
+                parentBtn.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
+                parentBtn.onclick = (e) => { e.stopPropagation(); openLockedModuleModal('כלי בינה מלאכותית חכמים'); };
+            }
+        });
+    }
 
-    // וידוא שהמשתמש לא תקוע בטאב נעול
-    const activeTabs = document.querySelectorAll('.tab-active');
-    activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
-            if(activeBtn.id !== 'tab-feed') switchTab('feed');
-        }
-    });
+    // וידוא שהמשתמש לא תקוע בטאב נעול
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
+            if(activeBtn.id !== 'tab-feed') switchTab('feed');
+        }
+    });
 }
 
 // =====================================
 // מודול Upsell וחלון מודול נעול
 // =====================================
 window.openLockedModuleModal = function(moduleName) {
-    let modal = getEl('locked-module-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'locked-module-modal';
-        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
-                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
-                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
-                    <i class="fa-solid fa-lock"></i>
-                </div>
-                <h3 class="text-2xl font-black text-slate-800 mb-2">פיצ'ר נעול 🔒</h3>
-                <p class="text-sm text-slate-500 mb-8 leading-relaxed">היכולת להשתמש ב-<strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגורה בחבילה הנוכחית שלכם.<br>רוצים לפתוח את הנעילה ולהרחיב את המערכת?</p>
-                <button id="btn-req-unlock" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                    שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>
-                </button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-    
-    getEl('locked-module-name').innerText = moduleName;
-    const btn = getEl('btn-req-unlock');
-    btn.onclick = () => requestModuleUnlock(moduleName);
-    
-    modal.classList.remove('hidden');
+    let modal = getEl('locked-module-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'locked-module-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
+                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">פיצ'ר נעול 🔒</h3>
+                <p class="text-sm text-slate-500 mb-8 leading-relaxed">היכולת להשתמש ב-<strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגורה בחבילה הנוכחית שלכם.<br>רוצים לפתוח את הנעילה ולהרחיב את המערכת?</p>
+                <button id="btn-req-unlock" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    getEl('locked-module-name').innerText = moduleName;
+    const btn = getEl('btn-req-unlock');
+    btn.onclick = () => requestModuleUnlock(moduleName);
+    
+    modal.classList.remove('hidden');
 };
 
 window.requestModuleUnlock = async function(moduleName) {
-    const btn = getEl('btn-req-unlock');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
-    
-    try {
-        const payload = {
-            groupId: currentGroup.id,
-            groupName: currentGroup.name,
-            userId: currentUser.id,
-            userName: currentUser.nickname,
-            userEmail: currentGroup.admin_email || 'לא ידוע',
-            subject: `בקשת שדרוג חבילה / משפחה: פתיחת ${moduleName}`,
-            description: `היי צוות, אשמח לקבל פרטים ועלויות לגבי הוספת המודול "${moduleName}" למערכת המשפחתית שלנו. אנא צרו איתי קשר.`
-        };
+    const btn = getEl('btn-req-unlock');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
+    
+    try {
+        const payload = {
+            groupId: currentGroup.id,
+            groupName: currentGroup.name,
+            userId: currentUser.id,
+            userName: currentUser.nickname,
+            userEmail: currentGroup.admin_email || 'לא ידוע',
+            subject: `בקשת שדרוג חבילה / משפחה: פתיחת ${moduleName}`,
+            description: `היי צוות, אשמח לקבל פרטים ועלויות לגבי הוספת המודול "${moduleName}" למערכת המשפחתית שלנו. אנא צרו איתי קשר.`
+        };
 
-        const res = await fetch(`${API}/support/ticket`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'מעולה! שלחנו פנייה לצוות. נחזור אליכם בהקדם האפשרי.');
-            getEl('locked-module-modal').classList.add('hidden');
-            try { triggerConfetti(); } catch(e){}
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הפנייה');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>';
-    }
+        const res = await fetch(`${API}/support/ticket`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'מעולה! שלחנו פנייה לצוות. נחזור אליכם בהקדם האפשרי.');
+            getEl('locked-module-modal').classList.add('hidden');
+            try { triggerConfetti(); } catch(e){}
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הפנייה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>';
+    }
 };
 
 // יירוט לחיצות על טאבים נעולים (כדי שלא יכנסו לעמוד ריק)
 if (!window.switchTabOverridden) {
-    const originalSwitchTab = window.switchTab;
-    window.switchTab = function(tabId) {
-        const targetBtn = document.getElementById(`tab-${tabId}`);
-        if (targetBtn && targetBtn.classList.contains('locked-module')) {
-            const modName = targetBtn.dataset.lockedName || 'מודול נעול';
-            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; // מונע כניסה למסך
-        }
-        originalSwitchTab(tabId);
-        setTimeout(enforcePermissions, 50);
-    };
-    window.switchTabOverridden = true;
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabId) {
+        const targetBtn = document.getElementById(`tab-${tabId}`);
+        if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            const modName = targetBtn.dataset.lockedName || 'מודול נעול';
+            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return; // מונע כניסה למסך
+        }
+        originalSwitchTab(tabId);
+        setTimeout(enforcePermissions, 50);
+    };
+    window.switchTabOverridden = true;
 }
 
 // קריאה ראשונית כשכל הדף נטען
@@ -3995,13 +2835,13 @@ setTimeout(enforcePermissions, 1500);
 
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
-    if (!document.getElementById('oneflow-version-badge')) {
-        const badge = document.createElement('div');
-        badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.8 (סנכרון מלא לסופר-אדמין ושליטה בחבילות)';
-        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
-        document.body.appendChild(badge);
-    }
+    if (!document.getElementById('oneflow-version-badge')) {
+        const badge = document.createElement('div');
+        badge.id = 'oneflow-version-badge';
+        badge.innerHTML = 'גרסה 2.1.8 (סנכרון מלא לסופר-אדמין ושליטה בחבילות)';
+        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
+        document.body.appendChild(badge);
+    }
 })();
 // =========================================================
 // --- מנגנון מיתוג גלובלי ומסך התחברות חכם ---
@@ -4011,117 +2851,117 @@ window.loginSliderInterval = null;
 window.currentLoginSlideIndex = 0;
 
 window.initPublicConfig = async function() {
-    try {
-        const res = await fetch(`${API}/system/public-config`);
-        const data = await res.json();
-        
-        if (data.success) {
-            // החלפת סמל הדפדפן (Favicon)
-            if (data.globalAiLogo) {
-                const link = document.querySelector("link[rel~='icon']");
-                if (link) link.href = data.globalAiLogo;
-                else {
-                    const newLink = document.createElement('link');
-                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
-                    document.head.appendChild(newLink);
-                }
-                
-                // פתרון לתקלת ה"החלפה לשנייה אחת":
-                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
-                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
-                setInterval(() => {
-                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
-                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
-                        if (img.getAttribute('src') !== data.globalAiLogo) {
-                            img.src = data.globalAiLogo;
-                        }
-                    });
-                }, 500);
-            }
+    try {
+        const res = await fetch(`${API}/system/public-config`);
+        const data = await res.json();
+        
+        if (data.success) {
+            // החלפת סמל הדפדפן (Favicon)
+            if (data.globalAiLogo) {
+                const link = document.querySelector("link[rel~='icon']");
+                if (link) link.href = data.globalAiLogo;
+                else {
+                    const newLink = document.createElement('link');
+                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
+                    document.head.appendChild(newLink);
+                }
+                
+                // פתרון לתקלת ה"החלפה לשנייה אחת":
+                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
+                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
+                setInterval(() => {
+                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
+                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
+                        if (img.getAttribute('src') !== data.globalAiLogo) {
+                            img.src = data.globalAiLogo;
+                        }
+                    });
+                }, 500);
+            }
 
-            // בניית קרוסלת ההתחברות (Login Slider)
-            if (data.loginSlides && data.loginSlides.length > 0) {
-                const wrapper = document.getElementById('login-slider-wrapper');
-                const scroll = document.getElementById('login-slider-scroll');
-                const dots = document.getElementById('login-slider-dots');
-                const defaultCredit = document.getElementById('login-default-credit');
-                
-                if (wrapper && scroll && dots && defaultCredit) {
-                    defaultCredit.classList.add('hidden');
-                    wrapper.classList.remove('hidden');
-                    
-                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
-                    scroll.classList.remove('overflow-x-auto');
-                    scroll.classList.add('overflow-hidden');
-                    scroll.style.overflow = 'hidden';
-                    scroll.style.touchAction = 'none'; 
-                    
-                    let slidesHtml = '';
-                    let dotsHtml = '';
-                    
-                    data.loginSlides.forEach((slide, idx) => {
-                        slidesHtml += `
-                        <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
-                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
-                        </div>`;
-                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
-                    });
-                    
-                    scroll.innerHTML = slidesHtml;
-                    dots.innerHTML = data.loginSlides.length > 1 ? dotsHtml : ''; 
-                    
-                    if (data.loginSlides.length > 1) {
-                        window.startLoginAutoScroll(data.loginSlides.length);
-                    }
-                }
-            }
-        }
-    } catch(e) { console.error('Failed to load public config', e); }
+            // בניית קרוסלת ההתחברות (Login Slider)
+            if (data.loginSlides && data.loginSlides.length > 0) {
+                const wrapper = document.getElementById('login-slider-wrapper');
+                const scroll = document.getElementById('login-slider-scroll');
+                const dots = document.getElementById('login-slider-dots');
+                const defaultCredit = document.getElementById('login-default-credit');
+                
+                if (wrapper && scroll && dots && defaultCredit) {
+                    defaultCredit.classList.add('hidden');
+                    wrapper.classList.remove('hidden');
+                    
+                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
+                    scroll.classList.remove('overflow-x-auto');
+                    scroll.classList.add('overflow-hidden');
+                    scroll.style.overflow = 'hidden';
+                    scroll.style.touchAction = 'none'; 
+                    
+                    let slidesHtml = '';
+                    let dotsHtml = '';
+                    
+                    data.loginSlides.forEach((slide, idx) => {
+                        slidesHtml += `
+                        <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
+                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
+                        </div>`;
+                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
+                    });
+                    
+                    scroll.innerHTML = slidesHtml;
+                    dots.innerHTML = data.loginSlides.length > 1 ? dotsHtml : ''; 
+                    
+                    if (data.loginSlides.length > 1) {
+                        window.startLoginAutoScroll(data.loginSlides.length);
+                    }
+                }
+            }
+        }
+    } catch(e) { console.error('Failed to load public config', e); }
 };
 
 window.startLoginAutoScroll = function(total) {
-    if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
-    window.loginSliderInterval = setInterval(() => {
-        window.currentLoginSlideIndex++;
-        if (window.currentLoginSlideIndex >= total) {
-            window.currentLoginSlideIndex = 0;
-        }
-        window.goToLoginSlide(window.currentLoginSlideIndex, total);
-    }, 4500); 
+    if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
+    window.loginSliderInterval = setInterval(() => {
+        window.currentLoginSlideIndex++;
+        if (window.currentLoginSlideIndex >= total) {
+            window.currentLoginSlideIndex = 0;
+        }
+        window.goToLoginSlide(window.currentLoginSlideIndex, total);
+    }, 4500); 
 };
 
 window.goToLoginSlide = function(index, totalSlides) {
-    window.currentLoginSlideIndex = index;
-    const scroll = document.getElementById('login-slider-scroll');
-    if (scroll) {
-        const w = scroll.clientWidth;
-        const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
-        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
-        scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
-    }
-    
-    const dotsDiv = document.getElementById('login-slider-dots');
-    const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
-    window.updateLoginDots(total);
-    
-    // איפוס הטיימר לאחר לחיצה ידנית
-    if (total > 1) {
-        window.startLoginAutoScroll(total);
-    }
+    window.currentLoginSlideIndex = index;
+    const scroll = document.getElementById('login-slider-scroll');
+    if (scroll) {
+        const w = scroll.clientWidth;
+        const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
+        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
+        scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
+    }
+    
+    const dotsDiv = document.getElementById('login-slider-dots');
+    const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
+    window.updateLoginDots(total);
+    
+    // איפוס הטיימר לאחר לחיצה ידנית
+    if (total > 1) {
+        window.startLoginAutoScroll(total);
+    }
 };
 
 window.updateLoginDots = function(total) {
-    for (let i = 0; i < total; i++) {
-        const dot = document.getElementById(`login-dot-${i}`);
-        if (dot) {
-            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
-        }
-    }
+    for (let i = 0; i < total; i++) {
+        const dot = document.getElementById(`login-dot-${i}`);
+        if (dot) {
+            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
+        }
+    }
 };
 
 // במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
 window.addEventListener('load', () => {
-    setTimeout(() => {
-        window.initPublicConfig();
-    }, 200);
+    setTimeout(() => {
+        window.initPublicConfig();
+    }, 200);
 });
