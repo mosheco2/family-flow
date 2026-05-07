@@ -4319,94 +4319,99 @@ window.triggerManualTour = function() {
 };
 
 window.openProfileModal = function() {
-    if (!document.getElementById('profile-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
-                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-gear text-slate-500 mr-2"></i> הגדרות ופרופיל</h3>
-                
-                <div class="space-y-3 mb-6">
-                    <button onclick="window.triggerManualTour()" class="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold hover:bg-blue-100 transition shadow-sm text-sm flex items-center justify-between px-4">
-                        <span>הדרכה וסיור במערכת</span>
-                        <i class="fa-solid fa-route"></i>
-                    </button>
-                    
-                    <button onclick="window.openSupportTicketModal()" class="w-full bg-indigo-50 text-indigo-700 py-3 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm text-sm flex items-center justify-between px-4">
-                        <span>פתיחת קריאת שירות</span>
-                        <i class="fa-solid fa-headset"></i>
-                    </button>
-                    
-                    <div id="profile-upgrade-section" class="hidden">
-                        <button onclick="window.upgradeToPremium()" class="w-full bg-gradient-to-r from-amber-400 to-yellow-500 text-white py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition text-sm flex items-center justify-between px-4">
-                            <span>שדרוג למסלול PRO</span>
-                            <i class="fa-solid fa-crown"></i>
-                        </button>
-                    </div>
-                </div>
+    if (!document.getElementById('profile-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
+                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-gear text-slate-500 mr-2"></i> הגדרות ופרופיל</h3>
+                
+                <div class="space-y-3 mb-6">
+                    <a href="biz-guide.html" target="_blank" class="w-full bg-cyan-50 text-cyan-700 py-3 rounded-xl font-bold hover:bg-cyan-100 transition shadow-sm text-sm flex items-center justify-between px-4 cursor-pointer">
+                        <span>מדריך למערכת העסקית</span>
+                        <i class="fa-solid fa-book"></i>
+                    </a>
 
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                    <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">שינוי סיסמה</h4>
-                    <form onsubmit="window.submitChangePassword(event)" class="space-y-3">
-                        <input type="password" id="old-password" class="modern-input py-2 text-sm w-full bg-white border-slate-200" placeholder="סיסמה נוכחית" required>
-                        <input type="password" id="new-password" class="modern-input py-2 text-sm w-full bg-white border-slate-200" placeholder="סיסמה חדשה" required>
-                        <button type="submit" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-slate-700 transition text-sm mt-2">עדכון סיסמה</button>
-                    </form>
-                </div>
+                    <button onclick="window.triggerManualTour()" class="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold hover:bg-blue-100 transition shadow-sm text-sm flex items-center justify-between px-4">
+                        <span>הדרכה וסיור במערכת</span>
+                        <i class="fa-solid fa-route"></i>
+                    </button>
+                    
+                    <button onclick="window.openSupportTicketModal()" class="w-full bg-indigo-50 text-indigo-700 py-3 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm text-sm flex items-center justify-between px-4">
+                        <span>פתיחת קריאת שירות</span>
+                        <i class="fa-solid fa-headset"></i>
+                    </button>
+                    
+                    <div id="profile-upgrade-section" class="hidden">
+                        <button onclick="window.upgradeToPremium()" class="w-full bg-gradient-to-r from-amber-400 to-yellow-500 text-white py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition text-sm flex items-center justify-between px-4">
+                            <span>שדרוג למסלול PRO</span>
+                            <i class="fa-solid fa-crown"></i>
+                        </button>
+                    </div>
+                </div>
 
-                <div class="pt-3 border-t border-slate-100 shrink-0">
-                    <button type="button" onclick="logout()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold hover:bg-red-100 transition shadow-sm flex justify-center items-center gap-2">
-                        <i class="fa-solid fa-power-off"></i> התנתקות מהמערכת
-                    </button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-    
-    const upgSec = document.getElementById('profile-upgrade-section');
-    if (upgSec) {
-        if (currentUser && currentUser.role === 'ADMIN') {
-            upgSec.classList.remove('hidden');
-            if (currentGroup && currentGroup.is_premium) {
-                upgSec.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle text-green-500"></i> מנוי PRO פעיל</p>';
-                if (!document.getElementById('btn-reopen-wizard-biz')) {
-                    upgSec.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="if(typeof showOnboardingWizard === 'function') showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
-                }
-            }
-        } else {
-            upgSec.classList.add('hidden');
-        }
-    }
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">שינוי סיסמה</h4>
+                    <form onsubmit="window.submitChangePassword(event)" class="space-y-3">
+                        <input type="password" id="old-password" class="modern-input py-2 text-sm w-full bg-white border-slate-200" placeholder="סיסמה נוכחית" required>
+                        <input type="password" id="new-password" class="modern-input py-2 text-sm w-full bg-white border-slate-200" placeholder="סיסמה חדשה" required>
+                        <button type="submit" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-slate-700 transition text-sm mt-2">עדכון סיסמה</button>
+                    </form>
+                </div>
 
-    const oldPw = document.getElementById('old-password'); if(oldPw) oldPw.value = '';
-    const newPw = document.getElementById('new-password'); if(newPw) newPw.value = '';
-    document.getElementById('profile-modal').classList.remove('hidden');
+                <div class="pt-3 border-t border-slate-100 shrink-0">
+                    <button type="button" onclick="logout()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold hover:bg-red-100 transition shadow-sm flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-power-off"></i> התנתקות מהמערכת
+                    </button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
+    
+    const upgSec = document.getElementById('profile-upgrade-section');
+    if (upgSec) {
+        if (currentUser && currentUser.role === 'ADMIN') {
+            upgSec.classList.remove('hidden');
+            if (currentGroup && currentGroup.is_premium) {
+                upgSec.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle text-green-500"></i> מנוי PRO פעיל</p>';
+                if (!document.getElementById('btn-reopen-wizard-biz')) {
+                    upgSec.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="if(typeof showOnboardingWizard === 'function') showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
+                }
+            }
+        } else {
+            upgSec.classList.add('hidden');
+        }
+    }
+
+    const oldPw = document.getElementById('old-password'); if(oldPw) oldPw.value = '';
+    const newPw = document.getElementById('new-password'); if(newPw) newPw.value = '';
+    document.getElementById('profile-modal').classList.remove('hidden');
 };
 
-window.submitChangePassword = async function(e) { 
-    e.preventDefault(); 
-    const oldP = document.getElementById('old-password').value; 
-    const newP = document.getElementById('new-password').value; 
-    const btn = e.target.querySelector('button[type="submit"]'); 
-    btn.disabled = true; btn.innerText = 'מעדכן...'; 
-    try { 
-        const res = await fetch(`${API}/users/${currentUser.id}/password`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) 
-        }); 
-        const data = await res.json(); 
-        if(data.success) { 
-            showToast('success', 'הסיסמה שונתה בהצלחה!'); 
-            document.getElementById('profile-modal').classList.add('hidden'); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בשינוי סיסמה'); 
-        } 
-    } catch(err) { 
-        showToast('error', 'שגיאה בתקשורת'); 
-    } finally { 
-        btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; 
-    } 
+window.submitChangePassword = async function(e) { 
+    e.preventDefault(); 
+    const oldP = document.getElementById('old-password').value; 
+    const newP = document.getElementById('new-password').value; 
+    const btn = e.target.querySelector('button[type="submit"]'); 
+    btn.disabled = true; btn.innerText = 'מעדכן...'; 
+    try { 
+        const res = await fetch(`${API}/users/${currentUser.id}/password`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) 
+        }); 
+        const data = await res.json(); 
+        if(data.success) { 
+            showToast('success', 'הסיסמה שונתה בהצלחה!'); 
+            document.getElementById('profile-modal').classList.add('hidden'); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בשינוי סיסמה'); 
+        } 
+    } catch(err) { 
+        showToast('error', 'שגיאה בתקשורת'); 
+    } finally { 
+        btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; 
+    } 
 };
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
