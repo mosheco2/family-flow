@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+        html { scroll-behavior: smooth; scroll-padding-top: 90px; }
         body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; }
         .guide-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; transition: transform 0.2s; }
         .guide-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
@@ -25,50 +25,82 @@
         .highlight-box { background: #e0e7ff; border-right: 4px solid #4f46e5; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: 500; color: #312e81; font-size: 0.9rem; }
         .modern-input { width: 100%; padding: 0.75rem 1rem; border-radius: 9999px; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
         .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .nav-chip { flex: 0 0 auto; white-space: nowrap; padding: 0.5rem 1.25rem; background: white; border: 1px solid #e2e8f0; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #475569; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .nav-chip:hover { background: #4f46e5; color: white; border-color: #4f46e5; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .nav-chip { flex: 0 0 auto; white-space: nowrap; padding: 0.5rem 1.25rem; background: white; border: 1px solid #e2e8f0; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; color: #475569; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .nav-chip:hover, .nav-chip.active-chip { background: #4f46e5; color: white; border-color: #4f46e5; }
+        
+        /* עיצוב אחיד למסגרות התמונות במדריך */
+        .guide-image-wrapper {
+            margin-top: 1.5rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+            text-align: center;
+        }
+        .guide-image-wrapper img {
+            max-width: 100%;
+            max-height: 250px; /* הגבלת גובה כדי שלא יתפסו מסך שלם */
+            width: auto;
+            height: auto;
+            border-radius: 0.5rem;
+            margin: 0 auto;
+            object-fit: contain;
+            display: block;
+        }
+        /* עיצוב חלופי לתמונה חסרה */
+        .guide-image-fallback {
+            padding: 2rem 1rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            font-style: italic;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased pb-20">
 
     <header class="bg-indigo-900 text-white pt-16 pb-20 px-6 relative overflow-hidden text-center shadow-xl">
-        <a href="/business.html" class="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold backdrop-blur-sm transition flex items-center gap-2 border border-white/20 z-20 shadow-sm">
-            <i class="fa-solid fa-arrow-right"></i> חזרה למערכת
-        </a>
+        <a href="/business.html" class="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold backdrop-blur-sm transition flex items-center gap-2 border border-white/20 z-20 shadow-sm">
+            <i class="fa-solid fa-arrow-right"></i> חזרה למערכת
+        </a>
         <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
         <div class="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
         <div class="relative z-10 max-w-3xl mx-auto">
-            <img src="/logo.png" alt="Oneflow Logo" class="h-16 w-auto mx-auto mb-6 drop-shadow-lg">
+            <img src="/logo.png" alt="Oneflow Logo" class="h-16 w-auto mx-auto mb-6 drop-shadow-lg" onerror="this.style.display='none'">
             <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight leading-tight">Oneflow Life BIZ</h1>
             <p class="text-indigo-200 text-lg md:text-xl font-medium max-w-xl mx-auto leading-relaxed">המדריך השלם לניהול העסק, העובדים והלקוחות מתוך פלטפורמה אחת חכמה.</p>
         </div>
     </header>
 
-    <div class="sticky top-0 z-40 bg-slate-50/90 backdrop-blur-md border-b border-slate-200 py-3 shadow-sm mb-6">
-        <div class="max-w-4xl mx-auto px-4 flex gap-2 overflow-x-auto hide-scrollbar">
-            <a href="#intro" class="nav-chip">מבוא</a>
-            <a href="#dashboard" class="nav-chip">לוח בקרה</a>
-            <a href="#pos" class="nav-chip">קופה וחנות</a>
-            <a href="#procurement" class="nav-chip">רכש ספקים</a>
-            <a href="#inventory" class="nav-chip">מלאי ורווחיות</a>
-            <a href="#hr" class="nav-chip">צוות עובדים</a>
-            <a href="#marketing" class="nav-chip">שיווק וקהילות</a>
-            <a href="#academy" class="nav-chip">אקדמיה</a>
-            <a href="#storefront" class="nav-chip">חנות ציבורית</a>
-        </div>
-    </div>
+    <div class="sticky top-0 z-40 bg-slate-50/90 backdrop-blur-md border-b border-slate-200 py-3 shadow-sm mb-6">
+        <div class="max-w-4xl mx-auto px-4 flex gap-2 overflow-x-auto hide-scrollbar">
+            <a href="#intro" class="nav-chip active-chip">מבוא</a>
+            <a href="#dashboard" class="nav-chip">לוח בקרה</a>
+            <a href="#pos" class="nav-chip">קופה וחנות</a>
+            <a href="#procurement" class="nav-chip">רכש ספקים</a>
+            <a href="#inventory" class="nav-chip">מלאי ורווחיות</a>
+            <a href="#hr" class="nav-chip">צוות עובדים</a>
+            <a href="#marketing" class="nav-chip">שיווק וקהילות</a>
+            <a href="#academy" class="nav-chip">אקדמיה</a>
+            <a href="#storefront" class="nav-chip">חנות ציבורית</a>
+        </div>
+    </div>
 
-    <main class="max-w-4xl mx-auto px-4 relative z-20">
+    <main class="max-w-4xl mx-auto px-4 relative z-20">
         
         <div id="intro" class="guide-card">
             <div class="guide-icon bg-indigo-50 text-indigo-600"><i class="fa-solid fa-rocket"></i></div>
             <h2 class="guide-section-title">ברוכים הבאים למערכת BIZ</h2>
             <p class="guide-text">Oneflow Life BIZ תוכננה לרכז את כל הכלים שהעסק שלך צריך במקום אחד: מקופה וירטואלית, דרך ניהול ספקים ומלאי, ועד שעון נוכחות מבוסס GPS לעובדים. המערכת מבוססת על מנוע AI שעוזר לך לקבל החלטות בזמן אמת ולהוזיל עלויות.</p>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-intro.png" alt="סקירת מערכת BIZ" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת פתיחת המערכת (שם קובץ: guide-biz-intro.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-intro.png" alt="סקירת מערכת BIZ" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת סקירת מערכת - יתווסף בקרוב</span></div>'">
             </div>
 
             <div class="highlight-box mt-6">
@@ -86,8 +118,8 @@
                 <li><strong>אנליסט AI:</strong> לחיצה על כפתור התובנות מפיקה דוח חכם שמנתח את המכירות והמלאי.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-dashboard.png" alt="לוח בקרה עסקי" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת דשבורד (שם קובץ: guide-biz-dashboard.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-dashboard.png" alt="לוח בקרה עסקי" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת לוח בקרה (Dashboard) - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -101,8 +133,8 @@
                 <li><strong>הצעות מחיר (Quotes):</strong> בניית הצעה לאירוע או לקוח B2B ושמירתה כ"הצעה" לאישור עתידי.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-pos.png" alt="ממשק קופה וחנות" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת חנות/קופה (שם קובץ: guide-biz-pos.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-pos.png" alt="ממשק קופה וחנות" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת מערכת הקופה - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -116,8 +148,8 @@
                 <li><strong>קבלת סחורה:</strong> סימון פריטים שהגיעו לעדכון מלאי אוטומטי ויצירת השלמות לחוסרים.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-procurement.png" alt="ניהול רכש וספקים" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת רכש וספקים (שם קובץ: guide-biz-procurement.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-procurement.png" alt="ניהול רכש וספקים" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת רכש וספקים - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -130,8 +162,8 @@
                 <li><strong>תחזית מלאי:</strong> עוזרת ה-AI מתריעה על מוצרים שעומדים להיגמר על סמך קצב המכירה.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-inventory.png" alt="ניהול מלאי ועלויות" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת מלאי ו-Food Cost (שם קובץ: guide-biz-inventory.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-inventory.png" alt="ניהול מלאי ועלויות" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת ניהול מלאי - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -144,8 +176,8 @@
                 <li><strong>אישור משימות ב-AI:</strong> העובד מעלה תמונה של סיום המשימה והמערכת מאשרת לו בונוס.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-hr.png" alt="ניהול עובדים ונוכחות" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת ניהול עובדים (שם קובץ: guide-biz-hr.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-hr.png" alt="ניהול עובדים ונוכחות" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת שעון נוכחות וצוות - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -158,8 +190,8 @@
                 <li><strong>מבצעים ובאנרים:</strong> יצירת מבצעי 1+1 או הנחות שקופצות כבאנר ללקוחות החנות.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-marketing.png" alt="קהילות ושיווק" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת שיווק וקהילות (שם קובץ: guide-biz-marketing.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-marketing.png" alt="קהילות ושיווק" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת שיווק וקהילות - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -172,8 +204,8 @@
                 <li><strong>בונוס למידה:</strong> תגמול כספי אוטומטי לעובד שעובר את המבחן בהצלחה.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-academy.png" alt="אקדמיה והכשרות" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת אקדמיה (שם קובץ: guide-biz-academy.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-academy.png" alt="אקדמיה והכשרות" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת מערכת האקדמיה - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -188,8 +220,8 @@
                 <li><strong>מיתוג אישי:</strong> אפשרות להעלות לוגו ובאנר עליון ייעודי לחנות הציבורית דרך הגדרות החנות.</li>
             </ul>
             
-            <div class="mt-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
-                <img src="/guide-biz-storefront.png" alt="חנות ציבורית" class="w-full h-48 sm:h-64 object-contain block p-2" onerror="this.parentElement.innerHTML='<div class=\"p-8 text-center text-slate-400 text-xs italic\">כאן תוצג תמונת החנות הציבורית (שם קובץ: guide-biz-storefront.png)</div>'">
+            <div class="guide-image-wrapper">
+                <img src="/guide-biz-storefront.png" alt="חנות ציבורית" onerror="this.outerHTML='<div class=\'guide-image-fallback\'><i class=\'fa-regular fa-image text-2xl\'></i><span>תמונת החנות הציבורית - יתווסף בקרוב</span></div>'">
             </div>
         </div>
 
@@ -199,47 +231,46 @@
 
     </main>
 
-    <div id="guide-chat-wrapper" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        <div id="guide-chat-window" class="hidden w-[90vw] sm:w-96 bg-white rounded-3xl shadow-2xl border border-indigo-100 mb-4 overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0">
-            <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-sm border border-indigo-400 overflow-hidden relative shrink-0">
-                        <div class="absolute inset-0 bg-white/20 backdrop-blur-sm z-0"></div>
-                        <i class="fa-solid fa-robot text-white z-10 absolute"></i>
-                        <img src="/familai_avatar.png" class="w-full h-full object-cover relative z-20 bg-white" onerror="this.style.display='none';">
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-lg leading-none">FamliAI BIZ</h3>
-                        <p class="text-indigo-200 text-xs mt-1">עוזרת הדרכה למערכת</p>
-                    </div>
+        <div id="guide-chat-window" class="fixed bottom-28 right-6 z-[60] hidden w-[90vw] sm:w-96 max-h-[70vh] bg-white rounded-3xl shadow-2xl border border-indigo-100 flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0">
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-sm border border-indigo-400 overflow-hidden relative shrink-0 bg-white/20 backdrop-blur-sm">
+                    <i class="fa-solid fa-robot text-white z-10 absolute"></i>
+                    <img src="" id="ai-chat-avatar" class="w-full h-full object-cover relative z-20 bg-white hidden" alt="AI">
                 </div>
-                <button onclick="toggleGuideChat()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div id="guide-chat-messages" class="h-80 sm:h-96 overflow-y-auto p-4 space-y-4 bg-slate-50 flex flex-col">
-                <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 self-start max-w-[95%] leading-relaxed text-sm">
-                    שלום! 👋 אני עוזרת ה-AI של המערכת. אני מכירה את המדריך לעסקים בעל פה. מוזמנים לשאול אותי כל שאלה על איך לתפעל מודול מסוים (למשל: "איך עובד שעון הנוכחות?").
+                <div>
+                    <h3 class="font-bold text-lg leading-none">FamliAI BIZ</h3>
+                    <p class="text-indigo-200 text-xs mt-1">עוזרת הדרכה למערכת</p>
                 </div>
             </div>
-            
-            <div class="p-3 bg-white border-t border-slate-100">
-                <form id="guide-chat-form" onsubmit="sendGuideMessage(event)" class="flex gap-2 relative">
-                    <input type="text" id="guide-chat-input" class="modern-input py-3 pr-4 pl-12 text-sm bg-slate-50" placeholder="הקלד שאלה כאן..." autocomplete="off">
-                    <button type="submit" class="absolute left-1 top-1 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-sm">
-                        <i class="fa-solid fa-paper-plane text-xs -translate-x-0.5"></i>
-                    </button>
-                </form>
+            <button onclick="toggleGuideChat()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div id="guide-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 flex flex-col">
+            <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 self-start max-w-[95%] leading-relaxed text-sm">
+                שלום! 👋 אני עוזרת ה-AI של המערכת. אני מכירה את המדריך לעסקים בעל פה. מוזמנים לשאול אותי כל שאלה על איך לתפעל מודול מסוים (למשל: "איך עובד שעון הנוכחות?").
             </div>
         </div>
+        
+        <div class="p-3 bg-white border-t border-slate-100 shrink-0">
+            <form id="guide-chat-form" onsubmit="sendGuideMessage(event)" class="flex gap-2 relative">
+                <input type="text" id="guide-chat-input" class="modern-input py-3 pr-4 pl-12 text-sm bg-slate-50" placeholder="הקלד שאלה כאן..." autocomplete="off">
+                <button type="submit" class="absolute left-1 top-1 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-sm">
+                    <i class="fa-solid fa-paper-plane text-xs -translate-x-0.5"></i>
+                </button>
+            </form>
+        </div>
+    </div>
 
-        <div class="relative w-16 h-16">
-            <button onclick="toggleGuideChat()" id="guide-fab" class="w-full h-full bg-white rounded-full shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transition-all duration-300 border-4 border-white overflow-hidden group relative">
-                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 z-0"></div>
-                <i class="fa-solid fa-robot text-white z-10 absolute"></i>
-                <img src="/familai_avatar.png" class="w-full h-full object-cover relative z-20 bg-white" onerror="this.style.display='none';">
-            </button>
-            <span class="absolute top-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full z-30 pointer-events-none"></span>
-        </div>
+        <div class="fixed bottom-6 right-6 z-50">
+        <div class="relative w-16 h-16">
+            <button onclick="toggleGuideChat()" id="guide-fab" class="w-full h-full bg-white rounded-full shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transition-all duration-300 border-4 border-white overflow-hidden group relative">
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 z-0"></div>
+                <i class="fa-solid fa-robot text-white z-10 absolute"></i>
+                <img src="" id="ai-fab-avatar" class="w-full h-full object-cover relative z-20 bg-white hidden" alt="AI">
+            </button>
+            <span class="absolute top-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full z-30 pointer-events-none"></span>
+        </div>
     </div>
 
     <script>
@@ -247,28 +278,45 @@
         const msgs = document.getElementById('guide-chat-messages');
         const input = document.getElementById('guide-chat-input');
 
-        // מנגנון הוספת המחלקה "פעיל" (Active) לתפריט הניווט בעת גלילה
-        window.addEventListener('scroll', () => {
-            let current = '';
-            document.querySelectorAll('.guide-card').forEach(card => {
-                const cardTop = card.offsetTop;
-                if (scrollY >= cardTop - 120) {
-                    current = card.getAttribute('id');
+        // טעינת תמונת העוזרת הווירטואלית (מהסופר אדמין / LocalStorage)
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedAvatar = localStorage.getItem('ofl_familai_avatar');
+            if (savedAvatar) {
+                const fabAvatar = document.getElementById('ai-fab-avatar');
+                const chatAvatar = document.getElementById('ai-chat-avatar');
+                
+                if (fabAvatar) {
+                    fabAvatar.src = savedAvatar;
+                    fabAvatar.classList.remove('hidden');
                 }
-            });
-            document.querySelectorAll('.nav-chip').forEach(chip => {
-                chip.classList.remove('bg-indigo-600', 'text-white');
-                chip.classList.add('bg-white', 'text-slate-600');
-                if (chip.getAttribute('href') === `#${current}`) {
-                    chip.classList.remove('bg-white', 'text-slate-600');
-                    chip.classList.add('bg-indigo-600', 'text-white');
+                if (chatAvatar) {
+                    chatAvatar.src = savedAvatar;
+                    chatAvatar.classList.remove('hidden');
                 }
-            });
+            }
         });
+
+        // מנגנון הוספת המחלקה "פעיל" (Active) לתפריט הניווט בעת גלילה
+        window.addEventListener('scroll', () => {
+            let current = '';
+            document.querySelectorAll('.guide-card').forEach(card => {
+                const cardTop = card.offsetTop;
+                if (scrollY >= cardTop - 120) {
+                    current = card.getAttribute('id');
+                }
+            });
+            document.querySelectorAll('.nav-chip').forEach(chip => {
+                chip.classList.remove('active-chip');
+                if (chip.getAttribute('href') === `#${current}`) {
+                    chip.classList.add('active-chip');
+                }
+            });
+        });
         
         function toggleGuideChat() {
             if (chatWindow.classList.contains('hidden')) {
                 chatWindow.classList.remove('hidden');
+                chatWindow.style.display = 'flex';
                 setTimeout(() => {
                     chatWindow.classList.remove('scale-95', 'opacity-0');
                     chatWindow.classList.add('scale-100', 'opacity-100');
@@ -277,7 +325,10 @@
             } else {
                 chatWindow.classList.remove('scale-100', 'opacity-100');
                 chatWindow.classList.add('scale-95', 'opacity-0');
-                setTimeout(() => chatWindow.classList.add('hidden'), 300);
+                setTimeout(() => {
+                    chatWindow.classList.add('hidden');
+                    chatWindow.style.display = '';
+                }, 300);
             }
         }
 
