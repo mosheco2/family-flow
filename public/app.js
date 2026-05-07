@@ -3896,7 +3896,7 @@ function enforcePermissions() {
     enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
     // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
     enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
-
+}
     // הגבלת אלמנטים של העוזרת הווירטואלית AI
     const aiBtnMain = getEl('btn-global-ai');
     if (features.ai !== undefined && !features.ai) {
