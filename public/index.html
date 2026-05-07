@@ -150,12 +150,21 @@
                 
                 <div class="relative z-10 flex flex-col items-center" dir="ltr">
                     <div class="w-full flex justify-between items-center mb-4 px-2">
-                        <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
-                        <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
-                    </div>
-                    <img src="logo.png" alt="Logo" class="w-28 sm:w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
-                    <div id="auth-logo-fallback" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
-                    <div class="w-full flex justify-between items-end px-2 mt-2">
+                        <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
+                        <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
+                    </div>
+
+                                        <div id="login-slider-wrapper" class="relative w-full max-w-[220px] h-36 mx-auto mb-4 rounded-3xl overflow-hidden shadow-2xl hidden border-2 border-white/10">
+                        <div id="login-slider-scroll" class="flex w-full h-full overflow-hidden snap-x snap-mandatory hide-scrollbar relative">
+                        </div>
+                        <div id="login-slider-dots" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-20"></div>
+                    </div>
+                    
+                    <div id="login-default-credit" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+
+                    <div class="w-full flex justify-between items-end px-2 mt-2">
                         <div class="text-left flex flex-col items-start">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Member</p>
                             <p class="text-blue-100 text-xs font-medium tracking-widest uppercase">Oneflow Life</p>
@@ -252,51 +261,55 @@
         <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
             
 <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
-                    
-                    <div class="w-full flex h-14 sm:h-20 border-b border-slate-50 overflow-hidden">
-                        <div class="w-2/3 h-full bg-slate-100 relative overflow-hidden flex">
-                            <a id="app-banner-top" class="hidden w-full h-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden"></a>
-                            <div id="app-banner-placeholder" class="w-full h-full flex items-center justify-center text-slate-300 text-[9px] font-bold">
-                                <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
-                            </div>
-                        </div>
-                        
-                        <div class="w-1/3 h-full bg-slate-200 border-r border-slate-200 flex items-center justify-center relative group cursor-pointer overflow-hidden" onclick="openProfileModal()">
-                            <div id="header-group-logo-container" class="w-full h-full flex items-center justify-center bg-slate-300">
-                                <i class="fa-solid fa-users text-white text-2xl" id="header-group-icon-fallback"></i>
-                                <img id="header-group-img" src="" class="w-full h-full object-cover hidden">
-                            </div>
-                            <button onclick="logout(); event.stopPropagation();" class="absolute top-1 left-1 w-6 h-6 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg flex items-center justify-center hover:bg-red-50 transition z-10" title="התנתק">
-                                <i class="fa-solid fa-power-off text-[11px]"></i>
-                            </button>
-                        </div>
-                    </div>
+<div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
+                    
+                                        <div class="w-full h-14 sm:h-20 bg-slate-100 relative overflow-hidden flex border-b border-slate-200">
+                        <a id="app-banner-top" class="hidden w-full h-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden"></a>
+                        <div id="app-banner-placeholder" class="w-full h-full flex items-center justify-center text-slate-300 text-[9px] font-bold">
+                            <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
+                        </div>
+                    </div>
 
-                    <header class="px-4 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md" id="tour-header">
-                        
-                        <div class="flex flex-col items-start text-right">
-                            <h2 id="dash-group-name" class="font-black text-slate-800 text-sm sm:text-base leading-tight"></h2>
-                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter" id="dash-group-subtitle">Family Control Center</p>
-                        </div>
+                                        <div class="w-full bg-white px-4 py-3 flex justify-between items-center border-b border-slate-100">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="document.getElementById('family-photo-upload').click()" title="החלף תמונת משפחה">
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-indigo-100 shadow-sm flex items-center justify-center bg-slate-50 relative shrink-0">
+                                <i class="fa-solid fa-camera text-slate-300 text-lg absolute z-0" id="header-group-icon-fallback"></i>
+                                <img id="header-group-img" src="" class="w-full h-full object-cover hidden relative z-10">
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <h2 id="dash-group-name" class="font-black text-slate-800 text-sm leading-tight line-clamp-1"></h2>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">Family Center</p>
+                            </div>
+                        </div>
 
-                        <div class="flex items-center gap-3">
-                            <div class="flex flex-col items-end">
-                                <div class="flex items-center gap-1.5">
-                                    <img src="/logo.png" alt="Oneflow" class="h-5 object-contain">
-                                    <span class="font-black text-slate-800 text-xs tracking-tighter">ONEFLOW <span class="text-blue-600">LIFE</span></span>
-                                </div>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <p class="text-[9px] text-slate-400">שלום, <span id="dash-nickname" class="font-bold text-slate-600"></span></p>
-                                    <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-purple-100 bg-purple-50 text-purple-600 cursor-pointer hover:bg-purple-100 transition flex items-center gap-1"></button>
-                                </div>
-                            </div>
-                            <button onclick="openProfileModal()" class="bg-slate-900 rounded-xl flex items-center justify-center shadow-lg text-white hover:bg-slate-800 transition cursor-pointer w-10 h-10 shrink-0">
-                                <i class="fa-solid fa-bars-staggered"></i>
-                            </button>
-                        </div>
-                    </header>
-                </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="if(typeof openTicketsModal === 'function') openTicketsModal()" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center transition shadow-sm border border-slate-100" title="קריאות שירות">
+                                <i class="fa-solid fa-headset text-xs"></i>
+                            </button>
+                            <button onclick="if(typeof openInboxModal === 'function') openInboxModal()" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 hover:bg-orange-50 hover:text-orange-600 flex items-center justify-center transition shadow-sm border border-slate-100 relative" title="תיבת הודעות">
+                                <i class="fa-solid fa-bell text-xs"></i>
+                            </button>
+                            <button onclick="openProfileModal()" class="w-8 h-8 rounded-full bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center transition shadow-sm border border-slate-100" title="הגדרות">
+                                <i class="fa-solid fa-gear text-xs"></i>
+                            </button>
+                            <button onclick="logout()" class="w-8 h-8 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition shadow-sm border border-red-100" title="התנתק">
+                                <i class="fa-solid fa-power-off text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                                        <header class="px-4 py-2 flex justify-between items-center bg-slate-50/80 backdrop-blur-md" id="tour-header">
+                        <div class="flex items-center gap-2">
+                            <p class="text-xs text-slate-500 font-medium">שלום, <span id="dash-nickname" class="font-bold text-slate-700"></span></p>
+                            <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-purple-100 bg-purple-50 text-purple-600 cursor-pointer hover:bg-purple-100 transition flex items-center gap-1"></button>
+                        </div>
+                        <div class="flex items-center gap-1.5 opacity-80">
+                            <img src="/logo.png" alt="Oneflow" class="h-3.5 object-contain">
+                            <span class="font-black text-slate-800 text-[10px] tracking-tighter">ONEFLOW <span class="text-blue-600">LIFE</span></span>
+                        </div>
+                    </header>
+                </div>
+                <input type="file" id="family-photo-upload" accept="image/*" class="hidden" onchange="handleFamilyPhotoUpload(event)">
                 
                 <div class="relative px-2 mb-3 group w-full">
                     <div class="slider-container">
