@@ -4134,8 +4134,7 @@ window.updateLoginDots = function(total) {
 
 // במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
 window.addEventListener('load', () => {
-    setTimeout(() => {
-        window.initPublicConfig();
-    }, 200);
-    } 
+    setTimeout(() => {
+        window.initPublicConfig();
+    }, 200);
 });
