@@ -3299,701 +3299,695 @@ function closeWelcomeModal() {
     checkAndStartTour(forceTourStart);
     forceTourStart = false;
 }
-
 function checkAndStartTour(force = false) {
-    setTimeout(() => {
-        try {
-            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
-            if (force || !localStorage.getItem(tourKey)) {
-                localStorage.setItem(tourKey, 'true');
-                switchTab('feed');
-                if (currentUser.role === 'ADMIN') startAdminTour();
-                else startChildTour();
-            }
-        } catch(e) {}
-    }, 1000);
+    setTimeout(() => {
+        try {
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
+            if (force || !localStorage.getItem(tourKey)) {
+                localStorage.setItem(tourKey, 'true');
+                switchTab('feed');
+                if (currentUser.role === 'ADMIN') startAdminTour();
+                else startChildTour();
+            }
+        } catch(e) {}
+    }, 1000);
 }
 
 function triggerManualTour() {
-    getEl('profile-modal').classList.add('hidden');
-    setTimeout(() => {
-        switchTab('feed');
-        if (currentUser.role === 'ADMIN') startAdminTour();
-        else startChildTour();
-    }, 300);
+    getEl('profile-modal').classList.add('hidden');
+    setTimeout(() => {
+        switchTab('feed');
+        if (currentUser.role === 'ADMIN') startAdminTour();
+        else startChildTour();
+    }, 300);
 }
 
 function openAlertModal(title, text) {
-    const titleEl = getEl('generic-alert-title');
-    const textEl = getEl('generic-alert-text');
-    const modal = getEl('generic-alert-modal');
-    if(titleEl && textEl && modal) {
-        titleEl.innerText = title;
-        textEl.innerText = text;
-        modal.classList.remove('hidden');
-    }
+    const titleEl = getEl('generic-alert-title');
+    const textEl = getEl('generic-alert-text');
+    const modal = getEl('generic-alert-modal');
+    if(titleEl && textEl && modal) {
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        modal.classList.remove('hidden');
+    }
 }
+
 async function linkBizToCommunity() {
-    const communityId = val('sa-link-comm'); 
-    const businessId = val('sa-link-biz'); 
-    let discountPct = val('sa-link-discount');
-    discountPct = discountPct ? parseFloat(discountPct) : 0;
-    
-    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
-    
-    try {
-        const res = await fetch(`${API}/sa/community-business`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
-            }, 
-            body: JSON.stringify({ communityId, businessId, discountPct })
-        });
-        
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'העסק שויך לקהילה!'); 
-            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
-            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
-            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
-        }
-    } catch(e) { 
-        console.error('Network Error linking biz:', e);
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    }
+    const communityId = val('sa-link-comm'); 
+    const businessId = val('sa-link-biz'); 
+    let discountPct = val('sa-link-discount');
+    discountPct = discountPct ? parseFloat(discountPct) : 0;
+    
+    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
+    
+    try {
+        const res = await fetch(`${API}/sa/community-business`, { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
+            }, 
+            body: JSON.stringify({ communityId, businessId, discountPct })
+        });
+        
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'העסק שויך לקהילה!'); 
+            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
+            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
+            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
+        }
+    } catch(e) { 
+        console.error('Network Error linking biz:', e);
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    }
 }
 
 async function loadCommunityBusinesses() {
-    const communityId = val('sa-link-comm');
-    const list = getEl('sa-comm-biz-list');
-    if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
-    
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
-    try {
-        const res = await fetch(`${API}/sa/community-business/${communityId}`);
-        const data = await res.json();
-        if(data.success) {
-            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
-            list.innerHTML = data.connections.map(c => `
-                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
-                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
-                </div>
-            `).join('');
-        }
-    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
+    const communityId = val('sa-link-comm');
+    const list = getEl('sa-comm-biz-list');
+    if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
+    
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
+    try {
+        const res = await fetch(`${API}/sa/community-business/${communityId}`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
+            list.innerHTML = data.connections.map(c => `
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
+                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
 }
 
 async function removeBizFromCommunity(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יקבלו יותר את ההנחה של העסק הזה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
-    } catch(e) {}
+    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יקבלו יותר את ההנחה של העסק הזה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
+    } catch(e) {}
 }
 
 // -- ניהול עסקים כולל (דרישה 5) --
 function renderSABusinessesTable() {
-    const tbody = getEl('sa-businesses-table-body');
-    if (!tbody) return;
+    const tbody = getEl('sa-businesses-table-body');
+    if (!tbody) return;
 
-    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
-    let filtered = [...saBusinessesCache];
-    
-    if (query) {
-        filtered = filtered.filter(b => 
-            (b.name && b.name.toLowerCase().includes(query)) || 
-            (b.group_code && b.group_code.toLowerCase().includes(query))
-        );
-    }
+    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
+    let filtered = [...saBusinessesCache];
+    
+    if (query) {
+        filtered = filtered.filter(b => 
+            (b.name && b.name.toLowerCase().includes(query)) || 
+            (b.group_code && b.group_code.toLowerCase().includes(query))
+        );
+    }
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
-        return;
-    }
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
+        return;
+    }
 
-    // מאחר ואין לנו Endpoint שמחזיר את כל החיבורים יחד, נצטרך לעשות Fetch פר עסק בעת פתיחת המודאל.
-    // בטבלה נציג נתונים כלליים ונגישות לחלון הניהול
-    tbody.innerHTML = filtered.map(b => `
-        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">
-                ${safeStr(b.name)}
-                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
-            </td>
-            <td class="px-4 py-4 text-right">
-                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = filtered.map(b => `
+        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-4 font-bold text-slate-800 text-right">
+                ${safeStr(b.name)}
+                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
+            </td>
+            <td class="px-4 py-4 text-right">
+                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
 function filterSABusinessesTable() { renderSABusinessesTable(); }
 
 async function openSABusinessModal(bizId) {
-    const biz = saBusinessesCache.find(b => b.id == bizId);
-    if (!biz) return;
-    
-    getEl('sa-edit-biz-title').innerText = biz.name;
-    getEl('sa-edit-biz-code').innerText = biz.group_code;
-    
-    const list = getEl('sa-edit-biz-communities-list');
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
-    
-    getEl('sa-business-modal').classList.remove('hidden');
+    const biz = saBusinessesCache.find(b => b.id == bizId);
+    if (!biz) return;
+    
+    getEl('sa-edit-biz-title').innerText = biz.name;
+    getEl('sa-edit-biz-code').innerText = biz.group_code;
+    
+    const list = getEl('sa-edit-biz-communities-list');
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
+    
+    getEl('sa-business-modal').classList.remove('hidden');
 
-    try {
-        // מכיוון שאנחנו כאדמין ראשי, יש לנו גישה לנתיב החיבורים של העסק (Biz App route)
-        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
-        const data = await res.json();
-        
-        if (data.success && data.communities) {
-            if (data.communities.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
-            } else {
-                list.innerHTML = data.communities.map(c => `
-                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
-                        <div>
-                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
-                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
-                        </div>
-                        <div class="flex flex-col items-end gap-2">
-                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
-                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-    } catch(e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
-    }
+    try {
+        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
+        const data = await res.json();
+        
+        if (data.success && data.communities) {
+            if (data.communities.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
+            } else {
+                list.innerHTML = data.communities.map(c => `
+                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
+                        <div>
+                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
+                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
+                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
+    }
 }
 
 async function removeBizFromCommunityInModal(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { 
-            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
-            openSABusinessModal(bizId); // טעינה מחדש של החלון
-            loadSACommunityData(); // רענון נתוני הרקע
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { 
+            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
+            openSABusinessModal(bizId); 
+            loadSACommunityData(); 
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
-    window.loadSADashboard = async function() {
-        const userDash = document.getElementById('dashboard-container');
-        if (userDash) userDash.classList.add('hidden');
-        
-        await originalLoadSADashboard();
-        loadSACommunityData();
-        
-        setTimeout(() => {
-            if (userDash) userDash.classList.add('hidden');
-        }, 100);
-    };
+    window.loadSADashboard = async function() {
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        loadSACommunityData();
+        
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
 window.saCommLoaded = true;
 }
 
-// ==========================================
-// --- ONBOARDING WIZARD (אשף הקמה למשפחה) ---
-// ==========================================
 let currentWizardStep = 1;
 let wizardProducts = [];
 
 function showOnboardingWizard() {
-    if (document.getElementById('onboarding-wizard-modal')) {
-        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
-        return;
-    }
+    if (document.getElementById('onboarding-wizard-modal')) {
+        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
+        return;
+    }
 
-    const modalHtml = `
-    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
-        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
-            
-            <div class="w-full bg-slate-100 h-1.5 shrink-0">
-                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
-            </div>
+    const modalHtml = `
+    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
+            
+            <div class="w-full bg-slate-100 h-1.5 shrink-0">
+                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
+            </div>
 
-            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
-                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
-                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
-            </div>
+            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
+                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
+                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
+            </div>
 
-            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
-                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> המשפחה שלנו</h3>
-                    <div class="space-y-4">
-                        <div class="flex flex-col items-center justify-center mb-6">
-                            <label class="text-xs font-bold text-slate-500 mb-2">תמונה משפחתית (אופציונלי):</label>
-                            <div class="relative w-24 h-24 bg-white rounded-full border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
-                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
-                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
-                            </div>
-                            <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
-                            <input type="hidden" id="wizard-logo-base64">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">משפט מפתח / מוטו משפחתי:</label>
-                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="משפחה שכזאת / המשפחה הכי טובה בעולם">
-                        </div>
-                    </div>
-                </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
+                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> המשפחה שלנו</h3>
+                    <div class="space-y-4">
+                        <div class="flex flex-col items-center justify-center mb-6">
+                            <label class="text-xs font-bold text-slate-500 mb-2">תמונה משפחתית (אופציונלי):</label>
+                            <div class="relative w-24 h-24 bg-white rounded-full border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
+                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
+                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
+                            </div>
+                            <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                            <input type="hidden" id="wizard-logo-base64">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">משפט מפתח / מוטו משפחתי:</label>
+                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="משפחה שכזאת / המשפחה הכי טובה בעולם">
+                        </div>
+                    </div>
+                </div>
 
-                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-piggy-bank text-indigo-500"></i> תקציב חודשי</h3>
-                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהו התקציב הפנוי או ההכנסה המשותפת שתרצו לנהל ולעקוב אחריה החודש באפליקציה.</p>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                        <label class="text-sm font-bold text-slate-700 block mb-2">התקציב החודשי (₪):</label>
-                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
-                        <p class="text-[10px] text-slate-400 mt-3">* אל דאגה, תוכלו לשנות או לאפס את זה בכל רגע.</p>
-                    </div>
-                </div>
+                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-piggy-bank text-indigo-500"></i> תקציב חודשי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהו התקציב הפנוי או ההכנסה המשותפת שתרצו לנהל ולעקוב אחריה החודש באפליקציה.</p>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                        <label class="text-sm font-bold text-slate-700 block mb-2">התקציב החודשי (₪):</label>
+                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
+                        <p class="text-[10px] text-slate-400 mt-3">* אל דאגה, תוכלו לשנות או לאפס את זה בכל רגע.</p>
+                    </div>
+                </div>
 
-                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
-                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית המזווה המשפחתי</h3>
-                    <p class="text-xs text-slate-500 text-center mb-4">נוסיף עכשיו את המוצרים שתמיד צריכים להיות בבית. אפשר לתת ל-AI שלנו לנחש בשבילכם!</p>
-                    
-                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
-                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ מילוי מזווה אוטומטי ב-AI</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תארו אתכם (למשל: משפחה טבעונית, או משפחה עם תינוק)">
-                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">מלא מזווה</button>
-                        </div>
-                    </div>
+                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית המזווה המשפחתי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-4">נוסיף עכשיו את המוצרים שתמיד צריכים להיות בבית. אפשר לתת ל-AI שלנו לנחש בשבילכם!</p>
+                    
+                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
+                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ מילוי מזווה אוטומטי ב-AI</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תארו אתכם (למשל: משפחה טבעונית, או משפחה עם תינוק)">
+                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">מלא מזווה</button>
+                        </div>
+                    </div>
 
-                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
-                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="wiz-add-name" placeholder="שם מוצר (חלב 3%)" class="modern-input py-2 text-xs flex-1">
-                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs w-24 shrink-0">
-                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs shrink-0">הוסף</button>
-                        </div>
-                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
+                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wiz-add-name" placeholder="שם מוצר (חלב 3%)" class="modern-input py-2 text-xs flex-1">
+                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs w-24 shrink-0">
+                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs shrink-0">הוסף</button>
+                        </div>
+                    </div>
 
-                    <div class="flex justify-between items-center mb-2 px-1">
-                        <h4 class="font-bold text-slate-700 text-sm">מוצרים במזווה (<span id="wiz-prod-count">0</span>/25):</h4>
-                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
-                    </div>
-                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
-                        <p class="text-xs text-slate-400 text-center py-4">אין מוצרים במזווה עדיין.</p>
-                    </div>
-                </div>
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <h4 class="font-bold text-slate-700 text-sm">מוצרים במזווה (<span id="wiz-prod-count">0</span>/25):</h4>
+                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
+                    </div>
+                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
+                        <p class="text-xs text-slate-400 text-center py-4">אין מוצרים במזווה עדיין.</p>
+                    </div>
+                </div>
 
-                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
-                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את המשפחה</h3>
-                    <p class="text-sm text-slate-500 mb-8">הסביבה מוכנה! שלחו עכשיו הזמנה לשאר בני הבית כדי שיתחילו לקבל דמי כיס ולעזור במשימות.</p>
-                    
-                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-brands fa-whatsapp text-lg"></i> הזמנת ילד/ה בוואטסאפ
-                    </button>
-                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
-                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה שותף
-                    </button>
-                </div>
-            </div>
+                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
+                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את המשפחה</h3>
+                    <p class="text-sm text-slate-500 mb-8">הסביבה מוכנה! שלחו עכשיו הזמנה לשאר בני הבית כדי שיתחילו לקבל דמי כיס ולעזור במשימות.</p>
+                    
+                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-brands fa-whatsapp text-lg"></i> הזמנת ילד/ה בוואטסאפ
+                    </button>
+                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה שותף
+                    </button>
+                </div>
+            </div>
 
-            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
-                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
-                <div class="flex gap-2">
-                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
-                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
+                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
+                <div class="flex gap-2">
+                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
+                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function handleWizardLogo(event) {
-    const file = event.target.files[0]; if(!file) return;
-    compressImage(file, 300, 300, 0.8, (base64) => {
-        getEl('wizard-logo-preview').src = base64;
-        getEl('wizard-logo-preview').classList.remove('hidden');
-        getEl('wizard-logo-icon').classList.add('hidden');
-        getEl('wizard-logo-base64').value = base64;
-    });
+    const file = event.target.files[0]; if(!file) return;
+    compressImage(file, 300, 300, 0.8, (base64) => {
+        getEl('wizard-logo-preview').src = base64;
+        getEl('wizard-logo-preview').classList.remove('hidden');
+        getEl('wizard-logo-icon').classList.add('hidden');
+        getEl('wizard-logo-base64').value = base64;
+    });
 }
 
 function addWizardProduct() {
-    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בבת אחת.');
-    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי';
-    if (!name) return showToast('error', 'יש להזין שם מוצר');
-    wizardProducts.push({ name, category: cat });
-    getEl('wiz-add-name').value = ''; getEl('wiz-add-cat').value = '';
-    renderWizardProducts();
+    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בבת אחת.');
+    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי';
+    if (!name) return showToast('error', 'יש להזין שם מוצר');
+    wizardProducts.push({ name, category: cat });
+    getEl('wiz-add-name').value = ''; getEl('wiz-add-cat').value = '';
+    renderWizardProducts();
 }
 
 function removeWizardProduct(idx) { wizardProducts.splice(idx, 1); renderWizardProducts(); }
 
 function renderWizardProducts() {
-    const list = getEl('wizard-products-list');
-    getEl('wiz-prod-count').innerText = wizardProducts.length;
-    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">המזווה ריק.</p>'; return; }
-    list.innerHTML = wizardProducts.map((p, idx) => `
-        <div class="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
-            <div class="flex-1 pr-2 overflow-hidden">
-                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)}</div>
-                <div class="text-[10px] text-slate-400 truncate">${safeStr(p.category)}</div>
-            </div>
-            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
-        </div>
-    `).join('');
+    const list = getEl('wizard-products-list');
+    getEl('wiz-prod-count').innerText = wizardProducts.length;
+    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">המזווה ריק.</p>'; return; }
+    list.innerHTML = wizardProducts.map((p, idx) => `
+        <div class="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
+            <div class="flex-1 pr-2 overflow-hidden">
+                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)}</div>
+                <div class="text-[10px] text-slate-400 truncate">${safeStr(p.category)}</div>
+            </div>
+            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `).join('');
 }
 
 async function generateWizardCatalog() {
-    const prompt = val('wizard-ai-prompt');
-    if(!prompt) return showToast('error', 'רשמו למשל: משפחה של 5 נפשות שומרת כשרות');
-    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch(`${API}/ai/generate-catalog`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ promptText: prompt, type: 'FAMILY', groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        if (data.success && data.items) {
-            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
-            renderWizardProducts(); showToast('success', 'המזווה התמלא!');
-        } else { showToast('error', data.error || 'שגיאה ביצירת מזווה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
-    finally { btn.disabled = false; btn.innerText = 'מלא מזווה'; }
+    const prompt = val('wizard-ai-prompt');
+    if(!prompt) return showToast('error', 'רשמו למשל: משפחה של 5 נפשות שומרת כשרות');
+    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ promptText: prompt, type: 'FAMILY', groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success && data.items) {
+            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
+            renderWizardProducts(); showToast('success', 'המזווה התמלא!');
+        } else { showToast('error', data.error || 'שגיאה ביצירת מזווה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
+    finally { btn.disabled = false; btn.innerText = 'מלא מזווה'; }
 }
 
 function updateWizardUI() {
-    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
-    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
-    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
-    
-    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
-    const btnNext = getEl('wizard-btn-next');
-    if (currentWizardStep === 4) {
-        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
-        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
-    } else {
-        btnNext.innerText = 'המשך';
-        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
-    }
+    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
+    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
+    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
+    
+    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
+    const btnNext = getEl('wizard-btn-next');
+    if (currentWizardStep === 4) {
+        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
+        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
+    } else {
+        btnNext.innerText = 'המשך';
+        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
+    }
 }
 
 async function nextWizardStep() {
-    const btnNext = getEl('wizard-btn-next');
-    
-    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        try {
-            // משתמש ב-Settings Store סתם כדי לשמור את התמונה והסלוגן המשפחתי גם אם זה Family
-            await fetch(`${API}/store/settings`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ groupId: currentGroup.id, isActive: false, slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
-            });
-        } catch(e) {}
-    }
-    
-    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
-        const budget = parseFloat(val('wizard-initial-budget')) || 0;
-        if (budget > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            try {
-                await fetch(`${API}/transaction`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
-                });
-            } catch(e) {}
-        }
-    }
-    
-    else if (currentWizardStep === 3) { // העלאת מוצרי מזווה
-        if (wizardProducts.length > 0) {
-            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
-            try {
-                for (let p of wizardProducts) {
-                    await fetch(`${API}/pantry/add`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
-                    });
-                }
-            } catch(e) {}
-        }
-    }
-    
-   else if (currentWizardStep === 4) { // סיום
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
-        try {
-            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
-            currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
-            getEl('onboarding-wizard-modal').classList.add('hidden');
-            triggerConfetti(); fetchData();
-        } catch(e) {}
-        return;
-    }
-    currentWizardStep++;
-    updateWizardUI();
+    const btnNext = getEl('wizard-btn-next');
+    
+    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            // משתמש ב-Settings Store סתם כדי לשמור את התמונה והסלוגן המשפחתי גם אם זה Family
+            await fetch(`${API}/store/settings`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, isActive: false, slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
+            });
+        } catch(e) {}
+    }
+    
+    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
+        const budget = parseFloat(val('wizard-initial-budget')) || 0;
+        if (budget > 0) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                await fetch(`${API}/transaction`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
+                });
+            } catch(e) {}
+        }
+    }
+    
+    else if (currentWizardStep === 3) { // העלאת מוצרי מזווה
+        if (wizardProducts.length > 0) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
+            try {
+                for (let p of wizardProducts) {
+                    await fetch(`${API}/pantry/add`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
+                    });
+                }
+            } catch(e) {}
+        }
+    }
+    
+   else if (currentWizardStep === 4) { // סיום
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
+        try {
+            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
+            currentGroup.is_onboarded = true;
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
+            getEl('onboarding-wizard-modal').classList.add('hidden');
+            triggerConfetti(); fetchData();
+        } catch(e) {}
+        return;
+    }
+    currentWizardStep++;
+    updateWizardUI();
 }
 
 function prevWizardStep() {
-    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
+    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
 }
 
 function skipWizardStep() {
-    if (currentWizardStep === 4) nextWizardStep(); // סיום
-    else { currentWizardStep++; updateWizardUI(); }
+    if (currentWizardStep === 4) nextWizardStep(); // סיום
+    else { currentWizardStep++; updateWizardUI(); }
 }
 
 // --- ניהול תמונת זהות משפחתית ---
 window.handleFamilyPhotoUpload = async function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    showToast('info', 'מעלה ומעבד תמונה...');
-    compressImage(file, 600, 600, 0.8, async (base64) => {
-        
-        // 1. תצוגה מיידית למשתמש ושמירה במטמון לפני תשובת שרת
-        if (currentGroup) currentGroup.logo_url = base64;
-        const headerImg = getEl('header-group-img');
-        const headerFallback = getEl('header-group-icon-fallback');
-        const mgmtImg = getEl('mgmt-group-logo-preview');
-        const mgmtIcon = getEl('mgmt-group-logo-icon');
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showToast('info', 'מעלה ומעבד תמונה...');
+    compressImage(file, 600, 600, 0.8, async (base64) => {
+        
+        // 1. תצוגה מיידית למשתמש ושמירה במטמון לפני תשובת שרת
+        if (currentGroup) currentGroup.logo_url = base64;
+        const headerImg = getEl('header-group-img');
+        const headerFallback = getEl('header-group-icon-fallback');
+        const mgmtImg = getEl('mgmt-group-logo-preview');
+        const mgmtIcon = getEl('mgmt-group-logo-icon');
 
-        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
-        if (headerFallback) headerFallback.classList.add('hidden');
-        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
-        if (mgmtIcon) mgmtIcon.classList.add('hidden');
+        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
 
-        // 2. שמירה בשרת
-        try {
-            const res = await fetch(`${API}/store/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    groupId: currentGroup.id,
-                    logoUrl: base64,
-                    isActive: true
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
-            } else {
-                showToast('error', 'שגיאה בשמירת התמונה בשרת');
-            }
-        } catch (e) {
-            showToast('error', 'תקלת רשת בעדכון תמונה');
-        }
-    });
+        // 2. שמירה בשרת
+        try {
+            const res = await fetch(`${API}/store/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    groupId: currentGroup.id,
+                    logoUrl: base64,
+                    isActive: true
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
+            } else {
+                showToast('error', 'שגיאה בשמירת התמונה בשרת');
+            }
+        } catch (e) {
+            showToast('error', 'תקלת רשת בעדכון תמונה');
+        }
+    });
 };
 
 // =====================================
 // ניהול הרשאות ופיצ'רים (Feature Flags)
 // =====================================
 const ALL_TABS = [
-    { id: 'feed', name: 'ראשי 🏠' },
-    { id: 'tasks', name: 'משימות הבית ✅' },
-    { id: 'shop', name: 'רשימת סופר 🛒' },
-    { id: 'myorders', name: 'משלוחים 🛵' },
-    { id: 'bank', name: 'הבנק המשפחתי 🏦' },
-    { id: 'cashflow', name: 'תזרים עו"ש 💸' },
-    { id: 'community', name: 'קהילה מקומית 🏘️' },
-    { id: 'academy', name: 'לומדות חינוך 🎓' },
-    { id: 'members', name: 'ניהול משפחה 👨‍👩‍👧‍👦' },
-    { id: 'budget', name: 'ניהול תקציב 📊' },
-    { id: 'pantry', name: 'ניהול מזווה 📦' },
-    { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
-    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'tasks', name: 'משימות הבית ✅' },
+    { id: 'shop', name: 'רשימת סופר 🛒' },
+    { id: 'myorders', name: 'משלוחים 🛵' },
+    { id: 'bank', name: 'הבנק המשפחתי 🏦' },
+    { id: 'cashflow', name: 'תזרים עו"ש 💸' },
+    { id: 'community', name: 'קהילה מקומית 🏘️' },
+    { id: 'academy', name: 'לומדות חינוך 🎓' },
+    { id: 'members', name: 'ניהול משפחה 👨‍👩‍👧‍👦' },
+    { id: 'budget', name: 'ניהול תקציב 📊' },
+    { id: 'pantry', name: 'ניהול מזווה 📦' },
+    { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
+    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
 ];
 
 const ROLE_DEFAULTS = {
-    'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
-    'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
-    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
+    'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
+    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
 };
 
 function enforcePermissions() {
-    if (!currentUser || !currentGroup) return;
-    const isAdmin = currentUser.role === 'ADMIN';
-    let userTabs = [];
-    try {
-        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
-    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
-    // במערכת המשפחתית שמות המודולים טיפה שונים, אנחנו עושים תאימות:
-    let features = { store: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, ai: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, recipes: true };
-    
-    if (currentGroup.features) {
-        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
-    }
+    // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
+    // במערכת המשפחתית שמות המודולים טיפה שונים, אנחנו עושים תאימות:
+    let features = { store: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, ai: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, recipes: true };
+    
+    if (currentGroup.features) {
+        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
+    }
 
-    // 1. הסתרה מוחלטת לפי תפקיד הילד/הורה (Role) - מבוצע רק עבור מי שאינו הורה מנהל
-    ALL_TABS.forEach(tab => {
-        const btn = getEl(`tab-${tab.id}`);
-        if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-    });
+    // 1. הסתרה מוחלטת לפי תפקיד הילד/הורה (Role) - מבוצע רק עבור מי שאינו הורה מנהל
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
 
-    // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
-    const enforceModule = (flag, tabId, moduleName) => {
-        const btn = getEl(`tab-${tabId}`);
-        if (!btn || btn.style.display === 'none') return; 
-        
-        const isModuleActive = flag !== undefined ? flag : true;
+    // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
+    const enforceModule = (flag, tabId, moduleName) => {
+        const btn = getEl(`tab-${tabId}`);
+        if (!btn || btn.style.display === 'none') return; 
+        
+        const isModuleActive = flag !== undefined ? flag : true;
 
-        if (!isModuleActive) {
-            // המודול ננעל - הופכים לאפור ושמים מנעול
-            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
-            btn.dataset.lockedName = moduleName;
-            if (!btn.querySelector('.fa-lock')) {
-                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
-            }
-        } else {
-            // שחרור מנעול
-            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
-            const lockIcon = btn.querySelector('.fa-lock');
-            if (lockIcon) lockIcon.remove();
-        }
-    };
+        if (!isModuleActive) {
+            // המודול ננעל - הופכים לאפור ושמים מנעול
+            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
+            btn.dataset.lockedName = moduleName;
+            if (!btn.querySelector('.fa-lock')) {
+                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
+            }
+        } else {
+            // שחרור מנעול
+            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
+            const lockIcon = btn.querySelector('.fa-lock');
+            if (lockIcon) lockIcon.remove();
+        }
+    };
 
-    // הפעלת האכיפה לפי המודולים במסך העריכה באדמין:
-    enforceModule(features.store, 'shop', 'רשימת קניות חכמה');
-    enforceModule(features.academy, 'academy', 'מרכז הכשרות ואתגרים');
-    enforceModule(features.finance, 'bank', 'הבנק המשפחתי ודמי כיס');
-    enforceModule(features.inventory, 'pantry', 'ניהול מלאי בבית');
-    enforceModule(features.crm, 'myorders', 'הזמנות מקהילות'); 
-    enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
-    enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
-    enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
-    enforceModule(features.tasks, 'tasks', 'ניהול משימות ותגמולים');
-    enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
-    enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
-    // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
-    enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
+    // הפעלת האכיפה לפי המודולים במסך העריכה באדמין:
+    enforceModule(features.store, 'shop', 'רשימת קניות חכמה');
+    enforceModule(features.academy, 'academy', 'מרכז הכשרות ואתגרים');
+    enforceModule(features.finance, 'bank', 'הבנק המשפחתי ודמי כיס');
+    enforceModule(features.inventory, 'pantry', 'ניהול מלאי בבית');
+    enforceModule(features.crm, 'myorders', 'הזמנות מקהילות'); 
+    enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
+    enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
+    enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
+    enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
+    enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
+    // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
+    enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
 
-    // הגבלת אלמנטים של העוזרת הווירטואלית AI
-    const aiBtnMain = getEl('btn-global-ai');
-    if (features.ai !== undefined && !features.ai) {
-        if (aiBtnMain) aiBtnMain.style.display = 'none';
-        document.querySelectorAll('.fa-wand-magic-sparkles').forEach(icon => {
-            const parentBtn = icon.closest('button');
-            if (parentBtn && !parentBtn.classList.contains('locked-module')) {
-                parentBtn.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
-                parentBtn.onclick = (e) => { e.stopPropagation(); openLockedModuleModal('כלי בינה מלאכותית חכמים'); };
-            }
-        });
-    }
+    // הגבלת אלמנטים של העוזרת הווירטואלית AI
+    const aiBtnMain = getEl('btn-global-ai');
+    if (features.ai !== undefined && !features.ai) {
+        if (aiBtnMain) aiBtnMain.style.display = 'none';
+        document.querySelectorAll('.fa-wand-magic-sparkles').forEach(icon => {
+            const parentBtn = icon.closest('button');
+            if (parentBtn && !parentBtn.classList.contains('locked-module')) {
+                parentBtn.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
+                parentBtn.onclick = (e) => { e.stopPropagation(); openLockedModuleModal('כלי בינה מלאכותית חכמים'); };
+            }
+        });
+    }
 
-    // וידוא שהמשתמש לא תקוע בטאב נעול
-    const activeTabs = document.querySelectorAll('.tab-active');
-    activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
-            if(activeBtn.id !== 'tab-feed') switchTab('feed');
-        }
-    });
+    // וידוא שהמשתמש לא תקוע בטאב נעול
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
+            if(activeBtn.id !== 'tab-feed') switchTab('feed');
+        }
+    });
 }
 
 // =====================================
 // מודול Upsell וחלון מודול נעול
 // =====================================
 window.openLockedModuleModal = function(moduleName) {
-    let modal = getEl('locked-module-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'locked-module-modal';
-        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
-        modal.innerHTML = `
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
-                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
-                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
-                    <i class="fa-solid fa-lock"></i>
-                </div>
-                <h3 class="text-2xl font-black text-slate-800 mb-2">פיצ'ר נעול 🔒</h3>
-                <p class="text-sm text-slate-500 mb-8 leading-relaxed">היכולת להשתמש ב-<strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגורה בחבילה הנוכחית שלכם.<br>רוצים לפתוח את הנעילה ולהרחיב את המערכת?</p>
-                <button id="btn-req-unlock" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                    שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>
-                </button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-    
-    getEl('locked-module-name').innerText = moduleName;
-    const btn = getEl('btn-req-unlock');
-    btn.onclick = () => requestModuleUnlock(moduleName);
-    
-    modal.classList.remove('hidden');
+    let modal = getEl('locked-module-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'locked-module-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
+                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">פיצ'ר נעול 🔒</h3>
+                <p class="text-sm text-slate-500 mb-8 leading-relaxed">היכולת להשתמש ב-<strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגורה בחבילה הנוכחית שלכם.<br>רוצים לפתוח את הנעילה ולהרחיב את המערכת?</p>
+                <button id="btn-req-unlock" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    getEl('locked-module-name').innerText = moduleName;
+    const btn = getEl('btn-req-unlock');
+    btn.onclick = () => requestModuleUnlock(moduleName);
+    
+    modal.classList.remove('hidden');
 };
 
 window.requestModuleUnlock = async function(moduleName) {
-    const btn = getEl('btn-req-unlock');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
-    
-    try {
-        const payload = {
-            groupId: currentGroup.id,
-            groupName: currentGroup.name,
-            userId: currentUser.id,
-            userName: currentUser.nickname,
-            userEmail: currentGroup.admin_email || 'לא ידוע',
-            subject: `בקשת שדרוג חבילה / משפחה: פתיחת ${moduleName}`,
-            description: `היי צוות, אשמח לקבל פרטים ועלויות לגבי הוספת המודול "${moduleName}" למערכת המשפחתית שלנו. אנא צרו איתי קשר.`
-        };
+    const btn = getEl('btn-req-unlock');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
+    
+    try {
+        const payload = {
+            groupId: currentGroup.id,
+            groupName: currentGroup.name,
+            userId: currentUser.id,
+            userName: currentUser.nickname,
+            userEmail: currentGroup.admin_email || 'לא ידוע',
+            subject: `בקשת שדרוג חבילה / משפחה: פתיחת ${moduleName}`,
+            description: `היי צוות, אשמח לקבל פרטים ועלויות לגבי הוספת המודול "${moduleName}" למערכת המשפחתית שלנו. אנא צרו איתי קשר.`
+        };
 
-        const res = await fetch(`${API}/support/ticket`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'מעולה! שלחנו פנייה לצוות. נחזור אליכם בהקדם האפשרי.');
-            getEl('locked-module-modal').classList.add('hidden');
-            try { triggerConfetti(); } catch(e){}
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הפנייה');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>';
-    }
+        const res = await fetch(`${API}/support/ticket`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'מעולה! שלחנו פנייה לצוות. נחזור אליכם בהקדם האפשרי.');
+            getEl('locked-module-modal').classList.add('hidden');
+            try { triggerConfetti(); } catch(e){}
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הפנייה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>';
+    }
 };
 
 // יירוט לחיצות על טאבים נעולים (כדי שלא יכנסו לעמוד ריק)
 if (!window.switchTabOverridden) {
-    const originalSwitchTab = window.switchTab;
-    window.switchTab = function(tabId) {
-        const targetBtn = document.getElementById(`tab-${tabId}`);
-        if (targetBtn && targetBtn.classList.contains('locked-module')) {
-            const modName = targetBtn.dataset.lockedName || 'מודול נעול';
-            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; // מונע כניסה למסך
-        }
-        originalSwitchTab(tabId);
-        setTimeout(enforcePermissions, 50);
-    };
-    window.switchTabOverridden = true;
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabId) {
+        const targetBtn = document.getElementById(`tab-${tabId}`);
+        if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            const modName = targetBtn.dataset.lockedName || 'מודול נעול';
+            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return; // מונע כניסה למסך
+        }
+        originalSwitchTab(tabId);
+        setTimeout(enforcePermissions, 50);
+    };
+    window.switchTabOverridden = true;
 }
 
 // קריאה ראשונית כשכל הדף נטען
@@ -4001,13 +3995,13 @@ setTimeout(enforcePermissions, 1500);
 
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
-    if (!document.getElementById('oneflow-version-badge')) {
-        const badge = document.createElement('div');
-        badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.8 (סנכרון מלא לסופר-אדמין ושליטה בחבילות)';
-        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
-        document.body.appendChild(badge);
-    }
+    if (!document.getElementById('oneflow-version-badge')) {
+        const badge = document.createElement('div');
+        badge.id = 'oneflow-version-badge';
+        badge.innerHTML = 'גרסה 2.1.8 (סנכרון מלא לסופר-אדמין ושליטה בחבילות)';
+        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
+        document.body.appendChild(badge);
+    }
 })();
 // =========================================================
 // --- מנגנון מיתוג גלובלי ומסך התחברות חכם ---
@@ -4017,112 +4011,112 @@ window.loginSliderInterval = null;
 window.currentLoginSlideIndex = 0;
 
 window.initPublicConfig = async function() {
-    try {
-        const res = await fetch(`${API}/system/public-config`);
-        const data = await res.json();
-        
-        if (data.success) {
-            // החלפת סמל הדפדפן (Favicon)
-            if (data.globalAiLogo) {
-                const link = document.querySelector("link[rel~='icon']");
-                if (link) link.href = data.globalAiLogo;
-                else {
-                    const newLink = document.createElement('link');
-                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
-                    document.head.appendChild(newLink);
-                }
-                
-                // פתרון לתקלת ה"החלפה לשנייה אחת":
-                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
-                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
-                setInterval(() => {
-                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
-                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
-                        if (img.getAttribute('src') !== data.globalAiLogo) {
-                            img.src = data.globalAiLogo;
-                        }
-                    });
-                }, 500);
-            }
+    try {
+        const res = await fetch(`${API}/system/public-config`);
+        const data = await res.json();
+        
+        if (data.success) {
+            // החלפת סמל הדפדפן (Favicon)
+            if (data.globalAiLogo) {
+                const link = document.querySelector("link[rel~='icon']");
+                if (link) link.href = data.globalAiLogo;
+                else {
+                    const newLink = document.createElement('link');
+                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
+                    document.head.appendChild(newLink);
+                }
+                
+                // פתרון לתקלת ה"החלפה לשנייה אחת":
+                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
+                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
+                setInterval(() => {
+                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
+                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
+                        if (img.getAttribute('src') !== data.globalAiLogo) {
+                            img.src = data.globalAiLogo;
+                        }
+                    });
+                }, 500);
+            }
 
-            // בניית קרוסלת ההתחברות (Login Slider)
-            if (data.loginSlides && data.loginSlides.length > 0) {
-                const wrapper = document.getElementById('login-slider-wrapper');
-                const scroll = document.getElementById('login-slider-scroll');
-                const dots = document.getElementById('login-slider-dots');
-                const defaultCredit = document.getElementById('login-default-credit');
-                
-                if (wrapper && scroll && dots && defaultCredit) {
-                    defaultCredit.classList.add('hidden');
-                    wrapper.classList.remove('hidden');
-                    
-                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
-                    scroll.classList.remove('overflow-x-auto');
-                    scroll.classList.add('overflow-hidden');
-                    scroll.style.overflow = 'hidden';
-                    scroll.style.touchAction = 'none'; 
-                    
-                    let slidesHtml = '';
-                    let dotsHtml = '';
-                    
-                    data.loginSlides.forEach((slide, idx) => {
-                        slidesHtml += `
-                        <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
-                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
-                        </div>`;
-                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
-                    });
-                    
-                    scroll.innerHTML = slidesHtml;
-                    dots.innerHTML = data.loginSlides.length > 1 ? dotsHtml : ''; 
-                    
-                    if (data.loginSlides.length > 1) {
-                        window.startLoginAutoScroll(data.loginSlides.length);
-                    }
-                }
-            }
-        }
-    } catch(e) { console.error('Failed to load public config', e); }
+            // בניית קרוסלת ההתחברות (Login Slider)
+            if (data.loginSlides && data.loginSlides.length > 0) {
+                const wrapper = document.getElementById('login-slider-wrapper');
+                const scroll = document.getElementById('login-slider-scroll');
+                const dots = document.getElementById('login-slider-dots');
+                const defaultCredit = document.getElementById('login-default-credit');
+                
+                if (wrapper && scroll && dots && defaultCredit) {
+                    defaultCredit.classList.add('hidden');
+                    wrapper.classList.remove('hidden');
+                    
+                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
+                    scroll.classList.remove('overflow-x-auto');
+                    scroll.classList.add('overflow-hidden');
+                    scroll.style.overflow = 'hidden';
+                    scroll.style.touchAction = 'none'; 
+                    
+                    let slidesHtml = '';
+                    let dotsHtml = '';
+                    
+                    data.loginSlides.forEach((slide, idx) => {
+                        slidesHtml += `
+                        <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
+                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
+                        </div>`;
+                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
+                    });
+                    
+                    scroll.innerHTML = slidesHtml;
+                    dots.innerHTML = data.loginSlides.length > 1 ? dotsHtml : ''; 
+                    
+                    if (data.loginSlides.length > 1) {
+                        window.startLoginAutoScroll(data.loginSlides.length);
+                    }
+                }
+            }
+        }
+    } catch(e) { console.error('Failed to load public config', e); }
 };
 
 window.startLoginAutoScroll = function(total) {
-    if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
-    window.loginSliderInterval = setInterval(() => {
-        window.currentLoginSlideIndex++;
-        if (window.currentLoginSlideIndex >= total) {
-            window.currentLoginSlideIndex = 0;
-        }
-        window.goToLoginSlide(window.currentLoginSlideIndex, total);
-    }, 4500); 
+    if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
+    window.loginSliderInterval = setInterval(() => {
+        window.currentLoginSlideIndex++;
+        if (window.currentLoginSlideIndex >= total) {
+            window.currentLoginSlideIndex = 0;
+        }
+        window.goToLoginSlide(window.currentLoginSlideIndex, total);
+    }, 4500); 
 };
 
 window.goToLoginSlide = function(index, totalSlides) {
-    window.currentLoginSlideIndex = index;
-    const scroll = document.getElementById('login-slider-scroll');
-    if (scroll) {
-        const w = scroll.clientWidth;
-        const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
-        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
-        scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
-    }
-    
-    const dotsDiv = document.getElementById('login-slider-dots');
-    const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
-    window.updateLoginDots(total);
-    
-    // איפוס הטיימר לאחר לחיצה ידנית
-    if (total > 1) {
-        window.startLoginAutoScroll(total);
-    }
+    window.currentLoginSlideIndex = index;
+    const scroll = document.getElementById('login-slider-scroll');
+    if (scroll) {
+        const w = scroll.clientWidth;
+        const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
+        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
+        scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
+    }
+    
+    const dotsDiv = document.getElementById('login-slider-dots');
+    const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
+    window.updateLoginDots(total);
+    
+    // איפוס הטיימר לאחר לחיצה ידנית
+    if (total > 1) {
+        window.startLoginAutoScroll(total);
+    }
 };
 
 window.updateLoginDots = function(total) {
-    for (let i = 0; i < total; i++) {
-        const dot = document.getElementById(`login-dot-${i}`);
-        if (dot) {
-            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
-        }
-    }
+    for (let i = 0; i < total; i++) {
+        const dot = document.getElementById(`login-dot-${i}`);
+        if (dot) {
+            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
+        }
+    }
 };
 
 // במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
