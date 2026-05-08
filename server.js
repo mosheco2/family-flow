@@ -3732,3 +3732,80 @@ app.get('/:alias', (req, res, next) => {
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
+
+window.renderGroupInfo = () => {
+    if (!currentGroup) return;
+    
+    // עדכון שם הקבוצה
+    const nameEl = document.getElementById('dash-group-name');
+    if (nameEl) nameEl.innerText = currentGroup.name;
+
+    // עדכון תמונת משפחה בשני המקומות (בכותרת ובניהול)
+    const logo = currentGroup.logo;
+    const headerImg = document.getElementById('header-group-img');
+    const headerFallback = document.getElementById('header-group-icon-fallback');
+    const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
+    const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
+
+    if (logo && logo.length > 10) {
+        if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
+    }
+};
+// שליחת קריאת שירות - פותר את שגיאת undefined
+window.submitTicket = async function() {
+    const subject = document.getElementById('ticket-subject').value;
+    const content = document.getElementById('ticket-content').value;
+    
+    if (!subject || !content) {
+        showToast('error', 'נא למלא נושא ותוכן');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/tickets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify({ 
+                group_id: currentGroup.id, 
+                user_id: currentUser.id, 
+                subject, content 
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפנייה נשלחה!');
+            document.getElementById('ticket-subject').value = '';
+            document.getElementById('ticket-content').value = '';
+            if (typeof fetchMyTickets === 'function') fetchMyTickets();
+        }
+    } catch (err) { console.error(err); }
+};
+
+// העלאת תמונת משפחה ושמירה קבועה
+window.handleFamilyPhotoUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const base64 = e.target.result;
+        
+        // עדכון מקומי מיידי
+        currentGroup.logo = base64;
+        renderGroupInfo();
+
+        // שמירה בשרת
+        try {
+            await fetch(`${API}/groups/${currentGroup.id}/logo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ logo: base64 })
+            });
+            showToast('success', 'תמונת המשפחה נשמרה לצמיתות');
+        } catch (err) { console.error(err); }
+    };
+    reader.readAsDataURL(file);
+};
