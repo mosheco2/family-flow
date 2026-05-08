@@ -3754,44 +3754,4 @@ window.renderGroupInfo = () => {
         if (mgmtIcon) mgmtIcon.classList.add('hidden');
     }
 };
-// שליחת קריאת שירות - פותר את שגיאת undefined
-window.submitTicket = async function() {
-    const subject = document.getElementById('ticket-subject').value;
-    const content = document.getElementById('ticket-content').value;
-    
-    if (!subject || !content) {
-        showToast('error', 'נא למלא נושא ותוכן');
-        return;
-    }
-    
-    try {
-        const res = await fetch(`${API}/tickets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': token },
-            body: JSON.stringify({ 
-                group_id: currentGroup.id, 
-                user_id: currentUser.id, 
-                subject, content 
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'הפנייה נשלחה!');
-            document.getElementById('ticket-subject').value = '';
-            document.getElementById('ticket-content').value = '';
-            if (typeof fetchMyTickets === 'function') fetchMyTickets();
-        }
-    } catch (err) { console.error(err); }
-};
-        // שמירה בשרת
-        try {
-            await fetch(`${API}/groups/${currentGroup.id}/logo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ logo: base64 })
-            });
-            showToast('success', 'תמונת המשפחה נשמרה לצמיתות');
-        } catch (err) { console.error(err); }
-    };
-    reader.readAsDataURL(file);
-};
+
