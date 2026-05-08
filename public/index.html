@@ -122,6 +122,7 @@
         .report-table th { background-color: #f1f5f9; padding: 8px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold; }
         .report-table td { padding: 8px; border: 1px solid #e2e8f0; }
         .report-badge { background-color: #e0f2fe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+   #app-banner-top img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -254,11 +255,13 @@
 <div class="flex-1 pb-28 relative flex flex-col w-full">
                 <div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
                     
-                   <div class="w-full flex h-14 sm:h-20 border-b border-slate-50 overflow-hidden">
-                        <div class="w-full h-full bg-slate-100 relative overflow-hidden flex">
-                            <a id="app-banner-top" class="hidden w-full h-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden"></a>
-                            <div id="app-banner-placeholder" class="w-full h-full flex items-center justify-center text-slate-300 text-[9px] font-bold">
-                                <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
+         <div class="w-full h-16 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
+                        <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden">
+                            </a>
+                        <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
+                            <div class="flex flex-col items-center">
+                                <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
+                                <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
                             </div>
                         </div>
                     </div>
