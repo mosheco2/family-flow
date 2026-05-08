@@ -122,7 +122,8 @@
         .report-table th { background-color: #f1f5f9; padding: 8px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold; }
         .report-table td { padding: 8px; border: 1px solid #e2e8f0; }
         .report-badge { background-color: #e0f2fe; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-   #app-banner-top img { width: 100%; height: 100%; object-fit: cover; }
+        #app-banner-top img { width: 100%; height: 100%; object-fit: cover; }
+        #app-banner-top img, #app-banner-bottom img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -718,7 +719,16 @@
                     </div>
             </div>
 
-            <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden py-3"></a>
+<div class="w-full h-16 sm:h-28 border-t border-slate-100 bg-slate-50 relative overflow-hidden mt-auto shrink-0 z-40">
+                <a id="app-banner-bottom" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden">
+                    </a>
+                <div id="app-banner-bottom-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
+                    <div class="flex flex-col items-center">
+                        <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
+                        <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>
