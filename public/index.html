@@ -726,7 +726,7 @@
         <span class="text-[8px] font-black leading-none uppercase tracking-widest opacity-90">צ'אט</span>
         <span id="team-chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
     </button>
-    
+
     <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
         <i class="fa-solid fa-universal-access"></i>
     </button>
@@ -2000,5 +2000,25 @@
             }
         };
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setInterval(() => {
+                const dash = document.getElementById('dashboard-container');
+                const isDashVisible = dash && !dash.classList.contains('hidden');
+                
+                ['fab-container', 'ai-assistant-wrapper', 'team-chat-btn-wrapper'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        if (isDashVisible) {
+                            el.classList.remove('hidden');
+                        } else {
+                            el.classList.add('hidden');
+                        }
+                    }
+                });
+            }, 1000);
+        });
+    </script>
 </body>
-</html>  
+</html>
