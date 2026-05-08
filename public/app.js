@@ -4258,27 +4258,22 @@ window.handleFamilyPhotoUpload = function(event) {
 window.renderGroupInfo = () => {
     if (!currentGroup) return;
     
-    // עדכון שם המשפחה
+    // עדכון שם הקבוצה
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) nameEl.innerText = currentGroup.name;
 
-    // --- עדכון תמונת המשפחה (לוגו) כדי שלא תיעלם ברענון ---
-    const groupLogo = currentGroup.logo;
+    // עדכון תמונת משפחה בשני המקומות (בכותרת ובניהול)
+    const logo = currentGroup.logo;
     const headerImg = document.getElementById('header-group-img');
     const headerFallback = document.getElementById('header-group-icon-fallback');
     const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
     const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
 
-    if (groupLogo && groupLogo !== '') {
-        if (headerImg) { headerImg.src = groupLogo; headerImg.classList.remove('hidden'); }
+    if (logo && logo.length > 10) {
+        if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
         if (headerFallback) headerFallback.classList.add('hidden');
-        if (mgmtPreview) { mgmtPreview.src = groupLogo; mgmtPreview.classList.remove('hidden'); }
+        if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
         if (mgmtIcon) mgmtIcon.classList.add('hidden');
-    } else {
-        if (headerImg) headerImg.classList.add('hidden');
-        if (headerFallback) headerFallback.classList.remove('hidden');
-        if (mgmtPreview) mgmtPreview.classList.add('hidden');
-        if (mgmtIcon) mgmtIcon.classList.remove('hidden');
     }
 };
 
