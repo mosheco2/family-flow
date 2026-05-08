@@ -4255,20 +4255,30 @@ window.handleFamilyPhotoUpload = function(event) {
     reader.readAsDataURL(file);
 };
 
-// פונקציה להחלת התמונה כשמרעננים את העמוד (מתלבשת על פונקציית הטעינה הקיימת)
-const originalRenderGroupInfoForLogo = window.renderGroupInfo;
-window.renderGroupInfo = function() {
-    if(typeof originalRenderGroupInfoForLogo === 'function') originalRenderGroupInfoForLogo();
-    if (currentGroup && currentGroup.logo) {
-        const imgEl = document.getElementById('header-group-img');
-        const fallbackEl = document.getElementById('header-group-icon-fallback');
-        const previewEl = document.getElementById('mgmt-group-logo-preview');
-        const previewFallback = document.getElementById('mgmt-group-logo-icon');
+window.renderGroupInfo = () => {
+    if (!currentGroup) return;
+    
+    // עדכון שם המשפחה
+    const nameEl = document.getElementById('dash-group-name');
+    if (nameEl) nameEl.innerText = currentGroup.name;
 
-        if(imgEl) { imgEl.src = currentGroup.logo; imgEl.classList.remove('hidden'); }
-        if(fallbackEl) fallbackEl.classList.add('hidden');
-        if(previewEl) { previewEl.src = currentGroup.logo; previewEl.classList.remove('hidden'); }
-        if(previewFallback) previewFallback.classList.add('hidden');
+    // --- עדכון תמונת המשפחה (לוגו) כדי שלא תיעלם ברענון ---
+    const groupLogo = currentGroup.logo;
+    const headerImg = document.getElementById('header-group-img');
+    const headerFallback = document.getElementById('header-group-icon-fallback');
+    const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
+    const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
+
+    if (groupLogo && groupLogo !== '') {
+        if (headerImg) { headerImg.src = groupLogo; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        if (mgmtPreview) { mgmtPreview.src = groupLogo; mgmtPreview.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
+    } else {
+        if (headerImg) headerImg.classList.add('hidden');
+        if (headerFallback) headerFallback.classList.remove('hidden');
+        if (mgmtPreview) mgmtPreview.classList.add('hidden');
+        if (mgmtIcon) mgmtIcon.classList.remove('hidden');
     }
 };
 
