@@ -238,7 +238,26 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
+// שמירת תמונת משפחה (לוגו)
+app.post('/api/groups/:id/logo', async (req, res) => {
+    try {
+        const { logo } = req.body;
+        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
+// יצירת קריאת שירות חדשה
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const { group_id, user_id, subject, content } = req.body;
+        await pool.query(
+            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
+            [group_id, user_id, subject, content, 'open']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // =========================================================
 // --- מערכת קריאות שירות (תמיכה) ---
 // =========================================================
