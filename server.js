@@ -242,6 +242,19 @@ async function sendSystemEmail(to, subject, htmlContent) {
 // =========================================================
 // --- מערכת קריאות שירות (תמיכה) ---
 // =========================================================
+// יצירת קריאת שירות חדשה ממשפחה
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const { group_id, user_id, subject, content } = req.body;
+        if (!group_id || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+        
+        await pool.query(
+            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
+            [group_id, user_id, subject, content, 'open']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.post('/api/support/ticket', async (req, res) => {
     try {
         const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
