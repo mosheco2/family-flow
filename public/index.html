@@ -762,36 +762,15 @@
         </div>
         <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
     </div>
-   <div id="bottom-promotion-banner" class="fixed bottom-4 left-4 right-4 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-4xl bg-gradient-to-r from-indigo-800 to-purple-900 rounded-3xl p-5 sm:p-6 shadow-2xl flex items-center justify-between gap-4 z-[70] border border-indigo-700 relative overflow-hidden hidden animate-bounce-in slide-up">
-        
-        <button onclick="document.getElementById('bottom-promotion-banner').classList.add('hidden')" class="absolute top-2.5 left-2.5 text-indigo-200 hover:text-white bg-white/10 w-7 h-7 rounded-full flex items-center justify-center transition z-10">
-            <i class="fa-solid fa-xmark text-sm"></i>
-        </button>
-
-        <div class="shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-2xl flex items-center justify-center p-2">
-            <img src="logo.png" alt="Promo" id="bottom-banner-img" class="w-full h-full object-contain" onerror="this.style.display='none'">
-        </div>
-
-        <div class="flex-1 text-right">
-            <h4 id="bottom-banner-title" class="text-lg font-black text-white leading-tight">לקוחות זהב?</h4>
-            <p id="bottom-banner-subtitle" class="text-[10px] text-indigo-100 font-medium opacity-90 mt-1">הגיע הזמן לשדרג למינוי הפרימיום שלנו ולקבל גישה לכל הפיצ'רים המתקדמים!</p>
-        </div>
-
-        <div class="shrink-0">
-            <button onclick="if(typeof handleBottomBannerAction === 'function') handleBottomBannerAction()" class="bg-yellow-400 text-purple-900 font-black px-6 py-3 rounded-xl shadow-lg hover:scale-105 transition active:scale-95 text-xs sm:text-sm">
-                לשדרוג לחץ כאן
-            </button>
-        </div>
-    </div>
-    <div id="ai-assistant-wrapper" class="fixed bottom-60 right-6 z-[80] flex flex-col items-center gap-1.5 group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else { const m = document.getElementById('global-ai-modal'); if(m) m.classList.remove('hidden'); }">
-    <div class="w-14 h-14 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border-2 border-white p-2 overflow-hidden relative">
+    <div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[80] flex flex-col items-center gap-1.5 group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else { const m = document.getElementById('global-ai-modal'); if(m) m.classList.remove('hidden'); }">
+        <div class="w-14 h-14 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border-2 border-white p-2 overflow-hidden relative">
             <div class="absolute inset-0 bg-blue-400 opacity-20 animate-ping rounded-full"></div>
             <img src="logo.png" id="ai-assistant-logo-img" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 relative z-10" onerror="this.style.display='none'">
         </div>
         <p class="text-[10px] font-bold text-indigo-700 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-indigo-100">העוזרת המשפחתית</p>
     </div>
-<button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-44 right-6 w-14 h-14 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full shadow-xl flex flex-col items-center justify-center hover:scale-110 hover:shadow-emerald-300 transition z-[80] hidden group border-2 border-white">
-    <i class="fa-regular fa-comments text-2xl mb-0.5"></i>
+   <button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full shadow-xl flex flex-col items-center justify-center hover:scale-110 hover:shadow-emerald-300 transition z-[80] hidden group border-2 border-white">
+        <i class="fa-regular fa-comments text-2xl mb-0.5"></i>
         <span class="text-[8px] font-black leading-none uppercase tracking-widest opacity-90">צ'אט</span>
         <span id="team-chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
     </button>
