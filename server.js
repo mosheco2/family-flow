@@ -3732,26 +3732,3 @@ app.get('/:alias', (req, res, next) => {
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
-
-window.renderGroupInfo = () => {
-    if (!currentGroup) return;
-    
-    // עדכון שם הקבוצה
-    const nameEl = document.getElementById('dash-group-name');
-    if (nameEl) nameEl.innerText = currentGroup.name;
-
-    // עדכון תמונת משפחה בשני המקומות (בכותרת ובניהול)
-    const logo = currentGroup.logo;
-    const headerImg = document.getElementById('header-group-img');
-    const headerFallback = document.getElementById('header-group-icon-fallback');
-    const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
-    const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
-
-    if (logo && logo.length > 10) {
-        if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
-        if (headerFallback) headerFallback.classList.add('hidden');
-        if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
-        if (mgmtIcon) mgmtIcon.classList.add('hidden');
-    }
-};
-
