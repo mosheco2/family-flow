@@ -3783,20 +3783,6 @@ window.submitTicket = async function() {
         }
     } catch (err) { console.error(err); }
 };
-
-// העלאת תמונת משפחה ושמירה קבועה
-window.handleFamilyPhotoUpload = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const base64 = e.target.result;
-        
-        // עדכון מקומי מיידי
-        currentGroup.logo = base64;
-        renderGroupInfo();
-
         // שמירה בשרת
         try {
             await fetch(`${API}/groups/${currentGroup.id}/logo`, {
