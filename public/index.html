@@ -2060,13 +2060,38 @@
                     if (el) {
                         if (isDashVisible) {
                             el.classList.remove('hidden');
-                        } else {
+                       } else {
                             el.classList.add('hidden');
                         }
                     }
                 });
             }, 1000);
         });
+
+        // --- לוגיקת קריאות שירות (Tickets) צד משפחות ---
+        window.openTicketsModal = function() {
+            document.getElementById('tickets-modal').classList.remove('hidden');
+            // בהמשך (ב-app.js) נוסיף כאן קריאת fetch ל-server.js כדי לטעון את היסטוריית הפניות של המשפחה
+        };
+
+        window.submitTicket = function() {
+            const subject = document.getElementById('ticket-subject').value;
+            const content = document.getElementById('ticket-content').value;
+            
+            if (!subject || !content) {
+                if (typeof showToast === 'function') showToast('error', 'נא למלא את נושא ותוכן הפנייה');
+                return;
+            }
+            
+            // כאן בעתיד תבוא קריאת POST ל-server.js
+            
+            if (typeof showToast === 'function') showToast('success', 'הפנייה נשלחה בהצלחה לצוות התמיכה!');
+            
+            // ניקוי שדות וסגירת חלון
+            document.getElementById('ticket-subject').value = '';
+            document.getElementById('ticket-content').value = '';
+            document.getElementById('tickets-modal').classList.add('hidden');
+        };
     </script>
 </body>
 </html>
