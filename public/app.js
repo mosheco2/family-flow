@@ -4401,3 +4401,113 @@ window.loadData = async function() {
     if(typeof originalLoadDataForInbox === 'function') await originalLoadDataForInbox();
     fetchMyInbox();
 };
+// ==========================================
+// OVERRIDE: תיקון מנגנון התחברות והרשמה
+// ==========================================
+
+const LOCAL_BASE_API = 'http://localhost:3000/api';
+
+window.login = async function(event) {
+    // מונע מהדף להתרענן ולהעלים לנו שגיאות
+    if (event) event.preventDefault();
+    
+    const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-pass');
+    
+    if (!emailEl || !passEl) return;
+    
+    const email = emailEl.value;
+    const pass = passEl.value;
+    
+    if (!email || !pass) {
+        if (typeof showToast === 'function') showToast('error', 'נא למלא את כל השדות');
+        return;
+    }
+
+    // חיווי ויזואלי למשתמש שהכפתור נלחץ
+    const btn = event && event.currentTarget ? event.currentTarget : null;
+    let originalText = '';
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מתחבר...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const res = await fetch(`${LOCAL_BASE_API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: pass })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('ofl_token', data.token);
+            window.location.reload();
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'פרטי התחברות שגויים');
+        }
+    } catch (err) {
+        // עכשיו השגיאה תישאר על המסך ולא תעלם
+        console.error('=== שגיאת התחברות קריטית ===', err);
+        if (typeof showToast === 'function') showToast('error', 'השרת לא מגיב. בדוק אם server.js פועל ברקע.');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+};
+
+window.register = async function(event) {
+    if (event) event.preventDefault();
+    
+    const nameEl = document.getElementById('reg-name');
+    const emailEl = document.getElementById('reg-email');
+    const passEl = document.getElementById('reg-pass');
+    
+    if (!nameEl || !emailEl || !passEl) return;
+    
+    const name = nameEl.value;
+    const email = emailEl.value;
+    const pass = passEl.value;
+    
+    if (!name || !email || !pass) {
+        if (typeof showToast === 'function') showToast('error', 'נא למלא את כל השדות');
+        return;
+    }
+
+    const btn = event && event.currentTarget ? event.currentTarget : null;
+    let originalText = '';
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר חשבון...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const res = await fetch(`${LOCAL_BASE_API}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, email: email, password: pass, type: 'FAMILY' })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('ofl_token', data.token);
+            window.location.reload();
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בהרשמה');
+        }
+    } catch (err) {
+        console.error('=== שגיאת הרשמה קריטית ===', err);
+        if (typeof showToast === 'function') showToast('error', 'השרת לא מגיב. בדוק אם server.js פועל ברקע.');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+};
