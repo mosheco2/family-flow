@@ -4212,57 +4212,14 @@ window.addEventListener('load', () => {
         window.initPublicConfig();
     }, 200);
 });
-// ==========================================
-// מודול משפחות: תמיכה, הודעות ותמונת פרופיל
-// ==========================================
-
-// --- 1. העלאת ושמירת תמונת משפחה ---
-window.handleFamilyPhotoUpload = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const base64 = e.target.result;
-        
-        // עדכון מיידי בממשק
-        const imgEl = document.getElementById('header-group-img');
-        const fallbackEl = document.getElementById('header-group-icon-fallback');
-        const previewEl = document.getElementById('mgmt-group-logo-preview');
-        const previewFallback = document.getElementById('mgmt-group-logo-icon');
-
-        if(imgEl) { imgEl.src = base64; imgEl.classList.remove('hidden'); }
-        if(fallbackEl) fallbackEl.classList.add('hidden');
-        if(previewEl) { previewEl.src = base64; previewEl.classList.remove('hidden'); }
-        if(previewFallback) previewFallback.classList.add('hidden');
-
-        // שמירה לשרת (Database)
-        try {
-            const res = await fetch(`${API}/groups/${currentGroup.id}/logo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ logo: base64 })
-            });
-            const data = await res.json();
-            if (data.success) {
-                if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה עודכנה ונשמרה בהצלחה!');
-                currentGroup.logo = base64; // עדכון הזיכרון המקומי למניעת היעלמות ברענון
-            }
-        } catch (err) {
-            console.error('Error saving logo', err);
-        }
-    };
-    reader.readAsDataURL(file);
-};
 
 // ==========================================
-// פניות שירות ותמונות משפחה - גרסה מתוקנת
+// פניות שירות ותמונות משפחה - גרסה סופית ותקינה
 // ==========================================
 
 window.renderGroupInfo = () => {
     if (!currentGroup) return;
     
-    // עדכון שם הקבוצה
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) nameEl.innerText = currentGroup.name;
 
@@ -4272,7 +4229,6 @@ window.renderGroupInfo = () => {
     const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
     const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
 
-    // תיקון קריסה: בדיקה שהלוגו אינו null לפני שימוש ב-startsWith
     if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
         if (headerFallback) headerFallback.classList.add('hidden');
@@ -4287,18 +4243,25 @@ window.renderGroupInfo = () => {
 };
 
 window.openTicketsModal = function() {
-    document.getElementById('tickets-modal').classList.remove('hidden');
-    fetchMyTickets(); 
+    const modal = document.getElementById('tickets-modal');
+    if (modal) modal.classList.remove('hidden');
+    if (typeof fetchMyTickets === 'function') fetchMyTickets();
 };
 
 window.fetchMyTickets = async function() {
     try {
+        const token = localStorage.getItem('ofl_token');
+        if (!token || !currentGroup) return;
+
         const res = await fetch(`${API}/tickets/${currentGroup.id}`, {
             headers: { 'Authorization': token }
         });
         const data = await res.json();
+        
+        const list = document.getElementById('user-tickets-list');
+        if (!list) return;
+
         if (data.success) {
-            const list = document.getElementById('user-tickets-list');
             if (!data.tickets || data.tickets.length === 0) {
                 list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין קריאות פתוחות כרגע.</p>';
                 return;
@@ -4317,125 +4280,52 @@ window.fetchMyTickets = async function() {
                 </div>
             `).join('');
         }
-    } catch (err) { console.error('Error fetching tickets', err); }
-};
-
-window.submitTicket = async function() {
-    const subject = document.getElementById('ticket-subject').value;
-    const content = document.getElementById('ticket-content').value;
-    
-    if (!subject || !content) {
-        showToast('error', 'נא למלא נושא ותוכן פנייה');
-        return;
-    }
-    
-    try {
-        const res = await fetch(`${API}/tickets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': token },
-            body: JSON.stringify({ 
-                group_id: currentGroup.id, 
-                user_id: currentUser.id, 
-                subject, content 
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'הפנייה נשלחה בהצלחה!');
-            document.getElementById('ticket-subject').value = '';
-            document.getElementById('ticket-content').value = '';
-            document.getElementById('tickets-modal').classList.add('hidden');
-            fetchMyTickets();
-        }
-    } catch (err) { console.error('Error submitting ticket:', err); }
-};
-
-window.handleFamilyPhotoUpload = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const base64 = e.target.result;
-        currentGroup.logo = base64;
-        renderGroupInfo();
-        try {
-            await fetch(`${API}/groups/${currentGroup.id}/logo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ logo: base64 })
-            });
-            showToast('success', 'תמונת המשפחה נשמרה!');
-        } catch (err) { console.error('Upload error:', err); }
-    };
-    reader.readAsDataURL(file);
-};
-
-const baseRenderGroupInfo = window.renderGroupInfo;
-window.renderGroupInfo = function() {
-    if (typeof baseRenderGroupInfo === 'function') baseRenderGroupInfo();
-    
-    if (currentGroup) {
-        const logo = currentGroup.logo;
-        const headerImg = document.getElementById('header-group-img');
-        const headerFallback = document.getElementById('header-group-icon-fallback');
-        const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
-        const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
-
-        if (logo && logo.length > 100) {
-            if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
-            if (headerFallback) headerFallback.classList.add('hidden');
-            if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
-            if (mgmtIcon) mgmtIcon.classList.add('hidden');
-        } else {
-            if (headerImg) headerImg.classList.add('hidden');
-            if (headerFallback) headerFallback.classList.remove('hidden');
-            if (mgmtPreview) mgmtPreview.classList.add('hidden');
-            if (mgmtIcon) mgmtIcon.classList.remove('hidden');
-        }
-    }
-};
     } catch (err) {
-        console.error('Error fetching inbox', err);
+        console.error('Error fetching tickets', err);
     }
 };
 
-// משיכת התראות Inbox ברגע שהאפליקציה עולה
-const originalLoadDataForInbox = window.loadData;
-window.loadData = async function() {
-    if(typeof originalLoadDataForInbox === 'function') await originalLoadDataForInbox();
-    fetchMyInbox();
-};
-// שליחת קריאת שירות - פותר את שגיאת undefined
 window.submitTicket = async function() {
-    const subject = document.getElementById('ticket-subject').value;
-    const content = document.getElementById('ticket-content').value;
+    const subjectEl = document.getElementById('ticket-subject');
+    const contentEl = document.getElementById('ticket-content');
+    
+    if (!subjectEl || !contentEl) return;
+
+    const subject = subjectEl.value;
+    const content = contentEl.value;
     
     if (!subject || !content) {
-        showToast('error', 'נא למלא נושא ותוכן');
+        if (typeof showToast === 'function') showToast('error', 'נא למלא נושא ותוכן פנייה');
         return;
     }
     
     try {
+        const token = localStorage.getItem('ofl_token');
         const res = await fetch(`${API}/tickets`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': token },
             body: JSON.stringify({ 
-                group_id: currentGroup.id, 
-                user_id: currentUser.id, 
-                subject, content 
+                groupId: currentGroup.id, 
+                userId: currentUser.id, 
+                subject: subject, 
+                content: content 
             })
         });
         const data = await res.json();
+        
         if (data.success) {
-            showToast('success', 'הפנייה נשלחה!');
-            document.getElementById('ticket-subject').value = '';
-            document.getElementById('ticket-content').value = '';
+            if (typeof showToast === 'function') showToast('success', 'הפנייה נשלחה בהצלחה!');
+            subjectEl.value = '';
+            contentEl.value = '';
+            const modal = document.getElementById('tickets-modal');
+            if (modal) modal.classList.add('hidden');
             if (typeof fetchMyTickets === 'function') fetchMyTickets();
         }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error('Error submitting ticket:', err); 
+    }
 };
 
-// העלאת תמונת משפחה ושמירה קבועה
 window.handleFamilyPhotoUpload = function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -4443,20 +4333,21 @@ window.handleFamilyPhotoUpload = function(event) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         const base64 = e.target.result;
+        currentGroup.logo = base64; 
         
-        // עדכון מקומי מיידי
-        currentGroup.logo = base64;
-        renderGroupInfo();
+        if (typeof renderGroupInfo === 'function') renderGroupInfo();
 
-        // שמירה בשרת
         try {
+            const token = localStorage.getItem('ofl_token');
             await fetch(`${API}/groups/${currentGroup.id}/logo`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': token },
                 body: JSON.stringify({ logo: base64 })
             });
-            showToast('success', 'תמונת המשפחה נשמרה לצמיתות');
-        } catch (err) { console.error(err); }
+            if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
+        } catch (err) { 
+            console.error('Upload error:', err); 
+        }
     };
     reader.readAsDataURL(file);
 };
