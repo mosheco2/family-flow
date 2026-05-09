@@ -4262,27 +4262,27 @@ window.renderGroupInfo = () => {
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) nameEl.innerText = currentGroup.name;
 
-    // עדכון תמונת משפחה בשני המקומות (בכותרת ובניהול)
+    // עדכון תמונת משפחה בשני המקומות (בכותרת ובניהול) כדי שלא תיעלם ברענון
     const logo = currentGroup.logo;
     const headerImg = document.getElementById('header-group-img');
     const headerFallback = document.getElementById('header-group-icon-fallback');
     const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
     const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
 
-    if (logo && logo.length > 10) {
+    if (logo && logo.startsWith('data:image')) {
         if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
         if (headerFallback) headerFallback.classList.add('hidden');
         if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
         if (mgmtIcon) mgmtIcon.classList.add('hidden');
+    } else {
+        if (headerImg) headerImg.classList.add('hidden');
+        if (headerFallback) headerFallback.classList.remove('hidden');
+        if (mgmtPreview) mgmtPreview.classList.add('hidden');
+        if (mgmtIcon) mgmtIcon.classList.remove('hidden');
     }
 };
 
-// --- 2. מודול קריאות שירות (Tickets) ---
-window.openTicketsModal = function() {
-    document.getElementById('tickets-modal').classList.remove('hidden');
-    fetchMyTickets(); // טוען את ההיסטוריה מהשרת בעת הפתיחה
-};
-
+// --- שליחת קריאת שירות ---
 window.submitTicket = async function() {
     const subject = document.getElementById('ticket-subject').value;
     const content = document.getElementById('ticket-content').value;
@@ -4308,49 +4308,41 @@ window.submitTicket = async function() {
             if (typeof showToast === 'function') showToast('success', 'הפנייה נשלחה בהצלחה לצוות התמיכה!');
             document.getElementById('ticket-subject').value = '';
             document.getElementById('ticket-content').value = '';
-            fetchMyTickets(); // רענון הרשימה מיד לאחר השליחה
+            document.getElementById('tickets-modal').classList.add('hidden'); // סגירת המודאל
+            if (typeof fetchMyTickets === 'function') fetchMyTickets();
         } else {
             if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחת הפנייה');
         }
-    } catch (err) {
-        console.error(err);
+    } catch (err) { 
+        console.error(err); 
     }
 };
 
-window.fetchMyTickets = async function() {
-    try {
-        const res = await fetch(`${API}/tickets/${currentGroup.id}`, {
-            headers: { 'Authorization': token }
-        });
-        const data = await res.json();
-        if (data.success) {
-            const list = document.getElementById('user-tickets-list');
-            if (!data.tickets || data.tickets.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין קריאות פתוחות כרגע.</p>';
-                return;
-            }
-            
-            list.innerHTML = data.tickets.map(t => `
-                <div class="bg-white p-3 rounded-lg border ${t.status === 'resolved' ? 'border-green-200' : 'border-slate-200'}">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-slate-800 text-sm">${t.subject}</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded-full ${
-                            t.status === 'resolved' ? 'bg-green-100 text-green-700' : 
-                            t.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 
-                            'bg-blue-100 text-blue-700'
-                        }">${t.status === 'resolved' ? 'סגור' : t.status === 'in_progress' ? 'בטיפול' : 'פתוח'}</span>
-                    </div>
-                    <p class="text-xs text-slate-600 mb-2">${t.content}</p>
-                    ${t.admin_reply ? `<div class="bg-slate-50 p-2 rounded text-xs border border-slate-100"><strong class="text-blue-600">תשובת צוות:</strong> ${t.admin_reply}</div>` : ''}
-                    <div class="text-[9px] text-slate-400 mt-2 text-left">${new Date(t.created_at).toLocaleDateString('he-IL')}</div>
-                </div>
-            `).join('');
-        }
-    } catch (err) {
-        console.error('Error fetching tickets', err);
-    }
-};
+// --- העלאת תמונת משפחה ---
+window.handleFamilyPhotoUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const base64 = e.target.result;
+        
+        // עדכון מקומי מהיר
+        currentGroup.logo = base64;
+        if (typeof renderGroupInfo === 'function') renderGroupInfo();
+
+        // שמירה לצמיתות בשרת
+        try {
+            await fetch(`${API}/groups/${currentGroup.id}/logo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                body: JSON.stringify({ logo: base64 })
+            });
+            if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה נשמרה לצמיתות!');
+        } catch (err) { console.error('Upload error:', err); }
+    };
+    reader.readAsDataURL(file);
+};
 // --- 3. מודול תיבת הודעות (Inbox) ---
 window.openInboxModal = function() {
     document.getElementById('inbox-modal').classList.remove('hidden');
