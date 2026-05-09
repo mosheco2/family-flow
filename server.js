@@ -238,6 +238,14 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
+// שמירת תמונת משפחה (לוגו)
+app.post('/api/groups/:id/logo', async (req, res) => {
+    try {
+        const { logo } = req.body;
+        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // יצירת קריאת שירות חדשה
 app.post('/api/tickets', async (req, res) => {
@@ -3720,20 +3728,17 @@ app.get('/:alias', (req, res, next) => {
     // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
-// =========================================================
-// --- מערכת שמירת תמונה וקריאות שירות (תוקן שגיאת 500) ---
-// =========================================================
+// --- נתיבים חדשים: שמירת תמונה וקריאות שירות ---
 
 // שמירת תמונת משפחה (לוגו)
 app.post('/api/groups/:id/logo', async (req, res) => {
     try {
         const { logo } = req.body;
         
-        // הוספת העמודה לטבלה הנכונה (family_groups)
-        try { await pool.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS logo TEXT'); } catch(e) {}
+        // יצירת העמודה אם היא איננה קיימת (גיבוי)
+        try { await pool.query('ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo TEXT'); } catch(e) {}
         
-        // עדכון הטבלה הנכונה במקום groups
-        await pool.query('UPDATE family_groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
+        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
         res.json({ success: true });
     } catch(e) { 
         console.error('Error saving logo:', e);
@@ -3744,12 +3749,9 @@ app.post('/api/groups/:id/logo', async (req, res) => {
 // יצירת קריאת שירות חדשה
 app.post('/api/tickets', async (req, res) => {
     try {
-        // משיכת המשתנים גם אם נשלחו כ-groupId וגם כ-group_id, כדי למנוע קריסות
-        const groupId = req.body.groupId || req.body.group_id;
-        const userId = req.body.userId || req.body.user_id;
-        const { subject, content } = req.body;
+        const { group_id, user_id, subject, content } = req.body;
         
-        // וידוא שהטבלה קיימת
+        // יצירת הטבלה אם היא איננה קיימת (גיבוי)
         await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
             id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
             subject VARCHAR(255), content TEXT, admin_reply TEXT, 
@@ -3758,34 +3760,10 @@ app.post('/api/tickets', async (req, res) => {
         
         await pool.query(
             'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
-            [groupId, userId, subject, content, 'open']
+            [group_id, user_id, subject, content, 'open']
         );
         res.json({ success: true });
-    } catch(e) { 
-        console.error('Error creating ticket:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-
-// שליפת רשימת קריאות למשפחה להצגה במודאל
-app.get('/api/tickets/:groupId', async (req, res) => {
-    try {
-        // וידוא שהטבלה קיימת גם בשליפה כדי ש-GET לא יקרוס
-        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
-            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
-            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
-            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
-        
-        const result = await pool.query(
-            'SELECT * FROM tickets WHERE group_id = $1 ORDER BY created_at DESC', 
-            [req.params.groupId]
-        );
-        res.json({ success: true, tickets: result.rows });
-    } catch(e) { 
-        console.error('Error fetching tickets:', e);
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
