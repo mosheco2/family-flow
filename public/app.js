@@ -4214,22 +4214,10 @@ window.addEventListener('load', () => {
 });
 
 // ==========================================
-// פונקציות תמיכה, תמונה ורשת ביטחון לטעינה
+// פניות שירות ותמונות משפחה - גרסה סופית ותקינה
 // ==========================================
 
-// רשת ביטחון: אם המערכת נתקעה במסך הטעינה ללא שגיאה, המנגנון ישחרר אותה אוטומטית
-setInterval(() => {
-    const loader = document.getElementById('loading-screen');
-    const auth = document.getElementById('auth-container');
-    const dash = document.getElementById('dashboard-container');
-    if (loader && !loader.classList.contains('hidden')) {
-        if ((auth && !auth.classList.contains('hidden')) || (dash && !dash.classList.contains('hidden'))) {
-            loader.classList.add('hidden');
-        }
-    }
-}, 1500);
-
-window.renderGroupInfo = function() {
+window.renderGroupInfo = () => {
     if (!currentGroup) return;
     
     const nameEl = document.getElementById('dash-group-name');
@@ -4241,7 +4229,7 @@ window.renderGroupInfo = function() {
     const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
     const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
 
-    if (logo && typeof logo === 'string' && logo.length > 50) {
+    if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
         if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
         if (headerFallback) headerFallback.classList.add('hidden');
         if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
@@ -4264,7 +4252,7 @@ window.fetchMyTickets = async function() {
     try {
         const token = localStorage.getItem('ofl_token');
         if (!token || !currentGroup) return;
-        
+
         const res = await fetch(`${API}/tickets/${currentGroup.id}`, {
             headers: { 'Authorization': token }
         });
@@ -4272,9 +4260,9 @@ window.fetchMyTickets = async function() {
         
         const list = document.getElementById('user-tickets-list');
         if (!list) return;
-        
-        if (data.success && data.tickets) {
-            if (data.tickets.length === 0) {
+
+        if (data.success) {
+            if (!data.tickets || data.tickets.length === 0) {
                 list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין קריאות פתוחות כרגע.</p>';
                 return;
             }
@@ -4297,27 +4285,18 @@ window.fetchMyTickets = async function() {
     }
 };
 
-window.submitTicket = async function(event) {
+window.submitTicket = async function() {
     const subjectEl = document.getElementById('ticket-subject');
     const contentEl = document.getElementById('ticket-content');
-    if (!subjectEl || !contentEl) return;
     
+    if (!subjectEl || !contentEl) return;
+
     const subject = subjectEl.value;
     const content = contentEl.value;
     
     if (!subject || !content) {
         if (typeof showToast === 'function') showToast('error', 'נא למלא נושא ותוכן פנייה');
         return;
-    }
-    
-    // שינוי כפתור לחיווי טעינה ומניעת לחיצה כפולה
-    let btn = null;
-    let originalText = '';
-    if (event && event.currentTarget) {
-        btn = event.currentTarget;
-        originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
-        btn.disabled = true;
     }
     
     try {
@@ -4340,31 +4319,24 @@ window.submitTicket = async function(event) {
             contentEl.value = '';
             const modal = document.getElementById('tickets-modal');
             if (modal) modal.classList.add('hidden');
-            fetchMyTickets();
-        } else {
-            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחה');
+            if (typeof fetchMyTickets === 'function') fetchMyTickets();
         }
-    } catch (err) {
-        console.error('Error submitting ticket:', err);
-    } finally {
-        // החזרת הכפתור למצבו המקורי
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
+    } catch (err) { 
+        console.error('Error submitting ticket:', err); 
     }
 };
 
 window.handleFamilyPhotoUpload = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = async function(e) {
         const base64 = e.target.result;
-        currentGroup.logo = base64;
-        renderGroupInfo();
+        currentGroup.logo = base64; 
         
+        if (typeof renderGroupInfo === 'function') renderGroupInfo();
+
         try {
             const token = localStorage.getItem('ofl_token');
             await fetch(`${API}/groups/${currentGroup.id}/logo`, {
@@ -4372,9 +4344,9 @@ window.handleFamilyPhotoUpload = function(event) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': token },
                 body: JSON.stringify({ logo: base64 })
             });
-            if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה נשמרה!');
-        } catch (err) {
-            console.error('Upload error:', err);
+            if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
+        } catch (err) { 
+            console.error('Upload error:', err); 
         }
     };
     reader.readAsDataURL(file);
