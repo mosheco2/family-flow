@@ -4448,3 +4448,76 @@ window.handleFamilyPhotoUpload = function(event) {
     };
     reader.readAsDataURL(file);
 };
+// ==========================================
+// איפוס ותיקון מנגנון ההתחברות/הרשמה (Override)
+// ==========================================
+
+// הגדרת נתיב אוניברסלי וחסין-תקלות הפותר בעיות של קבצים מקומיים (file://) וכתובות IP
+window.CORRECT_API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') 
+    ? 'http://localhost:3000/api' 
+    : '/api';
+
+window.login = async function(event) {
+    if (event) event.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-pass').value;
+    
+    if (!email || !pass) {
+        if (typeof showToast === 'function') showToast('error', 'נא למלא את כל השדות');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${window.CORRECT_API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: pass })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('ofl_token', data.token);
+            window.location.reload();
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'פרטי התחברות שגויים');
+        }
+    } catch (err) {
+        console.error('Login Fetch Error:', err);
+        if (typeof showToast === 'function') showToast('error', 'שגיאה בחיבור לשרת - ודא ש- server.js פועל ברקע');
+    }
+};
+
+window.register = async function(event) {
+    if (event) event.preventDefault();
+    const name = document.getElementById('reg-name').value;
+    const email = document.getElementById('reg-email').value;
+    const pass = document.getElementById('reg-pass').value;
+    const typeEl = document.getElementById('reg-type');
+    const type = typeEl ? typeEl.value : 'FAMILY';
+    
+    if (!name || !email || !pass) {
+        if (typeof showToast === 'function') showToast('error', 'נא למלא את כל השדות');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${window.CORRECT_API}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, email: email, password: pass, type: type })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('ofl_token', data.token);
+            window.location.reload();
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בהרשמה');
+        }
+    } catch (err) {
+        console.error('Register Fetch Error:', err);
+        if (typeof showToast === 'function') showToast('error', 'שגיאה בחיבור לשרת - ודא ש- server.js פועל ברקע');
+    }
+};
