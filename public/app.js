@@ -5120,15 +5120,170 @@ window.replyFamilyTicket = async function(id) {
     }
 };
 
-// --- הפעלת מנוע פולינג (Polling) עצמאי לקריאות ---
+// ==========================================
+// OVERRIDE FINAL: מודול תיבת הודעות (Inbox) למשפחות בזמן אמת
+// ==========================================
+
+window.familyInboxCache = [];
+
+window.fetchInboxMessages = async function(silent = false) {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        
+        if (data.success && data.messages) {
+            window.familyInboxCache = data.messages;
+            window.updateInboxBadgeUI();
+            
+            const modal = document.getElementById('inbox-modal');
+            const isModalOpen = modal && !modal.classList.contains('hidden');
+            
+            // נרנדר את הרשימה רק אם המודאל פתוח או אם זו קריאה יזומה מהמשתמש
+            if (!silent || isModalOpen) {
+                window.renderInboxList();
+            }
+        }
+    } catch(e) {
+        console.error('Error fetching inbox:', e);
+    }
+};
+
+window.updateInboxBadgeUI = function() {
+    const unreadCount = window.familyInboxCache.filter(m => !m.is_read).length;
+    const badge = document.getElementById('unread-inbox-badge');
+    if (!badge) return;
+    
+    if (unreadCount > 0) {
+        badge.innerText = unreadCount;
+        badge.classList.remove('hidden');
+        badge.classList.add('animate-pulse');
+    } else {
+        badge.classList.add('hidden');
+        badge.classList.remove('animate-pulse');
+    }
+};
+
+window.openInboxModal = function() {
+    const modal = document.getElementById('inbox-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        window.fetchInboxMessages(false);
+    }
+};
+
+window.renderInboxList = function() {
+    const list = document.getElementById('inbox-messages-list');
+    if (!list) return;
+    
+    if (window.familyInboxCache.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין הודעות בתיבה.</p>';
+        return;
+    }
+    
+    list.innerHTML = window.familyInboxCache.map(m => {
+        const isUnread = !m.is_read;
+        const bgClass = isUnread ? 'bg-blue-50 border-blue-200 shadow-md' : 'bg-white border-slate-100 shadow-sm opacity-80';
+        const iconClass = isUnread ? 'fa-envelope text-blue-500' : 'fa-envelope-open text-slate-400';
+        const d = new Date(m.created_at);
+        const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+        
+        return `
+        <div onclick="openInboxMessage(${m.id})" class="p-3 rounded-xl border cursor-pointer transition hover:shadow-md mb-2 ${bgClass}">
+            <div class="flex justify-between items-start mb-1">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${iconClass}"></i>
+                    <h4 class="font-bold text-sm ${isUnread ? 'text-slate-800' : 'text-slate-600'}">${safeStr(m.subject)}</h4>
+                </div>
+                ${isUnread ? '<span class="w-2 h-2 rounded-full bg-blue-500 shrink-0 shadow-sm animate-pulse"></span>' : ''}
+            </div>
+            <div class="flex justify-between items-center mt-2">
+                <span class="text-[10px] text-slate-500 bg-white/50 px-2 py-0.5 rounded-md border border-slate-200">מאת: ${safeStr(m.sender_name)}</span>
+                <span class="text-[10px] text-slate-400">${dateStr}</span>
+            </div>
+        </div>
+        `;
+    }).join('');
+};
+
+window.openInboxMessage = async function(id) {
+    const msg = window.familyInboxCache.find(m => m.id === id);
+    if (!msg) return;
+    
+    // סימון הקריאה כנקראה מיידית כדי להוריד את בועת ההתראה
+    if (!msg.is_read) {
+        msg.is_read = true;
+        window.updateInboxBadgeUI();
+        window.renderInboxList(); 
+        
+        try {
+            const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+            await fetch(`${apiPath}/inbox/${id}/read`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isRead: true })
+            });
+        } catch(e) { console.error('Error marking as read', e); }
+    }
+    
+    // בניית מסך הקריאה
+    let msgModal = document.getElementById('inbox-read-modal');
+    if (!msgModal) {
+        msgModal = document.createElement('div');
+        msgModal.id = 'inbox-read-modal';
+        msgModal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 fade-in';
+        document.body.appendChild(msgModal);
+    }
+    
+    const d = new Date(msg.created_at);
+    const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+    
+    msgModal.innerHTML = `
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative border border-slate-200">
+            <div class="p-5 border-b border-slate-100 bg-blue-50/50 flex justify-between items-start">
+                <div class="pr-8">
+                    <h3 class="font-bold text-slate-800 text-lg leading-tight mb-2">${safeStr(msg.subject)}</h3>
+                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                        <span class="bg-white px-2 py-1 rounded-md shadow-sm border border-slate-100"><i class="fa-solid fa-user-circle text-blue-400"></i> ${safeStr(msg.sender_name)}</span>
+                        <span><i class="fa-regular fa-clock"></i> ${dateStr}</span>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('inbox-read-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto max-h-[60vh] text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">
+                ${safeStr(msg.content)}
+            </div>
+            
+            <div class="p-4 bg-slate-50 border-t border-slate-100 text-center">
+                <button onclick="document.getElementById('inbox-read-modal').classList.add('hidden')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition w-full text-sm">הבנתי וקראתי</button>
+            </div>
+        </div>
+    `;
+    
+    msgModal.classList.remove('hidden');
+};
+
+// --- הפעלת מנוע פולינג (Polling) עצמאי משולב ---
 if (window.ticketPollIntervalId) {
     clearInterval(window.ticketPollIntervalId);
 }
 // נריץ בדיקה שקטה כל 15 שניות, באופן בלתי תלוי
 window.ticketPollIntervalId = setInterval(() => {
     if (window.currentUser && window.currentGroup && window.currentGroup.id) {
-        if (typeof window.fetchMyTickets === 'function') {
-            window.fetchMyTickets(true);
-        }
+        if (typeof window.fetchMyTickets === 'function') window.fetchMyTickets(true);
+        if (typeof window.fetchInboxMessages === 'function') window.fetchInboxMessages(true);
     }
 }, 15000);
+
+// משיכה ראשונית בעליית המערכת (לאחר טעינת היוזר)
+const _origFetchDataForInbox = window.fetchData;
+if (_origFetchDataForInbox && !window.hookedInboxFetch) {
+    window.fetchData = async function() {
+        await _origFetchDataForInbox();
+        if (typeof window.fetchInboxMessages === 'function') window.fetchInboxMessages(true);
+    };
+    window.hookedInboxFetch = true;
+}
