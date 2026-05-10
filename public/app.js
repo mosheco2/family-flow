@@ -4461,3 +4461,62 @@ document.addEventListener('click', (e) => {
         }, 100);
     }
 });
+// ==========================================
+// OVERRIDE FINAL: פתרון תצוגת הקריאות למשפחה בחלונית
+// ==========================================
+
+window.fetchMyTickets = async function() {
+    try {
+        const token = localStorage.getItem('ofl_token');
+        if (!currentGroup || !currentGroup.id) return;
+        
+        // בחירת נתיב API מדויק כדי למנוע שגיאות ניתוב (404) גם בלוקאל וגם בפרודקשן
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/tickets/${currentGroup.id}`, {
+            headers: { 'Authorization': token || '' }
+        });
+        const data = await res.json();
+        
+        const list = document.getElementById('user-tickets-list');
+        if (!list) return;
+        
+        if (data.success && data.tickets) {
+            if (data.tickets.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין קריאות פתוחות כרגע.</p>';
+                return;
+            }
+            
+            // בניית ה-HTML של הקריאות והזרקתן לחלונית
+            list.innerHTML = data.tickets.map(t => `
+                <div class="bg-white p-3 rounded-xl border ${t.status === 'resolved' ? 'border-green-200' : 'border-slate-200'} mb-2 shadow-sm transition hover:shadow-md">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="font-bold text-slate-800 text-sm"><i class="fa-regular fa-comment-dots text-slate-400 ml-1"></i> ${safeStr(t.subject)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            t.status === 'resolved' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                            t.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                        }">${t.status === 'resolved' ? 'סגור' : t.status === 'in_progress' ? 'בטיפול' : 'פתוח'}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mb-2 leading-relaxed">${safeStr(t.content)}</p>
+                    ${t.admin_reply ? `<div class="bg-indigo-50 p-2.5 rounded-lg text-xs border border-indigo-100 mt-2"><strong class="text-indigo-600 mb-1 block"><i class="fa-solid fa-headset"></i> תשובת צוות תמיכה:</strong>${safeStr(t.admin_reply)}</div>` : ''}
+                </div>
+            `).join('');
+        } else {
+             list.innerHTML = '<p class="text-xs text-red-400 text-center py-6">שגיאה בטעינת הנתונים.</p>';
+        }
+    } catch (err) {
+        console.error('Error fetching tickets in client:', err);
+    }
+};
+
+// וידוא שהרשימה נטענת אוטומטית ברגע שהלקוח לוחץ על כפתור פתיחת מודאל התמיכה (האוזניות)
+const _originalOpenTicketsModal = window.openTicketsModal;
+window.openTicketsModal = function() {
+    if (typeof _originalOpenTicketsModal === 'function') _originalOpenTicketsModal();
+    else {
+        const modal = document.getElementById('tickets-modal');
+        if (modal) modal.classList.remove('hidden');
+    }
+    // קריאה לרענון הרשימה מיד עם פתיחת החלון
+    if (typeof fetchMyTickets === 'function') fetchMyTickets();
+};
