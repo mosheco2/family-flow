@@ -2335,55 +2335,61 @@ function openProfileModal() { getEl('old-password').value = ''; getEl('new-passw
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
-async function open360Report(groupId) {
-    showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
+window.open360Report = async function() {
+    if (!currentGroup || !currentGroup.id) return;
     try {
-        let url, headers = {};
-        if (saToken) { url = `${API}/superadmin/group-360/${groupId}`; headers = { 'Authorization': saToken }; } 
-        else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
+        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+        const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
-        const res = await fetch(url, { headers }); const data = await res.json();
-        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
+        setTxt('report-360-group-name', currentGroup.name || '---');
+        setTxt('report-360-group-type', 'משפחה');
+        setTxt('report-360-group-code', currentGroup.group_code || currentGroup.code || '---');
+        setTxt('report-360-group-email', currentGroup.admin_email || '---');
+        
+        const now = new Date();
+        setTxt('report-360-date', `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`);
 
-        const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
-        getEl('report-360-group-name').innerText = safeStr(data.group.name);
-        getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
-        getEl('report-360-group-code').innerText = data.group.group_code;
-        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
-        getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const safeMembers = window.membersCache || [];
+        let totalBalances = 0;
+        const usersHtml = safeMembers.map(u => {
+            const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
+            const bal = parseFloat(u.balance) || 0;
+            totalBalances += bal;
+            return `<tr><td class="text-right p-2 border font-bold">${safeStr(u.nickname)}</td><td class="text-right p-2 border text-slate-500"><span class="report-badge">${roleStr}</span></td><td class="text-right p-2 border font-mono">₪${bal.toFixed(2)}</td></tr>`;
+        }).join('');
+        
+        setHtml('report-360-users-list', usersHtml 
+            ? usersHtml + `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`
+            : '<tr><td colspan="3" class="text-center p-2">אין נתונים</td></tr>');
 
-        const usersList = getEl('report-360-users-list');
-        let usersHtml = ''; let totalBalances = 0;
-        data.users.forEach(u => {
-            const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
-            const bal = parseFloat(u.balance) || 0; totalBalances += bal;
-            usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
-        });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
-        usersList.innerHTML = usersHtml;
+        const safeTx = window.allTransactions || [];
+        const recentTx = safeTx.slice(0, 50).map(t => {
+            const d = new Date(t.date || t.created_at);
+            const dateStr = d.toLocaleDateString('he-IL');
+            const isInc = t.type === 'income';
+            const sign = isInc ? '+' : '-';
+            const colorClass = isInc ? 'text-green-600' : 'text-red-600';
+            return `<tr><td class="text-right p-2 border text-xs">${dateStr}</td><td class="text-right p-2 border">${safeStr(t.user_name || 'מערכת')}</td><td class="text-right p-2 border text-xs">${safeStr(t.description)}</td><td class="text-left p-2 border font-bold font-mono ${colorClass}" dir="ltr">${sign}₪${t.amount}</td></tr>`;
+        }).join('');
+        setHtml('report-360-tx-list', recentTx || '<tr><td colspan="4" class="text-center p-2 text-slate-400">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>');
 
-        const txList = getEl('report-360-tx-list');
-        let txHtml = '';
-        if(data.transactions && data.transactions.length > 0) {
-            data.transactions.forEach(t => {
-                const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
-                const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
-                txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
-            });
-        } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
-        txList.innerHTML = txHtml;
+        const safeTasks = window.allTasks || [];
+        const pendingTasksCount = safeTasks.filter(t => t.status === 'pending').length;
+        const doneTasksCount = safeTasks.filter(t => t.status === 'done').length;
+        const totalTasksReward = safeTasks.reduce((sum, t) => sum + (t.status === 'approved' ? (parseFloat(t.reward)||0) : 0), 0);
+        
+        setHtml('report-360-tasks-list', `
+            <li><strong>משימות פתוחות:</strong> ${pendingTasksCount} משימות שממתינות לביצוע.</li>
+            <li><strong>משימות לאישור:</strong> ${doneTasksCount} משימות שבוצעו ודורשות אישור הורה.</li>
+            <li><strong>סה"כ שכר שחולק:</strong> ₪${totalTasksReward} שולמו בגין משימות בעבר.</li>
+        `);
 
-        const tasksList = getEl('report-360-tasks-list');
-        let tasksHtml = '';
-        if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
-            data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
-        tasksList.innerHTML = tasksHtml;
-
-        getEl('report-360-modal').classList.remove('hidden');
-    } catch(e) { showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח'); }
-}
+        const modal = document.getElementById('report-360-modal');
+        if (modal) modal.classList.remove('hidden');
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('error', 'שגיאה בהכנת הדוח: ' + e.message);
+    }
+};
 
 function download360PDF() {
     const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
@@ -4356,27 +4362,55 @@ window.saveFamilyPhoto = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        const res = await fetch(`${apiPath}/groups/${currentGroup.id}/logo`, {
+        // התיקון לבאג 1: שימוש בראוט הנכון והאמין לשמירת הגדרות וזהות למשפחה
+        const res = await fetch(`${apiPath}/store/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
-            body: JSON.stringify({ logo: window.tempFamilyLogoBase64 })
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                logoUrl: window.tempFamilyLogoBase64,
+                isActive: true
+            })
         });
         const data = await res.json();
         if (data.success) {
             showToast('success', 'תמונת המשפחה נשמרה בשרת!');
             btn.classList.add('hidden');
+            currentGroup.logo_url = window.tempFamilyLogoBase64;
             currentGroup.logo = window.tempFamilyLogoBase64;
-            renderGroupInfo(); 
+            if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
     } catch(e) {
-        showToast('error', 'שגיאת רשת');
+        showToast('error', 'שגיאת תקשורת מול השרת');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור תמונה';
     }
 };
+
+// התיקון לבאג 3: הזרקת עדכון הרשאות רציף למשיכת הנתונים.
+// פותר את הבעיה שבה הילד לא רואה את הטאבים החדשים שפתחו לו בגלל שהם נתקעו לו בזיכרון הישן!
+const _originalFetchDataForPerms = window.fetchData;
+if (_originalFetchDataForPerms && !window.hookedPermsFetch) {
+    window.fetchData = async function() {
+        await _originalFetchDataForPerms();
+        try {
+            if (currentUser && currentUser.id) {
+                const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+                const res = await fetch(`${apiPath}/data/${currentUser.id}`); 
+                const data = await res.json();
+                if (data && data.user && data.user.permissions !== undefined) {
+                    currentUser.permissions = data.user.permissions;
+                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                    if(typeof enforcePermissions === 'function') enforcePermissions();
+                }
+            }
+        } catch(e) {}
+    };
+    window.hookedPermsFetch = true;
+}
 
 window.openPermissionsModal = function(userId, userName, encodedPermsStr) {
     document.getElementById('perms-user-id').value = userId;
