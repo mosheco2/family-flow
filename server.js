@@ -3774,6 +3774,38 @@ app.get('/api/tickets/:groupId', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
+
+// ראוט צ'אט עוזרת אישית למשפחות (FamilAI)
+app.post('/api/family/chat-assistant', async (req, res) => {
+    try {
+        const { query, context, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        const prompt = `You are 'FamilAI', the intelligent, friendly, and helpful AI assistant for a family using the 'Oneflow Life' management system. 
+        Your job is to answer questions, analyze family data, and guide the user warmly.
+        
+        Here is the live data from the family's system (Balances, Pantry Inventory, Shopping List, Tasks, Transactions):
+        ${context}
+        
+        User's Request/Question: "${query}"
+        
+        Instructions for your response:
+        1. Respond directly in Hebrew.
+        2. Be friendly, empathetic, and concise (up to 3-4 sentences unless a detailed list is explicitly requested).
+        3. Use the JSON context provided above to give accurate, real-time answers (e.g., if they ask what's missing in the pantry, check the shopping list and pantry data).
+        4. Use emojis.
+        5. Do not invent data that is not in the context. If you don't know, say you don't have that specific data right now.
+        6. Use Markdown ONLY for bolding (**text**) or simple lists.`;
+        
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת FamilAI'); }
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
