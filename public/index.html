@@ -2127,13 +2127,18 @@
     </div>
 <div id="team-chat-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full h-full sm:h-[85vh] sm:max-w-md sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative fade-in">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-emerald-50 shrink-0">
                 <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
                     <i class="fa-regular fa-comments text-emerald-500"></i> צ'אט משפחתי
                 </h3>
-                <button onclick="document.getElementById('team-chat-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200">
-                    <i class="fa-solid fa-times"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="downloadChatHistory()" title="הורד היסטוריה כקובץ טקסט" class="text-emerald-600 hover:text-emerald-700 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-emerald-100">
+                        <i class="fa-solid fa-download text-xs"></i>
+                    </button>
+                    <button onclick="document.getElementById('team-chat-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
             </div>
             
             <div id="team-chat-messages" class="flex-1 overflow-y-auto p-4 bg-slate-50/50 space-y-3 relative modal-scroll">
