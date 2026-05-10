@@ -4682,4 +4682,24 @@ window.replyFamilyTicket = async function(id) {
             headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
             body: JSON.stringify({ 
                 message: text, 
-                userName: currentUser ? currentUser.nickname
+                userName: currentUser ? currentUser.nickname : 'לקוח', 
+                isStaff: false 
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            input.value = '';
+            if (typeof showToast === 'function') showToast('success', 'התגובה נשלחה לצוות');
+            await fetchMyTickets(); 
+            openFamilyTicket(id); 
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחה');
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('error', 'שגיאת רשת');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת תגובה <i class="fa-solid fa-paper-plane mr-1"></i>';
+    }
+};
