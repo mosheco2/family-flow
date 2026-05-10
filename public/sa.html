@@ -391,20 +391,22 @@
                             </div>
                             <div class="space-y-3 flex flex-col justify-between">
                                 <div>
+                                    <div>
                                     <label class="text-xs font-bold text-indigo-200 block mb-1">קהל יעד להפצה:</label>
                                     <select id="sa-inbox-target-type" class="w-full bg-indigo-800 border border-white/20 text-white rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm appearance-none font-bold cursor-pointer">
                                         <option value="all">לכל העסקים במערכת</option>
                                         <option value="pro">עסקי PRO בלבד</option>
                                         <option value="free">עסקים חינמיים בלבד</option>
-                                        <option value="specific">עסק ספציפי (לפי קוד למטה)</option>
+                                        <option value="all_families">לכל המשפחות במערכת</option>
+                                        <option value="pro_families">משפחות PRO בלבד</option>
+                                        <option value="free_families">משפחות חינמיות בלבד</option>
+                                        <option value="specific">נמען ספציפי (לפי מזהה למטה)</option>
                                     </select>
                                 </div>
                                 <div id="sa-inbox-specific-biz-wrapper" class="hidden">
-                                    <label class="text-xs font-bold text-indigo-200 block mb-1">מזהה פנימי של העסק (ID):</label>
+                                    <label class="text-xs font-bold text-indigo-200 block mb-1">מזהה פנימי (ID):</label>
                                     <input type="number" id="sa-inbox-target-value" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm dir-ltr text-center" placeholder="10">
                                 </div>
-                                <button onclick="window.sendSABroadcastMessage()" id="btn-sa-inbox-send" class="w-full bg-white text-indigo-900 py-3.5 rounded-xl font-black shadow-lg hover:bg-indigo-50 transition flex items-center justify-center gap-2 mt-4"><i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות</button>
-                            </div>
                         </div>
                     </div>
                 </div>
