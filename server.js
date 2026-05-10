@@ -3693,6 +3693,36 @@ app.get('/:alias', (req, res, next) => {
     // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
+// יצירת קריאת שירות חדשה ממשפחה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
+app.post('/api/tickets', async (req, res) => {
+    try {
+        const groupId = req.body.groupId || req.body.group_id;
+        const userId = req.body.userId || req.body.user_id;
+        const { subject, content } = req.body;
+        
+        if (!groupId || !subject || !content) {
+            return res.status(400).json({ error: 'חסרים נתונים ליצירת קריאה' });
+        }
+
+        // חילוץ שם הלקוח לטובת הלוג של הסופר אדמין
+        const uRes = await pool.query('SELECT nickname FROM users WHERE id = $1', [userId]);
+        const userName = uRes.rows.length > 0 ? uRes.rows[0].nickname : 'לקוח';
+        
+        // יצירת הלוג הראשוני שנדרש למערכת המרכזית
+        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: content }];
+        
+        await pool.query(
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, userId, subject, content, 'open', JSON.stringify(initialLog)]
+        );
+        
+        res.json({ success: true });
+    } catch(e) { 
+        console.error('Error creating ticket:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
 // שליפת רשימת הקריאות עבור המשפחה (משיכה מטבלת הליבה והתאמה לתצוגת הלקוח)
 app.get('/api/tickets/:groupId', async (req, res) => {
     try {
@@ -3701,13 +3731,13 @@ app.get('/api/tickets/:groupId', async (req, res) => {
             [req.params.groupId]
         );
         
-        // מיפוי הנתונים כדי שצד הלקוח (app.js) יקבל אותם במבנה שהוא מכיר ויציג תגובות אדמין
+        // התאמת השדות כדי שהלקוח (app.js) יוכל להציג אותם כפי שהוא מכיר
         const mappedTickets = result.rows.map(t => {
             let admin_reply = '';
             if (t.log) {
                 try {
                     const logs = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
-                    // שולפים את התגובה האחרונה של איש צוות מהלוגים
+                    // מחפשים את התגובה האחרונה שנכתבה על ידי איש צוות מתוך הלוגים
                     const lastStaffReply = logs.slice().reverse().find(l => l.isStaff === true);
                     if (lastStaffReply) admin_reply = lastStaffReply.message;
                 } catch(err) {}
