@@ -5515,16 +5515,16 @@ window.sendFamilaiChatMessage = async function() {
     setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 
     try {
-        // בניה של הקשר משפחתי מלא כדי לספק ל-AI את התמונה המלאה
+        // בניה מורחבת של קונטקסט (כדי לספק ל-AI מספיק היסטוריה לחיזוי ולפעולות מורכבות)
         const contextData = {
             family_name: currentGroup.name,
             user_name: currentUser.nickname,
             user_role: currentUser.role,
-            balances: membersCache.map(m => ({name: m.nickname, role: m.role, balance: m.balance})),
-            pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit})),
+            members: membersCache.map(m => ({name: m.nickname, role: m.role, balance: m.balance})),
+            pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit, updated: p.updated_at})),
             shopping_list: shoppingListCache.map(s => ({item: s.item_name, qty: s.quantity, status: s.status})),
             tasks: allTasks.filter(t => t.status !== 'approved').map(t => ({title: t.title, assigned_to: t.assignee_name, reward: t.reward, status: t.status})),
-            recent_transactions: allTransactions.slice(0, 10).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, user: tx.user_name}))
+            recent_transactions: allTransactions.slice(0, 40).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, date: tx.date}))
         };
         
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
@@ -5533,6 +5533,7 @@ window.sendFamilaiChatMessage = async function() {
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
             body: JSON.stringify({ 
                 groupId: currentGroup.id, 
+                userId: currentUser.id, // הוספנו את המזהה כדי שהשרת יוכל לרשום פעולות על שמו
                 query: text,
                 context: JSON.stringify(contextData)
             })
@@ -5541,7 +5542,6 @@ window.sendFamilaiChatMessage = async function() {
         const data = await res.json();
         
         if (data.success) {
-            // הפיכת טקסט ה-Markdown ל-HTML בסיסי ויפה
             let formattedAns = data.answer;
             formattedAns = formattedAns.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-700">$1</strong>');
             formattedAns = formattedAns.replace(/\n/g, '<br>');
@@ -5558,7 +5558,7 @@ window.sendFamilaiChatMessage = async function() {
                     </div>
                 </div>
             `;
-            // רענון סוללה כי בוצעה קריאת API
+            // רענון מיידי של נתוני הרקע! אם ה-AI פתחה משימה, היא תופיע מיד בטאבים.
             fetchData();
         } else {
             if (data.error === 'BATTERY_EMPTY') {
