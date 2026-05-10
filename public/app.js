@@ -4520,3 +4520,166 @@ window.openTicketsModal = function() {
     // קריאה לרענון הרשימה מיד עם פתיחת החלון
     if (typeof fetchMyTickets === 'function') fetchMyTickets();
 };
+// ==========================================
+// OVERRIDE FINAL: ניהול פניות מתקדם למשפחות (נושאים + שרשור צ'אט)
+// ==========================================
+
+// משכתב את פונקציית פתיחת המודאל כדי להזריק רשימת בחירת נושאים במקום טקסט חופשי
+window.openTicketsModal = function() {
+    const modal = document.getElementById('tickets-modal');
+    if (modal) modal.classList.remove('hidden');
+    
+    const subjInput = document.getElementById('ticket-subject');
+    if (subjInput && subjInput.tagName === 'INPUT') {
+        const select = document.createElement('select');
+        select.id = 'ticket-subject';
+        select.className = subjInput.className;
+        select.innerHTML = `
+            <option value="" disabled selected>בחרו נושא פנייה...</option>
+            <option value="בעיה טכנית / באג">בעיה טכנית / באג</option>
+            <option value="שאלה לגבי שימוש באפליקציה">שאלה לגבי שימוש באפליקציה</option>
+            <option value="בקשה להוספת פיצ'ר">בקשה להוספת פיצ'ר</option>
+            <option value="ניהול מנוי ותשלומים">ניהול מנוי ותשלומים</option>
+            <option value="אחר">אחר</option>
+        `;
+        subjInput.parentNode.replaceChild(select, subjInput);
+    }
+
+    if (typeof fetchMyTickets === 'function') fetchMyTickets();
+};
+
+window.fetchMyTickets = async function() {
+    try {
+        const token = localStorage.getItem('ofl_token');
+        if (!currentGroup || !currentGroup.id) return;
+        
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        // מושכים מהנתיב המלא של support_tickets שמחזיר גם את הלוג של השיחה!
+        const res = await fetch(`${apiPath}/support/tickets/my/${currentGroup.id}`, {
+            headers: { 'Authorization': token || '' }
+        });
+        const data = await res.json();
+        
+        const list = document.getElementById('user-tickets-list');
+        if (!list) return;
+        
+        if (data.success && data.tickets) {
+            // שומרים זמנית את הפניות כדי שנוכל לפתוח אותן בפירוט
+            window.familyTicketsCache = data.tickets; 
+            
+            if (data.tickets.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-xl mt-2">אין קריאות פתוחות כרגע.</p>';
+                return;
+            }
+            
+            list.innerHTML = data.tickets.map(t => {
+                let lastReply = '';
+                let parsedLog = [];
+                try { parsedLog = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e){}
+                
+                // מחפשים תגובה אחרונה של איש צוות
+                const staffReplies = parsedLog.filter(l => l.isStaff);
+                if (staffReplies.length > 0) {
+                    lastReply = staffReplies[staffReplies.length - 1].message;
+                }
+                
+                return `
+                <div onclick="openFamilyTicket(${t.id})" class="bg-white p-3 rounded-xl border cursor-pointer ${t.status === 'resolved' ? 'border-green-200' : 'border-slate-200'} mb-2 shadow-sm transition hover:shadow-md hover:border-blue-300">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="font-bold text-slate-800 text-sm"><i class="fa-regular fa-comment-dots text-slate-400 ml-1"></i> ${safeStr(t.subject)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            t.status === 'resolved' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                            t.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                        }">${t.status === 'resolved' ? 'סגור' : t.status === 'in_progress' ? 'בטיפול' : 'פתוח'}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mb-2 leading-relaxed truncate">${safeStr(t.description)}</p>
+                    ${lastReply ? `<div class="bg-indigo-50 p-2.5 rounded-lg text-xs border border-indigo-100 mt-2 truncate"><strong class="text-indigo-600 mb-1 block"><i class="fa-solid fa-headset"></i> צוות ענה לאחרונה:</strong>${safeStr(lastReply)}</div>` : ''}
+                    <div class="text-[10px] text-blue-500 font-bold text-left w-full mt-2">לחץ לפירוט והמשך שיחה <i class="fa-solid fa-chevron-left"></i></div>
+                </div>
+                `;
+            }).join('');
+        } else {
+             list.innerHTML = '<p class="text-xs text-red-400 text-center py-6">שגיאה בטעינת הנתונים.</p>';
+        }
+    } catch (err) {
+        console.error('Error fetching tickets in client:', err);
+    }
+};
+
+window.openFamilyTicket = function(id) {
+    const ticket = (window.familyTicketsCache || []).find(t => t.id === id);
+    if(!ticket) return;
+
+    let modal = document.getElementById('family-ticket-detail-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'family-ticket-detail-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        document.body.appendChild(modal);
+    }
+
+    let parsedLog = [];
+    try { parsedLog = typeof ticket.log === 'string' ? JSON.parse(ticket.log) : (ticket.log || []); } catch(e){}
+
+    const logHtml = parsedLog.map(l => {
+        const isMe = !l.isStaff;
+        const alignClass = isMe ? 'bg-blue-50 border-blue-100 mr-auto rounded-tr-none' : 'bg-indigo-50 border-indigo-100 ml-auto rounded-tl-none';
+        const nameClass = isMe ? 'text-blue-600' : 'text-indigo-600';
+        const icon = isMe ? 'fa-user' : 'fa-headset';
+        const d = new Date(l.date);
+        const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+        return `
+            <div class="p-3 rounded-xl border w-[85%] mb-3 shadow-sm ${alignClass}">
+                <div class="flex justify-between items-center mb-1 text-[10px]">
+                    <span class="font-bold ${nameClass}"><i class="fa-solid ${icon}"></i> ${safeStr(l.sender)}</span>
+                    <span class="text-slate-400">${dateStr}</span>
+                </div>
+                <p class="text-sm text-slate-700 whitespace-pre-wrap">${safeStr(l.message)}</p>
+            </div>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm truncate pr-8 pl-4"><i class="fa-solid fa-ticket text-blue-500 ml-1"></i> ${safeStr(ticket.subject)}</h3>
+                <button onclick="document.getElementById('family-ticket-detail-modal').classList.add('hidden')" class="absolute top-3 left-3 text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div id="family-ticket-log" class="flex-1 overflow-y-auto p-4 bg-slate-50/50">
+                ${logHtml}
+            </div>
+
+            <div class="p-4 bg-white border-t border-slate-100">
+                <textarea id="family-ticket-reply-text" rows="2" class="modern-input w-full py-2 text-sm mb-2 resize-none" placeholder="הקלידו תגובה למנהלי המערכת..."></textarea>
+                <button onclick="replyFamilyTicket(${ticket.id})" id="btn-family-ticket-reply" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שליחת תגובה <i class="fa-solid fa-paper-plane mr-1"></i></button>
+            </div>
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+    // גוללים למטה כדי לראות את ההודעה האחרונה
+    const logContainer = document.getElementById('family-ticket-log');
+    setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
+};
+
+window.replyFamilyTicket = async function(id) {
+    const input = document.getElementById('family-ticket-reply-text');
+    const text = input.value.trim();
+    if(!text) return typeof showToast === 'function' ? showToast('error', 'נא לכתוב תגובה') : alert('נא לכתוב תגובה');
+    
+    const btn = document.getElementById('btn-family-ticket-reply');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
+
+    try {
+        const token = localStorage.getItem('ofl_token');
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/support/tickets/${id}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
+            body: JSON.stringify({ 
+                message: text, 
+                userName: currentUser ? currentUser.nickname
