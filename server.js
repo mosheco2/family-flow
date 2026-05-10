@@ -3710,10 +3710,9 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
-// יצירת קריאת שירות חדשה (הנתיב שהיה חסר)
+// יצירת קריאת שירות חדשה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
 app.post('/api/tickets', async (req, res) => {
     try {
-        // משיכת המשתנים בצורה בטוחה (למקרה שהלקוח שולח groupId במקום group_id)
         const groupId = req.body.groupId || req.body.group_id;
         const userId = req.body.userId || req.body.user_id;
         const { subject, content } = req.body;
@@ -3721,20 +3720,58 @@ app.post('/api/tickets', async (req, res) => {
         if (!groupId || !subject || !content) {
             return res.status(400).json({ error: 'חסרים נתונים ליצירת קריאה' });
         }
+
+        // חילוץ שם הלקוח לטובת הלוג של הסופר אדמין
+        const uRes = await pool.query('SELECT nickname FROM users WHERE id = $1', [userId]);
+        const userName = uRes.rows.length > 0 ? uRes.rows[0].nickname : 'לקוח';
         
-        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
-            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
-            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
-            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
+        // יצירת הלוג הראשוני שנדרש למערכת המרכזית
+        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: content }];
         
         await pool.query(
-            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
-            [groupId, userId, subject, content, 'open']
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, userId, subject, content, 'open', JSON.stringify(initialLog)]
         );
+        
         res.json({ success: true });
     } catch(e) { 
         console.error('Error creating ticket:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// שליפת רשימת הקריאות עבור המשתמש (משיכה והתאמה מסופר אדמין ללקוח)
+app.get('/api/tickets/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', 
+            [req.params.groupId]
+        );
+        
+        // התאמת השדות כדי שהלקוח (app.js) יוכל להציג אותם כפי שהוא מכיר
+        const mappedTickets = result.rows.map(t => {
+            let admin_reply = '';
+            if (t.log) {
+                try {
+                    const logs = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
+                    // מחפשים את התגובה האחרונה שנכתבה על ידי איש צוות מתוך הלוגים
+                    const lastStaffReply = logs.slice().reverse().find(l => l.isStaff === true);
+                    if (lastStaffReply) admin_reply = lastStaffReply.message;
+                } catch(err) {}
+            }
+            return {
+                id: t.id,
+                subject: t.subject,
+                content: t.description,
+                status: t.status,
+                admin_reply: admin_reply,
+                created_at: t.created_at
+            };
+        });
+        
+        res.json({ success: true, tickets: mappedTickets });
+    } catch(e) { 
+        console.error('Error fetching tickets:', e);
         res.status(500).json({ error: e.message }); 
     }
 });
