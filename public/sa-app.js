@@ -705,9 +705,9 @@ window.sendSABroadcastMessage = async function() {
     const targetValue = val('sa-inbox-target-value');
     
     if (!subject || !content) return showToast('error', 'חובה להזין נושא ותוכן להודעה');
-    if (targetType === 'specific' && !targetValue) return showToast('error', 'יש להזין מזהה (ID) של העסק');
+    if (targetType === 'specific' && !targetValue) return showToast('error', 'יש להזין מזהה (ID) של הנמען');
     
-    if (!confirm('האם אתה בטוח? הודעה זו תישלח לתיבות ה-Inbox של קהל היעד הנבחר במערכת העסקית.')) return;
+    if (!confirm('האם אתה בטוח? הודעה זו תישלח לתיבות ה-Inbox של קהל היעד הנבחר.')) return;
     
     const btn = getEl('btn-sa-inbox-send');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> משגר למסד הנתונים...'; }
@@ -718,17 +718,16 @@ window.sendSABroadcastMessage = async function() {
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
             body: JSON.stringify({ targetType, targetValue, subject, content })
         });
-        
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', `ההודעה שוגרה בהצלחה ל-${data.count || 0} עסקים!`);
+            showToast('success', `ההודעה שוגרה בהצלחה ל-${data.count || 0} נמענים!`);
             getEl('sa-inbox-subject').value = '';
             getEl('sa-inbox-content').value = '';
         } else {
             showToast('error', data.error || 'שגיאה בשליחת הודעה לשרת');
         }
-    } catch(e) { 
+    } catch(e) {
         showToast('error', 'שגיאת תקשורת מול השרת');
     } finally {
         if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות'; }
