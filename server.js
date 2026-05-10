@@ -3694,10 +3694,10 @@ app.get('/:alias', (req, res, next) => {
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
 // =========================================================
-// --- מודול תמיכה ותמונות משפחה (מתוקן) ---
+// --- מודול קריאות שירות (תמיכה) ותמונות משפחה ---
 // =========================================================
 
-// שמירת תמונת משפחה (לוגו) - שונה לשם הטבלה הנכון family_groups
+// שמירת תמונת משפחה (לוגו)
 app.post('/api/groups/:id/logo', async (req, res) => {
     try {
         const { logo } = req.body;
@@ -3706,6 +3706,35 @@ app.post('/api/groups/:id/logo', async (req, res) => {
         res.json({ success: true });
     } catch(e) { 
         console.error('Error saving logo:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// יצירת קריאת שירות חדשה (הנתיב שהיה חסר)
+app.post('/api/tickets', async (req, res) => {
+    try {
+        // משיכת המשתנים בצורה בטוחה (למקרה שהלקוח שולח groupId במקום group_id)
+        const groupId = req.body.groupId || req.body.group_id;
+        const userId = req.body.userId || req.body.user_id;
+        const { subject, content } = req.body;
+        
+        if (!groupId || !subject || !content) {
+            return res.status(400).json({ error: 'חסרים נתונים ליצירת קריאה' });
+        }
+        
+        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
+            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
+            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
+            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        
+        await pool.query(
+            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
+            [groupId, userId, subject, content, 'open']
+        );
+        res.json({ success: true });
+    } catch(e) { 
+        console.error('Error creating ticket:', e);
         res.status(500).json({ error: e.message }); 
     }
 });
