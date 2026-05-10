@@ -3606,6 +3606,8 @@ app.post('/api/inbox/customer', async (req, res) => {
 });
 
 // שליחת הודעת תפוצה מהסופר-אדמין לכלל המערכת (עסקים + משפחות)
+
+// שליחת הודעת תפוצה מהסופר-אדמין לכלל המערכת (עסקים + משפחות)
 app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
     try {
         const { targetType, targetValue, subject, content } = req.body;
