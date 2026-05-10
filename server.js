@@ -3775,34 +3775,67 @@ app.get('/api/tickets/:groupId', async (req, res) => {
     }
 });
 
-// ראוט צ'אט עוזרת אישית למשפחות (FamilAI)
+// ראוט צ'אט עוזרת אישית למשפחות (FamilAI) - סוכנת חכמה ופעילה
 app.post('/api/family/chat-assistant', async (req, res) => {
     try {
-        const { query, context, groupId } = req.body;
+        const { query, context, groupId, userId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        // אילוץ תשובה מובנית בפורמט JSON בלבד כדי שהשרת יוכל לקרוא פקודות
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash", 
+            generationConfig: { responseMimeType: "application/json" } 
+        });
         
-        const prompt = `You are 'FamilAI', the intelligent, friendly, and helpful AI assistant for a family using the 'Oneflow Life' management system. 
-        Your job is to answer questions, analyze family data, and guide the user warmly.
+        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'Oneflow Life' app. 
+        You can deeply analyze data to provide forecasts (e.g., when to buy groceries based on habits, budget predictions) AND you can EXECUTE actions on behalf of the user.
         
-        Here is the live data from the family's system (Balances, Pantry Inventory, Shopping List, Tasks, Transactions):
+        Family Data Context (Current State):
         ${context}
         
-        User's Request/Question: "${query}"
+        User's Request: "${query}"
         
-        Instructions for your response:
-        1. Respond directly in Hebrew.
-        2. Be friendly, empathetic, and concise (up to 3-4 sentences unless a detailed list is explicitly requested).
-        3. Use the JSON context provided above to give accurate, real-time answers (e.g., if they ask what's missing in the pantry, check the shopping list and pantry data).
-        4. Use emojis.
-        5. Do not invent data that is not in the context. If you don't know, say you don't have that specific data right now.
-        6. Use Markdown ONLY for bolding (**text**) or simple lists.`;
+        Instructions:
+        1. Respond in Hebrew. Be friendly, warm, and highly efficient. Use emojis.
+        2. If the user asks for a forecast, analysis, or prediction, calculate it smartly using the 'recent_transactions', 'pantry', and 'tasks' data.
+        3. Output STRICTLY as a valid JSON object matching this schema:
+        {
+           "answer": "Your full text response to the user in Hebrew. Use Markdown bolding (**text**) for emphasis.",
+           "action_type": "NONE", // Change to "CREATE_TASK" or "ADD_GROCERY" ONLY if the user explicitly asks you to perform an action!
+           "action_data": {} // If CREATE_TASK: {"title": "Task name", "reward": 10, "assignee_name": "Name of child/member or null"}. If ADD_GROCERY: {"item": "Item name", "qty": 1}
+        }
+        `;
         
         const result = await model.generateContent(prompt);
-        res.json({ success: true, answer: result.response.text().trim() });
+        const aiResponse = JSON.parse(result.response.text());
+        
+        let finalAnswer = aiResponse.answer;
+
+        // --- מנוע ביצוע הפעולות (Execution Engine) ---
+        if (aiResponse.action_type === 'CREATE_TASK' && aiResponse.action_data) {
+            let assignedToId = null;
+            // חיפוש חכם של הילד במסד הנתונים אם ה-AI זיהה שם
+            if (aiResponse.action_data.assignee_name) {
+                const uRes = await pool.query('SELECT id FROM users WHERE group_id = $1 AND nickname ILIKE $2', [groupId, `%${aiResponse.action_data.assignee_name}%`]);
+                if (uRes.rows.length > 0) assignedToId = uRes.rows[0].id;
+            }
+            const reward = parseFloat(aiResponse.action_data.reward) || 0;
+            const title = aiResponse.action_data.title || 'משימה חדשה';
+            
+            await pool.query('INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, status) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, userId, assignedToId, title, reward, 'pending']);
+            finalAnswer += `\n\n✅ **פקודה בוצעה:** פתחתי את המשימה "${title}" במערכת.`;
+        } 
+        else if (aiResponse.action_type === 'ADD_GROCERY' && aiResponse.action_data) {
+            const item = aiResponse.action_data.item || 'מוצר';
+            const qty = parseFloat(aiResponse.action_data.qty) || 1;
+            
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [groupId, userId, item, qty]);
+            finalAnswer += `\n\n🛒 **פקודה בוצעה:** הוספתי "${item}" (כמות: ${qty}) לרשימת הקניות.`;
+        }
+        
+        res.json({ success: true, answer: finalAnswer });
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת FamilAI'); }
 });
 
