@@ -3605,25 +3605,34 @@ app.post('/api/inbox/customer', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליחת הודעת תפוצה מהסופר-אדמין (SA -> עסקים)
+// שליחת הודעת תפוצה מהסופר-אדמין לכלל המערכת (עסקים + משפחות)
 app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
     try {
         const { targetType, targetValue, subject, content } = req.body;
         if (!subject || !content) return res.status(400).json({ error: 'חובה למלא נושא ותוכן' });
 
         let groupIds = [];
+        let queryStr = "";
         
         if (targetType === 'all') {
-            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS'");
-            groupIds = gRes.rows.map(g => g.id);
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS'";
         } else if (targetType === 'pro') {
-            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=TRUE");
-            groupIds = gRes.rows.map(g => g.id);
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=TRUE";
         } else if (targetType === 'free') {
-            const gRes = await pool.query("SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=FALSE");
-            groupIds = gRes.rows.map(g => g.id);
+            queryStr = "SELECT id FROM family_groups WHERE type='BUSINESS' AND is_premium=FALSE";
+        } else if (targetType === 'all_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY'";
+        } else if (targetType === 'pro_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY' AND is_premium=TRUE";
+        } else if (targetType === 'free_families') {
+            queryStr = "SELECT id FROM family_groups WHERE type='FAMILY' AND is_premium=FALSE";
         } else if (targetType === 'specific') {
             groupIds = [parseInt(targetValue)];
+        }
+
+        if (queryStr) {
+            const gRes = await pool.query(queryStr);
+            groupIds = gRes.rows.map(g => g.id);
         }
 
         if (groupIds.length === 0) return res.status(404).json({ error: 'לא נמצאו נמענים מתאימים לסינון' });
