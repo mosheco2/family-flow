@@ -3839,6 +3839,18 @@ app.post('/api/family/chat-assistant', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת FamilAI'); }
 });
 
+// ראוט לעדכון תמונת/לוגו משפחה או עסק
+app.post('/api/groups/:id/logo', async (req, res) => {
+    try {
+        const { logo } = req.body;
+        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error('Logo update error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
