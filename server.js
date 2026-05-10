@@ -3698,6 +3698,11 @@ app.get('/:alias', (req, res, next) => {
 // =========================================================
 
 // שמירת תמונת משפחה (לוגו)
+// =========================================================
+// --- מודול תמיכה ותמונות משפחה (סנכרון מלא לסופר אדמין) ---
+// =========================================================
+
+// שמירת תמונת משפחה (לוגו)
 app.post('/api/groups/:id/logo', async (req, res) => {
     try {
         const { logo } = req.body;
@@ -3710,7 +3715,7 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
-// יצירת קריאת שירות חדשה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
+// יצירת קריאת שירות חדשה (מנותב ישירות לטבלת support_tickets של הסופר אדמין)
 app.post('/api/tickets', async (req, res) => {
     try {
         const groupId = req.body.groupId || req.body.group_id;
@@ -3725,7 +3730,7 @@ app.post('/api/tickets', async (req, res) => {
         const uRes = await pool.query('SELECT nickname FROM users WHERE id = $1', [userId]);
         const userName = uRes.rows.length > 0 ? uRes.rows[0].nickname : 'לקוח';
         
-        // יצירת הלוג הראשוני שנדרש למערכת המרכזית
+        // יצירת הלוג הראשוני שנדרש למערכת הסופר אדמין
         const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: content }];
         
         await pool.query(
@@ -3740,6 +3745,41 @@ app.post('/api/tickets', async (req, res) => {
     }
 });
 
+// שליפת רשימת הקריאות עבור המשפחה (משיכה מטבלת הליבה והתאמה לתצוגת הלקוח)
+app.get('/api/tickets/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', 
+            [req.params.groupId]
+        );
+        
+        // מיפוי הנתונים כדי שצד הלקוח (app.js) יקבל אותם במבנה שהוא מכיר ויציג תגובות אדמין
+        const mappedTickets = result.rows.map(t => {
+            let admin_reply = '';
+            if (t.log) {
+                try {
+                    const logs = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
+                    // שולפים את התגובה האחרונה של איש צוות מהלוגים
+                    const lastStaffReply = logs.slice().reverse().find(l => l.isStaff === true);
+                    if (lastStaffReply) admin_reply = lastStaffReply.message;
+                } catch(err) {}
+            }
+            return {
+                id: t.id,
+                subject: t.subject,
+                content: t.description,
+                status: t.status,
+                admin_reply: admin_reply,
+                created_at: t.created_at
+            };
+        });
+        
+        res.json({ success: true, tickets: mappedTickets });
+    } catch(e) { 
+        console.error('Error fetching tickets:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
 // שליפת רשימת הקריאות עבור המשתמש (משיכה והתאמה מסופר אדמין ללקוח)
 app.get('/api/tickets/:groupId', async (req, res) => {
     try {
