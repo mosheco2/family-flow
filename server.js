@@ -3660,11 +3660,12 @@ app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
 // --- TEAM CHAT ENDPOINTS ---
 // ============================================================
 
-// שליפת היסטוריית הצ'אט של הקבוצה
+// שליפת היסטוריית הצ'אט של הקבוצה + ניקוי אוטומטי מעל 3 חודשים
 app.get('/api/chat/:groupId', async (req, res) => {
     try {
-        // מחיקת הודעות ישנות מ-3 חודשים (תחזוקה אוטומטית)
-        await pool.query(`DELETE FROM team_chat WHERE group_id = $1 AND created_at < NOW() - INTERVAL '3 months'`, [req.params.groupId]);
+        const groupId = req.params.groupId;
+        // ביצוע ניקוי הודעות ישנות משלושה חודשים בכל פתיחת צ'אט
+        await pool.query(`DELETE FROM team_chat WHERE group_id = $1 AND created_at < NOW() - INTERVAL '3 months'`, [groupId]);
 
         const result = await pool.query(`
             SELECT c.*, u.nickname as user_name 
@@ -3672,10 +3673,14 @@ app.get('/api/chat/:groupId', async (req, res) => {
             JOIN users u ON c.user_id = u.id
             WHERE c.group_id = $1 
             ORDER BY c.created_at ASC
-            LIMIT 200
-        `, [req.params.groupId]);
+            LIMIT 500
+        `, [groupId]);
+        
         res.json({ success: true, messages: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error('Chat fetch error:', e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // שליחת הודעת צ'אט חדשה
