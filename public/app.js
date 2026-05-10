@@ -4351,3 +4351,113 @@ window.handleFamilyPhotoUpload = function(event) {
     };
     reader.readAsDataURL(file);
 };
+// ==========================================
+// OVERRIDE: תצוגת קריאות שירות (תמיכה) למשפחה
+// ==========================================
+
+window.fetchMyTickets = async function() {
+    try {
+        const token = localStorage.getItem('ofl_token');
+        if (!token || !currentGroup) return;
+        
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/tickets/${currentGroup.id}`, {
+            headers: { 'Authorization': token }
+        });
+        const data = await res.json();
+        
+        const list = document.getElementById('user-tickets-list');
+        if (!list) return;
+        
+        if (data.success && data.tickets) {
+            if (data.tickets.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">אין קריאות פתוחות כרגע.</p>';
+                return;
+            }
+            list.innerHTML = data.tickets.map(t => `
+                <div class="bg-white p-3 rounded-lg border ${t.status === 'resolved' ? 'border-green-200' : 'border-slate-200'}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${t.subject}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full ${
+                            t.status === 'resolved' ? 'bg-green-100 text-green-700' : 
+                            t.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
+                        }">${t.status === 'resolved' ? 'סגור' : t.status === 'in_progress' ? 'בטיפול' : 'פתוח'}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mb-2">${t.content}</p>
+                    ${t.admin_reply ? `<div class="bg-slate-50 p-2 rounded text-xs border border-slate-100"><strong class="text-blue-600">תשובת צוות:</strong> ${t.admin_reply}</div>` : ''}
+                </div>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('Error fetching tickets:', err);
+    }
+};
+
+window.submitTicket = async function(event) {
+    if (event) event.preventDefault();
+    const subjectEl = document.getElementById('ticket-subject');
+    const contentEl = document.getElementById('ticket-content');
+    
+    if (!subjectEl || !contentEl) return;
+    const subject = subjectEl.value;
+    const content = contentEl.value;
+    
+    if (!subject || !content) {
+        if (typeof showToast === 'function') showToast('error', 'נא למלא נושא ותוכן פנייה');
+        return;
+    }
+
+    const btn = event && event.currentTarget ? event.currentTarget : document.querySelector('#tickets-modal button.bg-blue-600');
+    let originalText = '';
+    if (btn) {
+        originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const token = localStorage.getItem('ofl_token');
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/tickets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify({ 
+                group_id: currentGroup.id, 
+                user_id: currentUser.id, 
+                subject: subject, 
+                content: content 
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            if (typeof showToast === 'function') showToast('success', 'הפנייה נשלחה בהצלחה!');
+            subjectEl.value = '';
+            contentEl.value = '';
+            fetchMyTickets(); // רענן מיד את הרשימה להצגת הקריאה החדשה למשפחה
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחה');
+        }
+    } catch (err) { 
+        console.error('Error submitting ticket:', err); 
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+};
+
+// האזנה חכמה לפתיחת המודאל מכל מקום במסך - מושך את הקריאות מיד עם פתיחת החלונית
+document.addEventListener('click', (e) => {
+    if (e.target.closest('[onclick*="tickets-modal"]')) {
+        setTimeout(() => {
+            const modal = document.getElementById('tickets-modal');
+            if(modal && !modal.classList.contains('hidden')) {
+                if (typeof fetchMyTickets === 'function') fetchMyTickets();
+            }
+        }, 100);
+    }
+});
