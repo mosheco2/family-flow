@@ -3710,29 +3710,6 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
-// יצירת קריאת שירות חדשה
-app.post('/api/tickets', async (req, res) => {
-    try {
-        const { group_id, user_id, subject, content } = req.body;
-        
-        // וידוא שהטבלה קיימת בוודאות לפני הכנסת הנתונים
-        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
-            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
-            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
-            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
-        
-        await pool.query(
-            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
-            [group_id, user_id, subject, content, 'open']
-        );
-        res.json({ success: true });
-    } catch(e) { 
-        console.error('Error creating ticket:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-
 // שליפת רשימת הקריאות עבור המשתמש
 app.get('/api/tickets/:groupId', async (req, res) => {
     try {
