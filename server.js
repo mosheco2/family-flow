@@ -238,42 +238,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
-// שמירת תמונת משפחה (לוגו)
-app.post('/api/groups/:id/logo', async (req, res) => {
-    try {
-        const { logo } = req.body;
-        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
-// יצירת קריאת שירות חדשה
-app.post('/api/tickets', async (req, res) => {
-    try {
-        const { group_id, user_id, subject, content } = req.body;
-        await pool.query(
-            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
-            [group_id, user_id, subject, content, 'open']
-        );
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-// =========================================================
-// --- מערכת קריאות שירות (תמיכה) ---
-// =========================================================
-// יצירת קריאת שירות חדשה ממשפחה
-app.post('/api/tickets', async (req, res) => {
-    try {
-        const { group_id, user_id, subject, content } = req.body;
-        if (!group_id || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
-        
-        await pool.query(
-            'INSERT INTO tickets (group_id, user_id, subject, content, status) VALUES ($1, $2, $3, $4, $5)',
-            [group_id, user_id, subject, content, 'open']
-        );
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 app.post('/api/support/ticket', async (req, res) => {
     try {
         const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
@@ -3728,17 +3693,16 @@ app.get('/:alias', (req, res, next) => {
     // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
-// --- נתיבים חדשים: שמירת תמונה וקריאות שירות ---
+// =========================================================
+// --- מודול תמיכה ותמונות משפחה (מתוקן) ---
+// =========================================================
 
-// שמירת תמונת משפחה (לוגו)
+// שמירת תמונת משפחה (לוגו) - שונה לשם הטבלה הנכון family_groups
 app.post('/api/groups/:id/logo', async (req, res) => {
     try {
         const { logo } = req.body;
-        
-        // יצירת העמודה אם היא איננה קיימת (גיבוי)
-        try { await pool.query('ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo TEXT'); } catch(e) {}
-        
-        await pool.query('UPDATE groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
+        try { await pool.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS logo TEXT'); } catch(e) { console.error(e); }
+        await pool.query('UPDATE family_groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
         res.json({ success: true });
     } catch(e) { 
         console.error('Error saving logo:', e);
@@ -3751,7 +3715,7 @@ app.post('/api/tickets', async (req, res) => {
     try {
         const { group_id, user_id, subject, content } = req.body;
         
-        // יצירת הטבלה אם היא איננה קיימת (גיבוי)
+        // וידוא שהטבלה קיימת בוודאות לפני הכנסת הנתונים
         await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
             id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
             subject VARCHAR(255), content TEXT, admin_reply TEXT, 
@@ -3763,7 +3727,30 @@ app.post('/api/tickets', async (req, res) => {
             [group_id, user_id, subject, content, 'open']
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error('Error creating ticket:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// שליפת רשימת הקריאות עבור המשתמש
+app.get('/api/tickets/:groupId', async (req, res) => {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
+            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
+            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
+            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        
+        const result = await pool.query(
+            'SELECT * FROM tickets WHERE group_id = $1 ORDER BY created_at DESC', 
+            [req.params.groupId]
+        );
+        res.json({ success: true, tickets: result.rows });
+    } catch(e) { 
+        console.error('Error fetching tickets:', e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
