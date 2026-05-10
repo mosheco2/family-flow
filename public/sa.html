@@ -378,38 +378,41 @@
                         <h2 class="text-2xl font-black mb-2 flex items-center gap-2 relative z-10"><i class="fa-solid fa-paper-plane text-indigo-400"></i> הפצת הודעות מרכזית (Broadcast)</h2>
                         <p class="text-sm text-indigo-200 mb-6 relative z-10">הודעות שיישלחו מכאן יופיעו ישירות בתיבת ההודעות (Inbox) של מנהלי המערכת (לקוחות, משפחות, בעלי עסקים).</p>
                         
-                        <div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="md:col-span-2 space-y-3">
-                                <div>
-                                    <label class="text-xs font-bold text-indigo-200 block mb-1">נושא ההודעה:</label>
-                                    <input type="text" id="sa-inbox-subject" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm" placeholder="למשל: שדרוג מערכת שעות...">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-indigo-200 block mb-1">תוכן ההודעה:</label>
-                                    <textarea id="sa-inbox-content" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm h-28" placeholder="הקלידו את תוכן ההודעה כאן..."></textarea>
-                                </div>
-                            </div>
-                            <div class="space-y-3 flex flex-col justify-between">
-                                <div>
-                                    <div>
-                                    <label class="text-xs font-bold text-indigo-200 block mb-1">קהל יעד להפצה:</label>
-                                    <select id="sa-inbox-target-type" class="w-full bg-indigo-800 border border-white/20 text-white rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm appearance-none font-bold cursor-pointer">
-                                        <option value="all">לכל העסקים במערכת</option>
-                                        <option value="pro">עסקי PRO בלבד</option>
-                                        <option value="free">עסקים חינמיים בלבד</option>
-                                        <option value="all_families">לכל המשפחות במערכת</option>
-                                        <option value="pro_families">משפחות PRO בלבד</option>
-                                        <option value="free_families">משפחות חינמיות בלבד</option>
-                                        <option value="specific">נמען ספציפי (לפי מזהה למטה)</option>
-                                    </select>
-                                </div>
-                                <div id="sa-inbox-specific-biz-wrapper" class="hidden">
-                                    <label class="text-xs font-bold text-indigo-200 block mb-1">מזהה פנימי (ID):</label>
-                                    <input type="number" id="sa-inbox-target-value" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm dir-ltr text-center" placeholder="10">
-                                </div>
-                        </div>
-                    </div>
-                </div>
+<div class="bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div class="md:col-span-2 space-y-3">
+                                                <div>
+                                                    <label class="text-xs font-bold text-indigo-200 block mb-1">נושא ההודעה:</label>
+                                                    <input type="text" id="sa-inbox-subject" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm" placeholder="למשל: שדרוג מערכת שעות...">
+                                                </div>
+                                                <div>
+                                                    <label class="text-xs font-bold text-indigo-200 block mb-1">תוכן ההודעה:</label>
+                                                    <textarea id="sa-inbox-content" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm h-28" placeholder="הקלידו את תוכן ההודעה כאן..."></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="space-y-3 flex flex-col justify-between">
+                                                <div class="space-y-3">
+                                                    <div>
+                                                        <label class="text-xs font-bold text-indigo-200 block mb-1">קהל יעד להפצה:</label>
+                                                        <select id="sa-inbox-target-type" onchange="document.getElementById('sa-inbox-specific-biz-wrapper').classList.toggle('hidden', this.value !== 'specific')" class="w-full bg-indigo-800 border border-white/20 text-white rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm appearance-none font-bold cursor-pointer">
+                                                            <option value="all">לכל העסקים במערכת</option>
+                                                            <option value="pro">עסקי PRO בלבד</option>
+                                                            <option value="free">עסקים חינמיים בלבד</option>
+                                                            <option value="all_families">לכל המשפחות במערכת</option>
+                                                            <option value="pro_families">משפחות PRO בלבד</option>
+                                                            <option value="free_families">משפחות חינמיות בלבד</option>
+                                                            <option value="specific">נמען ספציפי (לפי מזהה למטה)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div id="sa-inbox-specific-biz-wrapper" class="hidden">
+                                                        <label class="text-xs font-bold text-indigo-200 block mb-1">מזהה פנימי (ID):</label>
+                                                        <input type="number" id="sa-inbox-target-value" class="w-full bg-white/10 border border-white/20 text-white placeholder-indigo-300/50 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 transition text-sm dir-ltr text-center" placeholder="10">
+                                                    </div>
+                                                </div>
+                                                <button id="btn-sa-inbox-send" onclick="sendSABroadcastMessage()" class="w-full mt-4 bg-indigo-500 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-600 transition flex items-center justify-center gap-2">
+                                                    <i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות
+                                                </button>
+                                            </div>
+                                        </div>
 
 <div id="sa-view-content" class="hidden space-y-8 fade-in">
                     
