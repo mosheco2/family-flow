@@ -5334,22 +5334,30 @@ window.loadTeamChat = async function(silent = true) {
 
 window.renderTeamChat = function() {
     const container = document.getElementById('team-chat-messages');
-    const bannerContainer = document.getElementById('team-chat-sticky-banner');
     if (!container) return;
     
-    // באנר אזהרה להורים בלבד - מוצג במיכל קבוע (Sticky) בראש הצ'אט
-    if (bannerContainer) {
-        if (currentUser.role === 'ADMIN') {
-            bannerContainer.innerHTML = `
-                <div class="bg-indigo-900 text-indigo-100 text-[10px] py-2 px-4 text-center border-b border-white/10 shadow-sm font-medium">
-                    <i class="fa-solid fa-clock-rotate-left mr-1 text-indigo-300"></i> היסטוריית ההודעות נשמרת ל-90 ימים בלבד
-                </div>
-            `;
-        } else {
-            bannerContainer.innerHTML = '';
-        }
+    // 1. טיפול בבאנר מקובע (Sticky) מחוץ לאזור הגלילה
+    let stickyBanner = document.getElementById('team-chat-sticky-banner');
+    if (!stickyBanner) {
+        stickyBanner = document.createElement('div');
+        stickyBanner.id = 'team-chat-sticky-banner';
+        // עיצוב שמשתלב עם כותרת המודאל ומונע גלילה
+        stickyBanner.className = 'shrink-0 z-10 bg-emerald-50 px-4 pb-2 border-b border-emerald-100';
+        container.parentNode.insertBefore(stickyBanner, container);
     }
 
+    if (currentUser.role === 'ADMIN') {
+        stickyBanner.innerHTML = `
+            <div class="bg-indigo-900 text-indigo-100 text-[10px] py-1.5 px-3 rounded-xl text-center shadow-sm">
+                <i class="fa-solid fa-clock-rotate-left mr-1 text-indigo-300"></i> ההיסטוריה נמחקת אוטומטית אחרי 3 חודשים
+            </div>
+        `;
+    } else {
+        stickyBanner.innerHTML = '';
+        stickyBanner.className = 'hidden';
+    }
+
+    // 2. רינדור הודעות הצ'אט עצמן
     if (window.teamChatCache.length === 0) {
         container.innerHTML = '<div class="text-center text-slate-400 py-10 mt-10"><i class="fa-regular fa-comments text-4xl mb-3 opacity-50"></i><p class="text-sm">אין הודעות עדיין.<br>תהיו הראשונים לכתוב!</p></div>';
         return;
@@ -5360,7 +5368,6 @@ window.renderTeamChat = function() {
         const isMe = String(msg.user_id) === String(currentUser.id);
         const alignWrapper = isMe ? 'justify-end' : 'justify-start';
         
-        // צבעוניות הודעה לפי בן משפחה
         const userColorIndex = parseInt(msg.user_id) % userColors.length;
         const colorClasses = userColors[userColorIndex].split(' '); 
         const bubbleBg = isMe ? 'bg-emerald-500 text-white shadow-emerald-200' : colorClasses[0] + ' text-slate-800 border ' + colorClasses[1] + ' shadow-sm';
@@ -5383,7 +5390,6 @@ window.renderTeamChat = function() {
     });
     container.innerHTML = html;
     
-    // גלילה למטה להודעה האחרונה
     setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 };
 
@@ -5402,7 +5408,6 @@ window.sendTeamChatMessage = async function() {
         });
         if ((await res.json()).success) { 
             input.value = ''; 
-            // משיכה מיידית של הצ'אט כדי שהשולח יראה את ההודעה שלו מיד
             await window.loadTeamChat(false); 
         }
     } catch(e) {} finally { btn.disabled = false; input.focus(); }
@@ -5432,10 +5437,27 @@ window.downloadChatHistory = function() {
     showToast('success', 'הקובץ מוכן להורדה!');
 };
 
-// קיצור זמן הפולינג ל-3 שניות כדי להעניק חוויית "זמן אמת" כמעט מיידית
-if (window.chatPollingIntervalId) clearInterval(window.chatPollingIntervalId);
-window.chatPollingIntervalId = setInterval(() => {
-    if (window.currentUser && window.currentGroup && window.currentGroup.id) { window.loadTeamChat(true); }
+// --- מערכת סנכרון צ'אט מהירה במיוחד (זמן אמת) ---
+if (window.chatFastPollIntervalId) clearInterval(window.chatFastPollIntervalId);
+window.chatFastPollIntervalId = setInterval(() => {
+    if (window.currentUser && window.currentGroup && window.currentGroup.id) {
+        const modal = document.getElementById('team-chat-modal');
+        // אם הצ'אט פתוח, משוך נתונים כל שנייה אחת (1000ms)!
+        if (modal && !modal.classList.contains('hidden')) {
+            window.loadTeamChat(true); 
+        }
+    }
+}, 1000);
+
+// טיימר נפרד לעדכון הבועה כשהצ'אט סגור (3 שניות לחסוך סוללה)
+if (window.chatSlowPollIntervalId) clearInterval(window.chatSlowPollIntervalId);
+window.chatSlowPollIntervalId = setInterval(() => {
+    if (window.currentUser && window.currentGroup && window.currentGroup.id) {
+        const modal = document.getElementById('team-chat-modal');
+        if (!modal || modal.classList.contains('hidden')) {
+            window.loadTeamChat(true); 
+        }
+    }
 }, 3000);
 
 const _origFetchDataForChat = window.fetchData;
