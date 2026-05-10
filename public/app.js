@@ -5468,3 +5468,112 @@ if (_origFetchDataForChat && !window.hookedChatFetch) {
     };
     window.hookedChatFetch = true;
 }
+// ==========================================
+// OVERRIDE FINAL: מודול העוזרת החכמה של המשפחה (FamilAI)
+// ==========================================
+
+// פונקציית הפתיחה מחוברת לבועה של העוזרת שבנית ב-HTML
+window.openFamilaiChatModal = function() {
+    const modal = document.getElementById('familai-chat-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        const input = document.getElementById('familai-chat-input');
+        if (input) setTimeout(() => input.focus(), 100);
+        
+        const container = document.getElementById('familai-chat-messages');
+        if (container) setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+    }
+};
+
+window.sendFamilaiChatMessage = async function() {
+    const input = document.getElementById('familai-chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    
+    const container = document.getElementById('familai-chat-messages');
+    const btn = document.getElementById('btn-send-familai-chat');
+    const indicator = document.getElementById('familai-typing-indicator');
+    
+    // ציור הודעת המשתמש בצד שמאל
+    const timeStr = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+    container.innerHTML += `
+        <div class="flex w-full justify-end fade-in mt-2">
+            <div class="max-w-[85%] flex flex-col items-end text-left">
+                <span class="text-[9px] font-bold text-slate-400 mb-1 px-1">אני</span>
+                <div class="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-md bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tl-none">
+                    ${safeStr(text)}
+                </div>
+                <span class="text-[8px] text-slate-400 mt-1 px-1 opacity-70">${timeStr}</span>
+            </div>
+        </div>
+    `;
+    
+    input.value = '';
+    btn.disabled = true;
+    indicator.classList.remove('hidden');
+    indicator.classList.add('flex');
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+
+    try {
+        // בניה של הקשר משפחתי מלא כדי לספק ל-AI את התמונה המלאה
+        const contextData = {
+            family_name: currentGroup.name,
+            user_name: currentUser.nickname,
+            user_role: currentUser.role,
+            balances: membersCache.map(m => ({name: m.nickname, role: m.role, balance: m.balance})),
+            pantry: pantryCache.map(p => ({item: p.item_name, qty: p.quantity, unit: p.unit})),
+            shopping_list: shoppingListCache.map(s => ({item: s.item_name, qty: s.quantity, status: s.status})),
+            tasks: allTasks.filter(t => t.status !== 'approved').map(t => ({title: t.title, assigned_to: t.assignee_name, reward: t.reward, status: t.status})),
+            recent_transactions: allTransactions.slice(0, 10).map(tx => ({desc: tx.description, amount: tx.amount, type: tx.type, user: tx.user_name}))
+        };
+        
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        const res = await fetch(`${apiPath}/family/chat-assistant`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, 
+                query: text,
+                context: JSON.stringify(contextData)
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // הפיכת טקסט ה-Markdown ל-HTML בסיסי ויפה
+            let formattedAns = data.answer;
+            formattedAns = formattedAns.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-700">$1</strong>');
+            formattedAns = formattedAns.replace(/\n/g, '<br>');
+            
+            const aiTime = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+            container.innerHTML += `
+                <div class="flex w-full justify-start mt-2 fade-in">
+                    <div class="max-w-[85%] flex flex-col items-start text-right">
+                        <span class="text-[10px] font-bold text-purple-600 mb-1 px-1 flex items-center gap-1"><i class="fa-solid fa-robot"></i> FamilAI</span>
+                        <div class="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-sm bg-white border border-purple-100 text-slate-800 rounded-tr-none">
+                            ${formattedAns}
+                        </div>
+                        <span class="text-[8px] text-slate-400 mt-1 px-1 opacity-70">${aiTime}</span>
+                    </div>
+                </div>
+            `;
+            // רענון סוללה כי בוצעה קריאת API
+            fetchData();
+        } else {
+            if (data.error === 'BATTERY_EMPTY') {
+                showToast('error', 'נגמרה סוללת ה-AI שלכם!');
+            } else {
+                showToast('error', data.error || 'שגיאה בקבלת תשובה מ-FamilAI');
+            }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול ה-AI');
+    } finally {
+        btn.disabled = false;
+        indicator.classList.remove('flex');
+        indicator.classList.add('hidden');
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
+        input.focus();
+    }
+};
