@@ -679,7 +679,7 @@
                             
                         </div>
                     </div>
-                   <div id="content-members" class="hidden space-y-4">
+<div id="content-members" class="hidden space-y-4">
                         <div class="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm mx-2 mt-2">
                             <div class="flex items-center gap-4">
                                 <div class="relative w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-200 shadow-inner">
@@ -689,10 +689,15 @@
                                 <div class="flex-1">
                                     <h4 class="font-bold text-slate-800 text-sm">תמונת מיתוג המשפחה</h4>
                                     <p class="text-[10px] text-slate-400 mb-2">תמונה זו תופיע בראש האפליקציה לכל בני המשפחה</p>
-                                    <button onclick="document.getElementById('family-photo-upload').click()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition">
-                                        <i class="fa-solid fa-upload mr-1"></i> העלה תמונה
-                                    </button>
-                                    <input type="file" id="family-photo-upload" accept="image/*" class="hidden" onchange="handleFamilyPhotoUpload(event)">
+                                    <div class="flex gap-2">
+                                        <button onclick="document.getElementById('family-photo-upload').click()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition">
+                                            <i class="fa-solid fa-upload mr-1"></i> העלה תמונה
+                                        </button>
+                                        <button onclick="saveFamilyPhoto()" id="btn-save-family-photo" class="hidden bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition">
+                                            <i class="fa-solid fa-save mr-1"></i> שמור תמונה
+                                        </button>
+                                    </div>
+                                    <input type="file" id="family-photo-upload" accept="image/*" class="hidden" onchange="previewFamilyPhoto(event)">
                                 </div>
                             </div>
                         </div>
@@ -705,9 +710,12 @@
                             </button>
                         </div>
                         
-                        <div id="admin-members-tools" class="hidden">
-                            <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל הורה</button>
-                            <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כל בני המשפחה לשם אבטחה ובקרה.</p>
+                        <div id="admin-members-tools" class="hidden space-y-3 px-2">
+                            <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 text-sm"><i class="fa-brands fa-whatsapp text-xl"></i> הזמן בן משפחה בוואטסאפ</button>
+                            <div>
+                                <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2 text-sm"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל הורה</button>
+                                <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כל בני המשפחה לשם אבטחה ובקרה.</p>
+                            </div>
                         </div>
                         <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
                             <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות ממתינות</h3></div>
@@ -2192,5 +2200,18 @@
         </div>
     </div>
 
+    <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
+            <button onclick="document.getElementById('permissions-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-lg font-bold text-slate-800 mb-1"><i class="fa-solid fa-key text-blue-500 mr-1"></i> הרשאות: <span id="perms-user-name"></span></h3>
+            <p class="text-xs text-slate-500 mb-4">בחרו אילו מסכים יופיעו למשתמש זה:</p>
+            <input type="hidden" id="perms-user-id">
+            
+            <div id="perms-checkboxes" class="space-y-2 mb-6 max-h-[50vh] overflow-y-auto modal-scroll pr-1">
+            </div>
+            
+            <button onclick="savePermissions()" id="btn-save-perms" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור הרשאות</button>
+        </div>
+    </div>
 </body>
 </html>
