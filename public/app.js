@@ -4895,3 +4895,240 @@ if (_origFetchDataForTicketsBadge && !window.hookedTicketsBadge) {
     };
     window.hookedTicketsBadge = true;
 }
+// ==========================================
+// OVERRIDE FINAL: התראות קריאות שירות בזמן אמת (פולינג עצמאי)
+// ==========================================
+
+// פונקציות עזר לשמירת מצב הקריאה בדפדפן
+window.getReadTicketsState = function() {
+    try { return JSON.parse(localStorage.getItem('ofl_tickets_read_state')) || {}; } 
+    catch(e) { return {}; }
+};
+
+window.markTicketAsRead = function(ticketId, logLength) {
+    const state = window.getReadTicketsState();
+    state[ticketId] = logLength;
+    localStorage.setItem('ofl_tickets_read_state', JSON.stringify(state));
+    window.updateTicketsBadgeUI(); 
+};
+
+window.checkIfUnread = function(ticket) {
+    let parsedLog = [];
+    try { parsedLog = typeof ticket.log === 'string' ? JSON.parse(ticket.log) : (ticket.log || []); } catch(e){}
+    
+    if (parsedLog.length > 0) {
+        const lastMsg = parsedLog[parsedLog.length - 1];
+        if (lastMsg.isStaff) {
+            const state = window.getReadTicketsState();
+            const savedLength = state[ticket.id] || 0;
+            if (parsedLog.length > savedLength) {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
+// עדכון בועת ההתראה על אייקון האוזניות מחוץ למודאל
+window.updateTicketsBadgeUI = function() {
+    if (!window.familyTicketsCache) return;
+    const unreadCount = window.familyTicketsCache.filter(t => window.checkIfUnread(t)).length;
+    
+    const triggerBtns = document.querySelectorAll('[onclick*="openTicketsModal"]');
+    triggerBtns.forEach(btn => {
+        const existingBadge = btn.querySelector('.ticket-unread-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        if (unreadCount > 0) {
+            btn.style.position = 'relative';
+            const badge = document.createElement('span');
+            badge.className = 'ticket-unread-badge absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-sm animate-pulse z-50';
+            badge.innerText = unreadCount;
+            btn.appendChild(badge);
+        }
+    });
+};
+
+// שכתוב הפונקציה כדי שתתמוך ב-Silent Load (משיכת נתונים ברקע)
+window.fetchMyTickets = async function(silent = false) {
+    try {
+        const token = localStorage.getItem('ofl_token');
+        if (!currentGroup || !currentGroup.id) return;
+        
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/support/tickets/my/${currentGroup.id}`, {
+            headers: { 'Authorization': token || '' }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.tickets) {
+            window.familyTicketsCache = data.tickets; 
+            window.updateTicketsBadgeUI(); // עדכון הבועה על האייקון מיד לאחר המשיכה
+            
+            const list = document.getElementById('user-tickets-list');
+            const modal = document.getElementById('tickets-modal');
+            const isModalOpen = modal && !modal.classList.contains('hidden');
+            
+            // אם המשיכה שקטה והמודאל בכלל סגור, אפשר לעצור פה ולחסוך רינדור HTML מיותר
+            if (silent && !isModalOpen) return;
+            
+            if (!list) return;
+            
+            if (data.tickets.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 border border-dashed rounded-xl mt-2">אין קריאות פתוחות כרגע.</p>';
+                return;
+            }
+            
+            list.innerHTML = data.tickets.map(t => {
+                let lastReply = '';
+                let parsedLog = [];
+                try { parsedLog = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e){}
+                
+                const staffReplies = parsedLog.filter(l => l.isStaff);
+                if (staffReplies.length > 0) {
+                    lastReply = staffReplies[staffReplies.length - 1].message;
+                }
+                
+                const isUnread = window.checkIfUnread(t);
+                const unreadBadge = isUnread ? `<span class="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 shadow-sm animate-pulse">תגובה חדשה!</span>` : '';
+                
+                return `
+                <div onclick="openFamilyTicket(${t.id})" class="bg-white p-3 rounded-xl border cursor-pointer ${isUnread ? 'border-red-300 shadow-md bg-red-50/10' : (t.status === 'resolved' ? 'border-green-200' : 'border-slate-200')} mb-2 shadow-sm transition hover:shadow-md hover:border-blue-300 relative">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="font-bold text-slate-800 text-sm flex items-center">
+                            <i class="fa-regular fa-comment-dots text-slate-400 ml-1"></i> 
+                            <span class="truncate max-w-[120px] inline-block mx-1">${safeStr(t.subject)}</span>
+                            ${unreadBadge}
+                        </span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                            t.status === 'resolved' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                            t.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                        }">${t.status === 'resolved' ? 'סגור' : t.status === 'in_progress' ? 'בטיפול' : 'פתוח'}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mb-2 leading-relaxed truncate">${safeStr(t.description)}</p>
+                    ${lastReply ? `<div class="bg-indigo-50 p-2.5 rounded-lg text-xs border border-indigo-100 mt-2 truncate"><strong class="text-indigo-600 mb-1 block"><i class="fa-solid fa-headset"></i> צוות ענה לאחרונה:</strong>${safeStr(lastReply)}</div>` : ''}
+                    <div class="text-[10px] text-blue-500 font-bold text-left w-full mt-2">לחץ לפירוט והמשך שיחה <i class="fa-solid fa-chevron-left"></i></div>
+                </div>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('Error fetching tickets in client:', err);
+    }
+};
+
+window.openFamilyTicket = function(id) {
+    const ticket = (window.familyTicketsCache || []).find(t => t.id === id);
+    if(!ticket) return;
+
+    let parsedLog = [];
+    try { parsedLog = typeof ticket.log === 'string' ? JSON.parse(ticket.log) : (ticket.log || []); } catch(e){}
+    
+    // סימון הקריאה כנקראה - מאפס את בועת ההתראה
+    window.markTicketAsRead(id, parsedLog.length);
+
+    let modal = document.getElementById('family-ticket-detail-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'family-ticket-detail-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        document.body.appendChild(modal);
+    }
+
+    const logHtml = parsedLog.map(l => {
+        const isMe = !l.isStaff;
+        const alignClass = isMe ? 'bg-blue-50 border-blue-100 mr-auto rounded-tr-none' : 'bg-indigo-50 border-indigo-100 ml-auto rounded-tl-none';
+        const nameClass = isMe ? 'text-blue-600' : 'text-indigo-600';
+        const icon = isMe ? 'fa-user' : 'fa-headset';
+        const d = new Date(l.date);
+        const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+        return `
+            <div class="p-3 rounded-xl border w-[85%] mb-3 shadow-sm ${alignClass}">
+                <div class="flex justify-between items-center mb-1 text-[10px]">
+                    <span class="font-bold ${nameClass}"><i class="fa-solid ${icon}"></i> ${safeStr(l.sender)}</span>
+                    <span class="text-slate-400">${dateStr}</span>
+                </div>
+                <p class="text-sm text-slate-700 whitespace-pre-wrap">${safeStr(l.message)}</p>
+            </div>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm truncate pr-8 pl-4"><i class="fa-solid fa-ticket text-blue-500 ml-1"></i> ${safeStr(ticket.subject)}</h3>
+                <button onclick="document.getElementById('family-ticket-detail-modal').classList.add('hidden'); window.fetchMyTickets(false);" class="absolute top-3 left-3 text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200"><i class="fa-solid fa-times"></i></button>
+            </div>
+            
+            <div id="family-ticket-log" class="flex-1 overflow-y-auto p-4 bg-slate-50/50">
+                ${logHtml}
+            </div>
+
+            <div class="p-4 bg-white border-t border-slate-100">
+                <textarea id="family-ticket-reply-text" rows="2" class="modern-input w-full py-2 text-sm mb-2 resize-none" placeholder="הקלידו תגובה לצוות התמיכה..."></textarea>
+                <button onclick="replyFamilyTicket(${ticket.id})" id="btn-family-ticket-reply" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שליחת תגובה <i class="fa-solid fa-paper-plane mr-1"></i></button>
+            </div>
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+    const logContainer = document.getElementById('family-ticket-log');
+    setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
+    
+    // רענון שקט כדי להעלים את התגית מהרשימה מאחור
+    window.fetchMyTickets(true); 
+};
+
+window.replyFamilyTicket = async function(id) {
+    const input = document.getElementById('family-ticket-reply-text');
+    const text = input.value.trim();
+    if(!text) return typeof showToast === 'function' ? showToast('error', 'נא לכתוב תגובה') : alert('נא לכתוב תגובה');
+    
+    const btn = document.getElementById('btn-family-ticket-reply');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
+
+    try {
+        const token = localStorage.getItem('ofl_token');
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        
+        const res = await fetch(`${apiPath}/support/tickets/${id}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token || '' },
+            body: JSON.stringify({ 
+                message: text, 
+                userName: currentUser ? currentUser.nickname : 'לקוח', 
+                isStaff: false 
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            input.value = '';
+            if (typeof showToast === 'function') showToast('success', 'התגובה נשלחה לצוות');
+            await fetchMyTickets(true); 
+            openFamilyTicket(id); 
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחה');
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('error', 'שגיאת רשת');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת תגובה <i class="fa-solid fa-paper-plane mr-1"></i>';
+    }
+};
+
+// --- הפעלת מנוע פולינג (Polling) עצמאי לקריאות ---
+if (window.ticketPollIntervalId) {
+    clearInterval(window.ticketPollIntervalId);
+}
+// נריץ בדיקה שקטה כל 15 שניות, באופן בלתי תלוי
+window.ticketPollIntervalId = setInterval(() => {
+    if (window.currentUser && window.currentGroup && window.currentGroup.id) {
+        if (typeof window.fetchMyTickets === 'function') {
+            window.fetchMyTickets(true);
+        }
+    }
+}, 15000);
