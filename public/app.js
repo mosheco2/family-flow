@@ -931,9 +931,15 @@ async function fetchMembers() {
                 c.innerHTML = ''; 
                 membersCache.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
-                }); 
+                    let adminPermsBtn = '';
+                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-1 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+                    if (currentUser.role === 'ADMIN' && m.id !== currentUser.id) {
+                        const mPerms = (m.permissions && typeof m.permissions === 'object') ? JSON.stringify(m.permissions).replace(/'/g, "&#39;") : (m.permissions ? m.permissions.replace(/'/g, "&#39;") : '{}');
+                        adminPermsBtn = `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${mPerms}')" class="mr-3 text-blue-500 hover:text-blue-700 bg-blue-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-key text-xs"></i></button>`;
+                    }
+                    const adminActions = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<div class="flex ml-2">${adminPermsBtn}${adminDeleteBtn}</div>` : '';
+                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminActions}</div></div>`; 
+                });
             }
         } catch(err) {}
         try {
@@ -2317,12 +2323,12 @@ async function fetchPendingUsers() {
         const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
         if (users && users.length > 0) { 
             container.classList.remove('hidden'); list.innerHTML = ''; 
-            users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר צוות</button></div></div>`; }); 
+            users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר למשפחה</button></div></div>`; }); 
         } else { if(container) container.classList.add('hidden'); } 
     } catch(e) {} 
 }
 
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
+async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
 function openProfileModal() { getEl('old-password').value = ''; getEl('new-password').value = ''; getEl('profile-modal').classList.remove('hidden'); }
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
@@ -4326,30 +4332,111 @@ window.submitTicket = async function() {
     }
 };
 
-window.handleFamilyPhotoUpload = function(event) {
+window.previewFamilyPhoto = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const base64 = e.target.result;
-        currentGroup.logo = base64; 
+    compressImage(file, 600, 600, 0.8, (base64) => {
+        window.tempFamilyLogoBase64 = base64;
+        const mgmtImg = document.getElementById('mgmt-group-logo-preview');
+        const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
+        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
         
-        if (typeof renderGroupInfo === 'function') renderGroupInfo();
+        const saveBtn = document.getElementById('btn-save-family-photo');
+        if (saveBtn) saveBtn.classList.remove('hidden');
+    });
+};
 
-        try {
-            const token = localStorage.getItem('ofl_token');
-            await fetch(`${API}/groups/${currentGroup.id}/logo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': token },
-                body: JSON.stringify({ logo: base64 })
-            });
-            if (typeof showToast === 'function') showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
-        } catch (err) { 
-            console.error('Upload error:', err); 
+window.saveFamilyPhoto = async function() {
+    if (!window.tempFamilyLogoBase64) return;
+    const btn = document.getElementById('btn-save-family-photo');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    try {
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        const res = await fetch(`${apiPath}/store/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                logoUrl: window.tempFamilyLogoBase64,
+                isActive: true
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
+            btn.classList.add('hidden');
+            fetchData(); 
+        } else {
+            showToast('error', 'שגיאה בשמירה');
         }
-    };
-    reader.readAsDataURL(file);
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור תמונה';
+    }
+};
+
+window.openPermissionsModal = function(userId, userName, permsStr) {
+    document.getElementById('perms-user-id').value = userId;
+    document.getElementById('perms-user-name').innerText = userName;
+    
+    let userTabs = [];
+    try {
+        const p = JSON.parse(permsStr);
+        userTabs = p.tabs || [];
+    } catch(e) {
+        userTabs = ['feed']; 
+    }
+    
+    const container = document.getElementById('perms-checkboxes');
+    container.innerHTML = ALL_TABS.map(tab => {
+        const isFeed = tab.id === 'feed';
+        const isChecked = isFeed || userTabs.includes(tab.id);
+        return `
+        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 transition">
+            <input type="checkbox" value="${tab.id}" class="perm-cb w-4 h-4 accent-blue-600 rounded" ${isChecked ? 'checked' : ''} ${isFeed ? 'disabled' : ''}>
+            <span class="text-sm font-bold text-slate-700">${tab.name}</span>
+        </label>
+        `;
+    }).join('');
+    
+    document.getElementById('permissions-modal').classList.remove('hidden');
+};
+
+window.savePermissions = async function() {
+    const userId = document.getElementById('perms-user-id').value;
+    const cbs = document.querySelectorAll('.perm-cb');
+    const selectedTabs = Array.from(cbs).filter(cb => cb.checked || cb.disabled).map(cb => cb.value);
+    
+    const btn = document.getElementById('btn-save-perms');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    
+    try {
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        const res = await fetch(`${apiPath}/users/${userId}/permissions`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
+            body: JSON.stringify({ tabs: selectedTabs })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הרשאות עודכנו בהצלחה!');
+            document.getElementById('permissions-modal').classList.add('hidden');
+            fetchMembers(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון הרשאות');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'שמור הרשאות';
+    }
 };
 // ==========================================
 // OVERRIDE: תצוגת קריאות שירות (תמיכה) למשפחה
