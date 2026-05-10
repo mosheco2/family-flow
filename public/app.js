@@ -934,8 +934,10 @@ async function fetchMembers() {
                     let adminPermsBtn = '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-1 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
                     if (currentUser.role === 'ADMIN' && m.id !== currentUser.id) {
-                        const mPerms = (m.permissions && typeof m.permissions === 'object') ? JSON.stringify(m.permissions).replace(/'/g, "&#39;") : (m.permissions ? m.permissions.replace(/'/g, "&#39;") : '{}');
-                        adminPermsBtn = `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${mPerms}')" class="mr-3 text-blue-500 hover:text-blue-700 bg-blue-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-key text-xs"></i></button>`;
+                        const mPerms = (m.permissions && typeof m.permissions === 'object') ? JSON.stringify(m.permissions) : (m.permissions ? m.permissions : '{"tabs":["feed"]}');
+                        // הפתרון לבאג המפתח: קידוד בטוח של ה-JSON
+                        const encodedPerms = encodeURIComponent(mPerms);
+                        adminPermsBtn = `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${encodedPerms}')" class="mr-3 text-blue-500 hover:text-blue-700 bg-blue-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-key text-xs"></i></button>`;
                     }
                     const adminActions = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<div class="flex ml-2">${adminPermsBtn}${adminDeleteBtn}</div>` : '';
                     c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminActions}</div></div>`; 
@@ -4354,22 +4356,19 @@ window.saveFamilyPhoto = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        const res = await fetch(`${apiPath}/store/settings`, {
+        const res = await fetch(`${apiPath}/groups/${currentGroup.id}/logo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
-            body: JSON.stringify({
-                groupId: currentGroup.id,
-                logoUrl: window.tempFamilyLogoBase64,
-                isActive: true
-            })
+            body: JSON.stringify({ logo: window.tempFamilyLogoBase64 })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
+            showToast('success', 'תמונת המשפחה נשמרה בשרת!');
             btn.classList.add('hidden');
-            fetchData(); 
+            currentGroup.logo = window.tempFamilyLogoBase64;
+            renderGroupInfo(); 
         } else {
-            showToast('error', 'שגיאה בשמירה');
+            showToast('error', data.error || 'שגיאה בשמירה');
         }
     } catch(e) {
         showToast('error', 'שגיאת רשת');
@@ -4379,13 +4378,14 @@ window.saveFamilyPhoto = async function() {
     }
 };
 
-window.openPermissionsModal = function(userId, userName, permsStr) {
+window.openPermissionsModal = function(userId, userName, encodedPermsStr) {
     document.getElementById('perms-user-id').value = userId;
     document.getElementById('perms-user-name').innerText = userName;
     
     let userTabs = [];
     try {
-        const p = JSON.parse(permsStr);
+        const decodedStr = decodeURIComponent(encodedPermsStr);
+        const p = JSON.parse(decodedStr);
         userTabs = p.tabs || [];
     } catch(e) {
         userTabs = ['feed']; 
