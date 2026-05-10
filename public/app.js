@@ -2349,14 +2349,12 @@ async function submitChangePassword(e) { e.preventDefault(); const oldP = val('o
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 window.open360Report = async function() {
-    if (!currentGroup || !currentGroup.id) {
-        showToast('error', 'קבוצה לא מוגדרת');
-        return;
-    }
+    if (!currentGroup || !currentGroup.id) return;
     try {
         const modal = document.getElementById('report-360-modal');
         if (!modal) return;
         
+        // נתונים בסיסיים
         document.getElementById('report-360-group-name').innerText = currentGroup.name || '---';
         document.getElementById('report-360-group-type').innerText = 'משפחה';
         document.getElementById('report-360-group-code').innerText = currentGroup.group_code || currentGroup.code || '---';
@@ -2365,53 +2363,73 @@ window.open360Report = async function() {
         const now = new Date();
         document.getElementById('report-360-date').innerText = `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`;
 
+        // בניית טבלת משתמשים (PDF Friendly)
         let totalBalances = 0;
         let usersHtml = '';
-        if(window.membersCache && window.membersCache.length > 0) {
-            window.membersCache.forEach(u => {
+        const safeMembers = window.membersCache || [];
+        if (safeMembers.length > 0) {
+            safeMembers.forEach(u => {
                 const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
                 const bal = parseFloat(u.balance) || 0;
                 totalBalances += bal;
-                usersHtml += `<tr><td class="text-right p-2 border font-bold">${safeStr(u.nickname)}</td><td class="text-right p-2 border text-slate-500">${roleStr}</td><td class="text-right p-2 border font-mono font-bold" dir="ltr">₪${bal.toFixed(2)}</td></tr>`;
+                usersHtml += `
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;"><b>${safeStr(u.nickname)}</b></td>
+                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;">${roleStr}</td>
+                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace;">₪${bal.toFixed(2)}</td>
+                    </tr>`;
             });
-            usersHtml += `<tr class="bg-blue-50 font-bold border-t border-blue-200"><td colspan="2" class="p-2 border text-right">סה"כ יתרות פתוחות:</td><td class="p-2 border text-right font-mono" dir="ltr">₪${totalBalances.toFixed(2)}</td></tr>`;
+            usersHtml += `
+                <tr style="background-color: #f8fafc; font-weight: bold;">
+                    <td colspan="2" style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;">סה"כ יתרות פתוחות במערכת:</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace;">₪${totalBalances.toFixed(2)}</td>
+                </tr>`;
         } else {
-            usersHtml = '<tr><td colspan="3" class="text-center p-4">אין נתונים</td></tr>';
+            usersHtml = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #94a3b8;">אין נתוני בני משפחה זמינים</td></tr>';
         }
         document.getElementById('report-360-users-list').innerHTML = usersHtml;
 
+        // בניית טבלת תנועות אחרונות (PDF Friendly)
         let txHtml = '';
-        if(window.allTransactions && window.allTransactions.length > 0) {
-            window.allTransactions.slice(0, 30).forEach(t => {
+        const safeTx = window.allTransactions || [];
+        if (safeTx.length > 0) {
+            safeTx.slice(0, 30).forEach(t => {
                 const d = new Date(t.date || t.created_at);
                 const isInc = t.type === 'income';
-                const colorClass = isInc ? 'text-green-600' : 'text-red-600';
+                const color = isInc ? '#16a34a' : '#dc2626';
                 const prefix = isInc ? '+' : '-';
-                txHtml += `<tr><td class="text-right p-2 border text-xs">${d.toLocaleDateString('he-IL')}</td><td class="text-right p-2 border">${safeStr(t.user_name || 'כללי')}</td><td class="text-right p-2 border text-xs">${safeStr(t.description)}</td><td class="text-right p-2 border font-bold font-mono ${colorClass}" dir="ltr">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td></tr>`;
+                txHtml += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${d.toLocaleDateString('he-IL')}</td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">${safeStr(t.user_name || 'כללי')}</td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${safeStr(t.description)}</td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: left; color: ${color}; font-weight: bold; font-family: monospace;">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td>
+                    </tr>`;
             });
         } else {
-            txHtml = '<tr><td colspan="4" class="text-center p-4 text-slate-400">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>';
+            txHtml = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #94a3b8;">אין תנועות ב-30 הימים האחרונים</td></tr>';
         }
         document.getElementById('report-360-tx-list').innerHTML = txHtml;
 
+        // סיכום משימות
         let pCount = 0; let dCount = 0; let aReward = 0;
-        if(window.allTasks && window.allTasks.length > 0) {
-            window.allTasks.forEach(t => {
-                if(t.status === 'pending') pCount++;
-                else if(t.status === 'done') dCount++;
-                else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
-            });
-        }
+        const safeTasks = window.allTasks || [];
+        safeTasks.forEach(t => {
+            if(t.status === 'pending') pCount++;
+            else if(t.status === 'done') dCount++;
+            else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
+        });
         
         document.getElementById('report-360-tasks-list').innerHTML = `
-            <li class="mb-1"><strong>משימות פתוחות:</strong> ${pCount} משימות שממתינות לביצוע.</li>
-            <li class="mb-1"><strong>משימות לאישור:</strong> ${dCount} משימות שבוצעו ודורשות אישור הורה.</li>
-            <li><strong>סה"כ שכר שחולק למשימות שבוצעו:</strong> ₪${aReward.toFixed(2)}</li>
+            <li style="margin-bottom: 5px; text-align: right;"><b>משימות פתוחות:</b> ${pCount} משימות שממתינות לביצוע.</li>
+            <li style="margin-bottom: 5px; text-align: right;"><b>משימות בבדיקה:</b> ${dCount} משימות שבוצעו וממתינות לאישור.</li>
+            <li style="text-align: right;"><b>סה"כ תגמולים ששולמו:</b> ₪${aReward.toFixed(2)}</li>
         `;
 
         modal.classList.remove('hidden');
     } catch(e) {
-        if (typeof showToast === 'function') showToast('error', 'שגיאה ביצירת הדוח');
+        console.error('360 Report Error:', e);
+        showToast('error', 'שגיאה בייצור הדוח המקומי');
     }
 };
 
@@ -4363,19 +4381,27 @@ window.submitTicket = async function() {
         console.error('Error submitting ticket:', err); 
     }
 };
-
 window.previewFamilyPhoto = function(event) {
     const file = event.target.files[0];
     if (!file) return;
     compressImage(file, 600, 600, 0.8, (base64) => {
         window.tempFamilyLogoBase64 = base64;
+        
+        // עדכון מיידי של כל המופעים במסך לתצוגה מקדימה חיה
+        const headerImg = document.getElementById('header-group-img');
+        const headerIcon = document.getElementById('header-group-icon-fallback');
         const mgmtImg = document.getElementById('mgmt-group-logo-preview');
         const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
+        
+        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
+        if (headerIcon) headerIcon.classList.add('hidden');
         if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
         if (mgmtIcon) mgmtIcon.classList.add('hidden');
         
         const saveBtn = document.getElementById('btn-save-family-photo');
         if (saveBtn) saveBtn.classList.remove('hidden');
+        
+        showToast('info', 'התמונה נטענה לתצוגה, אל תשכחו ללחוץ על "שמור תמונה"');
     });
 };
 
@@ -4386,7 +4412,8 @@ window.saveFamilyPhoto = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        // התיקון לבאג 1: שימוש בראוט הנכון והאמין לשמירת הגדרות וזהות למשפחה
+        
+        // התיקון הקריטי: שמירה בראוט ה-Settings כדי שהתמונה תישמר ב-DB ותיטען בריענון
         const res = await fetch(`${apiPath}/store/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
@@ -4400,9 +4427,9 @@ window.saveFamilyPhoto = async function() {
         if (data.success) {
             showToast('success', 'תמונת המשפחה נשמרה בשרת!');
             btn.classList.add('hidden');
-            currentGroup.logo_url = window.tempFamilyLogoBase64;
             currentGroup.logo = window.tempFamilyLogoBase64;
-            if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo(); 
+            currentGroup.logo_url = window.tempFamilyLogoBase64;
+            if (typeof renderGroupInfo === 'function') renderGroupInfo(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
@@ -4413,28 +4440,6 @@ window.saveFamilyPhoto = async function() {
         btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור תמונה';
     }
 };
-
-// התיקון לבאג 3: הזרקת עדכון הרשאות רציף למשיכת הנתונים.
-// פותר את הבעיה שבה הילד לא רואה את הטאבים החדשים שפתחו לו בגלל שהם נתקעו לו בזיכרון הישן!
-const _originalFetchDataForPerms = window.fetchData;
-if (_originalFetchDataForPerms && !window.hookedPermsFetch) {
-    window.fetchData = async function() {
-        await _originalFetchDataForPerms();
-        try {
-            if (currentUser && currentUser.id) {
-                const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-                const res = await fetch(`${apiPath}/data/${currentUser.id}`); 
-                const data = await res.json();
-                if (data && data.user && data.user.permissions !== undefined) {
-                    currentUser.permissions = data.user.permissions;
-                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-                    if(typeof enforcePermissions === 'function') enforcePermissions();
-                }
-            }
-        } catch(e) {}
-    };
-    window.hookedPermsFetch = true;
-}
 
 window.openPermissionsModal = function(userId, userName, encodedPermsStr) {
     document.getElementById('perms-user-id').value = userId;
