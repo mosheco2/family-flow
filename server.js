@@ -3693,58 +3693,6 @@ app.get('/:alias', (req, res, next) => {
     // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
-// =========================================================
-// --- מודול קריאות שירות (תמיכה) ותמונות משפחה ---
-// =========================================================
-
-// שמירת תמונת משפחה (לוגו)
-// =========================================================
-// --- מודול תמיכה ותמונות משפחה (סנכרון מלא לסופר אדמין) ---
-// =========================================================
-
-// שמירת תמונת משפחה (לוגו)
-app.post('/api/groups/:id/logo', async (req, res) => {
-    try {
-        const { logo } = req.body;
-        try { await pool.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS logo TEXT'); } catch(e) { console.error(e); }
-        await pool.query('UPDATE family_groups SET logo = $1 WHERE id = $2', [logo, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { 
-        console.error('Error saving logo:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-
-// יצירת קריאת שירות חדשה (מנותב ישירות לטבלת support_tickets של הסופר אדמין)
-app.post('/api/tickets', async (req, res) => {
-    try {
-        const groupId = req.body.groupId || req.body.group_id;
-        const userId = req.body.userId || req.body.user_id;
-        const { subject, content } = req.body;
-        
-        if (!groupId || !subject || !content) {
-            return res.status(400).json({ error: 'חסרים נתונים ליצירת קריאה' });
-        }
-
-        // חילוץ שם הלקוח לטובת הלוג של הסופר אדמין
-        const uRes = await pool.query('SELECT nickname FROM users WHERE id = $1', [userId]);
-        const userName = uRes.rows.length > 0 ? uRes.rows[0].nickname : 'לקוח';
-        
-        // יצירת הלוג הראשוני שנדרש למערכת הסופר אדמין
-        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: content }];
-        
-        await pool.query(
-            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6)',
-            [groupId, userId, subject, content, 'open', JSON.stringify(initialLog)]
-        );
-        
-        res.json({ success: true });
-    } catch(e) { 
-        console.error('Error creating ticket:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-
 // שליפת רשימת הקריאות עבור המשפחה (משיכה מטבלת הליבה והתאמה לתצוגת הלקוח)
 app.get('/api/tickets/:groupId', async (req, res) => {
     try {
@@ -3775,61 +3723,6 @@ app.get('/api/tickets/:groupId', async (req, res) => {
         });
         
         res.json({ success: true, tickets: mappedTickets });
-    } catch(e) { 
-        console.error('Error fetching tickets:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-// שליפת רשימת הקריאות עבור המשתמש (משיכה והתאמה מסופר אדמין ללקוח)
-app.get('/api/tickets/:groupId', async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', 
-            [req.params.groupId]
-        );
-        
-        // התאמת השדות כדי שהלקוח (app.js) יוכל להציג אותם כפי שהוא מכיר
-        const mappedTickets = result.rows.map(t => {
-            let admin_reply = '';
-            if (t.log) {
-                try {
-                    const logs = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
-                    // מחפשים את התגובה האחרונה שנכתבה על ידי איש צוות מתוך הלוגים
-                    const lastStaffReply = logs.slice().reverse().find(l => l.isStaff === true);
-                    if (lastStaffReply) admin_reply = lastStaffReply.message;
-                } catch(err) {}
-            }
-            return {
-                id: t.id,
-                subject: t.subject,
-                content: t.description,
-                status: t.status,
-                admin_reply: admin_reply,
-                created_at: t.created_at
-            };
-        });
-        
-        res.json({ success: true, tickets: mappedTickets });
-    } catch(e) { 
-        console.error('Error fetching tickets:', e);
-        res.status(500).json({ error: e.message }); 
-    }
-});
-
-// שליפת רשימת הקריאות עבור המשתמש
-app.get('/api/tickets/:groupId', async (req, res) => {
-    try {
-        await pool.query(`CREATE TABLE IF NOT EXISTS tickets (
-            id SERIAL PRIMARY KEY, group_id INTEGER, user_id INTEGER, 
-            subject VARCHAR(255), content TEXT, admin_reply TEXT, 
-            status VARCHAR(50) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
-        
-        const result = await pool.query(
-            'SELECT * FROM tickets WHERE group_id = $1 ORDER BY created_at DESC', 
-            [req.params.groupId]
-        );
-        res.json({ success: true, tickets: result.rows });
     } catch(e) { 
         console.error('Error fetching tickets:', e);
         res.status(500).json({ error: e.message }); 
