@@ -5288,7 +5288,7 @@ if (_origFetchDataForInbox && !window.hookedInboxFetch) {
     window.hookedInboxFetch = true;
 }
 // ==========================================
-// OVERRIDE: מודול צ'אט משפחתי מלא (בזמן אמת)
+// OVERRIDE: מודול צ'אט משפחתי מלא (בצבעים + באנר להורים + הורדה)
 // ==========================================
 
 window.teamChatCache = [];
@@ -5305,44 +5305,29 @@ window.openTeamChatModal = function() {
 window.loadTeamChat = async function(silent = true) {
     try {
         if (!currentGroup || !currentGroup.id) return;
-        
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        
         const res = await fetch(`${apiPath}/chat/${currentGroup.id}`);
         const data = await res.json();
         
         if (data.success && data.messages) {
             const newMessages = data.messages;
-            
-            // עדכון התראות (Badge) בצד
             if (newMessages.length > window.lastReadChatCount) {
                 const unread = newMessages.length - window.lastReadChatCount;
                 const badge = document.getElementById('team-chat-unread-badge');
-                if (badge) {
-                    badge.innerText = unread;
-                    badge.classList.remove('hidden');
-                }
+                if (badge) { badge.innerText = unread; badge.classList.remove('hidden'); }
             }
-
             const modal = document.getElementById('team-chat-modal');
             const isChatOpen = modal && !modal.classList.contains('hidden');
-
-            // אם הצ'אט פתוח עכשיו - מאפסים את מונה ההתראות ומציירים
             if (isChatOpen) {
                 window.lastReadChatCount = newMessages.length;
                 localStorage.setItem('ofl_chat_read_count', window.lastReadChatCount.toString());
                 const badge = document.getElementById('team-chat-unread-badge');
                 if (badge) badge.classList.add('hidden');
-                
-                // ציור ההודעות מחדש רק אם יש שינוי, כדי לא להפריע לגלילה של המשתמש
                 if (newMessages.length !== window.teamChatCache.length || !silent) {
                     window.teamChatCache = newMessages;
                     window.renderTeamChat();
                 }
-            } else {
-                // רק שומרים במטמון
-                window.teamChatCache = newMessages;
-            }
+            } else { window.teamChatCache = newMessages; }
         }
     } catch(e) { console.error('Error fetching chat:', e); }
 };
@@ -5351,87 +5336,97 @@ window.renderTeamChat = function() {
     const container = document.getElementById('team-chat-messages');
     if (!container) return;
     
+    // באנר אזהרה להורים בלבד
+    let bannerHtml = '';
+    if (currentUser.role === 'ADMIN') {
+        bannerHtml = `
+            <div class="bg-indigo-900 text-indigo-100 text-[10px] py-1.5 px-3 rounded-xl mb-4 text-center border border-white/10 shadow-sm">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i> ההיסטוריה נמחקת אוטומטית אחרי 3 חודשים
+            </div>
+        `;
+    }
+
     if (window.teamChatCache.length === 0) {
-        container.innerHTML = '<div class="text-center text-slate-400 py-10 mt-10"><i class="fa-regular fa-comments text-4xl mb-3 opacity-50"></i><p class="text-sm">אין הודעות עדיין.<br>תהיו הראשונים לכתוב משהו!</p></div>';
+        container.innerHTML = bannerHtml + '<div class="text-center text-slate-400 py-10 mt-10"><i class="fa-regular fa-comments text-4xl mb-3 opacity-50"></i><p class="text-sm">אין הודעות עדיין.<br>תהיו הראשונים לכתוב!</p></div>';
         return;
     }
     
-    let html = '';
+    let html = bannerHtml;
     window.teamChatCache.forEach(msg => {
-        // בודק אם זו הודעה שאני שלחתי
         const isMe = String(msg.user_id) === String(currentUser.id);
         const alignWrapper = isMe ? 'justify-end' : 'justify-start';
-        const bubbleColor = isMe ? 'bg-emerald-500 text-white rounded-bl-none' : 'bg-white border border-slate-200 text-slate-700 rounded-br-none';
+        
+        // צבעוניות הודעה לפי בן משפחה (שימוש במערך userColors הגלובלי)
+        const userColorIndex = parseInt(msg.user_id) % userColors.length;
+        const colorClasses = userColors[userColorIndex].split(' '); 
+        const bubbleBg = isMe ? 'bg-emerald-500 text-white' : colorClasses[0] + ' text-slate-800 border ' + colorClasses[1];
+        
         const nameColor = isMe ? 'text-emerald-100' : 'text-slate-400';
-        const timeColor = isMe ? 'text-emerald-200' : 'text-slate-400';
         const d = new Date(msg.created_at);
-        const timeStr = `${d.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'})} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+        const timeStr = d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
         
         html += `
-            <div class="flex w-full ${alignWrapper} mb-4">
-                <div class="max-w-[75%] flex flex-col ${isMe ? 'items-start' : 'items-end'}">
-                    <span class="text-[9px] font-bold ${nameColor} mb-1 px-1">${isMe ? 'אני' : safeStr(msg.user_name)}</span>
-                    <div class="px-4 py-2.5 rounded-2xl shadow-sm text-sm whitespace-pre-wrap leading-relaxed ${bubbleColor}">
+            <div class="flex w-full ${alignWrapper} mb-3 fade-in">
+                <div class="max-w-[85%] flex flex-col ${isMe ? 'items-end text-left' : 'items-start text-right'}">
+                    <span class="text-[9px] font-bold ${nameColor} mb-0.5 px-1">${isMe ? 'אני' : safeStr(msg.user_name)}</span>
+                    <div class="px-3.5 py-2 rounded-2xl shadow-sm text-sm whitespace-pre-wrap leading-tight ${bubbleBg} ${isMe ? 'rounded-tl-none' : 'rounded-tr-none'}">
                         ${safeStr(msg.message)}
                     </div>
-                    <span class="text-[9px] ${timeColor} mt-1 px-1">${timeStr}</span>
+                    <span class="text-[8px] text-slate-400 mt-1 px-1">${timeStr}</span>
                 </div>
             </div>
         `;
     });
-    
     container.innerHTML = html;
-    
-    // גלילה למטה להודעה האחרונה לאחר הרינדור
-    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 };
 
 window.sendTeamChatMessage = async function() {
     const input = document.getElementById('team-chat-input');
     const text = input.value.trim();
     if (!text) return;
-    
     const btn = document.getElementById('btn-send-team-chat');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
         const res = await fetch(`${apiPath}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
-            body: JSON.stringify({
-                groupId: currentGroup.id,
-                userId: currentUser.id,
-                message: text
-            })
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, message: text })
         });
-        
-        const data = await res.json();
-        if (data.success) {
-            input.value = '';
-            window.loadTeamChat(false); // מרענן מיד את הצ'אט כדי להציג את ההודעה שנשלחה
-        } else {
-            if (typeof showToast === 'function') showToast('error', 'שגיאה בשליחת הודעה');
-        }
-    } catch(e) {
-        if (typeof showToast === 'function') showToast('error', 'שגיאת רשת בשליחה');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-        input.focus(); // מחזיר פוקוס לשורת ההקלדה
-    }
+        if ((await res.json()).success) { input.value = ''; window.loadTeamChat(false); }
+    } catch(e) {} finally { btn.disabled = false; input.focus(); }
 };
 
-// שילוב משיכת הצ'אט ברקע בטיימר הראשי
+window.downloadChatHistory = function() {
+    if (window.teamChatCache.length === 0) return showToast('info', 'אין הודעות לייצוא');
+    let text = `היסטוריית צ'אט משפחתית - ${currentGroup.name}\n`;
+    text += `הופק בתאריך: ${new Date().toLocaleString('he-IL')}\n`;
+    text += `------------------------------------------\n\n`;
+    
+    window.teamChatCache.forEach(m => {
+        const d = new Date(m.created_at);
+        const time = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL')}`;
+        text += `[${time}] ${m.user_name}: ${m.message}\n`;
+    });
+    
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FamilyChat_${currentGroup.name}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('success', 'הקובץ מוכן להורדה!');
+};
+
 if (window.chatPollingIntervalId) clearInterval(window.chatPollingIntervalId);
 window.chatPollingIntervalId = setInterval(() => {
-    if (window.currentUser && window.currentGroup && window.currentGroup.id) {
-        window.loadTeamChat(true);
-    }
-}, 10000); // בודק כל 10 שניות עבור צ'אט (קצת יותר מהר משאר המערכת כדי להרגיש 'לייב')
+    if (window.currentUser && window.currentGroup && window.currentGroup.id) { window.loadTeamChat(true); }
+}, 10000);
 
-// משיכה ראשונית בעת עליית המערכת
 const _origFetchDataForChat = window.fetchData;
 if (_origFetchDataForChat && !window.hookedChatFetch) {
     window.fetchData = async function() {
