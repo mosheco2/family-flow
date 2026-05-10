@@ -977,14 +977,27 @@ async function fetchData() {
         currentUser.balance = data.user.balance; 
        if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
-            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
+            currentGroup.is_onboarded = data.group.is_onboarded;
+            currentGroup.community_id = data.group.community_id;
+            
+            // משיכת תמונת המשפחה/לוגו ושמירה במטמון - פותר את באג ההיעלמות בריענון!
+            try {
+                const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+                const setRes = await fetch(`${apiPath}/store/settings?groupId=${currentGroup.id}`);
+                if (setRes.ok) {
+                    const setData = await setRes.json();
+                    if (setData.success && setData.settings && setData.settings.logo_url) {
+                        currentGroup.logo_url = setData.settings.logo_url;
+                        currentGroup.logo = setData.settings.logo_url;
+                    }
+                }
+            } catch(e) {}
+            
+            if (typeof renderGroupInfo === 'function') renderGroupInfo();
+            
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
-            
-            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל/הורה
             if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-fam')) {
                 profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-fam" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
             }
@@ -2336,58 +2349,69 @@ async function submitChangePassword(e) { e.preventDefault(); const oldP = val('o
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 window.open360Report = async function() {
-    if (!currentGroup || !currentGroup.id) return;
+    if (!currentGroup || !currentGroup.id) {
+        showToast('error', 'קבוצה לא מוגדרת');
+        return;
+    }
     try {
-        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
-        const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-
-        setTxt('report-360-group-name', currentGroup.name || '---');
-        setTxt('report-360-group-type', 'משפחה');
-        setTxt('report-360-group-code', currentGroup.group_code || currentGroup.code || '---');
-        setTxt('report-360-group-email', currentGroup.admin_email || '---');
+        const modal = document.getElementById('report-360-modal');
+        if (!modal) return;
+        
+        document.getElementById('report-360-group-name').innerText = currentGroup.name || '---';
+        document.getElementById('report-360-group-type').innerText = 'משפחה';
+        document.getElementById('report-360-group-code').innerText = currentGroup.group_code || currentGroup.code || '---';
+        document.getElementById('report-360-group-email').innerText = currentGroup.admin_email || '---';
         
         const now = new Date();
-        setTxt('report-360-date', `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`);
+        document.getElementById('report-360-date').innerText = `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`;
 
-        const safeMembers = window.membersCache || [];
         let totalBalances = 0;
-        const usersHtml = safeMembers.map(u => {
-            const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
-            const bal = parseFloat(u.balance) || 0;
-            totalBalances += bal;
-            return `<tr><td class="text-right p-2 border font-bold">${safeStr(u.nickname)}</td><td class="text-right p-2 border text-slate-500"><span class="report-badge">${roleStr}</span></td><td class="text-right p-2 border font-mono">₪${bal.toFixed(2)}</td></tr>`;
-        }).join('');
+        let usersHtml = '';
+        if(window.membersCache && window.membersCache.length > 0) {
+            window.membersCache.forEach(u => {
+                const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
+                const bal = parseFloat(u.balance) || 0;
+                totalBalances += bal;
+                usersHtml += `<tr><td class="text-right p-2 border font-bold">${safeStr(u.nickname)}</td><td class="text-right p-2 border text-slate-500">${roleStr}</td><td class="text-right p-2 border font-mono font-bold" dir="ltr">₪${bal.toFixed(2)}</td></tr>`;
+            });
+            usersHtml += `<tr class="bg-blue-50 font-bold border-t border-blue-200"><td colspan="2" class="p-2 border text-right">סה"כ יתרות פתוחות:</td><td class="p-2 border text-right font-mono" dir="ltr">₪${totalBalances.toFixed(2)}</td></tr>`;
+        } else {
+            usersHtml = '<tr><td colspan="3" class="text-center p-4">אין נתונים</td></tr>';
+        }
+        document.getElementById('report-360-users-list').innerHTML = usersHtml;
+
+        let txHtml = '';
+        if(window.allTransactions && window.allTransactions.length > 0) {
+            window.allTransactions.slice(0, 30).forEach(t => {
+                const d = new Date(t.date || t.created_at);
+                const isInc = t.type === 'income';
+                const colorClass = isInc ? 'text-green-600' : 'text-red-600';
+                const prefix = isInc ? '+' : '-';
+                txHtml += `<tr><td class="text-right p-2 border text-xs">${d.toLocaleDateString('he-IL')}</td><td class="text-right p-2 border">${safeStr(t.user_name || 'כללי')}</td><td class="text-right p-2 border text-xs">${safeStr(t.description)}</td><td class="text-right p-2 border font-bold font-mono ${colorClass}" dir="ltr">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td></tr>`;
+            });
+        } else {
+            txHtml = '<tr><td colspan="4" class="text-center p-4 text-slate-400">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>';
+        }
+        document.getElementById('report-360-tx-list').innerHTML = txHtml;
+
+        let pCount = 0; let dCount = 0; let aReward = 0;
+        if(window.allTasks && window.allTasks.length > 0) {
+            window.allTasks.forEach(t => {
+                if(t.status === 'pending') pCount++;
+                else if(t.status === 'done') dCount++;
+                else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
+            });
+        }
         
-        setHtml('report-360-users-list', usersHtml 
-            ? usersHtml + `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`
-            : '<tr><td colspan="3" class="text-center p-2">אין נתונים</td></tr>');
+        document.getElementById('report-360-tasks-list').innerHTML = `
+            <li class="mb-1"><strong>משימות פתוחות:</strong> ${pCount} משימות שממתינות לביצוע.</li>
+            <li class="mb-1"><strong>משימות לאישור:</strong> ${dCount} משימות שבוצעו ודורשות אישור הורה.</li>
+            <li><strong>סה"כ שכר שחולק למשימות שבוצעו:</strong> ₪${aReward.toFixed(2)}</li>
+        `;
 
-        const safeTx = window.allTransactions || [];
-        const recentTx = safeTx.slice(0, 50).map(t => {
-            const d = new Date(t.date || t.created_at);
-            const dateStr = d.toLocaleDateString('he-IL');
-            const isInc = t.type === 'income';
-            const sign = isInc ? '+' : '-';
-            const colorClass = isInc ? 'text-green-600' : 'text-red-600';
-            return `<tr><td class="text-right p-2 border text-xs">${dateStr}</td><td class="text-right p-2 border">${safeStr(t.user_name || 'מערכת')}</td><td class="text-right p-2 border text-xs">${safeStr(t.description)}</td><td class="text-left p-2 border font-bold font-mono ${colorClass}" dir="ltr">${sign}₪${t.amount}</td></tr>`;
-        }).join('');
-        setHtml('report-360-tx-list', recentTx || '<tr><td colspan="4" class="text-center p-2 text-slate-400">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>');
-
-        const safeTasks = window.allTasks || [];
-        const pendingTasksCount = safeTasks.filter(t => t.status === 'pending').length;
-        const doneTasksCount = safeTasks.filter(t => t.status === 'done').length;
-        const totalTasksReward = safeTasks.reduce((sum, t) => sum + (t.status === 'approved' ? (parseFloat(t.reward)||0) : 0), 0);
-        
-        setHtml('report-360-tasks-list', `
-            <li><strong>משימות פתוחות:</strong> ${pendingTasksCount} משימות שממתינות לביצוע.</li>
-            <li><strong>משימות לאישור:</strong> ${doneTasksCount} משימות שבוצעו ודורשות אישור הורה.</li>
-            <li><strong>סה"כ שכר שחולק:</strong> ₪${totalTasksReward} שולמו בגין משימות בעבר.</li>
-        `);
-
-        const modal = document.getElementById('report-360-modal');
-        if (modal) modal.classList.remove('hidden');
+        modal.classList.remove('hidden');
     } catch(e) {
-        if (typeof showToast === 'function') showToast('error', 'שגיאה בהכנת הדוח: ' + e.message);
+        if (typeof showToast === 'function') showToast('error', 'שגיאה ביצירת הדוח');
     }
 };
 
