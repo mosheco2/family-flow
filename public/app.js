@@ -4150,45 +4150,24 @@ window.currentLoginSlideIndex = 0;
 
 window.initPublicConfig = async function() {
     try {
-        const res = await fetch(`${API}/system/public-config`);
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        const res = await fetch(`${apiPath}/system/public-config`);
         const data = await res.json();
         
         if (data.success) {
-            // החלפת סמל הדפדפן (Favicon)
+            // החלפת סמל הדפדפן (Favicon) - אם מוגדר
             if (data.globalAiLogo) {
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
-                else {
-                    const newLink = document.createElement('link');
-                    newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
-                    document.head.appendChild(newLink);
-                }
-                
-                // פתרון לתקלת ה"החלפה לשנייה אחת":
-                // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
-                // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
-                setInterval(() => {
-                    document.querySelectorAll('img[alt*="FamliAI"], img[alt*="FamilAI"], #ai-assistant-logo-img').forEach(img => {
-                        // בדיקת getAttribute מונעת רינדור אינסופי והבהוב של הדפדפן
-                        if (img.getAttribute('src') !== data.globalAiLogo) {
-                            img.src = data.globalAiLogo;
-                        }
-                    });
-                }, 500);
             }
 
             // בניית קרוסלת ההתחברות (Login Slider)
             if (data.loginSlides && data.loginSlides.length > 0) {
-                const wrapper = document.getElementById('login-slider-wrapper');
                 const scroll = document.getElementById('login-slider-scroll');
                 const dots = document.getElementById('login-slider-dots');
-                const defaultCredit = document.getElementById('login-default-credit');
                 
-                if (wrapper && scroll && dots && defaultCredit) {
-                    defaultCredit.classList.add('hidden');
-                    wrapper.classList.remove('hidden');
-                    
-                    // החלפת ה-auto ב-hidden מעלימה את הפס האפור ומונעת גלילה ידנית
+                if (scroll && dots) {
+                    // מעלימים את הגלילה הידנית
                     scroll.classList.remove('overflow-x-auto');
                     scroll.classList.add('overflow-hidden');
                     scroll.style.overflow = 'hidden';
@@ -4198,11 +4177,13 @@ window.initPublicConfig = async function() {
                     let dotsHtml = '';
                     
                     data.loginSlides.forEach((slide, idx) => {
+                        // הוספנו אפקט של הכהיה קלה (overlay) כדי שהלוגו הלבן יבלוט מעל התמונות
                         slidesHtml += `
                         <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
-                            <img src="${slide.image}" class="w-full h-full object-cover z-10 pointer-events-none select-none bg-slate-900">
+                            <img src="${slide.image}" class="w-full h-full object-cover z-0 pointer-events-none select-none">
+                            <div class="absolute inset-0 bg-slate-900/40 z-10"></div>
                         </div>`;
-                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative"></button>`;
+                        dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative focus:outline-none"></button>`;
                     });
                     
                     scroll.innerHTML = slidesHtml;
@@ -4234,7 +4215,6 @@ window.goToLoginSlide = function(index, totalSlides) {
     if (scroll) {
         const w = scroll.clientWidth;
         const isRTL = window.getComputedStyle(scroll).direction === 'rtl';
-        // החלקה חלקה חכמה באמצעות קוד בלבד, למרות שהגלילה נחסמה למשתמש
         scroll.scrollTo({ left: index * w * (isRTL ? -1 : 1), behavior: 'smooth' });
     }
     
@@ -4242,7 +4222,6 @@ window.goToLoginSlide = function(index, totalSlides) {
     const total = totalSlides || (dotsDiv ? dotsDiv.children.length : 0);
     window.updateLoginDots(total);
     
-    // איפוס הטיימר לאחר לחיצה ידנית
     if (total > 1) {
         window.startLoginAutoScroll(total);
     }
@@ -4252,12 +4231,12 @@ window.updateLoginDots = function(total) {
     for (let i = 0; i < total; i++) {
         const dot = document.getElementById(`login-dot-${i}`);
         if (dot) {
-            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
+            dot.className = `rounded-full transition-all duration-300 shadow-sm backdrop-blur-sm border border-black/10 z-30 relative focus:outline-none ${i === window.currentLoginSlideIndex ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'}`;
         }
     }
 };
 
-// במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
+// הפעלה בעת טעינת החלון
 window.addEventListener('load', () => {
     setTimeout(() => {
         window.initPublicConfig();
