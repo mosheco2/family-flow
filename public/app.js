@@ -2349,12 +2349,14 @@ async function submitChangePassword(e) { e.preventDefault(); const oldP = val('o
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 window.open360Report = async function() {
-    if (!currentGroup || !currentGroup.id) return;
+    if (!currentGroup || !currentGroup.id) {
+        showToast('error', 'קבוצה לא מוגדרת');
+        return;
+    }
     try {
         const modal = document.getElementById('report-360-modal');
         if (!modal) return;
         
-        // נתונים בסיסיים
         document.getElementById('report-360-group-name').innerText = currentGroup.name || '---';
         document.getElementById('report-360-group-type').innerText = 'משפחה';
         document.getElementById('report-360-group-code').innerText = currentGroup.group_code || currentGroup.code || '---';
@@ -2363,80 +2365,128 @@ window.open360Report = async function() {
         const now = new Date();
         document.getElementById('report-360-date').innerText = `תאריך הפקה: ${now.toLocaleDateString('he-IL')} ${now.toLocaleTimeString('he-IL')}`;
 
-        // בניית טבלת משתמשים (PDF Friendly)
+        // שימוש במשתנים הגלובליים ללא תלות ב-window
         let totalBalances = 0;
         let usersHtml = '';
-        const safeMembers = window.membersCache || [];
-        if (safeMembers.length > 0) {
-            safeMembers.forEach(u => {
+        if(membersCache && membersCache.length > 0) {
+            membersCache.forEach(u => {
                 const roleStr = u.role === 'ADMIN' ? 'הורה / מנהל' : 'ילד / משתמש';
                 const bal = parseFloat(u.balance) || 0;
                 totalBalances += bal;
                 usersHtml += `
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;"><b>${safeStr(u.nickname)}</b></td>
-                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;">${roleStr}</td>
-                        <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace;">₪${bal.toFixed(2)}</td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right; border-right: none; border-left: none;"><b>${safeStr(u.nickname)}</b></td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right; border-right: none; border-left: none;">${roleStr}</td>
+                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace; border-right: none; border-left: none;" dir="ltr">₪${bal.toFixed(2)}</td>
                     </tr>`;
             });
             usersHtml += `
-                <tr style="background-color: #f8fafc; font-weight: bold;">
-                    <td colspan="2" style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;">סה"כ יתרות פתוחות במערכת:</td>
-                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-family: monospace;">₪${totalBalances.toFixed(2)}</td>
+                <tr style="background-color: #f1f5f9; font-weight: bold;">
+                    <td colspan="2" style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; border-right: none; border-left: none;">סה"כ יתרות פתוחות במערכת:</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; font-family: monospace; border-right: none; border-left: none;" dir="ltr">₪${totalBalances.toFixed(2)}</td>
                 </tr>`;
         } else {
-            usersHtml = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #94a3b8;">אין נתוני בני משפחה זמינים</td></tr>';
+            usersHtml = '<tr><td colspan="3" style="padding: 15px; text-align: center; color: #94a3b8;">אין נתונים</td></tr>';
         }
         document.getElementById('report-360-users-list').innerHTML = usersHtml;
 
-        // בניית טבלת תנועות אחרונות (PDF Friendly)
         let txHtml = '';
-        const safeTx = window.allTransactions || [];
-        if (safeTx.length > 0) {
-            safeTx.slice(0, 30).forEach(t => {
+        if(allTransactions && allTransactions.length > 0) {
+            allTransactions.slice(0, 30).forEach(t => {
                 const d = new Date(t.date || t.created_at);
                 const isInc = t.type === 'income';
                 const color = isInc ? '#16a34a' : '#dc2626';
                 const prefix = isInc ? '+' : '-';
                 txHtml += `
                     <tr>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${d.toLocaleDateString('he-IL')}</td>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: right;">${safeStr(t.user_name || 'כללי')}</td>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${safeStr(t.description)}</td>
-                        <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: left; color: ${color}; font-weight: bold; font-family: monospace;">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; font-size: 11px; text-align: right;">${d.toLocaleDateString('he-IL')}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 12px;">${safeStr(t.user_name || 'כללי')}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: right;">${safeStr(t.description)}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: left; color: ${color}; font-weight: bold; font-family: monospace; font-size: 12px;" dir="ltr">${prefix}₪${parseFloat(t.amount).toFixed(2)}</td>
                     </tr>`;
             });
         } else {
-            txHtml = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #94a3b8;">אין תנועות ב-30 הימים האחרונים</td></tr>';
+            txHtml = '<tr><td colspan="4" style="padding: 15px; text-align: center; color: #94a3b8;">אין תנועות תזרים מוקלטות ב-30 הימים האחרונים</td></tr>';
         }
         document.getElementById('report-360-tx-list').innerHTML = txHtml;
 
-        // סיכום משימות
         let pCount = 0; let dCount = 0; let aReward = 0;
-        const safeTasks = window.allTasks || [];
-        safeTasks.forEach(t => {
-            if(t.status === 'pending') pCount++;
-            else if(t.status === 'done') dCount++;
-            else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
-        });
+        if(allTasks && allTasks.length > 0) {
+            allTasks.forEach(t => {
+                if(t.status === 'pending') pCount++;
+                else if(t.status === 'done') dCount++;
+                else if(t.status === 'approved') aReward += parseFloat(t.reward) || 0;
+            });
+        }
         
         document.getElementById('report-360-tasks-list').innerHTML = `
-            <li style="margin-bottom: 5px; text-align: right;"><b>משימות פתוחות:</b> ${pCount} משימות שממתינות לביצוע.</li>
-            <li style="margin-bottom: 5px; text-align: right;"><b>משימות בבדיקה:</b> ${dCount} משימות שבוצעו וממתינות לאישור.</li>
-            <li style="text-align: right;"><b>סה"כ תגמולים ששולמו:</b> ₪${aReward.toFixed(2)}</li>
+            <li style="margin-bottom: 5px;"><strong>משימות פתוחות:</strong> ${pCount} משימות שממתינות לביצוע.</li>
+            <li style="margin-bottom: 5px;"><strong>משימות בבדיקה:</strong> ${dCount} משימות שבוצעו וממתינות לאישור.</li>
+            <li><strong>סה"כ שכר שחולק למשימות שבוצעו:</strong> ₪${aReward.toFixed(2)}</li>
         `;
 
         modal.classList.remove('hidden');
     } catch(e) {
-        console.error('360 Report Error:', e);
-        showToast('error', 'שגיאה בייצור הדוח המקומי');
+        showToast('error', 'שגיאה ביצירת הדוח המקומי');
+        console.error(e);
     }
 };
 
-function download360PDF() {
-    const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
+window.download360PDF = function() {
+    const element = document.getElementById('report-360-content'); 
+    const groupName = document.getElementById('report-360-group-name').innerText;
+    
+    showToast('info', 'מכין קובץ PDF, אנא המתן...');
+    
+    // מעטפת נקייה ל-PDF (ללא פלקס ושטויות שישברו את html2pdf)
+    const printContainer = document.createElement('div');
+    printContainer.style.width = '210mm'; // רוחב A4 סטנדרטי
+    printContainer.style.padding = '15mm';
+    printContainer.style.backgroundColor = '#ffffff';
+    printContainer.style.direction = 'rtl';
+    printContainer.style.textAlign = 'right';
+    printContainer.style.fontFamily = 'Arial, sans-serif'; // פונט בסיסי עובד טוב יותר
+    printContainer.style.color = '#334155'; // slate-700
+    
+    // העתקת תוכן הדוח למעטפת
+    printContainer.innerHTML = element.innerHTML;
+    
+    // סידור כל הטבלאות בתוך העותק
+    const tables = printContainer.querySelectorAll('table');
+    tables.forEach(t => {
+        t.style.width = '100%';
+        t.style.borderCollapse = 'collapse';
+        t.style.marginBottom = '20px';
+    });
+
+    const headers = printContainer.querySelectorAll('th');
+    headers.forEach(th => {
+        th.style.backgroundColor = '#f1f5f9'; // slate-100
+        th.style.padding = '8px';
+        th.style.borderBottom = '2px solid #cbd5e1';
+        th.style.textAlign = 'right';
+    });
+
+    // הוספת העותק באופן זמני לדף כדי שהספרייה תוכל לקרוא אותו
+    document.body.appendChild(printContainer);
+    
+    const opt = { 
+        margin: [10, 10, 10, 10], // שוליים [top, left, bottom, right]
+        filename: `Oneflow_Report_${groupName}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(printContainer).save().then(() => { 
+        showToast('success', 'הדוח הורד בהצלחה!'); 
+        // ניקוי
+        document.body.removeChild(printContainer);
+    }).catch(err => { 
+        showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); 
+        console.error(err);
+        document.body.removeChild(printContainer);
+    });
 }
 
 // === פונקציות המזווה - תמיכה ביחידות ===
