@@ -2432,77 +2432,7 @@ window.open360Report = async function() {
     }
 };
 
-window.download360PDF = function() {
-    const element = document.getElementById('report-360-content'); 
-    const groupName = document.getElementById('report-360-group-name').innerText;
-    
-    showToast('info', 'מכין קובץ PDF, אנא המתן...');
-    
-    // יצירת קונטיינר מנותק - אנחנו לא נוסיף אותו למסמך כדי למנוע הסתרה ורינדור של רקע ריק
-    const printContainer = document.createElement('div');
-    printContainer.style.padding = '15px';
-    printContainer.style.backgroundColor = '#ffffff';
-    printContainer.style.direction = 'rtl';
-    printContainer.style.textAlign = 'right';
-    printContainer.style.fontFamily = 'Arial, Helvetica, sans-serif'; 
-    printContainer.style.color = '#1e293b'; 
-    printContainer.style.wordSpacing = '0.1em';
-    
-    // העתקת תוכן הדוח למעטפת
-    printContainer.innerHTML = element.innerHTML;
-    
-    // סידור כל הטבלאות בתוך העותק
-    const tables = printContainer.querySelectorAll('table');
-    tables.forEach(t => {
-        t.style.width = '100%';
-        t.style.borderCollapse = 'collapse';
-        t.style.marginBottom = '25px';
-        t.style.direction = 'rtl';
-    });
-
-    const allTextElements = printContainer.querySelectorAll('td, th, p, li, h1, h2, h3, h4, span, div, b, strong');
-    allTextElements.forEach(el => {
-        if (!el.classList.contains('text-left') && !el.classList.contains('text-center') && el.dir !== 'ltr') {
-            el.style.textAlign = 'right';
-            el.style.direction = 'rtl';
-        }
-        el.style.whiteSpace = 'pre-wrap';
-        
-        if (el.tagName.toLowerCase() === 'li') {
-            el.style.display = 'block';
-            el.style.marginBottom = '8px';
-        }
-    });
-
-    const headers = printContainer.querySelectorAll('th');
-    headers.forEach(th => {
-        th.style.backgroundColor = '#f1f5f9';
-        th.style.padding = '10px';
-        th.style.borderBottom = '2px solid #cbd5e1';
-        th.style.fontWeight = 'bold';
-    });
-    
-    const cells = printContainer.querySelectorAll('td');
-    cells.forEach(td => {
-        td.style.padding = '8px 10px';
-    });
-
-    const opt = { 
-        margin: [10, 10, 10, 10], 
-        filename: `Oneflow_Report_${groupName}.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    // העברת הקונטיינר ישירות. html2pdf פותחת אותו בסביבה וירטואלית ולכן הוא יצא מלא ותקין
-    html2pdf().set(opt).from(printContainer).save().then(() => { 
-        showToast('success', 'הדוח הורד בהצלחה!'); 
-    }).catch(err => { 
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); 
-        console.error(err);
-    });
-}
+// אפשרות הורדת PDF מדוח 360 הוסרה לטובת תצוגת UI נקייה ומהירה יותר
 
 // === פונקציות המזווה - תמיכה ביחידות ===
 function openPantryUseModal(name, unit, qty, upp) { 
