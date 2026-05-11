@@ -5728,3 +5728,48 @@ window.sendFamilaiChatMessage = async function() {
         input.focus();
     }
 };
+// מנגנון הגנה עליון: שומר על ההרשאות ועל התמונה מלהימחק בריענון!
+const _originalFetchDataForPermsAndLogo = window.fetchData;
+if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
+    window.fetchData = async function() {
+        await _originalFetchDataForPermsAndLogo();
+        
+        try {
+            // 1. שחזור התמונה מהגיבוי הקשיח המקומי (פותר את היעלמות התמונה בריענון!)
+            if (currentGroup && currentGroup.id) {
+                const hardLogo = localStorage.getItem(`ofl_hard_logo_${currentGroup.id}`);
+                if (hardLogo && hardLogo.length > 50) {
+                    currentGroup.logo = hardLogo;
+                    currentGroup.logo_url = hardLogo;
+                    currentGroup.image_url = hardLogo;
+                    if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo();
+                }
+            }
+            
+            // 2. עדכון הרשאות רציף מול השרת לילדים / בדיקת גיבוי תמונה מהשרת
+            if (currentUser && currentUser.id) {
+                const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+                const res = await fetch(`${apiPath}/data/${currentUser.id}`); 
+                const data = await res.json();
+                
+                // גיבוי תמונה מהשרת למקרה שאין לנו במטמון המקומי
+                if (data && data.group && (data.group.image_url || data.group.logo || data.group.logo_url)) {
+                    const sLogo = data.group.image_url || data.group.logo || data.group.logo_url;
+                    if (sLogo.length > 50) {
+                        currentGroup.logo = sLogo;
+                        localStorage.setItem(`ofl_hard_logo_${currentGroup.id}`, sLogo);
+                        if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo();
+                    }
+                }
+
+                // סידור הרשאות ילדים חיות
+                if (data && data.user && data.user.permissions !== undefined) {
+                    currentUser.permissions = data.user.permissions;
+                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                    if(typeof enforcePermissions === 'function') enforcePermissions();
+                }
+            }
+        } catch(e) {}
+    };
+    window.hookedPermsAndLogoFetch = true;
+}
