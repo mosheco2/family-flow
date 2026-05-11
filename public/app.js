@@ -4412,7 +4412,6 @@ window.saveFamilyPhoto = async function() {
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
         
-        // התיקון הקריטי: שמירה בראוט הראשי של הקבוצה כדי שזה יחלחל לטבלה הנכונה
         const res = await fetch(`${apiPath}/groups/${currentGroup.id}/logo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
@@ -4422,16 +4421,17 @@ window.saveFamilyPhoto = async function() {
         const data = await res.json();
         if (data.success) {
             showToast('success', 'התמונה נשמרה בהצלחה!');
-            document.getElementById('photo-confirm-modal').classList.add('hidden');
+            const modal = document.getElementById('photo-confirm-modal');
+            if (modal) modal.classList.add('hidden');
             
-            // עדכון המטמון וה-DOM
             currentGroup.logo = window.tempFamilyLogoBase64;
             currentGroup.image_url = window.tempFamilyLogoBase64;
             
-            // שמירה מיידית ב-localStorage כדי למנוע דריסה ע"י fetchData
+            // גיבוי קשיח ואגרסיבי לזיכרון המקומי כדי שהתמונה תשרוד גם אם השרת לא מחזיר אותה
+            localStorage.setItem(`ofl_hard_logo_${currentGroup.id}`, window.tempFamilyLogoBase64);
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             
-            window.renderGroupInfo(); 
+            if (typeof window.renderGroupInfo === 'function') window.renderGroupInfo(); 
         } else {
             showToast('error', 'שגיאה בשמירה בשרת');
         }
