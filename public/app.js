@@ -94,14 +94,14 @@ window.onload = async () => { 
     }
 
     // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
-    if (savedSAToken) {
-        saToken = savedSAToken; clearTimeout(failsafeTimer); 
-        getEl('auth-container').classList.add('hidden'); 
-        const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
-        getEl('sa-dashboard-container').classList.remove('hidden');
-        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
-        loadSAData(); return;
-    }
+    if (savedSAToken) {
+        saToken = savedSAToken; clearTimeout(failsafeTimer); 
+        getEl('auth-container').classList.add('hidden'); 
+        const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
+        getEl('sa-dashboard-container').classList.remove('hidden');
+        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+        loadSAData(); return;
+    }
 
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
@@ -116,14 +116,13 @@ function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = get
 function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
 
 async function handleSALogin(e) {
-    e.preventDefault();
-    try {
-        const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) }); const data = await res.json();
-        if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
+    e.preventDefault();
+    try {
+        const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) }); const data = await res.json();
+        if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
+    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
-async function updateSACredentials() {
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden'); switchView('login'); }
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
     if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
     if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
@@ -657,11 +656,12 @@ function executeWithAIWarning(actionFn) {
     }
 }
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
-    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
     const impBanner = getEl('sa-impersonation-banner');
     if (saTokenLocal && impBanner) {
         impBanner.classList.remove('hidden');
