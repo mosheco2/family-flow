@@ -2213,5 +2213,17 @@
             <button onclick="savePermissions()" id="btn-save-perms" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור הרשאות</button>
         </div>
     </div>
+<div id="photo-confirm-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden fade-in">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">לשמור את התמונה החדשה? 📸</h3>
+            <div class="w-32 h-32 mx-auto mb-6 rounded-full border-4 border-indigo-100 overflow-hidden shadow-md">
+                <img id="photo-confirm-preview" src="" class="w-full h-full object-cover">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="cancelFamilyPhoto()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="saveFamilyPhoto()" id="btn-modal-save-photo" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור תמונה</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
