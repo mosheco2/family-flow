@@ -111,6 +111,28 @@ window.exitImpersonation = function() {
     window.location.reload();
 };
 
+window.impersonateGroup = async function(groupId) {
+    try {
+        const res = await fetch(`${API}/sa/impersonate`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json', 'Authorization': saToken},
+            body: JSON.stringify({ groupId: groupId })
+        });
+        const data = await res.json();
+        if(data.success) {
+            localStorage.setItem('ofl_session', JSON.stringify({user: data.user, group: data.group}));
+            window.location.reload(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בהשתלטות');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת בהשתלטות'); }
+};
+
+window.exitImpersonation = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.reload();
+};
+
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
 function toggleLoader(a,s) { const txt = getEl(`btn-${a}-text`); const ldr = getEl(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
 function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
@@ -253,14 +275,15 @@ function renderSAGroups() {
                 <i class="fa-solid fa-chevron-down text-slate-300"></i>
             </div>
             <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
-                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
-                    <div class="flex gap-2">
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
-                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
-                        ${proToggleBtn}
-                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                    </div>
+                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
+                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="impersonateGroup(${g.id})" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-emerald-200 transition"><i class="fa-solid fa-right-to-bracket"></i> התחבר למשפחה</button>
+                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
+                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
+                        ${proToggleBtn}
+                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
+                    </div>
                 </div>
                 ${uHtml}
             </div>
