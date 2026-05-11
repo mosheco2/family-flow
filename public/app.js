@@ -658,7 +658,7 @@ function executeWithAIWarning(actionFn) {
 }
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); // הסרת השטח הריק העליון
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); // הסרת מעטפת החיבור
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
     
     // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
@@ -666,11 +666,9 @@ async function loadDashboard() {
     const impBanner = getEl('sa-impersonation-banner');
     if (saTokenLocal && impBanner) {
         impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex');
-        document.body.style.paddingTop = '45px'; // רווח לבאנר הצף
+        document.body.style.paddingTop = '45px'; // רווח לבאנר הצף האדום
     } else if (impBanner) {
         impBanner.classList.add('hidden');
-        impBanner.classList.remove('flex');
         document.body.style.paddingTop = '0px';
     }
 
