@@ -4177,11 +4177,9 @@ window.initPublicConfig = async function() {
                     let dotsHtml = '';
                     
                     data.loginSlides.forEach((slide, idx) => {
-                        // הוספנו אפקט של הכהיה קלה (overlay) כדי שהלוגו הלבן יבלוט מעל התמונות
                         slidesHtml += `
                         <div class="min-w-full w-full h-full shrink-0 snap-center relative flex justify-center items-center">
                             <img src="${slide.image}" class="w-full h-full object-cover z-0 pointer-events-none select-none">
-                            <div class="absolute inset-0 bg-slate-900/40 z-10"></div>
                         </div>`;
                         dotsHtml += `<button onclick="window.goToLoginSlide(${idx}, ${data.loginSlides.length})" id="login-dot-${idx}" class="rounded-full transition-all duration-300 ${idx === 0 ? 'bg-white w-5 h-2' : 'bg-white/40 hover:bg-white/80 w-2 h-2'} shadow-sm backdrop-blur-sm border border-black/10 z-30 relative focus:outline-none"></button>`;
                     });
