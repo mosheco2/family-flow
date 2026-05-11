@@ -78,22 +78,20 @@ window.onload = async () => {
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     const savedSession = localStorage.getItem('ofl_session'); 
 
-    // תמיכה במצב השתלטות: אם יש גם סשן לקוח וגם טוקן אדמין, נטען את הלקוח קודם!
+    // תמיכה בהשתלטות: אם יש סשן לקוח פעיל, נטען אותו קודם גם אם אנחנו סופר-אדמין
     if(savedSession) { 
         try { 
             const session = JSON.parse(savedSession); 
             if(session && session.user && session.group) { 
                 if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
                 currentUser = session.user; currentGroup = session.group; 
-                if (savedSAToken) saToken = savedSAToken; // שומרים את הטוקן למקרה הצורך
-                clearTimeout(failsafeTimer); 
-                loadDashboard(); 
-                return; 
+                if (savedSAToken) saToken = savedSAToken; 
+                clearTimeout(failsafeTimer); loadDashboard(); return; 
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
 
-    // כניסה רגילה למסך מנהל המערכת (Super Admin) - רק אם אין סשן לקוח פעיל
+    // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
     if (savedSAToken) {
         saToken = savedSAToken; clearTimeout(failsafeTimer); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden');
         const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
@@ -101,6 +99,11 @@ window.onload = async () => {
     }
 
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+};
+
+window.exitImpersonation = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.reload();
 };
 
 window.exitImpersonation = function() {
@@ -700,9 +703,19 @@ async function loadDashboard() {
         const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
-}async function loadDashboard() {
+async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    const impBanner = getEl('sa-impersonation-banner');
+    if (saTokenLocal && impBanner) {
+        impBanner.classList.remove('hidden');
+    } else if (impBanner) {
+        impBanner.classList.add('hidden');
+    }
+
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
