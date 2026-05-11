@@ -656,52 +656,6 @@ async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
     
-    // הצגת באנר השתלטות במידה וקיים טוקן סופר-אדמין ברקע
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    const impBanner = getEl('sa-impersonation-banner');
-    if (saTokenLocal && impBanner) {
-        impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex');
-    } else if (impBanner) {
-        impBanner.classList.add('hidden');
-        impBanner.classList.remove('flex');
-    }
-
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
     // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     const impBanner = getEl('sa-impersonation-banner');
@@ -742,196 +696,87 @@ async function loadDashboard() {
         const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
-}async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-}async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
 }
+
 async function fetchData() {
     try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
-        if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
-
-        const res = await fetch(`${API}/data/${currentUser.id}`);
-        const data = await res.json();
-        
+        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
+        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
         if (!data || !data.user) return;
         
-        // עדכון סטטוסים בסיסיים
         currentUser.balance = data.user.balance; 
         if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; 
-            currentGroup.is_premium = data.group.is_premium;
-            currentGroup.community_id = data.group.community_id;
-            
-            // משיכת תמונת המשפחה מהגדרות הסביבה ושמירה במטמון המקומי
-            try {
-                const setRes = await fetch(`${API}/store/settings?groupId=${currentGroup.id}`);
-                if (setRes.ok) {
-                    const setData = await setRes.json();
-                    if (setData.success && setData.settings && setData.settings.logo_url) {
-                        currentGroup.logo_url = setData.settings.logo_url;
-                    }
-                }
-            } catch(e) {}
-
-            updateBatteryUI();
-            
-            // לוגיקת הצגת תמונת המשפחה/עסק ב-Header ובניהול
-            const logoUrl = currentGroup.logo_url || data.group.logo_url || data.group.image_url;
-            const headerImg = getEl('header-group-img');
-            const headerFallback = getEl('header-group-icon-fallback');
-            const mgmtImg = getEl('mgmt-group-logo-preview');
-            const mgmtIcon = getEl('mgmt-group-logo-icon');
-
-            if (logoUrl && logoUrl.trim() !== '') {
-                if (headerImg) { headerImg.src = logoUrl; headerImg.classList.remove('hidden'); }
-                if (headerFallback) headerFallback.classList.add('hidden');
-                if (mgmtImg) { mgmtImg.src = logoUrl; mgmtImg.classList.remove('hidden'); }
-                if (mgmtIcon) mgmtIcon.classList.add('hidden');
-            } else {
-                if (headerImg) { headerImg.src = ''; headerImg.classList.add('hidden'); }
-                if (headerFallback) headerFallback.classList.remove('hidden');
-                if (mgmtImg) { mgmtImg.src = ''; mgmtImg.classList.add('hidden'); }
-                if (mgmtIcon) mgmtIcon.classList.remove('hidden');
-            }
-
+            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
             const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) {
-                profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>';
-            }
+            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
+            // עדכון המזהה למקרה שהקהילה השתנתה
+            currentGroup.community_id = data.group.community_id;
         }
 
-        // עדכון יתרה ראשית
-        const balEl = getEl('user-balance'); 
-        if(balEl) {
-            const realBalance = currentUser.role === 'ADMIN' ? (data.group.admin_total_balance || 0) : (currentUser.balance || 0);
-            balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
-            if (currentUser.role === 'ADMIN') {
+        if (currentUser.role === 'ADMIN') {
+            const balEl = getEl('user-balance'); 
+            if(balEl) {
+                const realBalance = data.group.admin_total_balance || 0;
+                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
+        } else {
+            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
         
-        // טעינת מטמונים (Caches)
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; 
-        bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; 
-        pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles) allBundles = data.all_bundles;
+        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        
+        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        // רינדור טאבים
-        if (currentUser.role === 'ADMIN') renderAdminAcademy(); 
-        else { renderMyAssignments(bundlesCache); renderLibrary(); }
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
+        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { fetchBudget(); } catch(e) {}
+        try { renderForecast(); } catch(e) {}
         
-        renderTasks(allTasks); 
-        renderPantry(); 
-        renderRecipePantrySelection();
-        shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; 
-        renderShopList();
-        fetchBudget();
-        renderForecast();
-        renderFamilyCommunities(window.communityBusinessesCache);
-        renderChildTodo();
-        buildAndRenderFeed();
+        // קריאה לרינדור הקהילות ממש כאן!
+        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
         
-        if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow();
+        try {
+            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
+            if (goalsList) { 
+                goalsList.innerHTML = ''; 
+                if(data.goals && data.goals.length > 0) { 
+                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                    data.goals.forEach(g => { 
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
+                    }); 
+                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
+            }
+        } catch(e) {}
+        
+        try {
+            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
+                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
+                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
+            }
+        } catch(e) {}
 
-        // טיפול ביעדים
-        const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list');
-        const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
-        if (goalsList) { 
-            goalsList.innerHTML = ''; 
-            if(data.goals && data.goals.length > 0) { 
-                if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                data.goals.forEach(g => { 
-                    const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
-                    const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : '';
-                    goalsList.innerHTML += `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2">
-                            <div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div>
-                            <div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p>
-                            <div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>
-                            <button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ</button></div></div>
-                        </div>`; 
-                }); 
-            } else if (goalsContainer) goalsContainer.classList.add('hidden');
-        }
+        try {
+            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
+        } catch(e) { allTransactions = []; }
 
-        // טעינת תנועות
-        const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-        const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=100`);
-        if(transRes.ok) allTransactions = await transRes.json();
+        try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
 
+        // הפעלת אשף ההקמה (Onboarding) להורה (ADMIN) בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
             setTimeout(showOnboardingWizard, 1000);
         }
 
-    } catch(e) { console.error("Fetch data error:", e); }
+    } catch(e) {}
 }
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
