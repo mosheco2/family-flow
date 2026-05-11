@@ -242,34 +242,32 @@
         </div>
     </div>
 
-    <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
-   <div class="flex-1 pb-28 relative flex flex-col w-full">
-            <div class="sticky top-0 z-[100] w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
-
-                    <div id="sa-impersonation-banner" class="hidden fixed top-0 left-0 right-0 z-[999999] w-full bg-red-600 text-white px-4 py-2 flex justify-between items-center shadow-lg transition-all">
+    <div id="sa-impersonation-banner" class="hidden fixed top-0 left-0 right-0 z-[999999] w-full bg-red-600 text-white px-4 py-2 justify-between items-center shadow-lg transition-all">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-user-secret text-lg animate-pulse"></i>
             <span class="text-xs sm:text-sm font-bold tracking-wide">מחובר כ-Super Admin (סביבת משפחה)</span>
         </div>
-        <button onclick="exitImpersonation()" class="bg-white text-red-600 px-4 py-1 rounded-lg shadow-sm text-xs font-bold hover:bg-red-50 transition border border-red-200">
+        <button onclick="exitImpersonation()" class="bg-white text-red-600 px-4 py-1.5 rounded-lg shadow-sm text-xs font-bold hover:bg-red-50 transition border border-red-200">
             התנתק וחזור
         </button>
-    </div>        
+    </div>
+
+    <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+            
         <div class="flex-1 pb-28 relative flex flex-col w-full">
             <div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
 
-                    <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
-                        <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden">
-                            </a>
-                        <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
-                            <div class="flex flex-col items-center">
-                                <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
-                                <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
-                            </div>
+                <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
+                    <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden"></a>
+                    <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
+                            <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
                         </div>
                     </div>
+                </div>
 
-                    <header class="px-4 py-4 bg-white/95 backdrop-blur-md flex items-center gap-4 border-b border-slate-100" id="tour-header">
+                <header class="px-4 py-4 bg-white/95 backdrop-blur-md flex items-center gap-4 border-b border-slate-100" id="tour-header">
                         <div class="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-2xl border-2 border-white shadow-md overflow-hidden shrink-0 group cursor-pointer relative" onclick="if(currentUser.role === 'ADMIN') document.getElementById('family-photo-upload').click(); else openProfileModal();">
                             <img id="header-group-img" src="" class="w-full h-full object-cover hidden">
                             <div id="header-group-icon-fallback" class="w-full h-full flex items-center justify-center text-slate-300">
