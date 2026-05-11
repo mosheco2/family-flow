@@ -2438,27 +2438,20 @@ window.download360PDF = function() {
     
     showToast('info', 'מכין קובץ PDF, אנא המתן...');
     
-    // יצירת קונטיינר מנותק לטובת הדפסה נקייה שתצמד לראש הדף
+    // יצירת קונטיינר מנותק - אנחנו לא נוסיף אותו למסמך כדי למנוע הסתרה ורינדור של רקע ריק
     const printContainer = document.createElement('div');
-    // הגדרות קריטיות ליישור עברית ומיקום בראש העמוד
-    printContainer.style.position = 'absolute';
-    printContainer.style.top = '0';
-    printContainer.style.right = '0';
-    printContainer.style.width = '210mm'; // רוחב A4 סטנדרטי
-    printContainer.style.padding = '15mm';
+    printContainer.style.padding = '15px';
     printContainer.style.backgroundColor = '#ffffff';
     printContainer.style.direction = 'rtl';
     printContainer.style.textAlign = 'right';
     printContainer.style.fontFamily = 'Arial, Helvetica, sans-serif'; 
     printContainer.style.color = '#1e293b'; 
-    // הוספת מרווח קל מאוד בין מילים למניעת הידבקות בגלל באג הרינדור
     printContainer.style.wordSpacing = '0.1em';
-    printContainer.style.zIndex = '-9999'; // נסתר מהמשתמש בזמן היצירה
     
     // העתקת תוכן הדוח למעטפת
     printContainer.innerHTML = element.innerHTML;
     
-    // סידור כל הטבלאות בתוך העותק - שימוש ב-inline styles ברזולוציה גבוהה
+    // סידור כל הטבלאות בתוך העותק
     const tables = printContainer.querySelectorAll('table');
     tables.forEach(t => {
         t.style.width = '100%';
@@ -2467,17 +2460,14 @@ window.download360PDF = function() {
         t.style.direction = 'rtl';
     });
 
-    // כפיית יישור לימין לכל התאים (td ו-th) ולכל הטקסטים (p, li, h1, h2, h3)
     const allTextElements = printContainer.querySelectorAll('td, th, p, li, h1, h2, h3, h4, span, div, b, strong');
     allTextElements.forEach(el => {
         if (!el.classList.contains('text-left') && !el.classList.contains('text-center') && el.dir !== 'ltr') {
             el.style.textAlign = 'right';
             el.style.direction = 'rtl';
         }
-        // הבטחת ריווח תקין למניעת הידבקות מילים (הבאג שראינו)
         el.style.whiteSpace = 'pre-wrap';
         
-        // תיקון ספציפי למשימות (li) שלא הוצגו כראוי - ממירים אותן לפסקאות שבלוק הציור תופס טוב יותר
         if (el.tagName.toLowerCase() === 'li') {
             el.style.display = 'block';
             el.style.marginBottom = '8px';
@@ -2497,24 +2487,20 @@ window.download360PDF = function() {
         td.style.padding = '8px 10px';
     });
 
-    // הוספת העותק באופן זמני לדף כדי שהספרייה תוכל לקרוא אותו מראש הדף (ולא מהאמצע היכן שהמודאל יושב)
-    document.body.appendChild(printContainer);
-    
     const opt = { 
-        margin: [10, 10, 10, 10], // שוליים אחידים [top, left, bottom, right]
+        margin: [10, 10, 10, 10], 
         filename: `Oneflow_Report_${groupName}.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: 800 }, 
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
     
+    // העברת הקונטיינר ישירות. html2pdf פותחת אותו בסביבה וירטואלית ולכן הוא יצא מלא ותקין
     html2pdf().set(opt).from(printContainer).save().then(() => { 
         showToast('success', 'הדוח הורד בהצלחה!'); 
-        document.body.removeChild(printContainer);
     }).catch(err => { 
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); 
         console.error(err);
-        document.body.removeChild(printContainer);
     });
 }
 
