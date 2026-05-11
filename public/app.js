@@ -94,14 +94,14 @@ window.onload = async () => { 
     }
 
     // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
-    if (savedSAToken) {
-        saToken = savedSAToken; clearTimeout(failsafeTimer); 
+    if (savedSAToken) {
+        saToken = savedSAToken; clearTimeout(failsafeTimer); 
         getEl('auth-container').classList.add('hidden'); 
         const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
         getEl('sa-dashboard-container').classList.remove('hidden');
-        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
-        loadSAData(); return;
-    }
+        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+        loadSAData(); return;
+    }
 
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
@@ -657,20 +657,22 @@ function executeWithAIWarning(actionFn) {
     }
 }
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
-    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    const impBanner = getEl('sa-impersonation-banner');
-    if (saTokenLocal && impBanner) {
-        impBanner.classList.remove('hidden');
-    } else if (impBanner) {
-        impBanner.classList.add('hidden');
-    }
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); // מסתיר את השטח הריק הענק!
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    const impBanner = getEl('sa-impersonation-banner');
+    if (saTokenLocal && impBanner) {
+        impBanner.classList.remove('hidden');
+        impBanner.classList.add('flex'); // החזרת התכונה הקריטית לתצוגה
+    } else if (impBanner) {
+        impBanner.classList.add('hidden');
+        impBanner.classList.remove('flex');
+    }
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
     const isAdmin = currentUser.role === 'ADMIN';
