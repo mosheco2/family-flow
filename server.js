@@ -3843,14 +3843,16 @@ app.post('/api/family/chat-assistant', async (req, res) => {
 app.post('/api/groups/:id/logo', async (req, res) => {
     try {
         const { logo } = req.body;
+        if (!logo) return res.status(400).json({ error: 'No logo provided' });
         
-        // מוודאים שהעמודה קיימת בטבלה הנכונה כדי למנוע שגיאות 500
         try { await pool.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS image_url TEXT'); } catch(err) {}
         
-        // השמירה האמיתית! פותר את ההיעלמות בריענון.
-        await pool.query('UPDATE family_groups SET image_url = $1 WHERE id = $2', [logo, req.params.id]);
+        const result = await pool.query(
+            'UPDATE family_groups SET image_url = $1 WHERE id = $2 RETURNING image_url', 
+            [logo, req.params.id]
+        );
         
-        res.json({ success: true });
+        res.json({ success: true, image_url: result.rows[0].image_url });
     } catch(e) {
         console.error('Logo update error:', e);
         res.status(500).json({ error: e.message });
