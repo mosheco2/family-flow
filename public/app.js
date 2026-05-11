@@ -4272,20 +4272,23 @@ window.addEventListener('load', () => {
 // ==========================================
 // פניות שירות ותמונות משפחה - גרסה סופית ותקינה
 // ==========================================
-
-window.renderGroupInfo = () => {
+window.renderGroupInfo = function() {
     if (!currentGroup) return;
     
     const nameEl = document.getElementById('dash-group-name');
-    if (nameEl) nameEl.innerText = currentGroup.name;
+    if (nameEl) {
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+        nameEl.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
+    }
 
-    const logo = currentGroup.logo;
+    const logo = currentGroup.logo || currentGroup.logo_url || currentGroup.image_url;
     const headerImg = document.getElementById('header-group-img');
     const headerFallback = document.getElementById('header-group-icon-fallback');
     const mgmtPreview = document.getElementById('mgmt-group-logo-preview');
     const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
 
-    if (logo && typeof logo === 'string' && logo.startsWith('data:image')) {
+    // התיקון: בדיקה הרבה יותר סלחנית כדי שהתמונה תוצג תמיד
+    if (logo && logo.length > 50) { 
         if (headerImg) { headerImg.src = logo; headerImg.classList.remove('hidden'); }
         if (headerFallback) headerFallback.classList.add('hidden');
         if (mgmtPreview) { mgmtPreview.src = logo; mgmtPreview.classList.remove('hidden'); }
@@ -4387,39 +4390,19 @@ window.previewFamilyPhoto = function(event) {
     compressImage(file, 600, 600, 0.8, (base64) => {
         window.tempFamilyLogoBase64 = base64;
         
-        // עדכון תצוגה מקדימה גם בבאנר העליון וגם בניהול
-        const headerImg = document.getElementById('header-group-img');
-        const headerIcon = document.getElementById('header-group-icon-fallback');
-        const mgmtImg = document.getElementById('mgmt-group-logo-preview');
-        const mgmtIcon = document.getElementById('mgmt-group-logo-icon');
-        
-        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
-        if (headerIcon) headerIcon.classList.add('hidden');
-        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
-        if (mgmtIcon) mgmtIcon.classList.add('hidden');
-        
-        // עדכון התמונה במודאל האישור והצגתו
+        // תצוגה מקדימה חיה
         const confirmPreview = document.getElementById('photo-confirm-preview');
         if (confirmPreview) confirmPreview.src = base64;
         
         const confirmModal = document.getElementById('photo-confirm-modal');
         if (confirmModal) confirmModal.classList.remove('hidden');
-        
-        // הסתרת הכפתור הישן בטאב הניהול (כדי לא לבלבל)
-        const saveBtn = document.getElementById('btn-save-family-photo');
-        if (saveBtn) saveBtn.classList.add('hidden');
     });
-    
-    // איפוס האינפוט כדי לאפשר בחירה חוזרת של אותה תמונה במידה ובוטל
     event.target.value = '';
 };
 
 window.cancelFamilyPhoto = function() {
     window.tempFamilyLogoBase64 = null;
-    const confirmModal = document.getElementById('photo-confirm-modal');
-    if (confirmModal) confirmModal.classList.add('hidden');
-    // שחזור התמונה המקורית ממטמון הקבוצה
-    if (typeof renderGroupInfo === 'function') renderGroupInfo();
+    document.getElementById('photo-confirm-modal').classList.add('hidden');
 };
 
 window.saveFamilyPhoto = async function() {
@@ -4428,33 +4411,32 @@ window.saveFamilyPhoto = async function() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        // שימוש בראוט של הגדרות ששומר בוודאות בעמודות הנכונות בשרת (כך שזה לא יימחק בריענון)
-        const res = await fetch(`${apiPath}/store/settings`, {
+        
+        // התיקון הקריטי: שמירה בראוט הראשי של הקבוצה כדי שזה יחלחל לטבלה הנכונה
+        const res = await fetch(`${apiPath}/groups/${currentGroup.id}/logo`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
-            body: JSON.stringify({
-                groupId: currentGroup.id,
-                logoUrl: window.tempFamilyLogoBase64,
-                isActive: true
-            })
+            body: JSON.stringify({ logo: window.tempFamilyLogoBase64 })
         });
+        
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
-            const modal = document.getElementById('photo-confirm-modal');
-            if (modal) modal.classList.add('hidden');
+            showToast('success', 'התמונה נשמרה בהצלחה!');
+            document.getElementById('photo-confirm-modal').classList.add('hidden');
             
-            // עדכון המטמון המקומי כדי שהתמונה תישאר גם אם נגלול לטאבים אחרים
+            // עדכון המטמון וה-DOM
             currentGroup.logo = window.tempFamilyLogoBase64;
-            currentGroup.logo_url = window.tempFamilyLogoBase64;
             currentGroup.image_url = window.tempFamilyLogoBase64;
             
-            if (typeof renderGroupInfo === 'function') renderGroupInfo(); 
+            // שמירה מיידית ב-localStorage כדי למנוע דריסה ע"י fetchData
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            
+            window.renderGroupInfo(); 
         } else {
-            showToast('error', data.error || 'שגיאה בשמירה');
+            showToast('error', 'שגיאה בשמירה בשרת');
         }
     } catch(e) {
-        showToast('error', 'שגיאת רשת בשמירת התמונה');
+        showToast('error', 'שגיאת רשת');
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = 'שמור תמונה'; }
     }
