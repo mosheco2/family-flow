@@ -122,7 +122,7 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden'); switchView('login'); }
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden'); document.body.style.paddingTop = '0px'; switchView('login'); }
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
     if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
@@ -658,7 +658,7 @@ function executeWithAIWarning(actionFn) {
 }
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden'); // מסתיר את השטח הריק הענק!
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
     
     // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
@@ -666,10 +666,12 @@ async function loadDashboard() {
     const impBanner = getEl('sa-impersonation-banner');
     if (saTokenLocal && impBanner) {
         impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex'); // החזרת התכונה הקריטית לתצוגה
+        impBanner.classList.add('flex');
+        document.body.style.paddingTop = '50px'; // מרווח קבוע כדי שהבאנר לא יסתיר את המסך למעלה
     } else if (impBanner) {
         impBanner.classList.add('hidden');
         impBanner.classList.remove('flex');
+        document.body.style.paddingTop = '0px';
     }
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
