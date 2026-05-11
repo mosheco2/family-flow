@@ -61,44 +61,49 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
 const hidePreloaderAndShowAuth = (view = 'login') => {
-    getEl('auth-container').classList.remove('hidden'); switchView(view);
-    const preloader = getEl('app-preloader');
-    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+    getEl('auth-container').classList.remove('hidden'); 
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden');
+    switchView(view);
+    const preloader = getEl('app-preloader');
+    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
 
-window.onload = async () => { 
-    initAccessibility();
-    const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
-    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
+window.onload = async () => { 
+    initAccessibility();
+    const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
+    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
-    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
-    
-    const savedSAToken = localStorage.getItem('ofl_sa_token');
-    const savedSession = localStorage.getItem('ofl_session'); 
+    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
+    const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    
+    const savedSAToken = localStorage.getItem('ofl_sa_token');
+    const savedSession = localStorage.getItem('ofl_session'); 
 
-    // תמיכה בהשתלטות: אם יש סשן לקוח פעיל, נטען אותו קודם גם אם אנחנו סופר-אדמין
-    if(savedSession) { 
-        try { 
-            const session = JSON.parse(savedSession); 
-            if(session && session.user && session.group) { 
-                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
-                currentUser = session.user; currentGroup = session.group; 
-                if (savedSAToken) saToken = savedSAToken; 
-                clearTimeout(failsafeTimer); loadDashboard(); return; 
-            }
-        } catch(e) { localStorage.removeItem('ofl_session'); } 
-    }
+    // תמיכה בהשתלטות: אם יש סשן לקוח פעיל, נטען אותו קודם גם אם אנחנו סופר-אדמין
+    if(savedSession) { 
+        try { 
+            const session = JSON.parse(savedSession); 
+            if(session && session.user && session.group) { 
+                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
+                currentUser = session.user; currentGroup = session.group; 
+                if (savedSAToken) saToken = savedSAToken; 
+                clearTimeout(failsafeTimer); loadDashboard(); return; 
+            }
+        } catch(e) { localStorage.removeItem('ofl_session'); } 
+    }
 
-    // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
-    if (savedSAToken) {
-        saToken = savedSAToken; clearTimeout(failsafeTimer); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden');
-        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
-        loadSAData(); return;
-    }
+    // כניסה לסופר-אדמין (אם אין סשן לקוח פעיל)
+    if (savedSAToken) {
+        saToken = savedSAToken; clearTimeout(failsafeTimer); 
+        getEl('auth-container').classList.add('hidden'); 
+        const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
+        getEl('sa-dashboard-container').classList.remove('hidden');
+        const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+        loadSAData(); return;
+    }
 
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
 window.exitImpersonation = function() {
@@ -117,8 +122,7 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
-
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); const mw = getEl('main-wrapper'); if(mw) mw.classList.remove('hidden'); switchView('login'); }
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
     if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
@@ -653,19 +657,22 @@ function executeWithAIWarning(actionFn) {
     }
 }
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
-    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    const impBanner = getEl('sa-impersonation-banner');
-    if (saTokenLocal && impBanner) {
-        impBanner.classList.remove('hidden');
-    } else if (impBanner) {
-        impBanner.classList.add('hidden');
-    }
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // בדיקה והצגת באנר השתלטות (Super Admin Impersonation)
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    const impBanner = getEl('sa-impersonation-banner');
+    if (saTokenLocal && impBanner) {
+        impBanner.classList.remove('hidden');
+        impBanner.classList.add('flex');
+    } else if (impBanner) {
+        impBanner.classList.add('hidden');
+        impBanner.classList.remove('flex');
+    }
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
     const isAdmin = currentUser.role === 'ADMIN';
