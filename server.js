@@ -3859,6 +3859,27 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
+// ראוט למשיכת הגדרות ציבוריות למסך התחברות (לוגו וסליידרים)
+app.get('/api/system/public-config', async (req, res) => {
+    try {
+        // בעתיד: שליפה מטבלת system_settings
+        // כרגע: נתונים קשיחים לצורך בדיקת הקרוסלה
+        const mockConfig = {
+            success: true,
+            globalAiLogo: '/logo.png', // לוגו ברירת מחדל
+            loginSlides: [
+                { image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop' }, // משפחה נהנית
+                { image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop' },  // ילדים משחקים
+                { image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop' }   // מישהו עובד / עסק
+            ]
+        };
+        res.json(mockConfig);
+    } catch(e) {
+        console.error('Error fetching public config:', e);
+        res.status(500).json({ error: 'Failed to fetch config' });
+    }
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
