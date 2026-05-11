@@ -666,10 +666,8 @@ async function loadDashboard() {
     const impBanner = getEl('sa-impersonation-banner');
     if (saTokenLocal && impBanner) {
         impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex');
     } else if (impBanner) {
         impBanner.classList.add('hidden');
-        impBanner.classList.remove('flex');
     }
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
