@@ -715,12 +715,30 @@ async function fetchData() {
         currentUser.balance = data.user.balance; 
         if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            currentGroup.is_onboarded = data.group.is_onboarded;
+            currentGroup.community_id = data.group.community_id;
+            
+            try {
+                const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+                const setRes = await fetch(`${apiPath}/store/settings?groupId=${currentGroup.id}`);
+                if (setRes.ok) {
+                    const setData = await setRes.json();
+                    if (setData.success && setData.settings && setData.settings.logo_url) {
+                        currentGroup.logo_url = setData.settings.logo_url;
+                        currentGroup.logo = setData.settings.logo_url;
+                    }
+                }
+            } catch(e) {}
+            
+            if (typeof renderGroupInfo === 'function') renderGroupInfo();
+            
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
+            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-fam')) {
+                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-fam" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
+            }
         }
-
         if (currentUser.role === 'ADMIN') {
             const balEl = getEl('user-balance'); 
             if(balEl) {
@@ -735,7 +753,6 @@ async function fetchData() {
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
         
-        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
         window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
         window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
@@ -745,7 +762,6 @@ async function fetchData() {
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
         
-        // קריאה לרינדור הקהילות ממש כאן!
         try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
         
         try {
@@ -786,7 +802,9 @@ async function fetchData() {
 
     } catch(e) {}
 }
+
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
+
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
     if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
@@ -821,7 +839,6 @@ async function fetchMembers() {
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-1 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
                     if (currentUser.role === 'ADMIN' && m.id !== currentUser.id) {
                         const mPerms = (m.permissions && typeof m.permissions === 'object') ? JSON.stringify(m.permissions) : (m.permissions ? m.permissions : '{"tabs":["feed"]}');
-                        // הפתרון לבאג המפתח: קידוד בטוח של ה-JSON
                         const encodedPerms = encodeURIComponent(mPerms);
                         adminPermsBtn = `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${encodedPerms}')" class="mr-3 text-blue-500 hover:text-blue-700 bg-blue-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-key text-xs"></i></button>`;
                     }
