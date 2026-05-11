@@ -4387,7 +4387,7 @@ window.previewFamilyPhoto = function(event) {
     compressImage(file, 600, 600, 0.8, (base64) => {
         window.tempFamilyLogoBase64 = base64;
         
-        // עדכון מיידי של כל המופעים במסך לתצוגה מקדימה חיה
+        // עדכון תצוגה מקדימה גם בבאנר העליון וגם בניהול
         const headerImg = document.getElementById('header-group-img');
         const headerIcon = document.getElementById('header-group-icon-fallback');
         const mgmtImg = document.getElementById('mgmt-group-logo-preview');
@@ -4398,22 +4398,37 @@ window.previewFamilyPhoto = function(event) {
         if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
         if (mgmtIcon) mgmtIcon.classList.add('hidden');
         
-        const saveBtn = document.getElementById('btn-save-family-photo');
-        if (saveBtn) saveBtn.classList.remove('hidden');
+        // עדכון התמונה במודאל האישור והצגתו
+        const confirmPreview = document.getElementById('photo-confirm-preview');
+        if (confirmPreview) confirmPreview.src = base64;
         
-        showToast('info', 'התמונה נטענה לתצוגה, אל תשכחו ללחוץ על "שמור תמונה"');
+        const confirmModal = document.getElementById('photo-confirm-modal');
+        if (confirmModal) confirmModal.classList.remove('hidden');
+        
+        // הסתרת הכפתור הישן בטאב הניהול (כדי לא לבלבל)
+        const saveBtn = document.getElementById('btn-save-family-photo');
+        if (saveBtn) saveBtn.classList.add('hidden');
     });
+    
+    // איפוס האינפוט כדי לאפשר בחירה חוזרת של אותה תמונה במידה ובוטל
+    event.target.value = '';
+};
+
+window.cancelFamilyPhoto = function() {
+    window.tempFamilyLogoBase64 = null;
+    const confirmModal = document.getElementById('photo-confirm-modal');
+    if (confirmModal) confirmModal.classList.add('hidden');
+    // שחזור התמונה המקורית ממטמון הקבוצה
+    if (typeof renderGroupInfo === 'function') renderGroupInfo();
 };
 
 window.saveFamilyPhoto = async function() {
     if (!window.tempFamilyLogoBase64) return;
-    const btn = document.getElementById('btn-save-family-photo');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    const btn = document.getElementById('btn-modal-save-photo');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        
-        // התיקון הקריטי: שמירה בראוט ה-Settings כדי שהתמונה תישמר ב-DB ותיטען בריענון
+        // שימוש בראוט של הגדרות ששומר בוודאות בעמודות הנכונות בשרת (כך שזה לא יימחק בריענון)
         const res = await fetch(`${apiPath}/store/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
@@ -4425,19 +4440,23 @@ window.saveFamilyPhoto = async function() {
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'תמונת המשפחה נשמרה בשרת!');
-            btn.classList.add('hidden');
+            showToast('success', 'תמונת המשפחה נשמרה בהצלחה!');
+            const modal = document.getElementById('photo-confirm-modal');
+            if (modal) modal.classList.add('hidden');
+            
+            // עדכון המטמון המקומי כדי שהתמונה תישאר גם אם נגלול לטאבים אחרים
             currentGroup.logo = window.tempFamilyLogoBase64;
             currentGroup.logo_url = window.tempFamilyLogoBase64;
+            currentGroup.image_url = window.tempFamilyLogoBase64;
+            
             if (typeof renderGroupInfo === 'function') renderGroupInfo(); 
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
     } catch(e) {
-        showToast('error', 'שגיאת תקשורת מול השרת');
+        showToast('error', 'שגיאת רשת בשמירת התמונה');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור תמונה';
+        if (btn) { btn.disabled = false; btn.innerHTML = 'שמור תמונה'; }
     }
 };
 
