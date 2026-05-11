@@ -76,23 +76,36 @@ window.onload = async () => {
     if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
+    const savedSession = localStorage.getItem('ofl_session'); 
+
+    // תמיכה במצב השתלטות: אם יש גם סשן לקוח וגם טוקן אדמין, נטען את הלקוח קודם!
+    if(savedSession) { 
+        try { 
+            const session = JSON.parse(savedSession); 
+            if(session && session.user && session.group) { 
+                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
+                currentUser = session.user; currentGroup = session.group; 
+                if (savedSAToken) saToken = savedSAToken; // שומרים את הטוקן למקרה הצורך
+                clearTimeout(failsafeTimer); 
+                loadDashboard(); 
+                return; 
+            }
+        } catch(e) { localStorage.removeItem('ofl_session'); } 
+    }
+
+    // כניסה רגילה למסך מנהל המערכת (Super Admin) - רק אם אין סשן לקוח פעיל
     if (savedSAToken) {
         saToken = savedSAToken; clearTimeout(failsafeTimer); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden');
         const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
         loadSAData(); return;
     }
 
-    const saved = localStorage.getItem('ofl_session'); 
-    if(saved) { 
-        try { 
-            const session = JSON.parse(saved); 
-            if(session && session.user && session.group) { 
-                if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
-                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
-            }
-        } catch(e) { localStorage.removeItem('ofl_session'); } 
-    }
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+};
+
+window.exitImpersonation = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.reload();
 };
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -644,6 +657,18 @@ function executeWithAIWarning(actionFn) {
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // הצגת באנר השתלטות במידה וקיים טוקן סופר-אדמין ברקע
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    const impBanner = getEl('sa-impersonation-banner');
+    if (saTokenLocal && impBanner) {
+        impBanner.classList.remove('hidden');
+        impBanner.classList.add('flex');
+    } else if (impBanner) {
+        impBanner.classList.add('hidden');
+        impBanner.classList.remove('flex');
+    }
+
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
