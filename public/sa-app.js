@@ -1743,35 +1743,52 @@ async function deleteSAPartner(id) {
     showToast('success', 'השותף נמחק בהצלחה');
     renderSAPartnersTable();
 }
-
 // ==========================================
-// OVERRIDE FINAL: פתיחת השתלטות מדויקת
+// OVERRIDE FINAL: השתלטות מאובטחת דרך השרת (API) - מונע זריקת Token
 // ==========================================
-window.impersonateGroup = function(groupId, userId) {
-    // משיכת נתונים
-    const targetGroup = saAllGroups.find(g => g.id === groupId);
-    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
-    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId); // Fallback
+window.impersonateGroup = async function(groupId) {
+    if(!confirm('השתלטות: האם ברצונך להיכנס למערכת הלקוח בטאב חדש?')) return;
     
-    if (targetGroup && targetUser) {
-        // ניקוי אגרסיבי של סשנים ישנים
-        localStorage.removeItem('ofl_session');
+    try {
+        const token = typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token');
+        if (!token) {
+            showToast('error', 'שגיאה: חסר טוקן ניהול. אנא רענן את העמוד.');
+            return;
+        }
+
+        showToast('info', 'מייצר סשן מאובטח מול השרת...');
+
+        const res = await fetch(`${API}/sa/impersonate`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json', 'Authorization': token},
+            body: JSON.stringify({ groupId: groupId })
+        });
+        const data = await res.json();
         
-        // כתיבה מחדש ונקייה של סשן ההשתלטות
-        const sessionData = { user: targetUser, group: targetGroup, isImpersonating: true };
-        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
-        
-        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
-        
-        // פתיחה בטאב חדש עם השהייה קלה לסנכרון זיכרון
-        setTimeout(() => {
-            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
-            const targetUrl = isBiz ? '/business.html' : '/';
-            // הוספת Timestamp כדי למנוע טעינה מזיכרון מטמון של הדפדפן
-            const cleanUrl = `${targetUrl}?session_refresh=${Date.now()}`;
-            window.open(cleanUrl, '_blank');
-        }, 400);
-    } else {
-        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
+        if (data.success) {
+            // ניקוי סשן ישן
+            localStorage.removeItem('ofl_session');
+            
+            // השרת מחזיר יוזר וקבוצה מאומתים, נשמור אותם יחד עם דגל ההשתלטות
+            localStorage.setItem('ofl_session', JSON.stringify({
+                user: data.user, 
+                group: data.group, 
+                isImpersonating: true
+            }));
+            
+            showToast('success', 'הסשן אושר! פותח סביבה...');
+            
+            // פתיחת הטאב הנכון בהתאם לסוג שחזר מהשרת
+            setTimeout(() => {
+                const isBiz = data.group && data.group.type && data.group.type.toString().toUpperCase() === 'BUSINESS';
+                const targetUrl = isBiz ? '/business.html' : '/';
+                window.open(targetUrl, '_blank');
+            }, 300);
+            
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת השתלטות מול השרת');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בהשתלטות. השרת לא מגיב.'); 
     }
 };
