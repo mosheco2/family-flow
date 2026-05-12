@@ -5403,3 +5403,46 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
     };
     window.hookedPermsAndLogoFetch = true;
 }
+
+// ==========================================
+// OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER
+// מנגנון אוטונומי שעוקף כל כפילות קוד במסמך ומזריק את הבאנר מחוץ לעטיפות
+// ==========================================
+setInterval(() => {
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    let bruteBanner = document.getElementById('brute-force-sa-banner');
+    
+    if (saTokenLocal) {
+        // מוודא שהמסך נדחף למטה כדי לפנות מקום
+        if (document.body.style.paddingTop !== '55px') {
+            document.body.style.paddingTop = '55px';
+        }
+        
+        // יצירת הבאנר אם אינו קיים
+        if (!bruteBanner) {
+            bruteBanner = document.createElement('div');
+            bruteBanner.id = 'brute-force-sa-banner';
+            
+            // שימוש ב-CSS אגרסיבי במיוחד שמכריח הופעה מעל כל דבר במסך
+            bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 10px 20px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; font-family: sans-serif !important; direction: rtl !important; height: 55px !important; box-sizing: border-box !important;";
+            
+            bruteBanner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">🕵️‍♂️</span>
+                    <span style="font-size: 14px; font-weight: bold; margin-right: 5px;">מחובר כ-Super Admin (השתלטות)</span>
+                </div>
+                <button onclick="exitImpersonation()" style="background-color: white !important; color: #dc2626 !important; padding: 6px 16px !important; border-radius: 8px !important; font-size: 12px !important; font-weight: 900 !important; border: none !important; cursor: pointer !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;">
+                    התנתק וחזור לניהול
+                </button>
+            `;
+            
+            // הצמדה ל-documentElement עוקפת הגבלות גלילה והסתרה של ה-body!
+            document.documentElement.appendChild(bruteBanner);
+        }
+    } else {
+        if (bruteBanner) bruteBanner.remove();
+        if (document.body.style.paddingTop === '55px') {
+            document.body.style.paddingTop = '0px';
+        }
+    }
+}, 500); // רץ ובודק כל חצי שנייה
