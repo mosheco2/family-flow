@@ -1744,37 +1744,57 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE FINAL: השתלטות אופליין (הזרקת סשן לזיכרון) - פתרון הניתוב
+// OVERRIDE FINAL: השתלטות מאובטחת דרך השרת (API) ללא שגיאות ניתוב
 // ==========================================
-window.impersonateGroup = function(groupId, userId) {
+window.impersonateGroup = async function(groupId, userId) {
     if(!confirm('השתלטות: האם ברצונך להיכנס למערכת הלקוח בטאב חדש?')) return;
     
-    // משיכת נתוני הלקוח מתוך מה שכבר נטען לסופר-אדמין
-    const targetGroup = saAllGroups.find(g => g.id === groupId);
-    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
-    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId); // מקרה חירום אם אין אדמין
-    
-    if (targetGroup && targetUser) {
-        // ניקוי הסשן הקודם כדי למנוע התנגשויות (מה שזורק למסך ההתחברות)
-        localStorage.removeItem('ofl_session');
+    try {
+        // משיכה קשיחה של הטוקן כדי למנוע את שגיאת הרשת מהפעמים הקודמות
+        const currentSaToken = localStorage.getItem('ofl_sa_token');
+        if (!currentSaToken) {
+            return showToast('error', 'לא נמצא טוקן ניהול פעיל. אנא התחבר מחדש לסופר-אדמין.');
+        }
+
+        showToast('success', 'מושך אישור השתלטות מהשרת...');
+
+        // פנייה לשרת לקבלת סשן חוקי (חובה לסביבת עסקים)
+        const res = await fetch(`${API}/sa/impersonate`, { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json', 
+                'Authorization': currentSaToken 
+            },
+            body: JSON.stringify({ groupId: groupId, userId: userId || null })
+        });
         
-        // הזרקת סשן חדש תקין לחלוטין
-        const sessionData = { 
-            user: targetUser, 
-            group: targetGroup, 
-            isImpersonating: true 
-        };
-        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+        const data = await res.json();
         
-        showToast('success', 'יוצר סביבת לקוח...');
-        
-        // השהייה קלה שמבטיחה שהדפדפן שומר את הנתונים לפני פתיחת הטאב
-        setTimeout(() => {
-            const isBiz = targetGroup.type === 'BUSINESS';
-            const targetUrl = isBiz ? '/business.html' : '/';
-            window.open(targetUrl, '_blank');
-        }, 300);
-    } else {
-        showToast('error', 'שגיאה: פרטי הלקוח חסרים. נסה לרענן את העמוד.');
+        if (data.success) {
+            // ניקוי סשנים קודמים מהזיכרון
+            localStorage.removeItem('ofl_session');
+            
+            // שמירת הסשן המאושר מהשרת + דגל השתלטות
+            const sessionData = { 
+                user: data.user, 
+                group: data.group, 
+                isImpersonating: true 
+            };
+            localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+            
+            showToast('success', 'הסשן אושר! פותח סביבה...');
+            
+            // זיהוי ופתיחת הנתיב בטאב חדש בהתאם לסוג
+            setTimeout(() => {
+                const isBiz = data.group && data.group.type && data.group.type.toString().toUpperCase() === 'BUSINESS';
+                const targetUrl = isBiz ? '/business.html' : '/';
+                window.open(targetUrl, '_blank');
+            }, 300);
+        } else {
+            showToast('error', data.error || 'השרת סירב לבקשת ההשתלטות');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בחיבור לשרת בהשתלטות'); 
+        console.error("Impersonation API Error:", e);
     }
 };
