@@ -530,30 +530,29 @@ function renderSAGroups() {
 }
 
 window.impersonateGroup = function(groupId, userId) {
-    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" בסביבה המקורית של הלקוח. להמשיך?')) return;
+    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" בסביבה המקורית של הלקוח בטאב חדש. להמשיך?')) return;
     
-    // שליפת הנתונים ישירות מהזיכרון המקומי של הסופר אדמין!
+    // משיכת נתוני הסביבה והמשתמש מתוך הנתונים שכבר נטענו באדמין
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     const targetUser = saAllUsers.find(u => u.id === userId);
     
     if (targetGroup && targetUser) {
-        // 1. שומרים את הטוקן של הסופר-אדמין בצד כדי שנוכל לחזור אליו אחר כך
-        localStorage.setItem('ofl_sa_return_token', saToken);
+        // מנקים סשן ישן אם קיים כדי לא לערבב נתונים
+        localStorage.removeItem('ofl_session');
         
-        // 2. קריטי: מוחקים זמנית את הטוקן מהדפדפן כדי שהמערכת של הלקוח לא תטען את מסך הסופר-אדמין!
-        localStorage.removeItem('ofl_sa_token');
-        
-        // 3. מרכיבים סשן מזויף לגישה כ-Admin רגיל של הסביבה הנבחרת
+        // מרכיבים סשן גישה כ-Admin רגיל של הסביבה הנבחרת
+        // (אין צורך למחוק את טוקן הסופר-אדמין, כי טאב האדמין נשאר פתוח)
         localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
         
-        showToast('success', 'מתחבר לסביבת הלקוח במצב תמיכה...');
+        showToast('success', 'פותח סביבת לקוח בטאב חדש...');
         
+        // השהייה קלה כדי לוודא שהזיכרון נשמר, ואז פתיחה בטאב חדש
         setTimeout(() => {
-            // שיגור לסביבה העסקית או הביתית של הלקוח
-            window.location.href = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
-        }, 500);
+            const targetUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
+            window.open(targetUrl, '_blank');
+        }, 400);
     } else {
-        showToast('error', 'שגיאה: הלקוח לא נמצא במערכת');
+        showToast('error', 'שגיאה: לא ניתן למצוא נתוני קבוצה או משתמש בסביבה זו.');
     }
 };
 function filterSAGroups() { renderSAGroups(); }
