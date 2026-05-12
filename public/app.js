@@ -5403,16 +5403,16 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
     };
     window.hookedPermsAndLogoFetch = true;
 }
-
 // ==========================================
-// OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER
-// מנגנון אוטונומי שעוקף כל כפילות קוד במסמך ומזריק את הבאנר מחוץ לעטיפות
+// OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER (V3 - UNIFIED DESIGN)
+// מנגנון אוטונומי התואם ויזואלית למערכת העסקים וסוגר את הטאב בניתוק
 // ==========================================
 
-// דריסת פונקציית ההתנתקות - שולח אותנו לניהול החדש ולא למסך הבית
 window.exitImpersonation = function() {
     localStorage.removeItem('ofl_session');
-    window.location.href = '/sa.html';
+    // סגירת הטאב וניסיון ניתוב ליתר ביטחון
+    window.close();
+    setTimeout(() => { window.location.href = '/'; }, 100);
 };
 
 setInterval(() => {
@@ -5425,19 +5425,26 @@ setInterval(() => {
         }
         
         if (!bruteBanner) {
+            // שליפת שם הלקוח מהסשן
+            let customerName = 'לקוח';
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session && session.group) customerName = session.group.name;
+            } catch(e) {}
+
             bruteBanner = document.createElement('div');
             bruteBanner.id = 'brute-force-sa-banner';
             
-            // עיצוב תואם במדויק לבאנר העסקים
-            bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 8px 16px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; font-family: 'Rubik', sans-serif !important; direction: rtl !important; height: 45px !important; box-sizing: border-box !important;";
+            // CSS קשיח התואם למערכת העסקים
+            bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 0 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; font-family: 'Rubik', sans-serif !important; direction: rtl !important; height: 45px !important; box-sizing: border-box !important;";
             
             bruteBanner.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-user-secret" style="font-size: 1.125rem;"></i>
-                    <span style="font-size: 14px; font-weight: bold; letter-spacing: 0.025em;">מחובר כ-Super Admin (סביבת משפחות)</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-ghost animate-pulse" style="font-size: 18px;"></i>
+                    <span style="font-size: 13px; font-weight: bold; letter-spacing: 0.3px;">מצב תמיכה והשתלטות! אתה צופה כרגע בנתוני הלקוח: ${customerName}</span>
                 </div>
-                <button onclick="exitImpersonation()" style="background-color: white !important; color: #dc2626 !important; padding: 6px 16px !important; border-radius: 0.75rem !important; font-size: 12px !important; font-weight: 900 !important; border: 2px solid rgba(255,255,255,0.2) !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; text-transform: uppercase !important; transition: background-color 0.2s !important;" onmouseover="this.style.backgroundColor='#fef2f2'" onmouseout="this.style.backgroundColor='white'">
-                    התנתק וחזור לניהול
+                <button onclick="exitImpersonation()" style="background-color: white !important; color: #dc2626 !important; padding: 5px 15px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 900 !important; border: 2px solid rgba(255,255,255,0.2) !important; cursor: pointer !important; text-transform: uppercase !important; transition: all 0.2s !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;">
+                    התנתקות
                 </button>
             `;
             
