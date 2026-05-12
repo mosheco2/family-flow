@@ -887,7 +887,11 @@ async function askTutor() {
             const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success) { showFamilAIModal('המורה הפרטית שלך', data.explanation); fetchData(); }
-        } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { getEl('btn-tutor').disabled = false; getEl('btn-tutor').innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; }
+       } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { 
+            getEl('btn-tutor').disabled = false; 
+            const logoSrc = window.currentFamilaiLogo ? window.currentFamilaiLogo : 'logo.png';
+            getEl('btn-tutor').innerHTML = `<img src="${logoSrc}" alt="AI" class="w-5 h-5 object-contain rounded-full"> familAI, איפה טעיתי?`; 
+        }
     });
 }
 
@@ -3813,10 +3817,26 @@ window.initPublicConfig = async function() {
         const data = await res.json();
         
         if (data.success) {
-            // החלפת סמל הדפדפן (Favicon) - אם מוגדר
             if (data.globalAiLogo) {
+                // 1. החלפת סמל הדפדפן (Favicon)
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
+                
+                // 2. שמירת התמונה בזיכרון הגלובלי לשימוש עתידי בכפתורים
+                window.currentFamilaiLogo = data.globalAiLogo;
+                
+                // 3. הזרקת התמונה לבועת העוזרת החכמה המרחפת!
+                // מוצא את תגית התמונה <img> שנמצאת בתוך הכפתור btn-global-ai
+                const aiBubbleImg = document.querySelector('#btn-global-ai img');
+                if (aiBubbleImg) {
+                    aiBubbleImg.src = data.globalAiLogo;
+                }
+                
+                // 4. (אופציונלי) אם יש לך תמונה שלה גם בתוך חלון הצ'אט עצמו
+                const aiChatHeaderImg = document.querySelector('#familai-chat-modal img');
+                if (aiChatHeaderImg) {
+                    aiChatHeaderImg.src = data.globalAiLogo;
+                }
             }
 
             // בניית קרוסלת ההתחברות (Login Slider)
