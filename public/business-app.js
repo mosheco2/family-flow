@@ -97,26 +97,24 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
     const preloader = getEl('app-preloader');
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
-// === מנגנון השתלטות סופר-אדמין (Impersonation Mode) ===
+// === מנגנון השתלטות סופר-אדמין (Impersonation Mode) - גרסת התנתקות וסגירה ===
 function checkImpersonationMode() {
     try {
         const session = JSON.parse(localStorage.getItem('ofl_session'));
         if (session && session.isImpersonating) {
-            // אם המשתמש הוא סופר-אדמין בהשתלטות, הזרק פס אזהרה לראש העמוד
             if (!document.getElementById('impersonation-warning-bar')) {
                 const warningBar = document.createElement('div');
                 warningBar.id = 'impersonation-warning-bar';
                 warningBar.className = 'fixed top-0 left-0 right-0 z-[9999999] bg-red-600 text-white p-2 flex justify-center items-center gap-4 shadow-md font-bold text-sm text-center';
                 warningBar.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-user-secret text-lg animate-pulse"></i> 
+                        <i class="fa-solid fa-ghost text-lg animate-pulse"></i> 
                         מצב תמיכה והשתלטות! אתה צופה כרגע בנתוני הלקוח: ${session.group.name}
                     </div>
-                    <button onclick="exitImpersonationMode()" class="bg-white text-red-600 px-4 py-1 rounded-full text-xs font-black shadow-sm hover:bg-slate-100 transition">סיים וחזור ל-SA</button>
+                    <button onclick="exitImpersonationMode()" class="bg-white text-red-600 px-4 py-1 rounded-full text-xs font-black shadow-sm hover:bg-slate-100 transition">התנתקות</button>
                 `;
                 document.body.prepend(warningBar);
                 
-                // דחיפת הדשבורד קצת למטה כדי שהפס לא יסתיר כלום
                 setTimeout(() => {
                     const dashContainer = document.getElementById('dashboard-container');
                     if (dashContainer) dashContainer.style.marginTop = '40px';
@@ -127,13 +125,16 @@ function checkImpersonationMode() {
 }
 
 window.exitImpersonationMode = function() {
-    const returnToken = localStorage.getItem('ofl_sa_return_token');
-    if (returnToken) {
-        localStorage.setItem('ofl_sa_token', returnToken);
-        localStorage.removeItem('ofl_sa_return_token');
-    }
+    // ניקוי סשן ההשתלטות
     localStorage.removeItem('ofl_session');
-    window.location.href = '/sa.html'; // חזרה למסך הסופר-אדמין
+    
+    // מאחר והסביבה נפתחה בטאב נפרד, אנחנו פשוט סוגרים אותו
+    window.close();
+    
+    // גיבוי למקרה שהדפדפן חוסם סגירת חלון שלא נפתח ב-JS (למשל רענון דף הבית)
+    setTimeout(() => {
+        window.location.href = '/';
+    }, 100);
 };
 
 // הפעלת הבדיקה
