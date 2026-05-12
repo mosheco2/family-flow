@@ -686,17 +686,33 @@ async function loadDashboard() {
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
 
-    // הצגת באנר השתלטות
+    // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    const impBanner = document.getElementById('sa-impersonation-banner');
+    let dynamicBanner = document.getElementById('dynamic-sa-banner');
     
-    if (saTokenLocal && impBanner) {
-        impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex'); // חשוב לתצוגה נכונה עם Tailwind
-    } else if (impBanner) {
-        impBanner.classList.add('hidden');
-        impBanner.classList.remove('flex');
+    if (saTokenLocal) {
+        if (!dynamicBanner) {
+            dynamicBanner = document.createElement('div');
+            dynamicBanner.id = 'dynamic-sa-banner';
+            // שימוש ב-Inline Styles כדי לעקוף את בעיית הרינדור של Tailwind
+            dynamicBanner.style.cssText = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999999; display: flex; justify-content: space-between; align-items: center; width: 100%; background-color: #dc2626; color: white; padding: 0.5rem 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);";
+            dynamicBanner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-user-secret" style="font-size: 1.125rem;"></i>
+                    <span style="font-size: 0.875rem; font-weight: bold;">מחובר כ-Super Admin (השתלטות)</span>
+                </div>
+                <button onclick="exitImpersonation()" style="background-color: white; color: #dc2626; padding: 0.375rem 1rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    התנתק וחזור לניהול
+                </button>
+            `;
+            document.body.appendChild(dynamicBanner);
+        }
+        document.body.style.paddingTop = '55px'; // דוחף את המסך למטה
+    } else {
+        if (dynamicBanner) dynamicBanner.remove();
+        document.body.style.paddingTop = '0px';
     }
+    // -----------------------------------------------------------
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
