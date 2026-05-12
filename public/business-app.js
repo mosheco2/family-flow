@@ -97,11 +97,20 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
     const preloader = getEl('app-preloader');
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
-// === מנגנון השתלטות סופר-אדמין (Impersonation Mode) - גרסת התנתקות וסגירה ===
+// === מנגנון השתלטות סופר-אדמין (Impersonation Mode) - גרסת תיכון מסלול אוטומטי ===
 function checkImpersonationMode() {
     try {
-        const session = JSON.parse(localStorage.getItem('ofl_session'));
+        const saved = localStorage.getItem('ofl_session');
+        if (!saved) return;
+        
+        const session = JSON.parse(saved);
         if (session && session.isImpersonating) {
+            // תיקון מסלול: אם אנחנו בהשתלטות עסקית אבל נחתנו בטעות בדף המשפחה (index)
+            if (session.group && session.group.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) {
+                window.location.href = '/business.html';
+                return;
+            }
+
             if (!document.getElementById('impersonation-warning-bar')) {
                 const warningBar = document.createElement('div');
                 warningBar.id = 'impersonation-warning-bar';
@@ -121,7 +130,7 @@ function checkImpersonationMode() {
                 }, 100);
             }
         }
-    } catch(e) {}
+    } catch(e) { console.error("Impersonation Check Error:", e); }
 }
 
 window.exitImpersonationMode = function() {
