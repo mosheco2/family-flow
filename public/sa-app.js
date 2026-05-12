@@ -530,35 +530,36 @@ function renderSAGroups() {
 }
 
 // ==========================================
-// OVERRIDE FINAL: פתיחת השתלטות מדויקת (פתרון בעיית הניתוב לעסקים/משפחות)
+// OVERRIDE FINAL: פתיחת השתלטות מדויקת חסינת התנגשויות (Race Condition Fix)
 // ==========================================
 window.impersonateGroup = function(groupId, userId) {
-    // משיכת נתונים
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
-    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId); // Fallback
+    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId);
     
     if (targetGroup && targetUser) {
-        // 1. ניקוי אגרסיבי של סשנים ישנים למניעת זליגת מידע
-        localStorage.removeItem('ofl_session');
-        
-        // 2. כתיבה מחדש ונקייה של סשן ההשתלטות
         const sessionData = { user: targetUser, group: targetGroup, isImpersonating: true };
-        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+        const sessionStr = JSON.stringify(sessionData);
         
-        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
+        // 1. הזרקה אגרסיבית לזיכרון
+        localStorage.setItem('ofl_session', sessionStr);
         
-        // 3. השהיית ביטחון משמעותית (400ms) לפני הפתיחה, כדי להבטיח שה-Storage הסתנכרן
+        // 2. שומר ראש: מכריח את הסשן להישאר יציב למשך 3 שניות ומונע מטאבים רקעיים (משפחות) לדרוס אותו!
+        const forceSessionInterval = setInterval(() => {
+            localStorage.setItem('ofl_session', sessionStr);
+        }, 50);
+        setTimeout(() => clearInterval(forceSessionInterval), 3000);
+        
+        showToast('success', 'יוצר סביבה נקייה ומתחבר...');
+        
+        // 3. פתיחה בטאב חדש עם נתיב מדויק
         setTimeout(() => {
-            // הגדרה קשיחה של הנתיב בהתאם לסוג
             const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
             const targetUrl = isBiz ? '/business.html' : '/';
-            
-            // פתיחה בטאב חדש
             window.open(targetUrl, '_blank');
-        }, 400);
+        }, 300);
     } else {
-        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון.');
+        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
 function filterSAGroups() { renderSAGroups(); }
