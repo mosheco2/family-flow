@@ -1719,26 +1719,41 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE: פתיחת השתלטות בטאב חדש (ללא דריסת האדמין)
+// OVERRIDE: פתיחת השתלטות בטאב חדש (העברת טוקן בטוחה וניתוב חכם)
 // ==========================================
 window.impersonateGroup = async function(groupId) {
     try {
+        // משיכה קשיחה של הטוקן כדי למנוע קריסות של Variable Undefined
+        const currentToken = localStorage.getItem('ofl_sa_token');
+        
+        if (!currentToken) {
+            showToast('error', 'לא נמצא טוקן אדמין. אנא התחבר מחדש.');
+            return;
+        }
+
         const res = await fetch(`${API}/sa/impersonate`, { 
             method: 'POST', 
-            headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token')},
+            headers: {
+                'Content-Type': 'application/json', 
+                'Authorization': currentToken 
+            },
             body: JSON.stringify({ groupId: groupId })
         });
         const data = await res.json();
         
         if(data.success) {
-            // שמירת הסשן (ישפיע מידית כי זה LocalStorage שמשותף לכל הטאבים)
+            // שמירת הסשן שמשותף לכל הטאבים
             localStorage.setItem('ofl_session', JSON.stringify({user: data.user, group: data.group}));
-            // פתיחת סביבת הלקוח בטאב חדש!
-            window.open('/', '_blank');
+            
+            // בדיקת סוג הסביבה ופתיחה בטאב חדש בנתיב הנכון
+            const targetUrl = data.group.type === 'BUSINESS' ? '/business.html' : '/';
+            window.open(targetUrl, '_blank');
+            
         } else {
             if(typeof showToast === 'function') showToast('error', data.error || 'שגיאה בהשתלטות');
         }
     } catch(e) { 
         if(typeof showToast === 'function') showToast('error', 'שגיאת רשת בהשתלטות'); 
+        console.error("Impersonation error details: ", e);
     }
 };
