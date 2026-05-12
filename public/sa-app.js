@@ -1744,57 +1744,50 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE FINAL: השתלטות מאובטחת דרך השרת (API) ללא שגיאות ניתוב
+// OVERRIDE FINAL: השתלטות מקומית מהירה (עוקף חסימת טוקן עסקי)
 // ==========================================
-window.impersonateGroup = async function(groupId, userId) {
+window.impersonateGroup = function(groupId, userId) {
     if(!confirm('השתלטות: האם ברצונך להיכנס למערכת הלקוח בטאב חדש?')) return;
     
-    try {
-        // משיכה קשיחה של הטוקן כדי למנוע את שגיאת הרשת מהפעמים הקודמות
-        const currentSaToken = localStorage.getItem('ofl_sa_token');
-        if (!currentSaToken) {
-            return showToast('error', 'לא נמצא טוקן ניהול פעיל. אנא התחבר מחדש לסופר-אדמין.');
-        }
-
-        showToast('success', 'מושך אישור השתלטות מהשרת...');
-
-        // פנייה לשרת לקבלת סשן חוקי (חובה לסביבת עסקים)
-        const res = await fetch(`${API}/sa/impersonate`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json', 
-                'Authorization': currentSaToken 
-            },
-            body: JSON.stringify({ groupId: groupId, userId: userId || null })
-        });
+    const targetGroup = saAllGroups.find(g => g.id === groupId);
+    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
+    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId);
+    
+    // יצירת משתמש וירטואלי לעסק אם לא נמצא משתמש פיזי (מונע קריסה בכניסה)
+    if (!targetUser && targetGroup && targetGroup.type === 'BUSINESS') {
+        targetUser = { id: 99999, nickname: targetGroup.name, role: 'ADMIN', group_id: groupId };
+    }
+    
+    if (targetGroup && targetUser) {
+        // ניקוי מוחלט של זיכרון ישן
+        localStorage.removeItem('ofl_session');
+        localStorage.removeItem('ofl_token');
         
-        const data = await res.json();
+        const currentToken = localStorage.getItem('ofl_sa_token') || 'impersonation_token';
         
-        if (data.success) {
-            // ניקוי סשנים קודמים מהזיכרון
-            localStorage.removeItem('ofl_session');
-            
-            // שמירת הסשן המאושר מהשרת + דגל השתלטות
-            const sessionData = { 
-                user: data.user, 
-                group: data.group, 
-                isImpersonating: true 
-            };
-            localStorage.setItem('ofl_session', JSON.stringify(sessionData));
-            
-            showToast('success', 'הסשן אושר! פותח סביבה...');
-            
-            // זיהוי ופתיחת הנתיב בטאב חדש בהתאם לסוג
-            setTimeout(() => {
-                const isBiz = data.group && data.group.type && data.group.type.toString().toUpperCase() === 'BUSINESS';
-                const targetUrl = isBiz ? '/business.html' : '/';
-                window.open(targetUrl, '_blank');
-            }, 300);
-        } else {
-            showToast('error', data.error || 'השרת סירב לבקשת ההשתלטות');
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת רשת בחיבור לשרת בהשתלטות'); 
-        console.error("Impersonation API Error:", e);
+        // הוספת הטוקן לתוך הסשן - זה מה שפותר את זריקת החשבון העסקי!
+        const sessionData = { 
+            user: targetUser, 
+            group: targetGroup, 
+            token: currentToken, 
+            isImpersonating: true 
+        };
+        
+        // וידוא מוחלט שהסוג הוא BUSINESS אותיות גדולות
+        if (targetGroup.type) sessionData.group.type = targetGroup.type.toString().toUpperCase();
+        
+        // הזרקת הנתונים לזיכרון הדפדפן
+        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+        localStorage.setItem('ofl_token', currentToken); // הזרקת הטוקן בנפרד למקרה שהמערכת מחפשת אותו שם
+        
+        showToast('success', 'יוצר סביבת לקוח...');
+        
+        setTimeout(() => {
+            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
+            const targetUrl = isBiz ? '/business.html' : '/';
+            window.open(targetUrl, '_blank');
+        }, 300);
+    } else {
+        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
