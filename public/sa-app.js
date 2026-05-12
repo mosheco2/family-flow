@@ -530,36 +530,56 @@ function renderSAGroups() {
 }
 
 // ==========================================
-// OVERRIDE FINAL: פתיחת השתלטות מדויקת חסינת התנגשויות (Race Condition Fix)
+// OVERRIDE FINAL: השתלטות מאובטחת דרך השרת (API) - מונע זריקה מתוך סביבת עסקים
 // ==========================================
-window.impersonateGroup = function(groupId, userId) {
-    const targetGroup = saAllGroups.find(g => g.id === groupId);
-    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
-    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId);
+window.impersonateGroup = async function(groupId, userId) {
+    if(!confirm('השתלטות: האם ברצונך להיכנס למערכת הלקוח בטאב חדש?')) return;
     
-    if (targetGroup && targetUser) {
-        const sessionData = { user: targetUser, group: targetGroup, isImpersonating: true };
-        const sessionStr = JSON.stringify(sessionData);
+    try {
+        // משיכה קשיחה של הטוקן מהזיכרון המקומי כדי למנוע באגים של שגיאת רשת
+        const currentSaToken = localStorage.getItem('ofl_sa_token');
+        if (!currentSaToken) {
+            return showToast('error', 'לא נמצא טוקן ניהול פעיל. אנא התחבר מחדש לסופר-אדמין.');
+        }
+
+        showToast('success', 'יוצר חיבור מאובטח מול השרת...');
+
+        // פנייה לשרת כדי לקבל אישור ולייצר סשן חוקי (כדי שהעסק לא יזרוק אותנו החוצה)
+        const res = await fetch(`${API}/sa/impersonate`, { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json', 
+                'Authorization': currentSaToken 
+            },
+            body: JSON.stringify({ groupId: groupId, userId: userId || null })
+        });
         
-        // 1. הזרקה אגרסיבית לזיכרון
-        localStorage.setItem('ofl_session', sessionStr);
+        const data = await res.json();
         
-        // 2. שומר ראש: מכריח את הסשן להישאר יציב למשך 3 שניות ומונע מטאבים רקעיים (משפחות) לדרוס אותו!
-        const forceSessionInterval = setInterval(() => {
-            localStorage.setItem('ofl_session', sessionStr);
-        }, 50);
-        setTimeout(() => clearInterval(forceSessionInterval), 3000);
-        
-        showToast('success', 'יוצר סביבה נקייה ומתחבר...');
-        
-        // 3. פתיחה בטאב חדש עם נתיב מדויק
-        setTimeout(() => {
-            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
-            const targetUrl = isBiz ? '/business.html' : '/';
-            window.open(targetUrl, '_blank');
-        }, 300);
-    } else {
-        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
+        if (data.success) {
+            // מנקים שאריות סשנים ישנים
+            localStorage.removeItem('ofl_session');
+            
+            // שומרים את הסשן המאושר והרשמי מהשרת
+            const sessionData = { 
+                user: data.user, 
+                group: data.group, 
+                isImpersonating: true 
+            };
+            localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+            
+            // זיהוי ופתיחת הנתיב בטאב חדש עם השהייה קלה לסנכרון הדפדפן
+            setTimeout(() => {
+                const isBiz = data.group.type && data.group.type.toString().toUpperCase() === 'BUSINESS';
+                const targetUrl = isBiz ? '/business.html' : '/';
+                window.open(targetUrl, '_blank');
+            }, 300);
+        } else {
+            showToast('error', data.error || 'השרת סירב לבקשת ההשתלטות');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בחיבור לשרת בהשתלטות'); 
+        console.error("Impersonation Error:", e);
     }
 };
 function filterSAGroups() { renderSAGroups(); }
@@ -570,7 +590,6 @@ async function saDeleteUser(id) {
     showToast('success', 'משתמש נמחק');
     loadSAData();
 }
-
 async function saDeleteGroup(id) {
     if (!confirm('האם למחוק סביבה זו לצמיתות?')) return;
     await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
