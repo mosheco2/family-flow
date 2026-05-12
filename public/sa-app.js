@@ -1718,3 +1718,27 @@ async function deleteSAPartner(id) {
     showToast('success', 'השותף נמחק בהצלחה');
     renderSAPartnersTable();
 }
+// ==========================================
+// OVERRIDE: פתיחת השתלטות בטאב חדש (ללא דריסת האדמין)
+// ==========================================
+window.impersonateGroup = async function(groupId) {
+    try {
+        const res = await fetch(`${API}/sa/impersonate`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token')},
+            body: JSON.stringify({ groupId: groupId })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            // שמירת הסשן (ישפיע מידית כי זה LocalStorage שמשותף לכל הטאבים)
+            localStorage.setItem('ofl_session', JSON.stringify({user: data.user, group: data.group}));
+            // פתיחת סביבת הלקוח בטאב חדש!
+            window.open('/', '_blank');
+        } else {
+            if(typeof showToast === 'function') showToast('error', data.error || 'שגיאה בהשתלטות');
+        }
+    } catch(e) { 
+        if(typeof showToast === 'function') showToast('error', 'שגיאת רשת בהשתלטות'); 
+    }
+};
