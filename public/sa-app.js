@@ -529,30 +529,36 @@ function renderSAGroups() {
     groupsList.innerHTML = gHtml;
 }
 
+// ==========================================
+// OVERRIDE FINAL: פתיחת השתלטות מדויקת (פתרון בעיית הניתוב לעסקים/משפחות)
+// ==========================================
 window.impersonateGroup = function(groupId, userId) {
-    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" בסביבה המקורית של הלקוח בטאב חדש. להמשיך?')) return;
-    
-    // משיכת נתוני הסביבה והמשתמש מתוך הנתונים שכבר נטענו באדמין
+    // משיכת נתונים
     const targetGroup = saAllGroups.find(g => g.id === groupId);
-    const targetUser = saAllUsers.find(u => u.id === userId);
+    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
+    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId); // Fallback
     
     if (targetGroup && targetUser) {
-        // מנקים סשן ישן אם קיים כדי לא לערבב נתונים
+        // 1. ניקוי אגרסיבי של סשנים ישנים למניעת זליגת מידע
         localStorage.removeItem('ofl_session');
         
-        // מרכיבים סשן גישה כ-Admin רגיל של הסביבה הנבחרת
-        // (אין צורך למחוק את טוקן הסופר-אדמין, כי טאב האדמין נשאר פתוח)
-        localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
+        // 2. כתיבה מחדש ונקייה של סשן ההשתלטות
+        const sessionData = { user: targetUser, group: targetGroup, isImpersonating: true };
+        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
         
-        showToast('success', 'פותח סביבת לקוח בטאב חדש...');
+        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
         
-        // השהייה קלה כדי לוודא שהזיכרון נשמר, ואז פתיחה בטאב חדש
+        // 3. השהיית ביטחון משמעותית (400ms) לפני הפתיחה, כדי להבטיח שה-Storage הסתנכרן
         setTimeout(() => {
-            const targetUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
+            // הגדרה קשיחה של הנתיב בהתאם לסוג
+            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
+            const targetUrl = isBiz ? '/business.html' : '/';
+            
+            // פתיחה בטאב חדש
             window.open(targetUrl, '_blank');
         }, 400);
     } else {
-        showToast('error', 'שגיאה: לא ניתן למצוא נתוני קבוצה או משתמש בסביבה זו.');
+        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון.');
     }
 };
 function filterSAGroups() { renderSAGroups(); }
@@ -1717,34 +1723,7 @@ async function deleteSAPartner(id) {
     showToast('success', 'השותף נמחק בהצלחה');
     renderSAPartnersTable();
 }
-// ==========================================
-// OVERRIDE FINAL: פתיחת השתלטות בטאב חדש (פתרון בעיית הניתוב הראשוני)
-// ==========================================
-window.impersonateGroup = function(groupId, userId) {
-    const targetGroup = saAllGroups.find(g => g.id === groupId);
-    const targetUser = saAllUsers.find(u => u.id === userId);
-    
-    if (targetGroup && targetUser) {
-        // 1. ניקוי מוחלט של סשנים קודמים לפני התחלה
-        localStorage.removeItem('ofl_session');
-        
-        // 2. כתיבה מחדש של הסשן המדויק
-        const sessionData = { 
-            user: targetUser, 
-            group: targetGroup, 
-            isImpersonating: true 
-        };
-        
-        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
-        showToast('success', 'יוצר חיבור לסביבת הלקוח...');
-        
-        // 3. פתיחה בטאב חדש עם מנגנון מניעת Cache (מוסיף חותמת זמן ל-URL)
-        setTimeout(() => {
-            const baseUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
-            const cleanUrl = `${baseUrl}?session_refresh=${Date.now()}`;
-            window.open(cleanUrl, '_blank');
-        }, 300);
-    } else {
+
         showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
