@@ -5404,14 +5404,15 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
     window.hookedPermsAndLogoFetch = true;
 }
 // ==========================================
-// OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER (V3 - UNIFIED DESIGN)
-// מנגנון אוטונומי התואם ויזואלית למערכת העסקים וסוגר את הטאב בניתוק
+// OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER (V3 - UNIFIED GHOST DESIGN)
+// מנגנון אוטונומי לסביבת משפחות - תואם ויזואלית לעסקים וסוגר טאב בניתוק
 // ==========================================
 
 window.exitImpersonation = function() {
     localStorage.removeItem('ofl_session');
-    // סגירת הטאב וניסיון ניתוב ליתר ביטחון
+    // סגירת הטאב הנוכחי שבו בוצעה ההשתלטות
     window.close();
+    // ליתר ביטחון, אם הדפדפן חוסם סגירה אוטומטית, נרענן לדף הבית
     setTimeout(() => { window.location.href = '/'; }, 100);
 };
 
@@ -5425,7 +5426,7 @@ setInterval(() => {
         }
         
         if (!bruteBanner) {
-            // שליפת שם הלקוח מהסשן
+            // שליפת שם הלקוח (המשפחה) מהסשן
             let customerName = 'לקוח';
             try {
                 const session = JSON.parse(localStorage.getItem('ofl_session'));
@@ -5435,7 +5436,7 @@ setInterval(() => {
             bruteBanner = document.createElement('div');
             bruteBanner.id = 'brute-force-sa-banner';
             
-            // CSS קשיח התואם למערכת העסקים
+            // עיצוב Ghost אדום - זהה לחלוטין לעסקים
             bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 0 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; font-family: 'Rubik', sans-serif !important; direction: rtl !important; height: 45px !important; box-sizing: border-box !important;";
             
             bruteBanner.innerHTML = `
