@@ -1718,17 +1718,17 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE: פתיחת השתלטות בטאב חדש (ניתוב חכם וניקוי סשן)
+// OVERRIDE FINAL: פתיחת השתלטות בטאב חדש (פתרון בעיית הניתוב הראשוני)
 // ==========================================
 window.impersonateGroup = function(groupId, userId) {
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     const targetUser = saAllUsers.find(u => u.id === userId);
     
     if (targetGroup && targetUser) {
-        // ניקוי סשן קודם כדי למנוע ערבוב נתונים
+        // 1. ניקוי מוחלט של סשנים קודמים לפני התחלה
         localStorage.removeItem('ofl_session');
         
-        // יצירת סשן חדש
+        // 2. כתיבה מחדש של הסשן המדויק
         const sessionData = { 
             user: targetUser, 
             group: targetGroup, 
@@ -1736,14 +1736,15 @@ window.impersonateGroup = function(groupId, userId) {
         };
         
         localStorage.setItem('ofl_session', JSON.stringify(sessionData));
-        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
+        showToast('success', 'יוצר חיבור לסביבת הלקוח...');
         
+        // 3. פתיחה בטאב חדש עם מנגנון מניעת Cache (מוסיף חותמת זמן ל-URL)
         setTimeout(() => {
-            // ניתוב מדויק: עסק הולך ל-business.html, משפחה הולכת ל-index (/)
-            const targetUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
-            window.open(targetUrl, '_blank');
-        }, 200);
+            const baseUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
+            const cleanUrl = `${baseUrl}?session_refresh=${Date.now()}`;
+            window.open(cleanUrl, '_blank');
+        }, 300);
     } else {
-        showToast('error', 'שגיאה: פרטי הלקוח לא נמצאו.');
+        showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
