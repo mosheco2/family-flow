@@ -682,11 +682,11 @@ function executeWithAIWarning(actionFn) {
     }
 }
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
-    // --- הזרקת באנר השתלטות דינמי (פתרון בעיית ה-Tailwind CDN) ---
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // --- הזרקת באנר השתלטות דינמי (פתרון בעיית ה-Tailwind CDN והרווחים) ---
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let dynamicBanner = document.getElementById('dynamic-sa-banner');
     
@@ -694,7 +694,6 @@ async function loadDashboard() {
         if (!dynamicBanner) {
             dynamicBanner = document.createElement('div');
             dynamicBanner.id = 'dynamic-sa-banner';
-            // שימוש ב-Inline Styles כדי לעקוף את העובדה ש-Tailwind לא מרנדר מחלקות חדשות שמוזרקות ב-JS
             dynamicBanner.style.cssText = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999999; display: flex; justify-content: space-between; align-items: center; width: 100%; background-color: #dc2626; color: white; padding: 0.5rem 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);";
             dynamicBanner.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -714,7 +713,7 @@ async function loadDashboard() {
     }
     // -----------------------------------------------------------
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
     const isAdmin = currentUser.role === 'ADMIN';
