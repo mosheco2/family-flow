@@ -686,29 +686,28 @@ async function loadDashboard() {
     const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
     
-    // --- פתרון מוחלט: הזרקת באנר השתלטות דינמי ישירות ל-Body ---
+    // --- הזרקת באנר השתלטות דינמי ישירות ל-Body ---
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    let dynamicBanner = getEl('dynamic-sa-banner');
+    const existingBanner = document.getElementById('dynamic-sa-banner');
     
     if (saTokenLocal) {
-        if (!dynamicBanner) {
-            dynamicBanner = document.createElement('div');
-            dynamicBanner.id = 'dynamic-sa-banner';
-            dynamicBanner.className = 'fixed top-0 left-0 right-0 z-[999999] w-full bg-red-600 text-white px-4 py-2 flex justify-between items-center shadow-2xl';
-            dynamicBanner.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-user-secret text-lg animate-pulse"></i>
-                    <span class="text-xs sm:text-sm font-bold tracking-wide">מחובר כ-Super Admin (השתלטות)</span>
+        if (!existingBanner) {
+            const bannerHTML = `
+                <div id="dynamic-sa-banner" style="position: fixed; top: 0; left: 0; right: 0; z-index: 999999; display: flex; justify-content: space-between; align-items: center; width: 100%; background-color: #dc2626; color: white; padding: 0.5rem 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-user-secret" style="font-size: 1.125rem;"></i>
+                        <span style="font-size: 0.875rem; font-weight: bold;">מחובר כ-Super Admin (השתלטות)</span>
+                    </div>
+                    <button onclick="exitImpersonation()" style="background-color: white; color: #dc2626; padding: 0.375rem 1rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+                        התנתק וחזור לניהול
+                    </button>
                 </div>
-                <button onclick="exitImpersonation()" class="bg-white text-red-600 px-4 py-1.5 rounded-xl shadow-md text-[10px] sm:text-xs font-black hover:bg-red-50 transition border-2 border-white/20 uppercase tracking-tight">
-                    התנתק וחזור
-                </button>
             `;
-            document.body.prepend(dynamicBanner); // מצמיד לראש המסמך, מחוץ לכל עטיפה
+            document.body.insertAdjacentHTML('afterbegin', bannerHTML);
         }
-        document.body.style.paddingTop = '45px'; // דוחף את המסך למטה בעבור הבאנר
+        document.body.style.paddingTop = '50px'; // דוחף את המסך למטה בעבור הבאנר (הגדלתי טיפה את המרווח ליתר ביטחון)
     } else {
-        if (dynamicBanner) dynamicBanner.remove();
+        if (existingBanner) existingBanner.remove();
         document.body.style.paddingTop = '0px';
     }
     // -----------------------------------------------------------
