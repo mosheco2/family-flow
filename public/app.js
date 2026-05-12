@@ -5408,41 +5408,45 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
 // OVERRIDE FINAL: BRUTE FORCE IMPERSONATION BANNER
 // מנגנון אוטונומי שעוקף כל כפילות קוד במסמך ומזריק את הבאנר מחוץ לעטיפות
 // ==========================================
+
+// דריסת פונקציית ההתנתקות - שולח אותנו לניהול החדש ולא למסך הבית
+window.exitImpersonation = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.href = '/sa.html';
+};
+
 setInterval(() => {
     const saTokenLocal = localStorage.getItem('ofl_sa_token');
     let bruteBanner = document.getElementById('brute-force-sa-banner');
     
     if (saTokenLocal) {
-        // מוודא שהמסך נדחף למטה כדי לפנות מקום
-        if (document.body.style.paddingTop !== '55px') {
-            document.body.style.paddingTop = '55px';
+        if (document.body.style.paddingTop !== '45px') {
+            document.body.style.paddingTop = '45px';
         }
         
-        // יצירת הבאנר אם אינו קיים
         if (!bruteBanner) {
             bruteBanner = document.createElement('div');
             bruteBanner.id = 'brute-force-sa-banner';
             
-            // שימוש ב-CSS אגרסיבי במיוחד שמכריח הופעה מעל כל דבר במסך
-            bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 10px 20px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; font-family: sans-serif !important; direction: rtl !important; height: 55px !important; box-sizing: border-box !important;";
+            // עיצוב תואם במדויק לבאנר העסקים
+            bruteBanner.style.cssText = "position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 2147483647 !important; display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; background-color: #dc2626 !important; color: white !important; padding: 8px 16px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5) !important; font-family: 'Rubik', sans-serif !important; direction: rtl !important; height: 45px !important; box-sizing: border-box !important;";
             
             bruteBanner.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 18px;">🕵️‍♂️</span>
-                    <span style="font-size: 14px; font-weight: bold; margin-right: 5px;">מחובר כ-Super Admin (השתלטות)</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-secret" style="font-size: 1.125rem;"></i>
+                    <span style="font-size: 14px; font-weight: bold; letter-spacing: 0.025em;">מחובר כ-Super Admin (סביבת משפחות)</span>
                 </div>
-                <button onclick="exitImpersonation()" style="background-color: white !important; color: #dc2626 !important; padding: 6px 16px !important; border-radius: 8px !important; font-size: 12px !important; font-weight: 900 !important; border: none !important; cursor: pointer !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;">
+                <button onclick="exitImpersonation()" style="background-color: white !important; color: #dc2626 !important; padding: 6px 16px !important; border-radius: 0.75rem !important; font-size: 12px !important; font-weight: 900 !important; border: 2px solid rgba(255,255,255,0.2) !important; cursor: pointer !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important; text-transform: uppercase !important; transition: background-color 0.2s !important;" onmouseover="this.style.backgroundColor='#fef2f2'" onmouseout="this.style.backgroundColor='white'">
                     התנתק וחזור לניהול
                 </button>
             `;
             
-            // הצמדה ל-documentElement עוקפת הגבלות גלילה והסתרה של ה-body!
             document.documentElement.appendChild(bruteBanner);
         }
     } else {
         if (bruteBanner) bruteBanner.remove();
-        if (document.body.style.paddingTop === '55px') {
+        if (document.body.style.paddingTop === '45px') {
             document.body.style.paddingTop = '0px';
         }
     }
-}, 500); // רץ ובודק כל חצי שנייה
+}, 500);
