@@ -682,24 +682,38 @@ function executeWithAIWarning(actionFn) {
     }
 }
 async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    
-    // טיפול בבאנר ההשתלטות - נכנס לתוך זרימת המסמך
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    const impBanner = getEl('sa-impersonation-banner');
-    if (saTokenLocal && impBanner) {
-        impBanner.classList.remove('hidden');
-        impBanner.classList.add('flex');
-        document.body.style.paddingTop = '0px'; // ללא שטח ריק, הבאנר בפנים!
-    } else if (impBanner) {
-        impBanner.classList.add('hidden');
-        impBanner.classList.remove('flex');
-        document.body.style.paddingTop = '0px';
-    }
+    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+    const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
+    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    
+    // --- פתרון מוחלט: הזרקת באנר השתלטות דינמי ישירות ל-Body ---
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    let dynamicBanner = getEl('dynamic-sa-banner');
+    
+    if (saTokenLocal) {
+        if (!dynamicBanner) {
+            dynamicBanner = document.createElement('div');
+            dynamicBanner.id = 'dynamic-sa-banner';
+            dynamicBanner.className = 'fixed top-0 left-0 right-0 z-[999999] w-full bg-red-600 text-white px-4 py-2 flex justify-between items-center shadow-2xl';
+            dynamicBanner.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-user-secret text-lg animate-pulse"></i>
+                    <span class="text-xs sm:text-sm font-bold tracking-wide">מחובר כ-Super Admin (השתלטות)</span>
+                </div>
+                <button onclick="exitImpersonation()" class="bg-white text-red-600 px-4 py-1.5 rounded-xl shadow-md text-[10px] sm:text-xs font-black hover:bg-red-50 transition border-2 border-white/20 uppercase tracking-tight">
+                    התנתק וחזור
+                </button>
+            `;
+            document.body.prepend(dynamicBanner); // מצמיד לראש המסמך, מחוץ לכל עטיפה
+        }
+        document.body.style.paddingTop = '45px'; // דוחף את המסך למטה בעבור הבאנר
+    } else {
+        if (dynamicBanner) dynamicBanner.remove();
+        document.body.style.paddingTop = '0px';
+    }
+    // -----------------------------------------------------------
 
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
 
     const isAdmin = currentUser.role === 'ADMIN';
