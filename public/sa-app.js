@@ -1719,41 +1719,25 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE: פתיחת השתלטות בטאב חדש (העברת טוקן בטוחה וניתוב חכם)
+// OVERRIDE: פתיחת השתלטות בטאב חדש (על בסיס נתונים מקומיים)
 // ==========================================
-window.impersonateGroup = async function(groupId) {
-    try {
-        // משיכה קשיחה של הטוקן כדי למנוע קריסות של Variable Undefined
-        const currentToken = localStorage.getItem('ofl_sa_token');
+window.impersonateGroup = function(groupId, userId) {
+    // משיכת נתוני הסביבה והמשתמש מתוך הנתונים שכבר נטענו באדמין
+    const targetGroup = saAllGroups.find(g => g.id === groupId);
+    const targetUser = saAllUsers.find(u => u.id === userId);
+    
+    if (targetGroup && targetUser) {
+        // שמירת סשן הגישה ב-LocalStorage. הטאב החדש שיפתח יקרא את זה אוטומטית.
+        localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
         
-        if (!currentToken) {
-            showToast('error', 'לא נמצא טוקן אדמין. אנא התחבר מחדש.');
-            return;
-        }
-
-        const res = await fetch(`${API}/sa/impersonate`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json', 
-                'Authorization': currentToken 
-            },
-            body: JSON.stringify({ groupId: groupId })
-        });
-        const data = await res.json();
+        showToast('success', 'פותח סביבת לקוח בטאב חדש...');
         
-        if(data.success) {
-            // שמירת הסשן שמשותף לכל הטאבים
-            localStorage.setItem('ofl_session', JSON.stringify({user: data.user, group: data.group}));
-            
-            // בדיקת סוג הסביבה ופתיחה בטאב חדש בנתיב הנכון
-            const targetUrl = data.group.type === 'BUSINESS' ? '/business.html' : '/';
+        // השהייה קלה כדי לוודא שהזיכרון נשמר, ואז פתיחה בטאב חדש
+        setTimeout(() => {
+            const targetUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
             window.open(targetUrl, '_blank');
-            
-        } else {
-            if(typeof showToast === 'function') showToast('error', data.error || 'שגיאה בהשתלטות');
-        }
-    } catch(e) { 
-        if(typeof showToast === 'function') showToast('error', 'שגיאת רשת בהשתלטות'); 
-        console.error("Impersonation error details: ", e);
+        }, 300);
+    } else {
+        showToast('error', 'שגיאה: לא ניתן למצוא נתוני קבוצה או משתמש בסביבה זו.');
     }
 };
