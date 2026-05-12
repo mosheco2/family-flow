@@ -686,32 +686,33 @@ async function loadDashboard() {
     const mw = getEl('main-wrapper'); if(mw) mw.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
     
-    // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
-    const saTokenLocal = localStorage.getItem('ofl_sa_token');
-    let dynamicBanner = document.getElementById('dynamic-sa-banner');
-    
-    if (saTokenLocal) {
-        if (!dynamicBanner) {
-            dynamicBanner = document.createElement('div');
-            dynamicBanner.id = 'dynamic-sa-banner';
-            dynamicBanner.className = 'fixed top-0 left-0 right-0 z-[999999] w-full bg-red-600 text-white px-4 py-2 flex justify-between items-center shadow-lg';
-            dynamicBanner.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-user-secret text-lg animate-pulse"></i>
-                    <span class="text-xs sm:text-sm font-bold tracking-wide">מחובר כ-Super Admin (סביבת משפחה)</span>
-                </div>
-                <button onclick="exitImpersonation()" class="bg-white text-red-600 px-4 py-1.5 rounded-xl shadow-md text-[10px] sm:text-xs font-black hover:bg-red-50 transition border-2 border-white/20 uppercase tracking-tight">
-                    התנתק וחזור לניהול
-                </button>
-            `;
-            document.body.appendChild(dynamicBanner); // מוסיף לסוף ה-body, מונע התנגשויות z-index
-        }
-        document.body.style.paddingTop = '45px'; // דוחף את המסך למטה בעבור הבאנר האדום
-    } else {
-        if (dynamicBanner) dynamicBanner.remove();
-        document.body.style.paddingTop = '0px';
-    }
-    // -----------------------------------------------------------
+    // --- הזרקת באנר השתלטות דינמי (פתרון בעיית ה-Tailwind CDN) ---
+    const saTokenLocal = localStorage.getItem('ofl_sa_token');
+    let dynamicBanner = document.getElementById('dynamic-sa-banner');
+    
+    if (saTokenLocal) {
+        if (!dynamicBanner) {
+            dynamicBanner = document.createElement('div');
+            dynamicBanner.id = 'dynamic-sa-banner';
+            // שימוש ב-Inline Styles כדי לעקוף את העובדה ש-Tailwind לא מרנדר מחלקות חדשות שמוזרקות ב-JS
+            dynamicBanner.style.cssText = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999999; display: flex; justify-content: space-between; align-items: center; width: 100%; background-color: #dc2626; color: white; padding: 0.5rem 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);";
+            dynamicBanner.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-user-secret" style="font-size: 1.125rem;"></i>
+                    <span style="font-size: 0.875rem; font-weight: bold;">מחובר כ-Super Admin (השתלטות)</span>
+                </div>
+                <button onclick="exitImpersonation()" style="background-color: white; color: #dc2626; padding: 0.375rem 1rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    התנתק וחזור לניהול
+                </button>
+            `;
+            document.body.appendChild(dynamicBanner);
+        }
+        document.body.style.paddingTop = '55px'; // דוחף את המסך למטה
+    } else {
+        if (dynamicBanner) dynamicBanner.remove();
+        document.body.style.paddingTop = '0px';
+    }
+    // -----------------------------------------------------------
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
     getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
