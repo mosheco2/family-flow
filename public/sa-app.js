@@ -1719,25 +1719,32 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE: פתיחת השתלטות בטאב חדש (על בסיס נתונים מקומיים)
+// OVERRIDE: פתיחת השתלטות בטאב חדש (ניתוב חכם וניקוי סשן)
 // ==========================================
 window.impersonateGroup = function(groupId, userId) {
-    // משיכת נתוני הסביבה והמשתמש מתוך הנתונים שכבר נטענו באדמין
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     const targetUser = saAllUsers.find(u => u.id === userId);
     
     if (targetGroup && targetUser) {
-        // שמירת סשן הגישה ב-LocalStorage. הטאב החדש שיפתח יקרא את זה אוטומטית.
-        localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
+        // ניקוי סשן קודם כדי למנוע ערבוב נתונים
+        localStorage.removeItem('ofl_session');
         
-        showToast('success', 'פותח סביבת לקוח בטאב חדש...');
+        // יצירת סשן חדש
+        const sessionData = { 
+            user: targetUser, 
+            group: targetGroup, 
+            isImpersonating: true 
+        };
         
-        // השהייה קלה כדי לוודא שהזיכרון נשמר, ואז פתיחה בטאב חדש
+        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
+        
         setTimeout(() => {
+            // ניתוב מדויק: עסק הולך ל-business.html, משפחה הולכת ל-index (/)
             const targetUrl = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
             window.open(targetUrl, '_blank');
-        }, 300);
+        }, 200);
     } else {
-        showToast('error', 'שגיאה: לא ניתן למצוא נתוני קבוצה או משתמש בסביבה זו.');
+        showToast('error', 'שגיאה: פרטי הלקוח לא נמצאו.');
     }
 };
