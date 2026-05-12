@@ -1716,7 +1716,7 @@ async function saveNewPartner() {
 }
 
 async function deleteSAPartner(id) {
-    if(!confirm('האם אתה בטוח שברצונך למחוק שותף זה? الفעולה לא תמחק את לקוחותיו, אך תנתק אותם ממנו.')) return;
+    if(!confirm('האם אתה בטוח שברצונך למחוק שותף זה? הפעולה לא תמחק את לקוחותיו, אך תנתק אותם ממנו.')) return;
     
     // מחיקה מההדמיה בזיכרון המקומי
     saPartnersCache = saPartnersCache.filter(p => p.id !== id);
@@ -1724,6 +1724,34 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 
+// ==========================================
+// OVERRIDE FINAL: פתיחת השתלטות מדויקת
+// ==========================================
+window.impersonateGroup = function(groupId, userId) {
+    // משיכת נתונים
+    const targetGroup = saAllGroups.find(g => g.id === groupId);
+    let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
+    if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId); // Fallback
+    
+    if (targetGroup && targetUser) {
+        // ניקוי אגרסיבי של סשנים ישנים
+        localStorage.removeItem('ofl_session');
+        
+        // כתיבה מחדש ונקייה של סשן ההשתלטות
+        const sessionData = { user: targetUser, group: targetGroup, isImpersonating: true };
+        localStorage.setItem('ofl_session', JSON.stringify(sessionData));
+        
+        showToast('success', 'מתחבר לסביבת הלקוח בטאב חדש...');
+        
+        // פתיחה בטאב חדש עם השהייה קלה לסנכרון זיכרון
+        setTimeout(() => {
+            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
+            const targetUrl = isBiz ? '/business.html' : '/';
+            // הוספת Timestamp כדי למנוע טעינה מזיכרון מטמון של הדפדפן
+            const cleanUrl = `${targetUrl}?session_refresh=${Date.now()}`;
+            window.open(cleanUrl, '_blank');
+        }, 400);
+    } else {
         showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
