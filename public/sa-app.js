@@ -1744,48 +1744,53 @@ async function deleteSAPartner(id) {
     renderSAPartnersTable();
 }
 // ==========================================
-// OVERRIDE FINAL: השתלטות מקומית מהירה (עוקף חסימת טוקן עסקי)
+// OVERRIDE FINAL: פתרון תעלומת האדמין הישן (העלמת טוקן חכמה)
 // ==========================================
 window.impersonateGroup = function(groupId, userId) {
-    if(!confirm('השתלטות: האם ברצונך להיכנס למערכת הלקוח בטאב חדש?')) return;
-    
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
     if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId);
     
-    // יצירת משתמש וירטואלי לעסק אם לא נמצא משתמש פיזי (מונע קריסה בכניסה)
+    // יצירת משתמש וירטואלי לעסק אם חסר
     if (!targetUser && targetGroup && targetGroup.type === 'BUSINESS') {
         targetUser = { id: 99999, nickname: targetGroup.name, role: 'ADMIN', group_id: groupId };
     }
     
     if (targetGroup && targetUser) {
-        // ניקוי מוחלט של זיכרון ישן
+        // הנה התיקון הקריטי: שומרים את טוקן האדמין בצד ומוחקים אותו זמנית!
+        // בלי המחיקה הזו, הטאב של העסק רואה אדמין וטוען את מסך האדמין הישן בטעות.
+        const currentToken = typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token');
+        if (currentToken) {
+            localStorage.setItem('ofl_sa_return_token', currentToken);
+        }
+        localStorage.removeItem('ofl_sa_token'); 
+        
+        // מחיקת שאריות ישנות והזרקת הסשן החוקי
         localStorage.removeItem('ofl_session');
-        localStorage.removeItem('ofl_token');
+        localStorage.removeItem('ofl_token'); 
         
-        const currentToken = localStorage.getItem('ofl_sa_token') || 'impersonation_token';
-        
-        // הוספת הטוקן לתוך הסשן - זה מה שפותר את זריקת החשבון העסקי!
         const sessionData = { 
             user: targetUser, 
             group: targetGroup, 
-            token: currentToken, 
             isImpersonating: true 
         };
         
-        // וידוא מוחלט שהסוג הוא BUSINESS אותיות גדולות
         if (targetGroup.type) sessionData.group.type = targetGroup.type.toString().toUpperCase();
         
-        // הזרקת הנתונים לזיכרון הדפדפן
         localStorage.setItem('ofl_session', JSON.stringify(sessionData));
-        localStorage.setItem('ofl_token', currentToken); // הזרקת הטוקן בנפרד למקרה שהמערכת מחפשת אותו שם
-        
-        showToast('success', 'יוצר סביבת לקוח...');
+        showToast('success', 'יוצר סביבת לקוח נקייה...');
         
         setTimeout(() => {
             const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
             const targetUrl = isBiz ? '/business.html' : '/';
+            
+            // פותחים את הטאב הנקי
             window.open(targetUrl, '_blank');
+            
+            // אחרי 2 שניות, כשדף הלקוח כבר נטען, מחזירים את הטוקן כדי שהסופר-אדמין לא יתנתק
+            setTimeout(() => {
+                if (currentToken) localStorage.setItem('ofl_sa_token', currentToken);
+            }, 2000);
         }, 300);
     } else {
         showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
