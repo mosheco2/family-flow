@@ -1309,107 +1309,91 @@ window.impersonateGroup = function(groupId, userId) {
     }
 };
 // ==========================================
-// --- PRODUCT MATRIX & QA CENTER ---
+// --- PRODUCT MATRIX & QA CENTER (CONNECTED TO DB) ---
 // ==========================================
 
-// נתוני ברירת מחדל של ספר המוצר (ישמרו ב-LocalStorage לבינתיים)
-const defaultProductMatrix = [
-    {
-        id: 'env_family', name: 'ONEFLOW LIFE (סביבת משפחות)', icon: 'fa-house-chimney text-emerald-500', color: 'emerald',
-        modules: [
-            {
-                id: 'mod_fam_shop', name: 'סופר חכם (רשימת קניות)',
-                tests: [
-                    { id: 't1', title: 'הוספת פריט חופשי לרשימה ע"י ילד (סטטוס ממתין)', status: 'untested' },
-                    { id: 't2', title: 'אישור פריט ע"י הורה (מעבר לסטטוס בעגלה)', status: 'passed' },
-                    { id: 't3', title: 'עדכון מחיר משוער משוקף בסה"כ הכללי', status: 'untested' },
-                    { id: 't4', title: 'סריקת קבלה AI מזהה ומזינה מוצרים', status: 'in_dev' }
-                ]
-            },
-            {
-                id: 'mod_fam_bank', name: 'הבנק המשפחתי ויעדים',
-                tests: [
-                    { id: 't5', title: 'הקצאת דמי כיס שבועית פועלת בזמן', status: 'passed' },
-                    { id: 't6', title: 'ילד מפקיד יתרה ליעד חיסכון והאחוז מתעדכן', status: 'untested' }
-                ]
-            }
-        ]
-    },
-    {
-        id: 'env_biz', name: 'ONEFLOW LIFE BIZ (סביבת עסקים)', icon: 'fa-briefcase text-blue-500', color: 'blue',
-        modules: [
-            {
-                id: 'mod_biz_orders', name: 'ניהול הזמנות לקוחות',
-                tests: [
-                    { id: 't7', title: 'קבלת הזמנה חדשה מקפיצה התראה למנהל', status: 'untested' },
-                    { id: 't8', title: 'שינוי סטטוס הזמנה מעדכן את הלקוח במשפחות', status: 'untested' }
-                ]
-            }
-        ]
-    },
-    {
-        id: 'env_comm', name: 'COMMUNITIES (ניהול קהילות)', icon: 'fa-users-rays text-indigo-500', color: 'indigo',
-        modules: [
-            {
-                id: 'mod_comm_join', name: 'הצטרפות ואישור',
-                tests: [
-                    { id: 't9', title: 'משפחה מצטרפת לקהילה באמצעות קוד הזמנה', status: 'passed' },
-                    { id: 't10', title: 'עסק מגיש בקשת הצטרפות וממתין לאישור אדמין', status: 'untested' }
-                ]
-            }
-        ]
-    }
-];
+let productMatrixData = [];
 
-// משיכת ספר המוצר מהזיכרון או טעינת ברירת המחדל
-let productMatrixData = JSON.parse(localStorage.getItem('ofl_product_matrix')) || defaultProductMatrix;
+window.loadProductMatrix = async function() {
+    try {
+        const res = await fetch(`${API}/sa/matrix`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : '' }});
+        const data = await res.json();
+        if(data.success) {
+            productMatrixData = data.matrix || [];
+            renderProductMatrix();
+        }
+    } catch(e) { console.error('Error loading matrix', e); }
+};
 
-// פונקציית הרינדור הראשית
-function renderProductMatrix() {
+window.renderProductMatrix = function() {
     const listEl = document.getElementById('product-matrix-list');
     if (!listEl) return;
     
+    // הגדרת נראות הסביבות שלך
+    const envConfigs = {
+        'family': { name: 'ONEFLOW LIFE (משפחות)', icon: 'fa-house-chimney text-emerald-500', color: 'emerald' },
+        'business': { name: 'ONEFLOW LIFE BIZ (עסקים)', icon: 'fa-briefcase text-blue-500', color: 'blue' },
+        'community': { name: 'COMMUNITIES (קהילות)', icon: 'fa-users-rays text-indigo-500', color: 'indigo' },
+        'sa': { name: 'SUPER ADMIN (ניהול)', icon: 'fa-shield-halved text-slate-500', color: 'slate' }
+    };
+
+    // המרת רשימת השרת השטוחה למבנה היררכי להצגה
+    const grouped = productMatrixData.reduce((acc, item) => {
+        const env = item.environment || 'family';
+        const mod = item.module_name || 'כללי';
+        if (!acc[env]) acc[env] = {};
+        if (!acc[env][mod]) acc[env][mod] = [];
+        acc[env][mod].push(item);
+        return acc;
+    }, {});
+
     let html = '';
     let totalTests = 0; let passedCount = 0; let failedCount = 0; let untestedCount = 0;
 
-    productMatrixData.forEach(env => {
+    Object.keys(grouped).forEach(envKey => {
+        const envConfig = envConfigs[envKey] || envConfigs['family'];
+        const modules = grouped[envKey];
+        
         html += `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-5 fade-in">
-                    <div class="bg-${env.color}-50 px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-                        <div class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg"><i class="fa-solid ${env.icon}"></i></div>
-                        <h2 class="text-lg font-black text-slate-800">${env.name}</h2>
+                    <div class="bg-${envConfig.color}-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg"><i class="fa-solid ${envConfig.icon}"></i></div>
+                            <h2 class="text-lg font-black text-slate-800">${envConfig.name}</h2>
+                        </div>
+                        <button onclick="addMatrixItemPrompt('${envKey}')" class="text-xs bg-white border border-${envConfig.color}-200 text-${envConfig.color}-600 px-3 py-1.5 rounded-lg shadow-sm font-bold hover:bg-${envConfig.color}-100 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף בדיקה</button>
                     </div>
                     <div class="p-4 space-y-4">`;
         
-        env.modules.forEach(mod => {
+        Object.keys(modules).forEach(modName => {
             html += `<div class="border border-slate-100 rounded-xl overflow-hidden">
-                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100">
-                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cube text-slate-400 ml-1"></i> ${mod.name}</h3>
+                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cube text-slate-400 ml-1"></i> ${modName}</h3>
                         </div>
                         <div class="divide-y divide-slate-50">`;
             
-            mod.tests.forEach(test => {
+            modules[modName].forEach(test => {
                 totalTests++;
                 if (test.status === 'passed') passedCount++;
                 else if (test.status === 'failed') failedCount++;
                 else if (test.status === 'untested') untestedCount++;
 
-                // עיצוב לפי סטטוס
                 let statusBg = 'bg-slate-100 text-slate-500'; let statusIcon = 'fa-circle-minus'; let statusLabel = 'טרם נבדק';
                 if (test.status === 'passed') { statusBg = 'bg-green-100 text-green-700'; statusIcon = 'fa-check'; statusLabel = 'תקין'; }
                 if (test.status === 'failed') { statusBg = 'bg-red-100 text-red-700'; statusIcon = 'fa-bug'; statusLabel = 'באג / נכשל'; }
                 if (test.status === 'in_dev') { statusBg = 'bg-blue-100 text-blue-700'; statusIcon = 'fa-person-digging'; statusLabel = 'בפיתוח'; }
 
                 html += `
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 gap-3 hover:bg-slate-50 transition">
-                        <div class="flex-1">
-                            <span class="text-sm font-bold text-slate-700 block">${safeStr(test.title)}</span>
-                            <span class="text-[10px] text-slate-400 font-mono tracking-widest mt-0.5">ID: ${test.id}</span>
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 gap-3 hover:bg-slate-50 transition relative group">
+                        <div class="flex-1 pr-8">
+                            <button onclick="deleteMatrixItem(${test.id})" class="text-slate-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2 p-2" title="מחק תרחיש"><i class="fa-solid fa-trash-can"></i></button>
+                            <span class="text-sm font-bold text-slate-700 block">${safeStr(test.scenario_name)}</span>
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">צפי: ${safeStr(test.expected_result)}</span>
                         </div>
                         <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
                             <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${statusBg} flex items-center gap-1 border border-white/50 w-24 justify-center shadow-sm">
                                 <i class="fa-solid ${statusIcon}"></i> ${statusLabel}
                             </span>
-                            <select onchange="changeTestStatus('${env.id}', '${mod.id}', '${test.id}', this.value, '${safeStr(test.title)}')" class="modern-input py-1.5 px-2 text-xs bg-white font-bold w-auto cursor-pointer shadow-sm">
+                            <select onchange="changeTestStatus(${test.id}, this.value, '${safeStr(test.scenario_name).replace(/'/g, "\\'")}', '${envKey}', '${safeStr(test.expected_result).replace(/'/g, "\\'")}')" class="modern-input py-1.5 px-2 text-xs bg-white font-bold w-auto cursor-pointer shadow-sm">
                                 <option value="untested" ${test.status === 'untested' ? 'selected' : ''}>טרם נבדק ⚪</option>
                                 <option value="passed" ${test.status === 'passed' ? 'selected' : ''}>תקין (Passed) 🟢</option>
                                 <option value="failed" ${test.status === 'failed' ? 'selected' : ''}>באג (Failed) 🔴</option>
@@ -1423,51 +1407,93 @@ function renderProductMatrix() {
         html += `</div></div>`;
     });
     
+    if (productMatrixData.length === 0) {
+        html = `<div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
+                    <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 mb-3"></i>
+                    <h3 class="text-slate-600 font-bold">ספר המוצר ריק</h3>
+                    <p class="text-slate-400 text-sm mt-1 mb-4">הוסף את תרחיש הבדיקה הראשון שלך באמצעות הכפתורים למעלה.</p>
+                    <div class="flex justify-center gap-2">
+                        <button onclick="addMatrixItemPrompt('family')" class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-200 transition">תרחיש משפחה</button>
+                        <button onclick="addMatrixItemPrompt('business')" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-blue-200 transition">תרחיש עסק</button>
+                    </div>
+                </div>`;
+    }
+    
     listEl.innerHTML = html;
 
-    // עדכון סרגל התקדמות
     const progressPct = totalTests === 0 ? 0 : Math.round((passedCount / totalTests) * 100);
     const progressBar = document.getElementById('matrix-progress-bar');
     if (progressBar) progressBar.style.width = `${progressPct}%`;
     const progressText = document.getElementById('matrix-progress-text');
     if (progressText) progressText.innerText = `${progressPct}% כיסוי תקין`;
     
-    document.getElementById('matrix-count-passed').innerText = passedCount;
-    document.getElementById('matrix-count-failed').innerText = failedCount;
-    document.getElementById('matrix-count-untested').innerText = untestedCount;
-}
+    if(getEl('matrix-count-passed')) getEl('matrix-count-passed').innerText = passedCount;
+    if(getEl('matrix-count-failed')) getEl('matrix-count-failed').innerText = failedCount;
+    if(getEl('matrix-count-untested')) getEl('matrix-count-untested').innerText = untestedCount;
+};
 
-// פונקציה לשינוי סטטוס של תרחיש ושמירה בזיכרון
-window.changeTestStatus = function(envId, modId, testId, newStatus, testTitle) {
-    const env = productMatrixData.find(e => e.id === envId);
-    if (!env) return;
-    const mod = env.modules.find(m => m.id === modId);
-    if (!mod) return;
-    const test = mod.tests.find(t => t.id === testId);
-    if (!test) return;
+window.changeTestStatus = async function(id, newStatus, title, envId, expected) {
+    // עדכון מקומי זמני למהירות תגובה בממשק
+    const item = productMatrixData.find(i => i.id === id);
+    if (item) item.status = newStatus;
+    renderProductMatrix();
 
-    test.status = newStatus;
-    localStorage.setItem('ofl_product_matrix', JSON.stringify(productMatrixData));
+    try {
+        await fetch(`${API}/sa/matrix/${id}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+            body: JSON.stringify({ status: newStatus })
+        });
+    } catch(e) { showToast('error', 'שגיאה בעדכון מסד הנתונים'); }
     
-    // אם סומן כנכשל (באג), הקפץ את מודאל הדיווח
+    // אם הסטטוס נכשל - פותח מודאל באג כדי לדווח ללוח הפיתוח
     if (newStatus === 'failed') {
-        openDevBugModal(envId, modId, testId, testTitle);
-    } else {
-        renderProductMatrix(); // רינדור מחדש לעדכון הצבעים והסטטיסטיקה
+        openDevBugModal(envId, item ? item.module_name : '', id, title, expected);
     }
 };
 
-// פתיחת מודאל לדיווח באגים לפיתוח
-window.openDevBugModal = function(envId, modId, testId, title) {
-    document.getElementById('dev-bug-env-id').value = envId;
-    document.getElementById('dev-bug-mod-id').value = modId;
-    document.getElementById('dev-bug-test-id').value = testId;
-    document.getElementById('dev-bug-test-title').innerText = title;
+window.deleteMatrixItem = async function(id) {
+    if(!confirm('האם למחוק תרחיש זה מספר המוצר לצמיתות?')) return;
+    try {
+        await fetch(`${API}/sa/matrix/${id}`, { method: 'DELETE', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : '' } });
+        showToast('success', 'התרחיש נמחק');
+        loadProductMatrix();
+    } catch(e) { showToast('error', 'שגיאת מחיקה בשרת'); }
+};
+
+window.openDevBugModal = function(envId, modName, testId, title, expected) {
+    if(getEl('dev-bug-env-id')) getEl('dev-bug-env-id').value = envId;
+    if(getEl('dev-bug-mod-id')) getEl('dev-bug-mod-id').value = modName;
+    if(getEl('dev-bug-test-id')) getEl('dev-bug-test-id').value = testId;
+    if(getEl('dev-bug-test-title')) getEl('dev-bug-test-title').innerText = title;
     
-    document.getElementById('dev-bug-actual').value = '';
-    document.getElementById('dev-bug-expected').value = '';
+    if(getEl('dev-bug-actual')) getEl('dev-bug-actual').value = '';
+    if(getEl('dev-bug-expected')) getEl('dev-bug-expected').value = expected || '';
     
-    document.getElementById('dev-bug-modal').classList.remove('hidden');
+    if(getEl('dev-bug-modal')) getEl('dev-bug-modal').classList.remove('hidden');
+};
+
+// פונקציית הוספה חכמה ללא צורך במודאל מסורבל
+window.addMatrixItemPrompt = async function(envType) {
+    const moduleName = prompt("הכנס שם מודול (למשל: 'רשימת קניות', 'דשבורד'):", "מודול כללי");
+    if (!moduleName) return;
+    const scenarioName = prompt("הכנס תיאור קצר של מה שנבדק (למשל: 'הוספת פריט'):");
+    if (!scenarioName) return;
+    const expectedResult = prompt("מה התוצאה המצופה? (למשל: 'הפריט נוסף לעגלה'):");
+    if (!expectedResult) return;
+    
+    try {
+        const res = await fetch(`${API}/sa/matrix`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+            body: JSON.stringify({ environment: envType, moduleName, scenarioName, expectedResult })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'התרחיש נוצר במסד הנתונים!');
+            loadProductMatrix();
+        } else {
+            showToast('error', 'שגיאה ביצירת תרחיש');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת תרחיש'); }
 };
 
 // ==========================================
@@ -1742,8 +1768,8 @@ const _originalSwitchSATabDev = window.switchSATab;
 window.switchSATab = function(tabId) {
     if(typeof _originalSwitchSATabDev === 'function') _originalSwitchSATabDev(tabId);
     if (tabId === 'devops') {
-        renderProductMatrix();
-        loadDevTasks(); 
+        loadProductMatrix(); // טוען את ספר המוצר מהשרת
+        loadDevTasks();      // טוען את הקנבן מהשרת
     }
 };
 // ==========================================
