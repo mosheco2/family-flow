@@ -255,18 +255,41 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal-user').innerText = t.user_name || 'לא ידוע';
     getEl('sa-ticket-reply-text').value = '';
     getEl('sa-ticket-reply-status').value = t.status;
+    const chkInternal = getEl('sa-ticket-reply-internal');
+    if(chkInternal) chkInternal.checked = false;
     
     let logArr = [];
     try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
     
     const logContainer = getEl('sa-ticket-log');
-    if (logArr.length === 0) {
-        logContainer.innerHTML = `<div class="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm">${safeStr(t.description)}</div>`;
-    } else {
-        logContainer.innerHTML = logArr.map(entry => {
+    
+    // נוסיף תמיד את הודעת הפתיחה של הלקוח כהודעה ראשונה
+    let html = `
+        <div class="flex flex-col items-start mb-3 fade-in">
+            <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8">
+                ${safeStr(t.description)}
+            </div>
+            <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> הפנייה המקורית מהלקוח
+            </div>
+        </div>`;
+
+    if (logArr.length > 0) {
+        html += logArr.map(entry => {
             const isStaff = entry.isStaff;
-            const alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
-            const iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
+            const isInternal = entry.isInternal; // בדיקה האם זו הערה פנימית
+            
+            let alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
+            let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
+            let labelTag = '';
+
+            // צביעה בצהוב להערה פנימית
+            if (isInternal) {
+                alignClass = 'self-end bg-orange-100 border-orange-200 text-orange-900 rounded-tr-none ml-8';
+                iconHtml = '<i class="fa-solid fa-user-ninja text-orange-500 text-xs ml-1"></i>';
+                labelTag = '<span class="text-[9px] bg-orange-200 text-orange-700 px-1.5 rounded-full ml-2">פנימי בלבד</span>';
+            }
+
             const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             return `
             <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-3 fade-in">
@@ -274,11 +297,13 @@ function openSATicketModal(id) {
                     ${safeStr(entry.message)}
                 </div>
                 <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
-                    ${iconHtml} ${safeStr(entry.sender)} • ${timeStr}
+                    ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${timeStr}
                 </div>
             </div>`;
         }).join('');
     }
+    
+    logContainer.innerHTML = html;
     
     getEl('sa-ticket-modal').classList.remove('hidden');
     setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
@@ -287,19 +312,28 @@ function openSATicketModal(id) {
 async function submitSATicketReply() {
     const text = val('sa-ticket-reply-text');
     const status = val('sa-ticket-reply-status');
+    const isInternal = getEl('sa-ticket-reply-internal') ? getEl('sa-ticket-reply-internal').checked : false;
+    
     if(!text.trim() && !status) return showToast('error', 'יש להזין טקסט או לשנות סטטוס');
     
     const btn = getEl('btn-sa-ticket-reply');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
     try {
-        const payload = { message: text || `(סטטוס שונה ל-${status})`, userName: 'צוות תמיכה', isStaff: true, newStatus: status || null };
+        const payload = { 
+            message: text || `(סטטוס שונה ל-${status})`, 
+            userName: 'צוות תמיכה', 
+            isStaff: true, 
+            newStatus: status || null,
+            isInternal: isInternal // הוספנו דגל לפנימיות
+        };
         const res = await fetch(`${API}/support/tickets/${saCurrentTicketId}/reply`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
             body: JSON.stringify(payload)
         });
         if((await res.json()).success) {
-            showToast('success', 'התגובה נשלחה והסטטוס עודכן!');
+            showToast('success', isInternal ? 'הערה פנימית נוספה!' : 'התגובה נשלחה ללקוח!');
             getEl('sa-ticket-reply-text').value = '';
+            if (getEl('sa-ticket-reply-internal')) getEl('sa-ticket-reply-internal').checked = false;
             await loadSATickets();
             openSATicketModal(saCurrentTicketId); 
         } else { showToast('error', 'שגיאה בעדכון'); }
@@ -1635,4 +1669,35 @@ window.switchSATab = function(tabId) {
         renderProductMatrix();
         renderKanbanBoard(); // מרנדר את הלוח מראש
     }
+};
+// ==========================================
+// --- המרת קריאת שירות למשימת פיתוח ---
+// ==========================================
+window.convertTicketToDevTask = function() {
+    if (!saCurrentTicketId) return;
+    
+    const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
+    if (!t) return;
+    
+    // סוגרים את חלון הטיקט
+    document.getElementById('sa-ticket-modal').classList.add('hidden');
+    
+    // עוברים לטאב של פיתוח
+    switchSATab('devops');
+    switchDevTab('kanban');
+    
+    // מכינים את הטקסט למודאל ה-Kanban
+    const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
+    const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
+    
+    // פותחים את מודאל יצירת המשימה
+    openKanbanTaskModal();
+    
+    // מזריקים פנימה את הנתונים
+    getEl('kanban-task-title').value = defaultTitle;
+    getEl('kanban-task-desc').value = defaultDesc;
+    getEl('kanban-task-type').value = 'bug';
+    getEl('kanban-task-priority').value = 'high';
+    
+    showToast('info', 'הפרטים הועתקו! השלם את יצירת המשימה ושלח לפיתוח.');
 };
