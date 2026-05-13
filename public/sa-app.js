@@ -263,14 +263,13 @@ function openSATicketModal(id) {
     
     const logContainer = getEl('sa-ticket-log');
     
-    // הודעת פתיחה של הלקוח
     let html = `
-        <div class="flex flex-col items-start mb-3 fade-in">
+        <div class="flex flex-col items-start mb-4 fade-in">
             <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8">
                 ${safeStr(t.description)}
             </div>
-            <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
-                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> הפנייה המקורית מהלקוח
+            <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> פנייה מקורית מהלקוח
             </div>
         </div>`;
 
@@ -279,23 +278,21 @@ function openSATicketModal(id) {
             const isStaff = entry.isStaff;
             const isInternal = entry.isInternal; 
             
-            let alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
+            // שימוש בקלאס CSS החדש שהגדרנו ב-HTML
+            let bubbleClass = isStaff ? 'self-end bg-blue-50 border-blue-200 text-blue-900 rounded-tr-none ml-8 shadow-sm' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8 shadow-sm';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
-            let hardcodedStyle = '';
 
-            // כאן התיקון הקשיח להערה פנימית! אין סיכוי שזה לא ייצבע עכשיו.
             if (isInternal) {
-                alignClass = 'self-end rounded-tr-none ml-8 shadow-sm';
-                hardcodedStyle = 'background-color: #fff7ed !important; border: 2px solid #fdba74 !important; color: #9a3412 !important; box-shadow: 0 4px 6px rgba(253, 186, 116, 0.3) !important;';
-                iconHtml = '<i class="fa-solid fa-user-ninja" style="color: #ea580c; margin-left: 4px;"></i>';
-                labelTag = '<span style="background-color: #ea580c; color: white; padding: 2px 8px; border-radius: 99px; font-size: 9px; margin-left: 8px;">פנימי בלבד</span>';
+                bubbleClass = 'self-end rounded-tr-none ml-8 internal-note-bubble';
+                iconHtml = '<i class="fa-solid fa-user-ninja text-orange-600 text-xs ml-1"></i>';
+                labelTag = '<span class="internal-note-label">פנימי בלבד</span>';
             }
 
             const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             return `
             <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
-                <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${alignClass}" style="${hardcodedStyle}">
+                <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${bubbleClass}">
                     ${safeStr(entry.message)}
                 </div>
                 <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center">
@@ -1742,13 +1739,42 @@ window.convertTicketToDevTask = function() {
     }, 100);
 };
 // ==========================================
-// --- מרכז שיווק והשקות (AI & PDF Generator) ---
+// --- מרכז שיווק והשקות (AI, Logo & PDF) ---
 // ==========================================
+
+window.handleReleaseLogoUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxSize = 400;
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/png');
+            
+            getEl('release-logo-base64').value = base64;
+            getEl('release-logo-preview').src = base64;
+            getEl('release-logo-preview').classList.remove('hidden');
+            if(getEl('release-logo-icon')) getEl('release-logo-icon').classList.add('hidden');
+            showToast('success', 'לוגו השקה נטען בהצלחה!');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
 
 window.generateReleaseNotesAI = async function() {
     const title = val('release-title');
     const rawPoints = val('release-raw-points');
     const tone = val('release-tone');
+    const uploadedLogo = val('release-logo-base64');
     
     if (!rawPoints) return showToast('error', 'יש להזין לפחות נקודה אחת מהפיתוח');
     
@@ -1758,11 +1784,10 @@ window.generateReleaseNotesAI = async function() {
     
     try {
         const promptContext = `
-            אתה קופירייטר שיווקי. קח את הבאגים והפיצ'רים שפותחו, ותרגם אותם לתוכן שיווקי ומרגש ללקוחות.
-            טון מבוקש: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
-            סדר את הטקסט היטב עם כותרות ביניים.
-            נקודות גולמיות:
-            ${rawPoints}
+            אתה קופירייטר שיווקי בכיר. המשימה שלך היא לכתוב ניוזלטר מרגש ללקוחות על עדכון גרסה.
+            כותרת: "${title || 'עדכון גרסה חדש'}".
+            טון: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
+            נקודות גולמיות לתרגום: ${rawPoints}
         `;
         
         const res = await fetch(`${API}/family/chat-assistant`, {
@@ -1778,30 +1803,26 @@ window.generateReleaseNotesAI = async function() {
         
         const data = await res.json();
         if (data.success) {
-            // ה-AI החזיר טקסט. עכשיו אנחנו אורזים אותו בטמפלט חזותי עשיר (HTML)
             let formattedContent = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            formattedContent = formattedAns = formattedContent.replace(/\n/g, '<br>');
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
             
-            const mascotImg = window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
+            // שימוש בלוגו שהועלה, או בלוגו הגלובלי, או בברירת מחדל
+            const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
             const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 600px; margin: 20px auto; font-family: 'Rubik', sans-serif; direction: rtl; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); background-color: white; overflow: hidden;">
-                    
-                    <div style="background: linear-gradient(135deg, #6366f1, #a855f7); padding: 40px 20px; text-align: center; position: relative;">
-                        <img src="${mascotImg}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 15px; position: relative; z-index: 10; display: inline-block;">
-                        <h1 style="color: white; font-size: 26px; font-weight: 900; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.2); line-height: 1.2;">${releaseTitle}</h1>
+                <div id="newsletter-content-wrap" style="max-width: 600px; margin: 20px auto; font-family: 'Rubik', sans-serif; direction: rtl; border: 1px solid #e2e8f0; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); background-color: white; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #4f46e5, #9333ea); padding: 45px 20px; text-align: center;">
+                        <img src="${mascotImg}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 20px; display: inline-block;">
+                        <h1 style="color: white; font-size: 28px; font-weight: 900; margin: 0; line-height: 1.2;">${releaseTitle}</h1>
                     </div>
-                    
-                    <div style="padding: 30px 25px; color: #334155; font-size: 15px; line-height: 1.8;">
+                    <div style="padding: 40px 30px; color: #334155; font-size: 16px; line-height: 1.8;">
                         ${formattedContent}
                     </div>
-                    
-                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                        <p style="color: #64748b; font-size: 14px; margin: 0; font-weight: bold;">ממשיכים להשתפר עבורכם תמיד!</p>
-                        <p style="color: #94a3b8; font-size: 12px; margin-top: 5px;">נשלח באהבה מצוות הפיתוח של Oneflow Life ❤️</p>
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 25px; text-align: center;">
+                        <p style="color: #6366f1; font-size: 14px; margin: 0; font-weight: 900;">צוות Oneflow Life</p>
+                        <p style="color: #94a3b8; font-size: 11px; margin-top: 5px;">הודעה זו נוצרה באופן אוטומטי ע"י מערכת הפיתוח 🛠️</p>
                     </div>
-                    
                 </div>
             `;
             
@@ -1810,102 +1831,62 @@ window.generateReleaseNotesAI = async function() {
             if(placeholder) placeholder.style.display = 'none';
             editor.innerHTML = htmlTemplate;
             
-            showToast('success', 'הטמפלט מוכן! ניתן לערוך הכל ישירות במסך.');
-            try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
-        } else {
-            showToast('error', 'שגיאה ביצירת הטקסט.');
+            showToast('success', 'הניוזלטר עוצב בהצלחה!');
+            try { confetti({ particleCount: 80, spread: 70 }); } catch(e){}
         }
-    } catch (e) {
-        showToast('error', 'שגיאת רשת מול ה-AI');
-    } finally {
-        btn.disabled = false;
-        btn.innerText = 'יצר הודעת שחרור עם FamilAI';
-    }
+    } catch (e) { showToast('error', 'שגיאת רשת מול ה-AI'); } 
+    finally { btn.disabled = false; btn.innerText = 'יצר הודעת שחרור עם FamilAI'; }
 };
 
 window.copyReleaseNotes = function() {
-    const editor = getEl('release-editor');
-    // מעתיק את תוכן ה-HTML שנוצר
-    const htmlContent = editor.innerHTML;
-    if (!htmlContent || htmlContent.includes('תוצאת ה-AI')) return showToast('info', 'אין טקסט להעתקה');
-    
-    navigator.clipboard.writeText(htmlContent).then(() => {
-        showToast('success', 'קוד ה-HTML הועתק בהצלחה!');
-    }).catch(err => {
-        showToast('error', 'שגיאה בהעתקה');
-    });
+    const content = getEl('release-editor').innerHTML;
+    if (!content || content.includes('תוצאת ה-AI')) return showToast('info', 'אין תוכן להעתקה');
+    navigator.clipboard.writeText(content).then(() => showToast('success', 'קוד ה-HTML הועתק!'));
 };
 
 window.exportToPDF = function() {
     const element = document.getElementById('newsletter-content-wrap');
-    if (!element) return showToast('error', 'יש לחולל טמפלט קודם לפני ייצוא ל-PDF');
+    if (!element) return showToast('error', 'יש לחולל טמפלט קודם');
     
     const btn = document.getElementById('btn-export-pdf');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפיק PDF...';
     btn.disabled = true;
     
-    // פונקציית עזר להפעלת הייצוא
     const generate = () => {
-        const opt = {
-            margin:       10,
-            filename:     'Oneflow_Release.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        const opt = { margin: 10, filename: 'Newsletter.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().set(opt).from(element).save().then(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showToast('success', 'קובץ ה-PDF נוצר והורד בהצלחה!');
+            btn.innerHTML = originalText; btn.disabled = false;
+            showToast('success', 'הקובץ מוכן!');
         });
     };
 
-    // משיכת ספריית ה-PDF באופן דינמי אם טרם נמשכה
     if (!window.html2pdf) {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = generate;
-        document.head.appendChild(script);
-    } else {
-        generate();
-    }
+        script.onload = generate; document.head.appendChild(script);
+    } else { generate(); }
 };
 
 window.broadcastReleaseNotes = async function() {
-    const editor = getEl('release-editor');
-    const content = editor.innerHTML;
-    const title = val('release-title') || 'עדכון גרסה חדש!';
+    const content = getEl('release-editor').innerHTML;
+    const title = val('release-title') || 'עדכון גרסה!';
     const audience = val('release-target-audience');
-    
-    if (!content || content.includes('תוצאת ה-AI')) return showToast('error', 'העורך ריק. צור הודעה תחילה.');
-    if (!confirm('האם לשגר את הניוזלטר הזה לתיבת ה-Inbox של הלקוחות?')) return;
+    if (!content || content.includes('תוצאת ה-AI')) return showToast('error', 'העורך ריק');
+    if (!confirm('לשלוח ללקוחות?')) return;
     
     const btn = getEl('btn-broadcast-release');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
-    
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
     try {
-        let targetType = 'group_type';
         let targetValue = 'FAMILY';
         if (audience === 'business') targetValue = 'BUSINESS';
-        if (audience === 'all') { targetType = 'all'; targetValue = 'all'; }
+        let targetType = audience === 'all' ? 'all' : 'group_type';
 
         const res = await fetch(`${API}/sa/inbox/broadcast`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ targetType, targetValue, subject: title, content })
+            body: JSON.stringify({ targetType, targetValue: audience === 'all' ? 'all' : targetValue, subject: title, content })
         });
-        
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', `הניוזלטר שוגר בהצלחה ל-${data.count || 0} סביבות! 🚀`);
-        } else { 
-            showToast('error', data.error || 'שגיאה בשיגור ההודעה'); 
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    } finally { 
-        btn.disabled = false; 
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; 
-    }
+        if ((await res.json()).success) showToast('success', 'הניוזלטר שוגר בהצלחה!');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); } 
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שגר ללקוחות'; }
 };
