@@ -1,4 +1,4 @@
-כ<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -613,10 +613,46 @@
                                 </div>
                         </div>
 
-                        <div id="dev-content-kanban" class="hidden space-y-4 fade-in">
-                            <div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-300 mb-3"></i>
-                                <p class="text-slate-500 font-medium">בונה את לוח המשימות (Kanban)...</p>
+                        <div id="dev-content-kanban" class="hidden flex-col h-full fade-in">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-bold text-slate-800 text-lg">לוח משימות טכני <span class="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2" id="kanban-total-count">0 משימות</span></h3>
+                                <button onclick="openKanbanTaskModal()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> משימה חדשה</button>
+                            </div>
+                            
+                            <div class="flex gap-4 overflow-x-auto pb-6 modal-scroll flex-1 min-h-[500px] items-start">
+                                
+                                <div class="bg-slate-100/70 rounded-2xl p-3 w-72 shrink-0 flex flex-col border border-slate-200" ondrop="dropKanbanTask(event, 'backlog')" ondragover="allowKanbanDrop(event)">
+                                    <div class="flex justify-between items-center mb-3 px-1">
+                                        <h4 class="font-bold text-slate-700 text-sm">📥 בנק משימות</h4>
+                                        <span class="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full" id="count-backlog">0</span>
+                                    </div>
+                                    <div id="col-backlog" class="flex-1 space-y-3 min-h-[100px]"></div>
+                                </div>
+
+                                <div class="bg-blue-50/50 rounded-2xl p-3 w-72 shrink-0 flex flex-col border border-blue-100" ondrop="dropKanbanTask(event, 'in_progress')" ondragover="allowKanbanDrop(event)">
+                                    <div class="flex justify-between items-center mb-3 px-1">
+                                        <h4 class="font-bold text-blue-800 text-sm">🚧 בפיתוח</h4>
+                                        <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full" id="count-in_progress">0</span>
+                                    </div>
+                                    <div id="col-in_progress" class="flex-1 space-y-3 min-h-[100px]"></div>
+                                </div>
+
+                                <div class="bg-orange-50/50 rounded-2xl p-3 w-72 shrink-0 flex flex-col border border-orange-100" ondrop="dropKanbanTask(event, 'qa')" ondragover="allowKanbanDrop(event)">
+                                    <div class="flex justify-between items-center mb-3 px-1">
+                                        <h4 class="font-bold text-orange-800 text-sm">👀 בבדיקות QA</h4>
+                                        <span class="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full" id="count-qa">0</span>
+                                    </div>
+                                    <div id="col-qa" class="flex-1 space-y-3 min-h-[100px]"></div>
+                                </div>
+
+                                <div class="bg-green-50/50 rounded-2xl p-3 w-72 shrink-0 flex flex-col border border-green-100" ondrop="dropKanbanTask(event, 'done')" ondragover="allowKanbanDrop(event)">
+                                    <div class="flex justify-between items-center mb-3 px-1">
+                                        <h4 class="font-bold text-green-800 text-sm">✅ שוחרר (Done)</h4>
+                                        <span class="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full" id="count-done">0</span>
+                                    </div>
+                                    <div id="col-done" class="flex-1 space-y-3 min-h-[100px]"></div>
+                                </div>
+
                             </div>
                         </div>
 
@@ -906,6 +942,54 @@
         </div>
     </div>
 
-    <script src="sa-app.js?v=4"></script>
+    <div id="dev-kanban-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('dev-kanban-task-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-6" id="kanban-modal-title">משימה חדשה</h3>
+            
+            <div class="space-y-4 mb-6">
+                <input type="hidden" id="kanban-task-id">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">כותרת המשימה:</label>
+                    <input type="text" id="kanban-task-title" class="modern-input py-2.5 text-sm font-bold bg-slate-50" placeholder="למשל: הוספת כפתור ייצוא ל-PDF">
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">סוג:</label>
+                        <select id="kanban-task-type" class="modern-input py-2.5 text-sm bg-slate-50">
+                            <option value="feature">✨ פיצ'ר חדש</option>
+                            <option value="bug">🐞 באג (תקלה)</option>
+                            <option value="ui">🎨 עיצוב (UI/UX)</option>
+                            <option value="tech">🔧 תשתיות קוד</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">דחיפות:</label>
+                        <select id="kanban-task-priority" class="modern-input py-2.5 text-sm bg-slate-50">
+                            <option value="critical">🚨 קריטי</option>
+                            <option value="high">🔴 גבוה</option>
+                            <option value="normal" selected>🟡 רגיל</option>
+                            <option value="low">🔵 נמוך</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">פירוט (אופציונלי):</label>
+                    <textarea id="kanban-task-desc" class="modern-input py-3 text-sm h-24 resize-none bg-slate-50" placeholder="תיאור מורחב למפתח..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שיוך לגרסה עתידית (Roadmap):</label>
+                    <input type="text" id="kanban-task-version" class="modern-input py-2.5 text-sm font-mono dir-ltr text-right bg-slate-50" placeholder="v2.2.0">
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="deleteKanbanTask()" id="btn-kanban-delete" class="hidden shrink-0 bg-red-50 text-red-600 w-12 h-12 rounded-xl hover:bg-red-100 transition flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+                <button onclick="saveKanbanTaskData()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור משימה</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sa-app.js?v=5"></script>
 </body>
 </html>
