@@ -70,12 +70,13 @@
                 
                <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 overflow-x-auto modal-scroll whitespace-nowrap">
                     <button id="btn-sa-tab-pulse" onclick="switchSATab('pulse')" class="flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-heart-pulse text-red-400 animate-pulse"></i> דופק חי</button>
+                    <button id="btn-sa-tab-devops" onclick="switchSATab('devops')" class="flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1">פיתוח ומוצר <i class="fa-solid fa-code-branch ml-1"></i></button>
+                    <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1">קריאות שירות <i class="fa-solid fa-headset ml-1"></i></button>
                     <button id="btn-sa-tab-stats" onclick="switchSATab('stats')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">סטטיסטיקה מורחבת</button>
                     <button id="btn-sa-tab-comm" onclick="switchSATab('comm')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">קהילות וחיבורים</button>
                     <button id="btn-sa-tab-biz" onclick="switchSATab('biz')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">ניהול עסקים</button>
-                    <button id="btn-sa-tab-inbox" onclick="switchSATab('inbox')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">תיבת הודעות מרוכזת <i class="fa-regular fa-envelope ml-1"></i></button>
-                    <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm">קריאות שירות <i class="fa-solid fa-headset ml-1"></i></button>
-                    <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">הודעות ובאנרים</button>
+                    <button id="btn-sa-tab-inbox" onclick="switchSATab('inbox')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">הודעות מערכת</button>
+                    <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">מיתוג ובאנרים</button>
                     <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">משתמשים והגדרות</button>
                     <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm">שותפים <i class="fa-solid fa-handshake ml-1"></i></button>
                 </div>
@@ -573,6 +574,45 @@
                                 <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-red-600 transition whitespace-nowrap">שמור נתונים</button>
                             </div>
                         </div>
+                </div>
+
+                <div id="sa-view-devops" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        
+                        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4 border-b border-slate-100 pb-6">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-code-branch text-indigo-600"></i> מרכז פיתוח, QA ומוצר</h2>
+                                <p class="text-sm text-slate-500 mt-1">ניהול מחזור חיי האפליקציה: מספר המוצר, דרך תעדוף באגים, ועד לשחרור גרסאות ללקוחות.</p>
+                            </div>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl w-full xl:w-auto overflow-x-auto whitespace-nowrap">
+                                <button id="btn-dev-tab-matrix" onclick="switchDevTab('matrix')" class="flex-1 px-5 py-2.5 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition"><i class="fa-solid fa-list-check mr-1"></i> ספר מוצר (Matrix)</button>
+                                <button id="btn-dev-tab-kanban" onclick="switchDevTab('kanban')" class="flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition"><i class="fa-solid fa-trello mr-1"></i> לוח משימות</button>
+                                <button id="btn-dev-tab-release" onclick="switchDevTab('release')" class="flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition"><i class="fa-solid fa-bullhorn mr-1"></i> שיווק והשקות</button>
+                            </div>
+                        </div>
+
+                        <div id="dev-content-matrix" class="space-y-4 fade-in">
+                            <div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-300 mb-3"></i>
+                                <p class="text-slate-500 font-medium">מכין את עץ המוצר...</p>
+                            </div>
+                        </div>
+
+                        <div id="dev-content-kanban" class="hidden space-y-4 fade-in">
+                            <div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-300 mb-3"></i>
+                                <p class="text-slate-500 font-medium">בונה את לוח המשימות (Kanban)...</p>
+                            </div>
+                        </div>
+
+                        <div id="dev-content-release" class="hidden space-y-4 fade-in">
+                            <div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-300 mb-3"></i>
+                                <p class="text-slate-500 font-medium">טוען מחולל השקות מונע AI...</p>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
                 
             </div>
