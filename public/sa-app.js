@@ -1996,24 +1996,34 @@ window.exportToPDF = function() {
     }
 
 window.broadcastReleaseNotes = async function() {
-    const editor = getEl('release-editor');
+    // 1. הגנה על שליפת אזור העורך (מונע קריסה אם ה-ID השתנה)
+    const editor = document.getElementById('release-editor');
+    if (!editor) return showToast('error', 'שגיאה: לא נמצא אזור העורך במסך.');
     const content = editor.innerHTML;
-    const title = val('release-title') || 'עדכון גרסה חדש!';
-    const audience = val('release-target-audience'); // 'all', 'family', 'business'
     
-    if (!content || content.includes('תוצאת ה-AI')) return showToast('error', 'העורך ריק. צור או כתוב הודעה תחילה.');
+    // 2. הגנה על שליפת כותרת (אם הוא לא מוצא את השדה, ישתמש בברירת מחדל)
+    const titleEl = document.getElementById('release-title');
+    const title = (titleEl && titleEl.value) ? titleEl.value : 'עדכון גרסה חדש!';
+    
+    // 3. הגנה על בחירת הקהל (חיפוש מורחב למקרה שה-ID שונה ב-HTML)
+    const audienceEl = document.getElementById('release-target-audience') || document.getElementById('release-audience') || document.getElementById('target-audience');
+    const audience = (audienceEl && audienceEl.value) ? audienceEl.value : 'all'; 
+    
+    // 4. בדיקת תוכן ולוגיקת שיגור רגילה
+    if (!content || content.includes('תוצאת ה-AI') || content.trim() === '') return showToast('error', 'העורך ריק. צור או כתוב הודעה תחילה.');
     if (!confirm('האם לשגר את ההודעה הזו לתיבת ה-Inbox של הלקוחות?')) return;
     
-    const btn = getEl('btn-broadcast-release');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
+    const btn = document.getElementById('btn-broadcast-release');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
+    }
     
     try {
-        // התאמה מדויקת למפתחות המוגדרים ב-server.js
         let targets = [];
-        if (audience === 'business') targets = ['all']; // בשרת 'all' שווה לכל העסקים
-        else if (audience === 'family') targets = ['all_families']; // בשרת 'all_families' שווה למשפחות
-        else if (audience === 'all') targets = ['all', 'all_families']; // אם בחר "כולם", נשלח בשתי פעימות מאחורי הקלעים
+        if (audience === 'business') targets = ['all']; 
+        else if (audience === 'family') targets = ['all_families']; 
+        else targets = ['all', 'all_families']; // ברירת מחדל לכולם אם לא זוהתה בחירה
 
         let totalSent = 0;
         let hasError = false;
@@ -2021,7 +2031,7 @@ window.broadcastReleaseNotes = async function() {
 
         for (let tType of targets) {
             const res = await fetch(`${API}/sa/inbox/broadcast`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
                 body: JSON.stringify({ targetType: tType, targetValue: '', subject: title, content })
             });
             const data = await res.json();
@@ -2036,15 +2046,17 @@ window.broadcastReleaseNotes = async function() {
         if (totalSent > 0) {
             showToast('success', `ההשקה שוגרה בהצלחה ל-${totalSent} סביבות! 🚀`);
         } else if (hasError) {
-            showToast('error', errorMessage || 'שגיאה בשיגור ההודעה. ייתכן ואין נמענים פעילים.');
+            showToast('error', errorMessage || 'שגיאה בשיגור ההודעה.');
         } else {
             showToast('error', 'לא נמצאו נמענים מתאימים לשיגור.');
         }
     } catch(e) { 
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
+        showToast('error', 'שגיאת תקשורת מול השרת: ' + e.message); 
     } finally { 
-        btn.disabled = false; 
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; 
+        if (btn) {
+            btn.disabled = false; 
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; 
+        }
     }
 };
 
