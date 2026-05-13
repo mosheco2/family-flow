@@ -1916,24 +1916,53 @@ window.copyReleaseNotes = function() {
 window.exportToPDF = function() {
     const element = document.getElementById('newsletter-content-wrap');
     if (!element) return showToast('error', 'יש לחולל טמפלט קודם לפני ייצוא ל-PDF');
-    
+
     const btn = document.getElementById('btn-export-pdf');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
     btn.disabled = true;
-    
+
     const generate = () => {
         const opt = {
-            margin:       [5, 5, 5, 5], 
-            filename:     'Oneflow_Release.pdf',
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
+            margin:      [10, 10, 10, 10],
+            filename:    'Oneflow_Release.pdf',
+            image:       { type: 'jpeg', quality: 1 },
+            html2canvas: {
+                scale: 2,
                 useCORS: true,
-                letterRendering: false // חובה למנוע דריסת טקסט בעברית
-            }, 
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            // הסרנו את תכונת ה-pagebreak לחלוטין כדי למנוע דחיפה לעמוד השני
+                letterRendering: true,
+                onclone: (clonedDoc) => {
+                    const style = clonedDoc.createElement('style');
+                    style.textContent = `
+                        #newsletter-content-wrap,
+                        #newsletter-content-wrap * {
+                            direction: rtl !important;
+                            font-family: Arial, Helvetica, sans-serif !important;
+                            box-sizing: border-box !important;
+                        }
+                        #newsletter-content-wrap div,
+                        #newsletter-content-wrap p,
+                        #newsletter-content-wrap span,
+                        #newsletter-content-wrap li,
+                        #newsletter-content-wrap td,
+                        #newsletter-content-wrap strong {
+                            text-align: right !important;
+                            word-spacing: 2px !important;
+                            word-break: normal !important;
+                            overflow-wrap: break-word !important;
+                            white-space: normal !important;
+                            unicode-bidi: embed !important;
+                        }
+                        #newsletter-content-wrap h1,
+                        #newsletter-content-wrap h2 {
+                            text-align: center !important;
+                            unicode-bidi: embed !important;
+                        }
+                    `;
+                    clonedDoc.head.appendChild(style);
+                }
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         html2pdf().set(opt).from(element).save().then(() => {
             btn.innerHTML = originalText;
