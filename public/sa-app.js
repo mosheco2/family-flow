@@ -1742,3 +1742,109 @@ window.convertTicketToDevTask = function() {
         showToast('info', 'פרטי הקריאה הועתקו ללוח המשימות!');
     }, 100);
 };
+// ==========================================
+// --- מרכז שיווק והשקות (AI Release Notes) ---
+// ==========================================
+
+window.generateReleaseNotesAI = async function() {
+    const title = val('release-title');
+    const rawPoints = val('release-raw-points');
+    const tone = val('release-tone');
+    
+    if (!rawPoints) return showToast('error', 'יש להזין לפחות נקודה אחת מהפיתוח');
+    
+    const btn = getEl('btn-generate-release');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI כותבת...';
+    
+    try {
+        // בנית קונטקסט (פרומפט) ספציפי למחולל ההשקות
+        const promptContext = `
+            אתה כותב שיווקי בכיר. המשימה שלך היא לקחת רשימה של באגים ויכולות שפותחו, ולתרגם אותם לניוזלטר (Release Notes) עבור הלקוחות.
+            כותרת ההשקה: "${title || 'עדכון מערכת חשוב'}".
+            הטון המבוקש: ${tone === 'enthusiastic' ? 'מלהיב, חגיגי, מלא אימוג\'ים' : (tone === 'funny' ? 'שנון, מצחיק, קליל' : 'רשמי, מקצועי, ברור')}.
+            אנא סדר את זה יפה עם כותרות משנה, פתיח שיווקי מרתק, וסיום שמניע לפעולה.
+            
+            נקודות גולמיות לתרגום:
+            ${rawPoints}
+        `;
+        
+        const res = await fetch(`${API}/family/chat-assistant`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                groupId: saAllGroups[0] ? saAllGroups[0].id : 0, 
+                userId: 0, 
+                query: 'אנא נסח את הניוזלטר',
+                context: promptContext
+            })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            // הזרקת הטקסט המעוצב לעורך
+            let formattedAns = data.answer.replace(/\*\*(.*?)\*\*/g, '$1'); // הסרת כוכביות Markdown כדי שיישאר נקי בעורך הטקסט
+            getEl('release-editor').value = formattedAns;
+            showToast('success', 'הטקסט מוכן! ניתן לערוך אותו לפני השיגור.');
+            try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
+        } else {
+            showToast('error', 'שגיאה ביצירת הטקסט.');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת מול ה-AI');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'יצר הודעת שחרור עם FamilAI';
+    }
+};
+
+window.copyReleaseNotes = function() {
+    const text = val('release-editor');
+    if (!text) return showToast('info', 'אין טקסט להעתקה');
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('success', 'הטקסט הועתק ללוח!');
+    }).catch(err => {
+        showToast('error', 'שגיאה בהעתקה');
+    });
+};
+
+window.broadcastReleaseNotes = async function() {
+    const content = val('release-editor');
+    const title = val('release-title') || 'עדכון גרסה חדש!';
+    const audience = val('release-target-audience'); // 'all', 'family', 'business'
+    
+    if (!content) return showToast('error', 'העורך ריק. צור או כתוב הודעה תחילה.');
+    if (!confirm('האם לשגר את ההודעה הזו לתיבת ה-Inbox של הלקוחות? פעולה זו בלתי הפיכה.')) return;
+    
+    const btn = getEl('btn-broadcast-release');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
+    
+    try {
+        // מתממשק לפונקציית הברודקאסט (Inbox) הקיימת שיש לך בשרת
+        let targetType = 'group_type';
+        let targetValue = 'FAMILY';
+        if (audience === 'business') targetValue = 'BUSINESS';
+        if (audience === 'all') { targetType = 'all'; targetValue = 'all'; }
+
+        const res = await fetch(`${API}/sa/inbox/broadcast`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ targetType, targetValue, subject: title, content })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `ההשקה שוגרה בהצלחה ל-${data.count || 0} סביבות! 🚀`);
+            getEl('release-title').value = '';
+            getEl('release-raw-points').value = '';
+            getEl('release-editor').value = '';
+        } else { 
+            showToast('error', data.error || 'שגיאה בשיגור ההודעה'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    } finally { 
+        btn.disabled = false; 
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר כ-Inbox ללקוחות'; 
+    }
+};
