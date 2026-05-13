@@ -81,10 +81,14 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
 
-      // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+    // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
+      
+      // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_teams (id SERIAL PRIMARY KEY, name VARCHAR(100), permissions JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_users (id SERIAL PRIMARY KEY, team_id INT REFERENCES sa_teams(id) ON DELETE SET NULL, name VARCHAR(100), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255), status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
       // טבלת צ'אט צוות פנימי
     try {
@@ -491,32 +495,133 @@ function verifySA(req, res, next) {
     if (req.headers.authorization !== 'SA_SECRET_TOKEN_2026') return res.status(403).json({error: 'Forbidden'});
     next();
 }
+
 app.post('/api/superadmin/login', async (req, res) => {
     try {
         const { code, password } = req.body;
+        
+        // 1. קודם כל בודקים אם קיים משתמש צוות (RBAC) עם המייל והסיסמה האלו
+        const userRes = await pool.query(`
+            SELECT u.id, u.name, u.email, u.status, t.name as team_name, t.permissions 
+            FROM sa_users u 
+            LEFT JOIN sa_teams t ON u.team_id = t.id 
+            WHERE u.email = $1 AND u.password_hash = $2
+        `, [code, password]);
+        
+        if (userRes.rows.length > 0) {
+            const user = userRes.rows[0];
+            if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
+            
+            return res.json({ 
+                success: true, 
+                token: 'SA_SECRET_TOKEN_2026', 
+                user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] } 
+            });
+        }
+
+        // 2. אם לא מצאנו משתמש צוות, נבדוק את סיסמת המאסטר הישנה (Fallback - רק מנהלי העל)
         const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
         const saPassRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'");
         const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
         const currentPass = saPassRes.rows.length > 0 ? saPassRes.rows[0].value : '123456';
         
-        if (code === currentCode && password === currentPass) { res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' }); } 
-        else { res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' }); }
+        if (code === currentCode && password === currentPass) { 
+            // מנהל העל (Master) תמיד מקבל הרשאת "all" שפותחת הכל
+            res.json({ 
+                success: true, 
+                token: 'SA_SECRET_TOKEN_2026',
+                user: { id: 0, name: 'מנהל על (Master)', email: currentCode, team: 'Management', permissions: ['all'] }
+            }); 
+        } else { 
+            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' }); 
+        }
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
-    try {
-        const { newUsername, newPassword, newEmail } = req.body;
-        if (!newUsername || !newPassword) return res.status(400).json({error: 'חסרים פרטי גישה (שם משתמש או סיסמה)'});
-        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]);
-        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]);
-        if (newEmail !== undefined) {
-            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_email', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newEmail]);
-        }
-        res.json({success: true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+// ============================================================
+// --- SUPER ADMIN: HR & RBAC (TEAMS & USERS) ---
+// ============================================================
+
+app.get('/api/sa/teams', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_teams ORDER BY created_at ASC');
+        res.json({ success: true, teams: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/sa/teams', verifySA, async (req, res) => {
+    try {
+        const { name, permissions } = req.body;
+        const result = await pool.query('INSERT INTO sa_teams (name, permissions) VALUES ($1, $2) RETURNING *', [name, JSON.stringify(permissions || [])]);
+        res.json({ success: true, team: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/teams/:id', verifySA, async (req, res) => {
+    try {
+        const { name, permissions } = req.body;
+        await pool.query('UPDATE sa_teams SET name=$1, permissions=$2 WHERE id=$3', [name, JSON.stringify(permissions || []), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/teams/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_teams WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/staff', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.id, u.name, u.email, u.status, u.created_at, t.name as team_name, t.id as team_id 
+            FROM sa_users u 
+            LEFT JOIN sa_teams t ON u.team_id = t.id 
+            ORDER BY u.created_at DESC
+        `);
+        res.json({ success: true, staff: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/staff', verifySA, async (req, res) => {
+    try {
+        const { name, email, password, teamId } = req.body;
+        const result = await pool.query(
+            'INSERT INTO sa_users (name, email, password_hash, team_id) VALUES ($1, $2, $3, $4) RETURNING id, name, email, status', 
+            [name, email, password, teamId || null]
+        );
+        res.json({ success: true, user: result.rows[0] });
+    } catch(e) { 
+        if (e.code === '23505') return res.status(400).json({ error: 'כתובת המייל הזו כבר קיימת במערכת' });
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.put('/api/sa/staff/:id', verifySA, async (req, res) => {
+    try {
+        const { name, email, password, teamId, status } = req.body;
+        if (password && password.trim() !== '') {
+            await pool.query(
+                'UPDATE sa_users SET name=$1, email=$2, password_hash=$3, team_id=$4, status=$5 WHERE id=$6', 
+                [name, email, password, teamId || null, status, req.params.id]
+            );
+        } else {
+            await pool.query(
+                'UPDATE sa_users SET name=$1, email=$2, team_id=$3, status=$4 WHERE id=$5', 
+                [name, email, teamId || null, status, req.params.id]
+            );
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/staff/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_users WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
 app.put('/api/sa/groups/:id', async (req, res) => {
     try {
