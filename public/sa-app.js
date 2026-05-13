@@ -1972,7 +1972,6 @@ window.exportToPDF = function() {
                             unicode-bidi: embed !important;
                         }
                     `;
-                    `;
                     clonedDoc.head.appendChild(style);
                 }
             },
