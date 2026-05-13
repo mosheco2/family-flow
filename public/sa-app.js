@@ -1825,7 +1825,6 @@ window.generateReleaseNotesAI = async function() {
             נקודות גולמיות לתרגום: ${rawPoints}
         `;
 
-        // נתיב AI ייעודי לסופר-אדמין ללא הגבלת טוקנים!
         const res = await fetch(`${API}/sa/ai-generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
@@ -1835,13 +1834,18 @@ window.generateReleaseNotesAI = async function() {
             })
         });
         
-        // הגנה מפני שרת שלא עודכן או מחזיר עמוד שגיאה (HTML במקום JSON)
-        const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            throw new Error("השרת לא מזהה את הנתיב. חובה לבצע Restart לשרת ה-Node.js!");
+        // הגנה קריטית נגד עמודי HTML / קריסות שרת
+        const textRes = await res.text();
+        let data;
+        try {
+            data = JSON.parse(textRes);
+        } catch(err) {
+            if (textRes.trim().startsWith('<!DOCTYPE') || textRes.trim().startsWith('<html')) {
+                throw new Error("השרת מחזיר דף שגיאה (כנראה השרת בתהליך עלייה או שלא בוצע Restart מלא). אנא ודא שהשרת רץ בצורה תקינה.");
+            }
+            throw new Error("השרת החזיר תשובה לא חוקית. נסה שוב.");
         }
 
-        const data = await res.json();
         if (data.success) {
             let formattedContent = data.answer;
             
@@ -1890,7 +1894,7 @@ window.generateReleaseNotesAI = async function() {
             showToast('error', data.error || 'שגיאה ביצירת הטקסט.');
         }
     } catch (e) {
-        showToast('error', e.message); // זה יציג את אזהרת הריסטרט אם צריך
+        showToast('error', e.message); 
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI';
