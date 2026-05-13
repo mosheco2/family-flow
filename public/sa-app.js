@@ -1873,7 +1873,7 @@ window.generateReleaseNotesAI = async function() {
                         <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); display: block; margin: 0 auto 15px auto;">
                         <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.3; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${releaseTitle}</h1>
                         <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${subtitleDisplay}</h2>                    </div>
-                        <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.65; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 4px; unicode-bidi: embed;">
+                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.65; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 4px;">
                         ${formattedContent}
                     </div>
                     <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
