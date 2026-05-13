@@ -1851,16 +1851,9 @@ window.generateReleaseNotesAI = async function() {
             
             formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
             formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // הסרת גרשיים מסביב לטקסט מודגש שה-AI מוסיף
-            formattedContent = formattedContent.replace(/<strong>["״"](.*?)["״"]<\/strong>/g, '<strong>$1</strong>');
-            // הסרת רווח לפני סימני פיסוק
-            formattedContent = formattedContent.replace(/\s+([\!\?\.\,\:\;])/g, '$1');
-            // הוספת רווח אחרי סימני פיסוק לפני אות
-            formattedContent = formattedContent.replace(/([\!\?\.\,\:\;])([א-תA-Za-z])/g, '$1 $2');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
             formattedContent = formattedContent.replace(/(<br\s*\/?>){2,}/gi, '<br>');
             formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
-            formattedContent = formattedContent.replace(/([א-תA-Za-z0-9])<strong>/g, '$1 <strong>');
             
             const themeColors = {
                 purple: ['#4f46e5', '#9333ea'],
