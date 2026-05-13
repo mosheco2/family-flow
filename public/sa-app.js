@@ -1868,17 +1868,23 @@ window.generateReleaseNotesAI = async function() {
             const releaseTitle = (title || 'עדכון גרסה חגיגי! 🎉').replace(/ /g, '\u00A0');
             const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');            
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: white; overflow: hidden; padding-bottom: 2px;">
-                    <div style="background-color: ${gradStart}; background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
-                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
-                        <h1 style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
-                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl;">${subtitle}</h2>
+                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;">
+                        <tr>
+                            <td style="padding: 40px 20px;">
+                                <img src="${mascotImg}" onerror="this.style.display='none'" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
+                                <h1 style="color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
+                                <h2 style="color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;">${subtitle}</h2>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;">
+                        ${formattedContent.trim()}
                     </div>
-                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em;">
-                        ${formattedContent}
-                    </div>
-                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
+                    
+                    <div style="background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+                        <p style="color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
                     </div>
                 </div>
             `;
