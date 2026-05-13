@@ -558,8 +558,20 @@
                     </button>
                 </div>
 
-                <div id="sa-view-users" class="hidden space-y-8 fade-in">
-                    
+               <div id="sa-view-clients" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                            <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-users text-emerald-500 mr-2"></i> לקוחות וסביבות במערכת</h2>
+                            <div class="relative w-full sm:w-64">
+                                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש קוד לקוח או שם...">
+                            </div>
+                        </div>
+                        <div id="sa-groups-list" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <div id="sa-view-hr" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i> ניהול צוותים והרשאות גישה (RBAC)</h2>
@@ -571,7 +583,7 @@
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> נציגי מערכת וצוות עובדים</h2>
-                            <button onclick="openAddStaffModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md"><i class="fa-solid fa-user-plus"></i> הוסף נציג פנימי</button>
+                            <button onclick="openStaffModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md"><i class="fa-solid fa-user-plus"></i> הוסף נציג פנימי</button>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm text-right whitespace-nowrap">
@@ -580,7 +592,7 @@
                                         <th class="px-4 py-3 rounded-tr-lg">שם הנציג</th>
                                         <th class="px-4 py-3">אימייל (לכניסה)</th>
                                         <th class="px-4 py-3 text-center">שיוך לצוות</th>
-                                        <th class="px-4 py-3 text-center">סטטוס מנוי</th>
+                                        <th class="px-4 py-3 text-center">סטטוס</th>
                                         <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
                                     </tr>
                                 </thead>
@@ -589,36 +601,16 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-users text-emerald-500 mr-2"></i> לקוחות וסביבות במערכת</h2>
-                            <div class="relative w-full sm:w-64">
-                                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש קוד לקוח או שם...">
-                            </div>
-                        </div>
-                        <div id="sa-groups-list" class="space-y-3"></div>
-                    </div>
-
                     <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8 border-l-4 border-l-red-500">
-                        <h2 class="text-xl font-black mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> מנהל על מרכזי (Master Admin)</h2>
-                        <p class="text-xs text-slate-500 mb-4 font-bold bg-white p-3 rounded-xl border border-slate-200 shadow-sm">למנהל העל (Master) יש גישה פתוחה לעקיפת כל חסימות ה-RBAC וכלל ההרשאות במערכת.</p>
+                        <h2 class="text-xl font-black mb-2 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> מנהל על מרכזי (Master Admin)</h2>
+                        <p class="text-xs text-slate-500 mb-4">שינוי פרטי גישה של חשבון המאסטר הראשי.</p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש (לשחזור):</label>
-                                <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">אימייל ראשי:</label>
-                                <input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="master@oneflow.com">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">סיסמת Master חדשה:</label>
-                                <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********">
-                            </div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש:</label><input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label><input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********"></div>
                         </div>
                         <div class="flex justify-end mt-4">
-                            <button onclick="updateSACredentials()" class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-red-700 transition whitespace-nowrap">שמור ועדכן</button>
+                            <button onclick="updateSACredentials()" class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-red-700 transition">שמור ועדכן</button>
                         </div>
                     </div>
                 </div>
