@@ -3818,24 +3818,24 @@ window.initPublicConfig = async function() {
         
         if (data.success) {
             if (data.globalAiLogo) {
+                // שמירת התמונה הגלובלית לשימוש בכל שאר רחבי האפליקציה (כמו בצ'אט)
+                window.currentFamilaiLogo = data.globalAiLogo;
+                
                 // 1. החלפת סמל הדפדפן (Favicon)
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
                 
-                // 2. שמירת התמונה בזיכרון הגלובלי לשימוש עתידי בכפתורים
-                window.currentFamilaiLogo = data.globalAiLogo;
-                
-                // 3. הזרקת התמונה לבועת העוזרת החכמה המרחפת!
-                // מוצא את תגית התמונה <img> שנמצאת בתוך הכפתור btn-global-ai
-                const aiBubbleImg = document.querySelector('#btn-global-ai img');
-                if (aiBubbleImg) {
-                    aiBubbleImg.src = data.globalAiLogo;
+                // 2. החלפת האייקון בבועה המרחפת (Floating FAB) לתמונה העגולה
+                const aiBtnMain = document.getElementById('btn-global-ai');
+                if (aiBtnMain) {
+                    aiBtnMain.innerHTML = `<img src="${data.globalAiLogo}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" alt="AI">`;
+                    aiBtnMain.style.padding = '0'; // מבטל ריווחים כדי שהתמונה תמלא את הבועה
                 }
                 
-                // 4. (אופציונלי) אם יש לך תמונה שלה גם בתוך חלון הצ'אט עצמו
-                const aiChatHeaderImg = document.querySelector('#familai-chat-modal img');
-                if (aiChatHeaderImg) {
-                    aiChatHeaderImg.src = data.globalAiLogo;
+                // 3. החלפת אייקון הרובוט בכותרת חלון הצ'אט
+                const modalTitleIcon = document.querySelector('#familai-chat-modal .fa-robot');
+                if (modalTitleIcon) {
+                    modalTitleIcon.outerHTML = `<img src="${data.globalAiLogo}" class="w-6 h-6 rounded-full object-cover ml-2 inline-block shadow-sm">`;
                 }
             }
 
@@ -3845,7 +3845,6 @@ window.initPublicConfig = async function() {
                 const dots = document.getElementById('login-slider-dots');
                 
                 if (scroll && dots) {
-                    // מעלימים את הגלילה הידנית
                     scroll.classList.remove('overflow-x-auto');
                     scroll.classList.add('overflow-hidden');
                     scroll.style.overflow = 'hidden';
@@ -3873,7 +3872,6 @@ window.initPublicConfig = async function() {
         }
     } catch(e) { console.error('Failed to load public config', e); }
 };
-
 window.startLoginAutoScroll = function(total) {
     if (window.loginSliderInterval) clearInterval(window.loginSliderInterval);
     window.loginSliderInterval = setInterval(() => {
@@ -5316,7 +5314,6 @@ window.sendFamilaiChatMessage = async function() {
     setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 
     try {
-        // בניה מורחבת של קונטקסט (כדי לספק ל-AI מספיק היסטוריה לחיזוי ולפעולות מורכבות)
         const contextData = {
             family_name: currentGroup.name,
             user_name: currentUser.nickname,
@@ -5334,7 +5331,7 @@ window.sendFamilaiChatMessage = async function() {
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
             body: JSON.stringify({ 
                 groupId: currentGroup.id, 
-                userId: currentUser.id, // הוספנו את המזהה כדי שהשרת יוכל לרשום פעולות על שמו
+                userId: currentUser.id, 
                 query: text,
                 context: JSON.stringify(contextData)
             })
@@ -5348,10 +5345,13 @@ window.sendFamilaiChatMessage = async function() {
             formattedAns = formattedAns.replace(/\n/g, '<br>');
             
             const aiTime = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+            // כאן מתבצעת הזרקת תמונת העוזרת במקום אייקון רובוט גנרי
+            const aiAvatarHtml = window.currentFamilaiLogo ? `<img src="${window.currentFamilaiLogo}" class="w-4 h-4 rounded-full object-cover shadow-sm inline-block">` : `<i class="fa-solid fa-robot"></i>`;
+            
             container.innerHTML += `
                 <div class="flex w-full justify-start mt-2 fade-in">
                     <div class="max-w-[85%] flex flex-col items-start text-right">
-                        <span class="text-[10px] font-bold text-purple-600 mb-1 px-1 flex items-center gap-1"><i class="fa-solid fa-robot"></i> FamilAI</span>
+                        <span class="text-[10px] font-bold text-purple-600 mb-1 px-1 flex items-center gap-1">${aiAvatarHtml} FamilAI</span>
                         <div class="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-sm bg-white border border-purple-100 text-slate-800 rounded-tr-none">
                             ${formattedAns}
                         </div>
@@ -5359,7 +5359,6 @@ window.sendFamilaiChatMessage = async function() {
                     </div>
                 </div>
             `;
-            // רענון מיידי של נתוני הרקע! אם ה-AI פתחה משימה, היא תופיע מיד בטאבים.
             fetchData();
         } else {
             if (data.error === 'BATTERY_EMPTY') {
