@@ -5039,9 +5039,15 @@ window.openInboxMessage = async function(id) {
     const d = new Date(msg.created_at);
     const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
     
+    // מזהה אוטומטית אם מדובר בניוזלטר HTML מעוצב כדי למנוע דריסת CSS ורווחים מיותרים
+    const isRichHtml = msg.content && msg.content.includes('<div') && msg.content.includes('style=');
+    const displayContent = isRichHtml 
+        ? `<div class="w-full overflow-y-auto max-h-[65vh] bg-slate-50">${msg.content}</div>`
+        : `<div class="p-6 overflow-y-auto max-h-[60vh] text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">${safeStr(msg.content)}</div>`;
+    
     msgModal.innerHTML = `
         <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative border border-slate-200">
-            <div class="p-5 border-b border-slate-100 bg-blue-50/50 flex justify-between items-start">
+            <div class="p-5 border-b border-slate-100 bg-blue-50/50 flex justify-between items-start shrink-0">
                 <div class="pr-8">
                     <h3 class="font-bold text-slate-800 text-lg leading-tight mb-2">${safeStr(msg.subject)}</h3>
                     <div class="flex items-center gap-2 text-xs text-slate-500">
@@ -5052,11 +5058,9 @@ window.openInboxMessage = async function(id) {
                 <button onclick="document.getElementById('inbox-read-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="p-6 overflow-y-auto max-h-[60vh] text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">
-                ${safeStr(msg.content)}
-            </div>
+            ${displayContent}
             
-            <div class="p-4 bg-slate-50 border-t border-slate-100 text-center">
+            <div class="p-4 bg-slate-50 border-t border-slate-100 text-center shrink-0">
                 <button onclick="document.getElementById('inbox-read-modal').classList.add('hidden')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition w-full text-sm">הבנתי וקראתי</button>
             </div>
         </div>
