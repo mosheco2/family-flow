@@ -3860,7 +3860,6 @@ app.post('/api/groups/:id/logo', async (req, res) => {
 });
 
 // ==========================================
-// ==========================================
 // --- SUPER ADMIN: AI Generator (Unlimited PRO) ---
 // ==========================================
 app.post('/api/sa/ai-generate', async (req, res) => {
@@ -3871,15 +3870,15 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         const { context, query } = req.body;
         if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
 
-        // שימוש ישיר במודל ה-AI - ללא הגבלת אסימונים (מעודכן ל-2.5)
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+        // שימוש במודל gemini-pro כדי לנסות לעקוף את מכסת ה-Free Tier של ה-flash
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
         const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
         const responseText = result.response.text();
         
         res.json({ success: true, answer: responseText });
     } catch(e) {
         console.error('Super Admin AI Generation Error:', e);
-        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI (המכסה היומית הסתיימה, אנא הגדר כרטיס אשראי במסוף גוגל או נסה מחר): ' + e.message });
     }
 });
 
