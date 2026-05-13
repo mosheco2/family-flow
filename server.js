@@ -3885,15 +3885,13 @@ app.post('/api/sa/ai-generate', async (req, res) => {
 // ראוט למשיכת הגדרות ציבוריות למסך התחברות (לוגו וסליידרים)
 app.get('/api/system/public-config', async (req, res) => {
     try {
-        // בעתיד: שליפה מטבלת system_settings
-        // כרגע: נתונים קשיחים לצורך בדיקת הקרוסלה
         const mockConfig = {
             success: true,
-            globalAiLogo: '/logo.png', // לוגו ברירת מחדל
+            globalAiLogo: '/logo.png', 
             loginSlides: [
-                { image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop' }, // משפחה נהנית
-                { image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop' },  // ילדים משחקים
-                { image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop' }   // מישהו עובד / עסק
+                { image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop' }, 
+                { image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop' },  
+                { image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop' }   
             ]
         };
         res.json(mockConfig);
@@ -3905,4 +3903,8 @@ app.get('/api/system/public-config', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
+});
+
+}).catch(err => {
+    console.error('Failed to connect to database on startup:', err);
 });
