@@ -3864,6 +3864,91 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
+// ============================================================
+// --- SUPER ADMIN: DEV & PRODUCT MATRIX (KANBAN & QA) ---
+// ============================================================
+
+// --- KANBAN TASKS ---
+app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_dev_tasks ORDER BY priority DESC, created_at DESC');
+        res.json({ success: true, tasks: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
+    try {
+        const { title, type, priority, status, description, environment, moduleName, originalTicketId, targetVersion } = req.body;
+        const result = await pool.query(
+            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, target_version) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', originalTicketId || null, targetVersion || '']
+        );
+        res.json({ success: true, task: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        const { title, type, priority, status, description, targetVersion } = req.body;
+        await pool.query(
+            `UPDATE sa_dev_tasks SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, updated_at=CURRENT_TIMESTAMP WHERE id=$7`,
+            [title, type, priority, status, description, targetVersion, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE sa_dev_tasks SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- PRODUCT MATRIX (QA) ---
+app.get('/api/sa/matrix', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_product_matrix ORDER BY environment, module_name, id');
+        res.json({ success: true, matrix: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/matrix', verifySA, async (req, res) => {
+    try {
+        const { environment, moduleName, scenarioName, expectedResult } = req.body;
+        const result = await pool.query(
+            `INSERT INTO sa_product_matrix (environment, module_name, scenario_name, expected_result) 
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [environment, moduleName, scenarioName, expectedResult]
+        );
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/matrix/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE sa_product_matrix SET status=$1, last_tested_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/matrix/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_product_matrix WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==========================================
 // --- SUPER ADMIN: AI Generator (Unlimited PRO) ---
 // ==========================================
@@ -3875,7 +3960,6 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         const { context, query } = req.body;
         if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
 
-        // שימוש במודל gemini-pro כדי לנסות לעקוף את מכסת ה-Free Tier של ה-flash
         const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
         const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
         const responseText = result.response.text();
@@ -3883,11 +3967,11 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         res.json({ success: true, answer: responseText });
     } catch(e) {
         console.error('Super Admin AI Generation Error:', e);
-        res.json({ success: false, error: 'שגיאה במנוע ה-AI (המכסה היומית הסתיימה, אנא הגדר כרטיס אשראי במסוף גוגל או נסה מחר): ' + e.message });
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
     }
 });
 
-// ראוט למשיכת הגדרות ציבוריות למסך התחברות (לוגו וסליידרים)
+// ראוט למשיכת הגדרות ציבוריות למסך התחברות
 app.get('/api/system/public-config', async (req, res) => {
     try {
         const mockConfig = {
@@ -3901,7 +3985,6 @@ app.get('/api/system/public-config', async (req, res) => {
         };
         res.json(mockConfig);
     } catch(e) {
-        console.error('Error fetching public config:', e);
         res.status(500).json({ error: 'Failed to fetch config' });
     }
 });
