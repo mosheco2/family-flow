@@ -1805,108 +1805,38 @@ window.generateReleaseNotesAI = async function() {
     
     const btn = getEl('btn-generate-release');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה עיצוב...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה...';
     
     try {
-        const lengthInstruction = lengthChoice === 'standard' 
-            ? 'חובה לכתוב טקסט קצר ותמציתי של 50 מילים בלבד.' 
-            : 'כתוב טקסט של כ-120 מילים מקסימום. חובה שהטקסט יכנס לעמוד אחד בלבד.';
-
-        const promptContext = `
-            אתה קופירייטר שיווקי. כתוב הודעת פרסום על עדכון גרסה.
-            כותרת ההשקה: "${title || 'עדכון מערכת'}".
-            הטון המבוקש: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
-            אורך מבוקש: ${lengthInstruction}
-            
-            הוראות קריטיות - חובה לציית להן:
-            1. אל תכתוב שום משפט פתיחה! תחזיר אך ורק את תוכן הניוזלטר נטו.
-            2. השתמש בתגיות HTML בסיסיות (<br>, <strong>).
-            
-            נקודות גולמיות לתרגום: ${rawPoints}
-        `;
+        const lengthInstruction = lengthChoice === 'standard' ? 'חובה 50 מילים.' : 'כתוב כ-120 מילים.';
+        const promptContext = `אתה קופירייטר. כתוב הודעה על עדכון גרסה. כותרת: "${title || 'עדכון מערכת'}". טון: ${tone}. ${lengthInstruction} אל תכתוב פתיחה! השתמש ב-<br>, <strong>. נקודות: ${rawPoints}`;
 
         const res = await fetch(`${API}/sa/ai-generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
-            body: JSON.stringify({ 
-                query: 'אנא נסח את הפרסום כעת ללא הקדמות',
-                context: promptContext
-            })
+            body: JSON.stringify({ query: 'נסח כעת ללא הקדמות', context: promptContext })
         });
         
         const textRes = await res.text();
         let data;
-        try {
-            data = JSON.parse(textRes);
-        } catch(err) {
-            if (textRes.trim().startsWith('<!DOCTYPE') || textRes.trim().startsWith('<html')) {
-                throw new Error("השרת מחזיר דף שגיאה (כנראה השרת בתהליך עלייה או שלא בוצע Restart מלא). אנא ודא שהשרת רץ בצורה תקינה.");
-            }
-            throw new Error("השרת החזיר תשובה לא חוקית. נסה שוב.");
-        }
+        try { data = JSON.parse(textRes); } catch(err) { throw new Error("שגיאה במנוע ה-AI"); }
 
         if (data.success) {
-            let formattedContent = data.answer;
+            let formattedContent = data.answer.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
+            formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
             
-            formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
-            formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            formattedContent = formattedContent.replace(/\n/g, '<br>');
-            formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
-            formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
-            
-            const themeColors = {
-                purple: ['#4f46e5', '#9333ea'],
-                blue: ['#2563eb', '#1d4ed8'],
-                emerald: ['#10b981', '#047857'],
-                orange: ['#f97316', '#ea580c'],
-                slate: ['#475569', '#1e293b']
-            };
+            const themeColors = { purple: ['#4f46e5', '#9333ea'], blue: ['#2563eb', '#1d4ed8'], emerald: ['#10b981', '#047857'], orange: ['#f97316', '#ea580c'], slate: ['#475569', '#1e293b'] };
             const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
-            
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
-            const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
-            const htmlTemplate = `
-                <div id='newsletter-content-wrap' style='max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;'>
-                    <table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'>
-                        <tr>
-                            <td style='padding: 40px 20px;'>
-                                <img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;'>
-                                <h1 style='color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;'>${releaseTitle}</h1>
-                                <h2 style='color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;'>${subtitle}</h2>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <div style='padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;'>
-                        ${formattedContent.trim()}
-                    </div>
-                    
-                    <div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;'>
-                        <p style='color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p>
-                    </div>
-                </div>
-            `;
-            
-            // פקודת המיניפיקציה הקריטית: מוחקת ירידות שורות מהקוד כדי למנוע דריסת Inbox!
-            const cleanHtml = htmlTemplate.replace(/\n/g, '').replace(/\s\s+/g, ' ').trim();
+            const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent.trim()}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p></div></div>`;
             
             const editor = getEl('release-editor');
-            const placeholder = getEl('release-editor-placeholder');
-            if(placeholder) placeholder.style.display = 'none';
-            editor.innerHTML = cleanHtml;
-            
+            if(getEl('release-editor-placeholder')) getEl('release-editor-placeholder').style.display = 'none';
+            editor.innerHTML = htmlTemplate;
             showToast('success', 'הטמפלט מוכן!');
-            try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת הטקסט.');
-        }
-    } catch (e) {
-        showToast('error', e.message); 
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI';
-    }
+        } else { showToast('error', data.error || 'שגיאה.'); }
+    } catch (e) { showToast('error', e.message); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח ועצב עם FamilAI'; }
 };
 
 window.generateManualRelease = function() {
@@ -1916,55 +1846,19 @@ window.generateManualRelease = function() {
     const colorChoice = val('release-color') || 'purple';
     const uploadedLogo = val('release-logo-base64');
     
-    if (!manualText || manualText.trim() === '') return showToast('error', 'יש להזין טקסט בתיבת הכתיבה הידנית (אופציה ב\')');
-    
+    if (!manualText || manualText.trim() === '') return showToast('error', 'יש להזין טקסט ידני');
     let formattedContent = manualText.replace(/\n/g, '<br>');
     
-    const themeColors = {
-        purple: ['#4f46e5', '#9333ea'],
-        blue: ['#2563eb', '#1d4ed8'],
-        emerald: ['#10b981', '#047857'],
-        orange: ['#f97316', '#ea580c'],
-        slate: ['#475569', '#1e293b']
-    };
+    const themeColors = { purple: ['#4f46e5', '#9333ea'], blue: ['#2563eb', '#1d4ed8'], emerald: ['#10b981', '#047857'], orange: ['#f97316', '#ea580c'], slate: ['#475569', '#1e293b'] };
     const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
-    
     const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
-    const releaseTitle = (title || 'עדכון גרסה חגיגי! 🎉').replace(/ /g, '\u00A0');
-    const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');
     
-    const htmlTemplate = `
-        <div id='newsletter-content-wrap' style='max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;'>
-            <table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'>
-                <tr>
-                    <td style='padding: 40px 20px;'>
-                        <img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;'>
-                        <h1 style='color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;'>${releaseTitle}</h1>
-                        <h2 style='color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;'>${subtitleDisplay}</h2>
-                    </td>
-                </tr>
-            </table>
-            
-            <div style='padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;'>
-                ${formattedContent}
-            </div>
-            
-            <div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;'>
-                <p style='color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p>
-            </div>
-        </div>
-    `;
-    
-    // פקודת המיניפיקציה הקריטית
-    const cleanHtml = htmlTemplate.replace(/\n/g, '').replace(/\s\s+/g, ' ').trim();
+    const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p></div></div>`;
     
     const editor = getEl('release-editor');
-    const placeholder = getEl('release-editor-placeholder');
-    if(placeholder) placeholder.style.display = 'none';
-    editor.innerHTML = cleanHtml;
-    
-    showToast('success', 'הטמפלט הידני מוכן לשיגור!');
-    try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
+    if(getEl('release-editor-placeholder')) getEl('release-editor-placeholder').style.display = 'none';
+    editor.innerHTML = htmlTemplate;
+    showToast('success', 'הטמפלט הידני מוכן!');
 };
 
 window.copyReleaseNotes = function() {
