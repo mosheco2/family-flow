@@ -1988,7 +1988,6 @@ window.exportToPDF = function() {
     } else {
         generate();
     }
-};
 
 window.broadcastReleaseNotes = async function() {
     const editor = getEl('release-editor');
