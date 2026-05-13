@@ -279,13 +279,16 @@ function openSATicketModal(id) {
             const isStaff = entry.isStaff;
             const isInternal = entry.isInternal; 
             
+            // שימוש ב-!important בעזרת inline-styles כדי להבטיח שהצבע הכתום ישלוט
             let alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
+            let customStyle = '';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
 
             // צביעה בכתום בולט להערה פנימית
             if (isInternal) {
-                alignClass = 'self-end bg-orange-100 border-orange-300 text-orange-900 rounded-tr-none ml-8 shadow-sm';
+                alignClass = 'self-end rounded-tr-none ml-8 shadow-sm';
+                customStyle = 'background-color: #ffedd5 !important; border-color: #fdba74 !important; color: #c2410c !important;'; // צבעי אזהרה
                 iconHtml = '<i class="fa-solid fa-user-ninja text-orange-600 text-xs ml-1"></i>';
                 labelTag = '<span class="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded-full ml-2 shadow-inner">פנימי בלבד</span>';
             }
@@ -293,7 +296,7 @@ function openSATicketModal(id) {
             const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             return `
             <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-3 fade-in">
-                <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed ${alignClass}">
+                <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed ${alignClass}" style="${customStyle}">
                     ${safeStr(entry.message)}
                 </div>
                 <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
@@ -307,7 +310,6 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal').classList.remove('hidden');
     setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
 }
-
 async function submitSATicketReply() {
     const text = val('sa-ticket-reply-text');
     const status = val('sa-ticket-reply-status');
