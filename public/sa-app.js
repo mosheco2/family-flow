@@ -1999,21 +1999,43 @@ window.broadcastReleaseNotes = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
     
     try {
-        // התאמה מושלמת ל-API של ה-Inbox (שולח 'family', 'business', 'all')
-        const targetType = audience;
-        const targetValue = ''; 
+        // התאמה מדויקת למפתחות המוגדרים ב-server.js
+        let targets = [];
+        if (audience === 'business') targets = ['all']; // בשרת 'all' שווה לכל העסקים
+        else if (audience === 'family') targets = ['all_families']; // בשרת 'all_families' שווה למשפחות
+        else if (audience === 'all') targets = ['all', 'all_families']; // אם בחר "כולם", נשלח בשתי פעימות מאחורי הקלעים
 
-        const res = await fetch(`${API}/sa/inbox/broadcast`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ targetType, targetValue, subject: title, content })
-        });
+        let totalSent = 0;
+        let hasError = false;
+        let errorMessage = '';
+
+        for (let tType of targets) {
+            const res = await fetch(`${API}/sa/inbox/broadcast`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                body: JSON.stringify({ targetType: tType, targetValue: '', subject: title, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                totalSent += (data.count || 0);
+            } else {
+                hasError = true;
+                errorMessage = data.error;
+            }
+        }
         
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', `ההשקה שוגרה בהצלחה ל-${data.count || 0} סביבות! 🚀`);
-        } else { showToast('error', data.error || 'שגיאה בשיגור ההודעה'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } 
-    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; }
+        if (totalSent > 0) {
+            showToast('success', `ההשקה שוגרה בהצלחה ל-${totalSent} סביבות! 🚀`);
+        } else if (hasError) {
+            showToast('error', errorMessage || 'שגיאה בשיגור ההודעה. ייתכן ואין נמענים פעילים.');
+        } else {
+            showToast('error', 'לא נמצאו נמענים מתאימים לשיגור.');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    } finally { 
+        btn.disabled = false; 
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; 
+    }
 };
 
 window.addEventListener('load', () => {
