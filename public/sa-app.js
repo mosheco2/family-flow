@@ -1808,7 +1808,6 @@ window.generateReleaseNotesAI = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה עיצוב...';
     
     try {
-        // הגבלת מילים אגרסיבית למניעת גלישה לעמוד נוסף
         const lengthInstruction = lengthChoice === 'standard' 
             ? 'חובה לכתוב טקסט קצר ותמציתי של 50 מילים בלבד.' 
             : 'כתוב טקסט של כ-120 מילים מקסימום. חובה שהטקסט יכנס לעמוד אחד בלבד.';
@@ -1820,18 +1819,20 @@ window.generateReleaseNotesAI = async function() {
             אורך מבוקש: ${lengthInstruction}
             
             הוראות קריטיות - חובה לציית להן:
-            1. אל תכתוב שום משפט פתיחה! אל תגיד "בטח", "הנה הטקסט", "לבקשתך" או "FamilAI כאן". תחזיר *אך ורק* את תוכן הניוזלטר נטו.
-            2. לעולם אל תסיים נקודה, נקודתיים או פסיק ללא רווח אחריהם.
-            3. השתמש בתגיות HTML בסיסיות (<br>, <strong>).
+            1. אל תכתוב שום משפט פתיחה! תחזיר אך ורק את תוכן הניוזלטר נטו.
+            2. השתמש בתגיות HTML בסיסיות (<br>, <strong>).
             
             נקודות גולמיות לתרגום: ${rawPoints}
         `;
         
+        // אבטחת מזהה הקבוצה - אם המערכת טרם טענה קבוצות, נשתמש ב-1 כדי למנוע קריסת שרת
+        const activeGroupId = (typeof saAllGroups !== 'undefined' && saAllGroups.length > 0) ? saAllGroups[0].id : 1;
+
         const res = await fetch(`${API}/family/chat-assistant`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
             body: JSON.stringify({ 
-                groupId: saAllGroups[0] ? saAllGroups[0].id : 0, 
+                groupId: activeGroupId, 
                 userId: 0, 
                 query: 'אנא נסח את הפרסום כעת ללא הקדמות',
                 context: promptContext
@@ -1842,13 +1843,9 @@ window.generateReleaseNotesAI = async function() {
         if (data.success) {
             let formattedContent = data.answer;
             
-            // ניקוי אגרסיבי של ברבורי ה-AI (אם בכל זאת ניסה לדבר)
             formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
-            
             formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
-            
-            // תיקון חזק לרווחים אחרי סימני פיסוק - מונע הדבקות כמו "מודול:חדש"
             formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
             formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
             
@@ -1864,21 +1861,18 @@ window.generateReleaseNotesAI = async function() {
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
             const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
-            // עיצוב תבנית ה-HTML עם פונט בטוח (Arial) לייצוא תקין ב-PDF
             const htmlTemplate = `
                 <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: white; overflow: hidden; padding-bottom: 2px;">
-                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center; direction: ltr;">
-                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); display: block; margin: 0 auto 15px auto;">
-                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.3; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${releaseTitle}</h1>
-                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${subtitle}</h2>
+                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
+                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
+                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
+                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl;">${subtitle}</h2>
                     </div>
-                    
-                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.9; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 3px; letter-spacing: 0.01em; unicode-bidi: embed;">
+                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em;">
                         ${formattedContent}
                     </div>
-                    
                     <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                    <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold; word-spacing: 4px;">צוות Oneflow Life</p>
+                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
                     </div>
                 </div>
             `;
@@ -1891,10 +1885,11 @@ window.generateReleaseNotesAI = async function() {
             showToast('success', 'הטמפלט מוכן!');
             try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
         } else {
-            showToast('error', 'שגיאה ביצירת הטקסט.');
+            // חושפים את השגיאה האמיתית כדי שנדע מה הבעיה במידה וזה קורה שוב!
+            showToast('error', data.error || 'שגיאה ביצירת הטקסט. השרת דחה את הבקשה.');
         }
     } catch (e) {
-        showToast('error', 'שגיאת רשת מול ה-AI');
+        showToast('error', 'שגיאת רשת מול ה-AI: ' + e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI';
