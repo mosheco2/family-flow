@@ -631,9 +631,22 @@
                         </div>
 
                         <div id="dev-content-kanban" class="hidden flex-col h-full fade-in">
-                            <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-bold text-slate-800 text-lg">לוח משימות טכני <span class="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2" id="kanban-total-count">0 משימות</span></h3>
-                                <button onclick="openKanbanTaskModal()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-plus"></i> משימה חדשה</button>
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                <div class="flex items-center gap-3">
+                                    <h3 class="font-bold text-slate-800 text-lg">לוח משימות טכני <span class="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2" id="kanban-total-count">0 משימות</span></h3>
+                                </div>
+                                <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                    <div class="relative w-full sm:w-56">
+                                        <i class="fa-solid fa-filter absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="kanban-version-filter" onkeyup="renderKanbanBoard()" class="modern-input py-2.5 pr-10 text-sm border-indigo-200 bg-indigo-50/50 font-mono shadow-sm" placeholder="סנן גרסה (למשל: v2.0)">
+                                    </div>
+                                    <div class="flex gap-2 w-full sm:w-auto">
+                                        <button id="btn-release-version" onclick="prepareReleaseFromVersion()" class="hidden bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition items-center gap-2 shrink-0">
+                                            שחרר גרסה <i class="fa-solid fa-rocket"></i>
+                                        </button>
+                                        <button onclick="openKanbanTaskModal()" class="flex-1 sm:flex-none bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-slate-900 transition flex items-center justify-center gap-2 shrink-0"><i class="fa-solid fa-plus"></i> משימה חדשה</button>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="flex gap-4 overflow-x-auto pb-6 modal-scroll flex-1 min-h-[500px] items-start">
