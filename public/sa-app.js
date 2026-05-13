@@ -1859,7 +1859,6 @@ window.generateReleaseNotesAI = async function() {
             formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
             formattedContent = formattedContent.replace(/([א-תA-Za-z0-9])<strong>/g, '$1 <strong>');
             // החלפת רווח רגיל ב-non-breaking space כדי למנוע קריסה
-            formattedContent = formattedContent.replace(/ /g, '\u00A0');
             
             const themeColors = {
                 purple: ['#4f46e5', '#9333ea'],
