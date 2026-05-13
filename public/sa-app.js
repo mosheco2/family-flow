@@ -1986,15 +1986,6 @@ window.exportToPDF = function() {
     showToast('success', 'הניוזלטר נפתח בלשונית חדשה — לחץ "שמור כ-PDF"');
 };
 
-    if (!window.html2pdf) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = generate;
-        document.head.appendChild(script);
-    } else {
-        generate();
-    }
-
 window.broadcastReleaseNotes = async function() {
     // 1. הגנה על שליפת אזור העורך (מונע קריסה אם ה-ID השתנה)
     const editor = document.getElementById('release-editor');
