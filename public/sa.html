@@ -94,8 +94,8 @@
                     <button id="btn-sa-tab-biz" onclick="switchSATab('biz')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">ניהול עסקים</button>
                     <button id="btn-sa-tab-inbox" onclick="switchSATab('inbox')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">הודעות מערכת</button>
                     <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">מיתוג ובאנרים</button>
-                    <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">משתמשים והגדרות</button>
-                    <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm">שותפים <i class="fa-solid fa-handshake ml-1"></i></button>
+                    <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">צוותים והרשאות 🛡️</button>
+                   <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm">שותפים <i class="fa-solid fa-handshake ml-1"></i></button>
                 </div>
 
                 <div id="sa-view-partners" class="hidden space-y-8 fade-in">
@@ -559,38 +559,68 @@
                 </div>
 
                 <div id="sa-view-users" class="hidden space-y-8 fade-in">
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i> ניהול צוותים והרשאות גישה (RBAC)</h2>
+                            <button onclick="openAddTeamModal()" class="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-200"><i class="fa-solid fa-plus"></i> הקם צוות חדש</button>
+                        </div>
+                        <div id="sa-teams-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> נציגי מערכת וצוות עובדים</h2>
+                            <button onclick="openAddStaffModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md"><i class="fa-solid fa-user-plus"></i> הוסף נציג פנימי</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם הנציג</th>
+                                        <th class="px-4 py-3">אימייל (לכניסה)</th>
+                                        <th class="px-4 py-3 text-center">שיוך לצוות</th>
+                                        <th class="px-4 py-3 text-center">סטטוס מנוי</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-staff-list" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> סביבות ומשתמשים רשומים</h2>
+                            <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-users text-emerald-500 mr-2"></i> לקוחות וסביבות במערכת</h2>
                             <div class="relative w-full sm:w-64">
                                 <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש לפי קוד או שם...">
+                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש קוד לקוח או שם...">
                             </div>
                         </div>
                         <div id="sa-groups-list" class="space-y-3"></div>
                     </div>
 
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
-                            <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> פרטי המנהל הראשי (Super Admin)</h2>
-                            <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות וכתובת המייל המרכזית של מנהל המערכת.</p>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
-                                    <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">כתובת אימייל ראשית:</label>
-                                    <input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="admin@oneflow.com">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
-                                    <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********">
-                                </div>
+                    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8 border-l-4 border-l-red-500">
+                        <h2 class="text-xl font-black mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> מנהל על מרכזי (Master Admin)</h2>
+                        <p class="text-xs text-slate-500 mb-4 font-bold bg-white p-3 rounded-xl border border-slate-200 shadow-sm">למנהל העל (Master) יש גישה פתוחה לעקיפת כל חסימות ה-RBAC וכלל ההרשאות במערכת.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש (לשחזור):</label>
+                                <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin">
                             </div>
-                            <div class="flex justify-end mt-4">
-                                <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-red-600 transition whitespace-nowrap">שמור נתונים</button>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">אימייל ראשי:</label>
+                                <input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="master@oneflow.com">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">סיסמת Master חדשה:</label>
+                                <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********">
                             </div>
                         </div>
+                        <div class="flex justify-end mt-4">
+                            <button onclick="updateSACredentials()" class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-red-700 transition whitespace-nowrap">שמור ועדכן</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="sa-view-devops" class="hidden space-y-8 fade-in">
