@@ -3818,25 +3818,25 @@ window.initPublicConfig = async function() {
         
         if (data.success) {
             if (data.globalAiLogo) {
-                // שמירת התמונה הגלובלית לשימוש בכל שאר רחבי האפליקציה (כמו בצ'אט)
+                // 1. שמירה במשתנה גלובלי לכל המערכת
                 window.currentFamilaiLogo = data.globalAiLogo;
-                
-                // 1. החלפת סמל הדפדפן (Favicon)
+
+                // 2. עדכון סמל הדפדפן (Favicon)
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
-                
-                // 2. החלפת האייקון בבועה המרחפת (Floating FAB) לתמונה העגולה
-                const aiBtnMain = document.getElementById('btn-global-ai');
-                if (aiBtnMain) {
-                    aiBtnMain.innerHTML = `<img src="${data.globalAiLogo}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" alt="AI">`;
-                    aiBtnMain.style.padding = '0'; // מבטל ריווחים כדי שהתמונה תמלא את הבועה
-                }
-                
-                // 3. החלפת אייקון הרובוט בכותרת חלון הצ'אט
-                const modalTitleIcon = document.querySelector('#familai-chat-modal .fa-robot');
-                if (modalTitleIcon) {
-                    modalTitleIcon.outerHTML = `<img src="${data.globalAiLogo}" class="w-6 h-6 rounded-full object-cover ml-2 inline-block shadow-sm">`;
-                }
+
+                // 3. עדכון בועת העוזרת החכמה המרחפת!
+                // מאתרים את כל הכפתורים שמפעילים את מודאל ה-AI
+                const aiTriggers = document.querySelectorAll('[onclick*="openFamilaiChatModal"]');
+                aiTriggers.forEach(trigger => {
+                    // מחפשים את תגית התמונה שבתוך הבועה (כרגע logo.png) ומחליפים אותה
+                    const img = trigger.querySelector('img');
+                    if (img) {
+                        img.src = data.globalAiLogo;
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '50%';
+                    }
+                });
             }
 
             // בניית קרוסלת ההתחברות (Login Slider)
