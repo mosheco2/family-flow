@@ -15197,8 +15197,16 @@ window.renderInboxList = function() {
             typeBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-emerald-200">לקוח (חנות)</span>';
         }
 
+        // זיהוי החתימה הדיגיטלית של הניוזלטר
+        const isRichHtml = m.content && (m.content.includes('') || (m.content.includes('<div') && m.content.includes('style=')));
+        
+        // יצירת תוכן התצוגה - אם זה ניוזלטר אין safeStr ואין whitespace-pre-wrap
+        const displayContent = isRichHtml 
+            ? `<div class="mt-4">${m.content}</div>`
+            : `<div class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap mt-2 ${!m.is_read ? 'font-medium' : ''}">${safeStr(m.content)}</div>`;
+
         return `
-        <div class="p-4 rounded-xl border ${bgClass} transition flex flex-col mb-3">
+        <div class="p-4 rounded-xl border ${bgClass} transition flex flex-col mb-3 overflow-hidden">
             <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0">
@@ -15215,11 +15223,11 @@ window.renderInboxList = function() {
                 </div>
             </div>
             
-            <div class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap ${!m.is_read ? 'font-medium' : ''}">${safeStr(m.content)}</div>
+            ${displayContent}
             
             ${m.sender_contact && isCustomer ? `<div class="mt-3 pt-3 border-t border-slate-100"><a href="tel:${safeStr(m.sender_contact)}" class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm hover:bg-emerald-100 transition inline-flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> צור קשר: <span dir="ltr">${safeStr(m.sender_contact)}</span></a></div>` : ''}
             
-            ${!m.is_read ? `<div class="mt-3 text-left"><button onclick="window.markInboxAsRead(${m.id})" class="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition">סמן כנקרא</button></div>` : ''}
+            ${!m.is_read ? `<div class="mt-4 pt-3 border-t border-slate-100 text-left"><button onclick="window.markInboxAsRead(${m.id})" class="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:bg-slate-50 transition"><i class="fa-solid fa-check"></i> סמן כנקרא והסתר</button></div>` : ''}
         </div>
         `;
     }).join('');
