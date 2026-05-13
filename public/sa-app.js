@@ -1834,7 +1834,6 @@ window.generateReleaseNotesAI = async function() {
             })
         });
         
-        // הגנה קריטית נגד עמודי HTML / קריסות שרת
         const textRes = await res.text();
         let data;
         try {
@@ -1852,7 +1851,7 @@ window.generateReleaseNotesAI = async function() {
             formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
             formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
-            formattedContent = formattedContent.replace(/(<br\s*\/?>){2,}/gi, '<br>');
+            formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
             formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
             
             const themeColors = {
@@ -1864,35 +1863,38 @@ window.generateReleaseNotesAI = async function() {
             };
             const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
             
-            const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
-            const releaseTitle = (title || 'עדכון גרסה חגיגי! 🎉').replace(/ /g, '\u00A0');
-            const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');            
+            const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
+            const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
+            
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;">
+                <div id='newsletter-content-wrap' style='max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;'>
+                    <table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'>
                         <tr>
-                            <td style="padding: 40px 20px;">
-                                <img src="${mascotImg}" onerror="this.style.display='none'" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
-                                <h1 style="color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
-                                <h2 style="color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;">${subtitle}</h2>
+                            <td style='padding: 40px 20px;'>
+                                <img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;'>
+                                <h1 style='color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;'>${releaseTitle}</h1>
+                                <h2 style='color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;'>${subtitle}</h2>
                             </td>
                         </tr>
                     </table>
                     
-                    <div style="padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;">
+                    <div style='padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;'>
                         ${formattedContent.trim()}
                     </div>
                     
-                    <div style="background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                        <p style="color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
+                    <div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;'>
+                        <p style='color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p>
                     </div>
                 </div>
             `;
             
+            // פקודת המיניפיקציה הקריטית: מוחקת ירידות שורות מהקוד כדי למנוע דריסת Inbox!
+            const cleanHtml = htmlTemplate.replace(/\n/g, '').replace(/\s\s+/g, ' ').trim();
+            
             const editor = getEl('release-editor');
             const placeholder = getEl('release-editor-placeholder');
             if(placeholder) placeholder.style.display = 'none';
-            editor.innerHTML = htmlTemplate;
+            editor.innerHTML = cleanHtml;
             
             showToast('success', 'הטמפלט מוכן!');
             try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
@@ -1916,7 +1918,6 @@ window.generateManualRelease = function() {
     
     if (!manualText || manualText.trim() === '') return showToast('error', 'יש להזין טקסט בתיבת הכתיבה הידנית (אופציה ב\')');
     
-    // עיבוד הטקסט הידני: המרת ירידות שורות לתגיות HTML כדי לשמור על המבנה שלך
     let formattedContent = manualText.replace(/\n/g, '<br>');
     
     const themeColors = {
@@ -1928,37 +1929,39 @@ window.generateManualRelease = function() {
     };
     const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
     
-    const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
+    const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
     const releaseTitle = (title || 'עדכון גרסה חגיגי! 🎉').replace(/ /g, '\u00A0');
     const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');
     
-    // אותו טמפלט עיצובי וחסין בדיוק כמו ב-AI
     const htmlTemplate = `
-        <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;">
+        <div id='newsletter-content-wrap' style='max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;'>
+            <table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'>
                 <tr>
-                    <td style="padding: 40px 20px;">
-                        <img src="${mascotImg}" onerror="this.style.display='none'" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
-                        <h1 style="color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
-                        <h2 style="color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;">${subtitleDisplay}</h2>
+                    <td style='padding: 40px 20px;'>
+                        <img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;'>
+                        <h1 style='color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;'>${releaseTitle}</h1>
+                        <h2 style='color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;'>${subtitleDisplay}</h2>
                     </td>
                 </tr>
             </table>
             
-            <div style="padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;">
+            <div style='padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;'>
                 ${formattedContent}
             </div>
             
-            <div style="background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                <p style="color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
+            <div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;'>
+                <p style='color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p>
             </div>
         </div>
     `;
     
+    // פקודת המיניפיקציה הקריטית
+    const cleanHtml = htmlTemplate.replace(/\n/g, '').replace(/\s\s+/g, ' ').trim();
+    
     const editor = getEl('release-editor');
     const placeholder = getEl('release-editor-placeholder');
     if(placeholder) placeholder.style.display = 'none';
-    editor.innerHTML = htmlTemplate;
+    editor.innerHTML = cleanHtml;
     
     showToast('success', 'הטמפלט הידני מוכן לשיגור!');
     try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
