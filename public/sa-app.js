@@ -263,7 +263,7 @@ function openSATicketModal(id) {
     
     const logContainer = getEl('sa-ticket-log');
     
-    // נוסיף תמיד את הודעת הפתיחה של הלקוח כהודעה ראשונה
+    // הודעת פתיחה של הלקוח
     let html = `
         <div class="flex flex-col items-start mb-3 fade-in">
             <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8">
@@ -277,17 +277,17 @@ function openSATicketModal(id) {
     if (logArr.length > 0) {
         html += logArr.map(entry => {
             const isStaff = entry.isStaff;
-            const isInternal = entry.isInternal; // בדיקה האם זו הערה פנימית
+            const isInternal = entry.isInternal; 
             
             let alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
 
-            // צביעה בצהוב להערה פנימית
+            // צביעה בכתום בולט להערה פנימית
             if (isInternal) {
-                alignClass = 'self-end bg-orange-100 border-orange-200 text-orange-900 rounded-tr-none ml-8';
-                iconHtml = '<i class="fa-solid fa-user-ninja text-orange-500 text-xs ml-1"></i>';
-                labelTag = '<span class="text-[9px] bg-orange-200 text-orange-700 px-1.5 rounded-full ml-2">פנימי בלבד</span>';
+                alignClass = 'self-end bg-orange-100 border-orange-300 text-orange-900 rounded-tr-none ml-8 shadow-sm';
+                iconHtml = '<i class="fa-solid fa-user-ninja text-orange-600 text-xs ml-1"></i>';
+                labelTag = '<span class="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded-full ml-2 shadow-inner">פנימי בלבד</span>';
             }
 
             const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
@@ -304,7 +304,6 @@ function openSATicketModal(id) {
     }
     
     logContainer.innerHTML = html;
-    
     getEl('sa-ticket-modal').classList.remove('hidden');
     setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
 }
@@ -324,7 +323,7 @@ async function submitSATicketReply() {
             userName: 'צוות תמיכה', 
             isStaff: true, 
             newStatus: status || null,
-            isInternal: isInternal // הוספנו דגל לפנימיות
+            isInternal: isInternal 
         };
         const res = await fetch(`${API}/support/tickets/${saCurrentTicketId}/reply`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
@@ -1700,4 +1699,44 @@ window.convertTicketToDevTask = function() {
     getEl('kanban-task-priority').value = 'high';
     
     showToast('info', 'הפרטים הועתקו! השלם את יצירת המשימה ושלח לפיתוח.');
+};
+// ==========================================
+// --- המרת קריאת שירות למשימת פיתוח (V2 - Fix) ---
+// ==========================================
+window.convertTicketToDevTask = function() {
+    if (!saCurrentTicketId) {
+        showToast('error', 'לא נבחרה קריאה תקינה');
+        return;
+    }
+    
+    const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
+    if (!t) return;
+    
+    // סוגרים את חלון הטיקט
+    document.getElementById('sa-ticket-modal').classList.add('hidden');
+    
+    // עוברים לטאב של פיתוח
+    switchSATab('devops');
+    switchDevTab('kanban');
+    
+    // מכינים את הטקסט למודאל ה-Kanban
+    const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
+    const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
+    
+    // פותחים את מודאל יצירת המשימה ומזריקים נתונים
+    openKanbanTaskModal();
+    
+    setTimeout(() => {
+        const titleEl = document.getElementById('kanban-task-title');
+        const descEl = document.getElementById('kanban-task-desc');
+        const typeEl = document.getElementById('kanban-task-type');
+        const priorityEl = document.getElementById('kanban-task-priority');
+        
+        if (titleEl) titleEl.value = defaultTitle;
+        if (descEl) descEl.value = defaultDesc;
+        if (typeEl) typeEl.value = 'bug';
+        if (priorityEl) priorityEl.value = 'high';
+        
+        showToast('info', 'פרטי הקריאה הועתקו ללוח המשימות!');
+    }, 100);
 };
