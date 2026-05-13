@@ -18,11 +18,39 @@ let editCityTags = [];
 
 window.onload = () => {
     const savedToken = localStorage.getItem('ofl_sa_token');
-    if (savedToken) {
+    const savedUser = localStorage.getItem('ofl_sa_user');
+    if (savedToken && savedUser) {
         saToken = savedToken;
+        window.currentSAUser = JSON.parse(savedUser);
         getEl('auth-container').classList.add('hidden');
         getEl('sa-dashboard-container').classList.remove('hidden');
+        applyUserPermissions();
         loadSAData();
+    }
+};
+
+window.applyUserPermissions = function() {
+    if (!window.currentSAUser) return;
+    const perms = window.currentSAUser.permissions || [];
+    const isMaster = perms.includes('all');
+    
+    // הצגת/הסתרת טאב HR (הרשאות וצוותים)
+    const hrBtn = getEl('btn-sa-tab-hr');
+    if (hrBtn) {
+        if (isMaster || perms.includes('users')) {
+            hrBtn.classList.remove('hidden');
+            hrBtn.classList.add('flex-1');
+        } else {
+            hrBtn.classList.add('hidden');
+            hrBtn.classList.remove('flex-1');
+        }
+    }
+    
+    // הגבלות נוספות על טאבים אחרים (אופציונלי להמשך)
+    if (!isMaster) {
+        if (!perms.includes('support')) getEl('btn-sa-tab-tickets')?.classList.add('opacity-40');
+        if (!perms.includes('devops')) getEl('btn-sa-tab-devops')?.classList.add('opacity-40');
+        if (!perms.includes('marketing')) getEl('btn-sa-tab-release')?.classList.add('opacity-40');
     }
 };
 
@@ -2295,11 +2323,21 @@ window.toggleStaffStatus = async function(id, currentStatus) {
     } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 };
 
-// עדכון ניתוב הטאבים כך שיטען את נתוני ה-HR בעת לחיצה על הטאב
-const _originalSwitchSATabForHR = window.switchSATab;
 window.switchSATab = function(tabId) {
-    if(typeof _originalSwitchSATabForHR === 'function') _originalSwitchSATabForHR(tabId);
-    if (tabId === 'users') {
-        loadSAHRData(); 
-    }
+    // הסתרת כל הטאבים
+    ['dashboard', 'communities', 'businesses', 'tickets', 'release', 'clients', 'hr', 'devops', 'content', 'stats'].forEach(id => {
+        getEl('sa-view-' + id)?.classList.add('hidden');
+        getEl('btn-sa-tab-' + id)?.classList.remove('bg-white', 'shadow-sm', 'text-slate-800');
+        getEl('btn-sa-tab-' + id)?.classList.add('text-slate-500');
+    });
+
+    // הצגת הטאב הנבחר
+    getEl('sa-view-' + tabId)?.classList.remove('hidden');
+    getEl('btn-sa-tab-' + tabId)?.classList.add('bg-white', 'shadow-sm', 'text-slate-800');
+    getEl('btn-sa-tab-' + tabId)?.classList.remove('text-slate-500');
+
+    // טעינת נתונים ספציפיים
+    if (tabId === 'hr') loadSAHRData();
+    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
+    if (tabId === 'clients') loadSAData(); // טוען את הקבוצות מחדש
 };
