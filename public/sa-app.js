@@ -1835,6 +1835,12 @@ window.generateReleaseNotesAI = async function() {
             })
         });
         
+        // הגנה מפני שרת שלא עודכן או מחזיר עמוד שגיאה (HTML במקום JSON)
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("השרת לא מזהה את הנתיב. חובה לבצע Restart לשרת ה-Node.js!");
+        }
+
         const data = await res.json();
         if (data.success) {
             let formattedContent = data.answer;
@@ -1884,7 +1890,7 @@ window.generateReleaseNotesAI = async function() {
             showToast('error', data.error || 'שגיאה ביצירת הטקסט.');
         }
     } catch (e) {
-        showToast('error', 'שגיאת רשת מול ה-AI: ' + e.message);
+        showToast('error', e.message); // זה יציג את אזהרת הריסטרט אם צריך
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI';
