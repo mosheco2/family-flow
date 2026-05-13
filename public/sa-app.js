@@ -1849,10 +1849,12 @@ window.generateReleaseNotesAI = async function() {
         if (data.success) {
             let formattedContent = data.answer;
             
-            formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
+                        formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
             formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // תיקון רווח לפני המרת שורות — כך סימני פיסוק לפני ירידת שורה מקבלים רווח
+            formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z])/g, '$1 $2');
+            formattedContent = formattedContent.replace(/([א-תA-Za-z0-9])<strong>/g, '$1 <strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
-            formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
             formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
             
             const themeColors = {
@@ -1930,7 +1932,7 @@ window.exportToPDF = function() {
             html2canvas: {
                 scale: 2,
                 useCORS: true,
-                letterRendering: true,
+                letterRendering: false,
                 onclone: (clonedDoc) => {
                     const style = clonedDoc.createElement('style');
                     style.textContent = `
