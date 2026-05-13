@@ -1917,72 +1917,68 @@ window.exportToPDF = function() {
     const element = document.getElementById('newsletter-content-wrap');
     if (!element) return showToast('error', 'יש לחולל טמפלט קודם לפני ייצוא ל-PDF');
 
-    const btn = document.getElementById('btn-export-pdf');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
-    btn.disabled = true;
+    const htmlDoc = `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Oneflow Release Notes</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            padding: 30px 20px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+        .no-print {
+            text-align: center;
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .no-print button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 32px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+        }
+        .no-print p {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="no-print">
+            <button onclick="window.print()">⬇️ שמור כ-PDF</button>
+            <p>לחץ על "שמור כ-PDF" ← בחר "שמור כ-PDF" במדפסת</p>
+        </div>
+        ${element.outerHTML}
+    </div>
+</body>
+</html>`;
 
-    const generate = () => {
-        const opt = {
-            margin:      [10, 10, 10, 10],
-            filename:    'Oneflow_Release.pdf',
-            image:       { type: 'jpeg', quality: 1 },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                letterRendering: false,
-                onclone: (clonedDoc) => {
-                    const style = clonedDoc.createElement('style');
-                    style.textContent = `
-                        #newsletter-content-wrap,
-                        #newsletter-content-wrap * {
-                            font-family: Arial, Helvetica, sans-serif !important;
-                            box-sizing: border-box !important;
-                        }
-                        #newsletter-content-wrap p,
-                        #newsletter-content-wrap span,
-                        #newsletter-content-wrap li,
-                        #newsletter-content-wrap strong {
-                            direction: rtl !important;
-                            text-align: right !important;
-                            word-spacing: 4px !important;
-                            word-break: normal !important;
-                            overflow-wrap: break-word !important;
-                            white-space: normal !important;
-                            unicode-bidi: embed !important;
-                        }
-                        #newsletter-content-wrap > div:first-child {
-                            direction: ltr !important;
-                            text-align: center !important;
-                        }
-                        #newsletter-content-wrap > div:nth-child(2) {
-                            direction: rtl !important;
-                            text-align: right !important;
-                            word-spacing: 4px !important;
-                            unicode-bidi: embed !important;
-                        }
-                        #newsletter-content-wrap > div:last-child {
-                            text-align: center !important;
-                        }
-                        #newsletter-content-wrap h1,
-                        #newsletter-content-wrap h2 {
-                            direction: rtl !important;
-                            text-align: center !important;
-                            word-spacing: 4px !important;
-                            unicode-bidi: embed !important;
-                        }
-                    `;
-                    clonedDoc.head.appendChild(style);
-                }
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save().then(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showToast('success', 'קובץ ה-PDF נוצר והורד בהצלחה!');
-        });
-    };
+    const blob = new Blob([htmlDoc], { type: 'text/html; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (!win) return showToast('error', 'אנא אפשר חלונות קופצים עבור אתר זה ונסה שוב');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    showToast('success', 'הניוזלטר נפתח בלשונית חדשה — לחץ "שמור כ-PDF"');
+};
 
     if (!window.html2pdf) {
         const script = document.createElement('script');
