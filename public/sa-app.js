@@ -1257,3 +1257,199 @@ window.impersonateGroup = function(groupId, userId) {
         showToast('error', 'שגיאה: נתוני הלקוח לא נמצאו בזיכרון המנהל.');
     }
 };
+// ==========================================
+// --- PRODUCT MATRIX & QA CENTER ---
+// ==========================================
+
+// נתוני ברירת מחדל של ספר המוצר (ישמרו ב-LocalStorage לבינתיים)
+const defaultProductMatrix = [
+    {
+        id: 'env_family', name: 'ONEFLOW LIFE (סביבת משפחות)', icon: 'fa-house-chimney text-emerald-500', color: 'emerald',
+        modules: [
+            {
+                id: 'mod_fam_shop', name: 'סופר חכם (רשימת קניות)',
+                tests: [
+                    { id: 't1', title: 'הוספת פריט חופשי לרשימה ע"י ילד (סטטוס ממתין)', status: 'untested' },
+                    { id: 't2', title: 'אישור פריט ע"י הורה (מעבר לסטטוס בעגלה)', status: 'passed' },
+                    { id: 't3', title: 'עדכון מחיר משוער משוקף בסה"כ הכללי', status: 'untested' },
+                    { id: 't4', title: 'סריקת קבלה AI מזהה ומזינה מוצרים', status: 'in_dev' }
+                ]
+            },
+            {
+                id: 'mod_fam_bank', name: 'הבנק המשפחתי ויעדים',
+                tests: [
+                    { id: 't5', title: 'הקצאת דמי כיס שבועית פועלת בזמן', status: 'passed' },
+                    { id: 't6', title: 'ילד מפקיד יתרה ליעד חיסכון והאחוז מתעדכן', status: 'untested' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'env_biz', name: 'ONEFLOW LIFE BIZ (סביבת עסקים)', icon: 'fa-briefcase text-blue-500', color: 'blue',
+        modules: [
+            {
+                id: 'mod_biz_orders', name: 'ניהול הזמנות לקוחות',
+                tests: [
+                    { id: 't7', title: 'קבלת הזמנה חדשה מקפיצה התראה למנהל', status: 'untested' },
+                    { id: 't8', title: 'שינוי סטטוס הזמנה מעדכן את הלקוח במשפחות', status: 'untested' }
+                ]
+            }
+        ]
+    },
+    {
+        id: 'env_comm', name: 'COMMUNITIES (ניהול קהילות)', icon: 'fa-users-rays text-indigo-500', color: 'indigo',
+        modules: [
+            {
+                id: 'mod_comm_join', name: 'הצטרפות ואישור',
+                tests: [
+                    { id: 't9', title: 'משפחה מצטרפת לקהילה באמצעות קוד הזמנה', status: 'passed' },
+                    { id: 't10', title: 'עסק מגיש בקשת הצטרפות וממתין לאישור אדמין', status: 'untested' }
+                ]
+            }
+        ]
+    }
+];
+
+// משיכת ספר המוצר מהזיכרון או טעינת ברירת המחדל
+let productMatrixData = JSON.parse(localStorage.getItem('ofl_product_matrix')) || defaultProductMatrix;
+
+// פונקציית הרינדור הראשית
+function renderProductMatrix() {
+    const listEl = document.getElementById('product-matrix-list');
+    if (!listEl) return;
+    
+    let html = '';
+    let totalTests = 0; let passedCount = 0; let failedCount = 0; let untestedCount = 0;
+
+    productMatrixData.forEach(env => {
+        html += `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-5 fade-in">
+                    <div class="bg-${env.color}-50 px-5 py-4 border-b border-slate-100 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg"><i class="fa-solid ${env.icon}"></i></div>
+                        <h2 class="text-lg font-black text-slate-800">${env.name}</h2>
+                    </div>
+                    <div class="p-4 space-y-4">`;
+        
+        env.modules.forEach(mod => {
+            html += `<div class="border border-slate-100 rounded-xl overflow-hidden">
+                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100">
+                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cube text-slate-400 ml-1"></i> ${mod.name}</h3>
+                        </div>
+                        <div class="divide-y divide-slate-50">`;
+            
+            mod.tests.forEach(test => {
+                totalTests++;
+                if (test.status === 'passed') passedCount++;
+                else if (test.status === 'failed') failedCount++;
+                else if (test.status === 'untested') untestedCount++;
+
+                // עיצוב לפי סטטוס
+                let statusBg = 'bg-slate-100 text-slate-500'; let statusIcon = 'fa-circle-minus'; let statusLabel = 'טרם נבדק';
+                if (test.status === 'passed') { statusBg = 'bg-green-100 text-green-700'; statusIcon = 'fa-check'; statusLabel = 'תקין'; }
+                if (test.status === 'failed') { statusBg = 'bg-red-100 text-red-700'; statusIcon = 'fa-bug'; statusLabel = 'באג / נכשל'; }
+                if (test.status === 'in_dev') { statusBg = 'bg-blue-100 text-blue-700'; statusIcon = 'fa-person-digging'; statusLabel = 'בפיתוח'; }
+
+                html += `
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 gap-3 hover:bg-slate-50 transition">
+                        <div class="flex-1">
+                            <span class="text-sm font-bold text-slate-700 block">${safeStr(test.title)}</span>
+                            <span class="text-[10px] text-slate-400 font-mono tracking-widest mt-0.5">ID: ${test.id}</span>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
+                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${statusBg} flex items-center gap-1 border border-white/50 w-24 justify-center shadow-sm">
+                                <i class="fa-solid ${statusIcon}"></i> ${statusLabel}
+                            </span>
+                            <select onchange="changeTestStatus('${env.id}', '${mod.id}', '${test.id}', this.value, '${safeStr(test.title)}')" class="modern-input py-1.5 px-2 text-xs bg-white font-bold w-auto cursor-pointer shadow-sm">
+                                <option value="untested" ${test.status === 'untested' ? 'selected' : ''}>טרם נבדק ⚪</option>
+                                <option value="passed" ${test.status === 'passed' ? 'selected' : ''}>תקין (Passed) 🟢</option>
+                                <option value="failed" ${test.status === 'failed' ? 'selected' : ''}>באג (Failed) 🔴</option>
+                                <option value="in_dev" ${test.status === 'in_dev' ? 'selected' : ''}>בפיתוח 🚧</option>
+                            </select>
+                        </div>
+                    </div>`;
+            });
+            html += `</div></div>`;
+        });
+        html += `</div></div>`;
+    });
+    
+    listEl.innerHTML = html;
+
+    // עדכון סרגל התקדמות
+    const progressPct = totalTests === 0 ? 0 : Math.round((passedCount / totalTests) * 100);
+    const progressBar = document.getElementById('matrix-progress-bar');
+    if (progressBar) progressBar.style.width = `${progressPct}%`;
+    const progressText = document.getElementById('matrix-progress-text');
+    if (progressText) progressText.innerText = `${progressPct}% כיסוי תקין`;
+    
+    document.getElementById('matrix-count-passed').innerText = passedCount;
+    document.getElementById('matrix-count-failed').innerText = failedCount;
+    document.getElementById('matrix-count-untested').innerText = untestedCount;
+}
+
+// פונקציה לשינוי סטטוס של תרחיש ושמירה בזיכרון
+window.changeTestStatus = function(envId, modId, testId, newStatus, testTitle) {
+    const env = productMatrixData.find(e => e.id === envId);
+    if (!env) return;
+    const mod = env.modules.find(m => m.id === modId);
+    if (!mod) return;
+    const test = mod.tests.find(t => t.id === testId);
+    if (!test) return;
+
+    test.status = newStatus;
+    localStorage.setItem('ofl_product_matrix', JSON.stringify(productMatrixData));
+    
+    // אם סומן כנכשל (באג), הקפץ את מודאל הדיווח
+    if (newStatus === 'failed') {
+        openDevBugModal(envId, modId, testId, testTitle);
+    } else {
+        renderProductMatrix(); // רינדור מחדש לעדכון הצבעים והסטטיסטיקה
+    }
+};
+
+// פתיחת מודאל לדיווח באגים לפיתוח
+window.openDevBugModal = function(envId, modId, testId, title) {
+    document.getElementById('dev-bug-env-id').value = envId;
+    document.getElementById('dev-bug-mod-id').value = modId;
+    document.getElementById('dev-bug-test-id').value = testId;
+    document.getElementById('dev-bug-test-title').innerText = title;
+    
+    document.getElementById('dev-bug-actual').value = '';
+    document.getElementById('dev-bug-expected').value = '';
+    
+    document.getElementById('dev-bug-modal').classList.remove('hidden');
+};
+
+// פונקציה זמנית לשמירת הבאג ללוח הפיתוח (הקנבן - שייבנה בשלב הבא)
+window.saveBugToKanban = function() {
+    const actual = val('dev-bug-actual');
+    const expected = val('dev-bug-expected');
+    
+    if (!actual) {
+        showToast('error', 'נא לפרט מה קרה בפועל כדי שהצוות יבין את הבאג.');
+        return;
+    }
+
+    // כאן בהמשך נייצר אובייקט "כרטיסיית פיתוח" לתוך בסיס הנתונים של Kanban
+    // כרגע רק סוגרים את המודאל ומרנדרים
+    document.getElementById('dev-bug-modal').classList.add('hidden');
+    showToast('success', 'הבאג תועד ונשלח בהצלחה ללוח הפיתוח (Backlog)!');
+    renderProductMatrix();
+};
+
+// דריסה (Override) לפונקציה שיצרנו בשלב הקודם, כדי לרנדר את הנתונים כשהטאב נלחץ
+const _originalSwitchDevTab = window.switchDevTab;
+window.switchDevTab = function(tabId) {
+    _originalSwitchDevTab(tabId);
+    if (tabId === 'matrix') {
+        renderProductMatrix();
+    }
+};
+
+// האזנה גם בעת טעינת הטאב הראשי של DevOps כדי לרנדר בפעם הראשונה
+const _originalSwitchSATabDev = window.switchSATab;
+window.switchSATab = function(tabId) {
+    _originalSwitchSATabDev(tabId);
+    if (tabId === 'devops') {
+        renderProductMatrix();
+    }
+};
