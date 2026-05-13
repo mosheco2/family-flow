@@ -3870,7 +3870,7 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         const { context, query } = req.body;
         if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
 
-        // שימוש ישיר במודל ה-AI - ללא שום בדיקת אסימונים או הגבלות בסיס נתונים!
+        // שימוש ישיר במודל ה-AI - ללא הגבלת אסימונים!
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
         const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
         const responseText = result.response.text();
