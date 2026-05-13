@@ -746,12 +746,21 @@
                                     </div>
 
                                     <div>
-                                        <label class="text-xs font-bold text-slate-600 block mb-1">משימות ובאגים (נקודות גולמיות):</label>
-                                        <textarea id="release-raw-points" class="modern-input py-2 text-xs h-24 resize-none bg-white" placeholder="- הוספנו אפשרות להערות פנימיות&#10;- הוספת בועת AI במסך המשפחות"></textarea>
+                                        <label class="text-xs font-bold text-purple-600 block mb-1">אופציה א': ניסוח אוטומטי (AI)</label>
+                                        <textarea id="release-raw-points" class="modern-input py-2 text-xs h-16 resize-none bg-purple-50 border-purple-100 placeholder-purple-300" placeholder="הקלד בנקודות..."></textarea>
                                     </div>
                                     
-                                    <button onclick="generateReleaseNotesAI()" id="btn-generate-release" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 transition flex items-center justify-center gap-2">
-                                        <i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI
+                                    <button onclick="generateReleaseNotesAI()" id="btn-generate-release" class="w-full bg-purple-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-purple-700 transition flex items-center justify-center gap-2 mb-4 text-sm">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> נסח ועצב עם FamilAI
+                                    </button>
+
+                                    <div class="border-t border-slate-200 pt-4 mt-2">
+                                        <label class="text-xs font-bold text-slate-600 block mb-1">אופציה ב': כתיבה ידנית עצמאית</label>
+                                        <textarea id="release-manual-text" class="modern-input py-2 text-xs h-24 resize-none bg-white" placeholder="הקלידו את התוכן שלכם כאן. שורות חדשות יישמרו אוטומטית."></textarea>
+                                    </div>
+                                    
+                                    <button onclick="generateManualRelease()" id="btn-generate-manual" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-slate-900 transition flex items-center justify-center gap-2 text-sm mt-2">
+                                        <i class="fa-solid fa-pen-nib"></i> עטוף בעיצוב (ללא AI)
                                     </button>
                                 </div>
                                 
