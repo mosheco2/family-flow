@@ -1419,37 +1419,220 @@ window.openDevBugModal = function(envId, modId, testId, title) {
     document.getElementById('dev-bug-modal').classList.remove('hidden');
 };
 
-// פונקציה זמנית לשמירת הבאג ללוח הפיתוח (הקנבן - שייבנה בשלב הבא)
+// ==========================================
+// --- KANBAN BOARD LOGIC ---
+// ==========================================
+
+// מערך המשימות (נשמר זמנית בזיכרון המקומי)
+let devKanbanTasks = JSON.parse(localStorage.getItem('ofl_dev_kanban')) || [];
+
+window.renderKanbanBoard = function() {
+    const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
+    const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
+    
+    // ניקוי טורים
+    Object.values(columns).forEach(col => { if(col) col.innerHTML = ''; });
+    
+    if(devKanbanTasks.length === 0) {
+        if(columns.backlog) columns.backlog.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">גררו משימה לכאן</div>';
+    }
+
+    devKanbanTasks.forEach(task => {
+        if(!columns[task.status]) return;
+        counts[task.status]++;
+        
+        // הגדרת עיצובים לפי סוג המשימה
+        let typeBadge = '';
+        if(task.type === 'bug') typeBadge = '<span class="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-bug"></i> באג</span>';
+        else if(task.type === 'feature') typeBadge = '<span class="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-wand-magic-sparkles"></i> פיצ\'ר</span>';
+        else if(task.type === 'ui') typeBadge = '<span class="bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-palette"></i> עיצוב</span>';
+        else if(task.type === 'tech') typeBadge = '<span class="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-wrench"></i> תשתיות</span>';
+
+        let prioIcon = '🟡';
+        if(task.priority === 'critical') prioIcon = '🚨';
+        else if(task.priority === 'high') prioIcon = '🔴';
+        else if(task.priority === 'low') prioIcon = '🔵';
+
+        const versionBadge = task.version ? `<span class="bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
+
+        // בניית כרטיסיית המשימה
+        const cardHtml = `
+        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
+            <div class="flex justify-between items-start mb-2">
+                ${typeBadge}
+                <span class="text-[10px]" title="דחיפות">${prioIcon}</span>
+            </div>
+            <h5 class="font-bold text-slate-800 text-xs leading-snug mb-2">${safeStr(task.title)}</h5>
+            <div class="flex justify-between items-end mt-auto">
+                <span class="text-[9px] text-slate-400 font-mono">#${task.id.replace('task_','')}</span>
+                ${versionBadge}
+            </div>
+        </div>
+        `;
+        columns[task.status].innerHTML += cardHtml;
+    });
+
+    // עדכון מונים
+    Object.keys(counts).forEach(status => {
+        const c = getEl('count-' + status);
+        if(c) c.innerText = counts[status];
+    });
+    getEl('kanban-total-count').innerText = `${devKanbanTasks.length} משימות`;
+};
+
+// פונקציות גרירה והשלכה HTML5 Native
+window.allowKanbanDrop = function(ev) {
+    ev.preventDefault();
+};
+
+window.dragKanbanTask = function(ev) {
+    ev.dataTransfer.setData("taskId", ev.target.id);
+};
+
+window.dropKanbanTask = function(ev, newStatus) {
+    ev.preventDefault();
+    const taskId = ev.dataTransfer.getData("taskId");
+    const task = devKanbanTasks.find(t => t.id === taskId);
+    
+    if (task && task.status !== newStatus) {
+        task.status = newStatus;
+        localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
+        renderKanbanBoard();
+        
+        // אם משימה הועברה ל-Done, אפשר לזרוק קונפטי!
+        if (newStatus === 'done') {
+            try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } }); } catch(e){}
+        }
+    }
+};
+
+window.openKanbanTaskModal = function(id = null) {
+    const modal = getEl('dev-kanban-task-modal');
+    if (!modal) return;
+    
+    const delBtn = getEl('btn-kanban-delete');
+    
+    if (id) {
+        const task = devKanbanTasks.find(t => t.id === id);
+        if(!task) return;
+        getEl('kanban-modal-title').innerHTML = '<i class="fa-solid fa-pen text-indigo-500 mr-2"></i> עריכת משימה';
+        getEl('kanban-task-id').value = task.id;
+        getEl('kanban-task-title').value = task.title;
+        getEl('kanban-task-type').value = task.type || 'feature';
+        getEl('kanban-task-priority').value = task.priority || 'normal';
+        getEl('kanban-task-desc').value = task.desc || '';
+        getEl('kanban-task-version').value = task.version || '';
+        delBtn.classList.remove('hidden');
+    } else {
+        getEl('kanban-modal-title').innerHTML = '<i class="fa-solid fa-plus text-indigo-500 mr-2"></i> משימה חדשה';
+        getEl('kanban-task-id').value = '';
+        getEl('kanban-task-title').value = '';
+        getEl('kanban-task-type').value = 'feature';
+        getEl('kanban-task-priority').value = 'normal';
+        getEl('kanban-task-desc').value = '';
+        getEl('kanban-task-version').value = '';
+        delBtn.classList.add('hidden');
+    }
+    
+    modal.classList.remove('hidden');
+};
+
+window.saveKanbanTaskData = function() {
+    const id = val('kanban-task-id');
+    const title = val('kanban-task-title');
+    const type = val('kanban-task-type');
+    const priority = val('kanban-task-priority');
+    const desc = val('kanban-task-desc');
+    const version = val('kanban-task-version');
+    
+    if (!title) return showToast('error', 'חובה להזין כותרת למשימה');
+    
+    if (id) {
+        // עריכה
+        const index = devKanbanTasks.findIndex(t => t.id === id);
+        if (index > -1) {
+            devKanbanTasks[index] = { ...devKanbanTasks[index], title, type, priority, desc, version };
+        }
+    } else {
+        // יצירה (תמיד נכנס ל-Backlog)
+        devKanbanTasks.push({
+            id: 'task_' + Date.now(),
+            status: 'backlog',
+            title, type, priority, desc, version,
+            created_at: new Date().toISOString()
+        });
+    }
+    
+    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
+    getEl('dev-kanban-task-modal').classList.add('hidden');
+    showToast('success', 'המשימה נשמרה!');
+    renderKanbanBoard();
+};
+
+window.deleteKanbanTask = function() {
+    const id = val('kanban-task-id');
+    if (!id || !confirm('למחוק משימה זו מהלוח?')) return;
+    
+    devKanbanTasks = devKanbanTasks.filter(t => t.id !== id);
+    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
+    getEl('dev-kanban-task-modal').classList.add('hidden');
+    showToast('success', 'המשימה נמחקה');
+    renderKanbanBoard();
+};
+
+// ==========================================
+// --- חיבור בין המטריקס (QA) לקנבן (Dev) ---
+// ==========================================
+
 window.saveBugToKanban = function() {
     const actual = val('dev-bug-actual');
     const expected = val('dev-bug-expected');
+    const title = getEl('dev-bug-test-title').innerText;
+    const priority = val('dev-bug-priority');
     
-    if (!actual) {
-        showToast('error', 'נא לפרט מה קרה בפועל כדי שהצוות יבין את הבאג.');
-        return;
-    }
-
-    // כאן בהמשך נייצר אובייקט "כרטיסיית פיתוח" לתוך בסיס הנתונים של Kanban
-    // כרגע רק סוגרים את המודאל ומרנדרים
-    document.getElementById('dev-bug-modal').classList.add('hidden');
+    // מזהי התרחיש המקורי בספר המוצר
+    const envId = val('dev-bug-env-id');
+    const testId = val('dev-bug-test-id');
+    
+    if (!actual) return showToast('error', 'נא לפרט מה קרה בפועל כדי שהצוות יבין את הבאג.');
+    
+    const newTask = {
+        id: 'task_' + Date.now(),
+        status: 'backlog', // באג חדש נזרק ל-Backlog
+        title: 'באג: ' + title,
+        type: 'bug',
+        priority: priority,
+        desc: `מקור: ספר המוצר (Sanity Check)\nמזהה: ${testId}\n\nתוצאה מצופה:\n${expected}\n\nתוצאה בפועל:\n${actual}`,
+        version: '', // יקבל שיוך ע"י מנהל הפיתוח
+        created_at: new Date().toISOString()
+    };
+    
+    devKanbanTasks.push(newTask);
+    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
+    
+    getEl('dev-bug-modal').classList.add('hidden');
     showToast('success', 'הבאג תועד ונשלח בהצלחה ללוח הפיתוח (Backlog)!');
     renderProductMatrix();
+    renderKanbanBoard();
 };
 
-// דריסה (Override) לפונקציה שיצרנו בשלב הקודם, כדי לרנדר את הנתונים כשהטאב נלחץ
+
+// ==========================================
+// --- אתחול וניתוב (Override) ---
+// ==========================================
+
 const _originalSwitchDevTab = window.switchDevTab;
 window.switchDevTab = function(tabId) {
-    _originalSwitchDevTab(tabId);
-    if (tabId === 'matrix') {
-        renderProductMatrix();
-    }
+    if(typeof _originalSwitchDevTab === 'function') _originalSwitchDevTab(tabId);
+    if (tabId === 'matrix') renderProductMatrix();
+    if (tabId === 'kanban') renderKanbanBoard();
 };
 
-// האזנה גם בעת טעינת הטאב הראשי של DevOps כדי לרנדר בפעם הראשונה
 const _originalSwitchSATabDev = window.switchSATab;
 window.switchSATab = function(tabId) {
-    _originalSwitchSATabDev(tabId);
+    if(typeof _originalSwitchSATabDev === 'function') _originalSwitchSATabDev(tabId);
     if (tabId === 'devops') {
         renderProductMatrix();
+        renderKanbanBoard(); // מרנדר את הלוח מראש
     }
 };
