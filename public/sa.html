@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+כ<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -592,10 +592,25 @@
                         </div>
 
                         <div id="dev-content-matrix" class="space-y-4 fade-in">
-                            <div class="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-300 mb-3"></i>
-                                <p class="text-slate-500 font-medium">מכין את עץ המוצר...</p>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 shadow-inner">
+                                <div class="w-full md:w-1/2">
+                                    <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                                        <span>התקדמות בדיקות (Sanity)</span>
+                                        <span id="matrix-progress-text">0%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
+                                        <div id="matrix-progress-bar" class="bg-green-500 h-2 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3 text-xs font-bold w-full md:w-auto justify-between md:justify-end">
+                                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span> תקין (<span id="matrix-count-passed">0</span>)</div>
+                                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span> באג (<span id="matrix-count-failed">0</span>)</div>
+                                    <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-300 shadow-sm"></span> טרם נבדק (<span id="matrix-count-untested">0</span>)</div>
+                                </div>
                             </div>
+
+                            <div id="product-matrix-list" class="space-y-4 pb-10">
+                                </div>
                         </div>
 
                         <div id="dev-content-kanban" class="hidden space-y-4 fade-in">
@@ -850,6 +865,47 @@
             </div>
         </div>
     </div>
-   <script src="sa-app.js?v=3"></script>
+   <div id="dev-bug-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('dev-bug-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-bug"></i></div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 leading-tight">פתיחת משימת באג</h3>
+                    <p class="text-[10px] text-slate-500 font-bold" id="dev-bug-test-title">שם התרחיש יופיע כאן</p>
+                </div>
+            </div>
+            
+            <div class="space-y-3 mb-6">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">רמת דחיפות:</label>
+                    <select id="dev-bug-priority" class="modern-input py-2 text-sm font-bold w-full bg-slate-50">
+                        <option value="critical">🚨 קריטי (משבית מערכת)</option>
+                        <option value="high" selected>🔴 גבוה (פוגע בתהליך ליבה)</option>
+                        <option value="normal">🟡 רגיל (באג נקודתי)</option>
+                        <option value="low">🔵 נמוך (קוסמטי / סבלנות)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">מה קרה בפועל? (תוצאה שגויה):</label>
+                    <textarea id="dev-bug-actual" class="modern-input py-2 text-sm h-20 resize-none bg-slate-50" placeholder="למשל: בלחיצה על כפתור התשלום, המסך נתקע על ספינר לבן..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">מה היה אמור לקרות? (תוצאה מצופה):</label>
+                    <textarea id="dev-bug-expected" class="modern-input py-2 text-sm h-16 resize-none bg-slate-50" placeholder="התשלום אמור לעבור ולנתב לעמוד תודה."></textarea>
+                </div>
+            </div>
+            <input type="hidden" id="dev-bug-env-id">
+            <input type="hidden" id="dev-bug-mod-id">
+            <input type="hidden" id="dev-bug-test-id">
+            
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('dev-bug-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="saveBugToKanban()" class="flex-[2] bg-red-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-700 transition">שלח ללוח פיתוח <i class="fa-solid fa-arrow-left ml-1"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sa-app.js?v=4"></script>
 </body>
 </html>
