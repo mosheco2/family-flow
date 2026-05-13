@@ -3859,6 +3859,29 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
+// ==========================================
+// --- SUPER ADMIN: AI Generator (Unlimited PRO) ---
+// ==========================================
+app.post('/api/sa/ai-generate', async (req, res) => {
+    try {
+        const token = req.headers['authorization'];
+        if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
+        
+        const { context, query } = req.body;
+        if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
+
+        // שימוש ישיר במודל ה-AI - ללא שום בדיקת אסימונים או הגבלות בסיס נתונים!
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+        const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
+        const responseText = result.response.text();
+        
+        res.json({ success: true, answer: responseText });
+    } catch(e) {
+        console.error('Super Admin AI Generation Error:', e);
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+    }
+});
+
 // ראוט למשיכת הגדרות ציבוריות למסך התחברות (לוגו וסליידרים)
 app.get('/api/system/public-config', async (req, res) => {
     try {
