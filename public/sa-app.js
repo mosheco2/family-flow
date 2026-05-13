@@ -1795,6 +1795,7 @@ window.handleReleaseLogoUpload = function(event) {
 
 window.generateReleaseNotesAI = async function() {
     const title = val('release-title');
+    const subtitle = val('release-subtitle') || 'הכרזה על גרסה חדשה 🚀';
     const rawPoints = val('release-raw-points');
     const tone = val('release-tone');
     const lengthChoice = val('release-length') || 'standard';
@@ -1838,7 +1839,6 @@ window.generateReleaseNotesAI = async function() {
             let formattedContent = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
             
-            // מילון צבעים לפי בחירה
             const themeColors = {
                 purple: ['#4f46e5', '#9333ea'],
                 blue: ['#2563eb', '#1d4ed8'],
@@ -1851,19 +1851,20 @@ window.generateReleaseNotesAI = async function() {
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
             const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
-            // עיצוב תבנית ה-HTML עם תמיכה מלאה ב-RTL
+            // שדרוג מבנה ה-HTML לטובת מנוע ה-PDF + הזרקת כותרת המשנה
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: 'Rubik', Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background-color: white; overflow: hidden;">
-                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 50px 20px; text-align: center;">
-                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 20px; display: inline-block;">
-                        <h1 style="color: white; font-size: 32px; font-weight: 900; margin: 0; line-height: 1.3;">${releaseTitle}</h1>
+                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: 'Rubik', Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background-color: white; overflow: hidden; padding-bottom: 2px;">
+                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center; page-break-inside: avoid;">
+                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
+                        <h1 style="color: white; font-size: 32px; font-weight: 900; margin: 0; line-height: 1.2;">${releaseTitle}</h1>
+                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: 500; margin: 8px 0 0 0;">${subtitle}</h2>
                     </div>
                     
-                    <div style="padding: 40px 35px; color: #334155; font-size: 16px; line-height: 1.85; text-align: right; direction: rtl; unicode-bidi: embed;">
+                    <div style="padding: 35px 35px; color: #334155; font-size: 16px; line-height: 1.8; text-align: right; direction: rtl; unicode-bidi: isolate;">
                         ${formattedContent}
                     </div>
                     
-                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 30px; text-align: center;">
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 25px; text-align: center; page-break-inside: avoid;">
                         <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: 900;">צוות Oneflow Life</p>
                         <p style="color: #94a3b8; font-size: 12px; margin-top: 8px;">הודעה זו נוצרה באופן אוטומטי ע"י מערכת הפיתוח והמוצר</p>
                     </div>
@@ -1908,19 +1909,32 @@ window.exportToPDF = function() {
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
     btn.disabled = true;
+
+    // הוספת סטייל זמני כדי להבטיח שכל פסקה לא תיחתך באמצע עמוד (Page Break)
+    const style = document.createElement('style');
+    style.id = 'pdf-print-style';
+    style.innerHTML = `
+        #newsletter-content-wrap p, #newsletter-content-wrap h1, #newsletter-content-wrap h2, #newsletter-content-wrap h3, #newsletter-content-wrap li {
+            page-break-inside: avoid !important;
+            margin-bottom: 12px;
+        }
+    `;
+    document.head.appendChild(style);
     
     const generate = () => {
         const opt = {
-            margin:       [10, 10, 10, 10], // מרווחים למניעת חיתוך
+            margin:       [15, 10, 15, 10], // מרווח נדיב מלמעלה ולמטה
             filename:     'Oneflow_Release.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, letterRendering: true }, // מבטיח שהטקסט יישאר ברור מימין לשמאל
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { scale: 2, useCORS: true }, // ביטלנו את letterRendering שגרם לדריסת הטקסט
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // מונע חיתוך טקסט באמצע שורה
+            pagebreak:    { mode: ['css', 'legacy'] } // ביטלנו את avoid-all שדחף את התוכן לעמוד ריק
         };
         html2pdf().set(opt).from(element).save().then(() => {
             btn.innerHTML = originalText;
             btn.disabled = false;
+            const s = document.getElementById('pdf-print-style');
+            if(s) s.remove();
             showToast('success', 'קובץ ה-PDF נוצר והורד בהצלחה!');
         });
     };
