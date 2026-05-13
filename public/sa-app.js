@@ -1869,15 +1869,16 @@ window.generateReleaseNotesAI = async function() {
             const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');            
             const htmlTemplate = `
                 <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: white; overflow: hidden; padding-bottom: 2px;">
-                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center; direction: ltr;">
-                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); display: block; margin: 0 auto 15px auto;">
-                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.3; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${releaseTitle}</h1>
-                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; text-align: center; word-spacing: 4px; unicode-bidi: embed;">${subtitleDisplay}</h2>                    </div>
-                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.65; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 4px;">
+                    <div style="background-color: ${gradStart}; background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
+                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
+                        <h1 style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
+                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl;">${subtitle}</h2>
+                    </div>
+                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em;">
                         ${formattedContent}
                     </div>
                     <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
-                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold; word-spacing: 4px;">צוות Oneflow Life</p>
+                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
                     </div>
                 </div>
             `;
