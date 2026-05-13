@@ -1499,13 +1499,23 @@ window.renderKanbanBoard = function() {
     const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
     const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
     
+    // סינון חכם לפי גרסה או טקסט חופשי
+    const versionFilter = val('kanban-version-filter').trim().toLowerCase();
+    let filteredTasks = devKanbanTasks;
+    if (versionFilter) {
+        filteredTasks = devKanbanTasks.filter(t => 
+            (t.version && t.version.toLowerCase().includes(versionFilter)) ||
+            (t.title && t.title.toLowerCase().includes(versionFilter))
+        );
+    }
+    
     Object.values(columns).forEach(col => { if(col) col.innerHTML = ''; });
     
-    if(devKanbanTasks.length === 0) {
-        if(columns.backlog) columns.backlog.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">אין משימות במערכת. לחץ על כפתור ההוספה.</div>';
+    if(filteredTasks.length === 0) {
+        if(columns.backlog) columns.backlog.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">${versionFilter ? 'לא נמצאו משימות התואמות לחיפוש/לגרסה.' : 'אין משימות במערכת. לחץ על כפתור ההוספה.'}</div>`;
     }
 
-    devKanbanTasks.forEach(task => {
+    filteredTasks.forEach(task => {
         if(!columns[task.status]) return;
         counts[task.status]++;
         
@@ -1520,7 +1530,7 @@ window.renderKanbanBoard = function() {
         else if(task.priority === 'high') prioIcon = '🔴';
         else if(task.priority === 'low') prioIcon = '🔵';
 
-        const versionBadge = task.version ? `<span class="bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
+        const versionBadge = task.version ? `<span class="bg-indigo-50 border border-indigo-100 text-indigo-600 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
 
         const cardHtml = `
         <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
@@ -1542,8 +1552,49 @@ window.renderKanbanBoard = function() {
         const c = getEl('count-' + status);
         if(c) c.innerText = counts[status];
     });
+    
     const totalEl = getEl('kanban-total-count');
-    if (totalEl) totalEl.innerText = `${devKanbanTasks.length} משימות`;
+    if (totalEl) totalEl.innerText = `${filteredTasks.length} משימות`;
+    
+    // --- הקסם: הצגת כפתור "שחרר גרסה" אם סיננו לגרסה ויש משימות סגורות ---
+    const releaseBtn = getEl('btn-release-version');
+    if (releaseBtn) {
+        if (versionFilter && counts['done'] > 0) {
+            releaseBtn.classList.remove('hidden');
+            releaseBtn.classList.add('flex', 'fade-in');
+        } else {
+            releaseBtn.classList.add('hidden');
+            releaseBtn.classList.remove('flex', 'fade-in');
+        }
+    }
+};
+
+window.prepareReleaseFromVersion = function() {
+    const versionFilter = val('kanban-version-filter').trim();
+    if (!versionFilter) return;
+    
+    // אוספים רק את המשימות בסטטוס Done ששייכות לגרסה המסוננת
+    const doneTasks = devKanbanTasks.filter(t => t.status === 'done' && t.version && t.version.toLowerCase().includes(versionFilter.toLowerCase()));
+    
+    if (doneTasks.length === 0) return showToast('error', 'אין משימות שנסגרו בגרסה זו');
+    
+    // בונים טקסט נקי ל-AI שמכיל את כותרות המשימות (מנקים קידומות טכניות)
+    let pointsText = doneTasks.map(t => {
+        let cleanTitle = t.title.replace(/^פנייה #[0-9]+:\s*/, ''); // מנקה את מספר הפנייה אם זה הגיע מתמיכה
+        cleanTitle = cleanTitle.replace(/^באג:\s*/, 'תיקון: '); // הופך באג למילה חיובית יותר
+        return '- ' + cleanTitle;
+    }).join('\n');
+    
+    // מעבירים לטאב ההשקות
+    const rawPointsInput = getEl('release-raw-points');
+    const titleInput = getEl('release-title');
+    
+    if (rawPointsInput) rawPointsInput.value = pointsText;
+    if (titleInput) titleInput.value = 'עדכון גרסה חגיגי - ' + versionFilter.toUpperCase();
+    
+    switchDevTab('release');
+    showToast('success', 'הפיתוחים יובאו בהצלחה! לחץ כעת על "נסח ועצב עם FamilAI"');
+    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
 };
 
 window.allowKanbanDrop = function(ev) { ev.preventDefault(); };
