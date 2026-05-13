@@ -1784,7 +1784,6 @@ window.handleReleaseLogoUpload = function(event) {
             getEl('release-logo-preview').classList.remove('hidden');
             if(getEl('release-logo-icon')) getEl('release-logo-icon').classList.add('hidden');
             
-            // שומר את הלוגו בזיכרון המקומי של הדפדפן כדי שלא יאבד בפעם הבאה
             localStorage.setItem('ofl_release_logo', base64);
             showToast('success', 'לוגו השקה נשמר בהצלחה!');
         };
@@ -1809,9 +1808,10 @@ window.generateReleaseNotesAI = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה עיצוב...';
     
     try {
+        // הגבלה קשוחה של כמות מילים כדי שלא יחרוג מעמוד אחד!
         const lengthInstruction = lengthChoice === 'standard' 
-            ? 'שמור על טקסט תמציתי וממוקד, שיתאים בקלות לעמוד אחד.' 
-            : 'פרט ככל הניתן על כל נקודה, הוסף פסקאות רחבות של הסבר ויתרונות ללקוח. אורך מלא ומורחב.';
+            ? 'חובה לכתוב טקסט קצר ותמציתי של עד 80 מילים. על הטקסט להיות בגודל של חצי עמוד לכל היותר.' 
+            : 'חובה להרחיב, אך הגבל את הטקסט למקסימום 180 מילים כדי שייכנס בדיוק לעמוד A4 אחד. אסור לחרוג מכך.';
 
         const promptContext = `
             אתה קופירייטר שיווקי בכיר. המשימה שלך היא לכתוב הודעת פרסום על עדכון גרסה.
@@ -1819,7 +1819,11 @@ window.generateReleaseNotesAI = async function() {
             הטון המבוקש: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
             אורך מבוקש: ${lengthInstruction}
             
-            אנא השתמש בכותרות ביניים פשוטות והימנע מעיצוב טקסט מורכב מדי.
+            הוראות קריטיות:
+            1. הקפד על ריווח תקין בין מילים.
+            2. השתמש בתגיות HTML בסיסיות (כמו <br>, <strong>).
+            3. לעולם אל תסיים נקודה או פסיק ללא רווח לאחריהם.
+            
             נקודות גולמיות לתרגום: ${rawPoints}
         `;
         
@@ -1839,6 +1843,9 @@ window.generateReleaseNotesAI = async function() {
             let formattedContent = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
             
+            // תיקון אוטומטי של רווחים חסרים ב-RTL (למשל: "מודול:חדש" יהפוך ל-"מודול: חדש")
+            formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
+            
             const themeColors = {
                 purple: ['#4f46e5', '#9333ea'],
                 blue: ['#2563eb', '#1d4ed8'],
@@ -1851,22 +1858,20 @@ window.generateReleaseNotesAI = async function() {
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
             const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
-            // שדרוג מבנה ה-HTML לטובת מנוע ה-PDF + הזרקת כותרת המשנה
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: 'Rubik', Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background-color: white; overflow: hidden; padding-bottom: 2px;">
-                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center; page-break-inside: avoid;">
+                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: 'Rubik', Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background-color: white; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
                         <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
                         <h1 style="color: white; font-size: 32px; font-weight: 900; margin: 0; line-height: 1.2;">${releaseTitle}</h1>
                         <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: 500; margin: 8px 0 0 0;">${subtitle}</h2>
                     </div>
                     
-                    <div style="padding: 35px 35px; color: #334155; font-size: 16px; line-height: 1.8; text-align: right; direction: rtl; unicode-bidi: isolate;">
+                    <div style="padding: 35px 35px; color: #334155; font-size: 16px; line-height: 1.8; text-align: right; direction: rtl; white-space: pre-wrap; word-wrap: break-word;">
                         ${formattedContent}
                     </div>
                     
-                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 25px; text-align: center; page-break-inside: avoid;">
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 25px; text-align: center;">
                         <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: 900;">צוות Oneflow Life</p>
-                        <p style="color: #94a3b8; font-size: 12px; margin-top: 8px;">הודעה זו נוצרה באופן אוטומטי ע"י מערכת הפיתוח והמוצר</p>
                     </div>
                 </div>
             `;
@@ -1876,7 +1881,7 @@ window.generateReleaseNotesAI = async function() {
             if(placeholder) placeholder.style.display = 'none';
             editor.innerHTML = htmlTemplate;
             
-            showToast('success', 'הטמפלט מוכן! ניתן לערוך הכל ישירות במסך.');
+            showToast('success', 'הטמפלט מוכן!');
             try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
         } else {
             showToast('error', 'שגיאה ביצירת הטקסט.');
@@ -1910,25 +1915,24 @@ window.exportToPDF = function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
     btn.disabled = true;
 
-    // הוספת סטייל זמני כדי להבטיח שכל פסקה לא תיחתך באמצע עמוד (Page Break)
+    // החלפת הפונט ל-Arial בזמן ההדפסה - פותר 99% מבעיות דריסת המילים בעברית ב-Canvas
     const style = document.createElement('style');
     style.id = 'pdf-print-style';
     style.innerHTML = `
-        #newsletter-content-wrap p, #newsletter-content-wrap h1, #newsletter-content-wrap h2, #newsletter-content-wrap h3, #newsletter-content-wrap li {
-            page-break-inside: avoid !important;
-            margin-bottom: 12px;
-        }
+        #newsletter-content-wrap { font-family: Arial, Helvetica, sans-serif !important; }
+        #newsletter-content-wrap div { letter-spacing: normal !important; word-spacing: 0.1em !important; }
     `;
     document.head.appendChild(style);
     
     const generate = () => {
         const opt = {
-            margin:       [15, 10, 15, 10], // מרווח נדיב מלמעלה ולמטה
+            margin:       [10, 10, 10, 10], 
             filename:     'Oneflow_Release.pdf',
             image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { scale: 2, useCORS: true }, // ביטלנו את letterRendering שגרם לדריסת הטקסט
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['css', 'legacy'] } // ביטלנו את avoid-all שדחף את התוכן לעמוד ריק
+            // הסרנו את letterRendering שגרם לדריסה. Arial מטפל בעברית מצוין עצמאית.
+            html2canvas:  { scale: 2, useCORS: true }, 
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            // הסרנו את פקודות ה-pagebreak כי ה-AI מוגבל לעמוד אחד מראש, וזה מונע זריקת דפים ריקים.
         };
         html2pdf().set(opt).from(element).save().then(() => {
             btn.innerHTML = originalText;
