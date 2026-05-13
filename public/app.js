@@ -5011,7 +5011,6 @@ window.openInboxMessage = async function(id) {
     const msg = window.familyInboxCache.find(m => m.id === id);
     if (!msg) return;
     
-    // סימון הקריאה כנקראה מיידית כדי להוריד את בועת ההתראה
     if (!msg.is_read) {
         msg.is_read = true;
         window.updateInboxBadgeUI();
@@ -5027,7 +5026,6 @@ window.openInboxMessage = async function(id) {
         } catch(e) { console.error('Error marking as read', e); }
     }
     
-    // בניית מסך הקריאה
     let msgModal = document.getElementById('inbox-read-modal');
     if (!msgModal) {
         msgModal = document.createElement('div');
@@ -5039,8 +5037,9 @@ window.openInboxMessage = async function(id) {
     const d = new Date(msg.created_at);
     const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
     
-    // מזהה אוטומטית אם מדובר בניוזלטר HTML מעוצב כדי למנוע דריסת CSS ורווחים מיותרים
-    const isRichHtml = msg.content && msg.content.includes('<div') && msg.content.includes('style=');
+    // זיהוי החתימה הדיגיטלית המעודכנת מהסופר אדמין
+    const isRichHtml = msg.content && (msg.content.includes('') || (msg.content.includes('<div') && msg.content.includes('style=')));
+    
     const displayContent = isRichHtml 
         ? `<div class="w-full overflow-y-auto max-h-[65vh] bg-slate-50">${msg.content}</div>`
         : `<div class="p-6 overflow-y-auto max-h-[60vh] text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">${safeStr(msg.content)}</div>`;
