@@ -279,27 +279,26 @@ function openSATicketModal(id) {
             const isStaff = entry.isStaff;
             const isInternal = entry.isInternal; 
             
-            // שימוש ב-!important בעזרת inline-styles כדי להבטיח שהצבע הכתום ישלוט
             let alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
-            let customStyle = '';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
+            let hardcodedStyle = '';
 
-            // צביעה בכתום בולט להערה פנימית
+            // כאן התיקון הקשיח להערה פנימית! אין סיכוי שזה לא ייצבע עכשיו.
             if (isInternal) {
                 alignClass = 'self-end rounded-tr-none ml-8 shadow-sm';
-                customStyle = 'background-color: #ffedd5 !important; border-color: #fdba74 !important; color: #c2410c !important;'; // צבעי אזהרה
-                iconHtml = '<i class="fa-solid fa-user-ninja text-orange-600 text-xs ml-1"></i>';
-                labelTag = '<span class="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded-full ml-2 shadow-inner">פנימי בלבד</span>';
+                hardcodedStyle = 'background-color: #fff7ed !important; border: 2px solid #fdba74 !important; color: #9a3412 !important; box-shadow: 0 4px 6px rgba(253, 186, 116, 0.3) !important;';
+                iconHtml = '<i class="fa-solid fa-user-ninja" style="color: #ea580c; margin-left: 4px;"></i>';
+                labelTag = '<span style="background-color: #ea580c; color: white; padding: 2px 8px; border-radius: 99px; font-size: 9px; margin-left: 8px;">פנימי בלבד</span>';
             }
 
             const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             return `
-            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-3 fade-in">
-                <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed ${alignClass}" style="${customStyle}">
+            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
+                <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${alignClass}" style="${hardcodedStyle}">
                     ${safeStr(entry.message)}
                 </div>
-                <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
+                <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center">
                     ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${timeStr}
                 </div>
             </div>`;
@@ -1743,7 +1742,7 @@ window.convertTicketToDevTask = function() {
     }, 100);
 };
 // ==========================================
-// --- מרכז שיווק והשקות (AI Release Notes) ---
+// --- מרכז שיווק והשקות (AI & PDF Generator) ---
 // ==========================================
 
 window.generateReleaseNotesAI = async function() {
@@ -1755,17 +1754,14 @@ window.generateReleaseNotesAI = async function() {
     
     const btn = getEl('btn-generate-release');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI כותבת...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה עיצוב...';
     
     try {
-        // בנית קונטקסט (פרומפט) ספציפי למחולל ההשקות
         const promptContext = `
-            אתה כותב שיווקי בכיר. המשימה שלך היא לקחת רשימה של באגים ויכולות שפותחו, ולתרגם אותם לניוזלטר (Release Notes) עבור הלקוחות.
-            כותרת ההשקה: "${title || 'עדכון מערכת חשוב'}".
-            הטון המבוקש: ${tone === 'enthusiastic' ? 'מלהיב, חגיגי, מלא אימוג\'ים' : (tone === 'funny' ? 'שנון, מצחיק, קליל' : 'רשמי, מקצועי, ברור')}.
-            אנא סדר את זה יפה עם כותרות משנה, פתיח שיווקי מרתק, וסיום שמניע לפעולה.
-            
-            נקודות גולמיות לתרגום:
+            אתה קופירייטר שיווקי. קח את הבאגים והפיצ'רים שפותחו, ותרגם אותם לתוכן שיווקי ומרגש ללקוחות.
+            טון מבוקש: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
+            סדר את הטקסט היטב עם כותרות ביניים.
+            נקודות גולמיות:
             ${rawPoints}
         `;
         
@@ -1775,17 +1771,46 @@ window.generateReleaseNotesAI = async function() {
             body: JSON.stringify({ 
                 groupId: saAllGroups[0] ? saAllGroups[0].id : 0, 
                 userId: 0, 
-                query: 'אנא נסח את הניוזלטר',
+                query: 'אנא נסח את הניוזלטר כעת',
                 context: promptContext
             })
         });
         
         const data = await res.json();
         if (data.success) {
-            // הזרקת הטקסט המעוצב לעורך
-            let formattedAns = data.answer.replace(/\*\*(.*?)\*\*/g, '$1'); // הסרת כוכביות Markdown כדי שיישאר נקי בעורך הטקסט
-            getEl('release-editor').value = formattedAns;
-            showToast('success', 'הטקסט מוכן! ניתן לערוך אותו לפני השיגור.');
+            // ה-AI החזיר טקסט. עכשיו אנחנו אורזים אותו בטמפלט חזותי עשיר (HTML)
+            let formattedContent = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedContent = formattedAns = formattedContent.replace(/\n/g, '<br>');
+            
+            const mascotImg = window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
+            const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
+            
+            const htmlTemplate = `
+                <div id="newsletter-content-wrap" style="max-width: 600px; margin: 20px auto; font-family: 'Rubik', sans-serif; direction: rtl; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); background-color: white; overflow: hidden;">
+                    
+                    <div style="background: linear-gradient(135deg, #6366f1, #a855f7); padding: 40px 20px; text-align: center; position: relative;">
+                        <img src="${mascotImg}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 15px; position: relative; z-index: 10; display: inline-block;">
+                        <h1 style="color: white; font-size: 26px; font-weight: 900; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.2); line-height: 1.2;">${releaseTitle}</h1>
+                    </div>
+                    
+                    <div style="padding: 30px 25px; color: #334155; font-size: 15px; line-height: 1.8;">
+                        ${formattedContent}
+                    </div>
+                    
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+                        <p style="color: #64748b; font-size: 14px; margin: 0; font-weight: bold;">ממשיכים להשתפר עבורכם תמיד!</p>
+                        <p style="color: #94a3b8; font-size: 12px; margin-top: 5px;">נשלח באהבה מצוות הפיתוח של Oneflow Life ❤️</p>
+                    </div>
+                    
+                </div>
+            `;
+            
+            const editor = getEl('release-editor');
+            const placeholder = getEl('release-editor-placeholder');
+            if(placeholder) placeholder.style.display = 'none';
+            editor.innerHTML = htmlTemplate;
+            
+            showToast('success', 'הטמפלט מוכן! ניתן לערוך הכל ישירות במסך.');
             try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
         } else {
             showToast('error', 'שגיאה ביצירת הטקסט.');
@@ -1799,29 +1824,68 @@ window.generateReleaseNotesAI = async function() {
 };
 
 window.copyReleaseNotes = function() {
-    const text = val('release-editor');
-    if (!text) return showToast('info', 'אין טקסט להעתקה');
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('success', 'הטקסט הועתק ללוח!');
+    const editor = getEl('release-editor');
+    // מעתיק את תוכן ה-HTML שנוצר
+    const htmlContent = editor.innerHTML;
+    if (!htmlContent || htmlContent.includes('תוצאת ה-AI')) return showToast('info', 'אין טקסט להעתקה');
+    
+    navigator.clipboard.writeText(htmlContent).then(() => {
+        showToast('success', 'קוד ה-HTML הועתק בהצלחה!');
     }).catch(err => {
         showToast('error', 'שגיאה בהעתקה');
     });
 };
 
-window.broadcastReleaseNotes = async function() {
-    const content = val('release-editor');
-    const title = val('release-title') || 'עדכון גרסה חדש!';
-    const audience = val('release-target-audience'); // 'all', 'family', 'business'
+window.exportToPDF = function() {
+    const element = document.getElementById('newsletter-content-wrap');
+    if (!element) return showToast('error', 'יש לחולל טמפלט קודם לפני ייצוא ל-PDF');
     
-    if (!content) return showToast('error', 'העורך ריק. צור או כתוב הודעה תחילה.');
-    if (!confirm('האם לשגר את ההודעה הזו לתיבת ה-Inbox של הלקוחות? פעולה זו בלתי הפיכה.')) return;
+    const btn = document.getElementById('btn-export-pdf');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
+    btn.disabled = true;
+    
+    // פונקציית עזר להפעלת הייצוא
+    const generate = () => {
+        const opt = {
+            margin:       10,
+            filename:     'Oneflow_Release.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('success', 'קובץ ה-PDF נוצר והורד בהצלחה!');
+        });
+    };
+
+    // משיכת ספריית ה-PDF באופן דינמי אם טרם נמשכה
+    if (!window.html2pdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = generate;
+        document.head.appendChild(script);
+    } else {
+        generate();
+    }
+};
+
+window.broadcastReleaseNotes = async function() {
+    const editor = getEl('release-editor');
+    const content = editor.innerHTML;
+    const title = val('release-title') || 'עדכון גרסה חדש!';
+    const audience = val('release-target-audience');
+    
+    if (!content || content.includes('תוצאת ה-AI')) return showToast('error', 'העורך ריק. צור הודעה תחילה.');
+    if (!confirm('האם לשגר את הניוזלטר הזה לתיבת ה-Inbox של הלקוחות?')) return;
     
     const btn = getEl('btn-broadcast-release');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
     
     try {
-        // מתממשק לפונקציית הברודקאסט (Inbox) הקיימת שיש לך בשרת
         let targetType = 'group_type';
         let targetValue = 'FAMILY';
         if (audience === 'business') targetValue = 'BUSINESS';
@@ -1834,10 +1898,7 @@ window.broadcastReleaseNotes = async function() {
         
         const data = await res.json();
         if (data.success) {
-            showToast('success', `ההשקה שוגרה בהצלחה ל-${data.count || 0} סביבות! 🚀`);
-            getEl('release-title').value = '';
-            getEl('release-raw-points').value = '';
-            getEl('release-editor').value = '';
+            showToast('success', `הניוזלטר שוגר בהצלחה ל-${data.count || 0} סביבות! 🚀`);
         } else { 
             showToast('error', data.error || 'שגיאה בשיגור ההודעה'); 
         }
@@ -1845,6 +1906,6 @@ window.broadcastReleaseNotes = async function() {
         showToast('error', 'שגיאת תקשורת מול השרת'); 
     } finally { 
         btn.disabled = false; 
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר כ-Inbox ללקוחות'; 
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; 
     }
 };
