@@ -65,27 +65,56 @@ function logoutSA() {
 }
 
 function switchSATab(tabId) {
-    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support', 'partners', 'inbox'].forEach(t => {
+    // הוספנו את 'devops' למערך הטאבים הראשיים
+    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support', 'partners', 'inbox', 'devops'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
+        
+        // איפוס עיצוב הכפתורים
+        if (btn) {
+            btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
+            if (t === 'devops') btn.classList.add('mx-1');
+            if (t === 'support') btn.classList.add('ml-1');
+        }
     });
+    
     const activeView = document.getElementById(`sa-view-${tabId}`);
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
+    
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) {
         if (tabId === 'pulse') {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2';
+        } else if(tabId === 'devops') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
         } else if(tabId === 'support') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition flex items-center justify-center gap-1';
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
         } else if (tabId === 'inbox') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl shadow-sm transition flex items-center justify-center gap-1';
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
+        } else if (tabId === 'partners') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
         } else {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
         }
     }
 }
+
+// פונקציית ניווט פנימית לתוך מרכז ה-DevOps
+window.switchDevTab = function(tabId) {
+    ['matrix', 'kanban', 'release'].forEach(t => {
+        const view = document.getElementById(`dev-content-${t}`);
+        const btn = document.getElementById(`btn-dev-tab-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition';
+    });
+    
+    const activeView = document.getElementById(`dev-content-${tabId}`);
+    const activeBtn = document.getElementById(`btn-dev-tab-${tabId}`);
+    
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'flex-1 px-5 py-2.5 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition';
+};
 
 // לוגיקת רינדור ה-Live Pulse (דופק חי ואנומליות)
 function renderLivePulse(activityData, stats) {
