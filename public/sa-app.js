@@ -1808,21 +1808,21 @@ window.generateReleaseNotesAI = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> FamilAI בונה עיצוב...';
     
     try {
-        // הגבלה קשוחה של כמות מילים כדי שלא יחרוג מעמוד אחד!
+        // הגבלת מילים אגרסיבית למניעת גלישה לעמוד נוסף
         const lengthInstruction = lengthChoice === 'standard' 
-            ? 'חובה לכתוב טקסט קצר ותמציתי של עד 80 מילים. על הטקסט להיות בגודל של חצי עמוד לכל היותר.' 
-            : 'חובה להרחיב, אך הגבל את הטקסט למקסימום 180 מילים כדי שייכנס בדיוק לעמוד A4 אחד. אסור לחרוג מכך.';
+            ? 'חובה לכתוב טקסט קצר ותמציתי של 50 מילים בלבד.' 
+            : 'כתוב טקסט של כ-120 מילים מקסימום. חובה שהטקסט יכנס לעמוד אחד בלבד.';
 
         const promptContext = `
-            אתה קופירייטר שיווקי בכיר. המשימה שלך היא לכתוב הודעת פרסום על עדכון גרסה.
-            כותרת ההשקה: "${title || 'עדכון מערכת חגיגי'}".
+            אתה קופירייטר שיווקי. כתוב הודעת פרסום על עדכון גרסה.
+            כותרת ההשקה: "${title || 'עדכון מערכת'}".
             הטון המבוקש: ${tone === 'enthusiastic' ? 'מלהיב וחגיגי' : (tone === 'funny' ? 'מצחיק וקליל' : 'רשמי ומקצועי')}.
             אורך מבוקש: ${lengthInstruction}
             
-            הוראות קריטיות:
-            1. הקפד על ריווח תקין בין מילים.
-            2. השתמש בתגיות HTML בסיסיות (כמו <br>, <strong>).
-            3. לעולם אל תסיים נקודה או פסיק ללא רווח לאחריהם.
+            הוראות קריטיות - חובה לציית להן:
+            1. אל תכתוב שום משפט פתיחה! אל תגיד "בטח", "הנה הטקסט", "לבקשתך" או "FamilAI כאן". תחזיר *אך ורק* את תוכן הניוזלטר נטו.
+            2. לעולם אל תסיים נקודה, נקודתיים או פסיק ללא רווח אחריהם.
+            3. השתמש בתגיות HTML בסיסיות (<br>, <strong>).
             
             נקודות גולמיות לתרגום: ${rawPoints}
         `;
@@ -1833,18 +1833,24 @@ window.generateReleaseNotesAI = async function() {
             body: JSON.stringify({ 
                 groupId: saAllGroups[0] ? saAllGroups[0].id : 0, 
                 userId: 0, 
-                query: 'אנא נסח את הפרסום כעת',
+                query: 'אנא נסח את הפרסום כעת ללא הקדמות',
                 context: promptContext
             })
         });
         
         const data = await res.json();
         if (data.success) {
-            let formattedContent = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            let formattedContent = data.answer;
+            
+            // ניקוי אגרסיבי של ברבורי ה-AI (אם בכל זאת ניסה לדבר)
+            formattedContent = formattedContent.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה|FamilAI)[^\n]*\n+/gi, '').trim();
+            
+            formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             formattedContent = formattedContent.replace(/\n/g, '<br>');
             
-            // תיקון אוטומטי של רווחים חסרים ב-RTL (למשל: "מודול:חדש" יהפוך ל-"מודול: חדש")
+            // תיקון חזק לרווחים אחרי סימני פיסוק - מונע הדבקות כמו "מודול:חדש"
             formattedContent = formattedContent.replace(/([\,\.\:\!\?])([א-תA-Za-z0-9])/g, '$1 $2');
+            formattedContent = formattedContent.replace(/<\/strong>([א-תA-Za-z0-9])/g, '</strong> $1');
             
             const themeColors = {
                 purple: ['#4f46e5', '#9333ea'],
@@ -1858,20 +1864,21 @@ window.generateReleaseNotesAI = async function() {
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
             const releaseTitle = title || 'עדכון גרסה חגיגי! 🎉';
             
+            // עיצוב תבנית ה-HTML עם פונט בטוח (Arial) לייצוא תקין ב-PDF
             const htmlTemplate = `
-                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: 'Rubik', Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); background-color: white; overflow: hidden;">
+                <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: white; overflow: hidden; padding-bottom: 2px;">
                     <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
                         <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
-                        <h1 style="color: white; font-size: 32px; font-weight: 900; margin: 0; line-height: 1.2;">${releaseTitle}</h1>
-                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: 500; margin: 8px 0 0 0;">${subtitle}</h2>
+                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
+                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl;">${subtitle}</h2>
                     </div>
                     
-                    <div style="padding: 35px 35px; color: #334155; font-size: 16px; line-height: 1.8; text-align: right; direction: rtl; white-space: pre-wrap; word-wrap: break-word;">
+                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em;">
                         ${formattedContent}
                     </div>
                     
-                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 25px; text-align: center;">
-                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: 900;">צוות Oneflow Life</p>
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+                        <p style="color: ${gradStart}; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
                     </div>
                 </div>
             `;
@@ -1914,31 +1921,23 @@ window.exportToPDF = function() {
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
     btn.disabled = true;
-
-    // החלפת הפונט ל-Arial בזמן ההדפסה - פותר 99% מבעיות דריסת המילים בעברית ב-Canvas
-    const style = document.createElement('style');
-    style.id = 'pdf-print-style';
-    style.innerHTML = `
-        #newsletter-content-wrap { font-family: Arial, Helvetica, sans-serif !important; }
-        #newsletter-content-wrap div { letter-spacing: normal !important; word-spacing: 0.1em !important; }
-    `;
-    document.head.appendChild(style);
     
     const generate = () => {
         const opt = {
-            margin:       [10, 10, 10, 10], 
+            margin:       [5, 5, 5, 5], 
             filename:     'Oneflow_Release.pdf',
             image:        { type: 'jpeg', quality: 1 },
-            // הסרנו את letterRendering שגרם לדריסה. Arial מטפל בעברית מצוין עצמאית.
-            html2canvas:  { scale: 2, useCORS: true }, 
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true,
+                letterRendering: false // חובה למנוע דריסת טקסט בעברית
+            }, 
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            // הסרנו את פקודות ה-pagebreak כי ה-AI מוגבל לעמוד אחד מראש, וזה מונע זריקת דפים ריקים.
+            // הסרנו את תכונת ה-pagebreak לחלוטין כדי למנוע דחיפה לעמוד השני
         };
         html2pdf().set(opt).from(element).save().then(() => {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            const s = document.getElementById('pdf-print-style');
-            if(s) s.remove();
             showToast('success', 'קובץ ה-PDF נוצר והורד בהצלחה!');
         });
     };
@@ -1957,7 +1956,7 @@ window.broadcastReleaseNotes = async function() {
     const editor = getEl('release-editor');
     const content = editor.innerHTML;
     const title = val('release-title') || 'עדכון גרסה חדש!';
-    const audience = val('release-target-audience');
+    const audience = val('release-target-audience'); // 'all', 'family', 'business'
     
     if (!content || content.includes('תוצאת ה-AI')) return showToast('error', 'העורך ריק. צור או כתוב הודעה תחילה.');
     if (!confirm('האם לשגר את ההודעה הזו לתיבת ה-Inbox של הלקוחות?')) return;
@@ -1967,10 +1966,9 @@ window.broadcastReleaseNotes = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
     
     try {
-        let targetType = 'group_type';
-        let targetValue = 'FAMILY';
-        if (audience === 'business') targetValue = 'BUSINESS';
-        if (audience === 'all') { targetType = 'all'; targetValue = 'all'; }
+        // התאמה מושלמת ל-API של ה-Inbox (שולח 'family', 'business', 'all')
+        const targetType = audience;
+        const targetValue = ''; 
 
         const res = await fetch(`${API}/sa/inbox/broadcast`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
@@ -1985,7 +1983,6 @@ window.broadcastReleaseNotes = async function() {
     finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> שגר ללקוחות'; }
 };
 
-// טעינת הלוגו השיווקי מזיכרון המערכת באופן אוטומטי
 window.addEventListener('load', () => {
     setTimeout(() => {
         const savedReleaseLogo = localStorage.getItem('ofl_release_logo');
