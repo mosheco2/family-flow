@@ -1471,28 +1471,44 @@ window.openDevBugModal = function(envId, modId, testId, title) {
 };
 
 // ==========================================
-// --- KANBAN BOARD LOGIC ---
+// --- KANBAN BOARD LOGIC (CONNECTED TO SERVER) ---
 // ==========================================
 
-// מערך המשימות (נשמר זמנית בזיכרון המקומי)
-let devKanbanTasks = JSON.parse(localStorage.getItem('ofl_dev_kanban')) || [];
+let devKanbanTasks = [];
+
+window.loadDevTasks = async function() {
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : '' }});
+        const data = await res.json();
+        if(data.success) {
+            devKanbanTasks = data.tasks.map(t => ({
+                id: t.id.toString(),
+                title: t.title,
+                type: t.type,
+                priority: t.priority,
+                status: t.status,
+                desc: t.description || '',
+                version: t.target_version || ''
+            }));
+            renderKanbanBoard();
+        }
+    } catch(e) { console.error('Error loading tasks', e); }
+};
 
 window.renderKanbanBoard = function() {
     const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
     const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
     
-    // ניקוי טורים
     Object.values(columns).forEach(col => { if(col) col.innerHTML = ''; });
     
     if(devKanbanTasks.length === 0) {
-        if(columns.backlog) columns.backlog.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">גררו משימה לכאן</div>';
+        if(columns.backlog) columns.backlog.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">אין משימות במערכת. לחץ על כפתור ההוספה.</div>';
     }
 
     devKanbanTasks.forEach(task => {
         if(!columns[task.status]) return;
         counts[task.status]++;
         
-        // הגדרת עיצובים לפי סוג המשימה
         let typeBadge = '';
         if(task.type === 'bug') typeBadge = '<span class="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-bug"></i> באג</span>';
         else if(task.type === 'feature') typeBadge = '<span class="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-wand-magic-sparkles"></i> פיצ\'ר</span>';
@@ -1506,7 +1522,6 @@ window.renderKanbanBoard = function() {
 
         const versionBadge = task.version ? `<span class="bg-slate-100 border border-slate-200 text-slate-500 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
 
-        // בניית כרטיסיית המשימה
         const cardHtml = `
         <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
             <div class="flex justify-between items-start mb-2">
@@ -1515,7 +1530,7 @@ window.renderKanbanBoard = function() {
             </div>
             <h5 class="font-bold text-slate-800 text-xs leading-snug mb-2">${safeStr(task.title)}</h5>
             <div class="flex justify-between items-end mt-auto">
-                <span class="text-[9px] text-slate-400 font-mono">#${task.id.replace('task_','')}</span>
+                <span class="text-[9px] text-slate-400 font-mono">#${task.id}</span>
                 ${versionBadge}
             </div>
         </div>
@@ -1523,44 +1538,41 @@ window.renderKanbanBoard = function() {
         columns[task.status].innerHTML += cardHtml;
     });
 
-    // עדכון מונים
     Object.keys(counts).forEach(status => {
         const c = getEl('count-' + status);
         if(c) c.innerText = counts[status];
     });
-    getEl('kanban-total-count').innerText = `${devKanbanTasks.length} משימות`;
+    const totalEl = getEl('kanban-total-count');
+    if (totalEl) totalEl.innerText = `${devKanbanTasks.length} משימות`;
 };
 
-// פונקציות גרירה והשלכה HTML5 Native
-window.allowKanbanDrop = function(ev) {
-    ev.preventDefault();
-};
+window.allowKanbanDrop = function(ev) { ev.preventDefault(); };
+window.dragKanbanTask = function(ev) { ev.dataTransfer.setData("taskId", ev.target.id); };
 
-window.dragKanbanTask = function(ev) {
-    ev.dataTransfer.setData("taskId", ev.target.id);
-};
-
-window.dropKanbanTask = function(ev, newStatus) {
+window.dropKanbanTask = async function(ev, newStatus) {
     ev.preventDefault();
     const taskId = ev.dataTransfer.getData("taskId");
     const task = devKanbanTasks.find(t => t.id === taskId);
     
     if (task && task.status !== newStatus) {
         task.status = newStatus;
-        localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
-        renderKanbanBoard();
+        renderKanbanBoard(); 
         
-        // אם משימה הועברה ל-Done, אפשר לזרוק קונפטי!
-        if (newStatus === 'done') {
-            try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } }); } catch(e){}
-        }
+        try {
+            await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (newStatus === 'done') {
+                try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } }); } catch(e){}
+            }
+        } catch(e) { showToast('error', 'שגיאה בעדכון סטטוס משימה בשרת'); }
     }
 };
 
 window.openKanbanTaskModal = function(id = null) {
     const modal = getEl('dev-kanban-task-modal');
     if (!modal) return;
-    
     const delBtn = getEl('btn-kanban-delete');
     
     if (id) {
@@ -1584,11 +1596,10 @@ window.openKanbanTaskModal = function(id = null) {
         getEl('kanban-task-version').value = '';
         delBtn.classList.add('hidden');
     }
-    
     modal.classList.remove('hidden');
 };
 
-window.saveKanbanTaskData = function() {
+window.saveKanbanTaskData = async function() {
     const id = val('kanban-task-id');
     const title = val('kanban-task-title');
     const type = val('kanban-task-type');
@@ -1598,75 +1609,72 @@ window.saveKanbanTaskData = function() {
     
     if (!title) return showToast('error', 'חובה להזין כותרת למשימה');
     
-    if (id) {
-        // עריכה
-        const index = devKanbanTasks.findIndex(t => t.id === id);
-        if (index > -1) {
-            devKanbanTasks[index] = { ...devKanbanTasks[index], title, type, priority, desc, version };
-        }
-    } else {
-        // יצירה (תמיד נכנס ל-Backlog)
-        devKanbanTasks.push({
-            id: 'task_' + Date.now(),
-            status: 'backlog',
-            title, type, priority, desc, version,
-            created_at: new Date().toISOString()
-        });
-    }
+    const payload = { title, type, priority, description: desc, targetVersion: version };
     
-    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
-    getEl('dev-kanban-task-modal').classList.add('hidden');
-    showToast('success', 'המשימה נשמרה!');
-    renderKanbanBoard();
+    try {
+        if (id) {
+            payload.status = devKanbanTasks.find(t => t.id === id)?.status || 'backlog';
+            await fetch(`${API}/sa/dev/tasks/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            payload.status = 'backlog';
+            await fetch(`${API}/sa/dev/tasks`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+                body: JSON.stringify(payload)
+            });
+        }
+        showToast('success', 'המשימה נשמרה במסד הנתונים!');
+        getEl('dev-kanban-task-modal').classList.add('hidden');
+        loadDevTasks();
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת משימה'); }
 };
 
-window.deleteKanbanTask = function() {
+window.deleteKanbanTask = async function() {
     const id = val('kanban-task-id');
-    if (!id || !confirm('למחוק משימה זו מהלוח?')) return;
+    if (!id || !confirm('למחוק משימה זו מהלוח וממסד הנתונים?')) return;
     
-    devKanbanTasks = devKanbanTasks.filter(t => t.id !== id);
-    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
-    getEl('dev-kanban-task-modal').classList.add('hidden');
-    showToast('success', 'המשימה נמחקה');
-    renderKanbanBoard();
+    try {
+        await fetch(`${API}/sa/dev/tasks/${id}`, { method: 'DELETE', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : '' } });
+        showToast('success', 'המשימה נמחקה בהצלחה');
+        getEl('dev-kanban-task-modal').classList.add('hidden');
+        loadDevTasks();
+    } catch(e) { showToast('error', 'שגיאת רשת במחיקה'); }
 };
 
 // ==========================================
 // --- חיבור בין המטריקס (QA) לקנבן (Dev) ---
 // ==========================================
 
-window.saveBugToKanban = function() {
+window.saveBugToKanban = async function() {
     const actual = val('dev-bug-actual');
     const expected = val('dev-bug-expected');
     const title = getEl('dev-bug-test-title').innerText;
     const priority = val('dev-bug-priority');
-    
-    // מזהי התרחיש המקורי בספר המוצר
-    const envId = val('dev-bug-env-id');
     const testId = val('dev-bug-test-id');
     
     if (!actual) return showToast('error', 'נא לפרט מה קרה בפועל כדי שהצוות יבין את הבאג.');
     
-    const newTask = {
-        id: 'task_' + Date.now(),
-        status: 'backlog', // באג חדש נזרק ל-Backlog
+    const payload = {
         title: 'באג: ' + title,
         type: 'bug',
         priority: priority,
-        desc: `מקור: ספר המוצר (Sanity Check)\nמזהה: ${testId}\n\nתוצאה מצופה:\n${expected}\n\nתוצאה בפועל:\n${actual}`,
-        version: '', // יקבל שיוך ע"י מנהל הפיתוח
-        created_at: new Date().toISOString()
+        status: 'backlog',
+        description: `מקור: ספר המוצר (Sanity Check)\nמזהה: ${testId}\n\nתוצאה מצופה:\n${expected}\n\nתוצאה בפועל:\n${actual}`,
+        targetVersion: ''
     };
     
-    devKanbanTasks.push(newTask);
-    localStorage.setItem('ofl_dev_kanban', JSON.stringify(devKanbanTasks));
-    
-    getEl('dev-bug-modal').classList.add('hidden');
-    showToast('success', 'הבאג תועד ונשלח בהצלחה ללוח הפיתוח (Backlog)!');
-    renderProductMatrix();
-    renderKanbanBoard();
+    try {
+        await fetch(`${API}/sa/dev/tasks`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+            body: JSON.stringify(payload)
+        });
+        getEl('dev-bug-modal').classList.add('hidden');
+        showToast('success', 'הבאג נשלח בהצלחה ללוח הפיתוח!');
+        loadDevTasks();
+    } catch(e) { showToast('error', 'שגיאת רשת ביצירת הבאג'); }
 };
-
 
 // ==========================================
 // --- אתחול וניתוב (Override) ---
@@ -1676,7 +1684,7 @@ const _originalSwitchDevTab = window.switchDevTab;
 window.switchDevTab = function(tabId) {
     if(typeof _originalSwitchDevTab === 'function') _originalSwitchDevTab(tabId);
     if (tabId === 'matrix') renderProductMatrix();
-    if (tabId === 'kanban') renderKanbanBoard();
+    if (tabId === 'kanban') loadDevTasks(); 
 };
 
 const _originalSwitchSATabDev = window.switchSATab;
@@ -1684,7 +1692,7 @@ window.switchSATab = function(tabId) {
     if(typeof _originalSwitchSATabDev === 'function') _originalSwitchSATabDev(tabId);
     if (tabId === 'devops') {
         renderProductMatrix();
-        renderKanbanBoard(); // מרנדר את הלוח מראש
+        loadDevTasks(); 
     }
 };
 // ==========================================
