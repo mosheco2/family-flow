@@ -1907,10 +1907,67 @@ window.generateReleaseNotesAI = async function() {
     }
 };
 
+window.generateManualRelease = function() {
+    const title = val('release-title');
+    const subtitle = val('release-subtitle') || 'הכרזה על גרסה חדשה 🚀';
+    const manualText = val('release-manual-text');
+    const colorChoice = val('release-color') || 'purple';
+    const uploadedLogo = val('release-logo-base64');
+    
+    if (!manualText || manualText.trim() === '') return showToast('error', 'יש להזין טקסט בתיבת הכתיבה הידנית (אופציה ב\')');
+    
+    // עיבוד הטקסט הידני: המרת ירידות שורות לתגיות HTML כדי לשמור על המבנה שלך
+    let formattedContent = manualText.replace(/\n/g, '<br>');
+    
+    const themeColors = {
+        purple: ['#4f46e5', '#9333ea'],
+        blue: ['#2563eb', '#1d4ed8'],
+        emerald: ['#10b981', '#047857'],
+        orange: ['#f97316', '#ea580c'],
+        slate: ['#475569', '#1e293b']
+    };
+    const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
+    
+    const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png';
+    const releaseTitle = (title || 'עדכון גרסה חגיגי! 🎉').replace(/ /g, '\u00A0');
+    const subtitleDisplay = subtitle.replace(/ /g, '\u00A0');
+    
+    // אותו טמפלט עיצובי וחסין בדיוק כמו ב-AI
+    const htmlTemplate = `
+        <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden; padding-bottom: 2px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;">
+                <tr>
+                    <td style="padding: 40px 20px;">
+                        <img src="${mascotImg}" onerror="this.style.display='none'" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid #ffffff; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
+                        <h1 style="color: #ffffff !important; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
+                        <h2 style="color: #f1f5f9 !important; font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; opacity: 0.9;">${subtitleDisplay}</h2>
+                    </td>
+                </tr>
+            </table>
+            
+            <div style="padding: 30px 35px; color: #334155 !important; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em; background-color: #ffffff !important;">
+                ${formattedContent}
+            </div>
+            
+            <div style="background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 20px; text-align: center;">
+                <p style="color: ${gradStart} !important; font-size: 16px; margin: 0; font-weight: bold;">צוות Oneflow Life</p>
+            </div>
+        </div>
+    `;
+    
+    const editor = getEl('release-editor');
+    const placeholder = getEl('release-editor-placeholder');
+    if(placeholder) placeholder.style.display = 'none';
+    editor.innerHTML = htmlTemplate;
+    
+    showToast('success', 'הטמפלט הידני מוכן לשיגור!');
+    try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
+};
+
 window.copyReleaseNotes = function() {
     const editor = getEl('release-editor');
     const htmlContent = editor.innerHTML;
-    if (!htmlContent || htmlContent.includes('תוצאת ה-AI')) return showToast('info', 'אין טקסט להעתקה');
+    if (!htmlContent || htmlContent.includes('תוצאת ה-AI') || htmlContent.includes('תוצאת ה- AI')) return showToast('info', 'אין טקסט להעתקה');
     
     navigator.clipboard.writeText(htmlContent).then(() => {
         showToast('success', 'קוד ה-HTML הועתק בהצלחה!');
