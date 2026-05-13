@@ -1824,16 +1824,12 @@ window.generateReleaseNotesAI = async function() {
             
             נקודות גולמיות לתרגום: ${rawPoints}
         `;
-        
-        // אבטחת מזהה הקבוצה - אם המערכת טרם טענה קבוצות, נשתמש ב-1 כדי למנוע קריסת שרת
-        const activeGroupId = (typeof saAllGroups !== 'undefined' && saAllGroups.length > 0) ? saAllGroups[0].id : 1;
 
-        const res = await fetch(`${API}/family/chat-assistant`, {
+        // נתיב AI ייעודי לסופר-אדמין ללא הגבלת טוקנים!
+        const res = await fetch(`${API}/sa/ai-generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
             body: JSON.stringify({ 
-                groupId: activeGroupId, 
-                userId: 0, 
                 query: 'אנא נסח את הפרסום כעת ללא הקדמות',
                 context: promptContext
             })
@@ -1885,8 +1881,7 @@ window.generateReleaseNotesAI = async function() {
             showToast('success', 'הטמפלט מוכן!');
             try { confetti({ particleCount: 60, spread: 70 }); } catch(e){}
         } else {
-            // חושפים את השגיאה האמיתית כדי שנדע מה הבעיה במידה וזה קורה שוב!
-            showToast('error', data.error || 'שגיאה ביצירת הטקסט. השרת דחה את הבקשה.');
+            showToast('error', data.error || 'שגיאה ביצירת הטקסט.');
         }
     } catch (e) {
         showToast('error', 'שגיאת רשת מול ה-AI: ' + e.message);
