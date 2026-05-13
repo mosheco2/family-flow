@@ -8,17 +8,34 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
+<style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; }
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .modal-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 0.875rem; }
+        .modern-input:focus { border-color: #3b82f6; background: white; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         .modal-scroll::-webkit-scrollbar { width: 6px; }
-        .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
-        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .modal-scroll::-webkit-scrollbar-track { background: transparent; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+        @keyframes bounceIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        
+        /* הגדרה קשיחה להודעה פנימית - דורסת הכל */
+        .internal-note-bubble {
+            background-color: #fff7ed !important;
+            border: 2px solid #fdba74 !important;
+            color: #9a3412 !important;
+            box-shadow: 0 4px 6px rgba(253, 186, 116, 0.3) !important;
+        }
+        .internal-note-label {
+            background-color: #ea580c !important;
+            color: white !important;
+            padding: 2px 8px !important;
+            border-radius: 99px !important;
+            font-size: 9px !important;
+            margin-left: 8px !important;
+        }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative min-h-screen">
@@ -670,6 +687,22 @@
                                     <div>
                                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הגרסה / כותרת הפצה:</label>
                                         <input type="text" id="release-title" class="modern-input py-2.5 text-sm font-bold bg-white" placeholder="למשל: גרסה 2.2.0 - האביב הגיע!">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="text-xs font-bold text-slate-600 block mb-1">לוגו ממותג להשקה (מעל הבאנר):</label>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-white rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center cursor-pointer hover:border-purple-400 transition overflow-hidden shadow-sm" onclick="getEl('release-logo-upload').click()">
+                                                <img id="release-logo-preview" class="w-full h-full object-cover hidden">
+                                                <i id="release-logo-icon" class="fa-solid fa-image text-slate-300"></i>
+                                            </div>
+                                            <div class="flex flex-col gap-1">
+                                                <button onclick="getEl('release-logo-upload').click()" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition">העלה לוגו</button>
+                                                <span class="text-[8px] text-slate-400 font-bold">PNG/JPG שקוף מומלץ</span>
+                                            </div>
+                                        </div>
+                                        <input type="file" id="release-logo-upload" class="hidden" accept="image/*" onchange="handleReleaseLogoUpload(event)">
+                                        <input type="hidden" id="release-logo-base64">
                                     </div>
                                     
                                     <div>
