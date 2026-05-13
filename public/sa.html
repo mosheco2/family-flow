@@ -681,7 +681,7 @@
                             </div>
 
                             <div class="flex flex-col lg:flex-row gap-6">
-                                <div class="w-full lg:w-1/3 space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+ <div class="w-full lg:w-1/3 space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
                                     <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-3"><i class="fa-solid fa-wand-magic-sparkles text-purple-500 ml-1"></i> הגדרות מחולל ה-AI</h4>
                                     
                                     <div>
@@ -690,39 +690,58 @@
                                     </div>
                                     
                                     <div>
-                                        <label class="text-xs font-bold text-slate-600 block mb-1">לוגו ממותג להשקה (מעל הבאנר):</label>
+                                        <label class="text-xs font-bold text-slate-600 block mb-1">לוגו להשקה (נשמר אוטומטית):</label>
                                         <div class="flex items-center gap-3">
                                             <div class="w-12 h-12 bg-white rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center cursor-pointer hover:border-purple-400 transition overflow-hidden shadow-sm" onclick="getEl('release-logo-upload').click()">
                                                 <img id="release-logo-preview" class="w-full h-full object-cover hidden">
                                                 <i id="release-logo-icon" class="fa-solid fa-image text-slate-300"></i>
                                             </div>
                                             <div class="flex flex-col gap-1">
-                                                <button onclick="getEl('release-logo-upload').click()" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition">העלה לוגו</button>
-                                                <span class="text-[8px] text-slate-400 font-bold">PNG/JPG שקוף מומלץ</span>
+                                                <button onclick="getEl('release-logo-upload').click()" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition">בחר לוגו מהמחשב</button>
+                                                <span class="text-[8px] text-slate-400 font-bold">הלוגו נשמר לפרסומים הבאים</span>
                                             </div>
                                         </div>
                                         <input type="file" id="release-logo-upload" class="hidden" accept="image/*" onchange="handleReleaseLogoUpload(event)">
                                         <input type="hidden" id="release-logo-base64">
                                     </div>
                                     
-                                    <div>
-                                        <label class="text-xs font-bold text-slate-600 block mb-1">משימות ובאגים (נקודות גולמיות):</label>
-                                        <p class="text-[10px] text-slate-400 mb-2 leading-tight">הכנס את הבאגים והפיצ'רים שפותחו (שורה חדשה לכל פריט). ה-AI יהפוך את זה לשיווקי.</p>
-                                        <textarea id="release-raw-points" class="modern-input py-2 text-xs h-32 resize-none bg-white" placeholder="- הוספנו אפשרות להערות פנימיות בתמיכה
-- תיקון קריסת מסך ההתחברות לעסקים
-- הוספת בועת AI במסך המשפחות"></textarea>
+                                    <div class="flex gap-3">
+                                        <div class="flex-1">
+                                            <label class="text-[10px] font-bold text-slate-600 block mb-1">אורך מבוקש:</label>
+                                            <select id="release-length" class="modern-input py-2 text-xs bg-white cursor-pointer px-2">
+                                                <option value="standard">📄 קצר ולעניין</option>
+                                                <option value="extended">📚 מורחב ומפורט</option>
+                                            </select>
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="text-[10px] font-bold text-slate-600 block mb-1">צבע תבנית:</label>
+                                            <select id="release-color" class="modern-input py-2 text-xs bg-white cursor-pointer px-2">
+                                                <option value="purple">💜 סגול</option>
+                                                <option value="blue">💙 כחול</option>
+                                                <option value="emerald">💚 ירוק</option>
+                                                <option value="orange">🧡 כתום</option>
+                                                <option value="slate">🖤 שחור/אלגנטי</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     
                                     <div>
                                         <label class="text-xs font-bold text-slate-600 block mb-1">סגנון / טון דיבור:</label>
-                                        <select id="release-tone" class="modern-input py-2.5 text-sm bg-white cursor-pointer">
+                                        <select id="release-tone" class="modern-input py-2 text-xs bg-white cursor-pointer">
                                             <option value="enthusiastic">🎉 מלהיב וחגיגי (מומלץ)</option>
                                             <option value="professional">💼 מקצועי ורשמי</option>
                                             <option value="funny">😂 הומוריסטי ושנון</option>
                                         </select>
                                     </div>
+
+                                    <div>
+                                        <label class="text-xs font-bold text-slate-600 block mb-1">משימות ובאגים (נקודות גולמיות):</label>
+                                        <textarea id="release-raw-points" class="modern-input py-2 text-xs h-24 resize-none bg-white" placeholder="- הוספנו אפשרות להערות פנימיות&#10;- הוספת בועת AI במסך המשפחות"></textarea>
+                                    </div>
                                     
-                                    <button onclick="generateReleaseNotesAI()" id="btn-generate-release" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 transition">יצר הודעת שחרור עם FamilAI</button>
+                                    <button onclick="generateReleaseNotesAI()" id="btn-generate-release" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 transition flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> יצר פרסום עם FamilAI
+                                    </button>
                                 </div>
                                 
                                 <div class="w-full lg:w-2/3 flex flex-col">
@@ -1098,6 +1117,6 @@
         </div>
     </div>
 
-    <script src="sa-app.js?v=9"></script>
+    <script src="sa-app.js?v=10"></script>
 </body>
 </html>
