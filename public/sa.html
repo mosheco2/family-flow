@@ -871,7 +871,7 @@
         </div>
     </div>
 
-    <div id="sa-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
+   <div id="sa-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
             <button onclick="document.getElementById('sa-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             
@@ -885,7 +885,7 @@
                     </div>
                 </div>
                 
-                <button onclick="convertTicketToDevTask()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm flex items-center gap-2 mt-1">
+                <button onclick="window.convertTicketToDevTask()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm flex items-center gap-2 mt-1">
                     <i class="fa-solid fa-gear"></i> המר למשימת פיתוח
                 </button>
             </div>
