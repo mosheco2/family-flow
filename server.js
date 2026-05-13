@@ -3904,7 +3904,3 @@ app.get('/api/system/public-config', async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
-
-}).catch(err => {
-    console.error('Failed to connect to database on startup:', err);
-});
