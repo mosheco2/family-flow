@@ -1867,13 +1867,13 @@ window.generateReleaseNotesAI = async function() {
             // עיצוב תבנית ה-HTML עם פונט בטוח (Arial) לייצוא תקין ב-PDF
             const htmlTemplate = `
                 <div id="newsletter-content-wrap" style="max-width: 650px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: white; overflow: hidden; padding-bottom: 2px;">
-                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center;">
-                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); margin-bottom: 15px; display: inline-block;">
-                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.2; direction: rtl;">${releaseTitle}</h1>
-                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl;">${subtitle}</h2>
+                    <div style="background: linear-gradient(135deg, ${gradStart}, ${gradEnd}); padding: 40px 20px; text-align: center; direction: ltr;">
+                        <img src="${mascotImg}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 6px 16px rgba(0,0,0,0.25); display: block; margin: 0 auto 15px auto;">
+                        <h1 style="color: white; font-size: 28px; font-weight: bold; margin: 0; line-height: 1.3; direction: rtl; text-align: center;">${releaseTitle}</h1>
+                        <h2 style="color: rgba(255,255,255,0.9); font-size: 18px; font-weight: normal; margin: 8px 0 0 0; direction: rtl; text-align: center;">${subtitle}</h2>
                     </div>
                     
-                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.6; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 0.15em;">
+                    <div style="padding: 30px 35px; color: #334155; font-size: 16px; line-height: 1.9; text-align: right; direction: rtl; word-wrap: break-word; word-spacing: 3px; letter-spacing: 0.01em; unicode-bidi: embed;">
                         ${formattedContent}
                     </div>
                     
@@ -1936,7 +1936,6 @@ window.exportToPDF = function() {
                     style.textContent = `
                         #newsletter-content-wrap,
                         #newsletter-content-wrap * {
-                            direction: rtl !important;
                             font-family: Arial, Helvetica, sans-serif !important;
                             box-sizing: border-box !important;
                         }
@@ -1944,10 +1943,10 @@ window.exportToPDF = function() {
                         #newsletter-content-wrap p,
                         #newsletter-content-wrap span,
                         #newsletter-content-wrap li,
-                        #newsletter-content-wrap td,
                         #newsletter-content-wrap strong {
+                            direction: rtl !important;
                             text-align: right !important;
-                            word-spacing: 2px !important;
+                            word-spacing: 3px !important;
                             word-break: normal !important;
                             overflow-wrap: break-word !important;
                             white-space: normal !important;
@@ -1955,6 +1954,7 @@ window.exportToPDF = function() {
                         }
                         #newsletter-content-wrap h1,
                         #newsletter-content-wrap h2 {
+                            direction: rtl !important;
                             text-align: center !important;
                             unicode-bidi: embed !important;
                         }
