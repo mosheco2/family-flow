@@ -453,75 +453,72 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal-user').innerText = t.user_name || 'לא ידוע';
     getEl('sa-ticket-current-team').innerText = t.assigned_team_name || 'טרם שויך';
     
-    // איפוס טופס כתיבה
-    getEl('sa-ticket-reply-text').value = '';
+    // איפוס טופס כתיבה וגובה תיבת טקסט
+    const replyTextarea = getEl('sa-ticket-reply-text');
+    replyTextarea.value = '';
+    replyTextarea.style.height = '40px'; // גובה התחלתי קטן
+    
     getEl('sa-ticket-reply-status').value = t.status;
     const chkInternal = getEl('sa-ticket-reply-internal');
     if(chkInternal) chkInternal.checked = false;
 
-    // מילוי סלקטורים (Priority & Type)
+    // מילוי סיווגים
     getEl('sa-ticket-priority').value = t.priority || 'normal';
     getEl('sa-ticket-type').value = t.ticket_type || 'general';
 
-    // אכלוס סלקטור צוותים
     const routeSelect = getEl('sa-ticket-route-team');
     if (routeSelect) {
         routeSelect.innerHTML = '<option value="">(ללא שיוך צוות)</option>' + 
             saTeamsCache.map(team => `<option value="${team.id}" ${t.assigned_team === team.id ? 'selected' : ''}>${safeStr(team.name)}</option>`).join('');
     }
 
-    // חישוב ועדכון תגית SLA
+    // SLA Badge
     const badge = getEl('sa-ticket-sla-badge');
     if (badge) {
         if (t.status === 'resolved') {
-            badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500';
-            badge.innerText = 'קריאה סגורה';
+            badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500';
+            badge.innerText = 'סגורה';
         } else {
             const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
             const hoursOpen = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
             const maxHours = getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
-
             if (hoursOpen >= maxHours) {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse shadow-lg shadow-red-200';
-                badge.innerHTML = `<i class="fa-solid fa-fire mr-1"></i> חריגת SLA (${hoursOpen} ש')`;
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse';
+                badge.innerHTML = `<i class="fa-solid fa-fire mr-1"></i> חריגה (${hoursOpen} ש')`;
             } else {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white shadow-lg shadow-green-100';
-                badge.innerHTML = `<i class="fa-solid fa-check mr-1"></i> SLA תקין (${hoursOpen} ש')`;
+                badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500 text-white';
+                badge.innerHTML = `<i class="fa-solid fa-check mr-1"></i> תקין (${hoursOpen} ש')`;
             }
         }
     }
 
-    // אכיפת הרשאות Read Only
+    // הרשאות Read Only
     const isMaster = window.currentSAUser && window.currentSAUser.permissions && window.currentSAUser.permissions.includes('all');
     const userTeamId = window.currentSAUser ? window.currentSAUser.team_id : null;
     const canEdit = isMaster || !t.assigned_team || parseInt(t.assigned_team) === parseInt(userTeamId);
-    
     document.querySelectorAll('.sa-ticket-input').forEach(el => el.disabled = !canEdit);
     getEl('btn-sa-ticket-reply').disabled = !canEdit;
-    getEl('btn-sa-ticket-route').disabled = !canEdit;
-    getEl('btn-sa-ticket-dev').disabled = !canEdit;
     getEl('sa-ticket-read-only-msg').classList.toggle('hidden', canEdit);
 
-    // ניתוח לוגים (פיצול לצ'אט ו-Audit Trail)
+    // לוגים (צ'אט, אבני דרך)
     let logArr = [];
     try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
-    
     const chatContainer = getEl('sa-ticket-log');
     const milestoneContainer = getEl('sa-ticket-milestones');
     
     let chatHtml = `
-        <div class="flex flex-col items-start mb-2 fade-in">
-            <div class="p-4 rounded-2xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed self-start bg-white border-slate-200 text-slate-700 rounded-tr-none max-w-[85%]">
+        <div class="flex flex-col items-start mb-2">
+            <div class="p-3 rounded-2xl border text-sm whitespace-pre-wrap leading-relaxed bg-white border-slate-200 text-slate-700 rounded-tr-none max-w-[85%] shadow-sm">
                 ${safeStr(t.description)}
             </div>
-            <div class="text-[9px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider px-1">פנייה מקורית מהלקוח</div>
+            <div class="text-[8px] text-slate-400 mt-1 font-bold uppercase tracking-widest px-1">פנייה מקורית</div>
         </div>`;
         
     let milestoneHtml = `
-        <div class="relative pl-4 border-r-2 border-blue-200 pb-4 fade-in">
-            <div class="absolute -right-[7px] top-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm"></div>
-            <div class="text-[9px] font-black text-slate-400 uppercase">${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}</div>
-            <div class="text-[11px] text-slate-700 font-bold mt-0.5">פתיחת קריאה במערכת</div>
+        <div class="relative pl-4 border-r-2 border-blue-100 pb-4">
+            <div class="absolute -right-[5px] top-0 w-2 h-2 bg-blue-500 rounded-full border border-white"></div>
+            <div class="text-[8px] font-black text-slate-400 uppercase">${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}</div>
+            <div class="text-[10px] text-slate-700 font-bold">פתיחת קריאה</div>
         </div>`;
 
     logArr.forEach(entry => {
@@ -531,43 +528,46 @@ function openSATicketModal(id) {
         
         if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
             milestoneHtml += `
-            <div class="relative pl-4 border-r-2 border-slate-200 pb-4 fade-in">
-                <div class="absolute -right-[7px] top-0 w-3 h-3 bg-slate-300 rounded-full border-2 border-white shadow-sm"></div>
-                <div class="text-[9px] font-black text-slate-400 uppercase">${timeStr} <span class="text-indigo-500">(${safeStr(entry.sender)})</span></div>
-                <div class="text-[11px] text-slate-600 mt-0.5 leading-snug">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
+            <div class="relative pl-4 border-r-2 border-slate-200 pb-4">
+                <div class="absolute -right-[5px] top-0 w-2 h-2 bg-slate-300 rounded-full border border-white"></div>
+                <div class="text-[8px] font-black text-slate-400 uppercase">${timeStr} <span class="text-indigo-500">(${safeStr(entry.sender)})</span></div>
+                <div class="text-[10px] text-slate-600 mt-0.5 leading-snug">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
             </div>`;
             return; 
         }
 
         if (isInternal) {
             chatHtml += `
-            <div class="flex flex-col items-end mb-4 fade-in">
-                <div class="p-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed self-end mr-12 bg-orange-50 border-2 border-orange-100 text-orange-900 rounded-tl-none shadow-sm">
+            <div class="flex flex-col items-end mb-4">
+                <div class="p-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed self-end bg-orange-50 border border-orange-100 text-orange-900 rounded-tl-none shadow-sm max-w-[85%]">
                     ${safeStr(cleanMessage)}
                 </div>
-                <div class="text-[9px] text-orange-600 mt-1.5 font-bold flex items-center px-1">
-                    <i class="fa-solid fa-user-ninja mr-1"></i> ${safeStr(entry.sender)} • הערה פנימית • ${timeStr}
+                <div class="text-[8px] text-orange-600 mt-1 font-bold flex items-center px-1">
+                    <i class="fa-solid fa-user-ninja mr-1 text-[7px]"></i> ${safeStr(entry.sender)} • פנימי
                 </div>
             </div>`;
         } else {
             const isStaff = entry.isStaff;
             chatHtml += `
-            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
-                <div class="p-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${isStaff ? 'bg-blue-600 text-white rounded-tr-none ml-12 shadow-blue-100' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none mr-12'} shadow-md">
+            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4">
+                <div class="p-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${isStaff ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'} shadow-sm max-w-[85%]">
                     ${safeStr(cleanMessage)}
                 </div>
-                <div class="text-[9px] text-slate-400 mt-1.5 font-bold px-1">
-                    ${isStaff ? '<i class="fa-solid fa-headset mr-1"></i>' : '<i class="fa-solid fa-user mr-1"></i>'} ${safeStr(entry.sender)} • ${timeStr}
-                </div>
+                <div class="text-[8px] text-slate-400 mt-1 font-bold px-1">${safeStr(entry.sender)} • ${timeStr}</div>
             </div>`;
         }
     });
     
     chatContainer.innerHTML = chatHtml;
     milestoneContainer.innerHTML = milestoneHtml;
-    
     getEl('sa-ticket-modal').classList.remove('hidden');
     
+    // גלילה לתחתית גם לתיבת הצ'אט וגם ל-Timeline
+    setTimeout(() => { 
+        if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight; 
+        if (milestoneContainer) milestoneContainer.scrollTop = milestoneContainer.scrollHeight;
+    }, 100);
+}
     // --- תיקון הגלילה (Scroll Fix) ---
     setTimeout(() => { 
         if(chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight; 
