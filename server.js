@@ -77,19 +77,22 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
-      // מערכת קריאות שירות
-      try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
-
-    // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
-      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
-      
       // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_teams (id SERIAL PRIMARY KEY, name VARCHAR(100), permissions JSONB DEFAULT '[]'::jsonb, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_users (id SERIAL PRIMARY KEY, team_id INT REFERENCES sa_teams(id) ON DELETE SET NULL, name VARCHAR(100), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255), status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_users ADD COLUMN IF NOT EXISTS working_hours VARCHAR(50) DEFAULT '09:00-17:00'`); } catch(e) {}
 
+      // מערכת קריאות שירות (שודרגה עם ניתוב ו-SLA)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_to INT REFERENCES sa_users(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_team INT REFERENCES sa_teams(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
+
+      // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
       // טבלת צ'אט צוות פנימי
     try {
           await client.query(`CREATE TABLE IF NOT EXISTS team_chat (
@@ -304,14 +307,17 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליפת הקריאות עבור פאנל ה-Super Admin
+// שליפת הקריאות עבור פאנל ה-Super Admin (כולל צוותים משויכים וזמני SLA)
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT t.*, f.name as group_name, u.nickname as user_name 
+            SELECT t.*, f.name as group_name, u.nickname as user_name, 
+                   sa_u.name as assigned_user_name, sa_t.name as assigned_team_name 
             FROM support_tickets t 
             LEFT JOIN family_groups f ON t.group_id = f.id 
             LEFT JOIN users u ON t.user_id = u.id 
+            LEFT JOIN sa_users sa_u ON t.assigned_to = sa_u.id
+            LEFT JOIN sa_teams sa_t ON t.assigned_team = sa_t.id
             ORDER BY t.created_at DESC
         `);
         res.json({ success: true, tickets: result.rows });
@@ -321,21 +327,57 @@ app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
 // שליפת קריאות שירות ללקוח (לפי מזהה קבוצה/עסק)
 app.get('/api/support/tickets/my/:groupId', async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT * FROM support_tickets 
-            WHERE group_id = $1 
-            ORDER BY created_at DESC
-        `, [req.params.groupId]);
+        const result = await pool.query('SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
         res.json({ success: true, tickets: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// עדכון סטטוס הקריאה ע"י ה-Super Admin (ללא תגובה)
+// עדכון סטטוס הקריאה ע"י ה-Super Admin ועדכון חותמת זמן ל-SLA
 app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
     try {
-        await pool.query('UPDATE support_tickets SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
+        await pool.query('UPDATE support_tickets SET status = $1, status_updated_at = CURRENT_TIMESTAMP WHERE id = $2', [req.body.status, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הראוט החדש: העברת טיפול וניתוב הקריאה (Routing & Audit Trail)
+app.post('/api/superadmin/tickets/:id/assign', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        const { assignedTeam, assignedUser, actionBy } = req.body;
+        const ticketId = req.params.id;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        // שליפת הלוג הקיים
+        const tRes = await dbClient.query('SELECT log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+        
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        // יצירת הודעת ביקורת ללוג ההיסטורי (Audit Trail)
+        const teamNameRes = assignedTeam ? await dbClient.query('SELECT name FROM sa_teams WHERE id=$1', [assignedTeam]) : null;
+        const targetName = teamNameRes && teamNameRes.rows.length > 0 ? teamNameRes.rows[0].name : 'צוות לא מוגדר';
+        const auditMessage = `[SYSTEM_AUDIT] הקריאה הועברה לטיפול: ${targetName}`;
+        
+        currentLog.push({ date: new Date().toISOString(), sender: actionBy || 'מערכת', isStaff: true, isInternal: true, message: auditMessage });
+        
+        // עדכון המסד
+        await dbClient.query(
+            'UPDATE support_tickets SET assigned_team = $1, assigned_to = $2, log = $3 WHERE id = $4', 
+            [assignedTeam || null, assignedUser || null, JSON.stringify(currentLog), ticketId]
+        );
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release();
+    }
 });
 // שליפת הקריאות עבור פאנל ה-Super Admin
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
