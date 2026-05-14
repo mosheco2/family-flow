@@ -4249,27 +4249,6 @@ app.delete('/api/sa/matrix/:id', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==========================================
-// --- SUPER ADMIN: AI Generator (Unlimited PRO) ---
-// ==========================================
-app.post('/api/sa/ai-generate', async (req, res) => {
-    try {
-        const token = req.headers['authorization'];
-        if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
-        
-        const { context, query } = req.body;
-        if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" }); 
-        const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
-        const responseText = result.response.text();
-        
-        res.json({ success: true, answer: responseText });
-    } catch(e) {
-        console.error('Super Admin AI Generation Error:', e);
-        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
-    }
-});
 // ראוט למשיכת הגדרות ציבוריות למסך התחברות
 app.get('/api/system/public-config', async (req, res) => {
     try {
