@@ -17,76 +17,97 @@ let createCityTags = [];
 let editCityTags = [];
 
 window.onload = () => {
-    const savedToken = localStorage.getItem('ofl_sa_token');
-    const savedUser = localStorage.getItem('ofl_sa_user');
-    if (savedToken && savedUser) {
-        saToken = savedToken;
-        window.currentSAUser = JSON.parse(savedUser);
-        getEl('auth-container').classList.add('hidden');
-        getEl('sa-dashboard-container').classList.remove('hidden');
-        applyUserPermissions();
-        loadSAData();
-        window.switchSATab('pulse');
-    }
+    const savedToken = localStorage.getItem('ofl_sa_token');
+    const savedUser = localStorage.getItem('ofl_sa_user');
+    if (savedToken && savedUser) {
+        saToken = savedToken;
+        window.currentSAUser = JSON.parse(savedUser);
+        getEl('auth-container').classList.add('hidden');
+        getEl('sa-dashboard-container').classList.remove('hidden');
+        applyUserPermissions();
+        loadSAData();
+        window.switchSATab('dashboard');
+    }
 };
 
 window.applyUserPermissions = function() {
-    if (!window.currentSAUser) return;
-    const perms = window.currentSAUser.permissions || [];
-    const isMaster = perms.includes('all');
-    
-    // הצגת/הסתרת טאב HR (הרשאות וצוותים)
-    const hrBtn = getEl('btn-sa-tab-hr');
-    if (hrBtn) {
-        if (isMaster || perms.includes('users')) {
-            hrBtn.classList.remove('hidden');
-            hrBtn.classList.add('flex-1');
-        } else {
-            hrBtn.classList.add('hidden');
-            hrBtn.classList.remove('flex-1');
-        }
-    }
-    
-    // הגבלות נוספות על טאבים אחרים (אופציונלי להמשך)
-    if (!isMaster) {
-        if (!perms.includes('support')) getEl('btn-sa-tab-support')?.classList.add('opacity-40');
-        if (!perms.includes('devops')) getEl('btn-sa-tab-devops')?.classList.add('opacity-40');
-    }
+    if (!window.currentSAUser) return;
+    const perms = window.currentSAUser.permissions || [];
+    const isMaster = perms.includes('all');
+    
+    const tabRequirements = {
+        'support': 'support',
+        'devops': 'devops',
+        'stats': 'stats',
+        'comm': 'comm',
+        'biz': 'biz',
+        'content': 'content',
+        'hr': 'users',
+        'inbox': 'marketing',
+        'partners': 'all'
+    };
+
+    Object.keys(tabRequirements).forEach(tab => {
+        const btn = getEl(`btn-sa-tab-${tab}`);
+        if (!btn) return;
+        
+        if (isMaster || perms.includes(tabRequirements[tab])) {
+            btn.classList.remove('hidden');
+            btn.classList.add('flex-1');
+        } else {
+            btn.classList.add('hidden');
+            btn.classList.remove('flex-1');
+        }
+    });
+};
+
+window.checkTabAccess = function(tabId) {
+    if (!window.currentSAUser) return false;
+    const perms = window.currentSAUser.permissions || [];
+    if (perms.includes('all') || tabId === 'dashboard' || tabId === 'pulse' || tabId === 'clients') return true;
+    
+    const req = {
+        'support': 'support', 'devops': 'devops', 'stats': 'stats',
+        'comm': 'comm', 'biz': 'biz', 'content': 'content', 
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all'
+    };
+    
+    if (req[tabId] && !perms.includes(req[tabId])) return false;
+    return true;
 };
 
 function showToast(t, m) {
-    const el = getEl('toast');
-    const icon = getEl('toast-icon');
-    el.classList.remove('hidden');
-    getEl('toast-message').innerText = m;
-    icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400';
-    setTimeout(() => el.classList.add('hidden'), 3000);
+    const el = getEl('toast');
+    const icon = getEl('toast-icon');
+    el.classList.remove('hidden');
+    getEl('toast-message').innerText = m;
+    icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400';
+    setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
 async function handleSALogin(e) {
-    e.preventDefault();
-    try {
-        const res = await fetch(`${API}/superadmin/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: val('sa-code'), password: val('sa-password') })
-        });
-        const data = await res.json();
-        if (data.success) {
-            saToken = data.token;
-            window.currentSAUser = data.user;
-            localStorage.setItem('ofl_sa_token', saToken);
-            localStorage.setItem('ofl_sa_user', JSON.stringify(data.user));
-            
-            getEl('auth-container').classList.add('hidden');
-            getEl('sa-dashboard-container').classList.remove('hidden');
-            applyUserPermissions();
-            loadSAData();
-            window.switchSATab('pulse');
-        } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת התחברות'); }
+    e.preventDefault();
+    try {
+        const res = await fetch(`${API}/superadmin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: val('sa-code'), password: val('sa-password') })
+        });
+        const data = await res.json();
+        if (data.success) {
+            saToken = data.token;
+            window.currentSAUser = data.user;
+            localStorage.setItem('ofl_sa_token', saToken);
+            localStorage.setItem('ofl_sa_user', JSON.stringify(data.user));
+            
+            getEl('auth-container').classList.add('hidden');
+            getEl('sa-dashboard-container').classList.remove('hidden');
+            applyUserPermissions();
+            loadSAData();
+            window.switchSATab('dashboard');
+        } else { showToast('error', data.error); }
+    } catch(err) { showToast('error', 'שגיאת התחברות'); }
 }
-
 function logoutSA() {
     saToken = null;
     localStorage.removeItem('ofl_sa_token');
@@ -97,45 +118,79 @@ function logoutSA() {
 }
 
 window.switchSATab = function(tabId) {
-    // רשימה מלאה של כל הטאבים כפי שהם כתובים ב-HTML שלך
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
-    
-    allTabs.forEach(t => {
-        const view = document.getElementById(`sa-view-${t}`);
-        const btn = document.getElementById(`btn-sa-tab-${t}`);
-        if (view) view.classList.add('hidden');
-        if (btn) {
-            btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
-            if (t === 'devops') btn.classList.add('mx-1');
-            if (t === 'support') btn.classList.add('ml-1');
-        }
-    });
-    
-    const activeView = document.getElementById(`sa-view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
-    
-    if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) {
-        if (tabId === 'pulse') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2 mx-1';
-        } else if(tabId === 'devops') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
-        } else if(tabId === 'support') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
-        } else if (tabId === 'inbox') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else if (tabId === 'partners') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
-        }
-    }
+    if (typeof window.checkTabAccess === 'function' && !window.checkTabAccess(tabId)) {
+        return showToast('error', 'אין לך הרשאה לגשת למודול זה. אנא פנה למנהל המערכת.');
+    }
 
-    if (tabId === 'hr') loadSAHRData();
-    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
-    if (tabId === 'support') loadSATickets();
-    if (tabId === 'clients') loadSAData();
-    if (tabId === 'partners') loadSAPartners();
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
+    
+    allTabs.forEach(t => {
+        const view = document.getElementById(`sa-view-${t}`);
+        const btn = document.getElementById(`btn-sa-tab-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) {
+            if (!btn.classList.contains('hidden')) {
+                btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
+                if (t === 'devops') btn.classList.add('mx-1');
+                if (t === 'support') btn.classList.add('ml-1');
+            }
+        }
+    });
+    
+    const activeView = document.getElementById(`sa-view-${tabId}`);
+    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
+    
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) {
+        if (tabId === 'pulse') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2 mx-1';
+        } else if(tabId === 'devops') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
+        } else if(tabId === 'support') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
+        } else if (tabId === 'inbox') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
+        } else if (tabId === 'partners') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
+        } else {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+        }
+    }
+
+    if (tabId === 'dashboard') updateSADashboard();
+    if (tabId === 'hr') loadSAHRData();
+    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
+    if (tabId === 'support') loadSATickets();
+    if (tabId === 'clients') loadSAData();
+    if (tabId === 'partners') loadSAPartners();
+};
+
+window.updateSADashboard = async function() {
+    try {
+        if (saTicketsCache.length === 0 && window.checkTabAccess('support')) {
+            const resT = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
+            const dataT = await resT.json();
+            if (dataT.success) saTicketsCache = dataT.tickets || [];
+        }
+        const openTickets = saTicketsCache.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+        if(getEl('dash-open-tickets')) getEl('dash-open-tickets').innerText = openTickets;
+        
+        if (typeof devKanbanTasks !== 'undefined' && devKanbanTasks.length === 0 && window.checkTabAccess('devops')) {
+            const resK = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
+            const dataK = await resK.json();
+            if (dataK.success) devKanbanTasks = dataK.tasks || [];
+        }
+        const openTasks = typeof devKanbanTasks !== 'undefined' ? devKanbanTasks.filter(t => t.status === 'backlog' || t.status === 'in_progress').length : 0;
+        if(getEl('dash-open-tasks')) getEl('dash-open-tasks').innerText = openTasks;
+
+        if (window.checkTabAccess('comm')) {
+            const resC = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
+            const dataC = await resC.json();
+            if (dataC.success && dataC.pending) {
+                if(getEl('dash-pending-biz')) getEl('dash-pending-biz').innerText = dataC.pending.length;
+            }
+        }
+    } catch(e) { console.error('Error updating dashboard', e); }
 };
 
 window.switchDevTab = function(tabId) {
