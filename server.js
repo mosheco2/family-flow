@@ -399,8 +399,31 @@ app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req
 });
 
 // ==========================================
-// --- FAMILAI OPERATIONS (SPRINT 2) ---
+// --- FAMILAI OPERATIONS (SPRINT 2 - REST OVERRIDE) ---
 // ==========================================
+
+// פונקציית עזר לביצוע קריאה ישירה ל-API של גוגל (עקיפת SDK ישן)
+async function callGeminiDirect(prompt) {
+    if (!apiKey) throw new Error('Gemini API Key is missing in server environment');
+    
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    if (!data.candidates || !data.candidates[0].content) throw new Error('AI returned an empty response');
+    
+    return data.candidates[0].content.parts[0].text;
+}
 
 // Triage - סיווג חכם של קריאות שירות ע"י AI
 app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => {
@@ -414,9 +437,6 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         
         const ticket = tRes.rows[0];
         
-        if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
-        
         const prompt = `
         You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
         Read the following support ticket submitted by a user and classify it.
@@ -426,18 +446,16 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         
         Analyze the text and return ONLY a valid JSON object with these exact keys:
         {
-            "sentiment": "angry" or "neutral" or "happy" (detect if the user is frustrated/angry),
-            "priority": "low" or "normal" or "high" or "critical" (evaluate urgency),
-            "ticketType": "general" or "technical" or "billing" (evaluate the category),
+            "sentiment": "angry" or "neutral" or "happy",
+            "priority": "low" or "normal" or "high" or "critical",
+            "ticketType": "general" or "technical" or "billing",
             "reason": "Short 1-sentence explanation in Hebrew of why you classified it this way"
         }`;
         
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await callGeminiDirect(prompt);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(responseText);
         
-        // כתיבת הסיווג ללוג האבני דרך
         let currentLog = ticket.log || [];
         if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
         
@@ -453,6 +471,7 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         
         res.json({ success: true, classification: aiData });
     } catch(e) {
+        console.error('AI Triage Error:', e);
         res.status(500).json({ error: e.message });
     } finally {
         if (dbClient) dbClient.release();
@@ -463,15 +482,10 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
 app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
     try {
         const { description } = req.body;
-        
-        // שולפים את כל המשימות שפתוחות כרגע בקנבן
-        const tasksRes = await pool.query("SELECT id, title, description, status FROM sa_dev_tasks WHERE status IN ('backlog', 'in_progress', 'qa')");
+        const tasksRes = await pool.query("SELECT id, title, description FROM sa_dev_tasks WHERE status IN ('backlog', 'in_progress', 'qa')");
         const activeTasks = tasksRes.rows;
         
         if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
-        
-        if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
         
         const prompt = `
         You are an AI DevOps Manager. Check if the incoming ticket describes a bug or feature that ALREADY EXISTS in our active dev tasks list.
@@ -479,24 +493,43 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
         Incoming Ticket Description: "${description}"
         
         Active Dev Tasks (JSON format):
-        ${JSON.stringify(activeTasks.map(t => ({id: t.id, title: t.title, desc: t.description})))}
+        ${JSON.stringify(activeTasks)}
         
         Analyze carefully. Respond ONLY with a valid JSON object in this exact format:
         {
             "isDuplicate": true or false,
-            "matchedTaskId": ID of the matched task (or null if false),
-            "confidence": a number between 0 and 100,
-            "explanation": "Short 1-sentence explanation in Hebrew explaining why it's a duplicate or why it isn't"
+            "matchedTaskId": ID of the matched task (or null),
+            "confidence": number 0-100,
+            "explanation": "Short 1-sentence explanation in Hebrew"
         }`;
         
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await callGeminiDirect(prompt);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(responseText);
         
         res.json({ success: true, ...aiData });
     } catch(e) {
+        console.error('Deduplication AI Error:', e);
         res.status(500).json({ error: e.message });
+    }
+});
+
+// ==========================================
+// --- SUPER ADMIN: AI Generator (Unlimited PRO - REST OVERRIDE) ---
+// ==========================================
+app.post('/api/sa/ai-generate', async (req, res) => {
+    try {
+        const token = req.headers['authorization'];
+        if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
+        
+        const { context, query } = req.body;
+        const prompt = `${context}\n\nבקשה: ${query}`;
+        
+        const responseText = await callGeminiDirect(prompt);
+        res.json({ success: true, answer: responseText });
+    } catch(e) {
+        console.error('Super Admin AI Generation Error:', e);
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
     }
 });
 // שליפת הקריאות עבור פאנל ה-Super Admin
