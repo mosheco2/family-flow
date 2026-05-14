@@ -397,6 +397,108 @@ app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req
         if (dbClient) dbClient.release();
     }
 });
+
+// ==========================================
+// --- FAMILAI OPERATIONS (SPRINT 2) ---
+// ==========================================
+
+// Triage - סיווג חכם של קריאות שירות ע"י AI
+app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        const ticketId = req.params.id;
+        dbClient = await pool.connect();
+        
+        const tRes = await dbClient.query('SELECT subject, description, log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+        
+        const ticket = tRes.rows[0];
+        
+        if (!genAI) throw new Error('AI is not configured');
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
+        
+        const prompt = `
+        You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
+        Read the following support ticket submitted by a user and classify it.
+        
+        Ticket Subject: "${ticket.subject}"
+        Ticket Description: "${ticket.description}"
+        
+        Analyze the text and return ONLY a valid JSON object with these exact keys:
+        {
+            "sentiment": "angry" or "neutral" or "happy" (detect if the user is frustrated/angry),
+            "priority": "low" or "normal" or "high" or "critical" (evaluate urgency),
+            "ticketType": "general" or "technical" or "billing" (evaluate the category),
+            "reason": "Short 1-sentence explanation in Hebrew of why you classified it this way"
+        }`;
+        
+        const result = await model.generateContent(prompt);
+        let responseText = result.response.text();
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        // כתיבת הסיווג ללוג האבני דרך
+        let currentLog = ticket.log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        let sentimentTag = aiData.sentiment === 'angry' ? '🔥 סנטימנט לקוח: כועס/מתוסכל' : (aiData.sentiment === 'happy' ? '✨ סנטימנט לקוח: מרוצה/חיובי' : 'סנטימנט לקוח: רגיל');
+        const auditNote = `FamilAI סיווג את הפנייה אוטומטית. ${sentimentTag}. סיבה: ${aiData.reason}`;
+        
+        currentLog.push({ date: new Date().toISOString(), sender: 'FamilAI', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        
+        await dbClient.query(
+            'UPDATE support_tickets SET priority = $1, ticket_type = $2, log = $3 WHERE id = $4', 
+            [aiData.priority, aiData.ticketType, JSON.stringify(currentLog), ticketId]
+        );
+        
+        res.json({ success: true, classification: aiData });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// Deduplication - מניעת כפילויות חכמה מול בנק המשימות
+app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
+    try {
+        const { description } = req.body;
+        
+        // שולפים את כל המשימות שפתוחות כרגע בקנבן
+        const tasksRes = await pool.query("SELECT id, title, description, status FROM sa_dev_tasks WHERE status IN ('backlog', 'in_progress', 'qa')");
+        const activeTasks = tasksRes.rows;
+        
+        if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
+        
+        if (!genAI) throw new Error('AI is not configured');
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        
+        const prompt = `
+        You are an AI DevOps Manager. Check if the incoming ticket describes a bug or feature that ALREADY EXISTS in our active dev tasks list.
+        
+        Incoming Ticket Description: "${description}"
+        
+        Active Dev Tasks (JSON format):
+        ${JSON.stringify(activeTasks.map(t => ({id: t.id, title: t.title, desc: t.description})))}
+        
+        Analyze carefully. Respond ONLY with a valid JSON object in this exact format:
+        {
+            "isDuplicate": true or false,
+            "matchedTaskId": ID of the matched task (or null if false),
+            "confidence": a number between 0 and 100,
+            "explanation": "Short 1-sentence explanation in Hebrew explaining why it's a duplicate or why it isn't"
+        }`;
+        
+        const result = await model.generateContent(prompt);
+        let responseText = result.response.text();
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        res.json({ success: true, ...aiData });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 // שליפת הקריאות עבור פאנל ה-Super Admin
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
