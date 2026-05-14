@@ -491,20 +491,10 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
         if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
         
         const prompt = `
-        You are an AI DevOps Manager. Check if the incoming ticket describes a bug or feature that ALREADY EXISTS in our active dev tasks list.
-        
-        Incoming Ticket Description: "${description}"
-        
-        Active Dev Tasks (JSON format):
-        ${JSON.stringify(activeTasks)}
-        
-        Analyze carefully. Respond ONLY with a valid JSON object in this exact format:
-        {
-            "isDuplicate": true or false,
-            "matchedTaskId": ID of the matched task (or null),
-            "confidence": number 0-100,
-            "explanation": "Short 1-sentence explanation in Hebrew"
-        }`;
+        Check if this ticket is a duplicate of active tasks. Respond ONLY with JSON:
+        Ticket: "${description}"
+        Tasks: ${JSON.stringify(activeTasks)}
+        JSON: {"isDuplicate": bool, "matchedTaskId": id, "confidence": 0-100, "explanation": "Hebrew sentence"}`;
         
         let responseText = await callGeminiDirect(prompt);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -512,8 +502,50 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
         
         res.json({ success: true, ...aiData });
     } catch(e) {
-        console.error('Deduplication AI Error:', e);
+        console.error('Deduplication AI Error:', e.message);
+        res.status(500).json({ error: 'שגיאת AI: ' + e.message });
+    }
+});
+
+// ==========================================
+// --- FEEDBACK LOOP (SPRINT 3) ---
+// ==========================================
+// סגירת מעגל: עדכון טיקט תמיכה אוטומטית כשהפיתוח מסתיים
+app.post('/api/sa/tickets/:id/feedback-loop', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        const ticketId = req.params.id;
+        const { taskTitle, version } = req.body;
+
+        const tRes = await dbClient.query('SELECT log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+
+        const verText = version ? ` (גרסה ${version})` : '';
+        const msg = `🎉 צוות הפיתוח עדכן שהמשימה "${taskTitle}" הושלמה בהצלחה${verText}! התקלה תוקנה והקריאה נסגרת אוטומטית. תודה על הדיווח!`;
+
+        currentLog.push({
+            date: new Date().toISOString(),
+            sender: 'מערכת (Feedback Loop)',
+            isStaff: true,
+            isInternal: false,
+            message: msg
+        });
+
+        await dbClient.query(
+            "UPDATE support_tickets SET status = 'resolved', status_updated_at = CURRENT_TIMESTAMP, log = $1 WHERE id = $2",
+            [JSON.stringify(currentLog), ticketId]
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Feedback Loop Error:', e);
         res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
     }
 });
 
