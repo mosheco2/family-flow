@@ -753,6 +753,9 @@ async function loadSAData() {
         if(typeof loadSATickets === 'function') loadSATickets();
         if(typeof loadSAPartners === 'function') loadSAPartners();
         
+        // תיקון סנכרון: טוען צוותים ונציגים כבר בהתחלה עבור כל המודולים
+        if(typeof loadSAHRData === 'function') loadSAHRData();
+        
     } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
@@ -2641,12 +2644,11 @@ window.toggleStaffStatus = async function(id, currentStatus) {
 };
 
 // ==========================================
-// --- INTERNAL CHAT (WHISPERS) V2 ---
+// --- INTERNAL CHAT (WHISPERS V3 - SIDEBAR) ---
 // ==========================================
 
 window.isChatOpen = false;
-window.currentChatRoom = 'general';
-window.currentChatRoomName = 'כללי';
+window.currentChatRoom = null;
 window.chatPollInterval = null;
 
 // פתיחה וסגירה של חלון הצ'אט
@@ -2658,13 +2660,12 @@ window.toggleInternalChat = function() {
     
     if (window.isChatOpen) {
         widget.classList.remove('translate-y-8', 'opacity-0', 'pointer-events-none');
-        window.renderChatTabs();
-        window.switchChatRoom('general', 'חדר כללי');
+        window.renderChatSidebar();
         
         // התחלת סנכרון חי
         if (!window.chatPollInterval) {
             window.chatPollInterval = setInterval(() => {
-                if (window.isChatOpen && window.currentChatRoom !== 'contacts') {
+                if (window.isChatOpen && window.currentChatRoom) {
                     window.loadInternalChat(window.currentChatRoom, false);
                 }
             }, 10000);
@@ -2678,130 +2679,127 @@ window.toggleInternalChat = function() {
     }
 };
 
-// יצירה דינמית של הלשוניות לפי ההרשאות
-window.renderChatTabs = function() {
-    const container = getEl('sa-chat-tabs-container');
+// רינדור חלון הצד (Sidebar) עם חיפוש
+window.renderChatSidebar = function() {
+    const list = getEl('sa-chat-sidebar-list');
+    if (!list) return;
+    
+    const query = (getEl('sa-chat-sidebar-search')?.value || '').toLowerCase();
     const isMaster = window.currentSAUser && window.currentSAUser.permissions && window.currentSAUser.permissions.includes('all');
     const myTeamId = window.currentSAUser ? window.currentSAUser.team_id : null;
-    
-    // תמיד יש חדר כללי
-    let tabsHtml = `<button onclick="window.switchChatRoom('general', 'חדר כללי')" id="chat-tab-general" class="whitespace-nowrap px-3 py-1.5 rounded-md hover:bg-white hover:text-slate-800 transition">כללי</button>`;
-    
-    // יצירת חדרים דינמיים לצוותים
+    const myId = window.currentSAUser ? window.currentSAUser.id : null;
+
+    let html = '';
+
+    // 1. חדר כללי (תמיד מופיע)
+    if (!query || 'כללי'.includes(query)) {
+        html += `
+        <div onclick="window.selectChatRoom('general', 'חדר כללי', 'fa-hashtag')" id="sidebar-room-general" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === 'general' ? 'bg-white shadow-sm border border-slate-100' : ''}">
+            <div class="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm"><i class="fa-solid fa-hashtag"></i></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-black text-slate-800">חדר כללי</div>
+                <div class="text-[10px] text-slate-400 truncate font-bold uppercase">כל החברה</div>
+            </div>
+        </div>`;
+    }
+
+    // 2. חדרים של צוותים
     if (saTeamsCache && saTeamsCache.length > 0) {
         saTeamsCache.forEach(t => {
-            // מאסטר רואה הכל, עובד רגיל רואה רק את הצוות שלו
             if (isMaster || parseInt(t.id) === parseInt(myTeamId)) {
-                tabsHtml += `<button onclick="window.switchChatRoom('team_${t.id}', 'צוות: ${safeStr(t.name)}')" id="chat-tab-team_${t.id}" class="whitespace-nowrap px-3 py-1.5 rounded-md hover:bg-white hover:text-slate-800 transition"><i class="fa-solid fa-shield-cat mr-1"></i> ${safeStr(t.name)}</button>`;
+                if (!query || t.name.toLowerCase().includes(query)) {
+                    const roomId = `team_${t.id}`;
+                    html += `
+                    <div onclick="window.selectChatRoom('${roomId}', 'צוות: ${safeStr(t.name)}', 'fa-shield-cat')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === roomId ? 'bg-white shadow-sm border border-slate-100' : ''}">
+                        <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm border border-indigo-100"><i class="fa-solid fa-shield-cat"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-black text-slate-800">${safeStr(t.name)}</div>
+                            <div class="text-[10px] text-slate-400 truncate">ערוץ צוות פנימי</div>
+                        </div>
+                    </div>`;
+                }
             }
         });
     }
 
-    // טאב הודעות פרטיות
-    tabsHtml += `<button onclick="window.showChatContacts()" id="chat-tab-contacts" class="whitespace-nowrap px-3 py-1.5 rounded-md hover:bg-white hover:text-slate-800 transition text-indigo-500 ml-auto"><i class="fa-solid fa-paper-plane mr-1"></i> פרטי</button>`;
-    
-    container.innerHTML = tabsHtml;
+    // 3. הודעות פרטיות (DMs)
+    if (saStaffCache && saStaffCache.length > 0) {
+        html += '<div class="text-[9px] font-black text-slate-400 mt-4 mb-2 px-2 uppercase tracking-widest border-t border-slate-200 pt-3">הודעות פרטיות</div>';
+        saStaffCache.forEach(s => {
+            if (s.id === myId || s.status !== 'active') return;
+            if (!query || s.name.toLowerCase().includes(query)) {
+                const roomId = `dm_${Math.min(myId, s.id)}_${Math.max(myId, s.id)}`;
+                html += `
+                <div onclick="window.selectChatRoom('${roomId}', '${safeStr(s.name)}', 'fa-user')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === roomId ? 'bg-white shadow-sm border border-slate-100' : ''}">
+                    <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition"><i class="fa-solid fa-user"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-black text-slate-800">${safeStr(s.name)}</div>
+                        <div class="text-[10px] text-slate-400 truncate">${safeStr(s.team_name || 'נציג מערכת')}</div>
+                    </div>
+                </div>`;
+            }
+        });
+    }
+
+    list.innerHTML = html;
 };
 
-// מעבר בין חדרים
-window.switchChatRoom = function(roomId, roomName) {
+// חיפוש ב-Sidebar
+window.filterChatSidebar = function() {
+    window.renderChatSidebar();
+};
+
+// בחירת חדר מה-Sidebar
+window.selectChatRoom = function(roomId, roomTitle, iconClass) {
     window.currentChatRoom = roomId;
-    window.currentChatRoomName = roomName;
-    getEl('sa-chat-header-title').innerHTML = `<i class="fa-solid fa-user-secret text-indigo-200"></i> ${roomName}`;
     
-    // שינוי תצוגה
-    getEl('sa-chat-contacts').classList.add('hidden');
-    getEl('sa-chat-messages').classList.remove('hidden');
+    // עדכון UI בעמודה השמאלית
+    getEl('sa-chat-active-title').innerText = roomTitle;
+    getEl('sa-chat-active-subtitle').innerText = roomId.startsWith('dm_') ? 'שיחה פרטית' : 'ערוץ קבוצתי';
+    getEl('sa-chat-active-icon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
     getEl('sa-chat-input-area').classList.remove('hidden');
-
-    // סימון הטאב הפעיל
-    document.querySelectorAll('#sa-chat-tabs-container button').forEach(btn => {
-        btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        if (btn.id === `chat-tab-${roomId}`) btn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-    });
-
+    
+    // רענון ה-Sidebar כדי לסמן את הבחירה
+    window.renderChatSidebar();
+    
+    // טעינת הודעות
     window.loadInternalChat(roomId, true);
 };
 
-// הצגת רשימת אנשי קשר ל-DM
-window.showChatContacts = function() {
-    window.currentChatRoom = 'contacts';
-    getEl('sa-chat-header-title').innerHTML = `<i class="fa-solid fa-users text-indigo-200"></i> בחר איש קשר`;
-    
-    getEl('sa-chat-messages').classList.add('hidden');
-    getEl('sa-chat-input-area').classList.add('hidden');
-    const contactsEl = getEl('sa-chat-contacts');
-    contactsEl.classList.remove('hidden');
-
-    document.querySelectorAll('#sa-chat-tabs-container button').forEach(btn => btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm'));
-    getEl('chat-tab-contacts').classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-
-    const myId = window.currentSAUser ? window.currentSAUser.id : null;
-    let html = '<div class="text-[10px] font-bold text-slate-400 mb-2 px-2 uppercase tracking-widest mt-2">רשימת נציגים:</div>';
-    
-    if (!saStaffCache || saStaffCache.length === 0) {
-        html += '<div class="text-center text-xs text-slate-400 py-4">אין נציגים אחרים במערכת</div>';
-    } else {
-        saStaffCache.forEach(s => {
-            if (s.id === myId) return; // לא מדברים עם עצמנו
-            html += `
-            <div onclick="window.startDM(${s.id}, '${safeStr(s.name)}')" class="flex items-center gap-3 p-3 bg-white hover:bg-indigo-50 cursor-pointer rounded-xl border border-slate-100 shadow-sm mb-2 transition group">
-                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition"><i class="fa-solid fa-user"></i></div>
-                <div>
-                    <div class="text-xs font-bold text-slate-800">${safeStr(s.name)}</div>
-                    <div class="text-[10px] text-slate-500"><i class="fa-solid fa-shield-cat text-slate-300"></i> ${safeStr(s.team_name || 'מנהל / ללא צוות')}</div>
-                </div>
-            </div>`;
-        });
-    }
-    contactsEl.innerHTML = html;
-};
-
-// התחלת צ'אט פרטי ביני לבין נציג אחר
-window.startDM = function(targetId, targetName) {
-    const myId = window.currentSAUser ? window.currentSAUser.id : 0;
-    // יצירת מזהה חדר ייחודי תמיד באותו סדר (הקטן קודם) כדי ששניהם יראו אותו חדר
-    const roomId = `dm_${Math.min(myId, targetId)}_${Math.max(myId, targetId)}`;
-    window.switchChatRoom(roomId, `שיחה עם ${targetName}`);
-};
-
-// טעינת הודעות מהשרת
+// טעינת הודעות
 window.loadInternalChat = async function(room, showLoader = false) {
     const container = getEl('sa-chat-messages');
     if (!container) return;
     
     if (showLoader) {
-        container.innerHTML = '<div class="text-center text-slate-400 py-10 text-xs"><i class="fa-solid fa-circle-notch fa-spin text-lg mb-2"></i><br>טוען...</div>';
+        container.innerHTML = '<div class="text-center text-slate-300 py-20 text-xs"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-4"></i><br>מסתנכרן...</div>';
     }
     
     try {
         const res = await fetch(`${API}/sa/chat/${room}`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
-        
-        if (data.success) {
-            window.renderInternalChatMessages(data.messages);
-        }
+        if (data.success) window.renderInternalChatMessages(data.messages);
     } catch (e) { console.error('Chat load error', e); }
 };
 
-// רינדור הודעות במסך
+// רינדור הודעות
 window.renderInternalChatMessages = function(messages) {
     const container = getEl('sa-chat-messages');
     if (!container) return;
     
     if (!messages || messages.length === 0) {
         container.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-            <i class="fa-solid fa-comments text-4xl mb-3"></i>
-            <p class="text-xs font-bold">אין עדיין הודעות כאן.</p>
-            <p class="text-[10px]">תהיה הראשון לכתוב!</p>
+        <div class="flex flex-col items-center justify-center h-full text-slate-300 opacity-60">
+            <i class="fa-solid fa-comments text-5xl mb-4"></i>
+            <p class="text-sm font-bold">השיחה ריקה</p>
+            <p class="text-xs">היה הראשון לכתוב בחדר זה!</p>
         </div>`;
         return;
     }
     
     const myId = window.currentSAUser ? window.currentSAUser.id : null;
-    let isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 20;
-    
+    let isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+
     container.innerHTML = messages.map(m => {
         const isMe = m.sender_id === myId;
         const timeStr = new Date(m.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
@@ -2809,24 +2807,24 @@ window.renderInternalChatMessages = function(messages) {
         if (isMe) {
             return `
             <div class="flex flex-col items-end mb-3 fade-in">
-                <div class="bg-indigo-600 text-white p-2.5 rounded-2xl rounded-tr-sm max-w-[85%] shadow-sm text-sm whitespace-pre-wrap">
+                <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-sm text-sm whitespace-pre-wrap leading-relaxed">
                     ${safeStr(m.message)}
                 </div>
-                <span class="text-[9px] text-slate-400 mt-1 pr-1">${timeStr} <i class="fa-solid fa-check-double text-indigo-400"></i></span>
+                <span class="text-[9px] text-slate-400 mt-1 pr-1 font-bold">${timeStr} <i class="fa-solid fa-check-double text-indigo-400 ml-1"></i></span>
             </div>`;
         } else {
             return `
             <div class="flex flex-col items-start mb-3 fade-in">
-                <div class="bg-white border border-slate-200 text-slate-700 p-2.5 rounded-2xl rounded-tl-sm max-w-[85%] shadow-sm text-sm whitespace-pre-wrap">
+                <span class="text-[9px] text-slate-400 mb-1 pl-1 font-black uppercase tracking-wider">${safeStr(m.sender_name)}</span>
+                <div class="bg-white border border-slate-200 text-slate-700 p-3 rounded-2xl rounded-tl-sm max-w-[80%] shadow-sm text-sm whitespace-pre-wrap leading-relaxed">
                     ${safeStr(m.message)}
                 </div>
-                <span class="text-[9px] text-slate-400 mt-1 pl-1 font-bold">${safeStr(m.sender_name)} • ${timeStr}</span>
+                <span class="text-[9px] text-slate-400 mt-1 pl-1 font-bold">${timeStr}</span>
             </div>`;
         }
     }).join('');
     
-    // גוללים למטה רק אם היינו למטה לפני הרינדור (כדי לא להפריע לקריאה) או אם זו טעינה ראשונה
-    if (isScrolledToBottom || container.children.length > 0) {
+    if (isAtBottom || container.children.length < 5) {
         setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
 };
@@ -2836,9 +2834,9 @@ window.sendInternalChatMessage = async function(e) {
     e.preventDefault();
     const input = getEl('sa-chat-input');
     const msg = input.value.trim();
-    if (!msg) return;
+    if (!msg || !window.currentChatRoom) return;
     
-    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'נציג';
     const senderId = window.currentSAUser ? window.currentSAUser.id : null;
     const btn = getEl('btn-sa-chat-send');
     
@@ -2853,15 +2851,12 @@ window.sendInternalChatMessage = async function(e) {
             body: JSON.stringify({ room: window.currentChatRoom, message: msg, senderName, senderId })
         });
         const data = await res.json();
-        
         if (data.success) {
             input.value = '';
             window.loadInternalChat(window.currentChatRoom, false);
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחה');
         }
     } catch(err) {
-        showToast('error', 'שגיאת רשת בשליחת הודעה');
+        showToast('error', 'שגיאת רשת בשליחה');
     } finally {
         input.disabled = false;
         btn.disabled = false;
