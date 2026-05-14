@@ -2639,3 +2639,148 @@ window.toggleStaffStatus = async function(id, currentStatus) {
         showToast('success', 'סטטוס נציג עודכן!'); loadSAHRData();
     } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 };
+
+// ==========================================
+// --- INTERNAL CHAT (WHISPERS) SPRINT 3 ---
+// ==========================================
+
+let currentChatRoom = 'general';
+let isChatOpen = false;
+
+window.toggleInternalChat = function() {
+    const widget = getEl('sa-internal-chat-widget');
+    isChatOpen = !isChatOpen;
+    
+    if (isChatOpen) {
+        widget.classList.remove('translate-y-8', 'opacity-0', 'pointer-events-none');
+        loadInternalChat(currentChatRoom);
+    } else {
+        widget.classList.add('translate-y-8', 'opacity-0', 'pointer-events-none');
+    }
+};
+
+window.switchChatRoom = function(room) {
+    currentChatRoom = room;
+    
+    // עדכון כפתורי הטאבים ויזואלית
+    ['general', 'support', 'devops'].forEach(r => {
+        const tab = getEl(`chat-tab-${r}`);
+        if(tab) {
+            if(r === room) {
+                tab.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+                tab.classList.remove('hover:text-slate-800');
+            } else {
+                tab.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+                tab.classList.add('hover:text-slate-800');
+            }
+        }
+    });
+    
+    // משיכת הודעות לחדר הנבחר
+    loadInternalChat(room);
+};
+
+window.loadInternalChat = async function(room) {
+    const container = getEl('sa-chat-messages');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center text-slate-400 py-10 text-xs"><i class="fa-solid fa-circle-notch fa-spin text-lg mb-2"></i><br>טוען הודעות...</div>';
+    
+    try {
+        const res = await fetch(`${API}/sa/chat/${room}`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        
+        if (data.success) {
+            renderInternalChatMessages(data.messages);
+        } else {
+            container.innerHTML = '<div class="text-center text-red-400 py-10 text-xs">שגיאה בטעינת הודעות</div>';
+        }
+    } catch (e) {
+        container.innerHTML = '<div class="text-center text-red-400 py-10 text-xs">שגיאת רשת</div>';
+    }
+};
+
+window.renderInternalChatMessages = function(messages) {
+    const container = getEl('sa-chat-messages');
+    if (!container) return;
+    
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<div class="text-center text-slate-400 py-10 text-xs mt-10">אין הודעות בחדר זה.<br>היה הראשון לכתוב!</div>';
+        return;
+    }
+    
+    const myId = window.currentSAUser ? window.currentSAUser.id : null;
+    
+    container.innerHTML = messages.map(m => {
+        const isMe = m.sender_id === myId;
+        const timeStr = new Date(m.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        
+        if (isMe) {
+            return `
+            <div class="flex flex-col items-end mb-3 fade-in">
+                <span class="text-[9px] text-slate-400 mb-0.5 pr-1">${timeStr}</span>
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl rounded-tr-sm max-w-[85%] shadow-sm text-sm">
+                    ${safeStr(m.message)}
+                </div>
+            </div>`;
+        } else {
+            return `
+            <div class="flex flex-col items-start mb-3 fade-in">
+                <span class="text-[9px] text-slate-400 mb-0.5 pl-1 font-bold">${safeStr(m.sender_name)} • ${timeStr}</span>
+                <div class="bg-white border border-slate-200 text-slate-700 p-2.5 rounded-xl rounded-tl-sm max-w-[85%] shadow-sm text-sm">
+                    ${safeStr(m.message)}
+                </div>
+            </div>`;
+        }
+    }).join('');
+    
+    // גלילה אוטומטית למטה אחרי רינדור הודעות
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 50);
+};
+
+window.sendInternalChatMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    const senderId = window.currentSAUser ? window.currentSAUser.id : null;
+    const btn = getEl('btn-sa-chat-send');
+    
+    input.disabled = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+    
+    try {
+        const res = await fetch(`${API}/sa/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ room: currentChatRoom, message: msg, senderName, senderId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            input.value = '';
+            loadInternalChat(currentChatRoom); // רענון הודעות מיידי אחרי שליחה
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחה');
+        }
+    } catch(err) {
+        showToast('error', 'שגיאת רשת בשליחת הודעה');
+    } finally {
+        input.disabled = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        input.focus(); // החזרת פוקוס להקלדה מהירה רציפה
+    }
+};
+
+// Polling חכם - אם חלון הצ'אט פתוח, נמשוך הודעות חדשות כל 15 שניות ברקע
+setInterval(() => {
+    if (isChatOpen) {
+        loadInternalChat(currentChatRoom);
+    }
+}, 15000);
