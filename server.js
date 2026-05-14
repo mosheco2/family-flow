@@ -518,37 +518,53 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
 // --- FAMILAI OPERATIONS (SPRINT 2 - REST STABLE OVERRIDE) ---
 // ==========================================
 
-// פונקציית המעקף - קריאה ישירה ל-API ללא תלות בגרסת הספרייה בשרת
+// פונקציית המעקף - קריאה ישירה ל-API עם מנגנון גיבוי (Fallback) חכם למודלים
 async function callGeminiDirect(prompt) {
     if (!apiKey) throw new Error('Gemini API Key is missing in environment');
     
-    // מעבר ל-Endpoint היציב ביותר שתומך ב-generateContent ללא תקלות תאימות
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // רשימת המודלים לניסיון, מהעדכני ביותר ועד לישן והבטוח ביותר
+    const modelsToTry = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash-8b',
+        'gemini-1.0-pro-latest'
+    ];
     
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{ text: prompt }]
-            }]
-        })
-    });
+    let lastError = null;
 
-    const data = await response.json();
-    
-    if (data.error) {
-        console.error('Google API Error Details:', data.error);
-        throw new Error(data.error.message || 'Unknown Gemini API Error');
+    for (const modelName of modelsToTry) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            
+            // אם קיבלנו תשובה תקינה - נחזיר אותה ונצא מהלולאה!
+            if (response.ok && data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
+                console.log(`✅ AI Success using model: ${modelName}`);
+                return data.candidates[0].content.parts[0].text;
+            }
+            
+            // אם גוגל חסמו את המודל או שהוא לא קיים במפתח הזה, נתעד ונמשיך למודל הבא
+            if (data.error) {
+                console.log(`⚠️ AI Fallback: Model ${modelName} failed - ${data.error.message}`);
+                lastError = data.error.message;
+            }
+        } catch (err) {
+            console.log(`⚠️ AI Fallback: Network error with ${modelName} - ${err.message}`);
+            lastError = err.message;
+        }
     }
     
-    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
-        throw new Error('AI returned an empty response. Please check API Key status.');
-    }
-    
-    return data.candidates[0].content.parts[0].text;
+    // אם הלולאה הסתיימה וכל הנסיונות נכשלו
+    throw new Error(`כל מודלי ה-AI נכשלו. שגיאה אחרונה: ${lastError}`);
 }
-
 // AI Generator (Unlimited PRO) - REST Override
 // ==========================================
 // --- SUPER ADMIN: AI Generator (REST OVERRIDE) ---
