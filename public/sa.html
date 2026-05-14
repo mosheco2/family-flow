@@ -1075,90 +1075,110 @@
         </div>
     </div>
 
-  <div id="sa-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
-        <div class="bg-white w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
-            <button onclick="document.getElementById('sa-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>
+  <div id="sa-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-white w-full max-w-6xl h-[90vh] rounded-[2.5rem] shadow-2xl relative flex flex-col overflow-hidden border border-white/20">
+            <button onclick="document.getElementById('sa-ticket-modal').classList.add('hidden')" class="absolute top-5 left-6 text-slate-400 hover:text-slate-600 bg-slate-100 w-10 h-10 rounded-full flex items-center justify-center transition z-50 shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
             
-            <div class="mb-4 border-b border-slate-100 pb-4 pr-2 flex flex-col md:flex-row justify-between items-start gap-4">
-                <div>
-                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-ticket text-blue-500"></i> טיפול בקריאה <span id="sa-ticket-modal-id" class="text-sm font-normal text-slate-400"></span>
-                        <span id="sa-ticket-sla-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 transition"></span>
-                    </h3>
-                    <h4 id="sa-ticket-modal-subject" class="text-sm font-bold text-slate-700 mt-2"></h4>
-                    <div class="text-xs text-slate-500 mt-1.5 flex gap-3 flex-wrap">
-                        <span><i class="fa-solid fa-building text-slate-300"></i> <span id="sa-ticket-modal-group"></span></span>
-                        <span><i class="fa-solid fa-user text-slate-300"></i> <span id="sa-ticket-modal-user"></span></span>
-                        <span class="bg-indigo-50 px-2 py-0.5 rounded font-bold text-indigo-700 border border-indigo-100"><i class="fa-solid fa-shield-cat"></i> צוות מטפל: <span id="sa-ticket-current-team">טרם שויך</span></span>
+            <div class="bg-slate-50/50 px-8 py-4 border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-500 text-white w-10 h-10 rounded-2xl flex items-center justify-center shadow-blue-200 shadow-lg"><i class="fa-solid fa-ticket"></i></div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-black text-slate-800">קריאה <span id="sa-ticket-modal-id"></span></h3>
+                            <span id="sa-ticket-sla-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"></span>
+                        </div>
+                        <h4 id="sa-ticket-modal-subject" class="text-sm font-medium text-slate-500 truncate max-w-md"></h4>
                     </div>
                 </div>
             </div>
-            
-            <div class="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
-                <div class="flex-1 flex flex-col min-w-0">
-                    <h4 class="text-xs font-bold text-slate-500 mb-2 border-b border-slate-100 pb-1"><i class="fa-regular fa-comments mr-1"></i> תכתובת מול הלקוח והערות פנימיות</h4>
-                    <div id="sa-ticket-log" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-4 pr-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                    </div>
-                    
-                    <div class="shrink-0 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <div id="sa-ticket-read-only-msg" class="hidden text-center text-red-500 font-bold text-xs mb-2 bg-red-50 p-2 rounded-lg border border-red-100"><i class="fa-solid fa-lock"></i> אין לך הרשאת עריכה לקריאה זו (שייכת לצוות אחר). הצפייה בלבד.</div>
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="text-xs font-bold text-slate-700">הוסף תגובה / שינוי סטטוס:</label>
-                            <label class="text-xs font-bold text-orange-600 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-2 py-1 rounded-md border border-orange-100">
-                                <input type="checkbox" id="sa-ticket-reply-internal" class="accent-orange-500 sa-ticket-input">
-                                הערה פנימית לצוות
-                            </label>
-                        </div>
-                        <textarea id="sa-ticket-reply-text" class="modern-input py-3 text-sm h-24 mb-3 bg-white sa-ticket-input" placeholder="הקלד תגובה ללקוח או הערה פנימית..."></textarea>
-                        <div class="flex justify-between items-center gap-3">
-                            <select id="sa-ticket-reply-status" class="modern-input py-2.5 text-sm font-bold w-48 sa-ticket-input">
-                                <option value="">(ללא שינוי סטטוס)</option>
-                                <option value="open">פתוח (ממתין)</option>
-                                <option value="in_progress">בטיפול צוות</option>
-                                <option value="resolved">טופל / נסגר</option>
-                            </select>
-                            <button onclick="submitSATicketReply()" id="btn-sa-ticket-reply" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">שלח ועדכן <i class="fa-solid fa-paper-plane"></i></button>
-                        </div>
-                    </div>
-                </div>
 
-               <div class="w-full lg:w-80 shrink-0 flex flex-col h-full border-r border-slate-100 pr-6">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 shrink-0 relative overflow-hidden group">
-                        <div class="absolute -right-10 -top-10 w-24 h-24 bg-purple-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-purple-500/20 transition"></div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1.5 border-b border-slate-200 pb-1 flex justify-between items-center relative z-10">
-                            <span>סיווג והעברה (Routing):</span>
-                            <button onclick="runFamilAITriage()" id="btn-ai-triage" class="text-purple-600 hover:text-purple-800 flex items-center gap-1 bg-purple-50 px-1.5 py-0.5 rounded transition sa-ticket-input">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> סיווג AI
-                            </button>
-                        </label>
-                        <div class="flex flex-col gap-2 mb-3 relative z-10">
-                            <select id="sa-ticket-priority" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input transition-all duration-500">
-                                <option value="low">🔵 עדיפות: נמוכה (Low)</option>
-                                <option value="normal">🟡 עדיפות: רגילה (Normal)</option>
-                                <option value="high">🔴 עדיפות: גבוהה (High)</option>
-                                <option value="critical">🚨 עדיפות: קריטית (השבתה)</option>
-                            </select>
-                            <select id="sa-ticket-type" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input transition-all duration-500">
-                                <option value="general">📋 סוג: כללי / שאלת לקוח</option>
-                                <option value="technical">🔧 סוג: תקלה טכנית / באג</option>
-                                <option value="billing">💳 סוג: חיובים וכספים</option>
-                            </select>
-                            <select id="sa-ticket-route-team" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input transition-all duration-500"></select>
+            <div class="flex flex-1 min-h-0 overflow-hidden">
+                <div class="flex-1 flex flex-col min-w-0 bg-white relative">
+                    <div id="sa-ticket-log" class="flex-1 overflow-y-auto p-6 space-y-6 modal-scroll bg-gradient-to-b from-slate-50/30 to-white">
                         </div>
-                        <button onclick="updateTicketClassification()" id="btn-sa-ticket-route" class="bg-slate-800 text-white w-full px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm disabled:opacity-50 relative z-10">שמור והעבר <i class="fa-solid fa-check ml-1"></i></button>
+
+                    <div class="p-4 bg-white border-t border-slate-100 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+                        <div id="sa-ticket-read-only-msg" class="hidden text-center text-red-500 font-bold text-[11px] py-1 bg-red-50 rounded-lg mb-2 border border-red-100"><i class="fa-solid fa-lock mr-1"></i> צפייה בלבד (צוות אחר מטפל)</div>
                         
-                        <hr class="my-3 border-slate-200 relative z-10">
-                        <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm w-full flex items-center justify-center gap-1 disabled:opacity-50 relative z-10">
-                            <i class="fa-solid fa-gear"></i> המר למשימת פיתוח
-                        </button>
+                        <div class="bg-slate-50 rounded-2xl p-2 border border-slate-200">
+                            <div class="flex justify-between items-center px-2 mb-1">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">תגובה ללקוח</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer group">
+                                    <input type="checkbox" id="sa-ticket-reply-internal" class="accent-orange-500 sa-ticket-input w-3.5 h-3.5">
+                                    <span class="text-[10px] font-bold text-orange-600 group-hover:text-orange-700 transition">הערה פנימית 🔒</span>
+                                </label>
+                            </div>
+                            <textarea id="sa-ticket-reply-text" class="w-full bg-transparent p-2 text-sm outline-none resize-none h-20 sa-ticket-input" placeholder="הקלד כאן..."></textarea>
+                            
+                            <div class="flex items-center justify-between gap-2 border-t border-slate-200/60 pt-2 mt-1">
+                                <div class="flex gap-2">
+                                    <select id="sa-ticket-reply-status" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 sa-ticket-input outline-none focus:border-blue-400 transition cursor-pointer">
+                                        <option value="">ללא שינוי סטטוס</option>
+                                        <option value="open">פתוח</option>
+                                        <option value="in_progress">בטיפול</option>
+                                        <option value="resolved">סגור ✅</option>
+                                    </select>
+                                </div>
+                                <button onclick="submitSATicketReply()" id="btn-sa-ticket-reply" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2">
+                                    <span>שלח עדכון</span><i class="fa-solid fa-paper-plane text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-80 shrink-0 bg-slate-50/50 border-r border-slate-100 flex flex-col h-full">
+                    <div class="p-5 shrink-0">
+                        <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-200 relative overflow-hidden group">
+                            <div class="absolute -right-6 -top-6 w-16 h-16 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition"></div>
+                            
+                            <div class="flex justify-between items-center mb-3">
+                                <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">ניהול וניתוב</h5>
+                                <button onclick="runFamilAITriage()" id="btn-ai-triage" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg hover:bg-purple-100 transition flex items-center gap-1 sa-ticket-input">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Triage
+                                </button>
+                            </div>
+
+                            <div class="space-y-2">
+                                <select id="sa-ticket-priority" class="w-full bg-slate-50 border border-slate-100 rounded-xl py-1.5 px-3 text-[11px] font-bold text-slate-700 sa-ticket-input outline-none focus:ring-2 focus:ring-blue-500/10 transition cursor-pointer">
+                                    <option value="low">🔵 עדיפות נמוכה</option>
+                                    <option value="normal">🟡 עדיפות רגילה</option>
+                                    <option value="high">🔴 עדיפות גבוהה</option>
+                                    <option value="critical">🚨 קריטי / משבית</option>
+                                </select>
+                                <select id="sa-ticket-type" class="w-full bg-slate-50 border border-slate-100 rounded-xl py-1.5 px-3 text-[11px] font-bold text-slate-700 sa-ticket-input transition cursor-pointer">
+                                    <option value="general">📋 כללי / שאלה</option>
+                                    <option value="technical">🔧 תקלה טכנית</option>
+                                    <option value="billing">💳 חיובים וכספים</option>
+                                </select>
+                                <select id="sa-ticket-route-team" class="w-full bg-slate-50 border border-slate-100 rounded-xl py-1.5 px-3 text-[11px] font-bold text-slate-700 sa-ticket-input transition cursor-pointer"></select>
+                                
+                                <button onclick="updateTicketClassification()" id="btn-sa-ticket-route" class="w-full bg-slate-800 text-white py-2 rounded-xl text-[11px] font-black hover:bg-slate-900 transition shadow-md mt-1">עדכן ושמור שינויים</button>
+                                
+                                <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="w-full bg-indigo-50 text-indigo-700 border border-indigo-100 py-2 rounded-xl text-[11px] font-bold hover:bg-indigo-100 transition mt-1 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-gear text-[10px]"></i> המר למשימת פיתוח
+                                </button>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-slate-100 space-y-1 text-[10px] font-bold text-slate-400">
+                                <div class="flex justify-between items-center"><span>לקוח:</span> <span id="sa-ticket-modal-user" class="text-slate-600"></span></div>
+                                <div class="flex justify-between items-center"><span>ארגון:</span> <span id="sa-ticket-modal-group" class="text-slate-600"></span></div>
+                                <div class="flex justify-between items-center"><span>צוות:</span> <span id="sa-ticket-current-team" class="text-indigo-600 italic"></span></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <h4 class="text-xs font-bold text-slate-500 mb-2 border-b border-slate-100 pb-2 shrink-0"><i class="fa-solid fa-clock-rotate-left mr-1"></i> אבני דרך וביקורת (Audit)</h4>
-                    
-                    <div id="sa-ticket-milestones" class="flex-1 overflow-y-auto modal-scroll space-y-4 pr-1 pb-4">
-                        </div>
+                    <div class="flex-1 flex flex-col min-h-0 px-5 pb-5">
+                        <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 pb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left"></i> לוג אבני דרך (Audit)
+                        </h5>
+                        <div id="sa-ticket-milestones" class="flex-1 overflow-y-auto modal-scroll space-y-4 pr-1">
+                            </div>
+                    </div>
                 </div>
+            </div>
         </div>
+    </div>
     </div>
    <div id="dev-bug-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
