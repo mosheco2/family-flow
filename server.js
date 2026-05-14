@@ -481,6 +481,51 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
     }
 });
 
+// ==========================================
+// --- הוספת תגובה לקריאת שירות ---
+// ==========================================
+app.post('/api/superadmin/tickets/:id/reply', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        const ticketId = req.params.id;
+        const { message, status, isInternal, senderName } = req.body;
+
+        // שליפת הטיקט הקיים מהמסד
+        const tRes = await dbClient.query('SELECT status, log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+
+        const ticket = tRes.rows[0];
+        let currentLog = ticket.log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+
+        // הוספת ההודעה החדשה ללוג
+        currentLog.push({
+            date: new Date().toISOString(),
+            sender: senderName || 'צוות מערכת',
+            isStaff: true,
+            isInternal: !!isInternal,
+            message: message
+        });
+
+        // עדכון סטטוס אם הועבר סטטוס חדש, אחרת נשאר הסטטוס הקיים
+        const newStatus = status || ticket.status;
+        
+        // שמירה חזרה למסד הנתונים
+        await dbClient.query(
+            "UPDATE support_tickets SET status = $1, status_updated_at = CURRENT_TIMESTAMP, log = $2 WHERE id = $3",
+            [newStatus, JSON.stringify(currentLog), ticketId]
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Ticket Reply Error:', e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
 // Deduplication - מניעת כפילויות חכמה מול בנק המשימות
 app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
     try {
