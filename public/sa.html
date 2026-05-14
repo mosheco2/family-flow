@@ -1075,8 +1075,8 @@
     </div>
 
   <div id="sa-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
-        <div class="bg-white w-full max-w-3xl rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
-            <button onclick="document.getElementById('sa-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+        <div class="bg-white w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="document.getElementById('sa-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>
             
             <div class="mb-4 border-b border-slate-100 pb-4 pr-2 flex flex-col md:flex-row justify-between items-start gap-4">
                 <div>
@@ -1088,42 +1088,55 @@
                     <div class="text-xs text-slate-500 mt-1.5 flex gap-3 flex-wrap">
                         <span><i class="fa-solid fa-building text-slate-300"></i> <span id="sa-ticket-modal-group"></span></span>
                         <span><i class="fa-solid fa-user text-slate-300"></i> <span id="sa-ticket-modal-user"></span></span>
-                        <span class="bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-600 border border-slate-200"><i class="fa-solid fa-shield-cat text-indigo-400"></i> צוות מטפל: <span id="sa-ticket-current-team">טרם שויך</span></span>
+                        <span class="bg-indigo-50 px-2 py-0.5 rounded font-bold text-indigo-700 border border-indigo-100"><i class="fa-solid fa-shield-cat"></i> צוות מטפל: <span id="sa-ticket-current-team">טרם שויך</span></span>
                     </div>
-                </div>
-                
-                <div class="flex flex-col gap-2 w-full md:w-auto shrink-0 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <label class="text-[10px] font-bold text-slate-500">העברת טיפול (Routing):</label>
-                    <div class="flex gap-2">
-                        <select id="sa-ticket-route-team" class="modern-input py-1.5 px-2 text-xs font-bold w-36 cursor-pointer border-slate-200"></select>
-                        <button onclick="routeSATicket()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm whitespace-nowrap">העבר <i class="fa-solid fa-arrow-left ml-1"></i></button>
-                    </div>
-                    <button onclick="window.convertTicketToDevTask()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm w-full flex items-center justify-center gap-1 mt-1">
-                        <i class="fa-solid fa-gear"></i> המר למשימת פיתוח
-                    </button>
                 </div>
             </div>
             
-            <div id="sa-ticket-log" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-4 pr-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            <div class="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+                <div class="flex-1 flex flex-col min-w-0">
+                    <h4 class="text-xs font-bold text-slate-500 mb-2 border-b border-slate-100 pb-1"><i class="fa-regular fa-comments mr-1"></i> תכתובת מול הלקוח והערות פנימיות</h4>
+                    <div id="sa-ticket-log" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-4 pr-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                    </div>
+                    
+                    <div class="shrink-0 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div id="sa-ticket-read-only-msg" class="hidden text-center text-red-500 font-bold text-xs mb-2 bg-red-50 p-2 rounded-lg border border-red-100"><i class="fa-solid fa-lock"></i> אין לך הרשאת עריכה לקריאה זו (שייכת לצוות אחר). הצפייה בלבד.</div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-700">הוסף תגובה / שינוי סטטוס:</label>
+                            <label class="text-xs font-bold text-orange-600 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-2 py-1 rounded-md border border-orange-100">
+                                <input type="checkbox" id="sa-ticket-reply-internal" class="accent-orange-500 sa-ticket-input">
+                                הערה פנימית לצוות
+                            </label>
+                        </div>
+                        <textarea id="sa-ticket-reply-text" class="modern-input py-3 text-sm h-24 mb-3 bg-white sa-ticket-input" placeholder="הקלד תגובה ללקוח או הערה פנימית..."></textarea>
+                        <div class="flex justify-between items-center gap-3">
+                            <select id="sa-ticket-reply-status" class="modern-input py-2.5 text-sm font-bold w-48 sa-ticket-input">
+                                <option value="">(ללא שינוי סטטוס)</option>
+                                <option value="open">פתוח (ממתין)</option>
+                                <option value="in_progress">בטיפול צוות</option>
+                                <option value="resolved">טופל / נסגר</option>
+                            </select>
+                            <button onclick="submitSATicketReply()" id="btn-sa-ticket-reply" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">שלח ועדכן <i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
                 </div>
-            
-            <div class="shrink-0 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-xs font-bold text-slate-700">הוסף תגובה / שינוי סטטוס:</label>
-                    <label class="text-xs font-bold text-orange-600 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-2 py-1 rounded-md border border-orange-100">
-                        <input type="checkbox" id="sa-ticket-reply-internal" class="accent-orange-500">
-                        הערה פנימית לצוות (לא יוצג ללקוח)
-                    </label>
-                </div>
-                <textarea id="sa-ticket-reply-text" class="modern-input py-3 text-sm h-24 mb-3 bg-white" placeholder="הקלד תגובה ללקוח או הערה פנימית לצוות..."></textarea>
-                <div class="flex justify-between items-center gap-3">
-                    <select id="sa-ticket-reply-status" class="modern-input py-2.5 text-sm font-bold w-48">
-                        <option value="">(ללא שינוי סטטוס)</option>
-                        <option value="open">פתוח (ממתין)</option>
-                        <option value="in_progress">בטיפול צוות</option>
-                        <option value="resolved">טופל / נסגר</option>
-                    </select>
-                    <button onclick="submitSATicketReply()" id="btn-sa-ticket-reply" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שלח תגובה ועדכן <i class="fa-solid fa-paper-plane"></i></button>
+
+                <div class="w-full lg:w-72 shrink-0 flex flex-col border-r border-slate-100 pr-6">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1.5">העברת טיפול (Routing):</label>
+                        <div class="flex flex-col gap-2">
+                            <select id="sa-ticket-route-team" class="modern-input py-2 px-2 text-xs font-bold w-full cursor-pointer bg-white sa-ticket-input"></select>
+                            <button onclick="routeSATicket()" id="btn-sa-ticket-route" class="bg-slate-800 text-white w-full px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm disabled:opacity-50">העבר לצוות <i class="fa-solid fa-share-nodes ml-1"></i></button>
+                        </div>
+                        <hr class="my-3 border-slate-200">
+                        <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm w-full flex items-center justify-center gap-1 disabled:opacity-50">
+                            <i class="fa-solid fa-gear"></i> המר למשימת פיתוח
+                        </button>
+                    </div>
+
+                    <h4 class="text-xs font-bold text-slate-500 mb-2 border-b border-slate-100 pb-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> אבני דרך וביקורת (Audit)</h4>
+                    <div id="sa-ticket-milestones" class="flex-1 overflow-y-auto modal-scroll space-y-3 pr-1">
+                        </div>
                 </div>
             </div>
         </div>
