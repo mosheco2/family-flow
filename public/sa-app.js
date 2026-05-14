@@ -2107,9 +2107,62 @@ window.convertTicketToDevTask = function() {
     showToast('info', 'הפרטים הועתקו! השלם את יצירת המשימה ושלח לפיתוח.');
 };
 // ==========================================
-// --- המרת קריאת שירות למשימת פיתוח (V2 - Fix) ---
 // ==========================================
-window.convertTicketToDevTask = function() {
+// --- FAMILAI OPERATIONS (SPRINT 2) ---
+// ==========================================
+
+// סיווג AI חכם לטיקט קיים (Triage)
+window.runFamilAITriage = async function() {
+    if (!saCurrentTicketId) return showToast('error', 'לא נבחרה קריאה תקינה');
+    
+    const btn = getEl('btn-ai-triage');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מסווג...';
+    
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/ai-triage`, {
+            method: 'POST',
+            headers: { 'Authorization': saToken }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.classification) {
+            const { priority, ticketType } = data.classification;
+            
+            // עדכון הממשק (Visual Feedback)
+            const prioSelect = getEl('sa-ticket-priority');
+            const typeSelect = getEl('sa-ticket-type');
+            
+            if (prioSelect) {
+                prioSelect.value = priority;
+                prioSelect.classList.add('ring-2', 'ring-purple-400', 'bg-purple-50');
+                setTimeout(() => prioSelect.classList.remove('ring-2', 'ring-purple-400', 'bg-purple-50'), 1500);
+            }
+            if (typeSelect) {
+                typeSelect.value = ticketType;
+                typeSelect.classList.add('ring-2', 'ring-purple-400', 'bg-purple-50');
+                setTimeout(() => typeSelect.classList.remove('ring-2', 'ring-purple-400', 'bg-purple-50'), 1500);
+            }
+            
+            showToast('success', 'הסיווג הושלם ונשמר ללוג!');
+            await loadSATickets(); // רענון כדי לקבל את הלוג המעודכן עם תגית הסנטימנט
+            openSATicketModal(saCurrentTicketId); // פתיחה מחדש כדי להציג שינויים
+        } else {
+            showToast('error', data.error || 'שגיאה בסיווג ה-AI');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בבקשת סיווג AI');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+};
+
+// ==========================================
+// --- המרת קריאת שירות למשימת פיתוח עם AI Deduplication ---
+// ==========================================
+window.convertTicketToDevTask = async function() {
     if (!saCurrentTicketId) {
         showToast('error', 'לא נבחרה קריאה תקינה');
         return;
@@ -2117,34 +2170,60 @@ window.convertTicketToDevTask = function() {
     
     const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
     if (!t) return;
-    
-    // סוגרים את חלון הטיקט
-    document.getElementById('sa-ticket-modal').classList.add('hidden');
-    
-    // עוברים לטאב של פיתוח
-    switchSATab('devops');
-    switchDevTab('kanban');
-    
-    // מכינים את הטקסט למודאל ה-Kanban
-    const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
-    const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
-    
-    // פותחים את מודאל יצירת המשימה ומזריקים נתונים
-    openKanbanTaskModal();
-    
-    setTimeout(() => {
-        const titleEl = document.getElementById('kanban-task-title');
-        const descEl = document.getElementById('kanban-task-desc');
-        const typeEl = document.getElementById('kanban-task-type');
-        const priorityEl = document.getElementById('kanban-task-priority');
+
+    const btn = getEl('btn-sa-ticket-dev');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ה-AI בודק כפילויות...';
+
+    try {
+        // שלב 1: ה-AI בודק האם המשימה כבר קיימת בלוח הפיתוח
+        const res = await fetch(`${API}/sa/dev/check-duplicates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ description: t.subject + " " + t.description })
+        });
+        const aiData = await res.json();
+
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+
+        if (aiData.success && aiData.isDuplicate) {
+            const msg = `FamilAI זיהה משימה קיימת דומה בלוח הפיתוח!\n\nסיבה: ${aiData.explanation}\nמזהה משימה כפולה: #${aiData.matchedTaskId}\nרמת ביטחון: ${aiData.confidence}%\n\nהאם למזג ולהמשיך בכל זאת?`;
+            if (!confirm(msg)) {
+                return; // הנציג בחר שלא לפתוח כפילות. הטיקט נשאר.
+            }
+        }
         
-        if (titleEl) titleEl.value = defaultTitle;
-        if (descEl) descEl.value = defaultDesc;
-        if (typeEl) typeEl.value = 'bug';
-        if (priorityEl) priorityEl.value = 'high';
+        // שלב 2: אם אין כפילות או שהנציג החליט להמשיך, ממירים רגיל
+        document.getElementById('sa-ticket-modal').classList.add('hidden');
+        switchSATab('devops');
+        switchDevTab('kanban');
         
-        showToast('info', 'פרטי הקריאה הועתקו ללוח המשימות!');
-    }, 100);
+        const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
+        const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
+        
+        openKanbanTaskModal();
+        
+        setTimeout(() => {
+            const titleEl = document.getElementById('kanban-task-title');
+            const descEl = document.getElementById('kanban-task-desc');
+            const typeEl = document.getElementById('kanban-task-type');
+            const priorityEl = document.getElementById('kanban-task-priority');
+            
+            if (titleEl) titleEl.value = defaultTitle;
+            if (descEl) descEl.value = defaultDesc;
+            if (typeEl) typeEl.value = 'bug';
+            if (priorityEl) priorityEl.value = 'high';
+            
+            showToast('info', 'פרטי הקריאה הועתקו ללוח המשימות!');
+        }, 100);
+
+    } catch (e) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showToast('error', 'שגיאת רשת בבדיקת AI');
+    }
 };
 // ==========================================
 // --- מרכז שיווק והשקות (AI, Logo & PDF) ---
