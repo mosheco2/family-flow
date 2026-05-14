@@ -518,52 +518,62 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
 // --- FAMILAI OPERATIONS (SPRINT 2 - REST STABLE OVERRIDE) ---
 // ==========================================
 
-// פונקציית המעקף - קריאה ישירה ל-API עם מנגנון גיבוי (Fallback) חכם למודלים
+// פונקציית המעקף - גילוי אוטומטי (Auto-Discovery) של מודלים נתמכים
 async function callGeminiDirect(prompt) {
     if (!apiKey) throw new Error('Gemini API Key is missing in environment');
-    
-    // רשימת המודלים לניסיון, מהעדכני ביותר ועד לישן והבטוח ביותר
-    const modelsToTry = [
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-flash-8b',
-        'gemini-1.0-pro-latest'
-    ];
-    
-    let lastError = null;
 
-    for (const modelName of modelsToTry) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }]
-                })
-            });
+    try {
+        // 1. נשאל את גוגל אילו מודלים בדיוק פתוחים עבור מפתח ה-API הזה
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const listRes = await fetch(listUrl);
+        const listData = await listRes.json();
 
-            const data = await response.json();
-            
-            // אם קיבלנו תשובה תקינה - נחזיר אותה ונצא מהלולאה!
-            if (response.ok && data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
-                console.log(`✅ AI Success using model: ${modelName}`);
-                return data.candidates[0].content.parts[0].text;
-            }
-            
-            // אם גוגל חסמו את המודל או שהוא לא קיים במפתח הזה, נתעד ונמשיך למודל הבא
-            if (data.error) {
-                console.log(`⚠️ AI Fallback: Model ${modelName} failed - ${data.error.message}`);
-                lastError = data.error.message;
-            }
-        } catch (err) {
-            console.log(`⚠️ AI Fallback: Network error with ${modelName} - ${err.message}`);
-            lastError = err.message;
+        if (!listData.models) {
+            throw new Error('לא הצלחנו למשוך את רשימת המודלים מגוגל. בדוק את תקינות ה-API KEY.');
         }
+
+        // 2. נסנן רק מודלים של ג'מיני שתומכים ביצירת טקסט
+        const validModels = listData.models.filter(m => 
+            m.supportedGenerationMethods && 
+            m.supportedGenerationMethods.includes('generateContent') &&
+            m.name.includes('gemini')
+        );
+
+        if (validModels.length === 0) {
+            throw new Error('לא נמצאו מודלים נתמכים של ג\'מיני עבור מפתח ה-API הזה.');
+        }
+
+        // נעדיף את flash המהיר, ואם אין - ניקח את הראשון שעובד ברשימה
+        const selectedModel = validModels.find(m => m.name.includes('flash')) || validModels[0];
+        console.log('✅ Auto-Discovery selected model:', selectedModel.name);
+
+        // 3. נבצע את הקריאה עם השם המדויק שגוגל החזירה (שכבר כולל את הקידומת models/)
+        const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${selectedModel.name}:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(generateUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+        
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+            throw new Error('AI returned an empty response.');
+        }
+        
+        return data.candidates[0].content.parts[0].text;
+        
+    } catch (err) {
+        console.error('Gemini Auto-Discovery Error:', err.message);
+        throw new Error(`תקלת תקשורת מול גוגל: ${err.message}`);
     }
-    
-    // אם הלולאה הסתיימה וכל הנסיונות נכשלו
-    throw new Error(`כל מודלי ה-AI נכשלו. שגיאה אחרונה: ${lastError}`);
 }
 // AI Generator (Unlimited PRO) - REST Override
 // ==========================================
