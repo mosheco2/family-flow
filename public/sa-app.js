@@ -26,7 +26,7 @@ window.onload = () => {
         getEl('sa-dashboard-container').classList.remove('hidden');
         applyUserPermissions();
         loadSAData();
-        window.switchSATab('dashboard');
+        window.switchSATab('pulse');
     }
 };
 
@@ -35,6 +35,7 @@ window.applyUserPermissions = function() {
     const perms = window.currentSAUser.permissions || [];
     const isMaster = perms.includes('all');
     
+    // מיפוי מדויק של ה-IDs של הטאבים ב-HTML להרשאה הדרושה להם
     const tabRequirements = {
         'support': 'support',
         'devops': 'devops',
@@ -44,16 +45,19 @@ window.applyUserPermissions = function() {
         'content': 'content',
         'hr': 'users',
         'inbox': 'marketing',
-        'partners': 'all'
+        'partners': 'all' // רק מאסטר רואה שותפים
     };
 
     Object.keys(tabRequirements).forEach(tab => {
         const btn = getEl(`btn-sa-tab-${tab}`);
         if (!btn) return;
         
+        // מסירים את העמעום (opacity) הישן אם היה, מעכשיו זה רק גלוי או מוסתר
+        btn.classList.remove('opacity-40'); 
+        
         if (isMaster || perms.includes(tabRequirements[tab])) {
             btn.classList.remove('hidden');
-            btn.classList.add('flex-1');
+            btn.classList.add('flex-1'); // מחזיר אותו לגודל מלא בתפריט
         } else {
             btn.classList.add('hidden');
             btn.classList.remove('flex-1');
@@ -64,7 +68,9 @@ window.applyUserPermissions = function() {
 window.checkTabAccess = function(tabId) {
     if (!window.currentSAUser) return false;
     const perms = window.currentSAUser.permissions || [];
-    if (perms.includes('all') || tabId === 'dashboard' || tabId === 'pulse' || tabId === 'clients') return true;
+    
+    // טאבים שפתוחים לכולם (דשבורד ולקוחות)
+    if (perms.includes('all') || tabId === 'pulse' || tabId === 'clients') return true;
     
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
@@ -74,6 +80,47 @@ window.checkTabAccess = function(tabId) {
     
     if (req[tabId] && !perms.includes(req[tabId])) return false;
     return true;
+};
+
+window.updateSADashboard = async function() {
+    try {
+        // משיכת כמות טיקטים פתוחים
+        if (window.checkTabAccess('support')) {
+            if (saTicketsCache.length === 0) {
+                const resT = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
+                const dataT = await resT.json();
+                if (dataT.success) saTicketsCache = dataT.tickets || [];
+            }
+            const openTickets = saTicketsCache.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+            if(getEl('dash-open-tickets')) getEl('dash-open-tickets').innerText = openTickets;
+        } else {
+            if(getEl('dash-open-tickets')) getEl('dash-open-tickets').innerText = '🔒';
+        }
+        
+        // משיכת כמות משימות בפיתוח (קנבן)
+        if (window.checkTabAccess('devops')) {
+            if (typeof devKanbanTasks !== 'undefined' && devKanbanTasks.length === 0) {
+                const resK = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
+                const dataK = await resK.json();
+                if (dataK.success) devKanbanTasks = dataK.tasks || [];
+            }
+            const openTasks = typeof devKanbanTasks !== 'undefined' ? devKanbanTasks.filter(t => t.status === 'backlog' || t.status === 'in_progress').length : 0;
+            if(getEl('dash-open-tasks')) getEl('dash-open-tasks').innerText = openTasks;
+        } else {
+            if(getEl('dash-open-tasks')) getEl('dash-open-tasks').innerText = '🔒';
+        }
+
+        // בקשות הצטרפות של עסקים
+        if (window.checkTabAccess('comm')) {
+            const resC = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
+            const dataC = await resC.json();
+            if (dataC.success && dataC.pending) {
+                if(getEl('dash-pending-biz')) getEl('dash-pending-biz').innerText = dataC.pending.length;
+            }
+        } else {
+            if(getEl('dash-pending-biz')) getEl('dash-pending-biz').innerText = '🔒';
+        }
+    } catch(e) { console.error('Error updating dashboard', e); }
 };
 
 function showToast(t, m) {
@@ -104,7 +151,7 @@ async function handleSALogin(e) {
             getEl('sa-dashboard-container').classList.remove('hidden');
             applyUserPermissions();
             loadSAData();
-            window.switchSATab('dashboard');
+            window.switchSATab('pulse');
         } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת התחברות'); }
 }
@@ -118,12 +165,16 @@ function logoutSA() {
 }
 
 window.switchSATab = function(tabId) {
+    // בדיקת הרשאות קשיחה לפני כל מעבר מסך
     if (typeof window.checkTabAccess === 'function' && !window.checkTabAccess(tabId)) {
         return showToast('error', 'אין לך הרשאה לגשת למודול זה. אנא פנה למנהל המערכת.');
     }
 
+    if (tabId === 'pulse') updateSADashboard(); // עדכון נתוני הדשבורד בעת כניסה אליו
+
+    // רשימה מלאה של כל הטאבים כפי שהם כתובים ב-HTML שלך
     const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
-    
+
     allTabs.forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
