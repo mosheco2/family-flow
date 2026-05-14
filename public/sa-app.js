@@ -1934,8 +1934,36 @@ window.dropKanbanTask = async function(ev, newStatus) {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
                 body: JSON.stringify({ status: newStatus })
             });
+            
             if (newStatus === 'done') {
+                // קונפטי חגיגי למתכנת!
                 try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } }); } catch(e){}
+                
+                // --- מנגנון Feedback Loop ---
+                // מחפש בטקסט המשימה אזכור בסגנון "קריאת שירות #123" או "פנייה #123"
+                const ticketMatch = task.desc ? task.desc.match(/(?:קריאת שירות|פנייה) #(\d+)/) : null;
+                
+                if (ticketMatch && ticketMatch[1]) {
+                    const ticketId = ticketMatch[1];
+                    setTimeout(async () => {
+                        if (confirm(`🔁 סגירת מעגל (Feedback Loop):\nזיהינו שהמשימה קשורה לקריאת שירות #${ticketId}.\nהאם לסגור את הקריאה ולעדכן את הלקוח שהפיתוח הושלם?`)) {
+                            try {
+                                const res = await fetch(`${API}/sa/tickets/${ticketId}/feedback-loop`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
+                                    body: JSON.stringify({ taskTitle: task.title, version: task.version })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    showToast('success', `קריאה #${ticketId} נסגרה והלקוח עודכן! 🎉`);
+                                    if (typeof loadSATickets === 'function') loadSATickets(); // רענון הטיקטים ברקע
+                                }
+                            } catch(err) {
+                                showToast('error', 'שגיאה בסגירת מעגל לקריאה');
+                            }
+                        }
+                    }, 800); // השהייה קלה כדי לתת לקונפטי לרוץ קודם
+                }
             }
         } catch(e) { showToast('error', 'שגיאה בעדכון סטטוס משימה בשרת'); }
     }
