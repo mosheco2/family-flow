@@ -268,6 +268,7 @@
                                 <p class="text-sm text-slate-500 mt-1">טיפול בפניות לקוחות, משפחות ועסקים.</p>
                             </div>
                             <div class="flex gap-2 w-full sm:w-auto">
+                                <button onclick="openSlaMatrixModal()" class="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center gap-2"><i class="fa-solid fa-stopwatch"></i> מקרא SLA</button>
                                 <div class="relative w-full sm:w-64">
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                                     <input type="text" id="sa-search-tickets" onkeyup="filterSATickets()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש מספר קריאה, לקוח או נושא...">
@@ -1123,13 +1124,25 @@
 
                 <div class="w-full lg:w-72 shrink-0 flex flex-col border-r border-slate-100 pr-6">
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1.5">העברת טיפול (Routing):</label>
-                        <div class="flex flex-col gap-2">
-                            <select id="sa-ticket-route-team" class="modern-input py-2 px-2 text-xs font-bold w-full cursor-pointer bg-white sa-ticket-input"></select>
-                            <button onclick="routeSATicket()" id="btn-sa-ticket-route" class="bg-slate-800 text-white w-full px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm disabled:opacity-50">העבר לצוות <i class="fa-solid fa-share-nodes ml-1"></i></button>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1.5 border-b border-slate-200 pb-1">סיווג והעברה (Routing & SLA):</label>
+                        <div class="flex flex-col gap-2 mb-3">
+                            <select id="sa-ticket-priority" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input">
+                                <option value="low">🔵 עדיפות: נמוכה (Low)</option>
+                                <option value="normal">🟡 עדיפות: רגילה (Normal)</option>
+                                <option value="high">🔴 עדיפות: גבוהה (High)</option>
+                                <option value="critical">🚨 עדיפות: קריטית (השבתה)</option>
+                            </select>
+                            <select id="sa-ticket-type" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input">
+                                <option value="general">📋 סוג: כללי / שאלת לקוח</option>
+                                <option value="technical">🔧 סוג: תקלה טכנית / באג</option>
+                                <option value="billing">💳 סוג: חיובים וכספים</option>
+                            </select>
+                            <select id="sa-ticket-route-team" class="modern-input py-1.5 px-2 text-[11px] font-bold w-full cursor-pointer bg-white sa-ticket-input"></select>
                         </div>
+                        <button onclick="updateTicketClassification()" id="btn-sa-ticket-route" class="bg-slate-800 text-white w-full px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm disabled:opacity-50">שמור סיווג והעבר <i class="fa-solid fa-check ml-1"></i></button>
+                        
                         <hr class="my-3 border-slate-200">
-                        <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm w-full flex items-center justify-center gap-1 disabled:opacity-50">
+                        <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm w-full flex items-center justify-center gap-1 disabled:opacity-50">
                             <i class="fa-solid fa-gear"></i> המר למשימת פיתוח
                         </button>
                     </div>
@@ -1231,5 +1244,44 @@
     </div>
 
     <script src="sa-app.js?v=10"></script>
+   <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black mb-2 text-slate-800"><i class="fa-solid fa-stopwatch text-purple-500 mr-2"></i> מקרא וחוקי התראות (SLA Matrix)</h3>
+            <p class="text-xs text-slate-500 mb-4">המערכת תסרוק את הרשימה ותפעיל את החוק הראשון שמתאים (מסומן ב-* עבור "הכל").</p>
+            
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <div class="grid grid-cols-4 gap-2 mb-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200 pb-2">
+                    <div>סוג הקריאה</div>
+                    <div>רמת דחיפות</div>
+                    <div class="text-center">מקסימום שעות (יעד)</div>
+                    <div class="text-center">פעולה</div>
+                </div>
+                <div id="sa-sla-rules-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto modal-scroll pr-2"></div>
+                
+                <div class="flex gap-2 items-center border-t border-slate-200 pt-3">
+                    <select id="sla-new-type" class="modern-input py-1.5 px-2 text-xs font-bold flex-1 cursor-pointer">
+                        <option value="*">כל הסוגים (*)</option>
+                        <option value="general">📋 סוג: כללי / שאלה</option>
+                        <option value="technical">🔧 סוג: תקלה טכנית / באג</option>
+                        <option value="billing">💳 סוג: חיובים וכספים</option>
+                    </select>
+                    <select id="sla-new-priority" class="modern-input py-1.5 px-2 text-xs font-bold flex-1 cursor-pointer">
+                        <option value="*">כל הדחיפויות (*)</option>
+                        <option value="low">🔵 נמוכה</option>
+                        <option value="normal">🟡 רגילה</option>
+                        <option value="high">🔴 גבוהה</option>
+                        <option value="critical">🚨 קריטית</option>
+                    </select>
+                    <input type="number" id="sla-new-hours" class="modern-input py-1.5 px-2 text-xs font-bold w-24 text-center" placeholder="שעות (למשל: 4)">
+                    <button onclick="addSlaRule()" class="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-200 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="saveSlaMatrix()" class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-purple-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור מטריצה במסד</button>
+            </div>
+        </div>
+    </div> 
 </body>
 </html>
