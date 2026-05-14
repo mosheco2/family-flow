@@ -522,7 +522,7 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
 async function callGeminiDirect(prompt) {
     if (!apiKey) throw new Error('Gemini API Key is missing in environment');
     
-    // שימוש במודל gemini-pro המוכר והנתמך רחבות
+    // מעבר ל-Endpoint היציב ביותר שתומך ב-generateContent ללא תקלות תאימות
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
     
     const response = await fetch(url, {
@@ -536,13 +536,14 @@ async function callGeminiDirect(prompt) {
     });
 
     const data = await response.json();
+    
     if (data.error) {
         console.error('Google API Error Details:', data.error);
         throw new Error(data.error.message || 'Unknown Gemini API Error');
     }
     
-    if (!data.candidates || !data.candidates[0].content) {
-        throw new Error('AI returned an empty or invalid response structure');
+    if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+        throw new Error('AI returned an empty response. Please check API Key status.');
     }
     
     return data.candidates[0].content.parts[0].text;
