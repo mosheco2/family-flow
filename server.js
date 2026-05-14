@@ -90,7 +90,10 @@ pool.connect()
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'general'`); } catch(e) {}
-      // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+
+      // צ'אט פנימי מערכתי (Internal Whispers) - ספרינט 3
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_internal_chat (id SERIAL PRIMARY KEY, room VARCHAR(50) DEFAULT 'general', sender_name VARCHAR(100), sender_id INT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+    // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
@@ -795,22 +798,49 @@ app.post('/api/superadmin/login', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// ============================================================
+// ==========================================
 // --- SUPER ADMIN: HR & RBAC (TEAMS & USERS) ---
-// ============================================================
+// ==========================================
 
 app.get('/api/sa/teams', verifySA, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM sa_teams ORDER BY created_at ASC');
+        const result = await pool.query('SELECT * FROM sa_teams ORDER BY name ASC');
         res.json({ success: true, teams: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/sa/teams', verifySA, async (req, res) => {
+app.get('/api/sa/staff', verifySA, async (req, res) => {
     try {
-        const { name, permissions } = req.body;
-        const result = await pool.query('INSERT INTO sa_teams (name, permissions) VALUES ($1, $2) RETURNING *', [name, JSON.stringify(permissions || [])]);
-        res.json({ success: true, team: result.rows[0] });
+        const result = await pool.query('SELECT u.*, t.name as team_name FROM sa_users u LEFT JOIN sa_teams t ON u.team_id = t.id ORDER BY u.name ASC');
+        res.json({ success: true, staff: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- INTERNAL CHAT (WHISPERS) ---
+// ==========================================
+
+// משיכת הודעות לפי חדר
+app.get('/api/sa/chat/:room', verifySA, async (req, res) => {
+    try {
+        const room = req.params.room || 'general';
+        // מושך את ה-50 הודעות האחרונות בחדר
+        const result = await pool.query('SELECT * FROM sa_internal_chat WHERE room = $1 ORDER BY created_at ASC LIMIT 50', [room]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה חדשה לחדר
+app.post('/api/sa/chat', verifySA, async (req, res) => {
+    try {
+        const { room, message, senderName, senderId } = req.body;
+        if (!message || !message.trim()) return res.json({ success: false, error: 'Empty message' });
+        
+        await pool.query(
+            'INSERT INTO sa_internal_chat (room, sender_name, sender_id, message) VALUES ($1, $2, $3, $4)', 
+            [room || 'general', senderName || 'Unknown', senderId || null, message.trim()]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
