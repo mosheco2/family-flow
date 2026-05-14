@@ -507,7 +507,7 @@ function openSATicketModal(id) {
     const milestoneContainer = getEl('sa-ticket-milestones');
     
     let chatHtml = `
-        <div class="flex flex-col items-start mb-2">
+        <div class="flex flex-col items-start mb-2 fade-in">
             <div class="p-3 rounded-2xl border text-sm whitespace-pre-wrap leading-relaxed bg-white border-slate-200 text-slate-700 rounded-tr-none max-w-[85%] shadow-sm">
                 ${safeStr(t.description)}
             </div>
@@ -515,7 +515,7 @@ function openSATicketModal(id) {
         </div>`;
         
     let milestoneHtml = `
-        <div class="relative pl-4 border-r-2 border-blue-100 pb-4">
+        <div class="relative pl-4 border-r-2 border-blue-100 pb-4 fade-in">
             <div class="absolute -right-[5px] top-0 w-2 h-2 bg-blue-500 rounded-full border border-white"></div>
             <div class="text-[8px] font-black text-slate-400 uppercase">${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}</div>
             <div class="text-[10px] text-slate-700 font-bold">פתיחת קריאה</div>
@@ -528,7 +528,7 @@ function openSATicketModal(id) {
         
         if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
             milestoneHtml += `
-            <div class="relative pl-4 border-r-2 border-slate-200 pb-4">
+            <div class="relative pl-4 border-r-2 border-slate-200 pb-4 fade-in">
                 <div class="absolute -right-[5px] top-0 w-2 h-2 bg-slate-300 rounded-full border border-white"></div>
                 <div class="text-[8px] font-black text-slate-400 uppercase">${timeStr} <span class="text-indigo-500">(${safeStr(entry.sender)})</span></div>
                 <div class="text-[10px] text-slate-600 mt-0.5 leading-snug">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
@@ -538,7 +538,7 @@ function openSATicketModal(id) {
 
         if (isInternal) {
             chatHtml += `
-            <div class="flex flex-col items-end mb-4">
+            <div class="flex flex-col items-end mb-4 fade-in">
                 <div class="p-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed self-end bg-orange-50 border border-orange-100 text-orange-900 rounded-tl-none shadow-sm max-w-[85%]">
                     ${safeStr(cleanMessage)}
                 </div>
@@ -549,7 +549,7 @@ function openSATicketModal(id) {
         } else {
             const isStaff = entry.isStaff;
             chatHtml += `
-            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4">
+            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
                 <div class="p-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${isStaff ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'} shadow-sm max-w-[85%]">
                     ${safeStr(cleanMessage)}
                 </div>
@@ -562,17 +562,11 @@ function openSATicketModal(id) {
     milestoneContainer.innerHTML = milestoneHtml;
     getEl('sa-ticket-modal').classList.remove('hidden');
     
-    // גלילה לתחתית גם לתיבת הצ'אט וגם ל-Timeline
+    // גלילה לתחתית
     setTimeout(() => { 
         if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight; 
         if (milestoneContainer) milestoneContainer.scrollTop = milestoneContainer.scrollHeight;
-    }, 100);
-}
-    // --- תיקון הגלילה (Scroll Fix) ---
-    setTimeout(() => { 
-        if(chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight; 
-        if(milestoneContainer) milestoneContainer.scrollTop = milestoneContainer.scrollHeight;
-    }, 100);
+    }, 50);
 }
 
 window.updateTicketClassification = async function() {
