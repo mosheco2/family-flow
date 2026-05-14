@@ -128,41 +128,74 @@
                     </div>
                 </div>
 
-                <div id="sa-view-pulse" class="hidden space-y-6 fade-in">        
-                <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl text-white relative overflow-hidden border border-slate-800">
+                <div id="sa-view-pulse" class="hidden space-y-6 fade-in">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('support')">
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-headset"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">קריאות פתוחות</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">ממתינות לטיפול צוות תמיכה</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-blue-600" id="dash-open-tickets">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">קריאות</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('devops')">
+                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-bug"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">משימות ובאגים</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">פתוחות בלוח הפיתוח (Kanban)</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-indigo-600" id="dash-open-tasks">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">פתוחות</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('comm')">
+                            <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-store"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">אישורי עסקים</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">ממתינים להצטרפות לקהילות</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-orange-600" id="dash-pending-biz">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">בקשות</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl text-white relative overflow-hidden border border-slate-800">
                         <div id="pulse-anomaly-alert" class="hidden absolute top-0 right-0 left-0 bg-red-600 text-white py-1.5 text-center text-xs font-bold animate-pulse z-20">
                             <i class="fa-solid fa-triangle-exclamation"></i> זוהתה אנומליה או חוסר פעילות בעסק פעיל! בדוק את הלוג.
                         </div>
+                        <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-90 z-10"></div>
                         
-                        <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600 opacity-90 z-10"></div>
-                        <div class="absolute -right-20 -top-20 w-64 h-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                        
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative z-10 gap-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 relative z-10 gap-4">
                             <div>
-                                <h2 class="text-2xl font-black flex items-center gap-3"><i class="fa-solid fa-satellite-dish text-red-400"></i> ניטור מערכת בזמן אמת</h2>
-                                <p class="text-slate-400 text-sm mt-1">צפה בפעולות המשתמשים, בעומסים ובתקלות כפי שהן מתרחשות כעת.</p>
+                                <h2 class="text-xl font-black flex items-center gap-3"><i class="fa-solid fa-satellite-dish text-indigo-400"></i> ניטור מערכת (Live)</h2>
+                                <p class="text-slate-400 text-xs mt-1">מדדי ביצוע בזמן אמת</p>
                             </div>
-                            <div class="flex items-center gap-2 text-xs font-bold bg-white/10 px-4 py-2 rounded-full border border-white/10 shadow-inner">
-                                <div class="w-2.5 h-2.5 rounded-full bg-green-400 animate-ping"></div> System Online
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
-                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
-                                <span class="text-4xl font-black text-white" id="pulse-active-users">--</span>
-                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-white transition">משתמשים פעילים</span>
-                            </div>
-                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
-                                <span class="text-4xl font-black text-green-400" id="pulse-orders-today">--</span>
-                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-green-300 transition">הזמנות (24 ש')</span>
-                            </div>
-                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
-                                <span class="text-4xl font-black text-purple-400" id="pulse-ai-reqs">--</span>
-                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-purple-300 transition">קריאות AI ב-24 ש'</span>
-                            </div>
-                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
-                                <span class="text-4xl font-black text-orange-400" id="pulse-errors">0</span>
-                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-orange-300 transition">תקלות שרת נרשמו</span>
+                            <div class="flex gap-4">
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-white" id="pulse-active-users">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">משתמשים פעילים</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-green-400" id="pulse-orders-today">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">הזמנות (24 ש')</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-purple-400" id="pulse-ai-reqs">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">קריאות AI (24 ש')</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-orange-400" id="pulse-errors">0</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">תקלות מערכת</span>
+                                </div>
                             </div>
                         </div>
                         
