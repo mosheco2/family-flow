@@ -82,13 +82,14 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_users (id SERIAL PRIMARY KEY, team_id INT REFERENCES sa_teams(id) ON DELETE SET NULL, name VARCHAR(100), email VARCHAR(255) UNIQUE, password_hash VARCHAR(255), status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_users ADD COLUMN IF NOT EXISTS working_hours VARCHAR(50) DEFAULT '09:00-17:00'`); } catch(e) {}
 
-      // מערכת קריאות שירות (שודרגה עם ניתוב ו-SLA)
+      // מערכת קריאות שירות (מלאה עם דחיפות וסוג SLA)
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_to INT REFERENCES sa_users(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_team INT REFERENCES sa_teams(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
-
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'general'`); } catch(e) {}
       // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
@@ -340,34 +341,51 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// הראוט החדש: העברת טיפול וניתוב הקריאה (Routing & Audit Trail)
-app.post('/api/superadmin/tickets/:id/assign', verifySA, async (req, res) => {
+// הראוט החדש: ניהול סיווגים והעברות טיפול, כולל שמירת המקרא של SLA
+app.get('/api/sa/sla-matrix', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT value FROM system_settings WHERE key = 'sla_matrix_config'");
+        const sla = result.rows.length > 0 ? JSON.parse(result.rows[0].value) : [];
+        res.json({ success: true, sla });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/sla-matrix', verifySA, async (req, res) => {
+    try {
+        const { sla } = req.body;
+        const exists = await pool.query("SELECT key FROM system_settings WHERE key = 'sla_matrix_config'");
+        if (exists.rows.length > 0) {
+            await pool.query("UPDATE system_settings SET value = $1 WHERE key = 'sla_matrix_config'", [JSON.stringify(sla)]);
+        } else {
+            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sla_matrix_config', $1)", [JSON.stringify(sla)]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req, res) => {
     let dbClient;
     try {
-        const { assignedTeam, assignedUser, actionBy } = req.body;
+        const { assignedTeam, priority, ticketType, actionBy, auditNote } = req.body;
         const ticketId = req.params.id;
         
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
         
-        // שליפת הלוג הקיים
         const tRes = await dbClient.query('SELECT log FROM support_tickets WHERE id = $1', [ticketId]);
         if (tRes.rows.length === 0) throw new Error('Ticket not found');
         
         let currentLog = tRes.rows[0].log || [];
         if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
         
-        // יצירת הודעת ביקורת ללוג ההיסטורי (Audit Trail)
-        const teamNameRes = assignedTeam ? await dbClient.query('SELECT name FROM sa_teams WHERE id=$1', [assignedTeam]) : null;
-        const targetName = teamNameRes && teamNameRes.rows.length > 0 ? teamNameRes.rows[0].name : 'צוות לא מוגדר';
-        const auditMessage = `[SYSTEM_AUDIT] הקריאה הועברה לטיפול: ${targetName}`;
+        // יצירת הודעת ביקורת (Audit) אוטומטית רק אם סופק פתק מהלקוח/מערכת
+        if (auditNote) {
+            currentLog.push({ date: new Date().toISOString(), sender: actionBy || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        }
         
-        currentLog.push({ date: new Date().toISOString(), sender: actionBy || 'מערכת', isStaff: true, isInternal: true, message: auditMessage });
-        
-        // עדכון המסד
         await dbClient.query(
-            'UPDATE support_tickets SET assigned_team = $1, assigned_to = $2, log = $3 WHERE id = $4', 
-            [assignedTeam || null, assignedUser || null, JSON.stringify(currentLog), ticketId]
+            'UPDATE support_tickets SET assigned_team = $1, priority = $2, ticket_type = $3, log = $4 WHERE id = $5', 
+            [assignedTeam || null, priority || 'normal', ticketType || 'general', JSON.stringify(currentLog), ticketId]
         );
         
         await dbClient.query('COMMIT');
