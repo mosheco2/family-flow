@@ -415,7 +415,7 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         const ticket = tRes.rows[0];
         
         if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
         
         const prompt = `
         You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
@@ -471,7 +471,7 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
         if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
         
         if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
         
         const prompt = `
         You are an AI DevOps Manager. Check if the incoming ticket describes a bug or feature that ALREADY EXISTS in our active dev tasks list.
@@ -4227,7 +4227,7 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         const { context, query } = req.body;
         if (!genAI) return res.json({ success: false, error: 'מערכת ה-AI אינה מוגדרת בשרת.' });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+        const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" }); 
         const result = await model.generateContent(`${context}\n\nבקשה: ${query}`);
         const responseText = result.response.text();
         
@@ -4237,7 +4237,6 @@ app.post('/api/sa/ai-generate', async (req, res) => {
         res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
     }
 });
-
 // ראוט למשיכת הגדרות ציבוריות למסך התחברות
 app.get('/api/system/public-config', async (req, res) => {
     try {
