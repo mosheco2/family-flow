@@ -415,7 +415,7 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         const ticket = tRes.rows[0];
         
         if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" }); 
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
         You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
@@ -471,7 +471,7 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
         if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
         
         if (!genAI) throw new Error('AI is not configured');
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
         You are an AI DevOps Manager. Check if the incoming ticket describes a bug or feature that ALREADY EXISTS in our active dev tasks list.
