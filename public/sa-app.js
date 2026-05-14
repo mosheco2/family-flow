@@ -364,16 +364,25 @@ function renderSATickets() {
         'resolved': { text: 'סגור', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' }
     };
 
+    // מטריצת SLA (בשעות) לפי סטטוס
+    const SLA_MATRIX = { 'open': 4, 'in_progress': 24 };
+
     filtered.forEach(t => {
         const st = statusMap[t.status] || statusMap['open'];
         const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
         
         // חישוב זמני SLA
-        const hoursOpen = Math.floor((new Date() - new Date(t.created_at)) / (1000 * 60 * 60));
         let slaHtml = '';
         if (t.status !== 'resolved') {
-            if (hoursOpen >= 4) slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold" title="חריגת SLA"><i class="fa-regular fa-clock"></i> ${hoursOpen} שעות</span>`;
-            else slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold"><i class="fa-regular fa-clock"></i> בטווח התקן</span>`;
+            const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
+            const hoursOpen = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
+            const maxHours = SLA_MATRIX[t.status] || 24;
+            
+            if (hoursOpen >= maxHours) {
+                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse" title="חריגת SLA"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
+            } else {
+                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
+            }
         }
         
         const teamHtml = t.assigned_team_name ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded truncate max-w-[100px]"><i class="fa-solid fa-shield-cat"></i> ${safeStr(t.assigned_team_name)}</span>` : '<span class="bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded">לא שויך</span>';
@@ -419,7 +428,43 @@ function openSATicketModal(id) {
     const chkInternal = getEl('sa-ticket-reply-internal');
     if(chkInternal) chkInternal.checked = false;
 
-    // אכלוס צוותים להעברת טיפול (Routing)
+    // SLA תג במסך פנימי
+    const badge = getEl('sa-ticket-sla-badge');
+    if (badge) {
+        if (t.status === 'resolved') {
+            badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-slate-100 text-slate-500';
+            badge.innerText = 'הקריאה נסגרה';
+        } else {
+            const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
+            const hoursOpen = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
+            const SLA_MATRIX = { 'open': 4, 'in_progress': 24 };
+            const maxHours = SLA_MATRIX[t.status] || 24;
+
+            if (hoursOpen >= maxHours) {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-red-100 text-red-600 animate-pulse border border-red-200';
+                badge.innerHTML = `<i class="fa-solid fa-fire"></i> חריגת SLA מסטטוס קודם`;
+            } else {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-green-100 text-green-600 border border-green-200';
+                badge.innerHTML = `<i class="fa-regular fa-clock"></i> תקין (${hoursOpen} שעות מאז עדכון אחרון)`;
+            }
+        }
+    }
+
+    // --- אכיפת הרשאות עריכה (Read-Only) ---
+    const isMaster = window.currentSAUser && window.currentSAUser.permissions && window.currentSAUser.permissions.includes('all');
+    const userTeamName = window.currentSAUser ? window.currentSAUser.team : '';
+    // האם למשתמש יש הרשאה לטפל בקריאה? (הוא מאסטר, הקריאה לא משויכת, או שהקריאה משויכת לצוות שלו)
+    const canEdit = isMaster || !t.assigned_team_name || t.assigned_team_name === userTeamName;
+    
+    document.querySelectorAll('.sa-ticket-input').forEach(el => el.disabled = !canEdit);
+    getEl('btn-sa-ticket-reply').disabled = !canEdit;
+    getEl('btn-sa-ticket-route').disabled = !canEdit;
+    getEl('btn-sa-ticket-dev').disabled = !canEdit;
+    
+    if (canEdit) getEl('sa-ticket-read-only-msg').classList.add('hidden');
+    else getEl('sa-ticket-read-only-msg').classList.remove('hidden');
+
+    // אכלוס סלקטור העברת צוותים
     const routeSelect = getEl('sa-ticket-route-team');
     if (routeSelect) {
         if (saTeamsCache.length > 0) {
@@ -429,56 +474,49 @@ function openSATicketModal(id) {
         }
     }
     
-    // SLA תג במסך פנימי
-    const badge = getEl('sa-ticket-sla-badge');
-    if (badge) {
-        if (t.status === 'resolved') {
-            badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-slate-100 text-slate-500';
-            badge.innerText = 'הקריאה נסגרה';
-        } else {
-            const hoursOpen = Math.floor((new Date() - new Date(t.created_at)) / (1000 * 60 * 60));
-            if (hoursOpen >= 4) {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-red-100 text-red-600 animate-pulse border border-red-200';
-                badge.innerHTML = `<i class="fa-solid fa-fire"></i> חריגת SLA (${hoursOpen} שעות)`;
-            } else {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-green-100 text-green-600 border border-green-200';
-                badge.innerHTML = `<i class="fa-regular fa-clock"></i> תקין (${hoursOpen} שעות)`;
-            }
-        }
-    }
-    
+    // ניתוח הלוג (הפרדת צ'אט מ-Milestones)
     let logArr = [];
     try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
     
-    const logContainer = getEl('sa-ticket-log');
+    const chatContainer = getEl('sa-ticket-log');
+    const milestoneContainer = getEl('sa-ticket-milestones');
     
-    let html = `
+    let chatHtml = `
         <div class="flex flex-col items-start mb-4 fade-in">
             <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8">
                 ${safeStr(t.description)}
             </div>
             <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center gap-1">
-                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> פנייה מקורית מהלקוח • ${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}
+                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> פנייה מקורית מהלקוח
             </div>
+        </div>`;
+        
+    let milestoneHtml = `
+        <div class="relative pl-4 border-r-2 border-indigo-200 mb-4 fade-in">
+            <div class="absolute -right-[7px] top-0 w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-sm"></div>
+            <div class="text-[10px] font-bold text-slate-500">${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}</div>
+            <div class="text-xs text-slate-700 mt-0.5">פתיחת קריאה ע"י הלקוח</div>
         </div>`;
 
     if (logArr.length > 0) {
-        html += logArr.map(entry => {
+        logArr.forEach(entry => {
             const isStaff = entry.isStaff;
             const isInternal = entry.isInternal || (entry.message && entry.message.startsWith('[INTERNAL_NOTE]')); 
             let cleanMessage = entry.message ? entry.message.replace('[INTERNAL_NOTE] ', '') : '';
+            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             
-            // תצוגת Audit Trail להעברות ניתוב
+            // זיהוי אבני דרך (Audit Trail)
             if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
-                return `
-                <div class="flex justify-center mb-4 fade-in my-6">
-                    <div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-right-left"></i> ${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())} 
-                        <span class="font-normal opacity-70">ע"י ${safeStr(entry.sender)} (${new Date(entry.date).toLocaleString('he-IL', {timeStyle:'short'})})</span>
-                    </div>
+                milestoneHtml += `
+                <div class="relative pl-4 border-r-2 border-indigo-200 mb-4 fade-in">
+                    <div class="absolute -right-[7px] top-0 w-3 h-3 bg-slate-300 rounded-full border-2 border-white shadow-sm"></div>
+                    <div class="text-[10px] font-bold text-slate-500">${timeStr} <span class="text-indigo-500">(${safeStr(entry.sender)})</span></div>
+                    <div class="text-[11px] text-slate-700 mt-0.5">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
                 </div>`;
+                return; // לא להציג בצ'אט
             }
 
+            // צ'אט והערות פנימיות
             let bubbleClass = isStaff ? 'self-end bg-blue-50 border-blue-200 text-blue-900 rounded-tr-none ml-8 shadow-sm' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8 shadow-sm';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
@@ -488,33 +526,34 @@ function openSATicketModal(id) {
                 iconHtml = '<i class="fa-solid fa-user-ninja" style="color: #ea580c; margin-left: 4px;"></i>';
                 labelTag = '<span style="background-color: #ea580c; color: white; padding: 2px 8px; border-radius: 99px; font-size: 9px; margin-left: 8px;">פנימי בלבד</span>';
                 
-                return `
+                chatHtml += `
                 <div class="flex flex-col items-end mb-4 fade-in">
                     <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${bubbleClass}" style="background-color: #fff7ed !important; border: 2px solid #fdba74 !important; color: #9a3412 !important;">
                         ${safeStr(cleanMessage)}
                     </div>
                     <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center">
-                        ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}
+                        ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${timeStr}
+                    </div>
+                </div>`;
+            } else {
+                chatHtml += `
+                <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
+                    <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${bubbleClass}">
+                        ${safeStr(cleanMessage)}
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center">
+                        ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${timeStr}
                     </div>
                 </div>`;
             }
-
-            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
-            return `
-            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
-                <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${bubbleClass}">
-                    ${safeStr(cleanMessage)}
-                </div>
-                <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center">
-                    ${iconHtml} ${safeStr(entry.sender)} ${labelTag} • ${timeStr}
-                </div>
-            </div>`;
-        }).join('');
+        });
     }
     
-    logContainer.innerHTML = html;
+    chatContainer.innerHTML = chatHtml;
+    milestoneContainer.innerHTML = milestoneHtml;
+    
     getEl('sa-ticket-modal').classList.remove('hidden');
-    setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
+    setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
 }
 
 window.routeSATicket = async function() {
@@ -532,14 +571,10 @@ window.routeSATicket = async function() {
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הקריאה הועברה בהצלחה ושויכה לצוות.');
-            await loadSATickets(); // מושך את הנתונים החדשים מהשרת
-            openSATicketModal(saCurrentTicketId); // פותח מחדש כדי לראות את הלוג
-        } else {
-            showToast('error', data.error || 'שגיאה בהעברה');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת בהעברת קריאה');
-    }
+            await loadSATickets(); 
+            openSATicketModal(saCurrentTicketId); 
+        } else { showToast('error', data.error || 'שגיאה בהעברה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת בהעברת קריאה'); }
 };
 
 async function submitSATicketReply() {
@@ -552,16 +587,13 @@ async function submitSATicketReply() {
     const btn = getEl('btn-sa-ticket-reply');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
     
-    // מכינים את הטקסט ונשתמש בטריק הקידומת
     let finalMessage = text || `(סטטוס שונה ל-${status})`;
-    if (isInternal) {
-        finalMessage = '[INTERNAL_NOTE] ' + finalMessage;
-    }
+    if (isInternal) { finalMessage = '[INTERNAL_NOTE] ' + finalMessage; }
 
     try {
         const payload = { 
             message: finalMessage, 
-            userName: 'צוות תמיכה', 
+            userName: window.currentSAUser ? window.currentSAUser.name : 'צוות תמיכה', 
             isStaff: true, 
             newStatus: status || null,
             isInternal: isInternal 
@@ -578,7 +610,7 @@ async function submitSATicketReply() {
             openSATicketModal(saCurrentTicketId); 
         } else { showToast('error', 'שגיאה בעדכון'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שלח תגובה ועדכן <i class="fa-solid fa-paper-plane"></i>'; }
+    finally { btn.disabled = false; btn.innerHTML = 'שלח ועדכן <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
 async function updateSATicketStatus(id, status) {
@@ -592,7 +624,7 @@ async function updateSATicketStatus(id, status) {
             showToast('success', 'סטטוס קריאה עודכן בהצלחה');
             loadSATickets();
         } else { showToast('error', 'שגיאה בעדכון הסטטוס'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }    
+    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }  
 }
 
 async function updateSACredentials() {
