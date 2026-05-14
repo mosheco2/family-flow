@@ -17,116 +17,126 @@ let createCityTags = [];
 let editCityTags = [];
 
 window.onload = () => {
-    const savedToken = localStorage.getItem('ofl_sa_token');
-    const savedUser = localStorage.getItem('ofl_sa_user');
-    if (savedToken && savedUser) {
-        saToken = savedToken;
-        window.currentSAUser = JSON.parse(savedUser);
-        getEl('auth-container').classList.add('hidden');
-        getEl('sa-dashboard-container').classList.remove('hidden');
-        applyUserPermissions();
-        loadSAData();
-    }
+    const savedToken = localStorage.getItem('ofl_sa_token');
+    const savedUser = localStorage.getItem('ofl_sa_user');
+    if (savedToken && savedUser) {
+        saToken = savedToken;
+        window.currentSAUser = JSON.parse(savedUser);
+        getEl('auth-container').classList.add('hidden');
+        getEl('sa-dashboard-container').classList.remove('hidden');
+        applyUserPermissions();
+        loadSAData();
+        window.switchSATab('pulse');
+    }
 };
 
 window.applyUserPermissions = function() {
-    if (!window.currentSAUser) return;
-    const perms = window.currentSAUser.permissions || [];
-    const isMaster = perms.includes('all');
-    
-    // הצגת/הסתרת טאב HR (הרשאות וצוותים)
-    const hrBtn = getEl('btn-sa-tab-hr');
-    if (hrBtn) {
-        if (isMaster || perms.includes('users')) {
-            hrBtn.classList.remove('hidden');
-            hrBtn.classList.add('flex-1');
-        } else {
-            hrBtn.classList.add('hidden');
-            hrBtn.classList.remove('flex-1');
-        }
-    }
-    
-    // הגבלות נוספות על טאבים אחרים (אופציונלי להמשך)
-    if (!isMaster) {
-        if (!perms.includes('support')) getEl('btn-sa-tab-tickets')?.classList.add('opacity-40');
-        if (!perms.includes('devops')) getEl('btn-sa-tab-devops')?.classList.add('opacity-40');
-        if (!perms.includes('marketing')) getEl('btn-sa-tab-release')?.classList.add('opacity-40');
-    }
+    if (!window.currentSAUser) return;
+    const perms = window.currentSAUser.permissions || [];
+    const isMaster = perms.includes('all');
+    
+    // הצגת/הסתרת טאב HR (הרשאות וצוותים)
+    const hrBtn = getEl('btn-sa-tab-hr');
+    if (hrBtn) {
+        if (isMaster || perms.includes('users')) {
+            hrBtn.classList.remove('hidden');
+            hrBtn.classList.add('flex-1');
+        } else {
+            hrBtn.classList.add('hidden');
+            hrBtn.classList.remove('flex-1');
+        }
+    }
+    
+    // הגבלות נוספות על טאבים אחרים (אופציונלי להמשך)
+    if (!isMaster) {
+        if (!perms.includes('support')) getEl('btn-sa-tab-support')?.classList.add('opacity-40');
+        if (!perms.includes('devops')) getEl('btn-sa-tab-devops')?.classList.add('opacity-40');
+    }
 };
 
 function showToast(t, m) {
-    const el = getEl('toast');
-    const icon = getEl('toast-icon');
-    el.classList.remove('hidden');
-    getEl('toast-message').innerText = m;
-    icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400';
-    setTimeout(() => el.classList.add('hidden'), 3000);
+    const el = getEl('toast');
+    const icon = getEl('toast-icon');
+    el.classList.remove('hidden');
+    getEl('toast-message').innerText = m;
+    icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400';
+    setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
 async function handleSALogin(e) {
-    e.preventDefault();
-    try {
-        const res = await fetch(`${API}/superadmin/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: val('sa-code'), password: val('sa-password') })
-        });
-        const data = await res.json();
-        if (data.success) {
-            saToken = data.token;
-            window.currentSAUser = data.user;
-            localStorage.setItem('ofl_sa_token', saToken);
-            localStorage.setItem('ofl_sa_user', JSON.stringify(data.user));
-            
-            getEl('auth-container').classList.add('hidden');
-            getEl('sa-dashboard-container').classList.remove('hidden');
-            applyUserPermissions();
-            loadSAData();
-        } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת התחברות'); }
+    e.preventDefault();
+    try {
+        const res = await fetch(`${API}/superadmin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: val('sa-code'), password: val('sa-password') })
+        });
+        const data = await res.json();
+        if (data.success) {
+            saToken = data.token;
+            window.currentSAUser = data.user;
+            localStorage.setItem('ofl_sa_token', saToken);
+            localStorage.setItem('ofl_sa_user', JSON.stringify(data.user));
+            
+            getEl('auth-container').classList.add('hidden');
+            getEl('sa-dashboard-container').classList.remove('hidden');
+            applyUserPermissions();
+            loadSAData();
+            window.switchSATab('pulse');
+        } else { showToast('error', data.error); }
+    } catch(err) { showToast('error', 'שגיאת התחברות'); }
 }
 
 function logoutSA() {
-    saToken = null;
-    localStorage.removeItem('ofl_sa_token');
-    getEl('sa-dashboard-container').classList.add('hidden');
-    getEl('auth-container').classList.remove('hidden');
-    getEl('sa-code').value = '';
-    getEl('sa-password').value = '';
+    saToken = null;
+    localStorage.removeItem('ofl_sa_token');
+    getEl('sa-dashboard-container').classList.add('hidden');
+    getEl('auth-container').classList.remove('hidden');
+    getEl('sa-code').value = '';
+    getEl('sa-password').value = '';
 }
 
-function switchSATab(tabId) {
-    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support', 'partners', 'inbox', 'devops'].forEach(t => {
-        const view = document.getElementById(`sa-view-${t}`);
-        const btn = document.getElementById(`btn-sa-tab-${t}`);
-        if (view) view.classList.add('hidden');
-        if (btn) {
-            btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
-            if (t === 'devops') btn.classList.add('mx-1');
-            if (t === 'support') btn.classList.add('ml-1');
-        }
-    });
-    
-    const activeView = document.getElementById(`sa-view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
-    
-    if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) {
-        if (tabId === 'pulse') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2';
-        } else if(tabId === 'devops') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
-        } else if(tabId === 'support') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
-        } else if (tabId === 'inbox') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else if (tabId === 'partners') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
-        }
-    }
-}
+window.switchSATab = function(tabId) {
+    // רשימה מלאה של כל הטאבים כפי שהם כתובים ב-HTML שלך
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
+    
+    allTabs.forEach(t => {
+        const view = document.getElementById(`sa-view-${t}`);
+        const btn = document.getElementById(`btn-sa-tab-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) {
+            btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
+            if (t === 'devops') btn.classList.add('mx-1');
+            if (t === 'support') btn.classList.add('ml-1');
+        }
+    });
+    
+    const activeView = document.getElementById(`sa-view-${tabId}`);
+    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
+    
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) {
+        if (tabId === 'pulse') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2 mx-1';
+        } else if(tabId === 'devops') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
+        } else if(tabId === 'support') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
+        } else if (tabId === 'inbox') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
+        } else if (tabId === 'partners') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
+        } else {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+        }
+    }
+
+    if (tabId === 'hr') loadSAHRData();
+    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
+    if (tabId === 'support') loadSATickets();
+    if (tabId === 'clients') loadSAData();
+    if (tabId === 'partners') loadSAPartners();
+};
 
 window.switchDevTab = function(tabId) {
     ['matrix', 'kanban', 'release'].forEach(t => {
@@ -2298,23 +2308,4 @@ window.toggleStaffStatus = async function(id, currentStatus) {
         await fetch(`${API}/sa/staff/${id}`, { method:'PUT', headers:{'Content-Type':'application/json','Authorization': saToken}, body:JSON.stringify({status: newStatus}) });
         showToast('success', 'סטטוס נציג עודכן!'); loadSAHRData();
     } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
-};
-
-window.switchSATab = function(tabId) {
-    // הסתרת כל הטאבים
-    ['dashboard', 'communities', 'businesses', 'tickets', 'release', 'clients', 'hr', 'devops', 'content', 'stats'].forEach(id => {
-        getEl('sa-view-' + id)?.classList.add('hidden');
-        getEl('btn-sa-tab-' + id)?.classList.remove('bg-white', 'shadow-sm', 'text-slate-800');
-        getEl('btn-sa-tab-' + id)?.classList.add('text-slate-500');
-    });
-
-    // הצגת הטאב הנבחר
-    getEl('sa-view-' + tabId)?.classList.remove('hidden');
-    getEl('btn-sa-tab-' + tabId)?.classList.add('bg-white', 'shadow-sm', 'text-slate-800');
-    getEl('btn-sa-tab-' + tabId)?.classList.remove('text-slate-500');
-
-    // טעינת נתונים ספציפיים
-    if (tabId === 'hr') loadSAHRData();
-    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
-    if (tabId === 'clients') loadSAData(); // טוען את הקבוצות מחדש
 };
