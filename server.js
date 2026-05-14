@@ -515,21 +515,122 @@ app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
 });
 
 // ==========================================
-// --- SUPER ADMIN: AI Generator (Unlimited PRO - REST OVERRIDE) ---
+// --- FAMILAI OPERATIONS (SPRINT 2 - REST STABLE OVERRIDE) ---
 // ==========================================
+
+// פונקציית המעקף - קריאה ישירה ל-API ללא תלות בגרסת הספרייה בשרת
+async function callGeminiDirect(prompt) {
+    if (!apiKey) throw new Error('Gemini API Key is missing in environment');
+    
+    // שימוש בגרסת v1 היציבה ובמודל 1.5 flash
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+        console.error('Google API Error Details:', data.error);
+        throw new Error(data.error.message || 'Unknown Gemini API Error');
+    }
+    
+    if (!data.candidates || !data.candidates[0].content) {
+        throw new Error('AI returned an empty or invalid response structure');
+    }
+    
+    return data.candidates[0].content.parts[0].text;
+}
+
+// Triage - סיווג חכם של קריאות שירות ע"י AI
+app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => {
+    let dbClient;
+    try {
+        const ticketId = req.params.id;
+        dbClient = await pool.connect();
+        
+        const tRes = await dbClient.query('SELECT subject, description, log FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) throw new Error('Ticket not found');
+        
+        const ticket = tRes.rows[0];
+        
+        const prompt = `
+        You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
+        Analyze this ticket and return ONLY a valid JSON object:
+        Subject: "${ticket.subject}"
+        Desc: "${ticket.description}"
+        JSON Keys: "sentiment" (angry/neutral/happy), "priority" (low/normal/high/critical), "ticketType" (general/technical/billing), "reason" (1 sentence Hebrew).`;
+        
+        let responseText = await callGeminiDirect(prompt);
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        let currentLog = ticket.log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        let sentimentTag = aiData.sentiment === 'angry' ? '🔥 סנטימנט לקוח: כועס' : (aiData.sentiment === 'happy' ? '✨ סנטימנט לקוח: חיובי' : 'סנטימנט: רגיל');
+        const auditNote = `FamilAI סיווג אוטומטית: ${sentimentTag}. ${aiData.reason}`;
+        
+        currentLog.push({ date: new Date().toISOString(), sender: 'FamilAI', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        
+        await dbClient.query(
+            'UPDATE support_tickets SET priority = $1, ticket_type = $2, log = $3 WHERE id = $4', 
+            [aiData.priority, aiData.ticketType, JSON.stringify(currentLog), ticketId]
+        );
+        
+        res.json({ success: true, classification: aiData });
+    } catch(e) {
+        console.error('AI Triage Error:', e.message);
+        res.status(500).json({ error: 'שגיאת AI: ' + e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// Deduplication - מניעת כפילויות חכמה מול בנק המשימות
+app.post('/api/sa/dev/check-duplicates', verifySA, async (req, res) => {
+    try {
+        const { description } = req.body;
+        const tasksRes = await pool.query("SELECT id, title, description FROM sa_dev_tasks WHERE status IN ('backlog', 'in_progress', 'qa')");
+        const activeTasks = tasksRes.rows;
+        
+        if (activeTasks.length === 0) return res.json({ success: true, isDuplicate: false });
+        
+        const prompt = `
+        Check if this ticket is a duplicate of active tasks. Respond ONLY with JSON:
+        Ticket: "${description}"
+        Tasks: ${JSON.stringify(activeTasks)}
+        JSON: {"isDuplicate": bool, "matchedTaskId": id, "confidence": 0-100, "explanation": "Hebrew sentence"}`;
+        
+        let responseText = await callGeminiDirect(prompt);
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(responseText);
+        
+        res.json({ success: true, ...aiData });
+    } catch(e) {
+        console.error('Deduplication Error:', e.message);
+        res.status(500).json({ error: 'שגיאת AI: ' + e.message });
+    }
+});
+
+// AI Generator (Unlimited PRO) - REST Override
 app.post('/api/sa/ai-generate', async (req, res) => {
     try {
         const token = req.headers['authorization'];
         if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
         
         const { context, query } = req.body;
-        const prompt = `${context}\n\nבקשה: ${query}`;
-        
-        const responseText = await callGeminiDirect(prompt);
+        const responseText = await callGeminiDirect(`${context}\n\nבקשה: ${query}`);
         res.json({ success: true, answer: responseText });
     } catch(e) {
-        console.error('Super Admin AI Generation Error:', e);
-        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+        console.error('AI Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה: ' + e.message });
     }
 });
 // שליפת הקריאות עבור פאנל ה-Super Admin
