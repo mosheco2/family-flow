@@ -368,21 +368,34 @@ function renderSATickets() {
         const st = statusMap[t.status] || statusMap['open'];
         const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
         
+        // חישוב זמני SLA
+        const hoursOpen = Math.floor((new Date() - new Date(t.created_at)) / (1000 * 60 * 60));
+        let slaHtml = '';
+        if (t.status !== 'resolved') {
+            if (hoursOpen >= 4) slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold" title="חריגת SLA"><i class="fa-regular fa-clock"></i> ${hoursOpen} שעות</span>`;
+            else slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold"><i class="fa-regular fa-clock"></i> בטווח התקן</span>`;
+        }
+        
+        const teamHtml = t.assigned_team_name ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded truncate max-w-[100px]"><i class="fa-solid fa-shield-cat"></i> ${safeStr(t.assigned_team_name)}</span>` : '<span class="bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded">לא שויך</span>';
+
         html += `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer" onclick="openSATicketModal(${t.id})">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer group" onclick="openSATicketModal(${t.id})">
             <div>
                 <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
                     <div class="pr-2">
                         <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mb-2 inline-block">קריאה #${t.id}</span>
-                        <h4 class="font-bold text-slate-800 text-base leading-tight">${safeStr(t.subject)}</h4>
-                        <p class="text-[11px] text-slate-500 mt-1.5"><i class="fa-solid fa-building mr-1 text-slate-300"></i> ${safeStr(t.group_name)}</p>
+                        <h4 class="font-bold text-slate-800 text-base leading-tight group-hover:text-blue-600 transition">${safeStr(t.subject)}</h4>
+                        <p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-2"><i class="fa-solid fa-building text-slate-300"></i> ${safeStr(t.group_name)} ${slaHtml}</p>
                     </div>
                     <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
                 </div>
                 <p class="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed">${safeStr(t.description)}</p>
             </div>
             <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <span><i class="fa-solid fa-user mr-1"></i> ${safeStr(t.user_name)}</span>
+                <div class="flex items-center gap-2">
+                    <span><i class="fa-solid fa-user mr-1"></i> ${safeStr(t.user_name)}</span>
+                    ${teamHtml}
+                </div>
                 <span><i class="fa-regular fa-clock mr-1"></i> ${dateStr}</span>
             </div>
         </div>`;
@@ -399,10 +412,40 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal-subject').innerText = t.subject;
     getEl('sa-ticket-modal-group').innerText = t.group_name || 'לא ידוע';
     getEl('sa-ticket-modal-user').innerText = t.user_name || 'לא ידוע';
+    getEl('sa-ticket-current-team').innerText = t.assigned_team_name || 'טרם שויך';
+    
     getEl('sa-ticket-reply-text').value = '';
     getEl('sa-ticket-reply-status').value = t.status;
     const chkInternal = getEl('sa-ticket-reply-internal');
     if(chkInternal) chkInternal.checked = false;
+
+    // אכלוס צוותים להעברת טיפול (Routing)
+    const routeSelect = getEl('sa-ticket-route-team');
+    if (routeSelect) {
+        if (saTeamsCache.length > 0) {
+            routeSelect.innerHTML = '<option value="">בחר צוות יעד...</option>' + saTeamsCache.map(team => `<option value="${team.id}">${safeStr(team.name)}</option>`).join('');
+        } else {
+            routeSelect.innerHTML = '<option value="">אין צוותים מוגדרים</option>';
+        }
+    }
+    
+    // SLA תג במסך פנימי
+    const badge = getEl('sa-ticket-sla-badge');
+    if (badge) {
+        if (t.status === 'resolved') {
+            badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-slate-100 text-slate-500';
+            badge.innerText = 'הקריאה נסגרה';
+        } else {
+            const hoursOpen = Math.floor((new Date() - new Date(t.created_at)) / (1000 * 60 * 60));
+            if (hoursOpen >= 4) {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-red-100 text-red-600 animate-pulse border border-red-200';
+                badge.innerHTML = `<i class="fa-solid fa-fire"></i> חריגת SLA (${hoursOpen} שעות)`;
+            } else {
+                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-green-100 text-green-600 border border-green-200';
+                badge.innerHTML = `<i class="fa-regular fa-clock"></i> תקין (${hoursOpen} שעות)`;
+            }
+        }
+    }
     
     let logArr = [];
     try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
@@ -415,23 +458,32 @@ function openSATicketModal(id) {
                 ${safeStr(t.description)}
             </div>
             <div class="text-[10px] text-slate-400 mt-1.5 font-bold flex items-center gap-1">
-                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> פנייה מקורית מהלקוח
+                <i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i> פנייה מקורית מהלקוח • ${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}
             </div>
         </div>`;
 
     if (logArr.length > 0) {
         html += logArr.map(entry => {
             const isStaff = entry.isStaff;
-            // הטריק המיוחד: זיהוי הערה פנימית גם אם השרת דרס את הדגל
             const isInternal = entry.isInternal || (entry.message && entry.message.startsWith('[INTERNAL_NOTE]')); 
             let cleanMessage = entry.message ? entry.message.replace('[INTERNAL_NOTE] ', '') : '';
             
+            // תצוגת Audit Trail להעברות ניתוב
+            if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
+                return `
+                <div class="flex justify-center mb-4 fade-in my-6">
+                    <div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-right-left"></i> ${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())} 
+                        <span class="font-normal opacity-70">ע"י ${safeStr(entry.sender)} (${new Date(entry.date).toLocaleString('he-IL', {timeStyle:'short'})})</span>
+                    </div>
+                </div>`;
+            }
+
             let bubbleClass = isStaff ? 'self-end bg-blue-50 border-blue-200 text-blue-900 rounded-tr-none ml-8 shadow-sm' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8 shadow-sm';
             let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
 
             if (isInternal) {
-                // שימוש ישיר בסטיילים קשיחים כדי לנצח כל חוק CSS מתנגש
                 bubbleClass = 'self-end rounded-tr-none ml-8 shadow-sm';
                 iconHtml = '<i class="fa-solid fa-user-ninja" style="color: #ea580c; margin-left: 4px;"></i>';
                 labelTag = '<span style="background-color: #ea580c; color: white; padding: 2px 8px; border-radius: 99px; font-size: 9px; margin-left: 8px;">פנימי בלבד</span>';
@@ -464,6 +516,31 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal').classList.remove('hidden');
     setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
 }
+
+window.routeSATicket = async function() {
+    const teamId = val('sa-ticket-route-team');
+    if (!teamId) return showToast('error', 'יש לבחור צוות להעברה.');
+    if (!confirm('להעביר את הטיפול בקריאה זו לצוות הנבחר?')) return;
+    
+    try {
+        const userName = window.currentSAUser ? window.currentSAUser.name : 'צוות המערכת';
+        const res = await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ assignedTeam: parseInt(teamId), actionBy: userName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הקריאה הועברה בהצלחה ושויכה לצוות.');
+            await loadSATickets(); // מושך את הנתונים החדשים מהשרת
+            openSATicketModal(saCurrentTicketId); // פותח מחדש כדי לראות את הלוג
+        } else {
+            showToast('error', data.error || 'שגיאה בהעברה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בהעברת קריאה');
+    }
+};
 
 async function submitSATicketReply() {
     const text = val('sa-ticket-reply-text');
