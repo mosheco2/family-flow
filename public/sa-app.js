@@ -661,7 +661,59 @@ window.saveSlaMatrix = async function() {
     } catch(e) { showToast('error', 'שגיאת רשת בשמירת SLA'); }
 };
 
-// ... המשך הפונקציה המקורית שנותרה (submitSATicketReply) צריכה לחזור:
+// ==========================================
+// --- הוספת תגובה לקריאת שירות ---
+// ==========================================
+window.submitSATicketReply = async function() {
+    if (!saCurrentTicketId) return showToast('error', 'לא נבחרה קריאה תקינה');
+    
+    const text = val('sa-ticket-reply-text').trim();
+    const status = val('sa-ticket-reply-status');
+    const isInternalEl = getEl('sa-ticket-reply-internal');
+    const isInternal = isInternalEl ? isInternalEl.checked : false;
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    
+    if (!text && !status) return showToast('error', 'יש להזין תגובה ללקוח או לבחור שינוי סטטוס');
+    
+    const btn = getEl('btn-sa-ticket-reply');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, status: status, isInternal: isInternal, senderName: senderName })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'התגובה נשלחה ונשמרה!');
+            
+            // איפוס שדות
+            const textArea = getEl('sa-ticket-reply-text');
+            if (textArea) {
+                textArea.value = '';
+                textArea.style.height = '40px';
+            }
+            if (isInternalEl) isInternalEl.checked = false;
+            getEl('sa-ticket-reply-status').value = '';
+            
+            // רענון נתונים והשארת המודאל פתוח עם הגלילה החדשה
+            await loadSATickets();
+            openSATicketModal(saCurrentTicketId);
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התגובה');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת בשליחת תגובה');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+};
 
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password'); const newEmail = val('sa-new-email');
