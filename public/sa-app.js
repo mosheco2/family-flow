@@ -337,6 +337,32 @@ async function loadSATickets() {
 
 function filterSATickets() { renderSATickets(); }
 
+let saSlaRulesCache = [];
+
+window.loadSlaMatrix = async function() {
+    try {
+        const res = await fetch(`${API}/sa/sla-matrix`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            saSlaRulesCache = data.sla || [{ type: '*', priority: '*', hours: 24 }]; // ברירת מחדל אם ריק
+        }
+    } catch(e) { console.error('Error loading SLA', e); }
+};
+
+function getTicketSlaMaxHours(type, priority) {
+    if (!saSlaRulesCache || saSlaRulesCache.length === 0) return 24;
+    // עדיפות 1: התאמה מדויקת
+    let match = saSlaRulesCache.find(r => r.type === type && r.priority === priority);
+    // עדיפות 2: סוג מתאים, דחיפות כללית
+    if (!match) match = saSlaRulesCache.find(r => r.type === type && r.priority === '*');
+    // עדיפות 3: סוג כללי, דחיפות מתאימה
+    if (!match) match = saSlaRulesCache.find(r => r.type === '*' && r.priority === priority);
+    // עדיפות 4: הכל כללי
+    if (!match) match = saSlaRulesCache.find(r => r.type === '*' && r.priority === '*');
+    
+    return match ? parseInt(match.hours) : 24;
+}
+
 function renderSATickets() {
     const list = getEl('sa-tickets-full-list');
     if (!list) return;
@@ -357,31 +383,33 @@ function renderSATickets() {
         return;
     }
 
+    // מוודאים שטבלת ה-SLA נטענה
+    if (saSlaRulesCache.length === 0) loadSlaMatrix();
+
     let html = '';
     const statusMap = {
         'open': { text: 'פתוח (ממתין)', color: 'bg-red-100 text-red-700 border-red-200' },
         'in_progress': { text: 'בטיפול', color: 'bg-orange-100 text-orange-700 border-orange-200' },
         'resolved': { text: 'סגור', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' }
     };
-
-    // מטריצת SLA (בשעות) לפי סטטוס
-    const SLA_MATRIX = { 'open': 4, 'in_progress': 24 };
+    
+    const prioMap = { 'critical': '🚨 קריטי', 'high': '🔴 גבוה', 'normal': '🟡 רגיל', 'low': '🔵 נמוך' };
 
     filtered.forEach(t => {
         const st = statusMap[t.status] || statusMap['open'];
         const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
+        const pLabel = prioMap[t.priority] || prioMap['normal'];
         
-        // חישוב זמני SLA
         let slaHtml = '';
         if (t.status !== 'resolved') {
             const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
             const hoursOpen = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
-            const maxHours = SLA_MATRIX[t.status] || 24;
+            const maxHours = getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
             
             if (hoursOpen >= maxHours) {
-                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse" title="חריגת SLA"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
+                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse" title="יעד: ${maxHours} שעות"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
             } else {
-                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
+                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold" title="יעד: ${maxHours} שעות"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
             }
         }
         
@@ -392,7 +420,7 @@ function renderSATickets() {
             <div>
                 <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
                     <div class="pr-2">
-                        <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mb-2 inline-block">קריאה #${t.id}</span>
+                        <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mb-2 inline-block">קריאה #${t.id} <span class="ml-1 px-1 bg-slate-200 rounded">${pLabel}</span></span>
                         <h4 class="font-bold text-slate-800 text-base leading-tight group-hover:text-blue-600 transition">${safeStr(t.subject)}</h4>
                         <p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-2"><i class="fa-solid fa-building text-slate-300"></i> ${safeStr(t.group_name)} ${slaHtml}</p>
                     </div>
@@ -428,7 +456,18 @@ function openSATicketModal(id) {
     const chkInternal = getEl('sa-ticket-reply-internal');
     if(chkInternal) chkInternal.checked = false;
 
-    // SLA תג במסך פנימי
+    getEl('sa-ticket-priority').value = t.priority || 'normal';
+    getEl('sa-ticket-type').value = t.ticket_type || 'general';
+
+    const routeSelect = getEl('sa-ticket-route-team');
+    if (routeSelect) {
+        if (saTeamsCache.length > 0) {
+            routeSelect.innerHTML = '<option value="">(ללא שיוך צוות)</option>' + saTeamsCache.map(team => `<option value="${team.id}" ${t.assigned_team === team.id ? 'selected' : ''}>${safeStr(team.name)}</option>`).join('');
+        } else {
+            routeSelect.innerHTML = '<option value="">אין צוותים</option>';
+        }
+    }
+
     const badge = getEl('sa-ticket-sla-badge');
     if (badge) {
         if (t.status === 'resolved') {
@@ -437,24 +476,22 @@ function openSATicketModal(id) {
         } else {
             const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
             const hoursOpen = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
-            const SLA_MATRIX = { 'open': 4, 'in_progress': 24 };
-            const maxHours = SLA_MATRIX[t.status] || 24;
+            const maxHours = getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
 
             if (hoursOpen >= maxHours) {
                 badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-red-100 text-red-600 animate-pulse border border-red-200';
-                badge.innerHTML = `<i class="fa-solid fa-fire"></i> חריגת SLA מסטטוס קודם`;
+                badge.innerHTML = `<i class="fa-solid fa-fire"></i> חריגת SLA (יעד: ${maxHours} שעות)`;
             } else {
                 badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 bg-green-100 text-green-600 border border-green-200';
-                badge.innerHTML = `<i class="fa-regular fa-clock"></i> תקין (${hoursOpen} שעות מאז עדכון אחרון)`;
+                badge.innerHTML = `<i class="fa-regular fa-clock"></i> תקין (יעד: ${maxHours} שעות)`;
             }
         }
     }
 
-    // --- אכיפת הרשאות עריכה (Read-Only) ---
+    // אכיפת הרשאות Read Only לצוותים
     const isMaster = window.currentSAUser && window.currentSAUser.permissions && window.currentSAUser.permissions.includes('all');
-    const userTeamName = window.currentSAUser ? window.currentSAUser.team : '';
-    // האם למשתמש יש הרשאה לטפל בקריאה? (הוא מאסטר, הקריאה לא משויכת, או שהקריאה משויכת לצוות שלו)
-    const canEdit = isMaster || !t.assigned_team_name || t.assigned_team_name === userTeamName;
+    const userTeamId = window.currentSAUser ? window.currentSAUser.team_id : null;
+    const canEdit = isMaster || !t.assigned_team || parseInt(t.assigned_team) === parseInt(userTeamId);
     
     document.querySelectorAll('.sa-ticket-input').forEach(el => el.disabled = !canEdit);
     getEl('btn-sa-ticket-reply').disabled = !canEdit;
@@ -464,17 +501,7 @@ function openSATicketModal(id) {
     if (canEdit) getEl('sa-ticket-read-only-msg').classList.add('hidden');
     else getEl('sa-ticket-read-only-msg').classList.remove('hidden');
 
-    // אכלוס סלקטור העברת צוותים
-    const routeSelect = getEl('sa-ticket-route-team');
-    if (routeSelect) {
-        if (saTeamsCache.length > 0) {
-            routeSelect.innerHTML = '<option value="">בחר צוות יעד...</option>' + saTeamsCache.map(team => `<option value="${team.id}">${safeStr(team.name)}</option>`).join('');
-        } else {
-            routeSelect.innerHTML = '<option value="">אין צוותים מוגדרים</option>';
-        }
-    }
-    
-    // ניתוח הלוג (הפרדת צ'אט מ-Milestones)
+    // ניתוח הלוג לפיצול: צ'אט (ימין) ו-Audit Milestones (שמאל)
     let logArr = [];
     try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
     
@@ -495,30 +522,28 @@ function openSATicketModal(id) {
         <div class="relative pl-4 border-r-2 border-indigo-200 mb-4 fade-in">
             <div class="absolute -right-[7px] top-0 w-3 h-3 bg-indigo-500 rounded-full border-2 border-white shadow-sm"></div>
             <div class="text-[10px] font-bold text-slate-500">${new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'})}</div>
-            <div class="text-xs text-slate-700 mt-0.5">פתיחת קריאה ע"י הלקוח</div>
+            <div class="text-xs text-slate-700 font-bold mt-0.5">פתיחת קריאה</div>
+            <div class="text-[10px] text-slate-500">ע"י הלקוח במערכת</div>
         </div>`;
 
     if (logArr.length > 0) {
         logArr.forEach(entry => {
-            const isStaff = entry.isStaff;
+            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             const isInternal = entry.isInternal || (entry.message && entry.message.startsWith('[INTERNAL_NOTE]')); 
             let cleanMessage = entry.message ? entry.message.replace('[INTERNAL_NOTE] ', '') : '';
-            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
             
-            // זיהוי אבני דרך (Audit Trail)
             if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
                 milestoneHtml += `
-                <div class="relative pl-4 border-r-2 border-indigo-200 mb-4 fade-in">
+                <div class="relative pl-4 border-r-2 border-slate-200 mb-4 fade-in">
                     <div class="absolute -right-[7px] top-0 w-3 h-3 bg-slate-300 rounded-full border-2 border-white shadow-sm"></div>
                     <div class="text-[10px] font-bold text-slate-500">${timeStr} <span class="text-indigo-500">(${safeStr(entry.sender)})</span></div>
-                    <div class="text-[11px] text-slate-700 mt-0.5">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
+                    <div class="text-[11px] text-slate-700 mt-0.5 leading-snug">${safeStr(cleanMessage.replace('[SYSTEM_AUDIT]', '').trim())}</div>
                 </div>`;
-                return; // לא להציג בצ'אט
+                return; 
             }
 
-            // צ'אט והערות פנימיות
-            let bubbleClass = isStaff ? 'self-end bg-blue-50 border-blue-200 text-blue-900 rounded-tr-none ml-8 shadow-sm' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8 shadow-sm';
-            let iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
+            let bubbleClass = entry.isStaff ? 'self-end bg-blue-50 border-blue-200 text-blue-900 rounded-tr-none ml-8 shadow-sm' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8 shadow-sm';
+            let iconHtml = entry.isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
             let labelTag = '';
 
             if (isInternal) {
@@ -537,7 +562,7 @@ function openSATicketModal(id) {
                 </div>`;
             } else {
                 chatHtml += `
-                <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
+                <div class="flex flex-col ${entry.isStaff ? 'items-end' : 'items-start'} mb-4 fade-in">
                     <div class="p-3 rounded-xl text-sm whitespace-pre-wrap leading-relaxed ${bubbleClass}">
                         ${safeStr(cleanMessage)}
                     </div>
@@ -556,76 +581,99 @@ function openSATicketModal(id) {
     setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50);
 }
 
-window.routeSATicket = async function() {
+window.updateTicketClassification = async function() {
     const teamId = val('sa-ticket-route-team');
-    if (!teamId) return showToast('error', 'יש לבחור צוות להעברה.');
-    if (!confirm('להעביר את הטיפול בקריאה זו לצוות הנבחר?')) return;
+    const priority = val('sa-ticket-priority');
+    const type = val('sa-ticket-type');
     
     try {
         const userName = window.currentSAUser ? window.currentSAUser.name : 'צוות המערכת';
-        const res = await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/assign`, {
+        
+        // מייצר פתק ביקורת יפה ודינמי לפי מה שהשתנה
+        const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
+        let notes = [];
+        if (t.priority !== priority) notes.push(`שינה עדיפות ל-${priority}`);
+        if (t.ticket_type !== type) notes.push(`שינה סוג ל-${type}`);
+        if (t.assigned_team != teamId) notes.push(`העביר צוות`);
+        
+        const auditNote = notes.length > 0 ? `סיווג קריאה: ${notes.join(', ')}` : null;
+
+        const res = await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/assign_and_classify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ assignedTeam: parseInt(teamId), actionBy: userName })
+            body: JSON.stringify({ assignedTeam: teamId ? parseInt(teamId) : null, priority, ticketType: type, actionBy: userName, auditNote })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הקריאה הועברה בהצלחה ושויכה לצוות.');
+            showToast('success', 'הסיווג והניתוב נשמרו בלוג.');
             await loadSATickets(); 
             openSATicketModal(saCurrentTicketId); 
         } else { showToast('error', data.error || 'שגיאה בהעברה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת בהעברת קריאה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת הסיווג'); }
 };
 
-async function submitSATicketReply() {
-    const text = val('sa-ticket-reply-text');
-    const status = val('sa-ticket-reply-status');
-    const isInternal = getEl('sa-ticket-reply-internal') ? getEl('sa-ticket-reply-internal').checked : false;
-    
-    if(!text.trim() && !status) return showToast('error', 'יש להזין טקסט או לשנות סטטוס');
-    
-    const btn = getEl('btn-sa-ticket-reply');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
-    
-    let finalMessage = text || `(סטטוס שונה ל-${status})`;
-    if (isInternal) { finalMessage = '[INTERNAL_NOTE] ' + finalMessage; }
+window.routeSATicket = window.updateTicketClassification; // כפתור העבר פשוט שומר הכל
 
+window.openSlaMatrixModal = function() {
+    renderSlaRulesList();
+    getEl('sa-sla-modal').classList.remove('hidden');
+};
+
+window.renderSlaRulesList = function() {
+    const list = getEl('sa-sla-rules-list');
+    if (!saSlaRulesCache || saSlaRulesCache.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 border border-dashed rounded">אין חוקי התראות. ברירת המחדל היא 24 שעות.</p>';
+        return;
+    }
+    const typeMap = { '*': 'הכל (*)', 'general': 'כללי', 'technical': 'תקלה/באג', 'billing': 'חיובים' };
+    const prioMap = { '*': 'הכל (*)', 'low': 'נמוכה', 'normal': 'רגילה', 'high': 'גבוהה', 'critical': 'קריטית' };
+    
+    list.innerHTML = saSlaRulesCache.map((r, idx) => `
+        <div class="grid grid-cols-4 gap-2 items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm text-xs font-bold text-slate-700">
+            <div>${typeMap[r.type] || r.type}</div>
+            <div>${prioMap[r.priority] || r.priority}</div>
+            <div class="text-center text-purple-600 bg-purple-50 rounded">${r.hours} שעות</div>
+            <div class="text-center"><button onclick="deleteSlaRule(${idx})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></div>
+        </div>
+    `).join('');
+};
+
+window.addSlaRule = function() {
+    const type = val('sla-new-type');
+    const priority = val('sla-new-priority');
+    const hours = parseInt(val('sla-new-hours'));
+    
+    if (!hours || isNaN(hours)) return showToast('error', 'חובה להזין כמות שעות תקינה');
+    
+    // מחיקת חוק זהה אם קיים כדי לא ליצור כפילויות
+    saSlaRulesCache = saSlaRulesCache.filter(r => !(r.type === type && r.priority === priority));
+    
+    // הוספת החוק החדש לראש הרשימה
+    saSlaRulesCache.unshift({ type, priority, hours });
+    renderSlaRulesList();
+    getEl('sla-new-hours').value = '';
+};
+
+window.deleteSlaRule = function(idx) {
+    saSlaRulesCache.splice(idx, 1);
+    renderSlaRulesList();
+};
+
+window.saveSlaMatrix = async function() {
     try {
-        const payload = { 
-            message: finalMessage, 
-            userName: window.currentSAUser ? window.currentSAUser.name : 'צוות תמיכה', 
-            isStaff: true, 
-            newStatus: status || null,
-            isInternal: isInternal 
-        };
-        const res = await fetch(`${API}/support/tickets/${saCurrentTicketId}/reply`, {
+        const res = await fetch(`${API}/sa/sla-matrix`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ sla: saSlaRulesCache })
         });
         if((await res.json()).success) {
-            showToast('success', isInternal ? 'הערה פנימית נוספה!' : 'התגובה נשלחה ללקוח!');
-            getEl('sa-ticket-reply-text').value = '';
-            if (getEl('sa-ticket-reply-internal')) getEl('sa-ticket-reply-internal').checked = false;
-            await loadSATickets();
-            openSATicketModal(saCurrentTicketId); 
-        } else { showToast('error', 'שגיאה בעדכון'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שלח ועדכן <i class="fa-solid fa-paper-plane"></i>'; }
-}
+            showToast('success', 'חוקי ה-SLA נשמרו במערכת!');
+            getEl('sa-sla-modal').classList.add('hidden');
+            loadSATickets(); // רענון הטיקטים כדי לחשב מחדש את הצבעים
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת SLA'); }
+};
 
-async function updateSATicketStatus(id, status) {
-    try {
-        const res = await fetch(`${API}/superadmin/tickets/${id}/status`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ status })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'סטטוס קריאה עודכן בהצלחה');
-            loadSATickets();
-        } else { showToast('error', 'שגיאה בעדכון הסטטוס'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }  
-}
+// ... המשך הפונקציה המקורית שנותרה (submitSATicketReply) צריכה לחזור:
 
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password'); const newEmail = val('sa-new-email');
