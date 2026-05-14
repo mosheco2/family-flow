@@ -1314,44 +1314,47 @@
                 </div>
             </div>
             
-            <div class="flex justify-end gap-3">
+           <div class="flex justify-end gap-3">
                 <button onclick="saveSlaMatrix()" class="bg-purple-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-purple-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור מטריצה במסד</button>
             </div>
         </div>
     </div>
 
-    <button onclick="toggleInternalChat()" class="fixed bottom-6 left-6 w-14 h-14 bg-slate-800 text-white rounded-full shadow-2xl flex items-center justify-center text-2xl hover:bg-slate-700 transition-transform hover:scale-105 z-[9000]">
+    <button onclick="window.toggleInternalChat()" class="fixed bottom-6 left-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-[0_4px_20px_rgba(79,70,229,0.4)] flex items-center justify-center text-2xl hover:bg-indigo-700 transition-transform hover:scale-105 z-[99999]">
         <i class="fa-solid fa-comments"></i>
-        <span id="sa-chat-unread-badge" class="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-slate-800 hidden"></span>
+        <span id="sa-chat-unread-badge" class="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-indigo-600 hidden"></span>
     </button>
 
-    <div id="sa-internal-chat-widget" class="fixed bottom-24 left-6 w-[350px] h-[500px] bg-white rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-200 z-[9000] flex flex-col overflow-hidden transition-all duration-300 transform translate-y-8 opacity-0 pointer-events-none">
+    <div id="sa-internal-chat-widget" class="fixed bottom-24 left-6 w-[360px] h-[550px] bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-200 z-[99999] flex flex-col overflow-hidden transition-all duration-300 transform translate-y-8 opacity-0 pointer-events-none">
         
-        <div class="bg-slate-800 p-4 text-white shrink-0 flex justify-between items-center">
+        <div class="bg-indigo-600 p-4 text-white shrink-0 flex justify-between items-center shadow-md z-10 relative">
             <div>
-                <h3 class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-user-secret text-indigo-400"></i> התייעצות פנימית</h3>
-                <p class="text-[10px] text-slate-300">Internal Whispers</p>
+                <h3 id="sa-chat-header-title" class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-user-secret text-indigo-200"></i> התייעצות פנימית</h3>
+                <p class="text-[10px] text-indigo-200 font-medium tracking-wide">Internal Whispers</p>
             </div>
-            <button onclick="toggleInternalChat()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <button onclick="window.toggleInternalChat()" class="text-indigo-200 hover:text-white transition w-8 h-8 flex items-center justify-center bg-indigo-700 rounded-full"><i class="fa-solid fa-xmark"></i></button>
         </div>
         
-        <div class="flex bg-slate-100 p-1 text-[10px] font-bold text-slate-500 shrink-0 border-b border-slate-200">
-            <button onclick="switchChatRoom('general')" id="chat-tab-general" class="flex-1 py-1.5 rounded-md bg-white text-slate-800 shadow-sm transition">כללי</button>
-            <button onclick="switchChatRoom('support')" id="chat-tab-support" class="flex-1 py-1.5 rounded-md hover:text-slate-800 transition">תמיכה</button>
-            <button onclick="switchChatRoom('devops')" id="chat-tab-devops" class="flex-1 py-1.5 rounded-md hover:text-slate-800 transition">פיתוח ומוצר</button>
+        <div id="sa-chat-tabs-container" class="flex overflow-x-auto bg-slate-100 p-1 text-[10px] font-bold text-slate-500 shrink-0 border-b border-slate-200 no-scrollbar gap-1">
+            </div>
+
+        <div id="sa-chat-contacts" class="hidden flex-1 overflow-y-auto p-2 bg-slate-50/50 modal-scroll">
+            </div>
+        
+        <div id="sa-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 modal-scroll text-sm relative">
+            <div class="text-center text-slate-400 py-10 text-xs">טוען...</div>
         </div>
         
-        <div id="sa-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 modal-scroll text-sm">
-            <div class="text-center text-slate-400 py-10 text-xs">בחר חדר כדי לטעון הודעות...</div>
-        </div>
-        
-        <div class="p-3 bg-white border-t border-slate-100 shrink-0">
-            <form onsubmit="sendInternalChatMessage(event)" class="flex gap-2">
-                <input type="text" id="sa-chat-input" class="modern-input py-2 px-3 text-xs flex-1 bg-slate-50 border-slate-200" placeholder="הקלד הודעה..." autocomplete="off">
-                <button type="submit" id="btn-sa-chat-send" class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition shadow-sm shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+        <div id="sa-chat-input-area" class="p-3 bg-white border-t border-slate-100 shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] relative z-10">
+            <form onsubmit="window.sendInternalChatMessage(event)" class="flex gap-2">
+                <input type="text" id="sa-chat-input" class="modern-input py-2.5 px-3 text-xs flex-1 bg-slate-50 border-slate-200 focus:border-indigo-400 transition-all rounded-xl" placeholder="הקלד הודעה..." autocomplete="off">
+                <button type="submit" id="btn-sa-chat-send" class="bg-indigo-600 text-white w-11 h-11 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition shadow-sm shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
             </form>
         </div>
     </div>
+
+</body>
+</html>
 
 </body>
 </html>
