@@ -35,32 +35,24 @@ window.applyUserPermissions = function() {
     const perms = window.currentSAUser.permissions || [];
     const isMaster = perms.includes('all');
     
-    // מיפוי מדויק של ה-IDs של הטאבים ב-HTML להרשאה הדרושה להם
     const tabRequirements = {
-        'support': 'support',
-        'devops': 'devops',
-        'stats': 'stats',
-        'comm': 'comm',
-        'biz': 'biz',
-        'content': 'content',
-        'hr': 'users',
-        'inbox': 'marketing',
-        'partners': 'all' // רק מאסטר רואה שותפים
+        'support': 'support', 'devops': 'devops', 'stats': 'stats',
+        'comm': 'comm', 'biz': 'biz', 'content': 'content',
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all'
     };
 
     Object.keys(tabRequirements).forEach(tab => {
         const btn = getEl(`btn-sa-tab-${tab}`);
         if (!btn) return;
         
-        // מסירים את העמעום (opacity) הישן אם היה, מעכשיו זה רק גלוי או מוסתר
         btn.classList.remove('opacity-40'); 
         
         if (isMaster || perms.includes(tabRequirements[tab])) {
             btn.classList.remove('hidden');
-            btn.classList.add('flex-1'); // מחזיר אותו לגודל מלא בתפריט
+            btn.classList.add('flex'); // החזרת התצוגה כבלוק פלקס (לתפריט צד)
         } else {
             btn.classList.add('hidden');
-            btn.classList.remove('flex-1');
+            btn.classList.remove('flex');
         }
     });
 };
@@ -68,8 +60,6 @@ window.applyUserPermissions = function() {
 window.checkTabAccess = function(tabId) {
     if (!window.currentSAUser) return false;
     const perms = window.currentSAUser.permissions || [];
-    
-    // טאבים שפתוחים לכולם (דשבורד ולקוחות)
     if (perms.includes('all') || tabId === 'pulse' || tabId === 'clients') return true;
     
     const req = {
@@ -82,9 +72,18 @@ window.checkTabAccess = function(tabId) {
     return true;
 };
 
+// פתיחה וסגירה של סרגל הצד במסכי מובייל
+window.toggleMobileSidebar = function() {
+    const sidebar = document.getElementById('sa-sidebar');
+    const backdrop = document.getElementById('sa-sidebar-backdrop');
+    if (sidebar && backdrop) {
+        sidebar.classList.toggle('translate-x-full');
+        backdrop.classList.toggle('hidden');
+    }
+};
+
 window.updateSADashboard = async function() {
     try {
-        // משיכת כמות טיקטים פתוחים
         if (window.checkTabAccess('support')) {
             if (saTicketsCache.length === 0) {
                 const resT = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
@@ -97,7 +96,6 @@ window.updateSADashboard = async function() {
             if(getEl('dash-open-tickets')) getEl('dash-open-tickets').innerText = '🔒';
         }
         
-        // משיכת כמות משימות בפיתוח (קנבן)
         if (window.checkTabAccess('devops')) {
             if (typeof devKanbanTasks !== 'undefined' && devKanbanTasks.length === 0) {
                 const resK = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
@@ -110,7 +108,6 @@ window.updateSADashboard = async function() {
             if(getEl('dash-open-tasks')) getEl('dash-open-tasks').innerText = '🔒';
         }
 
-        // בקשות הצטרפות של עסקים
         if (window.checkTabAccess('comm')) {
             const resC = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
             const dataC = await resC.json();
@@ -155,35 +152,36 @@ async function handleSALogin(e) {
         } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת התחברות'); }
 }
+
 function logoutSA() {
-    saToken = null;
-    localStorage.removeItem('ofl_sa_token');
-    getEl('sa-dashboard-container').classList.add('hidden');
-    getEl('auth-container').classList.remove('hidden');
-    getEl('sa-code').value = '';
-    getEl('sa-password').value = '';
+    saToken = null;
+    localStorage.removeItem('ofl_sa_token');
+    getEl('sa-dashboard-container').classList.add('hidden');
+    getEl('auth-container').classList.remove('hidden');
+    getEl('sa-code').value = '';
+    getEl('sa-password').value = '';
 }
 
 window.switchSATab = function(tabId) {
-    // בדיקת הרשאות קשיחה לפני כל מעבר מסך
     if (typeof window.checkTabAccess === 'function' && !window.checkTabAccess(tabId)) {
-        return showToast('error', 'אין לך הרשאה לגשת למודול זה. אנא פנה למנהל המערכת.');
+        return showToast('error', 'אין לך הרשאה לגשת למודול זה.');
     }
 
-    if (tabId === 'pulse') updateSADashboard(); // עדכון נתוני הדשבורד בעת כניסה אליו
+    if (tabId === 'pulse') updateSADashboard();
 
-    // רשימה מלאה של כל הטאבים כפי שהם כתובים ב-HTML שלך
     const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
+    let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
+        
         if (view) view.classList.add('hidden');
+        
         if (btn) {
+            // איפוס עיצוב לכפתור לא פעיל (Dark Sidebar style)
             if (!btn.classList.contains('hidden')) {
-                btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
-                if (t === 'devops') btn.classList.add('mx-1');
-                if (t === 'support') btn.classList.add('ml-1');
+                btn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition items-center gap-3';
             }
         }
     });
@@ -192,22 +190,30 @@ window.switchSATab = function(tabId) {
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
     
     if (activeView) activeView.classList.remove('hidden');
+    
     if (activeBtn) {
-        if (tabId === 'pulse') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2 mx-1';
-        } else if(tabId === 'devops') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 rounded-xl transition shadow-sm mx-1 flex items-center justify-center gap-1';
-        } else if(tabId === 'support') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm ml-1 flex items-center justify-center gap-1';
-        } else if (tabId === 'inbox') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else if (tabId === 'partners') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm flex items-center justify-center gap-1';
-        } else {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+        // עיצוב כפתור פעיל מודרני
+        activeBtn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition items-center gap-3';
+        activeTabTitle = activeBtn.innerText.trim();
+    }
+
+    // עדכון כותרת בסרגל העליון (Topbar)
+    const topbarTitle = document.getElementById('sa-topbar-title');
+    if (topbarTitle) topbarTitle.innerText = activeTabTitle;
+
+    // עדכון שם משתמש
+    const topUser = document.getElementById('topbar-user-name');
+    if (topUser && window.currentSAUser) topUser.innerText = window.currentSAUser.name || 'Super Admin';
+
+    // סגירת התפריט במובייל לאחר בחירת מסך
+    if (window.innerWidth < 768) {
+        const sidebar = document.getElementById('sa-sidebar');
+        if (sidebar && !sidebar.classList.contains('translate-x-full')) {
+            window.toggleMobileSidebar();
         }
     }
 
+    // טעינת נתונים פר טאב
     if (tabId === 'dashboard') updateSADashboard();
     if (tabId === 'hr') loadSAHRData();
     if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
