@@ -35,7 +35,11 @@ window.applyUserPermissions = function() {
     const perms = window.currentSAUser.permissions || [];
     const isMaster = perms.includes('all');
     
+    // הוספנו את הטאבים ה"פתוחים" למפת ההרשאות כדי שהלולאה תסיר מהם את ה-hidden
     const tabRequirements = {
+        'pulse': 'open',
+        'dashboard': 'open',
+        'clients': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all'
@@ -47,9 +51,10 @@ window.applyUserPermissions = function() {
         
         btn.classList.remove('opacity-40'); 
         
-        if (isMaster || perms.includes(tabRequirements[tab])) {
+        // מוצג אם זה מאסטר, אם הטאב פתוח לכולם, או אם יש למשתמש הרשאה ספציפית
+        if (isMaster || tabRequirements[tab] === 'open' || perms.includes(tabRequirements[tab])) {
             btn.classList.remove('hidden');
-            btn.classList.add('flex'); // החזרת התצוגה כבלוק פלקס (לתפריט צד)
+            btn.classList.add('flex'); // תצוגת בלוק פלקס ל-Sidebar
         } else {
             btn.classList.add('hidden');
             btn.classList.remove('flex');
@@ -60,7 +65,9 @@ window.applyUserPermissions = function() {
 window.checkTabAccess = function(tabId) {
     if (!window.currentSAUser) return false;
     const perms = window.currentSAUser.permissions || [];
-    if (perms.includes('all') || tabId === 'pulse' || tabId === 'clients') return true;
+    
+    // מעודכן לאפשר גישה גם לדשבורד
+    if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients') return true;
     
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
