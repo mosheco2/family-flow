@@ -314,493 +314,89 @@ tr:hover td{background:#fafbfc}
 
 <script>
 // ============================================================
-// DATA — TEST DEFINITIONS
+<script>
 // ============================================================
-const SECTIONS = [
-// ===== AUTH =====
-{id:'auth', icon:'fa-key', color:'#3b82f6', title:'אימות ומשתמשים',
- tests:[
-  {id:'AUTH-01',name:'הרשמה — קבוצה משפחתית חדשה',desc:'טופס הרשמה, שליחה, קבלת קוד קבוצה',prio:'critical',envs:['family']},
-  {id:'AUTH-02',name:'הרשמה — קבוצה עסקית חדשה',desc:'סוג BUSINESS, שליחה, קבלת קוד',prio:'critical',envs:['biz']},
-  {id:'AUTH-03',name:'התחברות — מנהל קבוצה',desc:'מייל + סיסמה, טעינת נתונים נכונה',prio:'critical',envs:['all']},
-  {id:'AUTH-04',name:'התחברות — חבר/עובד רגיל',desc:'קוד קבוצה + שם משתמש + סיסמה',prio:'critical',envs:['all']},
-  {id:'AUTH-05',name:'שחזור קוד גישה',desc:'שליחת מייל עם קוד, כניסה מחדש',prio:'high',envs:['all']},
-  {id:'AUTH-06',name:'הצטרפות לקבוצה קיימת',desc:'קוד קבוצה תקין, יצירת משתמש חדש',prio:'critical',envs:['all']},
-  {id:'AUTH-07',name:'אישור משתמש ממתין — מנהל',desc:'רשימת pending, אישור, עדכון סטטוס',prio:'high',envs:['all']},
-  {id:'AUTH-08',name:'שינוי סיסמה',desc:'סיסמה ישנה, חדשה, אישור',prio:'medium',envs:['all']},
-  {id:'AUTH-09',name:'הרשאות — הגדרת לשוניות גישה',desc:'מנהל שולט אילו לשוניות רואים חברים',prio:'high',envs:['all']},
-  {id:'AUTH-10',name:'מחיקת משתמש',desc:'אישור מחיקה, הסרה מהמערכת',prio:'medium',envs:['all']},
-  {id:'AUTH-11',name:'לוגו קבוצה — העלאה',desc:'בחירת תמונה, שמירה, הצגה בממשק',prio:'low',envs:['all']},
-  {id:'AUTH-12',name:'ניתוק (logout)',desc:'ניקוי session, הפנייה למסך כניסה',prio:'medium',envs:['all']},
-  {id:'AUTH-13',name:'הזמנה חכמה עם תפקיד קבוע מראש',desc:'קישור עם role=MANAGER/MEMBER, משתמש מצטרף עם התפקיד הנכון',prio:'high',envs:['biz']},
-  {id:'AUTH-14',name:'חסימת כניסה כפולה — אותו משתמש',desc:'session קיים, מנסים להיכנס שוב',prio:'medium',envs:['all']},
-  {id:'AUTH-15',name:'תוקף session — פקיעה אוטומטית',desc:'session פג, הפניה לדף כניסה',prio:'high',envs:['all']},
- ]},
-
-// ===== ONBOARD =====
-{id:'onboard', icon:'fa-wand-magic-sparkles', color:'#8b5cf6', title:'אשף הכניסה (Onboarding)',
- tests:[
-  {id:'ONBD-01',name:'אשף — הצגה בכניסה ראשונה',desc:'קבוצה חדשה, אשף נטען אוטומטית',prio:'critical',envs:['all']},
-  {id:'ONBD-02',name:'אשף — שלב 1: שם ולוגו קבוצה',desc:'מילוי שם, העלאת לוגו, המשך',prio:'high',envs:['all']},
-  {id:'ONBD-03',name:'אשף — שלב 2: הגדרת תקציב (משפחה)',desc:'הגדרת קטגוריות, סכומים, שמירה',prio:'high',envs:['family']},
-  {id:'ONBD-04',name:'אשף — שלב 2: הגדרת חנות (עסק)',desc:'שם חנות, קטגוריה, הפעלה',prio:'high',envs:['biz']},
-  {id:'ONBD-05',name:'אשף — שלב 3: הזמנת חברים/עובדים',desc:'שליחת קישור הצטרפות, קוד קבוצה',prio:'high',envs:['all']},
-  {id:'ONBD-06',name:'אשף — דילוג על שלב',desc:'לחיצה על "דלג", שמירת מה שנמלא',prio:'medium',envs:['all']},
-  {id:'ONBD-07',name:'אשף — סיום ומעבר לדשבורד',desc:'סיום אשף, מעבר לממשק הראשי',prio:'critical',envs:['all']},
-  {id:'ONBD-08',name:'אשף — הפעלה מחדש מהגדרות',desc:'כפתור "אפס אשף" בפרופיל, חזרה לשלב 1',prio:'low',envs:['all']},
- ]},
-
-// ===== FAMILY =====
-{id:'family', icon:'fa-house', color:'#22c55e', title:'סביבת משפחה — לשוניות ראשיות',
- tests:[
-  {id:'FAM-01',name:'Feed — טעינת פיד ראשי',desc:'הצגת עדכונים, קיצורי דרך, AI insight',prio:'critical',envs:['family']},
-  {id:'FAM-02',name:'Feed — כרטיסי קיצור דרך',desc:'קיצורי דרך מובילים לפעולות מהירות',prio:'medium',envs:['family']},
-  {id:'FAM-03',name:'רשימת קניות — הוספת פריט',desc:'שם, כמות, יחידה, שמירה ברשימה',prio:'critical',envs:['family']},
-  {id:'FAM-04',name:'רשימת קניות — עדכון פריט',desc:'עריכת שם, כמות, מחיר',prio:'high',envs:['family']},
-  {id:'FAM-05',name:'רשימת קניות — מחיקה וניקוי',desc:'מחיקה בודדת, ניקוי כל הרשימה',prio:'high',envs:['family']},
-  {id:'FAM-06',name:'סיום קנייה (checkout)',desc:'סיכום, שם חנות, שמירה בהיסטוריה, עדכון מזווה',prio:'critical',envs:['family']},
-  {id:'FAM-07',name:'סריקת קבלה — AI Vision',desc:'צילום/העלאת קבלה, חילוץ פריטים, הוספה',prio:'high',envs:['family']},
-  {id:'FAM-08',name:'מזווה — הוספת פריט',desc:'שם, כמות, יחידה, פג תוקף',prio:'high',envs:['family']},
-  {id:'FAM-09',name:'מזווה — שימוש בפריט',desc:'הפחתת כמות, עדכון המלאי',prio:'medium',envs:['family']},
-  {id:'FAM-10',name:'מזווה — AI insight',desc:'ניתוח מלאי ע"י AI, המלצות',prio:'medium',envs:['family']},
-  {id:'FAM-11',name:'תקציב — הגדרת קטגוריות',desc:'סכומים לכל קטגוריה, שמירה',prio:'high',envs:['family']},
-  {id:'FAM-12',name:'תקציב — מעקב הוצאות',desc:'הצגת ביצוע מול תכנון, אחוזים',prio:'high',envs:['family']},
-  {id:'FAM-13',name:'Cash Flow — הוספת תנועה',desc:'הכנסה/הוצאה, קטגוריה, תאריך, תיאור',prio:'critical',envs:['family']},
-  {id:'FAM-14',name:'Cash Flow — עריכה ומחיקה',desc:'עדכון פרטי תנועה, אישור מחיקה',prio:'high',envs:['family']},
-  {id:'FAM-15',name:'תנועה חוזרת (recurring)',desc:'הגדרת תדירות, יצירה אוטומטית',prio:'medium',envs:['family']},
-  {id:'FAM-16',name:'תחזית פיננסית — AI',desc:'ניתוח מגמות, תחזית חודש הבא',prio:'medium',envs:['family']},
-  {id:'FAM-17',name:'הלוואות — בקשת הלוואה (ילד)',desc:'סכום, סיבה, שליחה לאישור הורה',prio:'high',envs:['family']},
-  {id:'FAM-18',name:'הלוואות — אישור/דחייה (הורה)',desc:'הורה רואה בקשות, אישור/דחייה',prio:'high',envs:['family']},
-  {id:'FAM-19',name:'מטרות חיסכון — יצירה',desc:'שם מטרה, סכום יעד, תאריך',prio:'medium',envs:['family']},
-  {id:'FAM-20',name:'מטרות — הפקדה',desc:'סכום הפקדה, עדכון התקדמות',prio:'medium',envs:['family']},
-  {id:'FAM-21',name:'משימות — יצירת משימה לילד',desc:'כותרת, מבצע, מועד, ניקוד',prio:'high',envs:['family']},
-  {id:'FAM-22',name:'משימות — אימות ע"י AI Vision',desc:'צילום הוכחה, בדיקת AI, אישור/דחייה',prio:'high',envs:['family']},
-  {id:'FAM-23',name:'אקדמיה — הקצאת חבילת קווי',desc:'בחירת חבילה, הקצאה לחבר',prio:'medium',envs:['family']},
-  {id:'FAM-24',name:'אקדמיה — מענה על שאלון',desc:'בחירת תשובה, שמירת ניקוד',prio:'medium',envs:['family']},
-  {id:'FAM-25',name:'שף AI — יצירת מתכון',desc:'מרכיבים, העדפות, קבלת מתכון',prio:'medium',envs:['family']},
-  {id:'FAM-26',name:'ניהול חברים — הוספה/עריכה',desc:'פרטי חבר, תפקיד, הרשאות',prio:'high',envs:['family']},
-  {id:'FAM-27',name:'balance — יתרה אישית לכל חבר',desc:'כל חבר רואה את יתרתו האישית',prio:'high',envs:['family']},
-  {id:'FAM-28',name:'הודעות קבוצתיות (inbox)',desc:'קריאת הודעה, סימון כנקרא',prio:'medium',envs:['family']},
-  {id:'FAM-29',name:'פרופיל אישי — עריכה',desc:'שם, תמונה, סיסמה, שמירה',prio:'medium',envs:['family']},
-  {id:'FAM-30',name:'Feed — בדיקת AI insight אוטומטי',desc:'תובנה AI מוצגת בדשבורד הראשי',prio:'medium',envs:['family']},
- ]},
-
-// ===== BIZ =====
-{id:'biz', icon:'fa-briefcase', color:'#f59e0b', title:'סביבת עסק — לשוניות ראשיות',
- tests:[
-  {id:'BIZ-01',name:'Feed עסקי — דשבורד ראשי',desc:'KPIs, התראות, פעולות מהירות',prio:'critical',envs:['biz']},
-  {id:'BIZ-02',name:'שעון נוכחות — כניסה לעבודה',desc:'לחיצה על כניסה, שמירת שעה ומיקום',prio:'critical',envs:['biz']},
-  {id:'BIZ-03',name:'שעון נוכחות — יציאה מעבודה',desc:'לחיצה על יציאה, חישוב שעות',prio:'critical',envs:['biz']},
-  {id:'BIZ-04',name:'שעון נוכחות — דוח נוכחות',desc:'טווח תאריכים, פירוט שעות לפי עובד',prio:'high',envs:['biz']},
-  {id:'BIZ-05',name:'שעון — רישום ידני (מנהל)',desc:'עובד, תאריך, שעת כניסה/יציאה',prio:'medium',envs:['biz']},
-  {id:'BIZ-06',name:'קלנדר — הגדרות שירות',desc:'שם שירות, משך, מחיר, הגדרת זמינות',prio:'high',envs:['biz']},
-  {id:'BIZ-07',name:'קלנדר — תור חדש (מנהל)',desc:'לקוח, שירות, תאריך/שעה, שמירה',prio:'high',envs:['biz']},
-  {id:'BIZ-08',name:'קלנדר — אישור/ביטול תור',desc:'לקוח שלח בקשה, מנהל מאשר/מבטל',prio:'high',envs:['biz']},
-  {id:'BIZ-09',name:'קלנדר — הזמנת תור מהחנות הציבורית',desc:'לקוח בוחר שירות ושעה, שמירה',prio:'high',envs:['biz']},
-  {id:'BIZ-10',name:'ניתוח מכירות — Analytics',desc:'גרפים, מוצרים מובילים, ממוצע הזמנה',prio:'medium',envs:['biz']},
-  {id:'BIZ-10',name:'ניתוח מכירות — Analytics',desc:'גרפים, מוצרים מובילים, ממוצע הזמנה',prio:'medium',envs:['biz']},
-  {id:'BIZ-11',name:'CRM — הוספת לקוח',desc:'שם, טלפון, מייל, הערות',prio:'high',envs:['biz']},
-  {id:'BIZ-12',name:'CRM — היסטוריית רכישות',desc:'תצוגת כל הזמנות לקוח',prio:'medium',envs:['biz']},
-  {id:'BIZ-13',name:'הצעת מחיר — יצירה',desc:'בחירת לקוח, פריטים מהקטלוג, שליחה',prio:'high',envs:['biz']},
-  {id:'BIZ-14',name:'הצעת מחיר — אישור להזמנה',desc:'הצעה מאושרת הופכת להזמנה פעילה',prio:'high',envs:['biz']},
-  {id:'BIZ-15',name:'משלוחים — הוספת משלוח',desc:'לקוח, כתובת, פריטים, סטטוס',prio:'high',envs:['biz']},
-  {id:'BIZ-16',name:'משלוחים — עדכון סטטוס',desc:'ממתין→יצא→נמסר',prio:'high',envs:['biz']},
-  {id:'BIZ-17',name:'עלויות מזון — מתכון לפריט',desc:'מרכיבים, כמויות, חישוב עלות',prio:'medium',envs:['biz']},
-  {id:'BIZ-18',name:'ניהול עובדים — הוספת עובד',desc:'שם, תפקיד, הרשאות, הצטרפות',prio:'high',envs:['biz']},
-  {id:'BIZ-19',name:'ניהול עובדים — עריכה/מחיקה',desc:'שינוי תפקיד, הסרה מהמערכת',prio:'high',envs:['biz']},
-  {id:'BIZ-20',name:"צ'אט צוות",desc:'שליחת הודעה, קבלה אצל כל החברים',prio:'medium',envs:['biz']},
-  {id:'BIZ-21',name:'תיבת דואר נכנס',desc:'קריאת הודעות, סימון כנקרא, מחיקה',prio:'medium',envs:['biz']},
-  {id:'BIZ-22',name:'יום משכורת — עיבוד',desc:'הפעלת יום משכורת, עדכון יתרות',prio:'high',envs:['biz']},
-  {id:'BIZ-23',name:'מזווה עסקי — הוספת פריט',desc:'שם, כמות, יחידה, תאריך תפוגה',prio:'high',envs:['biz']},
-  {id:'BIZ-24',name:'מזווה עסקי — שימוש/הפחתה',desc:'כמות יורדת, אזהרת מלאי נמוך',prio:'high',envs:['biz']},
-  {id:'BIZ-25',name:'אבחון עסקי — AI BizChat',desc:'שאלה עסקית, קבלת תשובה רלוונטית',prio:'medium',envs:['biz']},
-  {id:'BIZ-26',name:'ניתוח מכירות — סינון לפי תקופה',desc:'בחירת חודש/רבעון, רענון נתונים',prio:'medium',envs:['biz']},
-  {id:'BIZ-27',name:'cash flow עסקי — הוספת תנועה',desc:'הכנסה/הוצאה, קטגוריה, תאריך',prio:'critical',envs:['biz']},
-  {id:'BIZ-28',name:'הגדרות קבוצה — עדכון פרטים',desc:'שם עסק, כתובת, טלפון, שמירה',prio:'medium',envs:['biz']},
-  {id:'BIZ-29',name:'לוח מחוונים — KPI עדכני',desc:'סה"כ הכנסות חודשיות, הזמנות, לקוחות',prio:'high',envs:['biz']},
-  {id:'BIZ-30',name:'תזמון מנוחות — ניהול הפסקות',desc:'הגדרת מנוחה, שמירה בשעון נוכחות',prio:'low',envs:['biz']},
- ]},
-
-// ===== STORE =====
-{id:'store', icon:'fa-store', color:'#8b5cf6', title:'חנות, קטלוג ו-Storefront',
- tests:[
-  {id:'STR-01',name:'הגדרות חנות — הפעלה/כיבוי',desc:'toggle is_active, בדיקת storefront',prio:'critical',envs:['biz']},
-  {id:'STR-02',name:'הגדרות חנות — שם, לוגו, באנר',desc:'שמירה והצגה ב-storefront',prio:'high',envs:['biz']},
-  {id:'STR-03',name:'הגדרות — שעות פתיחה',desc:'שמירה והצגה בדף החנות',prio:'medium',envs:['biz']},
-  {id:'STR-04',name:'הגדרות — כינוי URL (alias)',desc:'שמירת alias, גישה דרכו',prio:'high',envs:['biz']},
-  {id:'STR-05',name:'קטלוג — הוספת מוצר פשוט',desc:'שם, מחיר, קטגוריה, תמונה',prio:'critical',envs:['biz']},
-  {id:'STR-06',name:'קטלוג — עריכת מוצר',desc:'עדכון שם/מחיר/תיאור/תמונה',prio:'high',envs:['biz']},
-  {id:'STR-07',name:'קטלוג — הסתרת מוצר',desc:'toggle is_available, נעלם מ-storefront',prio:'high',envs:['biz']},
-  {id:'STR-08',name:'קטלוג — מחיקת מוצר',desc:'אישור, הסרה מהקטלוג',prio:'medium',envs:['biz']},
-  {id:'STR-09',name:'קטלוג — מוצר complex_builder',desc:'הגדרת אפשרויות, בחירה ב-POS',prio:'high',envs:['biz']},
-  {id:'STR-10',name:'קטלוג — AI תיאור מוצר',desc:'שם מוצר, קבלת תיאור שיווקי',prio:'medium',envs:['biz']},
-  {id:'STR-11',name:'קטלוג — AI יצירת קטלוג שלם',desc:'תיאור עסק, קבלת 6-10 מוצרים',prio:'medium',envs:['biz']},
-  {id:'STR-12',name:'ספר מוצרים (catalog.html)',desc:'טעינת נתונים, חיפוש, סינון, PDF',prio:'high',envs:['biz']},
-  {id:'STR-13',name:'Storefront — טעינה דרך קוד',desc:'?store=CODE, הצגת מוצרים זמינים',prio:'critical',envs:['biz']},
-  {id:'STR-14',name:'Storefront — טעינה דרך alias',desc:'?store=ALIAS, אותה תוצאה',prio:'high',envs:['biz']},
-  {id:'STR-15',name:'Storefront — הוספה לסל',desc:'בחירת מוצר, כמות, עדכון סל',prio:'critical',envs:['biz']},
-  {id:'STR-16',name:'Storefront — מוצר עם אפשרויות',desc:'בחירת variants, הוספה לסל',prio:'high',envs:['biz']},
-  {id:'STR-17',name:'Storefront — checkout',desc:'פרטי לקוח, שליחת הזמנה',prio:'critical',envs:['biz']},
-  {id:'STR-18',name:'Storefront — קופון',desc:'הזנת קוד, החלת הנחה',prio:'high',envs:['biz']},
-  {id:'STR-19',name:'הזמנות — עדכון סטטוס',desc:'ממתינה→מאושרת→הושלמה',prio:'high',envs:['biz']},
-  {id:'STR-20',name:'קופונים — יצירה',desc:'קוד, אחוז/סכום, תאריך תפוגה',prio:'high',envs:['biz']},
-  {id:'STR-21',name:'קופונים — שימוש ותפוגה',desc:'קופון פג תוקף מסורב',prio:'medium',envs:['biz']},
-  {id:'STR-22',name:'מבצעים — יצירה',desc:'שם, תמונה, טקסט, הפעלה',prio:'medium',envs:['biz']},
-  {id:'STR-23',name:'מבצעים — הצגה ב-storefront',desc:'באנר מבצע מופיע/נעלם לפי toggle',prio:'medium',envs:['biz']},
- ]},
-
-// ===== POS =====
-{id:'pos', icon:'fa-cash-register', color:'#0ea5e9', title:'קופה (POS)',
- tests:[
-  {id:'POS-01',name:'פתיחת קופה',desc:'הגדרת מזומן פתיחה, שמירה',prio:'critical',envs:['biz']},
-  {id:'POS-02',name:'בחירת פריטים — חיפוש',desc:'חיפוש לפי שם, הוספה לסל',prio:'critical',envs:['biz']},
-  {id:'POS-03',name:'בחירת פריטים — סריקת ברקוד',desc:'סריקה, זיהוי מוצר, הוספה',prio:'high',envs:['biz']},
-  {id:'POS-04',name:'עדכון כמות בסל',desc:'הגדלה/הקטנה, עדכון סכום',prio:'high',envs:['biz']},
-  {id:'POS-05',name:'הסרת פריט מהסל',desc:'לחיצה על מחיקה, עדכון סה"כ',prio:'high',envs:['biz']},
-  {id:'POS-06',name:'תשלום במזומן',desc:'סכום שהתקבל, עודף, סיום',prio:'critical',envs:['biz']},
-  {id:'POS-07',name:'תשלום באשראי',desc:'אשראי, ניקוב, אישור',prio:'critical',envs:['biz']},
-  {id:'POS-08',name:'תשלום מעורב',desc:'חלק מזומן + חלק אשראי',prio:'high',envs:['biz']},
-  {id:'POS-09',name:'הפקת קבלה — הדפסה',desc:'פתיחת חלון הדפסה, קבלה תקינה',prio:'high',envs:['biz']},
-  {id:'POS-10',name:'הפקת קבלה — שליחת SMS',desc:'שם, טלפון, שליחה',prio:'medium',envs:['biz']},
-  {id:'POS-11',name:'קופון/הנחה ב-POS',desc:'הזנת קוד קופון, החלת הנחה',prio:'high',envs:['biz']},
-  {id:'POS-12',name:'הנחה ידנית על פריט',desc:'אחוז/סכום ידני, אישור מנהל',prio:'medium',envs:['biz']},
-  {id:'POS-13',name:'החזרת מוצר (refund)',desc:'פתיחת עסקה, בחירת פריטים, זיכוי',prio:'high',envs:['biz']},
-  {id:'POS-14',name:'סגירת קופה',desc:'ספירת מזומן, סיכום, שמירה',prio:'critical',envs:['biz']},
-  {id:'POS-15',name:'דוח קופה יומי',desc:'סה"כ מזומן/אשראי, הזמנות, הדפסה',prio:'high',envs:['biz']},
- ]},
-
-// ===== B2B =====
-{id:'b2b', icon:'fa-truck', color:'#06b6d4', title:'רכש, ספקים ו-B2B',
- tests:[
-  {id:'B2B-01',name:'ספקים — הוספת ספק',desc:'שם, טלפון, מייל, שמירה',prio:'high',envs:['biz']},
-  {id:'B2B-02',name:'ספקים — קטלוג ספק',desc:'הוספת מוצר לספק, מחיר, SKU',prio:'high',envs:['biz']},
-  {id:'B2B-03',name:'רכש — הזמנה חדשה',desc:'בחירת ספק, פריטים, כמויות',prio:'critical',envs:['biz']},
-  {id:'B2B-04',name:'רכש — קבלת הזמנה',desc:'אישור קבלה, עדכון מלאי',prio:'critical',envs:['biz']},
-  {id:'B2B-05',name:'רכש — עדכון סטטוס',desc:'טיוטה→נשלחה→התקבלה',prio:'high',envs:['biz']},
-  {id:'B2B-06',name:'רכש — היסטוריית הזמנות',desc:'רשימת הזמנות עבר, פירוט',prio:'medium',envs:['biz']},
-  {id:'B2B-07',name:'B2B — קטלוג B2B',desc:'הצגת מוצרים לעסקים אחרים',prio:'medium',envs:['biz','comm']},
-  {id:'B2B-08',name:'B2B — הזמנה מעסק אחר',desc:'בחירת מוצרים, שליחת הזמנה',prio:'medium',envs:['biz','comm']},
-  {id:'B2B-09',name:'רכש — רשימת קנייה ← מלאי',desc:'רשימת קנייה מתמלאת ממלאי חסר',prio:'medium',envs:['biz']},
-  {id:'B2B-10',name:'ספקים — עריכה ומחיקה',desc:'עדכון פרטי ספק, אישור מחיקה',prio:'medium',envs:['biz']},
-  {id:'B2B-11',name:'רכש — ייצוא לPDF',desc:'הזמנת רכש כמסמך PDF לשליחה',prio:'low',envs:['biz']},
-  {id:'B2B-12',name:'B2B — הנחת קהילה ברכש',desc:'עסק בקהילה מקבל הנחה בהזמנה',prio:'medium',envs:['biz','comm']},
- ]},
-
-// ===== FINANCE =====
-{id:'finance', icon:'fa-shekel-sign', color:'#10b981', title:'פיננסים ותקציב',
- tests:[
-  {id:'FIN-01',name:'תנועות — הוספת הכנסה',desc:'סכום, קטגוריה, תיאור, תאריך',prio:'critical',envs:['family','biz']},
-  {id:'FIN-02',name:'תנועות — הוספת הוצאה',desc:'סכום, קטגוריה, תיאור, תאריך',prio:'critical',envs:['family','biz']},
-  {id:'FIN-03',name:'תנועות — עריכה',desc:'שינוי סכום/קטגוריה/תאריך',prio:'high',envs:['family','biz']},
-  {id:'FIN-04',name:'תנועות — מחיקה',desc:'אישור, הסרה, עדכון מאזן',prio:'high',envs:['family','biz']},
-  {id:'FIN-05',name:'תנועה חוזרת — הגדרה',desc:'תדירות, תאריך התחלה/סיום',prio:'medium',envs:['family','biz']},
-  {id:'FIN-06',name:'תקציב — הגדרה לפי קטגוריה',desc:'סכום לקטגוריה, שמירה',prio:'high',envs:['family','biz']},
-  {id:'FIN-07',name:'תקציב — חריגה',desc:'הצגת אזהרה בחריגה מתקציב',prio:'high',envs:['family','biz']},
-  {id:'FIN-08',name:'Cash Flow — גרף חודשי',desc:'הצגת הכנסות/הוצאות, יתרה',prio:'medium',envs:['family','biz']},
-  {id:'FIN-09',name:'Cash Flow — ייצוא/הדפסה',desc:'PDF / הדפסה של דוח',prio:'low',envs:['family','biz']},
-  {id:'FIN-10',name:'תחזית — AI insight',desc:'ניתוח מגמות, תחזית עתידית',prio:'medium',envs:['family','biz']},
-  {id:'FIN-11',name:'התאמת מאזן — מנהל',desc:'הוספה/הסרה ידנית, תיעוד',prio:'medium',envs:['biz']},
-  {id:'FIN-12',name:'יום משכורת — עיבוד',desc:'עדכון מאזן לכל חברי הקבוצה',prio:'high',envs:['biz']},
- ]},
-
-// ===== INVENTORY =====
-{id:'inventory', icon:'fa-boxes-stacked', color:'#f97316', title:'מלאי, רכש וקניות',
- tests:[
-  {id:'INV-01',name:'רשימת קניות — הוספה בודדת',desc:'שם, כמות, יחידה',prio:'critical',envs:['family','biz']},
-  {id:'INV-02',name:'רשימת קניות — הוספה מהיסטוריה',desc:'ייבוא רשימה קודמת',prio:'medium',envs:['family']},
-  {id:'INV-03',name:'סיום קנייה — עדכון מזווה',desc:'פריטים שנקנו עוברים למלאי',prio:'critical',envs:['family','biz']},
-  {id:'INV-04',name:'מלאי — חיפוש מחיר היסטורי',desc:'מציג מחיר זול ביותר לפריט',prio:'medium',envs:['family']},
-  {id:'INV-05',name:'מלאי — הוספה ידנית',desc:'שם, כמות, יחידה, תאריך תפוגה',prio:'high',envs:['family','biz']},
-  {id:'INV-06',name:'מלאי — שימוש/הפחתה',desc:'כמות יורדת, אזהרת מלאי נמוך',prio:'high',envs:['family','biz']},
-  {id:'INV-07',name:'מלאי — AI insight',desc:'ניתוח מלאי, המלצות',prio:'medium',envs:['family','biz']},
-  {id:'INV-08',name:'סריקת ברקוד',desc:'זיהוי מוצר ממסד גלובלי',prio:'medium',envs:['family','biz']},
-  {id:'INV-09',name:'סריקת קבלה — חילוץ פריטים',desc:'AI Vision, דיוק חילוץ',prio:'high',envs:['family','biz']},
-  {id:'INV-10',name:'היסטוריית קניות',desc:'רשימת טיולים, פריטים, מחירים',prio:'medium',envs:['family']},
-  {id:'INV-11',name:'מלאי — התראה על פג תוקף',desc:'הצגת פריטים שפגי תוקף בקרוב',prio:'high',envs:['family','biz']},
-  {id:'INV-12',name:'מלאי — ייצוא רשימה',desc:'CSV/PDF של רשימת המלאי הנוכחית',prio:'low',envs:['biz']},
- ]},
-
-// ===== AI =====
-{id:'ai', icon:'fa-robot', color:'#a855f7', title:"AI ופיצ'רים חכמים",
- tests:[
-  {id:'AI-01',name:'familAI — תובנות תקציב',desc:'קריאה לשרת, קבלת ניתוח בעברית',prio:'high',envs:['family','biz']},
-  {id:'AI-02',name:'familAI — תובנות מלאי/מזווה',desc:'ניתוח מלאי, זיהוי מחסור',prio:'high',envs:['family','biz']},
-  {id:'AI-03',name:'AI — תיאור מוצר',desc:'שם מוצר → תיאור שיווקי',prio:'medium',envs:['biz']},
-  {id:'AI-04',name:'AI — יצירת קטלוג',desc:'תיאור עסק → 6-10 מוצרים',prio:'medium',envs:['biz']},
-  {id:'AI-05',name:'שף AI — מתכון ממרכיבים',desc:'בחירת מרכיבים, קבלת מתכון',prio:'medium',envs:['family']},
-  {id:'AI-06',name:'AI — אימות משימה (Vision)',desc:'תמונה → אישור ביצוע',prio:'high',envs:['family','biz']},
-  {id:'AI-07',name:'AI — עוזר עסקי (BizChat)',desc:'שאלה עסקית, קבלת תשובה רלוונטית',prio:'medium',envs:['biz']},
-  {id:'AI-08',name:'AI — עוזר משפחתי (FamChat)',desc:'שאלה, קבלת תשובה מותאמת',prio:'medium',envs:['family']},
-  {id:'AI-09',name:'AI — מדריך (Guide Chat)',desc:'שאלות על המערכת, עזרה',prio:'low',envs:['all']},
-  {id:'AI-10',name:'AI — מניעת תגובה ריקה',desc:'גמר tokens מציג הודעת שגיאה',prio:'high',envs:['all']},
-  {id:'AI-11',name:'AI — יצירת תמונה',desc:'תיאור, קבלת תמונה, שמירה',prio:'medium',envs:['biz']},
-  {id:'AI-12',name:'AI — יצירת משימות',desc:'הקשר, קבלת רשימת משימות',prio:'medium',envs:['family','biz']},
-  {id:'AI-13',name:'AI — ייעוץ מטרות חיסכון',desc:'מטרה, קבלת עצות AI',prio:'low',envs:['family']},
-  {id:'AI-14',name:'AI — טעינה חלקית (streaming)',desc:'הטקסט מופיע בזרם, לא בבת אחת',prio:'medium',envs:['all']},
-  {id:'AI-15',name:'AI — זיכרון שיחה בתוך session',desc:'AI זוכר הקשר מהודעות קודמות',prio:'medium',envs:['all']},
- ]},
-
-// ===== CALENDAR =====
-{id:'calendar', icon:'fa-calendar', color:'#0ea5e9', title:'יומן, תורים והזמנות',
- tests:[
-  {id:'CAL-01',name:'הגדרות קלנדר — הפעלה',desc:'toggle, הצגת כפתור בחנות',prio:'high',envs:['biz']},
-  {id:'CAL-02',name:'שירות — הוספה',desc:'שם, משך, מחיר, שמירה',prio:'high',envs:['biz']},
-  {id:'CAL-03',name:'שירות — עריכה',desc:'עדכון שם, משך, מחיר',prio:'medium',envs:['biz']},
-  {id:'CAL-04',name:'שירות — מחיקה',desc:'אישור, הסרה מהרשימה',prio:'medium',envs:['biz']},
-  {id:'CAL-05',name:'תור — יצירה על ידי מנהל',desc:'לקוח, שירות, תאריך, שעה',prio:'high',envs:['biz']},
-  {id:'CAL-06',name:'תור — הזמנה מהחנות הציבורית',desc:'בחירת שירות, תאריך, פרטי לקוח',prio:'critical',envs:['biz']},
-  {id:'CAL-07',name:'תור — אישור על ידי עסק',desc:'מנהל רואה בקשה, לוחץ אישור',prio:'high',envs:['biz']},
-  {id:'CAL-08',name:'תור — ביטול',desc:'מנהל/לקוח מבטל, הודעה',prio:'medium',envs:['biz']},
-  {id:'CAL-09',name:'תור — מניעת כפילויות',desc:'שני לקוחות לאותה שעה',prio:'high',envs:['biz']},
-  {id:'CAL-10',name:'תצוגת יומן — שבועי',desc:'מבט שבועי, הצגת כל התורים',prio:'medium',envs:['biz']},
-  {id:'CAL-11',name:'זמינות — ימים וחלונות זמן',desc:'הגדרת ימי עבודה, שעות',prio:'high',envs:['biz']},
-  {id:'CAL-12',name:'תזכורת — שליחה ל-לקוח',desc:'תזכורת SMS/הודעה לפני תור',prio:'medium',envs:['biz']},
- ]},
-
-// ===== SHIFTS =====
-{id:'shifts', icon:'fa-clock-rotate-left', color:'#f43f5e', title:'משמרות ולוח עובדים',
- tests:[
-  {id:'SHF-01',name:'יצירת משמרת חדשה',desc:'תאריך, שעת התחלה/סיום, עובד, תפקיד',prio:'critical',envs:['biz']},
-  {id:'SHF-02',name:'שיבוץ עובד למשמרת',desc:'בחירת עובד, אישור שיבוץ',prio:'critical',envs:['biz']},
-  {id:'SHF-03',name:'בקשת משמרת — עובד',desc:'עובד מגיש בקשה לתאריך/שעה',prio:'high',envs:['biz']},
-  {id:'SHF-04',name:'אישור/דחיית בקשת משמרת',desc:'מנהל רואה בקשות, אישור/דחייה',prio:'high',envs:['biz']},
-  {id:'SHF-05',name:'ביטול משמרת',desc:'ביטול שיבוץ, הסרה מהלוח',prio:'medium',envs:['biz']},
-  {id:'SHF-06',name:'חליפת משמרת — העברה לעובד אחר',desc:'בקשת חילוף, אישור מנהל',prio:'medium',envs:['biz']},
-  {id:'SHF-07',name:'לוח משמרות — תצוגה שבועית',desc:'כל העובדים, כל המשמרות בשבוע',prio:'high',envs:['biz']},
-  {id:'SHF-08',name:'חישוב שעות — סיכום חודשי',desc:'סה"כ שעות לכל עובד בחודש',prio:'high',envs:['biz']},
-  {id:'SHF-09',name:'חפיפת משמרות — מניעת כפילות',desc:'שני שיבוצים באותה שעה לאותו עובד',prio:'high',envs:['biz']},
-  {id:'SHF-10',name:'ייצוא לוח משמרות',desc:'PDF/CSV של לוח המשמרות',prio:'low',envs:['biz']},
- ]},
-
-// ===== TASKS =====
-{id:'tasks', icon:'fa-list-check', color:'#84cc16', title:'משימות',
- tests:[
-  {id:'TSK-01',name:'יצירת משימה חדשה',desc:'כותרת, תיאור, מבצע, מועד, ניקוד',prio:'critical',envs:['family','biz']},
-  {id:'TSK-02',name:'עריכת משימה',desc:'שינוי פרטים, מועד, ניקוד',prio:'high',envs:['family','biz']},
-  {id:'TSK-03',name:'מחיקת משימה',desc:'אישור, הסרה מהרשימה',prio:'medium',envs:['family','biz']},
-  {id:'TSK-04',name:'ביצוע משימה — סימון',desc:'לחיצה "בוצע", שינוי סטטוס',prio:'critical',envs:['family','biz']},
-  {id:'TSK-05',name:'ביצוע — העלאת תמונה כהוכחה',desc:'צילום/בחירת תמונה, שמירה',prio:'high',envs:['family','biz']},
-  {id:'TSK-06',name:'אישות משימה — AI Vision',desc:'AI בודק תמונה, מאשר/דוחה',prio:'high',envs:['family','biz']},
-  {id:'TSK-07',name:'אישור סופי — מנהל/הורה',desc:'בדיקת תמונה, לחיצה "אישור סופי"',prio:'high',envs:['family','biz']},
-  {id:'TSK-08',name:'זיכוי ניקוד לאחר אישור',desc:'ניקוד עובר לחשבון הביצוע',prio:'high',envs:['family','biz']},
-  {id:'TSK-09',name:'סינון משימות לפי סטטוס',desc:'ממתינות/בביצוע/הושלמו/נדחו',prio:'medium',envs:['family','biz']},
-  {id:'TSK-10',name:'משימה חוזרת — הגדרה',desc:'תדירות, יצירה אוטומטית',prio:'medium',envs:['family','biz']},
- ]},
-
-// ===== ACADEMY =====
-{id:'academy', icon:'fa-graduation-cap', color:'#f59e0b', title:'אקדמיה',
- tests:[
-  {id:'ACAD-01',name:'יצירת חבילת תוכן חדשה',desc:'כותרת, תיאור, תמונה, שמירה',prio:'high',envs:['family','biz']},
-  {id:'ACAD-02',name:'הוספת שאלה לחבילה',desc:'שאלה, 4 תשובות, תשובה נכונה',prio:'high',envs:['family','biz']},
-  {id:'ACAD-03',name:'הקצאת חבילה לחבר/עובד',desc:'בחירת חבר, בחירת חבילה, אישור',prio:'critical',envs:['family','biz']},
-  {id:'ACAD-04',name:'מענה על שאלון',desc:'בחירת תשובה, שמירת ניקוד',prio:'critical',envs:['family','biz']},
-  {id:'ACAD-05',name:'ניקוד — חישוב ועדכון',desc:'תשובה נכונה מוסיפה ניקוד לחשבון',prio:'high',envs:['family','biz']},
-  {id:'ACAD-06',name:'הצגת התקדמות אישית',desc:'כמה שאלות נענו, ניקוד סה"כ',prio:'medium',envs:['family','biz']},
-  {id:'ACAD-07',name:'חבר לא מורשה — חסימה',desc:'ניסיון לפתוח חבילה שלא הוקצתה',prio:'high',envs:['family','biz']},
-  {id:'ACAD-08',name:'עריכת שאלה קיימת',desc:'שינוי טקסט, תשובות, עדכון',prio:'medium',envs:['family','biz']},
-  {id:'ACAD-09',name:'מחיקת חבילה',desc:'אישור, הסרה, ביטול הקצאות',prio:'medium',envs:['family','biz']},
-  {id:'ACAD-10',name:'לוח תוצאות (leaderboard)',desc:'דירוג חברים לפי ניקוד, מציג נכון',prio:'low',envs:['family','biz']},
- ]},
-
-// ===== COMMUNITY =====
-{id:'community', icon:'fa-people-group', color:'#14b8a6', title:'קהילות ו-B2B קהילה',
- tests:[
-  {id:'COM-01',name:'הצטרפות לקהילה — משפחה',desc:'קוד קהילה, אישור הצטרפות',prio:'high',envs:['family']},
-  {id:'COM-02',name:'הצטרפות לקהילה — עסק',desc:'מציאת קהילה, שליחת בקשה',prio:'high',envs:['biz']},
-  {id:'COM-03',name:'אישור עסק ע"י מנהל קהילה',desc:'SA/מנהל קהילה מאשר בקשה',prio:'high',envs:['biz','comm']},
-  {id:'COM-04',name:'הנחת קהילה — הגדרה בחנות',desc:'עסק מגדיר %, storefront מציג',prio:'high',envs:['biz','comm']},
-  {id:'COM-05',name:'הנחת קהילה — checkout',desc:'מחיר מוצר מופחת בהתאם',prio:'critical',envs:['biz','comm']},
-  {id:'COM-06',name:'B2B — הזמנה בין עסקים בקהילה',desc:'עסק A מזמין מעסק B',prio:'high',envs:['biz','comm']},
-  {id:'COM-07',name:'עזיבת קהילה',desc:'אישור עזיבה, הסרת הנחה',prio:'medium',envs:['family','biz']},
-  {id:'COM-08',name:'יוזמות קהילה',desc:'הצגת יוזמות, הצטרפות',prio:'low',envs:['family']},
-  {id:'COM-09',name:'פיד קהילה — הצגת עדכונים',desc:'עדכוני עסקי הקהילה בפיד',prio:'medium',envs:['family','comm']},
-  {id:'COM-10',name:'חיפוש קהילה לפי עיר/שם',desc:'חיפוש, הצגת תוצאות, הצטרפות',prio:'medium',envs:['family','biz']},
-  {id:'COM-11',name:'הגדרות קהילה — עריכה',desc:'שם, תמונה, תגיות — מנהל',prio:'medium',envs:['comm']},
-  {id:'COM-12',name:'הסרת עסק מקהילה',desc:'מנהל מסיר עסק, הנחה מבוטלת',prio:'medium',envs:['comm']},
- ]},
-
-// ===== NOTIFICATIONS =====
-{id:'notif', icon:'fa-bell', color:'#f97316', title:'התראות, Inbox ותקשורת',
- tests:[
-  {id:'NOT-01',name:'Inbox — קבלת הודעה מ-SA',desc:'הודעה מ-SA מופיעה ב-inbox',prio:'high',envs:['all']},
-  {id:'NOT-02',name:'Inbox — הודעה חדשה — תג התראה',desc:'מספר הודעות שלא נקראו מוצג',prio:'high',envs:['all']},
-  {id:'NOT-03',name:'Inbox — סימון כנקרא',desc:'לחיצה, הודעה מסומנת, תג פוחת',prio:'high',envs:['all']},
-  {id:'NOT-04',name:'Inbox — מחיקת הודעה',desc:'אישור, הסרה מהרשימה',prio:'medium',envs:['all']},
-  {id:'NOT-05',name:'Push notification — מובייל',desc:'הודעת push לנייד על אירוע חדש',prio:'medium',envs:['all']},
-  {id:'NOT-06',name:'התראת תקציב — חריגה',desc:'pop-up / הודעה בחריגה מתקציב',prio:'high',envs:['family','biz']},
-  {id:'NOT-07',name:'התראת מלאי נמוך',desc:'הודעה על פריט שמלאיו נגמר',prio:'high',envs:['family','biz']},
-  {id:'NOT-08',name:'התראת משימה — מועד קרוב',desc:'תזכורת לפני תאריך יעד',prio:'medium',envs:['family','biz']},
-  {id:'NOT-09',name:'Inbox — שידור לכלל הצוות (מנהל)',desc:'מנהל שולח הודעה לכל העובדים',prio:'medium',envs:['biz']},
-  {id:'NOT-10',name:'Inbox — הודעה ספציפית לחבר',desc:'מנהל שולח הודעה לחבר/עובד בודד',prio:'medium',envs:['all']},
- ]},
-
-// ===== SUPERADMIN =====
-{id:'sa', icon:'fa-shield', color:'#64748b', title:'SuperAdmin',
- tests:[
-  {id:'SA-01',name:'כניסת SuperAdmin',desc:'טוקן SA, טעינת דשבורד',prio:'critical',envs:['sa']},
-  {id:'SA-02',name:'Pulse — נתונים בזמן אמת',desc:'קבוצות, משתמשים, פעילות',prio:'high',envs:['sa']},
-  {id:'SA-03',name:'ניהול קבוצות — תצוגת 360°',desc:'כל נתוני קבוצה אחת',prio:'high',envs:['sa']},
-  {id:'SA-04',name:'ניהול קבוצות — מחיקה',desc:'אישור מחיקה, מחיקת נתונים',prio:'high',envs:['sa']},
-  {id:'SA-05',name:'שדרוג לפרמיום',desc:'קבוצה → פרמיום, נעילת features',prio:'high',envs:['sa']},
-  {id:'SA-06',name:'ניהול קהילות — יצירה',desc:'שם, עיר, קוד, שמירה',prio:'high',envs:['sa']},
-  {id:'SA-07',name:'ניהול קהילות — אישור עסק',desc:'עסק ממתין, אישור/דחייה',prio:'high',envs:['sa']},
-  {id:'SA-08',name:'Inbox — שידור הודעה',desc:'הודעה לכל הקבוצות, קבלה ב-inbox',prio:'medium',envs:['sa']},
-  {id:'SA-09',name:'תמיכה — תגובה לפנייה',desc:'קריאת פנייה, כתיבת תגובה',prio:'medium',envs:['sa']},
-  {id:'SA-10',name:'באנרים — יצירה והפעלה',desc:'טקסט/תמונה, הצגה בממשק',prio:'medium',envs:['sa']},
-  {id:'SA-11',name:'ניהול תוכן — הגדרות גלובליות',desc:'שינוי הגדרות מערכת',prio:'medium',envs:['sa']},
-  {id:'SA-12',name:'ניהול משתמשים — עריכה',desc:'שינוי פרטים, הרשאות',prio:'high',envs:['sa']},
-  {id:'SA-13',name:'Stats — נתוני שימוש גלובליים',desc:'גרפי גדילה, פעילות יומית',prio:'medium',envs:['sa']},
-  {id:'SA-14',name:'יצוא נתונים גלובלי',desc:'CSV כל הקבוצות, כל המשתמשים',prio:'medium',envs:['sa']},
-  {id:'SA-15',name:'תזמון תחזוקה (maintenance mode)',desc:'הפעלת מצב תחזוקה, הודעה לכולם',prio:'high',envs:['sa']},
- ]},
-
-// ===== SA MARKETING =====
-{id:'samktg', icon:'fa-paper-plane', color:'#ec4899', title:'SuperAdmin — שיווק וניוזלטר',
- tests:[
-  {id:'SMK-01',name:'SA — לשונית שיווק והשקות',desc:'טעינת לשונית, הצגת מודולים',prio:'high',envs:['sa']},
-  {id:'SMK-02',name:'ניוזלטר — בחירת לשוני/עמוד',desc:'בחירת ערכת צבעים / לשוני ניוזלטר',prio:'medium',envs:['sa']},
-  {id:'SMK-03',name:'ניוזלטר — יצירת כותרת וסרטיט',desc:'מילוי שדות כותרת וסרטיט, שמירה',prio:'high',envs:['sa']},
-  {id:'SMK-04',name:'ניוזלטר — עורך תוכן (contenteditable)',desc:'עריכת טקסט, עיצוב, RTL תקין',prio:'critical',envs:['sa']},
-  {id:'SMK-05',name:'ניוזלטר — AI יוצר תוכן גרסה',desc:'שליחה ל-AI, קבלת תוכן בעברית',prio:'critical',envs:['sa']},
-  {id:'SMK-06',name:'ניוזלטר — תצוגה מקדימה (preview)',desc:'הצגת template מוסגר בממשק',prio:'critical',envs:['sa']},
-  {id:'SMK-07',name:'ניוזלטר — יצוא PDF',desc:'פתיחת חלון print, RTL תקין',prio:'critical',envs:['sa']},
-  {id:'SMK-08',name:'ניוזלטר — ריווח בין מילים (RTL)',desc:'ריווח תקין בין מילות עברית ב-PDF',prio:'high',envs:['sa']},
-  {id:'SMK-09',name:'ניוזלטר — סימני פיסוק RTL',desc:'פסיק, נקודה, סימן שאלה — מיקום תקין',prio:'high',envs:['sa']},
-  {id:'SMK-10',name:'ניוזלטר — לוגו ממוקד בבאנר',desc:'לוגו מסוגל + ממורכז ב-header',prio:'medium',envs:['sa']},
-  {id:'SMK-11',name:'ניוזלטר — העתקת תוכן',desc:'כפתור "העתק", תוכן עובר ל-clipboard',prio:'medium',envs:['sa']},
-  {id:'SMK-12',name:'ניוזלטר — שידור לכל הקבוצות',desc:'כפתור שידור, הודעה נשלחת ל-inbox',prio:'critical',envs:['sa']},
-  {id:'SMK-13',name:'ניוזלטר — שידור לסגמנט',desc:'סינון קבוצות לפי סוג/תגית, שידור',prio:'high',envs:['sa']},
-  {id:'SMK-14',name:'הוספת לשוני — palette',desc:'בחירת צבע gradient, עדכון בתצוגה',prio:'medium',envs:['sa']},
-  {id:'SMK-15',name:'מסר שיווקי — יצירה',desc:'כותרת, תוכן, call-to-action',prio:'medium',envs:['sa']},
-  {id:'SMK-16',name:'קמפיין — הגדרת תאריכי שליחה',desc:'תאריך שליחה, אישור, תזמון',prio:'medium',envs:['sa']},
-  {id:'SMK-17',name:'טמפלט — שמירה לשימוש חוזר',desc:'שמירת template, טעינה מחדש',prio:'medium',envs:['sa']},
-  {id:'SMK-18',name:'הוצאה להשקה — log של גרסה',desc:'תיעוד גרסה שהושקה, תאריך, תוכן',prio:'medium',envs:['sa']},
-  {id:'SMK-19',name:'ניוזלטר — ניקוי ואיפוס editor',desc:'כפתור ניקוי, editor מתאפס',prio:'low',envs:['sa']},
-  {id:'SMK-20',name:'RTL PDF — Hebrew fonts',desc:'גופן Arial/Heebo מוצג תקין ב-PDF',prio:'high',envs:['sa']},
- ]},
-
-// ===== PWA =====
-{id:'pwa', icon:'fa-mobile', color:'#ec4899', title:'PWA, ביצועים ואבטחה',
- tests:[
-  {id:'PWA-01',name:'התקנת PWA — Android',desc:'Add to Home Screen, פתיחה כ-app',prio:'medium',envs:['all']},
-  {id:'PWA-02',name:'התקנת PWA — iOS',desc:'Safari → Share → Add to Home',prio:'medium',envs:['all']},
-  {id:'PWA-03',name:'Service Worker — Cache',desc:'טעינה ראשונה, בדיקת cache',prio:'medium',envs:['all']},
-  {id:'PWA-04',name:'RTL — תצוגת עברית תקינה',desc:'כיוון, גופן Rubik/Heebo, padding',prio:'high',envs:['all']},
-  {id:'PWA-05',name:'Mobile — פריסה רספונסיבית',desc:'טלפון 375px, טאבלט 768px',prio:'high',envs:['all']},
-  {id:'PWA-06',name:'Desktop — פריסה למסך רחב',desc:'max-width, גריד תקין',prio:'medium',envs:['all']},
-  {id:'PWA-07',name:'טעינה ראשונה < 3 שניות',desc:'בדיקת ביצועים על 4G',prio:'high',envs:['all']},
-  {id:'PWA-08',name:'חיבור DB — timeout handling',desc:'הודעת שגיאה ידידותית בנפילת DB',prio:'high',envs:['all']},
-  {id:'PWA-09',name:'CORS — בקשות מדומיין שונה',desc:'storefront, catalog מדומיין אחר',prio:'medium',envs:['biz']},
-  {id:'PWA-10',name:'XSS — הזרקת קוד בשדות',desc:'שדה שם, הערות — sanitization',prio:'critical',envs:['all']},
-  {id:'PWA-11',name:'SQL Injection — שדות חיפוש',desc:'parameterized queries',prio:'critical',envs:['all']},
-  {id:'PWA-12',name:'גבול 50 מוצרים (Free)',desc:'מנסים להוסיף מוצר 51, שגיאה',prio:'high',envs:['biz']},
- ]},
-
-// ===== PERM FAM =====
-{id:'perm_fam', icon:'fa-user-shield', color:'#0ea5e9', title:'הרשאות — סביבת משפחה (הורה vs ילד)',
- tests:[
-  {id:'PFAM-01',name:'הורה — כניסה ותצוגת כל הלשוניות',desc:'ADMIN רואה: feed, קניות, מזווה, תקציב, cashflow, הלוואות, מטרות, משימות, חברים, אקדמיה, שף AI',prio:'critical',envs:['family']},
-  {id:'PFAM-02',name:'הורה — ניהול חברים',desc:'לשונית "חברים" פעילה, ניתן להוסיף/לערוך/למחוק חברים',prio:'critical',envs:['family']},
-  {id:'PFAM-03',name:'הורה — פתיחת משימה לילד',desc:'בחירת מבצע (ילד), הגדרת ניקוד, שמירה',prio:'high',envs:['family']},
-  {id:'PFAM-04',name:'הורה — אישור/דחיית משימה',desc:'ילד העלה תמונה, הורה רואה כפתור "אישור סופי"',prio:'high',envs:['family']},
-  {id:'PFAM-05',name:'הורה — ניהול הלוואות',desc:'אישור/דחיית בקשת הלוואה של ילד',prio:'high',envs:['family']},
-  {id:'PFAM-06',name:'הורה — הגדרת תקציב לכל קטגוריה',desc:'גישה לדף תקציב, שינוי סכומים, שמירה',prio:'high',envs:['family']},
-  {id:'PFAM-07',name:'הורה — הקצאת חבילת אקדמיה לילד',desc:'בחירת ילד, בחירת חבילה, אישור',prio:'medium',envs:['family']},
-  {id:'PFAM-08',name:'הורה — גישה לדוח Cash Flow המלא',desc:'רואה את כל התנועות של כל החברים',prio:'high',envs:['family']},
-  {id:'PFAM-09',name:'הורה — שינוי הגדרות קבוצה',desc:'שם קבוצה, קוד, לוגו — שמירה',prio:'medium',envs:['family']},
-  {id:'PFAM-10',name:'הורה — אפס ריצה (onboarding wizard)',desc:'כפתור הפעלת אשף מחדש בפרופיל',prio:'low',envs:['family']},
-  {id:'PFAM-11',name:'ילד — לשוניות גלויות לפי הרשאה',desc:'MEMBER רואה רק לשוניות שהוקצו לו ע"י הורה',prio:'critical',envs:['family']},
-  {id:'PFAM-12',name:'ילד — אין גישה לניהול חברים',desc:'לשונית "חברים" לא מופיעה / חסומה',prio:'critical',envs:['family']},
-  {id:'PFAM-13',name:'ילד — אין גישה לתקציב הכללי',desc:'לשונית תקציב חסומה אם לא הוקצתה',prio:'high',envs:['family']},
-  {id:'PFAM-14',name:'ילד — שליחת בקשת הלוואה',desc:'ממלא טופס, בקשה עוברת להורה לאישור',prio:'high',envs:['family']},
-  {id:'PFAM-15',name:'ילד — ביצוע משימה + העלאת תמונה',desc:'לוחץ "בוצע", מצלם/מעלה תמונה, שולח לאישור',prio:'high',envs:['family']},
-  {id:'PFAM-16',name:'ילד — מענה על שאלון אקדמיה',desc:'גישה רק לחבילות שהוקצו לו, מענה ושמירת ניקוד',prio:'medium',envs:['family']},
-  {id:'PFAM-17',name:'ילד — הוספת פריט לרשימת קניות',desc:'הוסיף פריט, הורה רואה אותו ברשימה',prio:'medium',envs:['family']},
-  {id:'PFAM-18',name:'ילד — צפייה ביתרה האישית שלו בלבד',desc:'רואה balance שלו, לא של חברים אחרים',prio:'high',envs:['family']},
-  {id:'PFAM-19',name:'ילד — חסימת שינוי הגדרות קבוצה',desc:'כפתור הגדרות לא קיים / לא פעיל',prio:'critical',envs:['family']},
-  {id:'PFAM-20',name:'ילד — שימוש בשף AI',desc:'גישה לשף AI אם הלשונית הוקצתה',prio:'low',envs:['family']},
- ]},
-
-// ===== PERM BIZ =====
-{id:'perm_biz', icon:'fa-user-tie', color:'#f59e0b', title:'הרשאות — סביבת עסק (4 תפקידים)',
- tests:[
-  {id:'PBIZ-01',name:'ADMIN — גישה מלאה לכל הלשוניות',desc:'רואה: ניהול חנות, POS, קופה, CRM, ניתוח מכירות, עובדים, קלנדר, B2B, cashflow, קופונים, משלוחים',prio:'critical',envs:['biz']},
-  {id:'PBIZ-02',name:'ADMIN — ניהול עובדים (הוסף/ערוך/מחק)',desc:'לשונית "עובדים" זמינה, כל הכפתורים פעילים',prio:'critical',envs:['biz']},
-  {id:'PBIZ-03',name:'ADMIN — הגדרת הרשאות לעובד',desc:'פתיחת מודל הרשאות, שינוי תפקיד + לשוניות, שמירה',prio:'critical',envs:['biz']},
-  {id:'PBIZ-04',name:'ADMIN — גישה לניתוח מכירות (Analytics)',desc:'גרפים, סינון לפי תקופה, מוצרים מובילים',prio:'high',envs:['biz']},
-  {id:'PBIZ-05',name:'ADMIN — עריכת הגדרות חנות',desc:'שם, לוגו, שעות, כינוי URL, שמירה',prio:'high',envs:['biz']},
-  {id:'PBIZ-06',name:'ADMIN — ניהול קטלוג מוצרים',desc:'הוספה, עריכה, מחיקה, הסתרה',prio:'high',envs:['biz']},
-  {id:'PBIZ-07',name:'ADMIN — אישור עובד ממתין',desc:'רשימת pending, אישור, עובד מצטרף לקבוצה',prio:'high',envs:['biz']},
-  {id:'PBIZ-08',name:'ADMIN — שליחת הזמנה חכמה עם תפקיד',desc:'קישור עם role=MANAGER/MEMBER/SENIOR',prio:'medium',envs:['biz']},
-  {id:'PBIZ-09',name:'ADMIN — עיבוד משכורות',desc:'הפעלת יום משכורת, עדכון יתרות',prio:'high',envs:['biz']},
-  {id:'PBIZ-10',name:'ADMIN — גישה ל-B2B ורכש',desc:'רואה לשוניות ספקים, הזמנות רכש',prio:'high',envs:['biz']},
-  {id:'PBIZ-11',name:'MANAGER — לשוניות זמינות',desc:'feed, שעון, משמרות, קלנדר, חנות, מזווה, משימות, אקדמיה, מכירות, POS, לקוחות — ולא יותר',prio:'critical',envs:['biz']},
-  {id:'PBIZ-12',name:'MANAGER — גישה ל-POS וסגירת קופה',desc:'ביצוע עסקה, הפקת קבלה, סגירת קופה',prio:'critical',envs:['biz']},
-  {id:'PBIZ-13',name:'MANAGER — אין גישה לניהול עובדים',desc:'לשונית עובדים חסומה, כפתור הוספה לא קיים',prio:'critical',envs:['biz']},
-  {id:'PBIZ-14',name:'MANAGER — אין גישה להגדרות חנות',desc:'לשונית הגדרות חנות לא מופיעה',prio:'high',envs:['biz']},
-  {id:'PBIZ-15',name:'MANAGER — ניהול משמרות לעובדים',desc:'יכול לשבץ עובדים, לאשר/לדחות בקשות משמרת',prio:'high',envs:['biz']},
-  {id:'PBIZ-16',name:'MANAGER — אישור משימת עובד',desc:'רואה משימות "בבקרת מנהל", לוחץ "אישור סופי"',prio:'high',envs:['biz']},
-  {id:'PBIZ-17',name:'MANAGER — אין גישה ל-Analytics פיננסי',desc:'לשונית cashflow/budget לא מופיעה',prio:'high',envs:['biz']},
-  {id:'PBIZ-18',name:'MANAGER — צפייה בדוח נוכחות',desc:'רואה שעות כל העובדים, לא רק שלו',prio:'medium',envs:['biz']},
-  {id:'PBIZ-19',name:'SENIOR — לשוניות זמינות',desc:'feed, שעון, משמרות, מזווה, משימות, אקדמיה, POS — ולא יותר',prio:'critical',envs:['biz']},
-  {id:'PBIZ-20',name:'SENIOR — גישה ל-POS',desc:'ביצוע עסקה, הפקת קבלה — ללא סגירת קופה',prio:'high',envs:['biz']},
-  {id:'PBIZ-21',name:'SENIOR — אין גישה לניהול לקוחות (CRM)',desc:'לשונית לקוחות לא מופיעה',prio:'high',envs:['biz']},
-  {id:'PBIZ-22',name:'SENIOR — אין גישה למכירות/Analytics',desc:'לשונית מכירות לא מופיעה',prio:'high',envs:['biz']},
-  {id:'PBIZ-23',name:'SENIOR — גישה למזווה (קריאה + שימוש)',desc:'יכול לסמן שימוש בפריט, לא למחוק',prio:'medium',envs:['biz']},
-  {id:'PBIZ-24',name:'MEMBER — לשוניות זמינות',desc:'feed, שעון נוכחות, משמרות, משימות, אקדמיה — ורק הם',prio:'critical',envs:['biz']},
-  {id:'PBIZ-25',name:'MEMBER — שעון נוכחות אישי בלבד',desc:'רואה רק את השעות שלו, לא של אחרים',prio:'critical',envs:['biz']},
-  {id:'PBIZ-26',name:'MEMBER — אין גישה ל-POS',desc:'לשונית קופה לא מופיעה / חסומה',prio:'critical',envs:['biz']},
-  {id:'PBIZ-27',name:'MEMBER — אין גישה לחנות / קטלוג',desc:'לשונית חנות לא מופיעה',prio:'critical',envs:['biz']},
-  {id:'PBIZ-28',name:'MEMBER — ביצוע משימה + העלאת תמונה',desc:'סיום, צילום, שליחה לאישור מנהל',prio:'high',envs:['biz']},
-  {id:'PBIZ-29',name:'MEMBER — בקשת משמרת',desc:'בחירת תאריך/שעה, שליחה לאישור מנהל',prio:'high',envs:['biz']},
-  {id:'PBIZ-30',name:'MEMBER — גישה לאקדמיה (חבילות שהוקצו)',desc:'רואה רק חבילות שהוקצו לו',prio:'medium',envs:['biz']},
-  {id:'PBIZ-31',name:'הרשאה מותאמת — הוספת לשונית ל-MEMBER',desc:'מנהל מוסיף "pos" ל-MEMBER ספציפי, עובד רואה',prio:'high',envs:['biz']},
-  {id:'PBIZ-32',name:'הרשאה מותאמת — הסרת לשונית מ-MANAGER',desc:'מנהל מסיר "customers" מ-MANAGER, לא מופיעה',prio:'high',envs:['biz']},
-  {id:'PBIZ-33',name:'שינוי תפקיד — MEMBER ל-MANAGER',desc:'עדכון role, עובד מתנתק ומתחבר, רואה לשוניות חדשות',prio:'high',envs:['biz']},
-  {id:'PBIZ-34',name:'ADMIN — אין לעובד גישה ל-SA',desc:'עובד בכל תפקיד לא יכול לגשת ל-sa.html',prio:'critical',envs:['biz']},
-  {id:'PBIZ-35',name:'תפקיד ברירת מחדל — MEMBER',desc:'עובד חדש ללא תפקיד מפורש מקבל MEMBER',prio:'high',envs:['biz']},
- ]},
-
-// ===== SA FULL =====
-{id:'sa_full', icon:'fa-shield-halved', color:'#6366f1', title:'SuperAdmin — sa.html ו-sa-app.js',
- tests:[
-  {id:'SAF-01',name:'SA — כניסה עם קוד + סיסמה',desc:'POST /api/superadmin/login, קבלת token, שמירה ב-localStorage',prio:'critical',envs:['sa']},
-  {id:'SAF-02',name:'SA — כניסה עם token שמור',desc:'window.onload בודק localStorage, נכנס ישירות לדשבורד',prio:'critical',envs:['sa']},
-  {id:'SAF-03',name:'SA — ניתוק (logout)',desc:'מחיקת token, חזרה למסך התחברות',prio:'high',envs:['sa']},
-  {id:'SAF-04',name:'SA — ניסיון כניסה עם קוד שגוי',desc:'הודעת שגיאה, אין כניסה לדשבורד',prio:'critical',envs:['sa']},
-  {id:'SAF-05',name:'Pulse — טעינת נתונים חיים',desc:'סה"כ משתמשים, קבוצות, הזמנות',prio:'high',envs:['sa']},
-  {id:'SAF-06',name:'Pulse — KPIs משפחה/עסק',desc:'stats.familyUsers + stats.businessUsers',prio:'high',envs:['sa']},
-  {id:'SAF-07',name:'Pulse — stream פעילות חיה',desc:'רשימת אנומליות / פעולות אחרונות',prio:'medium',envs:['sa']},
-  {id:'SAF-08',name:'קבוצות — רשימה מלאה + חיפוש',desc:'שליפת כל הקבוצות, חיפוש לפי שם/קוד',prio:'high',envs:['sa']},
-  {id:'SAF-09',name:'קבוצות — תצוגת 360°',desc:'כל נתוני קבוצה: משתמשים, מוצרים, עסקאות',prio:'high',envs:['sa']},
-  {id:'SAF-10',name:'קבוצות — מחיקת קבוצה',desc:'אישור, קריאה ל-API, הסרה מהרשימה',prio:'high',envs:['sa']},
-  {id:'SAF-11',name:'קבוצות — שדרוג לפרמיום',desc:'toggle premium, features נפתחות',prio:'high',envs:['sa']},
-  {id:'SAF-12',name:'קבוצות — עריכת פרטי מנהל ראשי',desc:'שם, מייל, שמירה',prio:'medium',envs:['sa']},
-  {id:'SAF-13',name:'קהילות — יצירת קהילה חדשה',desc:'שם, עיר, תגיות, קוד, שמירה',prio:'high',envs:['sa']},
-  {id:'SAF-14',name:'קהילות — אישור עסק',desc:'עסק ממתין → SA מאשר → עסק מצטרף',prio:'critical',envs:['sa']},
-  {id:'SAF-15',name:'קהילות — דחיית עסק',desc:'עסק ממתין → דחייה → הסרה',prio:'high',envs:['sa']},
-  {id:'SAF-16',name:'קהילות — רשימה ועריכה',desc:'רשימה, חיפוש, עריכה',prio:'medium',envs:['sa']},
-  {id:'SAF-17',name:'Inbox — שידור לכל הקבוצות',desc:'כותרת + טקסט, שליחה, מופיע ב-inbox',prio:'high',envs:['sa']},
-  {id:'SAF-18',name:'Inbox — שידור לקבוצה ספציפית',desc:'בחירת קבוצה, שליחה, רק היא מקבלת',prio:'medium',envs:['sa']},
-  {id:'SAF-19',name:'באנרים — יצירה',desc:'טקסט, צבע, תמונה, תאריכי הצגה',prio:'medium',envs:['sa']},
-  {id:'SAF-20',name:'באנרים — הפעלה/כיבוי',desc:'toggle, בדיקה שמופיע/נעלם מהממשק',prio:'medium',envs:['sa']},
-  {id:'SAF-21',name:'תמיכה — רשימת פניות פתוחות',desc:'טיקטים ממשתמשים, מיון לפי דחיפות',prio:'high',envs:['sa']},
-  {id:'SAF-22',name:'תמיכה — תגובה לפנייה',desc:'כתיבת תגובה, שליחה, סטטוס "טופל"',prio:'high',envs:['sa']},
-  {id:'SAF-23',name:'שותפים — רשימה',desc:'הצגת שותפי מערכת, פרטים',prio:'medium',envs:['sa']},
-  {id:'SAF-24',name:'שותפים — הוספת שותף חדש',desc:'שם, מייל, עמלה, שמירה',prio:'medium',envs:['sa']},
-  {id:'SAF-25',name:'SA — Authorization header בכל קריאה',desc:'כל בקשה שולחת Bearer token, שרת מאמת',prio:'critical',envs:['sa']},
-  {id:'SAF-26',name:'SA — גישה ללא token — 401',desc:'שרת מחזיר 401/403 לבקשה ללא token',prio:'critical',envs:['sa']},
-  {id:'SAF-27',name:'SA — switchSATab',desc:'כל לשונית נטענת בלחיצה ראשונה עליה',prio:'medium',envs:['sa']},
-  {id:'SAF-28',name:'SA — Stats גרפים ומגמות',desc:'גרפים, מגמות, נתוני שימוש',prio:'medium',envs:['sa']},
- ]},
-];
-
+// API CONNECTION & DATA
 // ============================================================
-// STATE
-// ============================================================
-// STATE
-// ============================================================
+const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+const saToken = localStorage.getItem('ofl_sa_token'); // מתבסס על ההתחברות לסופר-אדמין
+
+let SECTIONS = []; // יאוכלס דינמית מהשרת
 let state = {};
+let versions = [];
+let currentView = 'dashboard';
+let currentFilter = null;
+
+// ============================================================
+// SERVER INTEGRATION
+// ============================================================
+async function loadTestsFromServer() {
+    if (!saToken) {
+        showToast('נא להתחבר לסופר אדמין תחילה');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        
+        if (data.success) {
+            // ממירים את הרשימה השטוחה של השרת למבנה המודולים (SECTIONS) שהממשק מצפה לו
+            const grouped = {};
+            data.tests.forEach(t => {
+                if (!grouped[t.category]) grouped[t.category] = { id: t.category, icon: 'fa-cube', color: '#64748b', title: t.category, tests: [] };
+                grouped[t.category].tests.push({
+                    id: t.id,
+                    name: t.name,
+                    desc: t.description,
+                    prio: t.priority,
+                    envs: ['all'] // ניתן לעדכן בהמשך בשרת
+                });
+            });
+            
+            // המרה חזרה למערך
+            SECTIONS = Object.values(grouped);
+            
+            // עדכון הממשק
+            updateStats();
+            renderTests(null);
+            showToast('בדיקות נטענו בהצלחה מהשרת');
+        } else {
+            showToast('שגיאה בטעינת בדיקות מהשרת');
+        }
+    } catch(e) {
+        console.error('Error loading tests:', e);
+        showToast('שגיאת רשת מול השרת');
+    }
+}
+
+// פונקציה חד פעמית לייבוא הנתונים הסטטיים הישנים לשרת (Bulk Import)
+window.seedDatabase = async function(legacyData) {
+    if(!confirm('האם לייבא את כל הבדיקות למסד הנתונים?')) return;
+    try {
+        let allTestsToSeed = [];
+        legacyData.forEach(sec => {
+            sec.tests.forEach(t => {
+                allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
+            });
+        });
+        
+        const res = await fetch(`${API}/sa/qa/tests/bulk`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ tests: allTestsToSeed })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
+            loadTestsFromServer();
+        }
+    } catch(e) { showToast('שגיאה בייבוא נתונים'); }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+function loadState() {
 let versions = [];
 let currentView = 'dashboard';
 let currentFilter = null;
@@ -1170,9 +766,11 @@ function toggleSection(head) {
   head.closest('.section').classList.toggle('collapsed');
 }
 
-function exportReport() {
+async function exportReport() {
   const c = countSection(allTests());
   const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id)));
+  
+  // 1. שמירה מקומית (הורדת קובץ)
   let txt = `דוח QA — Oneflow Life\n`;
   txt += `תאריך: ${new Date().toLocaleString('he-IL')}\n`;
   txt += `סה"כ: ${allTests().length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
@@ -1188,7 +786,29 @@ function exportReport() {
   a.href = URL.createObjectURL(blob);
   a.download = `qa-report-${new Date().toISOString().slice(0,10)}.txt`;
   a.click();
-  showToast('הדוח הורד!');
+  
+  // 2. סנכרון התוצאות לשרת (Feedback Loop ל-ALM)
+  if (saToken) {
+      try {
+          const userName = JSON.parse(localStorage.getItem('ofl_sa_user') || '{}').name || 'QA Tester';
+          const runResults = {
+              total: allTests().length,
+              passed: c.ok,
+              failed: c.fail + c.warn,
+              skipped: c.skip,
+              failedTests: fails.map(t => ({ id: t.id, note: getNote(t.id) }))
+          };
+          
+          await fetch(`${API}/sa/qa/runs`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+              body: JSON.stringify({ versionId: null, testerName: userName, results: runResults })
+          });
+          showToast('הדוח נשמר בשרת והורד למחשב!');
+      } catch(e) { console.error('Error saving QA run to server', e); }
+  } else {
+      showToast('הדוח הורד! (לא נשמר בשרת - חסר טוקן)');
+  }
 }
 
 function showToast(msg) {
@@ -1203,9 +823,13 @@ function showToast(msg) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
-  updateStats();
-  renderTests(null);
-  renderVersions();
+  // תחילה נטען נתונים מהשרת (יחליף את המערך הריק SECTIONS)
+  loadTestsFromServer().then(() => {
+      // רק אחרי שהמידע נמשך, הממשק יתרנדר מחדש
+      updateStats();
+      renderTests(null);
+      renderVersions();
+  });
 });
 
 </script>
