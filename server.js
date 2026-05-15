@@ -91,13 +91,19 @@ pool.connect()
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS ticket_type VARCHAR(50) DEFAULT 'general'`); } catch(e) {}
 
-      // צ'אט פנימי מערכתי (Internal Whispers) - ספרינט 3
+    // צ'אט פנימי מערכתי (Internal Whispers) - ספרינט 3
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_internal_chat (id SERIAL PRIMARY KEY, room VARCHAR(50) DEFAULT 'general', sender_name VARCHAR(100), sender_id INT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-    // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+      
+      // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
-      // טבלת צ'אט צוות פנימי
+      
+      // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
+    // טבלת צ'אט צוות פנימי
     try {
           await client.query(`CREATE TABLE IF NOT EXISTS team_chat (
               id SERIAL PRIMARY KEY,
@@ -4414,6 +4420,81 @@ app.put('/api/sa/matrix/:id/status', verifySA, async (req, res) => {
 app.delete('/api/sa/matrix/:id', verifySA, async (req, res) => {
     try {
         await pool.query('DELETE FROM sa_product_matrix WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// --- QA, PRODUCT BOOK & VERSIONS (SPRINT 4) ---
+// ==========================================
+
+// משיכת כל הגרסאות הקיימות
+app.get('/api/sa/versions', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_versions ORDER BY id DESC');
+        res.json({ success: true, versions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// פתיחת גרסה חדשה
+app.post('/api/sa/versions', verifySA, async (req, res) => {
+    try {
+        const { name, targetDate } = req.body;
+        await pool.query('INSERT INTO sa_versions (name, target_date) VALUES ($1, $2)', [name, targetDate || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משיכת ספר המוצר (כל הבדיקות מהמסד)
+app.get('/api/sa/qa/tests', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_product_book ORDER BY category ASC, id ASC');
+        res.json({ success: true, tests: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספה/עדכון ידני של בדיקה (גיבוי להזנה ידנית / אישור לאחר AI)
+app.post('/api/sa/qa/tests', verifySA, async (req, res) => {
+    try {
+        const { id, category, name, description, priority } = req.body;
+        // מנגנון Upsert: מעדכן אם קיים, מוסיף אם חדש
+        await pool.query(`
+            INSERT INTO sa_product_book (id, category, name, description, priority) 
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id) DO UPDATE 
+            SET category = EXCLUDED.category, name = EXCLUDED.name, description = EXCLUDED.description, priority = EXCLUDED.priority
+        `, [id, category, name, description, priority || 'medium']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ייבוא מסיבי (Seed) - להעברת 300+ הבדיקות מקובץ ה-HTML ישירות למסד
+app.post('/api/sa/qa/tests/bulk', verifySA, async (req, res) => {
+    try {
+        const { tests } = req.body; 
+        if (!tests || !tests.length) return res.json({ success: false, error: 'לא נשלחו נתונים' });
+        
+        let inserted = 0;
+        for (let t of tests) {
+            await pool.query(`
+                INSERT INTO sa_product_book (id, category, name, description, priority) 
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (id) DO NOTHING
+            `, [t.id, t.cat || t.category, t.name, t.desc || t.description, t.prio || t.priority || 'medium']);
+            inserted++;
+        }
+        res.json({ success: true, inserted });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירת פלט ריצת ה-QA וסגירת מעגל
+app.post('/api/sa/qa/runs', verifySA, async (req, res) => {
+    try {
+        const { versionId, testerName, results } = req.body;
+        await pool.query(
+            'INSERT INTO sa_qa_runs (version_id, tester_name, results) VALUES ($1, $2, $3)',
+            [versionId || null, testerName, JSON.stringify(results)]
+        );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
