@@ -194,8 +194,9 @@ tr:hover td{background:#fafbfc}
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
     <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> ניהול גרסאות</div>
   </div>
-  <div class="sb-section">
+<div class="sb-section">
     <div class="sb-section-title">מודולים</div>
+    <div class="sb-link" onclick="filterSection('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
     <div class="sb-link" onclick="filterSection('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
     <div class="sb-link" onclick="filterSection('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
     <div class="sb-link" onclick="filterSection('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
@@ -341,10 +342,42 @@ async function loadTestsFromServer() {
         const data = await res.json();
         
         if (data.success) {
+            // מילון תרגום משמות המסד למזהים של תפריט הצד
+            const catMap = {
+                'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
+                'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
+                'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
+                'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
+                'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
+                'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
+                'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
+                'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
+                'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
+                'AI ופיצ'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
+                'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
+                'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
+                'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
+                'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
+                'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
+                'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
+                'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
+                'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
+                'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
+                'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
+                'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
+                'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
+                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' } // הקטגוריה החדשה שביקשת
+            };
+
             const grouped = {};
             data.tests.forEach(t => {
-                if (!grouped[t.category]) grouped[t.category] = { id: t.category, icon: 'fa-cube', color: '#64748b', title: t.category, tests: [] };
-                grouped[t.category].tests.push({
+                const catName = t.category || 'כללי';
+                const meta = catMap[catName] || { id: 'general', icon: 'fa-inbox', color: '#f43f5e' };
+                
+                if (!grouped[catName]) {
+                    grouped[catName] = { id: meta.id, icon: meta.icon, color: meta.color, title: catName, tests: [] };
+                }
+                grouped[catName].tests.push({
                     id: t.id,
                     name: t.name,
                     desc: t.description,
@@ -357,7 +390,6 @@ async function loadTestsFromServer() {
             
             updateStats();
             renderTests(null);
-            // הסרתי את ההודעה הקופצת כאן כדי שהיא לא תציק בכל פעם שאתה מרענן את העמוד
         } else {
             showToast('שגיאה בטעינת בדיקות מהשרת');
         }
