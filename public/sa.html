@@ -1318,7 +1318,73 @@
         </div>
     </div>
 
-    <script src="sa-app.js?v=10"></script>
+   </div>
+
+    <div id="sa-qa-generator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('sa-qa-generator-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-vial-circle-check"></i></div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 leading-tight">תיעוד בספר QA ומוצר</h3>
+                    <p class="text-[10px] text-slate-500 font-bold" id="qa-gen-task-title">משימה: ...</p>
+                </div>
+            </div>
+            
+            <div class="space-y-3 mb-6 relative">
+                <div id="qa-gen-overlay" class="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-10 hidden flex-col items-center justify-center rounded-xl">
+                    <i class="fa-solid fa-wand-magic-sparkles fa-bounce text-3xl text-purple-500 mb-2"></i>
+                    <span class="text-xs font-bold text-slate-600">ה-AI מנסח עבורך את הבדיקה...</span>
+                </div>
+
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <label class="text-[10px] font-bold text-slate-600 block mb-1">מזהה בדיקה (ID):</label>
+                        <input type="text" id="qa-gen-id" class="modern-input py-2 text-xs font-mono uppercase dir-ltr text-right" placeholder="AUTO-101">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-[10px] font-bold text-slate-600 block mb-1">קטגוריה / מודול:</label>
+                        <input type="text" id="qa-gen-category" class="modern-input py-2 text-xs" placeholder="למשל: קופה, קהילות...">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם הבדיקה:</label>
+                    <input type="text" id="qa-gen-name" class="modern-input py-2 text-sm font-bold" placeholder="כותרת הבדיקה במערכת">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">צעדים לביצוע ותוצאה מצופה:</label>
+                    <textarea id="qa-gen-desc" class="modern-input py-2 text-xs h-20 resize-none" placeholder="1. כנס למסך X...&#10;2. לחץ על Y...&#10;3. התוצאה המצופה היא..."></textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">רמת עדיפות לבדיקה:</label>
+                    <select id="qa-gen-prio" class="modern-input py-2 text-sm bg-slate-50">
+                        <option value="critical">🚨 קריטי (חובה לפני שחרור)</option>
+                        <option value="high">🔴 גבוה</option>
+                        <option value="medium" selected>🟡 רגיל / בינוני</option>
+                        <option value="low">🔵 נמוך</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-2">
+                <button onclick="runQA_AIGeneration()" class="w-full bg-purple-100 text-purple-700 py-2.5 rounded-xl font-bold shadow-sm border border-purple-200 hover:bg-purple-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי אוטומטית בעזרת AI
+                </button>
+                <div class="flex gap-2 mt-2 pt-4 border-t border-slate-100">
+                    <button onclick="document.getElementById('sa-qa-generator-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition text-sm">דלג וסגור</button>
+                    <button onclick="saveQAManually()" class="flex-[2] bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md hover:bg-slate-900 transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-save"></i> שמור בדיקה לספר המוצר
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="sa-app.js?v=11"></script>
    <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
