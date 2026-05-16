@@ -376,21 +376,38 @@ window.seedDatabase = async function(legacyData) {
     try {
         let allTestsToSeed = [];
         legacyData.forEach(sec => {
-            sec.tests.forEach(t => {
-                allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
-            });
+            if (sec.tests) {
+                sec.tests.forEach(t => {
+                    allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
+                });
+            }
         });
         
         const res = await fetch(`${API}/sa/qa/tests/bulk`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
             body: JSON.stringify({ tests: allTestsToSeed })
         });
-        const data = await res.json();
-        if(data.success) {
-            showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
-            loadTestsFromServer();
+        
+        // בדיקה שהתשובה היא אכן JSON כדי למנוע קריסה
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            const data = await res.json();
+            if(data.success) {
+                showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
+                loadTestsFromServer();
+            } else {
+                console.error('Server error:', data.error);
+                showToast('השרת החזיר שגיאה: ' + data.error);
+            }
+        } else {
+            const text = await res.text();
+            console.error('Server returned plain text:', text);
+            showToast('שגיאה לא צפויה בשרת (ראה קונסול)');
         }
-    } catch(e) { showToast('שגיאה בייבוא נתונים'); }
+    } catch(e) { 
+        console.error('Network Error:', e);
+        showToast('שגיאת תקשורת בייבוא נתונים'); 
+    }
 };
 
 // ============================================================
