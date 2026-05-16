@@ -1988,7 +1988,7 @@ window.dragKanbanTask = function(ev) { ev.dataTransfer.setData("taskId", ev.targ
 window.dropKanbanTask = async function(ev, newStatus) {
     ev.preventDefault();
     const taskId = ev.dataTransfer.getData("taskId");
-    const task = devKanbanTasks.find(t => t.id === taskId);
+    const task = devKanbanTasks.find(t => parseInt(t.id) === parseInt(taskId));
     
     if (task && task.status !== newStatus) {
         task.status = newStatus;
@@ -2001,36 +2001,63 @@ window.dropKanbanTask = async function(ev, newStatus) {
             });
             
             if (newStatus === 'done') {
-                // קונפטי חגיגי למתכנת!
-                try { confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } }); } catch(e){}
-                
-                // --- מנגנון Feedback Loop ---
-                // מחפש בטקסט המשימה אזכור בסגנון "קריאת שירות #123" או "פנייה #123"
-                const ticketMatch = task.desc ? task.desc.match(/(?:קריאת שירות|פנייה) #(\d+)/) : null;
-                
-                if (ticketMatch && ticketMatch[1]) {
-                    const ticketId = ticketMatch[1];
-                    setTimeout(async () => {
-                        if (confirm(`🔁 סגירת מעגל (Feedback Loop):\nזיהינו שהמשימה קשורה לקריאת שירות #${ticketId}.\nהאם לסגור את הקריאה ולעדכן את הלקוח שהפיתוח הושלם?`)) {
+                // 1. קונפטי חגיגי 
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
+                }
+
+                setTimeout(async () => {
+                    // 2. בדיקת Feedback Loop (סגירת קריאת שירות)
+                    // חיפוש גם בשדה הייעודי וגם בטקסט החופשי של תיאור המשימה
+                    const textToSearch = (task.description || '') + ' ' + (task.title || '');
+                    const ticketMatch = textToSearch.match(/(?:קריאה|פנייה|טיקט)\s*#?(\d+)/i);
+                    const originalTicketId = task.original_ticket_id || (ticketMatch ? ticketMatch[1] : null);
+
+                    if (originalTicketId) {
+                        if (confirm(`🔁 סגירת מעגל (Feedback Loop):\nזיהינו שהמשימה קשורה לקריאת שירות #${originalTicketId}.\nלסגור את הקריאה ולשלוח עדכון אוטומטי ללקוח?`)) {
                             try {
-                                const res = await fetch(`${API}/sa/tickets/${ticketId}/feedback-loop`, {
+                                const res = await fetch(`${API}/sa/tickets/${originalTicketId}/feedback-loop`, {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
-                                    body: JSON.stringify({ taskTitle: task.title, version: task.version })
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                                    body: JSON.stringify({ taskTitle: task.title, version: task.target_version })
                                 });
                                 const data = await res.json();
                                 if (data.success) {
-                                    showToast('success', `קריאה #${ticketId} נסגרה והלקוח עודכן! 🎉`);
-                                    if (typeof loadSATickets === 'function') loadSATickets(); // רענון הטיקטים ברקע
+                                    showToast('success', `קריאה #${originalTicketId} נסגרה. הלקוח עודכן! 🎉`);
+                                    if (typeof loadSATickets === 'function') loadSATickets();
                                 }
-                            } catch(err) {
-                                showToast('error', 'שגיאה בסגירת מעגל לקריאה');
-                            }
+                            } catch(err) { console.error('Feedback loop error', err); }
                         }
-                    }, 800); // השהייה קלה כדי לתת לקונפטי לרוץ קודם
-                }
+                    }
+
+                    // 3. הצעה לאוטומציית QA (הכנה לשלב ג' של ספרינט 4)
+                    if (confirm(`🤖 יצירת בדיקת QA אוטומטית:\nהאם תרצה שה-AI ינסח בדיקת QA לספר המוצר עבור "${task.title}" וישמור אותה בענן?`)) {
+                        generateQAFromTask(task);
+                    }
+
+                }, 1200); // מחכים שהקונפטי יסיים
             }
-        } catch(e) { showToast('error', 'שגיאה בעדכון סטטוס משימה בשרת'); }
+        } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+    }
+};
+
+// פונקציית סנכרון מהקנבן ל-QA (שלב ג')
+window.generateQAFromTask = async function(task) {
+    showToast('info', 'מנתח משימה ומייצר בדיקה... זה ייקח מספר שניות.');
+    try {
+        const res = await fetch(`${API}/sa/ai/generate-qa`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ taskTitle: task.title, taskDesc: task.description, module: task.module_name })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'בדיקת ה-QA נוצרה ונשמרה בהצלחה בספר המוצר בענן!');
+        } else {
+            showToast('error', 'שגיאה ביצירת בדיקת QA: ' + (data.error || ''));
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת מול שרת ה-AI');
     }
 };
 
