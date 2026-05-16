@@ -4510,7 +4510,7 @@ app.post('/api/sa/qa/runs', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מחולל בדיקות QA אוטומטי מבוסס AI (שלב ג')
+// מחולל בדיקות QA אוטומטי מבוסס AI (מחזיר טיוטה לממשק ללא שמירה)
 app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
     try {
         const { taskTitle, taskDesc, module } = req.body;
@@ -4522,7 +4522,7 @@ app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
             Based on the following software development task, generate a single, comprehensive QA test case in Hebrew.
             Return ONLY a valid JSON object with the following structure (no markdown formatting, no extra text, just raw JSON):
             {
-                "id": "Generate a unique 6-character ID, e.g., AUTO-12",
+                "id": "Generate a unique 6-character ID starting with AUTO-, e.g., AUTO-102",
                 "category": "The most relevant module/category in Hebrew (e.g., 'קופה', 'לקוחות', 'משפחה', 'אקדמיה', 'כללי')",
                 "name": "Test name in Hebrew",
                 "description": "Step-by-step description of what to test, and the expected result in Hebrew",
@@ -4537,23 +4537,12 @@ app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
         const result = await aiModel.generateContent(prompt);
         let responseText = result.response.text().trim();
         
-        // ניקוי עטיפות markdown של קוד אם ה-AI החזיר אותן (כדי למנוע קריסת JSON)
-        if (responseText.startsWith('\`\`\`json')) {
-            responseText = responseText.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
-        } else if (responseText.startsWith('\`\`\`')) {
-            responseText = responseText.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
-        }
+        if (responseText.startsWith('```json')) responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
+        else if (responseText.startsWith('```')) responseText = responseText.replace(/^```/, '').replace(/```$/, '').trim();
         
         const qaData = JSON.parse(responseText);
 
-        // שמירה ישירות למסד הנתונים
-        await pool.query(`
-            INSERT INTO sa_product_book (id, category, name, description, priority) 
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (id) DO UPDATE 
-            SET category = EXCLUDED.category, name = EXCLUDED.name, description = EXCLUDED.description, priority = EXCLUDED.priority
-        `, [qaData.id, qaData.category, qaData.name, qaData.description, qaData.priority]);
-
+        // אנחנו כבר לא שומרים למסד כאן! מחזירים את זה לממשק כדי שהמשתמש יאשר ויערוך ידנית.
         res.json({ success: true, test: qaData });
     } catch(e) {
         console.error('QA Generation Error:', e);
