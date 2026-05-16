@@ -2030,9 +2030,9 @@ window.dropKanbanTask = async function(ev, newStatus) {
                         }
                     }
 
-                    // 3. הצעה לאוטומציית QA (הכנה לשלב ג' של ספרינט 4)
-                    if (confirm(`🤖 יצירת בדיקת QA אוטומטית:\nהאם תרצה שה-AI ינסח בדיקת QA לספר המוצר עבור "${task.title}" וישמור אותה בענן?`)) {
-                        generateQAFromTask(task);
+                    // 3. פתיחת חלון עריכת QA (ידני + AI)
+                    if (confirm(`📘 תיעוד בספר QA:\nהאם תרצה לתעד את המשימה "${task.title}" כבדיקה בספר המוצר?\n(תוכל להיעזר ב-AI או לכתוב ידנית)`)) {
+                        window.openQAGeneratorModal(task);
                     }
 
                 }, 1200); // מחכים שהקונפטי יסיים
@@ -2041,9 +2041,29 @@ window.dropKanbanTask = async function(ev, newStatus) {
     }
 };
 
-// פונקציית סנכרון מהקנבן ל-QA (שלב ג')
-window.generateQAFromTask = async function(task) {
-    showToast('info', 'מנתח משימה ומייצר בדיקה... זה ייקח מספר שניות.');
+// פתיחת מודל יצירת הבדיקה
+window.openQAGeneratorModal = function(task) {
+    window.currentQATask = task;
+    getEl('qa-gen-task-title').innerText = 'משימה: ' + task.title;
+    
+    // ניקוי שדות
+    getEl('qa-gen-id').value = 'AUTO-' + Math.floor(1000 + Math.random() * 9000);
+    getEl('qa-gen-category').value = task.module_name || '';
+    getEl('qa-gen-name').value = '';
+    getEl('qa-gen-desc').value = '';
+    getEl('qa-gen-prio').value = 'medium';
+    
+    getEl('sa-qa-generator-modal').classList.remove('hidden');
+};
+
+// יצירת טיוטה דרך AI
+window.runQA_AIGeneration = async function() {
+    if (!window.currentQATask) return;
+    const task = window.currentQATask;
+    
+    getEl('qa-gen-overlay').classList.remove('hidden');
+    getEl('qa-gen-overlay').classList.add('flex');
+    
     try {
         const res = await fetch(`${API}/sa/ai/generate-qa`, {
             method: 'POST',
@@ -2051,13 +2071,60 @@ window.generateQAFromTask = async function(task) {
             body: JSON.stringify({ taskTitle: task.title, taskDesc: task.description, module: task.module_name })
         });
         const data = await res.json();
-        if (data.success) {
-            showToast('success', 'בדיקת ה-QA נוצרה ונשמרה בהצלחה בספר המוצר בענן!');
+        
+        if (data.success && data.test) {
+            getEl('qa-gen-id').value = data.test.id || getEl('qa-gen-id').value;
+            getEl('qa-gen-category').value = data.test.category || '';
+            getEl('qa-gen-name').value = data.test.name || '';
+            getEl('qa-gen-desc').value = data.test.description || '';
+            
+            // תרגום עדיפויות אם ה-AI החזיר באנגלית
+            const prio = (data.test.priority || '').toLowerCase();
+            if (prio.includes('high') || prio.includes('גבוה')) getEl('qa-gen-prio').value = 'high';
+            else if (prio.includes('crit')) getEl('qa-gen-prio').value = 'critical';
+            else if (prio.includes('low') || prio.includes('נמוך')) getEl('qa-gen-prio').value = 'low';
+            else getEl('qa-gen-prio').value = 'medium';
+            
+            showToast('success', 'הטיוטה מוכנה! עברו עליה ושמרו.');
         } else {
-            showToast('error', 'שגיאה ביצירת בדיקת QA: ' + (data.error || ''));
+            showToast('error', 'שגיאת AI: ' + (data.error || 'נא להזין ידנית'));
         }
     } catch (e) {
         showToast('error', 'שגיאת רשת מול שרת ה-AI');
+    } finally {
+        getEl('qa-gen-overlay').classList.add('hidden');
+        getEl('qa-gen-overlay').classList.remove('flex');
+    }
+};
+
+// שמירה ידנית של הבדיקה למסד הנתונים
+window.saveQAManually = async function() {
+    const qaData = {
+        id: val('qa-gen-id'),
+        category: val('qa-gen-category'),
+        name: val('qa-gen-name'),
+        description: val('qa-gen-desc'),
+        priority: val('qa-gen-prio')
+    };
+    
+    if (!qaData.id || !qaData.name || !qaData.description) return showToast('error', 'חובה למלא מזהה, שם ותיאור.');
+    
+    try {
+        const res = await fetch(`${API}/sa/qa/tests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(qaData)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'הבדיקה נשמרה בהצלחה לספר המוצר!');
+            getEl('sa-qa-generator-modal').classList.add('hidden');
+        } else {
+            showToast('error', 'שגיאה בשמירת הבדיקה: ' + data.error);
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת תקשורת עם השרת');
     }
 };
 
