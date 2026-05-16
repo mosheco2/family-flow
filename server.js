@@ -4468,23 +4468,34 @@ app.post('/api/sa/qa/tests', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ייבוא מסיבי (Seed) - להעברת 300+ הבדיקות מקובץ ה-HTML ישירות למסד
+// ייבוא מסיבי (Seed) - משוריין לכל גרסאות ה-DB
 app.post('/api/sa/qa/tests/bulk', verifySA, async (req, res) => {
     try {
+        // נוודא שהטבלה אכן קיימת לפני שמתחילים להזריק נתונים
+        await pool.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+
         const { tests } = req.body; 
         if (!tests || !tests.length) return res.json({ success: false, error: 'לא נשלחו נתונים' });
         
         let inserted = 0;
         for (let t of tests) {
-            await pool.query(`
-                INSERT INTO sa_product_book (id, category, name, description, priority) 
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (id) DO NOTHING
-            `, [t.id, t.cat || t.category, t.name, t.desc || t.description, t.prio || t.priority || 'medium']);
-            inserted++;
+            try {
+                await pool.query(`
+                    INSERT INTO sa_product_book (id, category, name, description, priority) 
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [t.id, t.cat || t.category, t.name, t.desc || t.description, t.prio || t.priority || 'medium']);
+                inserted++;
+            } catch(err) {
+                // התעלמות משגיאת כפילות (Unique Violation 23505) - עובד בכל גרסאות Postgres
+                if (err.code !== '23505') throw err;
+            }
         }
         res.json({ success: true, inserted });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error('Bulk Insert Error:', e);
+        // מחזיר JSON תקין תמיד, גם במקרה של קריסת שרת פנימית
+        res.status(500).json({ success: false, error: 'שגיאת שרת פנימית: ' + e.message }); 
+    }
 });
 
 // שמירת פלט ריצת ה-QA וסגירת מעגל
