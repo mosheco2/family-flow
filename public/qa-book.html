@@ -314,8 +314,6 @@ tr:hover td{background:#fafbfc}
 
 <script>
 // ============================================================
-<script>
-// ============================================================
 // API CONNECTION & DATA
 // ============================================================
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
@@ -341,7 +339,6 @@ async function loadTestsFromServer() {
         const data = await res.json();
         
         if (data.success) {
-            // ממירים את הרשימה השטוחה של השרת למבנה המודולים (SECTIONS) שהממשק מצפה לו
             const grouped = {};
             data.tests.forEach(t => {
                 if (!grouped[t.category]) grouped[t.category] = { id: t.category, icon: 'fa-cube', color: '#64748b', title: t.category, tests: [] };
@@ -350,17 +347,15 @@ async function loadTestsFromServer() {
                     name: t.name,
                     desc: t.description,
                     prio: t.priority,
-                    envs: ['all'] // ניתן לעדכן בהמשך בשרת
+                    envs: ['all'] 
                 });
             });
             
-            // המרה חזרה למערך
             SECTIONS = Object.values(grouped);
             
-            // עדכון הממשק
             updateStats();
             renderTests(null);
-            showToast('בדיקות נטענו בהצלחה מהשרת');
+            // הסרתי את ההודעה הקופצת כאן כדי שהיא לא תציק בכל פעם שאתה מרענן את העמוד
         } else {
             showToast('שגיאה בטעינת בדיקות מהשרת');
         }
@@ -388,7 +383,6 @@ window.seedDatabase = async function(legacyData) {
             body: JSON.stringify({ tests: allTestsToSeed })
         });
         
-        // בדיקה שהתשובה היא אכן JSON כדי למנוע קריסה
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
             const data = await res.json();
@@ -413,11 +407,6 @@ window.seedDatabase = async function(legacyData) {
 // ============================================================
 // STATE
 // ============================================================
-function loadState() {
-let versions = [];
-let currentView = 'dashboard';
-let currentFilter = null;
-
 function loadState() {
   try {
     state = JSON.parse(localStorage.getItem('qa_state') || '{}');
