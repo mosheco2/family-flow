@@ -331,18 +331,37 @@ let currentFilter = null;
 // ============================================================
 // SERVER INTEGRATION
 // ============================================================
+async function displayUnauthorizedMessage(message) {
+    const grid = document.getElementById('matrix-grid');
+    if (grid) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-w-xl mx-auto mt-10">
+                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
+                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;">בצע בדיקה מחודשת</button>
+            </div>
+        `;
+    }
+}
+
 async function loadTestsFromServer() {
     if (!saToken) {
-        showToast('נא להתחבר לסופר אדמין תחילה');
+        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה למערכת הניהול הראשית (sa.html) ולאחר מכן לרענן עמוד זה.');
         return;
     }
     
     try {
         const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
+        
+        if (res.status === 401 || res.status === 403) {
+            displayUnauthorizedMessage('פג תוקף החיבור המאובטח (השרת אותחל). אנא כנס למסך הניהול (sa.html), בצע התנתקות והתחברות מחדש, ואז רענן דף זה.');
+            return;
+        }
+
         const data = await res.json();
         
         if (data.success) {
-            // מילון תרגום משמות המסד למזהים של תפריט הצד
             const catMap = {
                 'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
                 'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
@@ -353,7 +372,7 @@ async function loadTestsFromServer() {
                 'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
                 'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
                 'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
-                'AI ופיצ'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
+                'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
                 'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
                 'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
                 'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
@@ -366,7 +385,7 @@ async function loadTestsFromServer() {
                 'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
                 'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
                 'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
-                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' } // הקטגוריה החדשה שביקשת
+                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
             };
 
             const grouped = {};
@@ -391,11 +410,11 @@ async function loadTestsFromServer() {
             updateStats();
             renderTests(null);
         } else {
-            showToast('שגיאה בטעינת בדיקות מהשרת');
+            displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
         }
     } catch(e) {
         console.error('Error loading tests:', e);
-        showToast('שגיאת רשת מול השרת');
+        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
     }
 }
 
