@@ -2046,9 +2046,9 @@ window.openQAGeneratorModal = function(task) {
     window.currentQATask = task;
     getEl('qa-gen-task-title').innerText = 'משימה: ' + task.title;
     
-    // ניקוי שדות
+    // ניקוי שדות וקביעת "כללי" כברירת מחדל לבקשת המשתמש
     getEl('qa-gen-id').value = 'AUTO-' + Math.floor(1000 + Math.random() * 9000);
-    getEl('qa-gen-category').value = task.module_name || '';
+    getEl('qa-gen-category').value = 'כללי';
     getEl('qa-gen-name').value = '';
     getEl('qa-gen-desc').value = '';
     getEl('qa-gen-prio').value = 'medium';
@@ -2074,11 +2074,11 @@ window.runQA_AIGeneration = async function() {
         
         if (data.success && data.test) {
             getEl('qa-gen-id').value = data.test.id || getEl('qa-gen-id').value;
-            getEl('qa-gen-category').value = data.test.category || '';
+            // דריסה מכוונת: לא משנה מה ה-AI כתב, נשאיר 'כללי'
+            getEl('qa-gen-category').value = 'כללי'; 
             getEl('qa-gen-name').value = data.test.name || '';
             getEl('qa-gen-desc').value = data.test.description || '';
             
-            // תרגום עדיפויות אם ה-AI החזיר באנגלית
             const prio = (data.test.priority || '').toLowerCase();
             if (prio.includes('high') || prio.includes('גבוה')) getEl('qa-gen-prio').value = 'high';
             else if (prio.includes('crit')) getEl('qa-gen-prio').value = 'critical';
