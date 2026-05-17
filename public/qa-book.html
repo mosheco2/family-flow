@@ -1087,7 +1087,7 @@ function toggleNote(id) {
 // ============================================================
 // STATE MANAGEMENT (תיקון הכפתורים האפורים)
 // ============================================================
-let state = {};
+// הערה: המשתנה state הוגדר בתחילת הקובץ ולכן לא נגדיר אותו מחדש כדי למנוע קריסה
 function getStatus(id) { return state[id]?.s || null; }
 function getNote(id) { return state[id]?.n || ''; }
 
