@@ -1881,8 +1881,8 @@ window.loadDevTasks = async function() {
 };
 
 window.renderKanbanBoard = function() {
-    const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
-    const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
+    const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'development': getEl('col-development'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
+    const counts = { 'backlog': 0, 'in_progress': 0, 'development': 0, 'qa': 0, 'done': 0 };
     
     // סינון חכם לפי גרסה או טקסט חופשי
     const versionFilter = val('kanban-version-filter').trim().toLowerCase();
@@ -1916,9 +1916,11 @@ window.renderKanbanBoard = function() {
         else if(task.priority === 'low') prioIcon = '🔵';
 
         const versionBadge = task.version ? `<span class="bg-indigo-50 border border-indigo-100 text-indigo-600 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
+        const almBadge = (task.status === 'development' || task.status === 'qa') ? `<div class="text-[9px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-200 mb-2 inline-block shadow-sm w-full text-center"><i class="fa-solid fa-lock text-blue-500"></i> מנוהל ALM בספר הבדיקות</div>` : '';
 
         const cardHtml = `
         <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
+            ${almBadge}
             <div class="flex justify-between items-start mb-2">
                 ${typeBadge}
                 <span class="text-[10px]" title="דחיפות">${prioIcon}</span>
@@ -1941,7 +1943,6 @@ window.renderKanbanBoard = function() {
     const totalEl = getEl('kanban-total-count');
     if (totalEl) totalEl.innerText = `${filteredTasks.length} משימות`;
     
-    // --- הקסם: הצגת כפתור "שחרר גרסה" אם סיננו לגרסה ויש משימות סגורות ---
     const releaseBtn = getEl('btn-release-version');
     if (releaseBtn) {
         if (versionFilter && counts['done'] > 0) {
@@ -1958,19 +1959,15 @@ window.prepareReleaseFromVersion = function() {
     const versionFilter = val('kanban-version-filter').trim();
     if (!versionFilter) return;
     
-    // אוספים רק את המשימות בסטטוס Done ששייכות לגרסה המסוננת
     const doneTasks = devKanbanTasks.filter(t => t.status === 'done' && t.version && t.version.toLowerCase().includes(versionFilter.toLowerCase()));
-    
     if (doneTasks.length === 0) return showToast('error', 'אין משימות שנסגרו בגרסה זו');
     
-    // בונים טקסט נקי ל-AI שמכיל את כותרות המשימות (מנקים קידומות טכניות)
     let pointsText = doneTasks.map(t => {
-        let cleanTitle = t.title.replace(/^פנייה #[0-9]+:\s*/, ''); // מנקה את מספר הפנייה אם זה הגיע מתמיכה
-        cleanTitle = cleanTitle.replace(/^באג:\s*/, 'תיקון: '); // הופך באג למילה חיובית יותר
+        let cleanTitle = t.title.replace(/^פנייה #[0-9]+:\s*/, '');
+        cleanTitle = cleanTitle.replace(/^באג:\s*/, 'תיקון: ');
         return '- ' + cleanTitle;
     }).join('\n');
     
-    // מעבירים לטאב ההשקות
     const rawPointsInput = getEl('release-raw-points');
     const titleInput = getEl('release-title');
     
@@ -1990,7 +1987,15 @@ window.dropKanbanTask = async function(ev, newStatus) {
     const taskId = ev.dataTransfer.getData("taskId");
     const task = devKanbanTasks.find(t => parseInt(t.id) === parseInt(taskId));
     
-    if (task && task.status !== newStatus) {
+    if (!task) return;
+
+    // ALM BLOCKER: מניעת העברה ידנית ל-DONE למשימות פיתוח 
+    if (newStatus === 'done' && (task.status === 'development' || task.status === 'qa' || task.type === 'feature')) {
+        showToast('error', 'משימה זו מנוהלת הנדסית. היא תעבור אוטומטית ל-DONE רק לאחר אישור בספר ה-QA.');
+        return; // עוצר את הביצוע!
+    }
+
+    if (task.status !== newStatus) {
         task.status = newStatus;
         renderKanbanBoard(); 
         
@@ -2000,15 +2005,17 @@ window.dropKanbanTask = async function(ev, newStatus) {
                 body: JSON.stringify({ status: newStatus })
             });
             
+            if (newStatus === 'development') {
+                showToast('success', 'המשימה הועברה בהצלחה למאגר הפיתוח בספר ה-QA');
+            }
+            
+            // ריצה של סגירת המעגל רק אם זה משימת תמיכה רגילה
             if (newStatus === 'done') {
-                // 1. קונפטי חגיגי 
                 if (typeof confetti === 'function') {
                     confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
                 }
 
                 setTimeout(async () => {
-                    // 2. בדיקת Feedback Loop (סגירת קריאת שירות)
-                    // חיפוש גם בשדה הייעודי וגם בטקסט החופשי של תיאור המשימה
                     const textToSearch = (task.description || '') + ' ' + (task.title || '');
                     const ticketMatch = textToSearch.match(/(?:קריאה|פנייה|טיקט)\s*#?(\d+)/i);
                     const originalTicketId = task.original_ticket_id || (ticketMatch ? ticketMatch[1] : null);
@@ -2030,12 +2037,7 @@ window.dropKanbanTask = async function(ev, newStatus) {
                         }
                     }
 
-                    // 3. פתיחת חלון עריכת QA (ידני + AI)
-                    if (confirm(`📘 תיעוד בספר QA:\nהאם תרצה לתעד את המשימה "${task.title}" כבדיקה בספר המוצר?\n(תוכל להיעזר ב-AI או לכתוב ידנית)`)) {
-                        window.openQAGeneratorModal(task);
-                    }
-
-                }, 1200); // מחכים שהקונפטי יסיים
+                }, 1200);
             }
         } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
     }
