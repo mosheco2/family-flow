@@ -3189,3 +3189,20 @@ window.verifyMasterOTP = async function(e) {
         showToast('error', 'שגיאה באימות הקוד מול השרת');
     }
 };
+// בדיקת סטטוס חיבור אוטומטית מיד עם טעינת העמוד (Auto-Login Check)
+document.addEventListener("DOMContentLoaded", function() {
+    const token = localStorage.getItem('saToken');
+    const userRaw = localStorage.getItem('saUser');
+    
+    if (token === 'SA_SECRET_TOKEN_2026' && userRaw) {
+        // העלמת מסך ה-Auth והצגת פאנל הניהול הראשי
+        document.getElementById('auth-container').classList.add('hidden');
+        document.getElementById('sa-dashboard-container').classList.remove('hidden');
+        
+        // טעינת הנתונים הראשונית של המערכת
+        if (typeof loadSAData === 'function') loadSAData();
+        if (typeof loadSATickets === 'function') loadSATickets();
+        
+        showToast('success', 'ברוך הבא חזרה, מנהל על');
+    }
+});
