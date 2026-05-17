@@ -35,7 +35,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .badge-ok{background:var(--ok);color:white}
 
 /* --- DASHBOARD STATS --- */
-.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem}
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:0.75rem;margin-bottom:1.5rem}
 .stat-card{background:var(--card);border-radius:1rem;padding:1rem;text-align:center;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.05)}
 .stat-card .num{font-size:1.6rem;font-weight:800;line-height:1}
 .stat-card .lbl{font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;font-weight:500}
@@ -205,6 +205,20 @@ tr:hover td{background:#fafbfc}
       <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem" id="module-cards"></div>
+    
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <h3><i class="fa-solid fa-circle-info" style="color:var(--primary)"></i> מידע על הריצה הנוכחית</h3>
+        <i class="fa-solid fa-chevron-down chevron"></i>
+      </div>
+      <div class="section-body" style="padding:1.25rem">
+        <table style="width:auto;min-width:400px">
+          <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">תאריך ריצה</td><td style="border:none;font-size:0.8rem" id="run-date">—</td></tr>
+          <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">גרסה שנבדקה</td><td style="border:none;font-size:0.8rem" id="run-ver">—</td></tr>
+          <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">הערות</td><td style="border:none"><input id="run-notes" placeholder="הוסף הערות על הריצה..." style="border:1px solid var(--border);border-radius:0.5rem;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.78rem;width:300px;outline:none" oninput="saveState()"></td></tr>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div id="view-tests" class="view">
@@ -247,10 +261,8 @@ tr:hover td{background:#fafbfc}
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
-      
       <div id="alm-versions-board" style="display: flex; flex-direction: column; gap: 1rem;">
           </div>
-
       <div style="background: white; border-radius: 1rem; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); position: sticky; top: 1.5rem;">
           <div style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 1rem;">
               <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-inbox text-blue-500"></i> משימות למיון ושיוך</h3>
@@ -259,7 +271,6 @@ tr:hover td{background:#fafbfc}
           <div id="alm-unassigned-tasks" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; background: #f1f5f9;">
               </div>
       </div>
-      
     </div>
   </div>
 
@@ -286,12 +297,11 @@ tr:hover td{background:#fafbfc}
 
 <script>
 // ============================================================
-// 1. DATA ARCHITECTURE & THE RIGID SKELETON (אפיון סעיף 1)
+// 1. DATA ARCHITECTURE & THE RIGID SKELETON
 // ============================================================
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 const saToken = localStorage.getItem('ofl_sa_token') || localStorage.getItem('saToken');
 
-// השלד הקשיח כפי שמופיע בקוד המקור שלך בדיוק
 const BASE_CATEGORIES = [
     { id: 'general', title: 'כללי (משימות חדשות)', icon: 'fa-inbox', color: '#f43f5e' },
     { id: 'auth', title: 'אימות ומשתמשים', icon: 'fa-key', color: '#3b82f6' },
@@ -322,51 +332,11 @@ let SECTIONS = BASE_CATEGORIES.map(cat => ({ ...cat, tests: [] }));
 let state = {};
 let currentView = 'dashboard';
 let currentFilter = null;
-let qaRunNotes = '';
-
 let almVersions = [];
 let almDevTasks = [];
 
 // ============================================================
-// 2. STATE MANAGEMENT & LOCAL STORAGE
-// ============================================================
-function loadState() {
-    try {
-        state = JSON.parse(localStorage.getItem('qa_state') || '{}');
-        almVersions = JSON.parse(localStorage.getItem('qa_versions_db') || '[]');
-        qaRunNotes = localStorage.getItem('qa_run_notes') || '';
-    } catch(e) { console.error('State load error', e); }
-}
-
-function saveState() {
-    localStorage.setItem('qa_state', JSON.stringify(state));
-}
-
-function getStatus(id) { return state[id]?.s || null; }
-function getNote(id)   { return state[id]?.n || ''; }
-
-function setStatus(id, s) {
-    if(!state[id]) state[id] = {};
-    if(state[id].s === s) delete state[id].s;
-    else state[id].s = s;
-    saveState();
-    renderTests(currentFilter);
-    if(currentView === 'dashboard') updateStats();
-}
-
-function setNote(id, v) {
-    if(!state[id]) state[id] = {};
-    state[id].n = v;
-    saveState();
-    const btn = document.querySelector(`button[data-note-btn="${id}"]`);
-    if(btn) {
-        if(v.trim()) btn.classList.add('has-note');
-        else btn.classList.remove('has-note');
-    }
-}
-
-// ============================================================
-// 3. FULL GUIDE BOOK DATA (ללא שינוי מהמקור שלך)
+// 2. GUIDE BOOK DATA (כל הצעדים והבדיקות המקוריות)
 // ============================================================
 const GUIDE_BOOK = {
 'AUTH-01':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר/אפליקציה','לחץ "הרשמה"','בחר סוג "משפחה"','מלא שם, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה ייחודי מוצג, ניתוב לאשף Onboarding'},
@@ -707,80 +677,86 @@ const GUIDE_BOOK = {
 'PBIZ-33':{path:'ממשק ADMIN ← "עובדים" ← שינוי תפקיד',steps:['שנה תפקיד MEMBER ל-MANAGER','שמור','עובד מתנתק ומתחבר מחדש'],expected:'עובד רואה לשוניות MANAGER'},
 'PBIZ-34':{path:'ממשק עובד ← ניסיון גישה ל-sa.html',steps:['כנס כעובד בכל תפקיד','נסה לגשת ל-/sa.html'],expected:'גישה חסומה, הפנייה לדף כניסה'},
 'PBIZ-35':{path:'ממשק עסק ← הצטרפות עובד חדש ללא תפקיד',steps:['עובד מצטרף ללא role מפורש'],expected:'עובד מקבל תפקיד MEMBER כברירת מחדל'},
-'SAF-01':{path:'sa.html ← מסך כניסה',steps:['פתח sa.html','הזן קוד SA + סיסמה','לחץ "כנס"'],expected:'POST /api/superadmin/login מחזיר token, נשמר ב-localStorage, דשבורד נטען'},
-'SAF-02':{path:'sa.html ← טעינה עם token שמור',steps:['כנס ל-SA','סגור לשונית','פתח מחדש sa.html'],expected:'window.onload מזהה token ב-localStorage, כניסה ישירה לדשבורד ללא הקלדה מחדש'},
-'SAF-03':{path:'sa.html ← "התנתק"',steps:['לחץ "התנתק"'],expected:'token נמחק מ-localStorage, חזרה למסך כניסה'},
-'SAF-04':{path:'sa.html ← כניסה עם קוד שגוי',steps:['הזן קוד SA שגוי','לחץ "כנס"'],expected:'הודעת שגיאה "קוד שגוי", לא נכנס לדשבורד'},
-'SAF-05':{path:'sa.html ← "Pulse"',steps:['כנס ל-SA','עבור ל-Pulse'],expected:'סה"כ משתמשים, קבוצות, הזמנות נטענים מ-/api/sa/pulse'},
-'SAF-06':{path:'sa.html ← "Pulse" ← KPIs',steps:['עבור ל-Pulse','בדוק familyUsers + businessUsers'],expected:'מספרים מוצגים, מתעדכנים בזמן אמת'},
-'SAF-07':{path:'sa.html ← "Pulse" ← פעילות חיה',steps:['עבור ל-Pulse','בדוק stream פעילות'],expected:'רשימת פעולות/אנומליות אחרונות מוצגת'},
-'SAF-08':{path:'sa.html ← "קבוצות" ← חיפוש',steps:['כנס ל"קבוצות"','הקלד שם/קוד בשדה חיפוש'],expected:'תוצאות מסוננות בזמן אמת'},
-'SAF-09':{path:'sa.html ← "קבוצות" ← לחץ קבוצה',steps:['כנס לניהול קבוצות','לחץ על קבוצה'],expected:'תצוגת 360°: כל משתמשים, מוצרים ועסקאות'},
-'SAF-10':{path:'sa.html ← "קבוצות" ← "מחק"',steps:['מצא קבוצה','לחץ "מחק"','הזן אישור','אשר'],expected:'קבוצה נמחקת מהרשימה ומה-DB'},
-'SAF-11':{path:'sa.html ← "קבוצות" ← toggle פרמיום',steps:['לחץ toggle פרמיום על קבוצה'],expected:'קבוצה מסומנת פרמיום, features פרמיום נפתחות'},
-'SAF-12':{path:'sa.html ← "קבוצות" ← "ערוך מנהל"',steps:['כנס לקבוצה','לחץ "ערוך מנהל ראשי"','שנה שם/מייל','שמור'],expected:'פרטי מנהל הקבוצה מתעדכנים'},
-'SAF-13':{path:'sa.html ← "קהילות" ← "+ יצור"',steps:['כנס ל"קהילות"','לחץ "+ קהילה חדשה"','הזן שם, עיר, תגיות, קוד','שמור'],expected:'קהילה חדשה ברשימה'},
-'SAF-14':{path:'sa.html ← "קהילות" ← עסק ממתין ← "אשר"',steps:['עסק שלח בקשת הצטרפות לקהילה','כנס ל-SA ל"קהילות"','מצא עסק ממתין','לחץ "אשר"'],expected:'עסק מצטרף לקהילה'},
-'SAF-15':{path:'sa.html ← "קהילות" ← עסק ממתין ← "דחה"',steps:['מצא עסק ממתין','לחץ "דחה"'],expected:'עסק מוסר מהממתינים, לא מצטרף'},
-'SAF-16':{path:'sa.html ← "קהילות" ← חיפוש ועריכה',steps:['חפש קהילה','לחץ "ערוך"','שנה פרטים','שמור'],expected:'פרטי קהילה מתעדכנים'},
-'SAF-17':{path:'sa.html ← "Inbox" ← "שדר לכולם"',steps:['כנס ל-Inbox SA','לחץ "שדר לכל הקבוצות"','מלא כותרת וטקסט','שלח'],expected:'הודעה מופיעה ב-Inbox של כל הקבוצות במערכת'},
-'SAF-18':{path:'sa.html ← "Inbox" ← "שדר לקבוצה"',steps:['לחץ "שדר לקבוצה"','בחר קבוצה ספציפית','שלח'],expected:'רק הקבוצה שנבחרה מקבלת הודעה'},
-'SAF-19':{path:'sa.html ← "באנרים" ← "+ יצור"',steps:['כנס ל"באנרים"','לחץ "+ באנר"','הזן טקסט, צבע, תמונה, תאריכי הצגה','שמור'],expected:'באנר נשמר, ניתן להפעלה'},
-'SAF-20':{path:'sa.html ← "באנרים" ← toggle הפעלה',steps:['לחץ toggle על באנר'],expected:'באנר מופיע/נעלם בממשק בהתאם ל-toggle'},
-'SAF-21':{path:'sa.html ← "תמיכה" ← רשימת פניות',steps:['כנס ל"תמיכה"'],expected:'טיקטים פתוחים מוצגים לפי דחיפות'},
-'SAF-22':{path:'sa.html ← "תמיכה" ← לחץ פנייה ← "תגובה"',steps:['כנס לפנייה','כתוב תגובה','לחץ "שלח"'],expected:'תגובה נשלחת, סטטוס עובר ל-"טופל"'},
-'SAF-23':{path:'sa.html ← "שותפים"',steps:['כנס ל"שותפים"'],expected:'רשימת שותפי מערכת עם פרטים ועמלות'},
-'SAF-24':{path:'sa.html ← "שותפים" ← "+ הוסף"',steps:['לחץ "+ שותף חדש"','הזן שם, מייל, עמלה','שמור'],expected:'שותף נוסף לרשימה'},
-'SAF-25':{path:'sa.html ← כל קריאת API',steps:['בדוק Network devtools בזמן שימוש ב-SA'],expected:'כל בקשה כוללת Authorization: Bearer <token>'},
-'SAF-26':{path:'API ← בקשה ללא token',steps:['שלח בקשה ל-/api/sa/... ללא Authorization header'],expected:'שרת מחזיר 401 / 403'},
-'SAF-27':{path:'sa.html ← כל לשונית ← לחיצה ראשונה',steps:['לחץ על לשונית שעוד לא נפתחה'],expected:'switchSATab() נקרא, תוכן הלשונית נטען'},
-'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
 }; // סיום GUIDE_BOOK
 
 // ============================================================
-// STATE & ALM DATA
+// SERVER INTEGRATION & DATA FETCHING
 // ============================================================
-let almVersions = [];
-let almDevTasks = [];
-
-async function loadALMData() {
-    if(!saToken) return;
-    try {
-        almVersions = JSON.parse(localStorage.getItem('qa_versions_db') || '[]');
-        const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
-        if(data.success) {
-            almDevTasks = data.tasks; 
-            injectKanbanTasksToQA();
-            if(currentView === 'versions') renderALMHub();
-        }
-    } catch(e) { console.error('ALM Data Error:', e); }
+async function displayUnauthorizedMessage(message) {
+    const grid = document.getElementById('tests-container');
+    if (grid) {
+        grid.innerHTML = `
+            <div style="background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-width:600px; margin:2rem auto;">
+                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
+            </div>
+        `;
+    }
 }
 
-function injectKanbanTasksToQA() {
-    // 1. ניקוי המשימות הישנות מכל המחלקות (כדי למנוע כפילויות בריענון)
-    SECTIONS.forEach(sec => {
-        sec.tests = sec.tests.filter(t => !t.isKanban);
-    });
+async function loadAllData() {
+    if (!saToken) {
+        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה דרך sa.html');
+        return;
+    }
+    
+    // מנקה בדיקות קודמות כדי למנוע כפילויות בריענון
+    SECTIONS.forEach(sec => sec.tests = []);
 
-    // 2. הזרקת משימות חדשות לפי סטטוס
+    try {
+        // משיכת בדיקות סטטיות מהשרת
+        const qaRes = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
+        if (qaRes.status === 401 || qaRes.status === 403) return displayUnauthorizedMessage('פג תוקף החיבור המאובטח. התחבר מחדש.');
+        if (qaRes.ok) {
+            const qaData = await qaRes.json();
+            if (qaData.success && qaData.tests) {
+                qaData.tests.forEach(t => {
+                    const catName = t.category || 'כללי';
+                    let targetSec = SECTIONS.find(s => s.title === catName || s.id === catName);
+                    if (!targetSec) targetSec = SECTIONS.find(s => s.id === 'general');
+                    targetSec.tests.push({ id: t.id, name: t.name, desc: t.description, prio: t.priority, envs: ['all'], isStatic: true });
+                });
+            }
+        }
+    } catch(e) { console.warn('Static tests load skipped', e); }
+
+    try {
+        // משיכת משימות ALM חיות מהקנבן
+        const devRes = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
+        if (devRes.ok) {
+            const devData = await devRes.json();
+            if (devData.success) {
+                almDevTasks = devData.tasks;
+                injectKanbanTasks();
+            }
+        }
+    } catch(e) { console.error('ALM Data Error:', e); }
+
+    updateStats();
+    if(currentView === 'tests') renderTests(currentFilter);
+    if(currentView === 'versions') renderALMHub();
+}
+
+function injectKanbanTasks() {
     almDevTasks.forEach(kt => {
         const testObj = {
             id: 'TASK-' + kt.id, name: kt.title, desc: kt.description || 'ללא תיאור',
-            prio: kt.priority, envs: [kt.environment || 'all'], isKanban: true, kanbanTask: kt
+            prio: kt.priority, envs: [kt.environment && kt.environment.trim() !== '' ? kt.environment : 'all'], isKanban: true, kanbanTask: kt
         };
 
-        // משימה חדשה שטרם שויכה מגיעה אך ורק ל-"כללי"
+        // שלב 2: רק משימות "בפיתוח" שטרם מוינו יופיעו ב-'כללי'
         if (kt.status === 'in_progress' && (!kt.target_version || kt.target_version.trim() === '')) {
-            const genSec = SECTIONS.find(s => s.id === 'general');
-            if(genSec) genSec.tests.unshift(testObj);
+            const sec = SECTIONS.find(s => s.id === 'general');
+            if(sec) sec.tests.unshift(testObj);
         }
-        // משימה ששויכה למודול ועברה פיתוח/הסתיימה מופיעה אך ורק במודול שלה!
+        // שלב 3ב': משימות שעברו ל-QA, הסתיימו או משימות שכבר שויכו לקטגוריה ונמצאות בפיתוח
         else if (kt.status === 'qa' || kt.status === 'done' || (kt.status === 'in_progress' && kt.target_version && kt.target_version !== 'SORTING')) {
             let targetSec = SECTIONS.find(s => s.id === kt.module_name);
-            if(targetSec) {
-                targetSec.tests.unshift(testObj);
-            } else {
+            if (!targetSec && kt.module_name) targetSec = SECTIONS.find(s => s.title === kt.module_name || s.title.includes(kt.module_name));
+            
+            if (targetSec) targetSec.tests.unshift(testObj);
+            else {
                 const genSec = SECTIONS.find(s => s.id === 'general');
                 if(genSec) genSec.tests.unshift(testObj);
             }
@@ -788,46 +764,35 @@ function injectKanbanTasksToQA() {
     });
 }
 
-function loadState() {
-  try {
-    state = JSON.parse(localStorage.getItem('qa_state') || '{}');
-    versions = JSON.parse(localStorage.getItem('qa_versions') || '[]');
-    const notes = localStorage.getItem('qa_run_notes') || '';
-    const v = document.getElementById('run-notes');
-    if(v) v.value = notes;
-    const rv = document.getElementById('sb-ver');
-    if(rv && versions.length) rv.textContent = versions[versions.length-1].num;
-  } catch(e){}
-}
-
-function saveState() {
-  localStorage.setItem('qa_state', JSON.stringify(state));
-  const n = document.getElementById('run-notes');
-  if(n) localStorage.setItem('qa_run_notes', n.value);
-  updateStats();
-}
-
-function getStatus(id) { return state[id]?.s || null; }
-function getNote(id)   { return state[id]?.n || ''; }
-
-function setStatus(id, s) {
-  if(!state[id]) state[id]={};
-  state[id].s = state[id].s === s ? null : s;
-  saveState();
-  renderTests(currentFilter);
-}
-
-function setNote(id, n) {
-  if(!state[id]) state[id]={};
-  state[id].n = n;
-  saveState();
-  const btn = document.querySelector(`[data-note-btn="${id}"]`);
-  if(btn) btn.classList.toggle('has-note', !!n);
-}
-
 // ============================================================
-// RENDER (מעודכן עם חיפוש וכפתורי ALM)
+// UI RENDERING & SEARCH
 // ============================================================
+function showView(v) {
+  currentView = v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById(`view-${v}`);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
+  const map={dashboard:0,tests:1,report:2,versions:3};
+  const links = document.querySelectorAll('.sb-section:first-of-type .sb-link');
+  if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
+  
+  if(v==='tests') renderTests(currentFilter);
+  if(v==='versions') renderALMHub();
+  if(v==='dashboard') updateStats();
+}
+
+function filterSection(id) {
+  currentFilter = id;
+  showView('tests');
+}
+
+function showAllTests() {
+  currentFilter = null;
+  document.getElementById('qa-search-input').value = '';
+  renderTests(null);
+}
+
 function filterTestsBySearch() {
     const term = document.getElementById('qa-search-input').value.toLowerCase();
     document.querySelectorAll('.section-body tbody tr').forEach(row => {
@@ -852,7 +817,6 @@ function renderTests(filter) {
   let html = '';
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   sections.forEach(sec => {
-    // אל תרנדר מחלקות ריקות אם אין בהן כלום
     if (sec.tests.length === 0) return;
 
     const counts = countSection(sec.tests);
@@ -884,6 +848,8 @@ function renderTests(filter) {
       </div>
     </div>`;
   });
+  
+  if(html === '') html = `<div style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-check-double" style="font-size:3rem;margin-bottom:1rem;"></i><p>אין נתונים להצגה בקטגוריה זו.</p></div>`;
   container.innerHTML = html;
 
   if(document.getElementById('qa-search-input') && document.getElementById('qa-search-input').value) {
@@ -893,7 +859,6 @@ function renderTests(filter) {
 
 function renderRow(t, sec) {
   let s = getStatus(t.id);
-  // אם זו משימת קנבן שנסגרה - צבע אותה בירוק אוטומטית גם אם לא סומנה ידנית בספר
   if (t.isKanban && t.kanbanTask.status === 'done' && s !== 'ok') { s = 'ok'; }
 
   const n = getNote(t.id);
@@ -902,7 +867,6 @@ function renderRow(t, sec) {
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
 
-  // כפתורי ALM חכמים
   let actionBtn = '';
   if (t.isKanban) {
       if (t.kanbanTask.status === 'in_progress' && (!t.kanbanTask.target_version || t.kanbanTask.target_version.trim() === '')) {
@@ -976,222 +940,6 @@ function toggleNote(id) {
   if(!visible) row.querySelector('textarea').focus();
 }
 
-// ============================================================
-// ALM ACTIONS (סעיפים 3א+3ב)
-// ============================================================
-async function almApproveForSorting(taskId) {
-    const kt = almDevTasks.find(t => t.id === taskId);
-    if(!kt) return;
-    try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ 
-                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description, 
-                targetVersion: 'SORTING', environment: kt.environment, moduleName: kt.module_name 
-            })
-        });
-        if(res.ok) { showToast('המשימה עברה למיון!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) {}
-}
-
-async function almAssignTask(taskId) {
-    const verSel = document.getElementById(`assign-ver-${taskId}`).value;
-    const envSel = document.getElementById(`assign-env-${taskId}`).value;
-    const modSel = document.getElementById(`assign-mod-${taskId}`).value;
-    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול (קטגוריה בספר)!');
-
-    const kt = almDevTasks.find(t => t.id === taskId);
-    if(!kt) return;
-    try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ 
-                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description,
-                targetVersion: verSel, environment: envSel, moduleName: modSel 
-            })
-        });
-        if(res.ok) { showToast('המשימה שויכה בהצלחה!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) { showToast('שגיאת רשת'); }
-}
-
-async function almMarkDevDone(taskId) {
-    if(!confirm('הפיתוח הסתיים? המשימה תעבור לעמודת QA.')) return;
-    try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ status: 'qa', systemOverride: true })
-        });
-        if(res.ok) { showToast('עבר בהצלחה ל-QA!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) { showToast('שגיאה בעדכון'); }
-}
-
-async function almPassQA(taskId) {
-    if(!confirm('הבדיקה עברה? המשימה תשחרר סופית ללקוח.')) return;
-    try {
-        setStatus('TASK-' + taskId, 'ok'); // מסמן תקין בזיכרון הספר
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ status: 'done', systemOverride: true })
-        });
-        if(res.ok) { showToast('המשימה שוחררה ל-DONE!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) {}
-}
-
-function openNewVersionModal() { document.getElementById('modal-new-version').style.display = 'flex'; }
-function closeNewVersionModal() { document.getElementById('modal-new-version').style.display = 'none'; }
-function saveNewVersion() {
-    const name = document.getElementById('nv-name').value.trim();
-    if(!name) return showToast('נא להזין שם גרסה');
-    almVersions.push({ id: 'v_' + Date.now(), name, targetDate: document.getElementById('nv-date').value, status: 'planning' });
-    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
-    closeNewVersionModal();
-    showToast('גרסה הוקמה בהצלחה!');
-    renderALMHub();
-}
-function releaseVersion(verName) {
-    if(!confirm(`להשיק את גרסה ${verName} ללקוחות?`)) return;
-    const ver = almVersions.find(v => v.name === verName);
-    if(ver) ver.status = 'released';
-    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
-    showToast('🚀 הגרסה שוחררה בהצלחה!');
-    renderALMHub();
-}
-
-function renderALMHub() {
-    const board = document.getElementById('alm-versions-board');
-    const unassigned = document.getElementById('alm-unassigned-tasks');
-    if(!board || !unassigned) return;
-
-    // בונה רשימת מודולים מהתפריט הקיים בדיוק (ללא General)
-    const moduleOptions = SECTIONS.filter(c => c.id !== 'general').map(s => `<option value="${s.id}">${s.title}</option>`).join('');
-
-    // משימות שממתינות למיון (SORTING)
-    const tasksForSorting = almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
-    if(tasksForSorting.length === 0) {
-        unassigned.innerHTML = `<div style="text-align:center; padding:2.5rem 1rem; color:#94a3b8;"><i class="fa-solid fa-check-double" style="font-size:2.5rem; margin-bottom:0.75rem; opacity:0.5;"></i><div style="font-weight:700; font-size:0.8rem;">תור המיון ריק</div></div>`;
-    } else {
-        unassigned.innerHTML = tasksForSorting.map(t => `
-        <div style="background:white; padding:1rem; border-radius:0.75rem; border:1px solid #e2e8f0; margin-bottom:0.5rem;">
-            <div style="font-size:0.8rem; font-weight:800; color:#0f172a; margin-bottom:0.2rem;">${t.title}</div>
-            <div style="font-size:0.7rem; color:#64748b; margin-bottom:0.75rem;">${t.description || 'ללא תיאור'}</div>
-            <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                <select id="assign-ver-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; background:#f8fafc;">
-                    <option value="">-- שייך לגרסה או עצמאי --</option>
-                    <option value="STANDALONE" style="font-weight:bold;color:#7c3aed;">★ פיתוח עצמאי (ללא גרסה)</option>
-                    ${almVersions.map(v => `<option value="${v.name}">${v.name}</option>`).join('')}
-                </select>
-                <div style="display:flex; gap:0.4rem;">
-                    <select id="assign-env-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
-                        <option value="all">סביבה (כללי)</option><option value="family">משפחות</option><option value="biz">עסקים</option><option value="comm">קהילות</option><option value="sa">סופר אדמין</option>
-                    </select>
-                    <select id="assign-mod-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
-                        <option value="">-- קטגוריה בספר --</option>
-                        ${moduleOptions}
-                    </select>
-                </div>
-                <button onclick="almAssignTask(${t.id})" style="background:#3b82f6; color:white; border:none; padding:0.45rem; border-radius:0.4rem; font-size:0.7rem; font-weight:700; cursor:pointer;">שמור שיוך <i class="fa-solid fa-check"></i></button>
-            </div>
-        </div>`).join('');
-    }
-
-    // פיתוח עצמאי (Standalone)
-    const standaloneTasks = almDevTasks.filter(t => t.target_version === 'STANDALONE');
-    let standaloneHtml = '';
-    if (standaloneTasks.length > 0) {
-        standaloneHtml = `
-        <div style="background:#f8fafc; border-radius:1rem; border:1px solid #cbd5e1; padding:1.5rem; margin-bottom:1.5rem;">
-            <h3 style="font-size:1.1rem; font-weight:800; color:#475569; margin-bottom:1rem;"><i class="fa-solid fa-bolt text-amber-500"></i> פיתוחים עצמאיים (SLA)</h3>
-            <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                ${standaloneTasks.map(t => {
-                    const isDone = t.status === 'done';
-                    const isQA = t.status === 'qa';
-                    let pct = isDone ? 100 : (isQA ? 50 : 10);
-                    return `
-                    <div style="background:white; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.75rem 1rem;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <div style="font-size:0.85rem; font-weight:700;">${t.title}</div>
-                            <span style="font-size:0.6rem; background:#eff6ff; color:#3b82f6; padding:0.2rem 0.5rem; border-radius:99px;">${isDone ? 'הושלם סופית' : (isQA ? 'ממתין ל-QA' : 'בפיתוח')}</span>
-                        </div>
-                        <div style="height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-bottom:0.75rem;">
-                            <div style="height:100%; width:${pct}%; background:${isDone?'#16a34a':'#f59e0b'}; transition:width 0.5s;"></div>
-                        </div>
-                        ${(!isQA && !isDone) ? `<button onclick="almMarkDevDone(${t.id})" class="btn btn-outline" style="font-size:0.65rem; padding:0.2rem 0.6rem;">הפיתוח הסתיים - העבר ל-QA</button>` : ''}
-                        ${(isQA) ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.2rem 0.6rem; width:100%; justify-content:center;">בדיקה עברה - סגור משימה</button>` : ''}
-                    </div>`;
-                }).join('')}
-            </div>
-        </div>`;
-    }
-
-    // גרסאות (Versions)
-    let versionsHtml = almVersions.slice().reverse().map(v => {
-        const vTasks = almDevTasks.filter(t => t.target_version === v.name);
-        const total = vTasks.length;
-        const devDone = vTasks.filter(t => t.status === 'qa' || t.status === 'done').length;
-        const devPct = total > 0 ? Math.round((devDone / total) * 100) : 0;
-        const qaDone = vTasks.filter(t => t.status === 'done').length;
-        const qaPct = total > 0 ? Math.round((qaDone / total) * 100) : 0;
-        const isReady = (qaPct === 100 && total > 0);
-        const isReleased = (v.status === 'released');
-
-        return `
-        <div style="background:white; border-radius:1rem; border:1px solid ${isReady?'#16a34a':'#e2e8f0'}; padding:1.5rem; position:relative; overflow:hidden; opacity:${isReleased?0.7:1}; margin-bottom:1rem;">
-            <div style="position:absolute; top:0; left:0; width:5px; height:100%; background:${isReady?'#16a34a':'#6366f1'};"></div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
-                <div>
-                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
-                        <h3 style="font-size:1.25rem; font-weight:900;">${v.name}</h3>
-                        <span style="font-size:0.6rem; font-weight:800; background:${isReady?'#dcfce7':'#eff6ff'}; color:${isReady?'#166534':'#1d4ed8'}; padding:0.2rem 0.6rem; border-radius:99px;">${isReleased?'הושק לאוויר':(isReady?'מוכן להשקה':'בפיתוח פעיל')}</span>
-                    </div>
-                    <div style="font-size:0.75rem; color:#64748b;"><i class="fa-regular fa-calendar"></i> יעד: ${v.targetDate || 'לא מוגדר'}</div>
-                </div>
-                ${!isReleased ? (isReady ? `<button class="btn btn-green" onclick="releaseVersion('${v.name}')"><i class="fa-solid fa-rocket"></i> שחרר גרסה</button>` : `<button class="btn btn-outline" disabled>ממתין לפיתוח ו-QA</button>`) : `<span style="font-weight:800; color:#16a34a;"><i class="fa-solid fa-check-double"></i> באוויר</span>`}
-            </div>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; background:#f8fafc; padding:1.25rem; border-radius:0.75rem;">
-                <div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-code text-indigo-500"></i> פיתוח</span><span style="color:${devPct===100?'#16a34a':'#6366f1'}">${devPct}%</span></div>
-                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${devPct}%; background:${devPct===100?'#16a34a':'#6366f1'}; transition:width 0.5s;"></div></div>
-                </div>
-                <div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-vial-circle-check text-emerald-500"></i> בדיקות QA</span><span style="color:#16a34a">${qaPct}%</span></div>
-                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${qaPct}%; background:#16a34a; transition:width 0.5s;"></div></div>
-                </div>
-            </div>
-
-            <div>
-                <h4 style="font-size:0.8rem; font-weight:800; border-bottom:2px solid #e2e8f0; padding-bottom:0.25rem; margin-bottom:0.75rem;">תכולה (${total})</h4>
-                ${total === 0 ? `<div style="font-size:0.75rem; color:#94a3b8;">אין משימות בגרסה.</div>` : 
-                `<div style="display:flex; flex-direction:column; gap:0.5rem;">
-                    ${vTasks.map(t => {
-                        const isDone = (t.status === 'done');
-                        const isQA = (t.status === 'qa' || t.status === 'done');
-                        return `
-                        <div style="display:flex; align-items:center; justify-content:space-between; background:${isDone?'#f0fdf4':'#fff'}; border:1px solid ${isDone?'#bbf7d0':'#e2e8f0'}; padding:0.6rem 1rem; border-radius:0.5rem;">
-                            <div style="display:flex; align-items:center; gap:0.75rem;">
-                                <div style="font-size:0.8rem; font-weight:800; text-decoration:${isDone?'line-through':'none'};">${t.title}</div>
-                            </div>
-                            <div style="display:flex; gap:0.4rem;">
-                                ${!isQA ? `<button onclick="almMarkDevDone(${t.id})" class="btn" style="background:#eff6ff; color:#3b82f6; font-size:0.65rem; padding:0.3rem 0.6rem;">פיתוח הסתיים</button>` : 
-                                 (!isDone ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.3rem 0.6rem;">בדיקה עברה - סגור ל-DONE</button>` : 
-                                 `<span style="font-size:0.65rem; font-weight:800; color:#16a34a;"><i class="fa-solid fa-check"></i> הושלם</span>`)}
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>`}
-            </div>
-        </div>`;
-    }).join('');
-
-    if (almVersions.length === 0 && standaloneTasks.length === 0) {
-        versionsHtml = `<div style="text-align:center; padding:4rem; background:white; border-radius:1rem; border:1px dashed #cbd5e1; color:#94a3b8;"><p style="font-weight:700;">הקם את הגרסה הראשונה שלך!</p></div>`;
-    }
-    board.innerHTML = standaloneHtml + versionsHtml;
-}
-
-// ============================================================
-// STATS
-// ============================================================
 function allTests() { return SECTIONS.flatMap(s=>s.tests); }
 function countSection(tests) {
   let ok=0,fail=0,warn=0,skip=0,none=0;
@@ -1259,14 +1007,14 @@ function updateSidebarBadges() {
 }
 
 // ============================================================
-// REPORT
+// REPORT & SYSTEM ACTIONS
 // ============================================================
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
   const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
   if(!fails.length) {
-    container.innerHTML = `<div style="text-align:center;padding:3rem;color:#16a34a">
+    container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
       <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
       <p style="font-weight:700;font-size:1rem">כל הבדיקות שבוצעו עברו בהצלחה!</p>
     </div>`;
@@ -1312,35 +1060,6 @@ function generateReport() {
   container.innerHTML = html;
 }
 
-// ============================================================
-// NAVIGATION & UI
-// ============================================================
-function showView(v) {
-  currentView = v;
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  const el = document.getElementById(`view-${v}`);
-  if(el) el.classList.add('active');
-  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-  const map={dashboard:0,tests:1,report:2,versions:3};
-  const links = document.querySelectorAll('.sb-link');
-  if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  
-  if(v==='tests') renderTests(currentFilter);
-  if(v==='versions') { loadALMData(); renderALMHub(); }
-  if(v==='dashboard') updateStats();
-}
-
-function filterSection(id) {
-  currentFilter = id;
-  showView('tests');
-}
-
-function showAllTests() {
-  currentFilter = null;
-  document.getElementById('qa-search-input').value = '';
-  renderTests(null);
-}
-
 function filterFails() {
   const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id))).map(t=>t.id);
   document.querySelectorAll('table tbody tr').forEach(row=>{
@@ -1364,12 +1083,12 @@ function markAll(s) {
 }
 
 function resetAll() {
-  if(!confirm('לאפס את כל הסטטוסים? פעולה זו לא ניתנת לביטול.')) return;
+  if(!confirm('לאפס את כל הסטטוסים? פעולה זו תמחק את ההיסטוריה המקומית.')) return;
   state={};
   saveState();
   renderTests(currentFilter);
   if(currentView==='dashboard') updateStats();
-  showToast('אופס! כל הנתונים אופסו.');
+  showToast('כל הנתונים אופסו.');
 }
 
 function toggleSection(head) {
@@ -1419,13 +1138,229 @@ async function exportReport() {
   }
 }
 
+function showToast(msg) {
+  const t = document.getElementById('qa-toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
 // ============================================================
-// INIT
+// ALM ACTIONS 
+// ============================================================
+async function almApproveForSorting(taskId) {
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description, 
+                targetVersion: 'SORTING', environment: kt.environment, moduleName: kt.module_name 
+            })
+        });
+        if(res.ok) { showToast('המשימה עברה למיון!'); await loadAllData(); }
+    } catch(e) {}
+}
+
+async function almAssignTask(taskId) {
+    const verSel = document.getElementById(`assign-ver-${taskId}`).value;
+    const envSel = document.getElementById(`assign-env-${taskId}`).value;
+    const modSel = document.getElementById(`assign-mod-${taskId}`).value;
+    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול!');
+
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description,
+                targetVersion: verSel, environment: envSel, moduleName: modSel 
+            })
+        });
+        if(res.ok) { showToast('המשימה שויכה בהצלחה!'); await loadAllData(); }
+    } catch(e) {}
+}
+
+async function almMarkDevDone(taskId) {
+    if(!confirm('הפיתוח הסתיים? המשימה תעבור לעמודת QA.')) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'qa', systemOverride: true })
+        });
+        if(res.ok) { showToast('עבר בהצלחה ל-QA!'); await loadAllData(); }
+    } catch(e) {}
+}
+
+async function almPassQA(taskId) {
+    if(!confirm('הבדיקה עברה? המשימה תשחרר סופית ללקוח.')) return;
+    try {
+        setStatus('TASK-' + taskId, 'ok'); 
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'done', systemOverride: true })
+        });
+        if(res.ok) { showToast('המשימה שוחררה ל-DONE!'); await loadAllData(); }
+    } catch(e) {}
+}
+
+function openNewVersionModal() { document.getElementById('modal-new-version').style.display = 'flex'; }
+function closeNewVersionModal() { document.getElementById('modal-new-version').style.display = 'none'; }
+function saveNewVersion() {
+    const name = document.getElementById('nv-name').value.trim();
+    if(!name) return showToast('נא להזין שם גרסה');
+    almVersions.push({ id: 'v_' + Date.now(), name, targetDate: document.getElementById('nv-date').value, status: 'planning' });
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    closeNewVersionModal();
+    showToast('גרסה הוקמה בהצלחה!');
+    renderALMHub();
+}
+function releaseVersion(verName) {
+    if(!confirm(`להשיק את גרסה ${verName} ללקוחות?`)) return;
+    const ver = almVersions.find(v => v.name === verName);
+    if(ver) ver.status = 'released';
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    showToast('🚀 הגרסה שוחררה בהצלחה!');
+    renderALMHub();
+}
+
+function renderALMHub() {
+    const board = document.getElementById('alm-versions-board');
+    const unassigned = document.getElementById('alm-unassigned-tasks');
+    if(!board || !unassigned) return;
+
+    const moduleOptions = BASE_CATEGORIES.filter(c => c.id !== 'general').map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+
+    const tasksForSorting = almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
+    if(tasksForSorting.length === 0) {
+        unassigned.innerHTML = `<div style="text-align:center; padding:2.5rem 1rem; color:#94a3b8;"><i class="fa-solid fa-check-double" style="font-size:2.5rem; margin-bottom:0.75rem; opacity:0.5;"></i><div style="font-weight:700; font-size:0.8rem;">תור המיון ריק</div></div>`;
+    } else {
+        unassigned.innerHTML = tasksForSorting.map(t => `
+        <div style="background:white; padding:1rem; border-radius:0.75rem; border:1px solid #e2e8f0; margin-bottom:0.5rem;">
+            <div style="font-size:0.8rem; font-weight:800; color:#0f172a; margin-bottom:0.2rem;">${t.title}</div>
+            <div style="font-size:0.7rem; color:#64748b; margin-bottom:0.75rem;">${t.description || 'ללא תיאור'}</div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <select id="assign-ver-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; background:#f8fafc;">
+                    <option value="">-- שייך לגרסה או עצמאי --</option>
+                    <option value="STANDALONE" style="font-weight:bold;color:#7c3aed;">★ פיתוח עצמאי (ללא גרסה)</option>
+                    ${almVersions.map(v => `<option value="${v.name}">${v.name}</option>`).join('')}
+                </select>
+                <div style="display:flex; gap:0.4rem;">
+                    <select id="assign-env-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
+                        <option value="all">סביבה (כללי)</option><option value="family">משפחות</option><option value="biz">עסקים</option><option value="comm">קהילות</option><option value="sa">סופר אדמין</option>
+                    </select>
+                    <select id="assign-mod-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
+                        <option value="">-- קטגוריה בספר --</option>
+                        ${moduleOptions}
+                    </select>
+                </div>
+                <button onclick="almAssignTask(${t.id})" style="background:#3b82f6; color:white; border:none; padding:0.45rem; border-radius:0.4rem; font-size:0.7rem; font-weight:700; cursor:pointer;">שמור שיוך <i class="fa-solid fa-check"></i></button>
+            </div>
+        </div>`).join('');
+    }
+
+    const standaloneTasks = almDevTasks.filter(t => t.target_version === 'STANDALONE');
+    let standaloneHtml = '';
+    if (standaloneTasks.length > 0) {
+        standaloneHtml = `
+        <div style="background:#f8fafc; border-radius:1rem; border:1px solid #cbd5e1; padding:1.5rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:#475569; margin-bottom:1rem;"><i class="fa-solid fa-bolt text-amber-500"></i> פיתוחים עצמאיים (SLA)</h3>
+            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                ${standaloneTasks.map(t => {
+                    const isDone = t.status === 'done';
+                    const isQA = t.status === 'qa';
+                    let pct = isDone ? 100 : (isQA ? 50 : 10);
+                    return `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.75rem 1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <div style="font-size:0.85rem; font-weight:700;">${t.title}</div>
+                            <span style="font-size:0.6rem; background:#eff6ff; color:#3b82f6; padding:0.2rem 0.5rem; border-radius:99px;">${isDone ? 'הושלם סופית' : (isQA ? 'ממתין ל-QA' : 'בפיתוח')}</span>
+                        </div>
+                        <div style="height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-bottom:0.75rem;">
+                            <div style="height:100%; width:${pct}%; background:${isDone?'#16a34a':'#f59e0b'}; transition:width 0.5s;"></div>
+                        </div>
+                        ${(!isQA && !isDone) ? `<button onclick="almMarkDevDone(${t.id})" class="btn btn-outline" style="font-size:0.65rem; padding:0.2rem 0.6rem;">הפיתוח הסתיים - העבר ל-QA</button>` : ''}
+                        ${(isQA) ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.2rem 0.6rem; width:100%; justify-content:center;">בדיקה עברה - סגור משימה</button>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }
+
+    let versionsHtml = almVersions.slice().reverse().map(v => {
+        const vTasks = almDevTasks.filter(t => t.target_version === v.name);
+        const total = vTasks.length;
+        const devDone = vTasks.filter(t => t.status === 'qa' || t.status === 'done').length;
+        const devPct = total > 0 ? Math.round((devDone / total) * 100) : 0;
+        const qaDone = vTasks.filter(t => t.status === 'done').length;
+        const qaPct = total > 0 ? Math.round((qaDone / total) * 100) : 0;
+        const isReady = (qaPct === 100 && total > 0);
+        const isReleased = (v.status === 'released');
+
+        return `
+        <div style="background:white; border-radius:1rem; border:1px solid ${isReady?'#16a34a':'#e2e8f0'}; padding:1.5rem; position:relative; overflow:hidden; opacity:${isReleased?0.7:1}; margin-bottom:1rem;">
+            <div style="position:absolute; top:0; left:0; width:5px; height:100%; background:${isReady?'#16a34a':'#6366f1'};"></div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                        <h3 style="font-size:1.25rem; font-weight:900;">${v.name}</h3>
+                        <span style="font-size:0.6rem; font-weight:800; background:${isReady?'#dcfce7':'#eff6ff'}; color:${isReady?'#166534':'#1d4ed8'}; padding:0.2rem 0.6rem; border-radius:99px;">${isReleased?'הושק לאוויר':(isReady?'מוכן להשקה':'בפיתוח פעיל')}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b;"><i class="fa-regular fa-calendar"></i> יעד: ${v.targetDate || 'לא מוגדר'}</div>
+                </div>
+                ${!isReleased ? (isReady ? `<button class="btn btn-green" onclick="releaseVersion('${v.name}')"><i class="fa-solid fa-rocket"></i> שחרר גרסה</button>` : `<button class="btn btn-outline" disabled>ממתין לפיתוח ו-QA</button>`) : `<span style="font-weight:800; color:#16a34a;"><i class="fa-solid fa-check-double"></i> באוויר</span>`}
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; background:#f8fafc; padding:1.25rem; border-radius:0.75rem;">
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-code text-indigo-500"></i> פיתוח</span><span style="color:${devPct===100?'#16a34a':'#6366f1'}">${devPct}%</span></div>
+                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${devPct}%; background:${devPct===100?'#16a34a':'#6366f1'}; transition:width 0.5s;"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-vial-circle-check text-emerald-500"></i> בדיקות QA</span><span style="color:#16a34a">${qaPct}%</span></div>
+                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${qaPct}%; background:#16a34a; transition:width 0.5s;"></div></div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="font-size:0.8rem; font-weight:800; border-bottom:2px solid #e2e8f0; padding-bottom:0.25rem; margin-bottom:0.75rem;">תכולה (${total})</h4>
+                ${total === 0 ? `<div style="font-size:0.75rem; color:#94a3b8;">אין משימות בגרסה.</div>` : 
+                `<div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    ${vTasks.map(t => {
+                        const isDone = (t.status === 'done');
+                        const isQA = (t.status === 'qa' || t.status === 'done');
+                        return `
+                        <div style="display:flex; align-items:center; justify-content:space-between; background:${isDone?'#f0fdf4':'#fff'}; border:1px solid ${isDone?'#bbf7d0':'#e2e8f0'}; padding:0.6rem 1rem; border-radius:0.5rem;">
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <div style="font-size:0.8rem; font-weight:800; text-decoration:${isDone?'line-through':'none'};">${t.title}</div>
+                            </div>
+                            <div style="display:flex; gap:0.4rem;">
+                                ${!isQA ? `<button onclick="almMarkDevDone(${t.id})" class="btn" style="background:#eff6ff; color:#3b82f6; font-size:0.65rem; padding:0.3rem 0.6rem;">פיתוח הסתיים</button>` : 
+                                 (!isDone ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.3rem 0.6rem;">בדיקה עברה - סגור ל-DONE</button>` : 
+                                 `<span style="font-size:0.65rem; font-weight:800; color:#16a34a;"><i class="fa-solid fa-check"></i> הושלם</span>`)}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`}
+            </div>
+        </div>`;
+    }).join('');
+
+    if (almVersions.length === 0 && standaloneTasks.length === 0) {
+        versionsHtml = `<div style="text-align:center; padding:4rem; background:white; border-radius:1rem; border:1px dashed #cbd5e1; color:#94a3b8;"><p style="font-weight:700;">הקם את הגרסה הראשונה שלך!</p></div>`;
+    }
+    board.innerHTML = standaloneHtml + versionsHtml;
+}
+
+// ============================================================
+// SYSTEM BOOTSTRAP
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
   loadState();
-  await loadTestsFromServer();
-  await loadALMData();
+  await loadAllData();
 });
 </script>
 </body>
