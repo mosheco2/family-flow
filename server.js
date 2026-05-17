@@ -872,7 +872,14 @@ app.get('/setup-db', async (req, res) => {
 // --- SUPER ADMIN ENDPOINTS ---
 
 function verifySA(req, res, next) {
-    if (req.headers.authorization !== 'SA_SECRET_TOKEN_2026') return res.status(403).json({error: 'Forbidden'});
+    const authHeader = req.headers.authorization || '';
+    
+    // חילוץ אקטיבי של הטוקן במידה והוא נשלח עם תחילית Bearer מהדפדפן
+    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+    
+    if (token !== 'SA_SECRET_TOKEN_2026') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
     next();
 }
 
