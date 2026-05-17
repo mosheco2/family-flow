@@ -1210,7 +1210,7 @@ async function loadALMData() {
 function injectKanbanTasksToQA() {
     if (typeof SECTIONS === 'undefined') return;
     
-    // מנקה משימות קנבן קודמות כדי לא לייצר כפילויות
+    // מנקה משימות קנבן קודמות כדי לא לייצר כפילויות ברינדור מחדש
     SECTIONS.forEach(sec => { 
         if(sec.tests) sec.tests = sec.tests.filter(t => !t.isKanban); 
     });
@@ -1218,25 +1218,28 @@ function injectKanbanTasksToQA() {
     window.almDevTasks.forEach(kt => {
         const testObj = {
             id: 'TASK-' + kt.id, name: kt.title, desc: kt.description || 'ללא תיאור',
-            prio: kt.priority, envs: ['all'], isKanban: true, kanbanTask: kt
+            prio: kt.priority, envs: [kt.environment || 'all'], isKanban: true, kanbanTask: kt
         };
 
-        // משימות "בפיתוח" שלא מוינו מופיעות בטאב 'כללי' 
+        // 1. רק משימות "בפיתוח" שטרם מוינו יופיעו ב-'כללי'
         if (kt.status === 'in_progress' && (!kt.target_version || kt.target_version === '')) {
             const sec = SECTIONS.find(s => s.id === 'general');
             if(sec) sec.tests.unshift(testObj);
         }
-        // משימות שעברו ל-QA מופיעות תחת הקטגוריה שאליה מוינו
-        else if (kt.status === 'qa') {
-            const modMap = { 'קופה':'pos', 'מלאי':'inventory', 'משמרות':'shifts', 'הגדרות':'family' };
-            const targetMod = modMap[kt.module_name] || 'general';
-            const sec = SECTIONS.find(s => s.id === targetMod) || SECTIONS.find(s => s.id === 'general');
-            if(sec) sec.tests.unshift(testObj);
+        // 2. משימות שעברו ל-QA או הסתיימו יוצגו תחת הקטגוריה האמיתית שאליה שויכו
+        else if (kt.status === 'qa' || kt.status === 'done') {
+            const targetSec = SECTIONS.find(s => s.title === kt.module_name || s.id === kt.module_name);
+            if (targetSec) {
+                targetSec.tests.unshift(testObj);
+            } else {
+                // Fallback למקרה של תקלה בשיוך
+                const genSec = SECTIONS.find(s => s.id === 'general');
+                if(genSec) genSec.tests.unshift(testObj);
+            }
         }
     });
 }
 
-// תיקון סעיף 2: העברה למיון עם כל השדות כדי שלא ייעלם
 async function approveTaskForSorting(taskId) {
     const kt = window.almDevTasks.find(t => t.id === taskId);
     if(!kt) return;
@@ -1308,6 +1311,10 @@ function renderALMHub() {
     const unassigned = document.getElementById('alm-unassigned-tasks');
     if(!board || !unassigned) return;
 
+    // בנייה דינמית של רשימת המודולים מתוך הקטגוריות הקיימות בספר
+    const moduleOptions = (typeof SECTIONS !== 'undefined') ? 
+        SECTIONS.map(s => `<option value="${s.title}">${s.title}</option>`).join('') : '';
+
     const tasksForSorting = window.almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
 
     if(tasksForSorting.length === 0) {
@@ -1330,13 +1337,11 @@ function renderALMHub() {
                         <option value="עסקים">עסקים</option>
                         <option value="b2b">B2B קהילה</option>
                         <option value="sa">סופר אדמין</option>
+                        <option value="all">כללי / רוחבי</option>
                     </select>
                     <select id="assign-mod-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
-                        <option value="">-- מודול --</option>
-                        <option value="קופה">קופה</option>
-                        <option value="מלאי">מלאי</option>
-                        <option value="משמרות">משמרות</option>
-                        <option value="הגדרות">הגדרות</option>
+                        <option value="">-- מודול מערכת --</option>
+                        ${moduleOptions}
                     </select>
                 </div>
                 <button onclick="assignTaskToVersion(${t.id})" style="background:#3b82f6; color:white; border:none; padding:0.45rem; border-radius:0.4rem; font-size:0.7rem; font-weight:700; cursor:pointer; margin-top:0.25rem;">שמור שיוך <i class="fa-solid fa-check"></i></button>
@@ -1456,7 +1461,6 @@ function renderALMHub() {
 
     board.innerHTML = standaloneHtml + versionsHtml;
 }
-
 // תיקון סעיף 2: שיוך משימה עם כל השדות כדי שלא תיעלם מהמסד
 async function assignTaskToVersion(taskId) {
     const verSel = document.getElementById(`assign-ver-${taskId}`).value;
