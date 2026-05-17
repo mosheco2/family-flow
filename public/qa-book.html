@@ -990,6 +990,24 @@ function filterTestsBySearch() {
     });
 }
 
+function filterTestsBySearch() {
+    const term = document.getElementById('qa-search-input').value.toLowerCase();
+    document.querySelectorAll('.section-body tbody tr').forEach(row => {
+        if(row.classList.contains('guide-row') || row.classList.contains('note-row')) return;
+        const text = row.innerText.toLowerCase();
+        const show = text.includes(term);
+        row.style.display = show ? '' : 'none';
+        
+        const id = row.id.replace('row-','');
+        const noteRow = document.getElementById(`note-row-${id}`);
+        const guideRow = document.getElementById(`guide-row-${id}`);
+        if(!show) {
+            if(noteRow) noteRow.style.display = 'none';
+            if(guideRow) guideRow.style.display = 'none';
+        }
+    });
+}
+
 function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
@@ -997,7 +1015,7 @@ function renderTests(filter) {
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   
   sections.forEach(sec => {
-    if (sec.tests.length === 0) return; // לא מציג מחלקות ריקות
+    if (sec.tests.length === 0) return; 
     
     const counts = countSection(sec.tests);
     const pct = sec.tests.length ? Math.round((counts.ok + counts.skip) / sec.tests.length * 100) : 0;
@@ -1031,7 +1049,6 @@ function renderTests(filter) {
   
   container.innerHTML = html;
   
-  // מפעיל סינון מחדש אם יש מילה בתיבת החיפוש לאחר רינדור
   if(document.getElementById('qa-search-input') && document.getElementById('qa-search-input').value) {
       filterTestsBySearch();
   }
@@ -1045,10 +1062,9 @@ function renderRow(t, sec) {
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
 
-  // כפתורי פעולה חכמים למשימות שהגיעו מהקנבן
   let actionBtn = '';
   if (t.isKanban) {
-      if (t.kanbanTask.status === 'in_progress' && !t.kanbanTask.target_version) {
+      if (t.kanbanTask.status === 'in_progress' && (!t.kanbanTask.target_version || t.kanbanTask.target_version === '')) {
           actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-purple" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="approveTaskForSorting(${t.kanbanTask.id})"><i class="fa-solid fa-arrow-left"></i> אשר והעבר למיון גרסאות</button></div>`;
       } else if (t.kanbanTask.status === 'qa') {
           actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-green" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="passQATask(${t.kanbanTask.id})"><i class="fa-solid fa-check-double"></i> בדיקה עברה - סגור ל-DONE</button></div>`;
@@ -1241,35 +1257,36 @@ function generateReport() {
 }
 
 // ============================================================
-// ALM & VERSIONS HUB
+// ALM & VERSIONS HUB 
 // ============================================================
 window.almVersions = [];
 window.almDevTasks = [];
 
+// יצירת משתנים מקומיים בטוחים כדי למנוע שגיאות התנגשות במסך ה-QA
+const almAPI = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+const almToken = localStorage.getItem('ofl_sa_token') || localStorage.getItem('saToken');
+
 async function loadALMData() {
-    if(!saToken) return;
+    if(!almToken) { console.warn('No SA token found'); return; }
     try {
         window.almVersions = JSON.parse(localStorage.getItem('qa_versions_db') || '[]');
-        const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
+        const res = await fetch(`${almAPI}/sa/dev/tasks`, { headers: { 'Authorization': almToken } });
         const data = await res.json();
         if(data.success) {
             window.almDevTasks = data.tasks; 
             injectKanbanTasksToQA();
             renderALMHub();
-            
-            // עדכון חזותי לטאבים הפעילים
-            if(currentView === 'tests' || currentView === 'dashboard') {
-                updateStats();
-                renderTests(currentFilter);
-            }
         }
     } catch(e) { console.error('ALM Data Error:', e); }
 }
 
-// פונקציה קריטית: שואבת משימות מהקנבן אל תוך טאבים של בדיקות בספר ה-QA
 function injectKanbanTasksToQA() {
-    // מנקה משימות קנבן קודמות כדי לא לייצר כפילויות ברינדור מחדש
-    SECTIONS.forEach(sec => { sec.tests = sec.tests.filter(t => !t.isKanban); });
+    if (typeof SECTIONS === 'undefined') return;
+    
+    // מנקה משימות קנבן קודמות כדי לא לייצר כפילויות
+    SECTIONS.forEach(sec => { 
+        if(sec.tests) sec.tests = sec.tests.filter(t => !t.isKanban); 
+    });
 
     window.almDevTasks.forEach(kt => {
         const testObj = {
@@ -1277,12 +1294,12 @@ function injectKanbanTasksToQA() {
             prio: kt.priority, envs: ['all'], isKanban: true, kanbanTask: kt
         };
 
-        // שלב 3 לפי האפיון: משימות "בפיתוח" שלא מוינו מופיעות בטאב 'כללי'
+        // משימות "בפיתוח" שלא מוינו מופיעות בטאב 'כללי' (סעיף 3 באפיון)
         if (kt.status === 'in_progress' && (!kt.target_version || kt.target_version === '')) {
             const sec = SECTIONS.find(s => s.id === 'general');
             if(sec) sec.tests.unshift(testObj);
         }
-        // שלב 7+8 לפי האפיון: משימות שעברו ל-QA מופיעות תחת הקטגוריה שאליה מוינו
+        // משימות שעברו ל-QA מופיעות תחת הקטגוריה שאליה מוינו (סעיפים 7, 8)
         else if (kt.status === 'qa') {
             const modMap = { 'קופה':'pos', 'מלאי':'inventory', 'משמרות':'shifts', 'הגדרות':'family' };
             const targetMod = modMap[kt.module_name] || 'general';
@@ -1292,31 +1309,35 @@ function injectKanbanTasksToQA() {
     });
 }
 
-// כפתור: אישור העברה מ"כללי" לאזור מיון ALM
+// כפתור: אישור העברה מ"כללי" לאזור מיון ALM (סעיף 4 באפיון)
 async function approveTaskForSorting(taskId) {
     try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
             body: JSON.stringify({ targetVersion: 'SORTING' })
         });
         if(res.ok) {
             showToast('המשימה אושרה ועברה למיון בניהול גרסאות!');
-            loadALMData();
+            await loadALMData();
+            if(typeof updateStats === 'function') updateStats();
+            if(typeof renderTests === 'function') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
         }
     } catch(e) {}
 }
 
-// כפתור: סגירת משימה שעברה QA אל סטטוס DONE בסופר אדמין
+// כפתור: סגירת משימה שעברה QA אל סטטוס DONE בסופר אדמין (סעיף 9 באפיון)
 async function passQATask(taskId) {
-    if(!confirm('הבדיקה עברה בהצלחה?\nהמשימה תעבור אוטומטית לעמודת "בוצע" בלוח המרכזי ותסגור מעגל מול הלקוח.')) return;
+    if(!confirm('הבדיקה עברה בהצלחה?\\nהמשימה תעבור אוטומטית לעמודת "בוצע" בלוח המרכזי ותסגור מעגל מול הלקוח.')) return;
     try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ status: 'done', systemOverride: true }) // עוקף חסימה ידנית של קנבן
+        const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
+            body: JSON.stringify({ status: 'done', systemOverride: true })
         });
         if(res.ok) {
             showToast('המשימה הושלמה בהצלחה ושוחררה ל-DONE!');
-            loadALMData();
+            await loadALMData();
+            if(typeof updateStats === 'function') updateStats();
+            if(typeof renderTests === 'function') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
         }
     } catch(e) {}
 }
@@ -1355,7 +1376,7 @@ function renderALMHub() {
     const unassigned = document.getElementById('alm-unassigned-tasks');
     if(!board || !unassigned) return;
 
-    // משימות ש"אושרו למיון" (סטטוס פיתוח והיעד הוא SORTING)
+    // משימות ש"אושרו למיון" וממתינות (יעד SORTING)
     const tasksForSorting = window.almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
 
     if(tasksForSorting.length === 0) {
@@ -1393,7 +1414,7 @@ function renderALMHub() {
         `).join('');
     }
 
-    // משימות עצמאיות (Standalone) - סעיפים 6+14 באפיון
+    // משימות עצמאיות (Standalone SLA - סעיפים 6, 14 באפיון)
     const standaloneTasks = window.almDevTasks.filter(t => t.target_version === 'STANDALONE');
     let standaloneHtml = '';
     if (standaloneTasks.length > 0) {
@@ -1421,7 +1442,7 @@ function renderALMHub() {
         </div>`;
     }
 
-    // גרסאות (Versions) - סעיפים 6+13 באפיון
+    // גרסאות מערכת (SLA - סעיפים 6, 13 באפיון)
     let versionsHtml = window.almVersions.slice().reverse().map(v => {
         const vTasks = window.almDevTasks.filter(t => t.target_version === v.name);
         const total = vTasks.length;
@@ -1510,7 +1531,6 @@ function renderALMHub() {
     board.innerHTML = standaloneHtml + versionsHtml;
 }
 
-// עדכון שיוך (ממסך המיון לגרסה או לעצמאי)
 async function assignTaskToVersion(taskId) {
     const verSel = document.getElementById(`assign-ver-${taskId}`).value;
     const envSel = document.getElementById(`assign-env-${taskId}`).value;
@@ -1518,36 +1538,36 @@ async function assignTaskToVersion(taskId) {
     if(!verSel) return showToast('שגיאה: חובה לבחור גרסת יעד מהרשימה!');
 
     try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+        const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
             body: JSON.stringify({ targetVersion: verSel, environment: envSel, moduleName: modSel })
         });
         const data = await res.json();
         if(data.success) {
             showToast(`המשימה שויכה בהצלחה לגרסה ${verSel}`);
-            loadALMData(); 
+            await loadALMData(); 
         }
     } catch(e) { showToast('שגיאת רשת מול השרת'); }
 }
 
-// עדכון סטטוס: מפתח סיים
 async function markTaskDevDone(taskId) {
-    if(!confirm('האם אתה מאשר שפיתוח המשימה הסתיים?\nהמשימה תעבור לעמודת בדיקות ה-QA בלוח המרכזי.')) return;
+    if(!confirm('האם אתה מאשר שפיתוח המשימה הסתיים?\\nהמשימה תעבור לעמודת בדיקות ה-QA בלוח המרכזי.')) return;
     updateTaskStatusRaw(taskId, 'qa');
 }
 
-// עדכון סטטוס גלובלי 
 async function updateTaskStatusRaw(taskId, newStatus) {
     try {
-        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+        const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}/status`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
             body: JSON.stringify({ status: newStatus, systemOverride: true })
         });
         if(res.ok) {
             showToast('הסטטוס עודכן בלוח הקנבן המרכזי.');
-            loadALMData();
+            await loadALMData();
+            if(typeof updateStats === 'function') updateStats();
+            if(typeof renderTests === 'function') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
         }
     } catch(e) { showToast('שגיאה בעדכון הסטטוס'); }
 }
@@ -1573,7 +1593,8 @@ function showView(v) {
   const map={dashboard:0,tests:1,report:2,versions:3};
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  if(v==='tests') renderTests(currentFilter);
+  
+  if(v==='tests') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
   if(v==='versions') loadALMData(); 
   if(v==='dashboard') updateStats();
 }
@@ -1630,11 +1651,11 @@ async function exportReport() {
   a.download = `qa-report-${new Date().toISOString().slice(0,10)}.txt`;
   a.click();
   
-  if (saToken) {
+  if (almToken) {
       try {
           const userName = JSON.parse(localStorage.getItem('ofl_sa_user') || '{}').name || 'QA Tester';
           const runResults = { total: allTests().length, passed: c.ok, failed: c.fail + c.warn, skipped: c.skip, failedTests: fails.map(t => ({ id: t.id, note: getNote(t.id) })) };
-          await fetch(`${API}/sa/qa/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ versionId: null, testerName: userName, results: runResults }) });
+          await fetch(`${almAPI}/sa/qa/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': almToken }, body: JSON.stringify({ versionId: null, testerName: userName, results: runResults }) });
           showToast('הדוח נשמר בשרת והורד למחשב!');
       } catch(e) { console.error('Error saving QA run to server', e); }
   } else {
@@ -1650,14 +1671,21 @@ function showToast(msg) {
 }
 
 // ============================================================
-// INIT
+// INIT - Bulletproof Loading (Fix for blank screen issue)
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  loadState();
-  loadTestsFromServer().then(() => {
-      loadALMData().then(() => {
-          updateStats();
-          renderTests(null);
-      });
-  });
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        if(typeof loadState === 'function') loadState();
+        if(typeof loadTestsFromServer === 'function') await loadTestsFromServer();
+    } catch(e) { console.error('Error loading core tests:', e); }
+
+    try {
+        await loadALMData();
+    } catch(e) { console.error('Error loading ALM data:', e); }
+
+    if(typeof updateStats === 'function') updateStats();
+    if(typeof renderTests === 'function') renderTests(null);
 });
+</script>
+</body>
+</html>
