@@ -1881,23 +1881,28 @@ window.loadDevTasks = async function() {
 };
 
 window.renderKanbanBoard = function() {
-    const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'development': getEl('col-development'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
-    const counts = { 'backlog': 0, 'in_progress': 0, 'development': 0, 'qa': 0, 'done': 0 };
+    const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
+    const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
     
-    // סינון חכם לפי גרסה או טקסט חופשי
+    // סינון משולב (גרסה + חיפוש טקסטואלי חופשי)
     const versionFilter = val('kanban-version-filter').trim().toLowerCase();
+    const searchFilter = val('kanban-search') ? val('kanban-search').trim().toLowerCase() : '';
+    
     let filteredTasks = devKanbanTasks;
-    if (versionFilter) {
-        filteredTasks = devKanbanTasks.filter(t => 
-            (t.version && t.version.toLowerCase().includes(versionFilter)) ||
-            (t.title && t.title.toLowerCase().includes(versionFilter))
-        );
+    
+    if (versionFilter || searchFilter) {
+        filteredTasks = devKanbanTasks.filter(t => {
+            const matchVersion = !versionFilter || (t.version && t.version.toLowerCase().includes(versionFilter));
+            const textToSearch = `${t.id} ${t.title || ''} ${t.description || ''} ${t.original_ticket_id || ''}`.toLowerCase();
+            const matchSearch = !searchFilter || textToSearch.includes(searchFilter);
+            return matchVersion && matchSearch;
+        });
     }
     
     Object.values(columns).forEach(col => { if(col) col.innerHTML = ''; });
     
     if(filteredTasks.length === 0) {
-        if(columns.backlog) columns.backlog.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">${versionFilter ? 'לא נמצאו משימות התואמות לחיפוש/לגרסה.' : 'אין משימות במערכת. לחץ על כפתור ההוספה.'}</div>`;
+        if(columns.backlog) columns.backlog.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">לא נמצאו משימות התואמות לחיפוש/סינון.</div>`;
     }
 
     filteredTasks.forEach(task => {
@@ -1916,7 +1921,9 @@ window.renderKanbanBoard = function() {
         else if(task.priority === 'low') prioIcon = '🔵';
 
         const versionBadge = task.version ? `<span class="bg-indigo-50 border border-indigo-100 text-indigo-600 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
-        const almBadge = (task.status === 'development' || task.status === 'qa') ? `<div class="text-[9px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-200 mb-2 inline-block shadow-sm w-full text-center"><i class="fa-solid fa-lock text-blue-500"></i> מנוהל ALM בספר הבדיקות</div>` : '';
+        
+        // תגית המראה למפתח שהמשימה בפיתוח ממתינה לאישור ה-QA
+        const almBadge = (task.status === 'in_progress') ? `<div class="text-[9px] bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 mb-2 inline-block shadow-sm w-full text-center"><i class="fa-solid fa-paper-plane text-blue-400"></i> עבר לספר מוצר (ממתין למיון)</div>` : '';
 
         const cardHtml = `
         <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
@@ -1989,10 +1996,10 @@ window.dropKanbanTask = async function(ev, newStatus) {
     
     if (!task) return;
 
-    // ALM BLOCKER: מניעת העברה ידנית ל-DONE למשימות פיתוח 
-    if (newStatus === 'done' && (task.status === 'development' || task.status === 'qa' || task.type === 'feature')) {
+    // חסימת העברה ל-DONE למעט על ידי מנגנון ה-QA (עוקף חסימה)
+    if (newStatus === 'done' && task.status !== 'done') {
         showToast('error', 'משימה זו מנוהלת הנדסית. היא תעבור אוטומטית ל-DONE רק לאחר אישור בספר ה-QA.');
-        return; // עוצר את הביצוע!
+        return; 
     }
 
     if (task.status !== newStatus) {
@@ -2005,11 +2012,12 @@ window.dropKanbanTask = async function(ev, newStatus) {
                 body: JSON.stringify({ status: newStatus })
             });
             
-            if (newStatus === 'development') {
-                showToast('success', 'המשימה הועברה בהצלחה למאגר הפיתוח בספר ה-QA');
+            // חיווי על העברה לשער הפיתוח (QA Book)
+            if (newStatus === 'in_progress') {
+                showToast('success', 'המשימה הועברה לפיתוח, וממתינה לאישור ולמיון בספר ה-QA.');
             }
             
-            // ריצה של סגירת המעגל רק אם זה משימת תמיכה רגילה
+            // ריצה של סגירת המעגל (קורה רק כשה-QA Book שולח את העקיפה ל-DONE)
             if (newStatus === 'done') {
                 if (typeof confetti === 'function') {
                     confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
@@ -2036,7 +2044,6 @@ window.dropKanbanTask = async function(ev, newStatus) {
                             } catch(err) { console.error('Feedback loop error', err); }
                         }
                     }
-
                 }, 1200);
             }
         } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
