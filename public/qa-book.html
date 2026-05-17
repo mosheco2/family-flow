@@ -3,21 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ספר QA — Oneflow Life</title>
+<title>ספר QA ומרכז ניהול פיתוח — Oneflow Life</title>
 <link rel="icon" href="/logo.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
+/* --- BASE & VARIABLES --- */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:14px}
-:root{--ok:#16a34a;--fail:#dc2626;--skip:#94a3b8;--warn:#d97706;--new:#7c3aed}
+:root{--ok:#16a34a;--fail:#dc2626;--skip:#94a3b8;--warn:#d97706;--new:#7c3aed;--bg:#f1f5f9;--card:#ffffff;--text-main:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--primary:#3b82f6;}
 
-/* Layout */
+/* --- LAYOUT --- */
 .app{display:flex;min-height:100vh}
 .sidebar{width:260px;background:#0f172a;color:white;position:fixed;top:0;bottom:0;right:0;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
 .main{margin-right:260px;flex:1;padding:1.5rem}
 
-/* Sidebar */
+/* --- SIDEBAR --- */
 .sb-header{padding:1.2rem 1rem;border-bottom:1px solid rgba(255,255,255,0.1)}
 .sb-header h1{font-size:1rem;font-weight:800;color:white}
 .sb-header p{font-size:0.7rem;color:#94a3b8;margin-top:2px}
@@ -27,164 +28,131 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sb-section-title{font-size:0.65rem;font-weight:700;color:#475569;padding:0.5rem 1rem;text-transform:uppercase;letter-spacing:0.05em}
 .sb-link{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 1rem;color:#94a3b8;cursor:pointer;border-right:3px solid transparent;transition:all 0.15s;font-size:0.8rem;white-space:nowrap;overflow:hidden}
 .sb-link:hover{color:white;background:rgba(255,255,255,0.05)}
-.sb-link.active{color:white;border-right-color:#3b82f6;background:rgba(59,130,246,0.1)}
+.sb-link.active{color:white;border-right-color:var(--primary);background:rgba(59,130,246,0.1)}
 .sb-link i{width:14px;text-align:center;font-size:0.75rem;flex-shrink:0}
 .sb-badge{margin-right:auto;font-size:0.6rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:99px}
-.badge-fail{background:#dc2626;color:white}
-.badge-ok{background:#16a34a;color:white}
-.badge-pending{background:#475569;color:white}
+.badge-fail{background:var(--fail);color:white}
+.badge-ok{background:var(--ok);color:white}
 
-/* Stats bar */
+/* --- DASHBOARD STATS --- */
 .stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem}
-.stat-card{background:white;border-radius:1rem;padding:1rem;text-align:center;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+.stat-card{background:var(--card);border-radius:1rem;padding:1rem;text-align:center;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.05)}
 .stat-card .num{font-size:1.6rem;font-weight:800;line-height:1}
-.stat-card .lbl{font-size:0.7rem;color:#64748b;margin-top:0.25rem;font-weight:500}
-.num-total{color:#1e293b}
+.stat-card .lbl{font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;font-weight:500}
+.num-total{color:var(--text-main)}
 .num-ok{color:var(--ok)}
 .num-fail{color:var(--fail)}
 .num-skip{color:var(--skip)}
-.num-pct{color:#3b82f6}
+.num-pct{color:var(--primary)}
 
-/* Page header */
-.page-header{background:white;border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
-.page-header h2{font-size:1.1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
-.page-actions{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;}
-.btn{padding:0.45rem 1rem;border-radius:0.6rem;font-family:inherit;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem}
-.btn-dark{background:#0f172a;color:white}.btn-dark:hover{background:#1e293b}
-.btn-outline{background:white;color:#475569;border:1px solid #e2e8f0}.btn-outline:hover{background:#f8fafc}
-.btn-red{background:#fee2e2;color:#dc2626}.btn-red:hover{background:#fecaca}
-.btn-green{background:#dcfce7;color:#16a34a}.btn-green:hover{background:#bbf7d0}
-.btn-purple{background:#ede9fe;color:#7c3aed}.btn-purple:hover{background:#ddd6fe}
+/* --- PAGE ELEMENTS --- */
+.page-header{background:var(--card);border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.page-header h2{font-size:1.1rem;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:0.5rem}
+.page-actions{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center}
+.btn{padding:0.45rem 1rem;border-radius:0.6rem;font-family:inherit;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.btn-dark{background:var(--text-main);color:white}.btn-dark:hover{background:#1e293b}
+.btn-outline{background:white;color:#475569;border:1px solid var(--border)}.btn-outline:hover{background:#f8fafc}
+.btn-red{background:#fee2e2;color:var(--fail)}.btn-red:hover{background:#fecaca}
+.btn-green{background:#dcfce7;color:var(--ok)}.btn-green:hover{background:#bbf7d0}
+.btn-purple{background:#ede9fe;color:var(--new)}.btn-purple:hover{background:#ddd6fe}
 
-/* Section */
-.section{background:white;border-radius:1rem;border:1px solid #e2e8f0;margin-bottom:1.25rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-.section-head{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none}
-.section-head h3{font-size:0.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
-.section-head .chevron{transition:transform 0.2s;color:#94a3b8;font-size:0.75rem}
+/* --- SECTIONS (ACCORDIONS) --- */
+.section{background:var(--card);border-radius:1rem;border:1px solid var(--border);margin-bottom:1.25rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-head h3{font-size:0.9rem;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:0.5rem}
+.section-head .chevron{transition:transform 0.2s;color:var(--text-muted);font-size:0.75rem}
 .section.collapsed .chevron{transform:rotate(-90deg)}
 .section.collapsed .section-body{display:none}
 .section-meta{display:flex;align-items:center;gap:0.75rem}
-.section-pct{font-size:0.75rem;font-weight:700;color:#3b82f6}
-.mini-bar{width:80px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden}
-.mini-bar-fill{height:100%;background:#3b82f6;border-radius:99px;transition:width 0.3s}
+.section-pct{font-size:0.75rem;font-weight:700;color:var(--primary)}
+.mini-bar{width:80px;height:6px;background:var(--border);border-radius:99px;overflow:hidden}
+.mini-bar-fill{height:100%;background:var(--primary);border-radius:99px;transition:width 0.3s}
 
-/* Test table */
+/* --- TABLES & ROWS --- */
 .section-body{padding:0}
 table{width:100%;border-collapse:collapse}
-th{font-size:0.7rem;font-weight:700;color:#64748b;text-align:right;padding:0.6rem 1rem;border-bottom:2px solid #e2e8f0;background:#f8fafc;white-space:nowrap}
-th:last-child{text-align:center;width:220px}
+th{font-size:0.7rem;font-weight:700;color:var(--text-muted);text-align:right;padding:0.6rem 1rem;border-bottom:2px solid var(--border);background:#f8fafc;white-space:nowrap}
+th:last-child{text-align:center;width:240px}
 td{padding:0.55rem 1rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafbfc}
-.test-id{font-size:0.65rem;color:#94a3b8;font-family:monospace;white-space:nowrap}
-.test-name{font-weight:500;color:#1e293b;font-size:0.82rem}
-.test-desc{font-size:0.72rem;color:#64748b;margin-top:2px}
+.test-id{font-size:0.65rem;color:var(--text-muted);font-family:monospace;white-space:nowrap}
+.test-name{font-weight:500;color:var(--text-main);font-size:0.82rem}
+.test-desc{font-size:0.72rem;color:var(--text-muted);margin-top:2px}
 .test-env{display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:3px}
+
+/* --- TAGS & BADGES --- */
 .env-tag{font-size:0.6rem;font-weight:600;padding:0.1rem 0.45rem;border-radius:99px}
 .env-family{background:#dbeafe;color:#1d4ed8}
 .env-biz{background:#fef3c7;color:#92400e}
 .env-comm{background:#f0fdf4;color:#166534}
 .env-sa{background:#fae8ff;color:#7e22ce}
 .env-all{background:#f1f5f9;color:#475569}
+.prio{font-size:0.6rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:99px;white-space:nowrap}
+.prio-critical{background:#fee2e2;color:var(--fail)}
+.prio-high{background:#ffedd5;color:#ea580c}
+.prio-medium{background:#fef9c3;color:#ca8a04}
+.prio-low{background:#f0fdf4;color:#166534}
 
-/* Status buttons */
+/* --- BUTTONS & ACTIONS --- */
 .status-btns{display:flex;gap:0.3rem;justify-content:center;align-items:center}
-.s-btn{width:32px;height:32px;border-radius:0.5rem;border:2px solid transparent;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:white;color:#94a3b8;border-color:#e2e8f0}
+.s-btn{width:32px;height:32px;border-radius:0.5rem;border:2px solid transparent;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:white;color:var(--text-muted);border-color:var(--border)}
 .s-btn:hover{transform:scale(1.1)}
 .s-btn.active-ok{background:var(--ok);color:white;border-color:var(--ok)}
 .s-btn.active-fail{background:var(--fail);color:white;border-color:var(--fail)}
 .s-btn.active-skip{background:var(--skip);color:white;border-color:var(--skip)}
 .s-btn.active-warn{background:var(--warn);color:white;border-color:var(--warn)}
-.note-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
-.note-btn:hover{background:#f1f5f9;color:#475569}
-.note-btn.has-note{color:#7c3aed;border-color:#c4b5fd;background:#faf5ff}
+.note-btn,.guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid var(--border);background:white;color:var(--text-muted);cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.note-btn:hover,.guide-btn:hover{background:#f1f5f9;color:#475569}
+.note-btn.has-note{color:var(--new);border-color:#c4b5fd;background:#faf5ff}
+.guide-btn.active{color:var(--primary);border-color:#bfdbfe;background:#eff6ff}
 
-/* Note row */
+/* --- EXTENDED ROWS (NOTES/GUIDE) --- */
 .note-row{background:#faf5ff}
 .note-row td{padding:0.4rem 1rem 0.6rem}
 .note-input{width:100%;padding:0.5rem 0.75rem;border:1px solid #c4b5fd;border-radius:0.5rem;font-family:inherit;font-size:0.8rem;color:#3b0764;background:white;outline:none;resize:none}
-.note-input:focus{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,0.1)}
-
-/* Report */
-#report-panel{display:none;background:white;border-radius:1rem;border:1px solid #e2e8f0;padding:1.5rem;margin-top:1.25rem}
-.report-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem}
-.report-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem;background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;margin-bottom:0.5rem}
-.report-item-warn{background:#fffbeb;border-color:#fde68a}
-.report-icon{width:28px;height:28px;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem}
-.r-fail-icon{background:#fee2e2;color:#dc2626}
-.r-warn-icon{background:#fef3c7;color:#d97706}
-.report-text{flex:1}
-.report-test-id{font-size:0.65rem;color:#94a3b8;font-family:monospace}
-.report-test-name{font-weight:600;font-size:0.82rem;color:#1e293b}
-.report-note{font-size:0.75rem;color:#64748b;margin-top:2px;font-style:italic}
-.report-section-name{font-size:0.7rem;color:#475569;margin-top:1px}
-
-/* Version history */
-.version-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem}
-.version-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem}
-.version-num{font-size:0.8rem;font-weight:700;color:#0f172a}
-.version-date{font-size:0.7rem;color:#94a3b8}
-.version-tag{font-size:0.65rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:99px}
-.vtag-release{background:#dcfce7;color:#166534}
-.vtag-beta{background:#fef3c7;color:#92400e}
-.vtag-hotfix{background:#fee2e2;color:#991b1b}
-.version-summary{font-size:0.78rem;color:#475569;margin-bottom:0.5rem}
-.version-stats{display:flex;gap:0.75rem;font-size:0.7rem}
-.vs-ok{color:var(--ok);font-weight:600}
-.vs-fail{color:var(--fail);font-weight:600}
-.version-notes{font-size:0.72rem;color:#64748b;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e2e8f0}
-
-/* View toggle */
-.view{display:none}.view.active{display:block}
-
-/* Priority badge */
-.prio{font-size:0.6rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:99px;white-space:nowrap}
-.prio-critical{background:#fee2e2;color:#dc2626}
-.prio-high{background:#ffedd5;color:#ea580c}
-.prio-medium{background:#fef9c3;color:#ca8a04}
-.prio-low{background:#f0fdf4;color:#166534}
-
-/* Progress ring */
-.progress-ring-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
-.progress-ring{transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:#e2e8f0;stroke-width:4}
-.ring-fill{fill:none;stroke:#3b82f6;stroke-width:4;stroke-linecap:round;stroke-dasharray:126;transition:stroke-dashoffset 0.5s}
-.ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:#3b82f6}
-
-/* Toast */
-#qa-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#0f172a;color:white;padding:0.6rem 1.25rem;border-radius:99px;font-size:0.8rem;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
-#qa-toast.show{opacity:1}
-
-/* Scrollbar */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:#f1f5f9}
-::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
-
-@media(max-width:900px){
-  .sidebar{width:220px}.main{margin-right:220px}
-  .stats-bar{grid-template-columns:repeat(3,1fr)}
-}
-/* Guide styles */
+.note-input:focus{border-color:var(--new);box-shadow:0 0 0 2px rgba(124,58,237,0.1)}
 .guide-row td{padding:0.3rem 1rem 0.75rem;background:#f8fafc}
-.guide-box{border:1px solid #e2e8f0;border-radius:0.6rem;overflow:hidden;font-size:0.75rem}
-.guide-path{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;background:#f1f5f9;color:#475569;font-size:0.7rem;border-bottom:1px solid #e2e8f0}
-.guide-path i{color:#3b82f6;font-size:0.65rem}
+.guide-box{border:1px solid var(--border);border-radius:0.6rem;overflow:hidden;font-size:0.75rem}
+.guide-path{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;background:#f1f5f9;color:#475569;font-size:0.7rem;border-bottom:1px solid var(--border)}
+.guide-path i{color:var(--primary);font-size:0.65rem}
 .guide-body{display:grid;grid-template-columns:1fr 1fr;gap:0;background:white}
-.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid #e2e8f0}
+.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid var(--border)}
 .guide-expected{padding:0.5rem 0.75rem;background:#f0fdf4}
-.guide-label{font-size:0.6rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
+.guide-label{font-size:0.6rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
 .guide-steps ol{margin:0;padding-right:1rem;color:#374151;line-height:1.6}
 .guide-steps ol li{margin-bottom:0.1rem}
 .guide-expected p{color:#166534;font-weight:500;margin:0;line-height:1.5}
-.guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
-.guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
-.guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
 
-@media print{
-  .sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}
-  .main{margin-right:0}
-  .section{break-inside:avoid}
-}
+/* --- REPORTS --- */
+.report-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem;background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;margin-bottom:0.5rem}
+.report-item-warn{background:#fffbeb;border-color:#fde68a}
+.report-icon{width:28px;height:28px;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem}
+.r-fail-icon{background:#fee2e2;color:var(--fail)}
+.r-warn-icon{background:#fef3c7;color:var(--warn)}
+.report-text{flex:1}
+.report-test-id{font-size:0.65rem;color:var(--text-muted);font-family:monospace}
+.report-test-name{font-weight:600;font-size:0.82rem;color:var(--text-main)}
+.report-note{font-size:0.75rem;color:var(--text-muted);margin-top:2px;font-style:italic}
+.report-section-name{font-size:0.7rem;color:#475569;margin-top:1px}
+
+/* --- COMPONENTS --- */
+.view{display:none}.view.active{display:block}
+.progress-ring-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
+.progress-ring{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--border);stroke-width:4}
+.ring-fill{fill:none;stroke:var(--primary);stroke-width:4;stroke-linecap:round;stroke-dasharray:126;transition:stroke-dashoffset 0.5s}
+.ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:var(--primary)}
+#qa-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--text-main);color:white;padding:0.6rem 1.25rem;border-radius:99px;font-size:0.8rem;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+#qa-toast.show{opacity:1}
+.search-input{padding:0.45rem 2rem 0.45rem 1rem; border-radius:0.6rem; border:1px solid var(--border); font-family:inherit; font-size:0.8rem; outline:none; width:220px; box-shadow:0 1px 2px rgba(0,0,0,0.02);}
+
+/* --- SCROLLBARS --- */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#f1f5f9}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
+@media(max-width:900px){.sidebar{width:220px}.main{margin-right:220px}}
+@media print{.sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}.main{margin-right:0}.section{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -194,307 +162,213 @@ tr:hover td{background:#fafbfc}
 <div class="app">
 <nav class="sidebar">
   <div class="sb-header">
-    <h1><i class="fa-solid fa-clipboard-check" style="color:#3b82f6;margin-left:0.4rem"></i> ספר QA</h1>
-    <p>Oneflow Life — בדיקות מערכת</p>
+    <h1><i class="fa-solid fa-clipboard-check" style="color:var(--primary);margin-left:0.4rem"></i> ספר QA</h1>
+    <p>Oneflow Life — מערכת בדיקות ופיתוח</p>
   </div>
   <div class="sb-version">
     <span>גרסה נוכחית</span>
     <span id="sb-ver">v1.0.0</span>
   </div>
+
   <div class="sb-section">
     <div class="sb-section-title">ניווט ראשי</div>
-    <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד בדיקות</div>
-    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת בדיקות</div>
+    <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד מרכזי</div>
+    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת משימות ובדיקות</div>
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
     <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> ניהול גרסאות (ALM)</div>
   </div>
-  
-  <div class="sb-section">
-    <div class="sb-section-title">מודולים</div>
-    <div class="sb-link" onclick="filterSection('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
-    <div class="sb-link" onclick="filterSection('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
-    <div class="sb-link" onclick="filterSection('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
-    <div class="sb-link" onclick="filterSection('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
-    <div class="sb-link" onclick="filterSection('biz')"><i class="fa-solid fa-briefcase"></i> סביבת עסק</div>
-    <div class="sb-link" onclick="filterSection('store')"><i class="fa-solid fa-store"></i> חנות ו-Storefront</div>
-    <div class="sb-link" onclick="filterSection('pos')"><i class="fa-solid fa-cash-register"></i> קופה (POS)</div>
-    <div class="sb-link" onclick="filterSection('b2b')"><i class="fa-solid fa-truck"></i> רכש ו-B2B</div>
-    <div class="sb-link" onclick="filterSection('finance')"><i class="fa-solid fa-shekel-sign"></i> פיננסים</div>
-    <div class="sb-link" onclick="filterSection('inventory')"><i class="fa-solid fa-boxes-stacked"></i> מלאי</div>
-    <div class="sb-link" onclick="filterSection('ai')"><i class="fa-solid fa-robot"></i> AI ופיצ'רים</div>
-    <div class="sb-link" onclick="filterSection('calendar')"><i class="fa-solid fa-calendar"></i> יומן ותורים</div>
-    <div class="sb-link" onclick="filterSection('shifts')"><i class="fa-solid fa-clock-rotate-left"></i> משמרות</div>
-    <div class="sb-link" onclick="filterSection('tasks')"><i class="fa-solid fa-list-check"></i> משימות</div>
-    <div class="sb-link" onclick="filterSection('academy')"><i class="fa-solid fa-graduation-cap"></i> אקדמיה</div>
-    <div class="sb-link" onclick="filterSection('community')"><i class="fa-solid fa-people-group"></i> קהילות</div>
-    <div class="sb-link" onclick="filterSection('notif')"><i class="fa-solid fa-bell"></i> התראות ו-Inbox</div>
-    <div class="sb-link" onclick="filterSection('sa')"><i class="fa-solid fa-shield"></i> SuperAdmin</div>
-    <div class="sb-link" onclick="filterSection('samktg')"><i class="fa-solid fa-paper-plane"></i> SA — שיווק</div>
-    <div class="sb-link" onclick="filterSection('sa_full')"><i class="fa-solid fa-shield-halved"></i> SA — sa.html</div>
-  </div>
-  
-  <div class="sb-section">
-    <div class="sb-section-title">הרשאות לפי תפקי</div>
-    <div class="sb-link" onclick="filterSection('perm_fam')"><i class="fa-solid fa-user-shield"></i> הורה vs ילד</div>
-    <div class="sb-link" onclick="filterSection('perm_biz')"><i class="fa-solid fa-user-tie"></i> עובדים בעסק (4 רמות)</div>
-    <div class="sb-link" onclick="filterSection('pwa')"><i class="fa-solid fa-mobile"></i> PWA ואבטחה</div>
-  </div>
-  
+
+  <div class="sb-section" id="sidebar-categories">
+    <div class="sb-section-title">מודולים וסינון קטגוריות</div>
+    </div>
+
   <div style="padding:1rem;margin-top:auto;border-top:1px solid rgba(255,255,255,0.08)">
-    <button class="btn btn-dark" style="width:100%;justify-content:center;font-size:0.75rem" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;font-size:0.75rem;margin-top:0.4rem;background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.1)" onclick="resetAll()"><i class="fa-solid fa-rotate-left"></i> אפס הכל</button>
+    <button class="btn btn-dark" style="width:100%;font-size:0.75rem" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
+    <button class="btn btn-outline" style="width:100%;font-size:0.75rem;margin-top:0.4rem;background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.1)" onclick="resetAll()"><i class="fa-solid fa-rotate-left"></i> אפס נתונים</button>
   </div>
 </nav>
 
 <main class="main">
 
-<div id="view-dashboard" class="view active">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-gauge-high" style="color:#3b82f6"></i> דשבורד בדיקות</h2>
-    <div class="page-actions">
-      <button class="btn btn-dark" onclick="showView('tests')"><i class="fa-solid fa-play"></i> התחל בדיקות</button>
-      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
-    </div>
-  </div>
-
-  <div class="stats-bar">
-    <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ בדיקות</div></div>
-    <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
-    <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
-    <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— דולגו</div></div>
-    <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem" id="module-cards"></div>
-
-  <div class="section">
-    <div class="section-head" onclick="toggleSection(this)">
-      <h3><i class="fa-solid fa-circle-info" style="color:#3b82f6"></i> מידע על ריצת הבדיקות</h3>
-      <i class="fa-solid fa-chevron-down chevron"></i>
-    </div>
-    <div class="section-body" style="padding:1.25rem">
-      <table style="width:auto;min-width:400px">
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">תאריך ריצה</td><td style="border:none;font-size:0.8rem" id="run-date">—</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">גרסה שנבדקה</td><td style="border:none;font-size:0.8rem" id="run-ver">—</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">סביבות שנבדקו</td><td style="border:none;font-size:0.8rem">משפחה, עסק, קהילה, SuperAdmin</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">הערות</td><td style="border:none"><input id="run-notes" placeholder="הוסף הערות על הריצה..." style="border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.78rem;width:300px;outline:none" oninput="saveState()"></td></tr>
-      </table>
-    </div>
-  </div>
-</div>
-
-<div id="view-tests" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> רשימת בדיקות מלאה</h2>
-    <div class="page-actions" style="align-items: center;">
-      <div style="position:relative; display:inline-block; margin-left:0.5rem;">
-         <i class="fa-solid fa-magnifying-glass" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:12px;"></i>
-         <input type="text" id="qa-search-input" placeholder="חפש משימה או מזהה..." onkeyup="filterTestsBySearch()" style="padding:0.45rem 2rem 0.45rem 1rem; border-radius:0.6rem; border:1px solid #e2e8f0; font-family:inherit; font-size:0.8rem; outline:none; width:220px; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+  <div id="view-dashboard" class="view active">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-gauge-high" style="color:var(--primary)"></i> דשבורד בדיקות ופיתוח</h2>
+      <div class="page-actions">
+        <button class="btn btn-dark" onclick="showView('tests')"><i class="fa-solid fa-play"></i> המשך עבודה</button>
       </div>
-      <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
-      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
-      <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
-      <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
     </div>
+    <div class="stats-bar">
+      <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ פריטים</div></div>
+      <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ הושלמו / עברו</div></div>
+      <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
+      <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— עוכבו / דולגו</div></div>
+      <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem" id="module-cards"></div>
   </div>
-  <div id="tests-container"></div>
-</div>
 
-<div id="view-report" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i> דוח תקלות ובאגים</h2>
-    <div class="page-actions">
-      <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
-      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
-    </div>
-  </div>
-  <div id="report-container">
-    <div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">לחץ על "הפק דוח תקלות" כדי לראות בדיקות שנכשלו</p>
-    </div>
-  </div>
-</div>
-
-<div id="view-versions" class="view">
-  <div class="page-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border:none;">
-    <h2 style="color: white;"><i class="fa-solid fa-rocket" style="color:#a855f7"></i> מרכז ניהול פיתוח וגרסאות (ALM)</h2>
-    <div class="page-actions">
-      <button class="btn btn-purple" style="box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);" onclick="openNewVersionModal()"><i class="fa-solid fa-plus"></i> הקם גרסה חדשה</button>
-    </div>
-  </div>
-  <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
-    <div id="alm-versions-board" style="display: flex; flex-direction: column; gap: 1rem;"></div>
-    <div style="background: white; border-radius: 1rem; border: 1px solid #e2e8f0; overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); position: sticky; top: 1.5rem;">
-        <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 1rem;">
-            <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-inbox text-blue-500"></i> משימות למיון ושיוך</h3>
-            <p style="font-size: 0.7rem; color: #64748b; margin-top: 4px;">משימות שאושרו למיון מתוך קטגוריה 'כללי'</p>
+  <div id="view-tests" class="view">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-list-check" style="color:var(--primary)"></i> רשימת משימות פיתוח ובדיקות QA</h2>
+      <div class="page-actions">
+        <div style="position:relative; display:inline-block; margin-left:0.5rem;">
+           <i class="fa-solid fa-magnifying-glass" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px;"></i>
+           <input type="text" id="qa-search-input" class="search-input" placeholder="חפש משימה, ID או בדיקה..." onkeyup="filterTestsBySearch()">
         </div>
-        <div id="alm-unassigned-tasks" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; background: #f1f5f9;"></div>
+        <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הכל</button>
+        <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> רק כשלונות</button>
+      </div>
+    </div>
+    <div id="tests-container"></div>
+  </div>
+
+  <div id="view-report" class="view">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-triangle-exclamation" style="color:var(--fail)"></i> דוח תקלות ובאגים</h2>
+      <div class="page-actions">
+        <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
+        <button class="btn btn-outline" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
+      </div>
+    </div>
+    <div id="report-container">
+      <div style="text-align:center;padding:3rem;color:var(--text-muted)">
+        <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
+        <p style="font-weight:600">לחץ "רענן דוח" כדי לצפות בבדיקות שנכשלו</p>
+      </div>
     </div>
   </div>
-</div>
+
+  <div id="view-versions" class="view">
+    <div class="page-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border:none;">
+      <h2 style="color: white;"><i class="fa-solid fa-rocket" style="color:var(--new)"></i> מרכז ניהול פיתוח וגרסאות (ALM Hub)</h2>
+      <div class="page-actions">
+        <button class="btn btn-purple" style="box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);" onclick="openNewVersionModal()"><i class="fa-solid fa-plus"></i> הקם גרסה חדשה</button>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
+      
+      <div id="alm-versions-board" style="display: flex; flex-direction: column; gap: 1rem;">
+          </div>
+
+      <div style="background: white; border-radius: 1rem; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); position: sticky; top: 1.5rem;">
+          <div style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 1rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-inbox text-blue-500"></i> משימות למיון ושיוך</h3>
+              <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">משימות שאושרו למיון מתוך "כללי"</p>
+          </div>
+          <div id="alm-unassigned-tasks" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; background: #f1f5f9;">
+              </div>
+      </div>
+      
+    </div>
+  </div>
 
 </main>
 </div>
 
 <div id="modal-new-version" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
     <div style="background:white; width:400px; border-radius:1.25rem; padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
-        <h3 style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-rocket text-purple-500"></i> הקמת גרסת מוצר</h3>
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-rocket" style="color:var(--new)"></i> הקמת גרסת מוצר</h3>
         <div style="margin-bottom:1rem;">
-            <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:0.3rem;">שם/מספר הגרסה (למשל v2.5.0)</label>
-            <input type="text" id="nv-name" style="width:100%; padding:0.6rem 1rem; border:1px solid #cbd5e1; border-radius:0.5rem; font-family:inherit; outline:none;" placeholder="v1.0.0" autocomplete="off">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:0.3rem;">שם/מספר הגרסה (למשל v2.5.0)</label>
+            <input type="text" id="nv-name" style="width:100%; padding:0.6rem 1rem; border:1px solid var(--border); border-radius:0.5rem; font-family:inherit; outline:none;" placeholder="v1.0.0" autocomplete="off">
         </div>
         <div style="margin-bottom:1rem;">
-            <label style="font-size:0.75rem; font-weight:700; color:#475569; display:block; margin-bottom:0.3rem;">תאריך יעד לשחרור (Target Date)</label>
-            <input type="date" id="nv-date" style="width:100%; padding:0.6rem 1rem; border:1px solid #cbd5e1; border-radius:0.5rem; font-family:inherit; outline:none;">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:0.3rem;">תאריך יעד לשחרור</label>
+            <input type="date" id="nv-date" style="width:100%; padding:0.6rem 1rem; border:1px solid var(--border); border-radius:0.5rem; font-family:inherit; outline:none;">
         </div>
         <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
-            <button onclick="saveNewVersion()" class="btn btn-purple" style="flex:1; justify-content:center;">שמור גרסה</button>
-            <button onclick="closeNewVersionModal()" class="btn btn-outline" style="flex:1; justify-content:center;">ביטול</button>
+            <button onclick="saveNewVersion()" class="btn btn-purple" style="flex:1;">שמור גרסה</button>
+            <button onclick="closeNewVersionModal()" class="btn btn-outline" style="flex:1;">ביטול</button>
         </div>
     </div>
 </div>
 
 <script>
 // ============================================================
-// API CONNECTION & DATA SKELETON
+// 1. DATA ARCHITECTURE & THE RIGID SKELETON (אפיון סעיף 1)
 // ============================================================
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 const saToken = localStorage.getItem('ofl_sa_token') || localStorage.getItem('saToken');
 
-// מפת קטגוריות קשיחה - מבטיחה שכל הקטגוריות תמיד קיימות
-const CAT_MAP = {
-    'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
-    'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
-    'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
-    'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
-    'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
-    'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
-    'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
-    'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
-    'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
-    'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
-    'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
-    'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
-    'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
-    'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
-    'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
-    'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
-    'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
-    'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
-    'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
-    'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
-    'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
-    'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
-    'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
-};
+// השלד הקשיח כפי שמופיע בקוד המקור שלך בדיוק
+const BASE_CATEGORIES = [
+    { id: 'general', title: 'כללי (משימות חדשות)', icon: 'fa-inbox', color: '#f43f5e' },
+    { id: 'auth', title: 'אימות ומשתמשים', icon: 'fa-key', color: '#3b82f6' },
+    { id: 'onboard', title: 'אשף Onboarding', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
+    { id: 'family', title: 'סביבת משפחה', icon: 'fa-house', color: '#22c55e' },
+    { id: 'biz', title: 'סביבת עסק', icon: 'fa-briefcase', color: '#f59e0b' },
+    { id: 'store', title: 'חנות ו-Storefront', icon: 'fa-store', color: '#8b5cf6' },
+    { id: 'pos', title: 'קופה (POS)', icon: 'fa-cash-register', color: '#0ea5e9' },
+    { id: 'b2b', title: 'רכש ו-B2B', icon: 'fa-truck', color: '#06b6d4' },
+    { id: 'finance', title: 'פיננסים ותקציב', icon: 'fa-shekel-sign', color: '#10b981' },
+    { id: 'inventory', title: 'מלאי ומזווה', icon: 'fa-boxes-stacked', color: '#f97316' },
+    { id: 'ai', title: 'AI ופיצ\'רים חכמים', icon: 'fa-robot', color: '#a855f7' },
+    { id: 'calendar', title: 'יומן ותורים', icon: 'fa-calendar', color: '#0ea5e9' },
+    { id: 'shifts', title: 'משמרות עובדים', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
+    { id: 'tasks', title: 'משימות וניקוד', icon: 'fa-list-check', color: '#84cc16' },
+    { id: 'academy', title: 'אקדמיה ולמידה', icon: 'fa-graduation-cap', color: '#f59e0b' },
+    { id: 'community', title: 'קהילות ושת"פ', icon: 'fa-people-group', color: '#14b8a6' },
+    { id: 'notif', title: 'התראות ו-Inbox', icon: 'fa-bell', color: '#f97316' },
+    { id: 'sa', title: 'סופר אדמין', icon: 'fa-shield', color: '#64748b' },
+    { id: 'samktg', title: 'SA — שיווק', icon: 'fa-paper-plane', color: '#ec4899' },
+    { id: 'sa_full', title: 'SA — sa.html', icon: 'fa-shield-halved', color: '#6366f1' },
+    { id: 'pwa', title: 'PWA ואבטחה', icon: 'fa-mobile', color: '#ec4899' },
+    { id: 'perm_fam', title: 'הורה vs ילד', icon: 'fa-user-shield', color: '#0ea5e9' },
+    { id: 'perm_biz', title: 'עובדים בעסק (4 רמות)', icon: 'fa-user-tie', color: '#f59e0b' }
+];
 
-let SECTIONS = []; 
+let SECTIONS = BASE_CATEGORIES.map(cat => ({ ...cat, tests: [] }));
 let state = {};
 let currentView = 'dashboard';
 let currentFilter = null;
+let qaRunNotes = '';
 
-// משתני ALM חדשים
 let almVersions = [];
 let almDevTasks = [];
 
 // ============================================================
-// SERVER INTEGRATION & ALM FETCHING
+// 2. STATE MANAGEMENT & LOCAL STORAGE
 // ============================================================
-async function displayUnauthorizedMessage(message) {
-    const grid = document.getElementById('tests-container');
-    if (grid) {
-        grid.innerHTML = `
-            <div style="background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-width:600px; margin:2rem auto;">
-                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
-                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
-            </div>
-        `;
-    }
-}
-
-async function loadTestsFromServer() {
-    if (!saToken) {
-        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה דרך sa.html');
-        return;
-    }
-    
-    // 1. אתחול מחלקות מהמפה הקשיחה (כדי למנוע העלמות קטגוריות ריקות)
-    const grouped = {};
-    Object.keys(CAT_MAP).forEach(k => {
-        grouped[k] = { id: CAT_MAP[k].id, icon: CAT_MAP[k].icon, color: CAT_MAP[k].color, title: k, tests: [] };
-    });
-
+function loadState() {
     try {
-        // 2. משיכת בדיקות סטטיות מהשרת
-        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
-        if (res.status === 401 || res.status === 403) return displayUnauthorizedMessage('פג תוקף חיבור. התחבר מחדש.');
-
-        const data = await res.json();
-        if (data.success && data.tests) {
-            data.tests.forEach(t => {
-                const catName = t.category || 'כללי';
-                if (!grouped[catName]) grouped[catName] = { id: 'general', icon: 'fa-inbox', color: '#f43f5e', title: catName, tests: [] };
-                grouped[catName].tests.push({ id: t.id, name: t.name, desc: t.description, prio: t.priority, envs: ['all'] });
-            });
-        }
-    } catch(e) { console.error('Static tests fetch error:', e); }
-
-    SECTIONS = Object.values(grouped);
-}
-
-async function loadALMData() {
-    if(!saToken) return;
-    try {
+        state = JSON.parse(localStorage.getItem('qa_state') || '{}');
         almVersions = JSON.parse(localStorage.getItem('qa_versions_db') || '[]');
-        const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
-        if(data.success) {
-            almDevTasks = data.tasks; 
-            injectKanbanTasksToQA();
-            renderALMHub();
-        }
-    } catch(e) { console.error('ALM Data Error:', e); }
+        qaRunNotes = localStorage.getItem('qa_run_notes') || '';
+    } catch(e) { console.error('State load error', e); }
 }
 
-function injectKanbanTasksToQA() {
-    if (!SECTIONS || SECTIONS.length === 0) return;
-    
-    // מנקה משימות קנבן קודמות
-    SECTIONS.forEach(sec => { 
-        if(sec.tests) sec.tests = sec.tests.filter(t => !t.isKanban); 
-    });
-
-    almDevTasks.forEach(kt => {
-        const testObj = {
-            id: 'TASK-' + kt.id, name: kt.title, desc: kt.description || 'ללא תיאור',
-            prio: kt.priority, envs: [kt.environment && kt.environment.trim() !== '' ? kt.environment : 'all'], isKanban: true, kanbanTask: kt
-        };
-
-        // שלב 2: רק משימות "בפיתוח" שטרם מוינו יופיעו ב-'כללי' (משימות חדשות)
-        if (kt.status === 'in_progress' && (!kt.target_version || kt.target_version.trim() === '')) {
-            const sec = SECTIONS.find(s => s.id === 'general');
-            if(sec) sec.tests.unshift(testObj);
-        }
-        // שלב 3ב': משימות שעברו ל-QA, הסתיימו או משימות שכבר שויכו לקטגוריה ונמצאות בפיתוח
-        else if (kt.status === 'qa' || kt.status === 'done' || (kt.status === 'in_progress' && kt.target_version && kt.target_version !== 'SORTING')) {
-            let targetSec = SECTIONS.find(s => s.id === kt.module_name);
-            if (!targetSec && kt.module_name) targetSec = SECTIONS.find(s => s.title === kt.module_name || s.title.includes(kt.module_name));
-            
-            if (targetSec) targetSec.tests.unshift(testObj);
-            else {
-                const genSec = SECTIONS.find(s => s.id === 'general');
-                if(genSec) genSec.tests.unshift(testObj);
-            }
-        }
-    });
+function saveState() {
+    localStorage.setItem('qa_state', JSON.stringify(state));
 }
 
+function getStatus(id) { return state[id]?.s || null; }
+function getNote(id)   { return state[id]?.n || ''; }
+
+function setStatus(id, s) {
+    if(!state[id]) state[id] = {};
+    if(state[id].s === s) delete state[id].s;
+    else state[id].s = s;
+    saveState();
+    renderTests(currentFilter);
+    if(currentView === 'dashboard') updateStats();
+}
+
+function setNote(id, v) {
+    if(!state[id]) state[id] = {};
+    state[id].n = v;
+    saveState();
+    const btn = document.querySelector(`button[data-note-btn="${id}"]`);
+    if(btn) {
+        if(v.trim()) btn.classList.add('has-note');
+        else btn.classList.remove('has-note');
+    }
+}
+
+// ============================================================
+// 3. FULL GUIDE BOOK DATA (ללא שינוי מהמקור שלך)
+// ============================================================
 const GUIDE_BOOK = {
-
-// ── AUTH ──────────────────────────────────────────────────────────────
 'AUTH-01':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר/אפליקציה','לחץ "הרשמה"','בחר סוג "משפחה"','מלא שם, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה ייחודי מוצג, ניתוב לאשף Onboarding'},
 'AUTH-02':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר','לחץ "הרשמה"','בחר סוג "עסק"','מלא שם עסק, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה עסקי נוצר, ניתוב לאשף onboarding עסקי'},
 'AUTH-03':{path:'דף הבית ← "כניסה"',steps:['לחץ "כניסה"','הזן מייל וסיסמה של מנהל','לחץ "כנס"'],expected:'דשבורד ראשי נטען, שם קבוצה ולוגו מוצגים, תפריט מנהל מלא גלוי'},
@@ -510,8 +384,6 @@ const GUIDE_BOOK = {
 'AUTH-13':{path:'ממשק מנהל ← "עובדים" ← "שלח הזמנה"',steps:['לחץ "הזמן עובד"','בחר תפקיד (MANAGER/MEMBER/SENIOR)','העתק קישור הזמנה','שלח לעובד','עובד לוחץ ונרשם'],expected:'עובד מצטרף עם תפקיד שהוגדר בקישור — אוטומטית'},
 'AUTH-14':{path:'שני דפדפנים / מכשירים',steps:['כנס עם משתמש A בדפדפן 1','פתח incognito','נסה להתחבר עם אותו משתמש A'],expected:'Session קיים מנותק, אין שני sessions בו-זמנית'},
 'AUTH-15':{path:'כל עמוד — בדיקת timeout',steps:['כנס למערכת','השאר פתוח ללא פעילות מעל לפרק הזמן המוגדר','נסה לבצע פעולה'],expected:'ניתוב למסך כניסה עם הודעה "פג תוקף החיבור"'},
-
-// ── ONBD ─────────────────────────────────────────────────────────────
 'ONBD-01':{path:'לאחר הרשמה ← כניסה ראשונה',steps:['הרשם / צור קבוצה חדשה','כנס עם המייל והסיסמה'],expected:'אשף Onboarding נפתח אוטומטית לפני הדשבורד'},
 'ONBD-02':{path:'אשף Onboarding ← שלב 1',steps:['אשף פתוח','מלא שם קבוצה','לחץ "בחר לוגו" ← בחר תמונה','לחץ "המשך"'],expected:'שם ולוגו נשמרים, מעבר לשלב הבא'},
 'ONBD-03':{path:'אשף ← שלב 2 (סוג: משפחה)',steps:['בשלב 2 — בחר קטגוריות תקציב','הגדר סכום לכל קטגוריה','לחץ "המשך"'],expected:'קטגוריות ותקציב נשמרות, מעבר לשלב הבא'},
@@ -520,8 +392,6 @@ const GUIDE_BOOK = {
 'ONBD-06':{path:'אשף ← כפתור "דלג"',steps:['בכל שלב של האשף','לחץ "דלג" / "אחר כך"'],expected:'עובר לשלב הבא, ניתן להשלים מאוחר יותר מהגדרות'},
 'ONBD-07':{path:'אשף ← שלב אחרון ← "סיים"',steps:['השלם / דלג על שלבי האשף','לחץ "סיים" / "כנס למערכת"'],expected:'ניתוב לדשבורד הראשי עם כל הנתונים שמולאו'},
 'ONBD-08':{path:'פרופיל ← "הגדרות" ← "הפעל אשף מחדש"',steps:['כנס כמנהל','פתח פרופיל / הגדרות','מצא "אפס אשף" / "הפעל אשף מחדש"','אשר'],expected:'אשף Onboarding נפתח מחדש משלב 1'},
-
-// ── FAM ──────────────────────────────────────────────────────────────
 'FAM-01':{path:'ממשק משפחה ← "בית" / Feed',steps:['כנס כחבר/הורה','לחץ לשונית "בית"'],expected:'פיד נטען עם עדכונים, קיצורי דרך, ותובנת AI'},
 'FAM-02':{path:'ממשק משפחה ← "בית" ← כרטיסי קיצור',steps:['כנס לפיד הבית','לחץ על כרטיס קיצור (לדוג\' "הוסף לקניות")'],expected:'ניתוב לפעולה הרלוונטית'},
 'FAM-03':{path:'ממשק משפחה ← "קניות" ← "+ הוסף"',steps:['כנס ל"קניות"','לחץ "+ הוסף פריט"','הזן שם, כמות, יחידה','לחץ "שמור"'],expected:'פריט מופיע ברשימה, גלוי לכל חברי הקבוצה'},
@@ -552,9 +422,6 @@ const GUIDE_BOOK = {
 'FAM-28':{path:'ממשק משפחה ← "הודעות" / Inbox',steps:['כנס לאינבוקס','בחר הודעה','לחץ "סמן כנקרא"'],expected:'הודעה מסומנת כנקראה, מונה הודעות פוחת'},
 'FAM-29':{path:'כל ממשק ← לחץ שמך ← "פרופיל"',steps:['לחץ שם/תמונה','פתח "פרופיל"','ערוך שם / תמונה / סיסמה','לחץ "שמור"'],expected:'פרטים מתעדכנים, תמונה מוצגת בפינה'},
 'FAM-30':{path:'ממשק משפחה ← "בית" ← תובנת AI',steps:['כנס לפיד הבית','מצא כרטיס "תובנת AI"'],expected:'תובנה רלוונטית מוצגת (לדוג\' "הוצאות השבוע גבוהות ב-20%")'},
-
-
-// ── BIZ ──────────────────────────────────────────────────────────────
 'BIZ-01':{path:'ממשק עסק ← "בית" / Feed עסקי',steps:['כנס כמנהל עסק','לחץ לשונית "בית"'],expected:'KPIs מוצגים (הכנסות, הזמנות, לקוחות), פעולות מהירות גלויות'},
 'BIZ-02':{path:'ממשק עסק ← "שעון" ← "כניסה לעבודה"',steps:['כנס כעובד/מנהל','לחץ לשונית "שעון"','לחץ "כניסה לעבודה"'],expected:'שעת כניסה נרשמת, כפתור עובר ל"יציאה מעבודה"'},
 'BIZ-03':{path:'ממשק עסק ← "שעון" ← "יציאה מעבודה"',steps:['לאחר כניסה לעבודה','לחץ "יציאה מעבודה"'],expected:'שעת יציאה נרשמת, שעות עבודה מחושבות'},
@@ -585,8 +452,6 @@ const GUIDE_BOOK = {
 'BIZ-28':{path:'ממשק מנהל ← "הגדרות קבוצה"',steps:['כנס כמנהל','פתח "הגדרות"','ערוך שם עסק, כתובת, טלפון','שמור'],expected:'פרטי עסק מתעדכנים, מוצגים נכון בחנות ובממשק'},
 'BIZ-29':{path:'ממשק עסק ← "בית" ← KPIs',steps:['כנס לדשבורד עסקי','בדוק לוח מחוונים'],expected:'הכנסות חודשיות עדכניות, מספר הזמנות ולקוחות חדשים מוצגים'},
 'BIZ-30':{path:'ממשק עסק ← "שעון" ← "מנוחות"',steps:['כנס ל"שעון"','לחץ "הגדר מנוחה"','הזן שעת התחלה וסיום','שמור'],expected:'מנוחה נרשמת ומנוכה מחישוב שעות עבודה'},
-
-// ── STR ──────────────────────────────────────────────────────────────
 'STR-01':{path:'ממשק עסק ← "הגדרות חנות" ← toggle פעיל',steps:['כנס כמנהל','כנס ל"הגדרות חנות"','הפעל/כבה toggle "פתוח"'],expected:'storefront נפתח/נסגר למבקרים חיצוניים'},
 'STR-02':{path:'ממשק עסק ← "הגדרות חנות" ← פרטים',steps:['כנס להגדרות חנות','ערוך שם, העלה לוגו, העלה באנר','שמור'],expected:'שינויים מוצגים מיידית ב-storefront'},
 'STR-03':{path:'ממשק עסק ← "הגדרות חנות" ← "שעות פתיחה"',steps:['כנס להגדרות','הגדר שעות פתיחה לכל יום','שמור'],expected:'שעות מוצגות בדף החנות הציבורית'},
@@ -610,9 +475,6 @@ const GUIDE_BOOK = {
 'STR-21':{path:'Storefront ← הזנת קופון פג תוקף',steps:['נסה להשתמש בקופון שפג תוקפו'],expected:'הודעת שגיאה "הקופון פג תוקף", הנחה לא מוחלת'},
 'STR-22':{path:'ממשק עסק ← "מבצעים" ← "+ צור"',steps:['כנס ל"מבצעים"','לחץ "+ מבצע"','הזן שם, תמונה, טקסט','הפעל toggle','שמור'],expected:'מבצע מופיע ב-storefront כבאנר'},
 'STR-23':{path:'Storefront ← בדיקת באנר מבצע',steps:['כנס לממשק עסק','הפעל/כבה toggle מבצע','רענן את storefront'],expected:'באנר מבצע מוצג/נעלם בהתאם ל-toggle'},
-
-
-// ── POS ──────────────────────────────────────────────────────────────
 'POS-01':{path:'ממשק עסק ← "קופה" ← "פתח קופה"',steps:['כנס ל"קופה"','לחץ "פתח קופה"','הזן סכום מזומן פתיחה','אשר'],expected:'קופה פתוחה, ניתן לבצע עסקאות'},
 'POS-02':{path:'ממשק קופה ← שדה חיפוש',steps:['קופה פתוחה','הקלד שם מוצר בשדה החיפוש','לחץ על מוצר שנמצא'],expected:'מוצר מתווסף לסל'},
 'POS-03':{path:'ממשק קופה ← "סרוק ברקוד"',steps:['קופה פתוחה','לחץ "סרוק ברקוד"','כוון מצלמה לברקוד'],expected:'מוצר מזוהה ומתווסף לסל אוטומטית'},
@@ -628,8 +490,6 @@ const GUIDE_BOOK = {
 'POS-13':{path:'ממשק קופה ← "החזר" / Refund',steps:['לחץ "החזר מוצר"','מצא עסקה','בחר פריטים להחזרה','אשר'],expected:'זיכוי נוצר, מלאי מתעדכן, דוח קופה מעודכן'},
 'POS-14':{path:'ממשק קופה ← "סגור קופה"',steps:['לחץ "סגור קופה"','ספור מזומן בקופה','הזן סכום','לחץ "אשר"'],expected:'קופה נסגרת, דוח יומי נשמר'},
 'POS-15':{path:'ממשק מנהל ← "קופה" ← "דוח יומי"',steps:['כנס ל"קופה"','לחץ "דוח יומי"'],expected:'סיכום: סה"כ מזומן, אשראי, מספר עסקאות, ניתן להדפסה'},
-
-// ── B2B ──────────────────────────────────────────────────────────────
 'B2B-01':{path:'ממשק עסק ← "ספקים" ← "+ הוסף"',steps:['כנס ל"ספקים"','לחץ "+ ספק חדש"','הזן שם, טלפון, מייל','שמור'],expected:'ספק מופיע ברשימה'},
 'B2B-02':{path:'ממשק עסק ← "ספקים" ← בחר ספק ← "קטלוג"',steps:['כנס לספק','לחץ "קטלוג ספק"','הוסף מוצר: שם, מחיר, SKU','שמור'],expected:'מוצר מופיע בקטלוג הספק, זמין להזמנת רכש'},
 'B2B-03':{path:'ממשק עסק ← "רכש" ← "+ הזמנה"',steps:['כנס ל"רכש"','לחץ "+ הזמנה חדשה"','בחר ספק','הוסף פריטים וכמויות','שמור'],expected:'הזמנת רכש נשמרת כטיוטה'},
@@ -642,8 +502,6 @@ const GUIDE_BOOK = {
 'B2B-10':{path:'ממשק עסק ← "ספקים" ← ערוך/מחק',steps:['כנס לספקים','לחץ "ערוך" ← שנה פרטים ← שמור','לחלופין: "מחק" ← אשר'],expected:'ספק מעודכן / נמחק'},
 'B2B-11':{path:'ממשק עסק ← "רכש" ← הזמנה ← "ייצא PDF"',steps:['כנס להזמנת רכש','לחץ "ייצא PDF"'],expected:'מסמך PDF של הזמנת הרכש נפתח / מורד'},
 'B2B-12':{path:'Storefront ← הזמנה של עסק מקהילה',steps:['עסק בקהילה עם הנחה מוגדרת','עסק אחר מהקהילה מזמין ממנו'],expected:'הנחת קהילה מופחתת אוטומטית מהסכום'},
-
-// ── FIN ──────────────────────────────────────────────────────────────
 'FIN-01':{path:'ממשק ← "כספים" ← "+ הכנסה"',steps:['כנס ל"כספים"','לחץ "+ תנועה"','בחר "הכנסה"','הזן סכום, קטגוריה, תיאור, תאריך','שמור'],expected:'תנועה מופיעה, יתרה עולה'},
 'FIN-02':{path:'ממשק ← "כספים" ← "+ הוצאה"',steps:['כנס ל"כספים"','לחץ "+ תנועה"','בחר "הוצאה"','הזן סכום, קטגוריה, תיאור, תאריך','שמור'],expected:'תנועה מופיעה, יתרה יורדת'},
 'FIN-03':{path:'ממשק ← "כספים" ← לחץ תנועה ← "ערוך"',steps:['לחץ על תנועה קיימת','לחץ "ערוך"','שנה סכום/קטגוריה/תאריך','שמור'],expected:'תנועה מתעדכנת, יתרה מחושבת מחדש'},
@@ -656,8 +514,6 @@ const GUIDE_BOOK = {
 'FIN-10':{path:'ממשק ← "כספים" ← "תחזית AI"',steps:['כנס ל"כספים"','לחץ "תחזית AI"'],expected:'AI מציג ניתוח מגמות ותחזית להוצאות עתידיות'},
 'FIN-11':{path:'ממשק מנהל ← "כספים" ← "התאמת מאזן"',steps:['כנס כמנהל','כנס ל"כספים"','לחץ "התאמה ידנית"','הזן סכום וסיבה','שמור'],expected:'התאמה מתועדת, יתרה מתעדכנת'},
 'FIN-12':{path:'ממשק מנהל ← "משכורות" ← "עבד יום משכורת"',steps:['כנס כמנהל','כנס ל"משכורות"','לחץ "עבד יום משכורת"','אשר'],expected:'יתרות כל חברי הקבוצה מתעדכנות'},
-
-// ── INV ──────────────────────────────────────────────────────────────
 'INV-01':{path:'ממשק ← "קניות/מלאי" ← "+ הוסף"',steps:['כנס ל"רשימת קניות"','לחץ "+ הוסף"','הזן שם, כמות, יחידה','שמור'],expected:'פריט מוסף לרשימת קניות'},
 'INV-02':{path:'ממשק ← "קניות" ← "ייבוא מהיסטוריה"',steps:['כנס לרשימת קניות','לחץ "ייבא מקנייה קודמת"','בחר קנייה מהיסטוריה'],expected:'פריטים מהקנייה הקודמת מוספים לרשימה'},
 'INV-03':{path:'ממשק ← "קניות" ← "סיים קנייה"',steps:['כנס לרשימת קניות','לחץ "סיים קנייה"','אשר פריטים שנקנו'],expected:'פריטים שסומנו כ"נקנה" עוברים למזווה/מלאי'},
@@ -670,9 +526,6 @@ const GUIDE_BOOK = {
 'INV-10':{path:'ממשק ← "קניות" ← "היסטוריה"',steps:['כנס ל"היסטוריית קניות"'],expected:'רשימת כל הקניות: תאריך, חנות, פריטים, סכום כולל'},
 'INV-11':{path:'ממשק ← "מלאי" ← פריטים לפני תפוגה',steps:['כנס למלאי','חפש/בדוק התראות על פגי תוקף'],expected:'פריטים שתוקפם פג או עומד לפוג מוצגים בצבע אדום/צהוב'},
 'INV-12':{path:'ממשק עסק ← "מלאי" ← "ייצא"',steps:['כנס למלאי','לחץ "ייצא"','בחר CSV / PDF'],expected:'קובץ רשימת המלאי מורד'},
-
-
-// ── AI ───────────────────────────────────────────────────────────────
 'AI-01':{path:'ממשק ← "AI" / "familAI" ← "תובנות תקציב"',steps:['כנס לממשק','לחץ "familAI" / "AI insight"','בחר "תובנות תקציב"'],expected:'AI מחזיר ניתוח הוצאות חודשי, הגדרות חסכון'},
 'AI-02':{path:'ממשק ← "מלאי" / "מזווה" ← "AI insight"',steps:['כנס למלאי','לחץ "AI insight"'],expected:'AI מציין מה חסר במלאי והמלצות קנייה'},
 'AI-03':{path:'ממשק עסק ← "קטלוג" ← עריכת מוצר ← "AI תיאור"',steps:['פתח עריכת מוצר','לחץ "צור תיאור AI"','הזן שם המוצר'],expected:'AI מחזיר תיאור שיווקי בעברית'},
@@ -688,8 +541,6 @@ const GUIDE_BOOK = {
 'AI-13':{path:'ממשק משפחה ← "מטרות" ← "ייעוץ AI"',steps:['כנס למטרת חיסכון','לחץ "ייעוץ AI"'],expected:'AI מחזיר עצות חיסכון מותאמות'},
 'AI-14':{path:'כל ממשק AI ← בדיקת streaming',steps:['שלח שאלה לכל chatbot','בדוק כיצד מגיעה התגובה'],expected:'טקסט מופיע אות אחר אות (streaming), לא בבת אחת'},
 'AI-15':{path:'כל ממשק AI ← זיכרון session',steps:['שלח שאלה','שלח שאלת המשך שמתייחסת לתשובה הראשונה'],expected:'AI זוכר הקשר מהודעות קודמות בתוך אותה שיחה'},
-
-// ── CAL ──────────────────────────────────────────────────────────────
 'CAL-01':{path:'ממשק עסק ← "קלנדר" ← "הגדרות" ← toggle',steps:['כנס ל"קלנדר"','לחץ "הגדרות"','הפעל toggle "קלנדר פעיל"'],expected:'כפתור "קבע תור" מופיע ב-storefront'},
 'CAL-02':{path:'ממשק עסק ← "קלנדר" ← "שירותים" ← "+ הוסף"',steps:['כנס ל"שירותים"','לחץ "+ שירות"','הזן שם, משך, מחיר','שמור'],expected:'שירות ברשימה ובחנות הציבורית'},
 'CAL-03':{path:'ממשק עסק ← "קלנדר" ← שירות ← "ערוך"',steps:['כנס לשירות','לחץ "ערוך"','שנה שם/משך/מחיר','שמור'],expected:'שירות מעודכן ב-storefront'},
@@ -702,8 +553,6 @@ const GUIDE_BOOK = {
 'CAL-10':{path:'ממשק עסק ← "קלנדר" ← תצוגת שבוע',steps:['כנס לקלנדר','עבור לתצוגה שבועית'],expected:'כל התורים של השבוע מוצגים לפי ימים ושעות'},
 'CAL-11':{path:'ממשק עסק ← "קלנדר" ← "זמינות"',steps:['כנס להגדרות זמינות','הגדר ימי עבודה (א-ו) ושעות','שמור'],expected:'לקוחות יכולים לקבוע תורים רק בשעות הפתיחה'},
 'CAL-12':{path:'ממשק עסק ← "קלנדר" ← הגדרות תזכורת',steps:['כנס להגדרות תזכורת','הגדר זמן מראש (שעה/יום)','שמור'],expected:'תזכורת SMS/הודעה נשלחת ללקוח לפני התור'},
-
-// ── SHF ──────────────────────────────────────────────────────────────
 'SHF-01':{path:'ממשק עסק ← "משמרות" ← "+ יצור"',steps:['כנס ל"משמרות"','לחץ "+ משמרת חדשה"','הגדר תאריך, שעת התחלה/סיום, תפקיד','שמור'],expected:'משמרת מופיעה בלוח'},
 'SHF-02':{path:'ממשק עסק ← "משמרות" ← שיבוץ עובד',steps:['כנס למשמרת','לחץ "שבץ עובד"','בחר עובד זמין','שמור'],expected:'עובד משויך למשמרת, רואה אותה בממשקו'},
 'SHF-03':{path:'ממשק עובד ← "משמרות" ← "בקש משמרת"',steps:['כנס כעובד','כנס ל"משמרות"','לחץ "בקש משמרת"','בחר תאריך ושעה','שלח'],expected:'בקשה מוצגת אצל המנהל לאישור'},
@@ -714,8 +563,6 @@ const GUIDE_BOOK = {
 'SHF-08':{path:'ממשק מנהל ← "משמרות" ← "סיכום חודשי"',steps:['כנס ל"משמרות"','לחץ "סיכום חודשי"','בחר חודש'],expected:'סה"כ שעות לכל עובד בחודש'},
 'SHF-09':{path:'ממשק עסק ← "משמרות" ← בדיקת חפיפה',steps:['נסה לשבץ עובד לשתי משמרות שמתנגשות בזמן'],expected:'שגיאה "חפיפת משמרות", שיבוץ לא נשמר'},
 'SHF-10':{path:'ממשק עסק ← "משמרות" ← "ייצא"',steps:['כנס ל"משמרות"','לחץ "ייצא"','בחר PDF / CSV'],expected:'לוח משמרות מיוצא לקובץ'},
-
-// ── TSK ──────────────────────────────────────────────────────────────
 'TSK-01':{path:'ממשק ← "משימות" ← "+ יצור"',steps:['כנס ל"משימות"','לחץ "+ משימה חדשה"','הזן כותרת, תיאור, בחר מבצע, מועד, ניקוד','שמור'],expected:'משימה ב-"פתוחות", מבצע רואה אותה'},
 'TSK-02':{path:'ממשק ← "משימות" ← לחץ משימה ← "ערוך"',steps:['לחץ על משימה','לחץ "ערוך"','שנה פרטים','שמור'],expected:'משימה מתעדכנת'},
 'TSK-03':{path:'ממשק ← "משימות" ← "מחק"',steps:['לחץ "מחק" על משימה','אשר'],expected:'משימה נמחקת מהרשימה'},
@@ -726,9 +573,6 @@ const GUIDE_BOOK = {
 'TSK-08':{path:'ממשק ← "משימות" ← לאחר אישור',steps:['לאחר שמנהל אישר משימה','כנס לפרופיל ← ניקוד'],expected:'ניקוד נוסף לחשבון המבצע'},
 'TSK-09':{path:'ממשק ← "משימות" ← "סינון"',steps:['כנס ל"משימות"','לחץ "סינון"','בחר סטטוס: ממתינות/בביצוע/הושלמו/נדחו'],expected:'רשימת משימות מסוננת לפי הסטטוס'},
 'TSK-10':{path:'ממשק ← "משימות" ← "+ יצור" ← "חוזרת"',steps:['צור משימה','סמן "חוזרת"','בחר תדירות','שמור'],expected:'משימה נוצרת מחדש אוטומטית לפי תדירות'},
-
-
-// ── ACAD ─────────────────────────────────────────────────────────────
 'ACAD-01':{path:'ממשק ← "אקדמיה" ← "ניהול" ← "+ יצור"',steps:['כנס ל"אקדמיה"','לחץ "ניהול חבילות"','לחץ "+ חבילה חדשה"','הזן כותרת, תיאור, תמונה','שמור'],expected:'חבילה חדשה מופיעה ברשימה'},
 'ACAD-02':{path:'ממשק ← "אקדמיה" ← חבילה ← "+ שאלה"',steps:['פתח חבילה','לחץ "+ שאלה"','הזן שאלה ו-4 תשובות','סמן תשובה נכונה','שמור'],expected:'שאלה נוספת לחבילה'},
 'ACAD-03':{path:'ממשק ← "אקדמיה" ← "הקצה"',steps:['כנס ל"אקדמיה"','לחץ "הקצה חבילה"','בחר חבר/עובד','בחר חבילה','אשר'],expected:'חבר/עובד רואה חבילה בממשקו'},
@@ -739,8 +583,6 @@ const GUIDE_BOOK = {
 'ACAD-08':{path:'ממשק ← "אקדמיה" ← שאלה ← "ערוך"',steps:['כנס לחבילה','לחץ "ערוך" על שאלה','שנה טקסט/תשובות','שמור'],expected:'שאלה מעודכנת'},
 'ACAD-09':{path:'ממשק ← "אקדמיה" ← חבילה ← "מחק"',steps:['לחץ "מחק" על חבילה','אשר'],expected:'חבילה נמחקת, הקצאות בוטלו'},
 'ACAD-10':{path:'ממשק ← "אקדמיה" ← "לוח תוצאות"',steps:['כנס ל"אקדמיה"','לחץ "לוח תוצאות"'],expected:'דירוג חברים לפי ניקוד, מוצג בסדר יורד'},
-
-// ── COM ──────────────────────────────────────────────────────────────
 'COM-01':{path:'ממשק משפחה ← "קהילה" ← "הצטרף"',steps:['כנס ל"קהילה"','לחץ "הצטרף לקהילה"','הזן קוד קהילה'],expected:'אישור הצטרפות, קהילה מופיעה בממשק'},
 'COM-02':{path:'ממשק עסק ← "קהילה" ← "חפש ובקש"',steps:['כנס ל"קהילה"','חפש קהילה לפי שם/עיר','שלח בקשת הצטרפות'],expected:'בקשה נשלחת למנהל הקהילה'},
 'COM-03':{path:'ממשק מנהל קהילה ← "עסקים ממתינים"',steps:['כנס כמנהל קהילה','כנס ל"עסקים ממתינים"','לחץ "אשר" / "דחה"'],expected:'עסק מצטרף / נדחה'},
@@ -753,8 +595,6 @@ const GUIDE_BOOK = {
 'COM-10':{path:'ממשק ← "קהילה" ← "חיפוש"',steps:['כנס ל"קהילה"','חפש לפי עיר/שם'],expected:'קהילות מוצגות לפי חיפוש, ניתן לשלוח בקשת הצטרפות'},
 'COM-11':{path:'ממשק מנהל קהילה ← "הגדרות קהילה"',steps:['כנס כמנהל קהילה','ערוך שם, תמונה, תגיות','שמור'],expected:'פרטי קהילה מתעדכנים'},
 'COM-12':{path:'ממשק מנהל קהילה ← "עסקים" ← "הסר"',steps:['כנס לרשימת עסקי קהילה','לחץ "הסר" ליד עסק','אשר'],expected:'עסק הוסר, הנחתו בוטלה'},
-
-// ── NOT ──────────────────────────────────────────────────────────────
 'NOT-01':{path:'ממשק ← "Inbox" / "הודעות"',steps:['SA שולח הודעה לקבוצה','כנס ל-Inbox'],expected:'הודעה מה-SA מוצגת'},
 'NOT-02':{path:'ממשק ← תג הודעות',steps:['SA שולח הודעה חדשה'],expected:'תג \'X\' על אייקון ה-Inbox, X = מספר הודעות שלא נקראו'},
 'NOT-03':{path:'ממשק ← "Inbox" ← "סמן כנקרא"',steps:['פתח הודעה','לחץ "סמן כנקרא"'],expected:'הודעה מסומנת, תג פוחת'},
@@ -765,8 +605,6 @@ const GUIDE_BOOK = {
 'NOT-08':{path:'ממשק ← "משימות" ← תזכורת',steps:['צור משימה עם מועד יעד','המתן לתזכורת מוגדרת'],expected:'הודעה "מועד משימה מתקרב: X"'},
 'NOT-09':{path:'ממשק מנהל ← "Inbox" ← "שדר לצוות"',steps:['כנס ל-Inbox','לחץ "שדר לצוות"','כתוב הודעה','שלח'],expected:'כל העובדים מקבלים הודעה ב-Inbox'},
 'NOT-10':{path:'ממשק מנהל ← "Inbox" ← "שלח לחבר בודד"',steps:['כנס ל-Inbox','לחץ "הודעה חדשה"','בחר נמען','כתוב ושלח'],expected:'רק הנמען שנבחר מקבל את ההודעה'},
-
-// ── SA ───────────────────────────────────────────────────────────────
 'SA-01':{path:'sa.html ← מסך כניסה SA',steps:['פתח sa.html','הזן קוד SA וסיסמה','לחץ "כנס"'],expected:'דשבורד SA נטען עם כל הלשוניות'},
 'SA-02':{path:'sa.html ← לשונית "Pulse"',steps:['כנס ל-SA','עבור ל-Pulse'],expected:'נתוני קבוצות, משתמשים ופעילות בזמן אמת מוצגים'},
 'SA-03':{path:'sa.html ← "קבוצות" ← בחר קבוצה',steps:['כנס לניהול קבוצות','חפש קבוצה','לחץ עליה'],expected:'תצוגת 360° עם כל נתוני הקבוצה: משתמשים, מוצרים, עסקאות'},
@@ -782,9 +620,6 @@ const GUIDE_BOOK = {
 'SA-13':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים: קבוצות חדשות, פעילות יומית, גדילה לאורך זמן'},
 'SA-14':{path:'sa.html ← "ייצוא" ← CSV גלובלי',steps:['כנס ל"ייצוא"','לחץ "ייצא CSV"','בחר: קבוצות / משתמשים'],expected:'קובץ CSV מורד עם כל הנתונים הרלוונטיים'},
 'SA-15':{path:'sa.html ← "הגדרות" ← "מצב תחזוקה"',steps:['כנס להגדרות','הפעל "מצב תחזוקה"','אשר'],expected:'הודעת תחזוקה מוצגת לכל המשתמשים, גישה חסומה'},
-
-
-// ── SMK ──────────────────────────────────────────────────────────────
 'SMK-01':{path:'sa.html ← לשונית "שיווק"',steps:['כנס ל-SA','לחץ לשונית "שיווק"'],expected:'לשונית נטענת עם מודולים: ניוזלטר, מסרים, קמפיינים'},
 'SMK-02':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "בחר לשוני"',steps:['כנס לניוזלטר','לחץ "בחר לשוני"','בחר ערכת צבעים'],expected:'עיצוב הניוזלטר מתעדכן'},
 'SMK-03':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← שדות כותרת',steps:['כנס לניוזלטר','מלא כותרת ראשית','מלא סרטיט','שמור'],expected:'כותרת וסרטיט מוצגים בתצוגה מקדימה'},
@@ -805,8 +640,6 @@ const GUIDE_BOOK = {
 'SMK-18':{path:'sa.html ← "שיווק" ← "לוג השקות"',steps:['כנס ל"לוג השקות"'],expected:'רשימת גרסאות שהושקו: תאריך, תוכן, שליח'},
 'SMK-19':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "נקה editor"',steps:['לחץ "נקה" / "אפס editor"'],expected:'עורך מתאפס לריק'},
 'SMK-20':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← PDF ← גופן',steps:['ייצא PDF','בדוק גופן Hebrew בתוצאה'],expected:'גופן Arial/Heebo מוצג תקין בעברית ב-PDF'},
-
-// ── PWA ──────────────────────────────────────────────────────────────
 'PWA-01':{path:'Android Chrome ← "הוסף למסך הבית"',steps:['פתח האתר ב-Chrome Android','לחץ תפריט ← "הוסף למסך הבית"','פתח מהמסך הבית'],expected:'האפליקציה נפתחת ב-standalone mode ללא browser UI'},
 'PWA-02':{path:'iPhone Safari ← "שתף" ← "הוסף למסך הבית"',steps:['פתח האתר ב-Safari iOS','לחץ "שתף"','בחר "הוסף למסך הבית"'],expected:'אייקון מוצג על מסך הבית, נפתח כאפליקציה'},
 'PWA-03':{path:'כלי מפתח ← Application ← Service Worker',steps:['פתח devtools','כנס ל-Application','בדוק Service Worker פעיל','בדוק cache'],expected:'Service Worker רשום, cache מכיל קבצי הליבה'},
@@ -819,9 +652,6 @@ const GUIDE_BOOK = {
 'PWA-10':{path:'שדות קלט ← XSS injection',steps:['הזן בשדה שם: <script>alert(1)<\/script>','שמור','רענן'],expected:'קוד מוצג כטקסט גולמי, לא מופעל (sanitization)'},
 'PWA-11':{path:'שדות חיפוש ← SQL injection',steps:["הזן בחיפוש: ' OR 1=1 --","חפש"],expected:'אין חשיפת נתונים, שגיאה מבוקרת'},
 'PWA-12':{path:'ממשק עסק ← "קטלוג" ← הוספת מוצר 51',steps:['בחשבון Free עם 50 מוצרים','נסה להוסיף מוצר 51'],expected:'הודעת שגיאה "הגעת למגבלת 50 מוצרים בחשבון חינמי"'},
-
-
-// ── PFAM ─────────────────────────────────────────────────────────────
 'PFAM-01':{path:'ממשק משפחה ← כניסה כ-ADMIN (הורה)',steps:['כנס כהורה (ADMIN)','בדוק לשוניות גלויות'],expected:'גלויות: feed, קניות, מזווה, תקציב, cashflow, הלוואות, מטרות, משימות, חברים, אקדמיה, שף AI'},
 'PFAM-02':{path:'ממשק הורה ← "חברים"',steps:['כנס כהורה','עבור ל"חברים"'],expected:'לשונית פעילה, כפתורי הוסף/ערוך/מחק גלויים ופועלים'},
 'PFAM-03':{path:'ממשק הורה ← "משימות" ← "+ משימה לילד"',steps:['כנס כהורה','לחץ "+ משימה"','בחר ילד כמבצע','הגדר ניקוד','שמור'],expected:'משימה מוקצית לילד, גלויה בממשקו'},
@@ -842,8 +672,6 @@ const GUIDE_BOOK = {
 'PFAM-18':{path:'ממשק ילד ← דשבורד ← "יתרה"',steps:['כנס כילד','בדוק הצגת יתרה'],expected:'רואה רק יתרתו שלו, לא יתרות אחים/הורים'},
 'PFAM-19':{path:'ממשק ילד ← ניסיון לשנות הגדרות',steps:['כנס כילד','חפש כפתור "הגדרות קבוצה"'],expected:'כפתור לא קיים / חסום'},
 'PFAM-20':{path:'ממשק ילד ← "שף AI"',steps:['כנס כילד','כנס לשף AI (אם הוקצה)'],expected:'גישה לשף AI עם תפקוד מלא'},
-
-// ── PBIZ ─────────────────────────────────────────────────────────────
 'PBIZ-01':{path:'ממשק עסק ← כניסה כ-ADMIN',steps:['כנס כ-ADMIN (מנהל עסק)','בדוק לשוניות גלויות'],expected:'גלויות: כל לשוניות המערכת כולל ניהול עובדים, הגדרות חנות, Analytics, B2B'},
 'PBIZ-02':{path:'ממשק ADMIN ← "עובדים"',steps:['כנס כ-ADMIN','כנס ל"עובדים"'],expected:'כל כפתורי הוסף/ערוך/מחק עובד פעילים'},
 'PBIZ-03':{path:'ממשק ADMIN ← "עובדים" ← "הרשאות"',steps:['לחץ "הרשאות" ליד עובד','שנה תפקיד ולשוניות גישה','שמור'],expected:'שינויים חלים בכניסה הבאה של העובד'},
@@ -879,8 +707,6 @@ const GUIDE_BOOK = {
 'PBIZ-33':{path:'ממשק ADMIN ← "עובדים" ← שינוי תפקיד',steps:['שנה תפקיד MEMBER ל-MANAGER','שמור','עובד מתנתק ומתחבר מחדש'],expected:'עובד רואה לשוניות MANAGER'},
 'PBIZ-34':{path:'ממשק עובד ← ניסיון גישה ל-sa.html',steps:['כנס כעובד בכל תפקיד','נסה לגשת ל-/sa.html'],expected:'גישה חסומה, הפנייה לדף כניסה'},
 'PBIZ-35':{path:'ממשק עסק ← הצטרפות עובד חדש ללא תפקיד',steps:['עובד מצטרף ללא role מפורש'],expected:'עובד מקבל תפקיד MEMBER כברירת מחדל'},
-
-// ── SAF ──────────────────────────────────────────────────────────────
 'SAF-01':{path:'sa.html ← מסך כניסה',steps:['פתח sa.html','הזן קוד SA + סיסמה','לחץ "כנס"'],expected:'POST /api/superadmin/login מחזיר token, נשמר ב-localStorage, דשבורד נטען'},
 'SAF-02':{path:'sa.html ← טעינה עם token שמור',steps:['כנס ל-SA','סגור לשונית','פתח מחדש sa.html'],expected:'window.onload מזהה token ב-localStorage, כניסה ישירה לדשבורד ללא הקלדה מחדש'},
 'SAF-03':{path:'sa.html ← "התנתק"',steps:['לחץ "התנתק"'],expected:'token נמחק מ-localStorage, חזרה למסך כניסה'},
@@ -909,8 +735,13 @@ const GUIDE_BOOK = {
 'SAF-26':{path:'API ← בקשה ללא token',steps:['שלח בקשה ל-/api/sa/... ללא Authorization header'],expected:'שרת מחזיר 401 / 403'},
 'SAF-27':{path:'sa.html ← כל לשונית ← לחיצה ראשונה',steps:['לחץ על לשונית שעוד לא נפתחה'],expected:'switchSATab() נקרא, תוכן הלשונית נטען'},
 'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
-
 }; // סיום GUIDE_BOOK
+
+// ============================================================
+// STATE & ALM DATA
+// ============================================================
+let almVersions = [];
+let almDevTasks = [];
 
 async function loadALMData() {
     if(!saToken) return;
@@ -1167,7 +998,7 @@ async function almAssignTask(taskId) {
     const verSel = document.getElementById(`assign-ver-${taskId}`).value;
     const envSel = document.getElementById(`assign-env-${taskId}`).value;
     const modSel = document.getElementById(`assign-mod-${taskId}`).value;
-    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול!');
+    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול (קטגוריה בספר)!');
 
     const kt = almDevTasks.find(t => t.id === taskId);
     if(!kt) return;
@@ -1180,7 +1011,7 @@ async function almAssignTask(taskId) {
             })
         });
         if(res.ok) { showToast('המשימה שויכה בהצלחה!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) {}
+    } catch(e) { showToast('שגיאת רשת'); }
 }
 
 async function almMarkDevDone(taskId) {
@@ -1191,7 +1022,7 @@ async function almMarkDevDone(taskId) {
             body: JSON.stringify({ status: 'qa', systemOverride: true })
         });
         if(res.ok) { showToast('עבר בהצלחה ל-QA!'); await loadALMData(); renderTests(currentFilter); }
-    } catch(e) {}
+    } catch(e) { showToast('שגיאה בעדכון'); }
 }
 
 async function almPassQA(taskId) {
@@ -1435,7 +1266,7 @@ function generateReport() {
   const container = document.getElementById('report-container');
   const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
   if(!fails.length) {
-    container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
+    container.innerHTML = `<div style="text-align:center;padding:3rem;color:#16a34a">
       <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
       <p style="font-weight:700;font-size:1rem">כל הבדיקות שבוצעו עברו בהצלחה!</p>
     </div>`;
