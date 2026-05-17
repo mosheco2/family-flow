@@ -796,10 +796,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <div class="flex items-center gap-3">
                                     <h3 class="font-bold text-slate-800 text-lg">לוח משימות טכני <span class="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2" id="kanban-total-count">0 משימות</span></h3>
                                 </div>
-                                <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                                <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-wrap justify-end">
                                     <div class="relative w-full sm:w-56">
-                                        <i class="fa-solid fa-filter absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                        <input type="text" id="kanban-version-filter" onkeyup="renderKanbanBoard()" class="modern-input py-2.5 pr-10 text-sm border-indigo-200 bg-indigo-50/50 font-mono shadow-sm" placeholder="סנן גרסה (למשל: v2.0)">
+                                        <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="kanban-search" onkeyup="renderKanbanBoard()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש משימה, לקוח או #ID...">
+                                    </div>
+                                    <div class="relative w-full sm:w-40">
+                                        <i class="fa-solid fa-code-branch absolute right-3 top-1/2 transform -translate-y-1/2 text-indigo-400"></i>
+                                        <input type="text" id="kanban-version-filter" onkeyup="renderKanbanBoard()" class="modern-input py-2.5 pr-10 text-sm border-indigo-200 bg-indigo-50/50 font-mono shadow-sm" placeholder="סנן גרסה...">
                                     </div>
                                     <div class="flex gap-2 w-full sm:w-auto">
                                         <button id="btn-release-version" onclick="prepareReleaseFromVersion()" class="hidden bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition items-center gap-2 shrink-0">
