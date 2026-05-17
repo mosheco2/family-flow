@@ -1,4 +1,4 @@
-[Resource from github at repo://mosheco2/family-flow/sha/4e90ef14acac0df915e494d5ed72c00c0bf6e52e/contents/public/sa.html] <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -87,12 +87,48 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <h2 class="text-2xl font-bold text-white">מנהל מערכת ראשי</h2>
             </div>
             <div class="px-8 py-8">
-                <form onsubmit="handleSALogin(event)" class="space-y-4">
-                    <input type="text" id="sa-code" required placeholder="שם משתמש" class="modern-input text-center dir-ltr">
-                    <input type="password" id="sa-password" required placeholder="סיסמה" class="modern-input text-center dir-ltr">
-                    <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold shadow-lg mt-2 hover:bg-indigo-700 transition">הכנס לניהול</button>
-                </form>
-                <button onclick="window.location.href='/'" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזור לאתר הראשי</button>
+                
+                <div id="sa-login-master-step1" class="space-y-4 fade-in">
+                    <p class="text-sm text-slate-500 font-bold text-center mb-4">הזן את מספר הטלפון המורשה לקבלת קוד גישה</p>
+                    <input type="tel" id="sa-phone" required placeholder="0501234567" class="modern-input text-center dir-ltr text-lg tracking-widest font-mono font-bold" autocomplete="off">
+                    <button onclick="sendMasterOTP(event)" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                        שגר קוד ב-SMS <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                    <div class="pt-4 border-t border-slate-100 mt-6">
+                        <button onclick="toggleLoginMode()" class="w-full text-xs font-bold text-slate-400 hover:text-indigo-500 transition">התחברות איש צוות (מייל וסיסמה)</button>
+                    </div>
+                </div>
+
+                <div id="sa-login-master-step2" class="space-y-4 hidden fade-in text-center">
+                    <p class="text-sm text-slate-500 font-bold mb-2">הזן את 6 הספרות שנשלחו אליך</p>
+                    <div class="flex justify-center gap-2 mb-4" dir="ltr">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 0)" autocomplete="off">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 1)" autocomplete="off">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 2)" autocomplete="off">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 3)" autocomplete="off">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 4)" autocomplete="off">
+                        <input type="text" maxlength="1" class="otp-box w-10 h-14 text-center text-xl font-black rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 ring-indigo-500/20 outline-none transition bg-slate-50 focus:bg-white" onkeyup="handleOTPInput(event, 5)" autocomplete="off">
+                    </div>
+                    <button onclick="verifyMasterOTP(event)" class="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-emerald-600 transition flex items-center justify-center gap-2">
+                        אמת והיכנס <i class="fa-solid fa-check"></i>
+                    </button>
+                    <p id="otp-timer" class="text-xs font-bold text-slate-400 mt-4 bg-slate-50 py-1.5 rounded-lg">תוקף הקוד: 05:00</p>
+                    <button onclick="location.reload()" class="text-xs text-indigo-500 hover:underline mt-2">טעות במספר? חזור אחורה</button>
+                </div>
+
+                <div id="sa-login-staff" class="space-y-4 hidden fade-in">
+                    <p class="text-sm text-slate-500 font-bold text-center mb-4">התחברות עם הרשאות מוגדרות</p>
+                    <form onsubmit="handleSALogin(event)" class="space-y-4">
+                        <input type="email" id="sa-code" required placeholder="אימייל ארגוני" class="modern-input text-center dir-ltr text-sm font-bold">
+                        <input type="password" id="sa-password" required placeholder="סיסמה" class="modern-input text-center dir-ltr text-sm font-bold">
+                        <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2 hover:bg-slate-900 transition">הכנס למערכת</button>
+                    </form>
+                    <div class="pt-4 border-t border-slate-100 mt-6 text-center">
+                        <button onclick="toggleLoginMode()" class="w-full text-xs font-bold text-slate-400 hover:text-indigo-500 transition">חזור להתחברות מנהל-על (SMS)</button>
+                    </div>
+                </div>
+                
+                <button onclick="window.location.href='/'" class="w-full mt-6 text-slate-300 text-xs font-bold hover:text-slate-500 transition">חזור לאתר הראשי</button>
             </div>
         </div>
     </div>
