@@ -3189,20 +3189,45 @@ window.verifyMasterOTP = async function(e) {
         showToast('error', 'שגיאה באימות הקוד מול השרת');
     }
 };
-// בדיקת סטטוס חיבור אוטומטית מיד עם טעינת העמוד (Auto-Login Check)
+// בדיקת סטטוס חיבור אוטומטית ואתחול מערכת מלא (Auto-Login & Init)
 document.addEventListener("DOMContentLoaded", function() {
     const token = localStorage.getItem('saToken');
     const userRaw = localStorage.getItem('saUser');
     
-    if (token === 'SA_SECRET_TOKEN_2026' && userRaw) {
-        // העלמת מסך ה-Auth והצגת פאנל הניהול הראשי
-        document.getElementById('auth-container').classList.add('hidden');
-        document.getElementById('sa-dashboard-container').classList.remove('hidden');
-        
-        // טעינת הנתונים הראשונית של המערכת
-        if (typeof loadSAData === 'function') loadSAData();
-        if (typeof loadSATickets === 'function') loadSATickets();
-        
-        showToast('success', 'ברוך הבא חזרה, מנהל על');
+    if (token && userRaw) {
+        try {
+            // טעינת המשתמש לזיכרון הגלובלי של האפליקציה (קריטי להרשאות!)
+            window.saToken = token;
+            window.saUser = JSON.parse(userRaw);
+            
+            if (window.saUser && window.saUser.role === 'master') {
+                // הצגת ממשק הניהול
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('sa-dashboard-container').classList.remove('hidden');
+                
+                // עדכון שם המנהל בסרגל העליון
+                const topbarName = document.getElementById('topbar-user-name');
+                if (topbarName) topbarName.innerText = window.saUser.name;
+                
+                // חשיפת כל כפתורי הניווט בסרגל הצד למנהל-על
+                document.querySelectorAll('[id^="btn-sa-tab-"]').forEach(btn => {
+                    btn.classList.remove('hidden');
+                    btn.classList.add('flex');
+                });
+                
+                // פתיחה אוטומטית של טאב 'דופק מערכת' כדי למנוע מסך ריק
+                if (typeof switchSATab === 'function') switchSATab('pulse');
+                
+                // טעינת נתונים ברקע
+                if (typeof loadSAData === 'function') loadSAData();
+                if (typeof loadSATickets === 'function') loadSATickets();
+                
+                showToast('success', 'ברוך הבא למערכת, ' + window.saUser.name);
+            }
+        } catch(e) {
+            console.error("שגיאה בפענוח נתוני המשתמש. מנקה זיכרון:", e);
+            localStorage.removeItem('saToken');
+            localStorage.removeItem('saUser');
+        }
     }
 });
