@@ -1133,6 +1133,34 @@ function toggleNote(id) {
   if(!visible) row.querySelector('textarea').focus();
 }
 
+// --- STATE MANAGEMENT (תיקון כפתורי הסטטוס האפורים) ---
+let state = {};
+function getStatus(id) { return state[id]?.s || null; }
+function getNote(id) { return state[id]?.n || ''; }
+
+function setStatus(id, s) {
+  if(!state[id]) state[id] = {};
+  if(state[id].s === s) delete state[id].s;
+  else state[id].s = s;
+  saveState();
+  renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
+  if(typeof currentView !== 'undefined' && currentView==='dashboard') updateStats();
+}
+
+function setNote(id, v) {
+  if(!state[id]) state[id] = {};
+  state[id].n = v;
+  saveState();
+  const btn = document.querySelector(`button[data-note-btn="${id}"]`);
+  if(btn) {
+    if(v.trim()) btn.classList.add('has-note');
+    else btn.classList.remove('has-note');
+  }
+}
+
+function saveState() { localStorage.setItem('qa_state', JSON.stringify(state)); }
+function loadState() { state = JSON.parse(localStorage.getItem('qa_state') || '{}'); }
+
 // ============================================================
 // STATS
 // ============================================================
@@ -1311,13 +1339,37 @@ function injectKanbanTasksToQA() {
 
 // כפתור: אישור העברה מ"כללי" לאזור מיון ALM (סעיף 4 באפיון)
 async function approveTaskForSorting(taskId) {
+    const kt = window.almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
     try {
         const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
-            body: JSON.stringify({ targetVersion: 'SORTING' })
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, 
+                status: kt.status, description: kt.description, 
+                targetVersion: 'SORTING', 
+                environment: kt.environment, moduleName: kt.module_name 
+            })
         });
         if(res.ok) {
             showToast('המשימה אושרה ועברה למיון בניהול גרסאות!');
+            await loadALMData();
+            if(typeof updateStats === 'function') updateStats();
+            if(typeof renderTests === 'function') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
+        }
+    } catch(e) {}
+}
+
+// כפתור: סגירת משימה שעברה QA אל סטטוס DONE בסופר אדמין (סעיף 9 באפיון)
+async function passQATask(taskId) {
+    if(!confirm('הבדיקה עברה בהצלחה?\nהמשימה תעבור אוטומטית לעמודת "בוצע" בלוח המרכזי ותסגור מעגל מול הלקוח.')) return;
+    try {
+        const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
+            body: JSON.stringify({ status: 'done', systemOverride: true })
+        });
+        if(res.ok) {
+            showToast('המשימה הושלמה בהצלחה ושוחררה ל-DONE!');
             await loadALMData();
             if(typeof updateStats === 'function') updateStats();
             if(typeof renderTests === 'function') renderTests(typeof currentFilter !== 'undefined' ? currentFilter : null);
@@ -1537,11 +1589,18 @@ async function assignTaskToVersion(taskId) {
     const modSel = document.getElementById(`assign-mod-${taskId}`).value;
     if(!verSel) return showToast('שגיאה: חובה לבחור גרסת יעד מהרשימה!');
 
+    const kt = window.almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+
     try {
         const res = await fetch(`${almAPI}/sa/dev/tasks/${taskId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': almToken },
-            body: JSON.stringify({ targetVersion: verSel, environment: envSel, moduleName: modSel })
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, 
+                status: kt.status, description: kt.description,
+                targetVersion: verSel, environment: envSel, moduleName: modSel 
+            })
         });
         const data = await res.json();
         if(data.success) {
