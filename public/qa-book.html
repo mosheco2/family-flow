@@ -1,191 +1,156 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ספר QA — Oneflow Life</title>
+<title>ספר QA ומרכז ניהול פיתוח — Oneflow Life</title>
 <link rel="icon" href="/logo.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
+/* --- BASE & VARIABLES --- */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:14px}
-:root{--ok:#16a34a;--fail:#dc2626;--skip:#94a3b8;--warn:#d97706;--new:#7c3aed}
+:root{--ok:#16a34a;--fail:#dc2626;--skip:#94a3b8;--warn:#d97706;--new:#7c3aed;--bg:#f1f5f9;--card:#ffffff;--text-main:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--primary:#3b82f6;}
 
-/* Layout */
+/* --- LAYOUT --- */
 .app{display:flex;min-height:100vh}
 .sidebar{width:260px;background:#0f172a;color:white;position:fixed;top:0;bottom:0;right:0;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
 .main{margin-right:260px;flex:1;padding:1.5rem}
 
-/* Sidebar */
+/* --- SIDEBAR --- */
 .sb-header{padding:1.2rem 1rem;border-bottom:1px solid rgba(255,255,255,0.1)}
 .sb-header h1{font-size:1rem;font-weight:800;color:white}
 .sb-header p{font-size:0.7rem;color:#94a3b8;margin-top:2px}
-.sb-version{background:#1e3a5f;border-radius:6px;padding:0.5rem 1rem;margin:0.75rem;font-size:0.7rem;color:#7dd3fc;display:flex;justify-content:space-between;align-items:center}
-.sb-version span{font-weight:700}
 .sb-section{padding:0.5rem 0}
 .sb-section-title{font-size:0.65rem;font-weight:700;color:#475569;padding:0.5rem 1rem;text-transform:uppercase;letter-spacing:0.05em}
 .sb-link{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 1rem;color:#94a3b8;cursor:pointer;border-right:3px solid transparent;transition:all 0.15s;font-size:0.8rem;white-space:nowrap;overflow:hidden}
 .sb-link:hover{color:white;background:rgba(255,255,255,0.05)}
-.sb-link.active{color:white;border-right-color:#3b82f6;background:rgba(59,130,246,0.1)}
+.sb-link.active{color:white;border-right-color:var(--primary);background:rgba(59,130,246,0.1)}
 .sb-link i{width:14px;text-align:center;font-size:0.75rem;flex-shrink:0}
 .sb-badge{margin-right:auto;font-size:0.6rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:99px}
-.badge-fail{background:#dc2626;color:white}
-.badge-ok{background:#16a34a;color:white}
-.badge-pending{background:#475569;color:white}
+.badge-fail{background:var(--fail);color:white}
+.badge-ok{background:var(--ok);color:white}
 
-/* Stats bar */
-.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem}
-.stat-card{background:white;border-radius:1rem;padding:1rem;text-align:center;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+/* --- DASHBOARD STATS --- */
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:0.75rem;margin-bottom:1.5rem}
+.stat-card{background:var(--card);border-radius:1rem;padding:1rem;text-align:center;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.05)}
 .stat-card .num{font-size:1.6rem;font-weight:800;line-height:1}
-.stat-card .lbl{font-size:0.7rem;color:#64748b;margin-top:0.25rem;font-weight:500}
-.num-total{color:#1e293b}
+.stat-card .lbl{font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;font-weight:500}
+.num-total{color:var(--text-main)}
 .num-ok{color:var(--ok)}
 .num-fail{color:var(--fail)}
 .num-skip{color:var(--skip)}
-.num-pct{color:#3b82f6}
+.num-pct{color:var(--primary)}
 
-/* Page header */
-.page-header{background:white;border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
-.page-header h2{font-size:1.1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
-.page-actions{display:flex;gap:0.5rem;flex-wrap:wrap}
-.btn{padding:0.45rem 1rem;border-radius:0.6rem;font-family:inherit;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem}
-.btn-dark{background:#0f172a;color:white}.btn-dark:hover{background:#1e293b}
-.btn-outline{background:white;color:#475569;border:1px solid #e2e8f0}.btn-outline:hover{background:#f8fafc}
-.btn-red{background:#fee2e2;color:#dc2626}.btn-red:hover{background:#fecaca}
-.btn-green{background:#dcfce7;color:#16a34a}.btn-green:hover{background:#bbf7d0}
-.btn-purple{background:#ede9fe;color:#7c3aed}.btn-purple:hover{background:#ddd6fe}
+/* --- PAGE ELEMENTS --- */
+.page-header{background:var(--card);border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.page-header h2{font-size:1.1rem;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:0.5rem}
+.page-actions{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center}
+.btn{padding:0.45rem 1rem;border-radius:0.6rem;font-family:inherit;font-size:0.8rem;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:0.4rem}
+.btn-dark{background:var(--text-main);color:white}.btn-dark:hover{background:#1e293b}
+.btn-outline{background:white;color:#475569;border:1px solid var(--border)}.btn-outline:hover{background:#f8fafc}
+.btn-red{background:#fee2e2;color:var(--fail)}.btn-red:hover{background:#fecaca}
+.btn-green{background:#dcfce7;color:var(--ok)}.btn-green:hover{background:#bbf7d0}
+.btn-purple{background:#ede9fe;color:var(--new)}.btn-purple:hover{background:#ddd6fe}
 
-/* Section */
-.section{background:white;border-radius:1rem;border:1px solid #e2e8f0;margin-bottom:1.25rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-.section-head{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none}
-.section-head h3{font-size:0.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
-.section-head .chevron{transition:transform 0.2s;color:#94a3b8;font-size:0.75rem}
+/* --- SECTIONS (ACCORDIONS) --- */
+.section{background:var(--card);border-radius:1rem;border:1px solid var(--border);margin-bottom:1.25rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-head h3{font-size:0.9rem;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:0.5rem}
+.section-head .chevron{transition:transform 0.2s;color:var(--text-muted);font-size:0.75rem}
 .section.collapsed .chevron{transform:rotate(-90deg)}
 .section.collapsed .section-body{display:none}
 .section-meta{display:flex;align-items:center;gap:0.75rem}
-.section-pct{font-size:0.75rem;font-weight:700;color:#3b82f6}
-.mini-bar{width:80px;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden}
-.mini-bar-fill{height:100%;background:#3b82f6;border-radius:99px;transition:width 0.3s}
+.section-pct{font-size:0.75rem;font-weight:700;color:var(--primary)}
+.mini-bar{width:80px;height:6px;background:var(--border);border-radius:99px;overflow:hidden}
+.mini-bar-fill{height:100%;background:var(--primary);border-radius:99px;transition:width 0.3s}
 
-/* Test table */
+/* --- TABLES & ROWS --- */
 .section-body{padding:0}
 table{width:100%;border-collapse:collapse}
-th{font-size:0.7rem;font-weight:700;color:#64748b;text-align:right;padding:0.6rem 1rem;border-bottom:2px solid #e2e8f0;background:#f8fafc;white-space:nowrap}
-th:last-child{text-align:center;width:220px}
+th{font-size:0.7rem;font-weight:700;color:var(--text-muted);text-align:right;padding:0.6rem 1rem;border-bottom:2px solid var(--border);background:#f8fafc;white-space:nowrap}
+th:last-child{text-align:center;width:240px}
 td{padding:0.55rem 1rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafbfc}
-.test-id{font-size:0.65rem;color:#94a3b8;font-family:monospace;white-space:nowrap}
-.test-name{font-weight:500;color:#1e293b;font-size:0.82rem}
-.test-desc{font-size:0.72rem;color:#64748b;margin-top:2px}
+.test-id{font-size:0.65rem;color:var(--text-muted);font-family:monospace;white-space:nowrap}
+.test-name{font-weight:500;color:var(--text-main);font-size:0.82rem}
+.test-desc{font-size:0.72rem;color:var(--text-muted);margin-top:2px}
 .test-env{display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:3px}
+
+/* --- TAGS & BADGES --- */
 .env-tag{font-size:0.6rem;font-weight:600;padding:0.1rem 0.45rem;border-radius:99px}
 .env-family{background:#dbeafe;color:#1d4ed8}
 .env-biz{background:#fef3c7;color:#92400e}
 .env-comm{background:#f0fdf4;color:#166534}
 .env-sa{background:#fae8ff;color:#7e22ce}
 .env-all{background:#f1f5f9;color:#475569}
+.prio{font-size:0.6rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:99px;white-space:nowrap}
+.prio-critical{background:#fee2e2;color:var(--fail)}
+.prio-high{background:#ffedd5;color:#ea580c}
+.prio-medium{background:#fef9c3;color:#ca8a04}
+.prio-low{background:#f0fdf4;color:#166534}
 
-/* Status buttons */
+/* --- BUTTONS & ACTIONS --- */
 .status-btns{display:flex;gap:0.3rem;justify-content:center;align-items:center}
-.s-btn{width:32px;height:32px;border-radius:0.5rem;border:2px solid transparent;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:white;color:#94a3b8;border-color:#e2e8f0}
+.s-btn{width:32px;height:32px;border-radius:0.5rem;border:2px solid transparent;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s;background:white;color:var(--text-muted);border-color:var(--border)}
 .s-btn:hover{transform:scale(1.1)}
 .s-btn.active-ok{background:var(--ok);color:white;border-color:var(--ok)}
 .s-btn.active-fail{background:var(--fail);color:white;border-color:var(--fail)}
 .s-btn.active-skip{background:var(--skip);color:white;border-color:var(--skip)}
 .s-btn.active-warn{background:var(--warn);color:white;border-color:var(--warn)}
-.note-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
-.note-btn:hover{background:#f1f5f9;color:#475569}
-.note-btn.has-note{color:#7c3aed;border-color:#c4b5fd;background:#faf5ff}
+.note-btn,.guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid var(--border);background:white;color:var(--text-muted);cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.note-btn:hover,.guide-btn:hover{background:#f1f5f9;color:#475569}
+.note-btn.has-note{color:var(--new);border-color:#c4b5fd;background:#faf5ff}
+.guide-btn.active{color:var(--primary);border-color:#bfdbfe;background:#eff6ff}
 
-/* Note row */
+/* --- EXTENDED ROWS (NOTES/GUIDE) --- */
 .note-row{background:#faf5ff}
 .note-row td{padding:0.4rem 1rem 0.6rem}
 .note-input{width:100%;padding:0.5rem 0.75rem;border:1px solid #c4b5fd;border-radius:0.5rem;font-family:inherit;font-size:0.8rem;color:#3b0764;background:white;outline:none;resize:none}
-.note-input:focus{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,0.1)}
-
-/* Report */
-#report-panel{display:none;background:white;border-radius:1rem;border:1px solid #e2e8f0;padding:1.5rem;margin-top:1.25rem}
-.report-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem}
-.report-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem;background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;margin-bottom:0.5rem}
-.report-item-warn{background:#fffbeb;border-color:#fde68a}
-.report-icon{width:28px;height:28px;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem}
-.r-fail-icon{background:#fee2e2;color:#dc2626}
-.r-warn-icon{background:#fef3c7;color:#d97706}
-.report-text{flex:1}
-.report-test-id{font-size:0.65rem;color:#94a3b8;font-family:monospace}
-.report-test-name{font-weight:600;font-size:0.82rem;color:#1e293b}
-.report-note{font-size:0.75rem;color:#64748b;margin-top:2px;font-style:italic}
-.report-section-name{font-size:0.7rem;color:#475569;margin-top:1px}
-
-/* Version history */
-.version-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1rem;margin-bottom:0.75rem}
-.version-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem}
-.version-num{font-size:0.8rem;font-weight:700;color:#0f172a}
-.version-date{font-size:0.7rem;color:#94a3b8}
-.version-tag{font-size:0.65rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:99px}
-.vtag-release{background:#dcfce7;color:#166534}
-.vtag-beta{background:#fef3c7;color:#92400e}
-.vtag-hotfix{background:#fee2e2;color:#991b1b}
-.version-summary{font-size:0.78rem;color:#475569;margin-bottom:0.5rem}
-.version-stats{display:flex;gap:0.75rem;font-size:0.7rem}
-.vs-ok{color:var(--ok);font-weight:600}
-.vs-fail{color:var(--fail);font-weight:600}
-.version-notes{font-size:0.72rem;color:#64748b;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e2e8f0}
-
-/* View toggle */
-.view{display:none}.view.active{display:block}
-
-/* Priority badge */
-.prio{font-size:0.6rem;font-weight:700;padding:0.1rem 0.45rem;border-radius:99px;white-space:nowrap}
-.prio-critical{background:#fee2e2;color:#dc2626}
-.prio-high{background:#ffedd5;color:#ea580c}
-.prio-medium{background:#fef9c3;color:#ca8a04}
-.prio-low{background:#f0fdf4;color:#166534}
-
-/* Progress ring */
-.progress-ring-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
-.progress-ring{transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:#e2e8f0;stroke-width:4}
-.ring-fill{fill:none;stroke:#3b82f6;stroke-width:4;stroke-linecap:round;stroke-dasharray:126;transition:stroke-dashoffset 0.5s}
-.ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:#3b82f6}
-
-/* Toast */
-#qa-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#0f172a;color:white;padding:0.6rem 1.25rem;border-radius:99px;font-size:0.8rem;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
-#qa-toast.show{opacity:1}
-
-/* Scrollbar */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:#f1f5f9}
-::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
-
-@media(max-width:900px){
-  .sidebar{width:220px}.main{margin-right:220px}
-  .stats-bar{grid-template-columns:repeat(3,1fr)}
-}
-/* Guide styles */
+.note-input:focus{border-color:var(--new);box-shadow:0 0 0 2px rgba(124,58,237,0.1)}
 .guide-row td{padding:0.3rem 1rem 0.75rem;background:#f8fafc}
-.guide-box{border:1px solid #e2e8f0;border-radius:0.6rem;overflow:hidden;font-size:0.75rem}
-.guide-path{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;background:#f1f5f9;color:#475569;font-size:0.7rem;border-bottom:1px solid #e2e8f0}
-.guide-path i{color:#3b82f6;font-size:0.65rem}
+.guide-box{border:1px solid var(--border);border-radius:0.6rem;overflow:hidden;font-size:0.75rem}
+.guide-path{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;background:#f1f5f9;color:#475569;font-size:0.7rem;border-bottom:1px solid var(--border)}
+.guide-path i{color:var(--primary);font-size:0.65rem}
 .guide-body{display:grid;grid-template-columns:1fr 1fr;gap:0;background:white}
-.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid #e2e8f0}
+.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid var(--border)}
 .guide-expected{padding:0.5rem 0.75rem;background:#f0fdf4}
-.guide-label{font-size:0.6rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
+.guide-label{font-size:0.6rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
 .guide-steps ol{margin:0;padding-right:1rem;color:#374151;line-height:1.6}
 .guide-steps ol li{margin-bottom:0.1rem}
 .guide-expected p{color:#166534;font-weight:500;margin:0;line-height:1.5}
-.guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
-.guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
-.guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
 
-@media print{
-  .sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}
-  .main{margin-right:0}
-  .section{break-inside:avoid}
-}
+/* --- REPORTS --- */
+.report-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem;background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;margin-bottom:0.5rem}
+.report-item-warn{background:#fffbeb;border-color:#fde68a}
+.report-icon{width:28px;height:28px;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem}
+.r-fail-icon{background:#fee2e2;color:var(--fail)}
+.r-warn-icon{background:#fef3c7;color:var(--warn)}
+.report-text{flex:1}
+.report-test-id{font-size:0.65rem;color:var(--text-muted);font-family:monospace}
+.report-test-name{font-weight:600;font-size:0.82rem;color:var(--text-main)}
+.report-note{font-size:0.75rem;color:var(--text-muted);margin-top:2px;font-style:italic}
+.report-section-name{font-size:0.7rem;color:#475569;margin-top:1px}
+
+/* --- COMPONENTS --- */
+.view{display:none}.view.active{display:block}
+.progress-ring-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
+.progress-ring{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--border);stroke-width:4}
+.ring-fill{fill:none;stroke:var(--primary);stroke-width:4;stroke-linecap:round;stroke-dasharray:126;transition:stroke-dashoffset 0.5s}
+.ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;color:var(--primary)}
+#qa-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--text-main);color:white;padding:0.6rem 1.25rem;border-radius:99px;font-size:0.8rem;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none}
+#qa-toast.show{opacity:1}
+.search-input{padding:0.45rem 2rem 0.45rem 1rem; border-radius:0.6rem; border:1px solid var(--border); font-family:inherit; font-size:0.8rem; outline:none; width:220px; box-shadow:0 1px 2px rgba(0,0,0,0.02);}
+
+/* --- SCROLLBARS --- */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#f1f5f9}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
+@media(max-width:900px){.sidebar{width:220px}.main{margin-right:220px}}
+@media print{.sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}.main{margin-right:0}.section{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -193,1152 +158,811 @@ tr:hover td{background:#fafbfc}
 <div id="qa-toast"></div>
 
 <div class="app">
-<!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="sb-header">
-    <h1><i class="fa-solid fa-clipboard-check" style="color:#3b82f6;margin-left:0.4rem"></i> ספר QA</h1>
-    <p>Oneflow Life — בדיקות מערכת</p>
+    <h1><i class="fa-solid fa-clipboard-check" style="color:var(--primary);margin-left:0.4rem"></i> ספר QA</h1>
+    <p>Oneflow Life — מערכת בדיקות ופיתוח</p>
   </div>
-  <div class="sb-version">
-    <span>גרסה נוכחית</span>
-    <span id="sb-ver">v1.0.0</span>
-  </div>
+
   <div class="sb-section">
     <div class="sb-section-title">ניווט ראשי</div>
-    <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד בדיקות</div>
-    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת בדיקות</div>
+    <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד מרכזי</div>
+    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת משימות ובדיקות</div>
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
-    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> ניהול גרסאות</div>
+    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> ניהול גרסאות (ALM)</div>
   </div>
-<div class="sb-section">
-    <div class="sb-section-title">מודולים</div>
-    <div class="sb-link" onclick="filterSection('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
-    <div class="sb-link" onclick="filterSection('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
-    <div class="sb-link" onclick="filterSection('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
-    <div class="sb-link" onclick="filterSection('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
-    <div class="sb-link" onclick="filterSection('biz')"><i class="fa-solid fa-briefcase"></i> סביבת עסק</div>
-    <div class="sb-link" onclick="filterSection('store')"><i class="fa-solid fa-store"></i> חנות ו-Storefront</div>
-    <div class="sb-link" onclick="filterSection('pos')"><i class="fa-solid fa-cash-register"></i> קופה (POS)</div>
-    <div class="sb-link" onclick="filterSection('b2b')"><i class="fa-solid fa-truck"></i> רכש ו-B2B</div>
-    <div class="sb-link" onclick="filterSection('finance')"><i class="fa-solid fa-shekel-sign"></i> פיננסים</div>
-    <div class="sb-link" onclick="filterSection('inventory')"><i class="fa-solid fa-boxes-stacked"></i> מלאי</div>
-    <div class="sb-link" onclick="filterSection('ai')"><i class="fa-solid fa-robot"></i> AI ופיצ'רים</div>
-    <div class="sb-link" onclick="filterSection('calendar')"><i class="fa-solid fa-calendar"></i> יומן ותורים</div>
-    <div class="sb-link" onclick="filterSection('shifts')"><i class="fa-solid fa-clock-rotate-left"></i> משמרות</div>
-    <div class="sb-link" onclick="filterSection('tasks')"><i class="fa-solid fa-list-check"></i> משימות</div>
-    <div class="sb-link" onclick="filterSection('academy')"><i class="fa-solid fa-graduation-cap"></i> אקדמיה</div>
-    <div class="sb-link" onclick="filterSection('community')"><i class="fa-solid fa-people-group"></i> קהילות</div>
-    <div class="sb-link" onclick="filterSection('notif')"><i class="fa-solid fa-bell"></i> התראות ו-Inbox</div>
-    <div class="sb-link" onclick="filterSection('sa')"><i class="fa-solid fa-shield"></i> SuperAdmin</div>
-    <div class="sb-link" onclick="filterSection('samktg')"><i class="fa-solid fa-paper-plane"></i> SA — שיווק</div>
-    <div class="sb-link" onclick="filterSection('sa_full')"><i class="fa-solid fa-shield-halved"></i> SA — sa.html</div>
-  </div>
-  <div class="sb-section">
-    <div class="sb-section-title">הרשאות לפי תפקיד</div>
-    <div class="sb-link" onclick="filterSection('perm_fam')"><i class="fa-solid fa-user-shield"></i> הורה vs ילד</div>
-    <div class="sb-link" onclick="filterSection('perm_biz')"><i class="fa-solid fa-user-tie"></i> עובדים בעסק (4 רמות)</div>
-    <div class="sb-link" onclick="filterSection('pwa')"><i class="fa-solid fa-mobile"></i> PWA ואבטחה</div>
-  </div>
+
+  <div class="sb-section" id="sidebar-categories">
+    <div class="sb-section-title">סינון קטגוריות</div>
+    </div>
+
   <div style="padding:1rem;margin-top:auto;border-top:1px solid rgba(255,255,255,0.08)">
-    <button class="btn btn-dark" style="width:100%;justify-content:center;font-size:0.75rem" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
-    <button class="btn btn-outline" style="width:100%;justify-content:center;font-size:0.75rem;margin-top:0.4rem;background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.1)" onclick="resetAll()"><i class="fa-solid fa-rotate-left"></i> אפס הכל</button>
+    <button class="btn btn-dark" style="width:100%;font-size:0.75rem" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
+    <button class="btn btn-outline" style="width:100%;font-size:0.75rem;margin-top:0.4rem;background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.1)" onclick="resetAll()"><i class="fa-solid fa-rotate-left"></i> אפס נתונים</button>
   </div>
 </nav>
 
-<!-- MAIN -->
 <main class="main">
 
-<!-- DASHBOARD VIEW -->
-<div id="view-dashboard" class="view active">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-gauge-high" style="color:#3b82f6"></i> דשבורד בדיקות</h2>
-    <div class="page-actions">
-      <button class="btn btn-dark" onclick="showView('tests')"><i class="fa-solid fa-play"></i> התחל בדיקות</button>
-      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
+  <div id="view-dashboard" class="view active">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-gauge-high" style="color:var(--primary)"></i> דשבורד בדיקות ופיתוח</h2>
+      <div class="page-actions">
+        <button class="btn btn-dark" onclick="showView('tests')"><i class="fa-solid fa-play"></i> המשך עבודה</button>
+      </div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ פריטים</div></div>
+      <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ הושלמו / עברו</div></div>
+      <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
+      <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— עוכבו / דולגו</div></div>
+      <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem" id="module-cards"></div>
+  </div>
+
+  <div id="view-tests" class="view">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-list-check" style="color:var(--primary)"></i> רשימת משימות פיתוח ובדיקות QA</h2>
+      <div class="page-actions">
+        <div style="position:relative; display:inline-block; margin-left:0.5rem;">
+           <i class="fa-solid fa-magnifying-glass" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px;"></i>
+           <input type="text" id="qa-search-input" class="search-input" placeholder="חפש משימה, ID או בדיקה..." onkeyup="filterTestsBySearch()">
+        </div>
+        <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הכל</button>
+        <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> רק כשלונות</button>
+      </div>
+    </div>
+    <div id="tests-container"></div>
+  </div>
+
+  <div id="view-report" class="view">
+    <div class="page-header">
+      <h2><i class="fa-solid fa-triangle-exclamation" style="color:var(--fail)"></i> דוח תקלות ובאגים</h2>
+      <div class="page-actions">
+        <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
+        <button class="btn btn-outline" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
+      </div>
+    </div>
+    <div id="report-container">
+      <div style="text-align:center;padding:3rem;color:var(--text-muted)">
+        <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
+        <p style="font-weight:600">לחץ "רענן דוח" כדי לצפות בבדיקות שנכשלו</p>
+      </div>
     </div>
   </div>
 
-  <div class="stats-bar">
-    <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ בדיקות</div></div>
-    <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
-    <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
-    <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— דולגו</div></div>
-    <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
-  </div>
+  <div id="view-versions" class="view">
+    <div class="page-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border:none;">
+      <h2 style="color: white;"><i class="fa-solid fa-rocket" style="color:var(--new)"></i> מרכז ניהול פיתוח וגרסאות (ALM Hub)</h2>
+      <div class="page-actions">
+        <button class="btn btn-purple" style="box-shadow: 0 4px 10px rgba(168, 85, 247, 0.3);" onclick="openNewVersionModal()"><i class="fa-solid fa-plus"></i> הקם גרסה חדשה</button>
+      </div>
+    </div>
 
-  <!-- Module progress cards -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem" id="module-cards"></div>
+    <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start;">
+      
+      <div id="alm-versions-board" style="display: flex; flex-direction: column; gap: 1rem;">
+          </div>
 
-  <!-- Last run info -->
-  <div class="section">
-    <div class="section-head" onclick="toggleSection(this)">
-      <h3><i class="fa-solid fa-circle-info" style="color:#3b82f6"></i> מידע על ריצת הבדיקות</h3>
-      <i class="fa-solid fa-chevron-down chevron"></i>
-    </div>
-    <div class="section-body" style="padding:1.25rem">
-      <table style="width:auto;min-width:400px">
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">תאריך ריצה</td><td style="border:none;font-size:0.8rem" id="run-date">—</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">גרסה שנבדקה</td><td style="border:none;font-size:0.8rem" id="run-ver">—</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">סביבות שנבדקו</td><td style="border:none;font-size:0.8rem">משפחה, עסק, קהילה, SuperAdmin</td></tr>
-        <tr><td style="font-weight:600;padding:0.4rem 1rem 0.4rem 2rem;border:none;color:#475569;font-size:0.8rem">הערות</td><td style="border:none"><input id="run-notes" placeholder="הוסף הערות על הריצה..." style="border:1px solid #e2e8f0;border-radius:0.5rem;padding:0.4rem 0.75rem;font-family:inherit;font-size:0.78rem;width:300px;outline:none" oninput="saveState()"></td></tr>
-      </table>
+      <div style="background: white; border-radius: 1rem; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); position: sticky; top: 1.5rem;">
+          <div style="background: #f8fafc; border-bottom: 1px solid var(--border); padding: 1rem;">
+              <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-inbox text-blue-500"></i> משימות למיון ושיוך</h3>
+              <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">משימות שאושרו למיון מתוך "כללי"</p>
+          </div>
+          <div id="alm-unassigned-tasks" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; background: #f1f5f9;">
+              </div>
+      </div>
+      
     </div>
   </div>
-</div>
-
-<!-- TESTS VIEW -->
-<div id="view-tests" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> רשימת בדיקות מלאה</h2>
-    <div class="page-actions">
-      <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
-      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
-      <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
-      <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
-    </div>
-  </div>
-  <div id="tests-container"></div>
-</div>
-
-<!-- REPORT VIEW -->
-<div id="view-report" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i> דוח תקלות ובאגים</h2>
-    <div class="page-actions">
-      <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
-      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
-    </div>
-  </div>
-  <div id="report-container">
-    <div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">לחץ על "הפק דוח תקלות" כדי לראות בדיקות שנכשלו</p>
-    </div>
-  </div>
-</div>
-
-<!-- VERSIONS VIEW -->
-<div id="view-versions" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i> ניהול גרסאות</h2>
-    <div class="page-actions">
-      <button class="btn btn-purple" onclick="newVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
-    </div>
-  </div>
-  <div id="versions-container"></div>
-</div>
 
 </main>
 </div>
 
+<div id="modal-new-version" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+    <div style="background:white; width:400px; border-radius:1.25rem; padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--text-main); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-rocket" style="color:var(--new)"></i> הקמת גרסת מוצר</h3>
+        <div style="margin-bottom:1rem;">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:0.3rem;">שם/מספר הגרסה (למשל v2.5.0)</label>
+            <input type="text" id="nv-name" style="width:100%; padding:0.6rem 1rem; border:1px solid var(--border); border-radius:0.5rem; font-family:inherit; outline:none;" placeholder="v1.0.0" autocomplete="off">
+        </div>
+        <div style="margin-bottom:1rem;">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:0.3rem;">תאריך יעד לשחרור</label>
+            <input type="date" id="nv-date" style="width:100%; padding:0.6rem 1rem; border:1px solid var(--border); border-radius:0.5rem; font-family:inherit; outline:none;">
+        </div>
+        <div style="display:flex; gap:0.5rem; margin-top:1.5rem;">
+            <button onclick="saveNewVersion()" class="btn btn-purple" style="flex:1;">שמור גרסה</button>
+            <button onclick="closeNewVersionModal()" class="btn btn-outline" style="flex:1;">ביטול</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ============================================================
-// API CONNECTION & DATA
+// 1. DATA ARCHITECTURE (THE RIGID SKELETON)
 // ============================================================
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-const saToken = localStorage.getItem('ofl_sa_token'); // מתבסס על ההתחברות לסופר-אדמין
+const saToken = localStorage.getItem('ofl_sa_token') || localStorage.getItem('saToken');
 
-let SECTIONS = []; // יאוכלס דינמית מהשרת
+// Fixed category skeleton - Guarantees UI stability even if DB is empty
+const BASE_CATEGORIES = [
+    { id: 'general', title: 'כללי (משימות חדשות)', icon: 'fa-inbox', color: '#f43f5e' },
+    { id: 'auth', title: 'אימות ומשתמשים', icon: 'fa-key', color: '#3b82f6' },
+    { id: 'onboard', title: 'אשף Onboarding', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
+    { id: 'family', title: 'סביבת משפחה', icon: 'fa-house', color: '#22c55e' },
+    { id: 'biz', title: 'סביבת עסק', icon: 'fa-briefcase', color: '#f59e0b' },
+    { id: 'store', title: 'חנות ו-Storefront', icon: 'fa-store', color: '#8b5cf6' },
+    { id: 'pos', title: 'קופה (POS)', icon: 'fa-cash-register', color: '#0ea5e9' },
+    { id: 'b2b', title: 'רכש ו-B2B', icon: 'fa-truck', color: '#06b6d4' },
+    { id: 'finance', title: 'פיננסים ותקציב', icon: 'fa-shekel-sign', color: '#10b981' },
+    { id: 'inventory', title: 'מלאי ומזווה', icon: 'fa-boxes-stacked', color: '#f97316' },
+    { id: 'ai', title: 'AI ופיצ\'רים חכמים', icon: 'fa-robot', color: '#a855f7' },
+    { id: 'calendar', title: 'יומן ותורים', icon: 'fa-calendar', color: '#0ea5e9' },
+    { id: 'shifts', title: 'משמרות עובדים', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
+    { id: 'tasks', title: 'משימות וניקוד', icon: 'fa-list-check', color: '#84cc16' },
+    { id: 'academy', title: 'אקדמיה ולמידה', icon: 'fa-graduation-cap', color: '#f59e0b' },
+    { id: 'community', title: 'קהילות ושת"פ', icon: 'fa-people-group', color: '#14b8a6' },
+    { id: 'notif', title: 'התראות ו-Inbox', icon: 'fa-bell', color: '#f97316' },
+    { id: 'sa', title: 'סופר אדמין', icon: 'fa-shield', color: '#64748b' },
+    { id: 'samktg', title: 'SA — שיווק', icon: 'fa-paper-plane', color: '#ec4899' },
+    { id: 'pwa', title: 'PWA ואבטחה', icon: 'fa-mobile', color: '#ec4899' },
+    { id: 'perm', title: 'מערכת הרשאות', icon: 'fa-user-shield', color: '#0ea5e9' }
+];
+
+let SECTIONS = BASE_CATEGORIES.map(cat => ({ ...cat, tests: [] }));
 let state = {};
-let versions = [];
 let currentView = 'dashboard';
 let currentFilter = null;
+let qaRunNotes = '';
+
+let almVersions = [];
+let almDevTasks = [];
 
 // ============================================================
-// SERVER INTEGRATION
-// ============================================================
-async function displayUnauthorizedMessage(message) {
-    const grid = document.getElementById('matrix-grid');
-    if (grid) {
-        grid.innerHTML = `
-            <div style="grid-column: 1/-1; background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-w-xl mx-auto mt-10">
-                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
-                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
-                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;">בצע בדיקה מחודשת</button>
-            </div>
-        `;
-    }
-}
-
-async function loadTestsFromServer() {
-    if (!saToken) {
-        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה למערכת הניהול הראשית (sa.html) ולאחר מכן לרענן עמוד זה.');
-        return;
-    }
-    
-    try {
-        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
-        
-        if (res.status === 401 || res.status === 403) {
-            displayUnauthorizedMessage('פג תוקף החיבור המאובטח (השרת אותחל). אנא כנס למסך הניהול (sa.html), בצע התנתקות והתחברות מחדש, ואז רענן דף זה.');
-            return;
-        }
-
-        const data = await res.json();
-        
-        if (data.success) {
-            const catMap = {
-                'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
-                'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
-                'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
-                'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
-                'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
-                'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
-                'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
-                'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
-                'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
-                'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
-                'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
-                'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
-                'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
-                'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
-                'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
-                'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
-                'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
-                'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
-                'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
-                'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
-                'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
-                'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
-                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
-            };
-
-            const grouped = {};
-            data.tests.forEach(t => {
-                const catName = t.category || 'כללי';
-                const meta = catMap[catName] || { id: 'general', icon: 'fa-inbox', color: '#f43f5e' };
-                
-                if (!grouped[catName]) {
-                    grouped[catName] = { id: meta.id, icon: meta.icon, color: meta.color, title: catName, tests: [] };
-                }
-                grouped[catName].tests.push({
-                    id: t.id,
-                    name: t.name,
-                    desc: t.description,
-                    prio: t.priority,
-                    envs: ['all'] 
-                });
-            });
-            
-            SECTIONS = Object.values(grouped);
-            
-            updateStats();
-            renderTests(null);
-        } else {
-            displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
-        }
-    } catch(e) {
-        console.error('Error loading tests:', e);
-        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
-    }
-}
-
-// פונקציה חד פעמית לייבוא הנתונים הסטטיים הישנים לשרת (Bulk Import)
-window.seedDatabase = async function(legacyData) {
-    if(!confirm('האם לייבא את כל הבדיקות למסד הנתונים?')) return;
-    try {
-        let allTestsToSeed = [];
-        legacyData.forEach(sec => {
-            if (sec.tests) {
-                sec.tests.forEach(t => {
-                    allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
-                });
-            }
-        });
-        
-        const res = await fetch(`${API}/sa/qa/tests/bulk`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ tests: allTestsToSeed })
-        });
-        
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            const data = await res.json();
-            if(data.success) {
-                showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
-                loadTestsFromServer();
-            } else {
-                console.error('Server error:', data.error);
-                showToast('השרת החזיר שגיאה: ' + data.error);
-            }
-        } else {
-            const text = await res.text();
-            console.error('Server returned plain text:', text);
-            showToast('שגיאה לא צפויה בשרת (ראה קונסול)');
-        }
-    } catch(e) { 
-        console.error('Network Error:', e);
-        showToast('שגיאת תקשורת בייבוא נתונים'); 
-    }
-};
-
-  const GUIDE_BOOK = {
-
-// ── AUTH ──────────────────────────────────────────────────────────────
-'AUTH-01':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר/אפליקציה','לחץ "הרשמה"','בחר סוג "משפחה"','מלא שם, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה ייחודי מוצג, ניתוב לאשף Onboarding'},
-'AUTH-02':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר','לחץ "הרשמה"','בחר סוג "עסק"','מלא שם עסק, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה עסקי נוצר, ניתוב לאשף onboarding עסקי'},
-'AUTH-03':{path:'דף הבית ← "כניסה"',steps:['לחץ "כניסה"','הזן מייל וסיסמה של מנהל','לחץ "כנס"'],expected:'דשבורד ראשי נטען, שם קבוצה ולוגו מוצגים, תפריט מנהל מלא גלוי'},
-'AUTH-04':{path:'דף הבית ← "כניסה" ← כניסה כחבר',steps:['לחץ "כניסה"','הזן קוד קבוצה','הזן שם משתמש וסיסמה','לחץ "כנס"'],expected:'דשבורד עם רק הלשוניות שהוקצו לחבר'},
-'AUTH-05':{path:'דף הבית ← "כניסה" ← "שכחת סיסמה"',steps:['לחץ "שכחת סיסמה"','הזן כתובת מייל רשומה','לחץ "שלח"','פתח מייל שהתקבל','לחץ קישור, הגדר סיסמה חדשה'],expected:'מייל מתקבל תוך שניות, קישור תקין, כניסה עם סיסמה חדשה מצליחה'},
-'AUTH-06':{path:'דף הבית ← "הצטרף לקבוצה"',steps:['לחץ "הצטרף לקבוצה"','הזן קוד קבוצה תקין','מלא שם, מייל, סיסמה','לחץ "הצטרף"'],expected:'חשבון נוצר, מופיע ברשימת ממתינים אצל המנהל'},
-'AUTH-07':{path:'ממשק מנהל ← "חברים/עובדים" ← "ממתינים לאישור"',steps:['כנס כמנהל','עבור ל"חברים" / "עובדים"','מצא רשימת "ממתינים"','לחץ "אשר" ליד החבר'],expected:'חבר עובר מ-pending לactive, יכול להתחבר'},
-'AUTH-08':{path:'פרופיל אישי ← "שנה סיסמה"',steps:['לחץ על שמך/תמונה','בחר "פרופיל"','לחץ "שנה סיסמה"','הזן סיסמה ישנה','הזן סיסמה חדשה פעמיים','לחץ "שמור"'],expected:'אישור שינוי מוצג, בכניסה הבאה הסיסמה החדשה נדרשת'},
-'AUTH-09':{path:'ממשק מנהל ← "עובדים/חברים" ← "ערוך הרשאות"',steps:['כנס כמנהל','לך לניהול עובדים/חברים','לחץ "הרשאות" ליד עובד','בחר אילו לשוניות גלויות לו','שמור'],expected:'לאחר כניסה מחדש של העובד — רואה רק הלשוניות שנבחרו'},
-'AUTH-10':{path:'ממשק מנהל ← "עובדים/חברים" ← "מחק"',steps:['כנס כמנהל','לך לניהול עובדים/חברים','לחץ "מחק" ליד המשתמש','אשר הפעולה'],expected:'משתמש נמחק, לא מופיע ברשימה, לא יכול להתחבר'},
-'AUTH-11':{path:'הגדרות קבוצה ← "לוגו"',steps:['כנס כמנהל','פתח הגדרות קבוצה','לחץ על אזור הלוגו','בחר קובץ תמונה','לחץ "שמור"'],expected:'לוגו מוצג בפינת הממשק ובדשבורד'},
-'AUTH-12':{path:'כל עמוד ← כפתור "התנתק"',steps:['לחץ על שמך/לוגו בפינה','בחר "התנתק"'],expected:'session נמחק, ניתוב למסך כניסה, גישה לממשק מחייבת כניסה מחדש'},
-'AUTH-13':{path:'ממשק מנהל ← "עובדים" ← "שלח הזמנה"',steps:['לחץ "הזמן עובד"','בחר תפקיד (MANAGER/MEMBER/SENIOR)','העתק קישור הזמנה','שלח לעובד','עובד לוחץ ונרשם'],expected:'עובד מצטרף עם תפקיד שהוגדר בקישור — אוטומטית'},
-'AUTH-14':{path:'שני דפדפנים / מכשירים',steps:['כנס עם משתמש A בדפדפן 1','פתח incognito','נסה להתחבר עם אותו משתמש A'],expected:'Session קיים מנותק, אין שני sessions בו-זמנית'},
-'AUTH-15':{path:'כל עמוד — בדיקת timeout',steps:['כנס למערכת','השאר פתוח ללא פעילות מעל לפרק הזמן המוגדר','נסה לבצע פעולה'],expected:'ניתוב למסך כניסה עם הודעה "פג תוקף החיבור"'},
-
-// ── ONBD ─────────────────────────────────────────────────────────────
-'ONBD-01':{path:'לאחר הרשמה ← כניסה ראשונה',steps:['הרשם / צור קבוצה חדשה','כנס עם המייל והסיסמה'],expected:'אשף Onboarding נפתח אוטומטית לפני הדשבורד'},
-'ONBD-02':{path:'אשף Onboarding ← שלב 1',steps:['אשף פתוח','מלא שם קבוצה','לחץ "בחר לוגו" ← בחר תמונה','לחץ "המשך"'],expected:'שם ולוגו נשמרים, מעבר לשלב הבא'},
-'ONBD-03':{path:'אשף ← שלב 2 (סוג: משפחה)',steps:['בשלב 2 — בחר קטגוריות תקציב','הגדר סכום לכל קטגוריה','לחץ "המשך"'],expected:'קטגוריות ותקציב נשמרות, מעבר לשלב הבא'},
-'ONBD-04':{path:'אשף ← שלב 2 (סוג: עסק)',steps:['בשלב 2 — הזן שם חנות','בחר קטגוריית עסק','לחץ "המשך"'],expected:'פרטי חנות נשמרים, storefront נוצר'},
-'ONBD-05':{path:'אשף ← שלב 3',steps:['ראה קוד קבוצה','לחץ "העתק קישור הזמנה"','שלח לחברים/עובדים'],expected:'קישור הצטרפות תקין, חברים יכולים להשתמש בו'},
-'ONBD-06':{path:'אשף ← כפתור "דלג"',steps:['בכל שלב של האשף','לחץ "דלג" / "אחר כך"'],expected:'עובר לשלב הבא, ניתן להשלים מאוחר יותר מהגדרות'},
-'ONBD-07':{path:'אשף ← שלב אחרון ← "סיים"',steps:['השלם / דלג על שלבי האשף','לחץ "סיים" / "כנס למערכת"'],expected:'ניתוב לדשבורד הראשי עם כל הנתונים שמולאו'},
-'ONBD-08':{path:'פרופיל ← "הגדרות" ← "הפעל אשף מחדש"',steps:['כנס כמנהל','פתח פרופיל / הגדרות','מצא "אפס אשף" / "הפעל אשף מחדש"','אשר'],expected:'אשף Onboarding נפתח מחדש משלב 1'},
-
-// ── FAM ──────────────────────────────────────────────────────────────
-'FAM-01':{path:'ממשק משפחה ← "בית" / Feed',steps:['כנס כחבר/הורה','לחץ לשונית "בית"'],expected:'פיד נטען עם עדכונים, קיצורי דרך, ותובנת AI'},
-'FAM-02':{path:'ממשק משפחה ← "בית" ← כרטיסי קיצור',steps:['כנס לפיד הבית','לחץ על כרטיס קיצור (לדוג\' "הוסף לקניות")'],expected:'ניתוב לפעולה הרלוונטית'},
-'FAM-03':{path:'ממשק משפחה ← "קניות" ← "+ הוסף"',steps:['כנס ל"קניות"','לחץ "+ הוסף פריט"','הזן שם, כמות, יחידה','לחץ "שמור"'],expected:'פריט מופיע ברשימה, גלוי לכל חברי הקבוצה'},
-'FAM-04':{path:'ממשק משפחה ← "קניות" ← לחץ פריט',steps:['כנס לרשימת קניות','לחץ על פריט קיים','שנה שם/כמות/מחיר','לחץ "שמור"'],expected:'פריט מתעדכן, השינוי גלוי לכולם'},
-'FAM-05':{path:'ממשק משפחה ← "קניות" ← "מחק"',steps:['כנס לרשימת קניות','לחץ X ליד פריט ← אשר','לחיצה "נקה הכל" ← אשר'],expected:'מחיקה בודדת: פריט נמחק. ניקוי הכל: רשימה ריקה'},
-'FAM-06':{path:'ממשק משפחה ← "קניות" ← "סיים קנייה"',steps:['כנס לרשימת קניות','לחץ "סיים קנייה"','הזן שם חנות','הזן מחירים לפריטים','לחץ "אשר"'],expected:'קנייה בהיסטוריה, פריטים עוברים למזווה, תנועה נוספת לcash flow'},
-'FAM-07':{path:'ממשק משפחה ← "קניות" ← "סרוק קבלה"',steps:['לחץ "סרוק קבלה"','צלם / העלה תמונת קבלה','המתן לניתוח AI'],expected:'פריטים מהקבלה מוצגים להוספה, שמות ומחירים חולצו נכון'},
-'FAM-08':{path:'ממשק משפחה ← "מזווה" ← "+ הוסף"',steps:['כנס ל"מזווה"','לחץ "+ הוסף פריט"','הזן שם, כמות, יחידה, תאריך תפוגה','לחץ "שמור"'],expected:'פריט מופיע במזווה עם הכמות שהוזנה'},
-'FAM-09':{path:'ממשק משפחה ← "מזווה" ← "השתמש"',steps:['כנס למזווה','לחץ "השתמש" / הפחת כמות','הזן כמות לשימוש','אשר'],expected:'כמות פוחתת, פריט שמגיע ל-0 מסומן כנגמר'},
-'FAM-10':{path:'ממשק משפחה ← "מזווה" ← "תובנת AI"',steps:['כנס למזווה עם פריטים','לחץ "AI insight" / "ניתוח"'],expected:'AI מציג המלצות קנייה ופריטים שנגמרים'},
-'FAM-11':{path:'ממשק משפחה ← "תקציב" ← "ערוך"',steps:['כנס ל"תקציב"','לחץ "ערוך קטגוריות"','הגדר סכום לכל קטגוריה','לחץ "שמור"'],expected:'תקציב עודכן, גרף השוואה מוצג'},
-'FAM-12':{path:'ממשק משפחה ← "תקציב"',steps:['כנס ל"תקציב"','בדוק עמודות: "מתוכנן" מול "בפועל"'],expected:'כל קטגוריה: סכום מתוכנן, בפועל, % ניצול, סרגל'},
-'FAM-13':{path:'ממשק משפחה ← "כספים" ← "+ תנועה"',steps:['כנס ל"כספים" / Cash Flow','לחץ "+ תנועה חדשה"','בחר הכנסה/הוצאה','הזן סכום, קטגוריה, תיאור, תאריך','לחץ "שמור"'],expected:'תנועה ברשימה, יתרה מתעדכנת'},
-'FAM-14':{path:'ממשק משפחה ← "כספים" ← לחץ תנועה',steps:['לחץ על תנועה קיימת','ערוך פרטים ← שמור','לחלופין: לחץ "מחק" ← אשר'],expected:'עריכה: תנועה מתעדכנת. מחיקה: יתרה מחושבת מחדש'},
-'FAM-15':{path:'ממשק משפחה ← "כספים" ← "+ תנועה" ← "חוזרת"',steps:['הוסף תנועה','סמן "תנועה חוזרת"','בחר תדירות (יומי/שבועי/חודשי)','הגדר תאריכי התחלה וסיום','שמור'],expected:'תנועה חוזרת נוצרת אוטומטית לפי תדירות'},
-'FAM-16':{path:'ממשק משפחה ← "כספים" ← "תחזית AI"',steps:['כנס ל"כספים"','לחץ "תחזית AI"'],expected:'AI מציג מגמות ותחזית חודש הבא על בסיס היסטוריה'},
-'FAM-17':{path:'ממשק ילד ← "הלוואות" ← "בקש"',steps:['כנס כילד','כנס ל"הלוואות"','לחץ "בקש הלוואה"','הזן סכום וסיבה','לחץ "שלח"'],expected:'בקשה מופיעה אצל הורה ב-"ממתין לאישור"'},
-'FAM-18':{path:'ממשק הורה ← "הלוואות" ← "ממתינות"',steps:['כנס כהורה','כנס ל"הלוואות"','מצא בקשות ממתינות','לחץ "אשר" / "דחה"'],expected:'אישור: סכום עובר לחשבון ילד. דחייה: בקשה נסגרת'},
-'FAM-19':{path:'ממשק משפחה ← "מטרות" ← "צור"',steps:['כנס ל"מטרות"','לחץ "+ מטרה חדשה"','הזן שם, סכום יעד, תאריך','לחץ "שמור"'],expected:'מטרה חדשה עם סרגל התקדמות ריק'},
-'FAM-20':{path:'ממשק משפחה ← "מטרות" ← "הפקד"',steps:['כנס ל"מטרות"','לחץ על מטרה קיימת','לחץ "הפקד"','הזן סכום','אשר'],expected:'סרגל מתקדם, סכום מנוכה מיתרה'},
-'FAM-21':{path:'ממשק הורה ← "משימות" ← "צור"',steps:['כנס כהורה','כנס ל"משימות"','לחץ "+ משימה"','הזן כותרת, בחר מבצע, מועד, ניקוד','לחץ "שמור"'],expected:'משימה ב-"פתוחות", ילד רואה אותה בממשקו'},
-'FAM-22':{path:'ממשק ילד ← "משימות" ← "בצעתי" ← העלה תמונה',steps:['ילד לוחץ "בצעתי"','מעלה תמונת הוכחה','AI בודק תמונה'],expected:'AI מאשר/דוחה, בקשה עוברת לאישור סופי הורה'},
-'FAM-23':{path:'ממשק הורה ← "אקדמיה" ← "הקצה"',steps:['כנס כהורה','כנס ל"אקדמיה"','לחץ "הקצה חבילה"','בחר ילד וחבילה','אשר'],expected:'ילד רואה חבילה ויכול לענות עליה'},
-'FAM-24':{path:'ממשק ילד ← "אקדמיה" ← בחר חבילה',steps:['כנס כילד','כנס ל"אקדמיה"','בחר חבילה מוקצית','לחץ שאלה','בחר תשובה','אשר'],expected:'תשובה נשמרת, ניקוד מתעדכן, שאלה מסומנת כנענתה'},
-'FAM-25':{path:'ממשק משפחה ← "שף AI"',steps:['כנס לשף AI','הזן מרכיבים','ציין העדפות','לחץ "צור מתכון"'],expected:'מתכון שלם עם מרכיבים, הוראות, זמן הכנה'},
-'FAM-26':{path:'ממשק הורה ← "חברים" ← "הוסף" / ערוך',steps:['כנס כהורה','כנס ל"חברים"','לחץ "הוסף" ← מלא פרטים ← שמור','לחלופין: ערוך חבר קיים'],expected:'חבר נוסף/מעודכן, שינויים גלויים מיידית'},
-'FAM-27':{path:'ממשק חבר ← דשבורד ← "יתרה"',steps:['כנס כחבר/ילד','בדוק הצגת יתרה אישית בדשבורד'],expected:'מוצגת יתרה שלו בלבד, לא יתרות חברים אחרים'},
-'FAM-28':{path:'ממשק משפחה ← "הודעות" / Inbox',steps:['כנס לאינבוקס','בחר הודעה','לחץ "סמן כנקרא"'],expected:'הודעה מסומנת כנקראה, מונה הודעות פוחת'},
-'FAM-29':{path:'כל ממשק ← לחץ שמך ← "פרופיל"',steps:['לחץ שם/תמונה','פתח "פרופיל"','ערוך שם / תמונה / סיסמה','לחץ "שמור"'],expected:'פרטים מתעדכנים, תמונה מוצגת בפינה'},
-'FAM-30':{path:'ממשק משפחה ← "בית" ← תובנת AI',steps:['כנס לפיד הבית','מצא כרטיס "תובנת AI"'],expected:'תובנה רלוונטית מוצגת (לדוג\' "הוצאות השבוע גבוהות ב-20%")'},
-
-
-// ── BIZ ──────────────────────────────────────────────────────────────
-'BIZ-01':{path:'ממשק עסק ← "בית" / Feed עסקי',steps:['כנס כמנהל עסק','לחץ לשונית "בית"'],expected:'KPIs מוצגים (הכנסות, הזמנות, לקוחות), פעולות מהירות גלויות'},
-'BIZ-02':{path:'ממשק עסק ← "שעון" ← "כניסה לעבודה"',steps:['כנס כעובד/מנהל','לחץ לשונית "שעון"','לחץ "כניסה לעבודה"'],expected:'שעת כניסה נרשמת, כפתור עובר ל"יציאה מעבודה"'},
-'BIZ-03':{path:'ממשק עסק ← "שעון" ← "יציאה מעבודה"',steps:['לאחר כניסה לעבודה','לחץ "יציאה מעבודה"'],expected:'שעת יציאה נרשמת, שעות עבודה מחושבות'},
-'BIZ-04':{path:'ממשק מנהל ← "שעון" ← "דוח נוכחות"',steps:['כנס כמנהל','כנס ל"שעון"','לחץ "דוח נוכחות"','בחר טווח תאריכים'],expected:'טבלה עם שעות כל עובד, ניתן לסנן לפי תאריך ועובד'},
-'BIZ-05':{path:'ממשק מנהל ← "שעון" ← "רישום ידני"',steps:['כנס כמנהל','כנס ל"שעון"','לחץ "הוסף ידנית"','בחר עובד, תאריך, שעת כניסה/יציאה','שמור'],expected:'רשומת נוכחות נוצרת ידנית ומופיעה בדוח'},
-'BIZ-06':{path:'ממשק עסק ← "קלנדר" ← "הגדרות שירות"',steps:['כנס ל"קלנדר"','לחץ "ניהול שירותים"','לחץ "+ שירות"','הזן שם, משך, מחיר','הגדר זמינות (ימים/שעות)','שמור'],expected:'שירות מופיע ברשימה ובחנות הציבורית'},
-'BIZ-07':{path:'ממשק עסק ← "קלנדר" ← "+ תור"',steps:['כנס ל"קלנדר"','לחץ "+ תור חדש"','בחר לקוח, שירות, תאריך ושעה','שמור'],expected:'תור מופיע ביומן בתאריך שנבחר'},
-'BIZ-08':{path:'ממשק עסק ← "קלנדר" ← "בקשות ממתינות"',steps:['לקוח שלח בקשת תור מהחנות','כנס כמנהל ל"קלנדר"','מצא בקשה ממתינת','לחץ "אשר" / "בטל"'],expected:'אישור: תור מאושר, לקוח מקבל הודעה. ביטול: תור נדחה'},
-'BIZ-09':{path:'Storefront ← "קבע תור"',steps:['פתח את החנות הציבורית','לחץ "קבע תור"','בחר שירות','בחר תאריך ושעה פנויים','הזן פרטי לקוח','שלח'],expected:'תור נשמר, מנהל העסק רואה אותו בתור ממתין לאישור'},
-'BIZ-10':{path:'ממשק עסק ← "מכירות" / Analytics',steps:['כנס ל"מכירות" / "Analytics"','בדוק גרפים: הכנסות, מוצרים מובילים'],expected:'גרפים נטענים, ממוצע הזמנה ומוצרים מובילים מוצגים'},
-'BIZ-11':{path:'ממשק עסק ← "לקוחות" ← "+ הוסף"',steps:['כנס ל"לקוחות" / CRM','לחץ "+ לקוח חדש"','הזן שם, טלפון, מייל, הערות','שמור'],expected:'לקוח נוסף לרשימת CRM'},
-'BIZ-12':{path:'ממשק עסק ← "לקוחות" ← בחר לקוח',steps:['כנס ל"לקוחות"','לחץ על לקוח קיים','עבור ל"היסטוריית רכישות"'],expected:'כל הזמנות הלקוח מוצגות בסדר כרונולוגי'},
-'BIZ-13':{path:'ממשק עסק ← "הצעות מחיר" ← "+ יצור"',steps:['כנס ל"הצעות מחיר"','לחץ "+ הצעה חדשה"','בחר לקוח','הוסף פריטים מהקטלוג','שמור / שלח ללקוח'],expected:'הצעה נשמרת, ניתן לשלוח ללקוח'},
-'BIZ-14':{path:'ממשק עסק ← "הצעות מחיר" ← "אשר להזמנה"',steps:['כנס להצעות מחיר','לחץ על הצעה מאושרת','לחץ "המר להזמנה"'],expected:'הצעה הופכת להזמנה פעילה, מופיעה ברשימת ההזמנות'},
-'BIZ-15':{path:'ממשק עסק ← "משלוחים" ← "+ הוסף"',steps:['כנס ל"משלוחים"','לחץ "+ משלוח חדש"','בחר לקוח, הזן כתובת, בחר פריטים','לחץ "שמור"'],expected:'משלוח נוצר עם סטטוס "ממתין"'},
-'BIZ-16':{path:'ממשק עסק ← "משלוחים" ← עדכן סטטוס',steps:['כנס ל"משלוחים"','לחץ על משלוח','שנה סטטוס: ממתין ← יצא ← נמסר','שמור'],expected:'סטטוס מתעדכן, לקוח מקבל הודעה אם הוגדר'},
-'BIZ-17':{path:'ממשק עסק ← "קטלוג" ← מוצר ← "עלויות"',steps:['כנס לקטלוג','בחר מוצר מזון','לחץ "הגדר עלות"','הוסף מרכיבים וכמויות','שמור'],expected:'עלות המנה מחושבת ומוצגת מול מחיר מכירה'},
-'BIZ-18':{path:'ממשק מנהל ← "עובדים" ← "+ הוסף"',steps:['כנס כמנהל','כנס ל"עובדים"','לחץ "+ עובד חדש"','הזן שם, תפקיד, הרשאות','שמור / שלח הזמנה'],expected:'עובד נוסף לרשימה, מקבל הזמנה להצטרפות'},
-'BIZ-19':{path:'ממשק מנהל ← "עובדים" ← ערוך/מחק',steps:['כנס ל"עובדים"','לחץ "ערוך" ← שנה תפקיד/הרשאות ← שמור','לחלופין "מחק" ← אשר'],expected:'עריכה: שינויים נשמרים. מחיקה: עובד הוסר'},
-'BIZ-20':{path:'ממשק עסק ← "צ\'אט" / הודעות צוות',steps:['כנס ל"צ\'אט צוות"','כתוב הודעה','לחץ "שלח"'],expected:'הודעה מופיעה בממשק כל חברי הצוות'},
-'BIZ-21':{path:'ממשק עסק ← "Inbox" / תיבת דואר',steps:['כנס ל-Inbox','בחר הודעה ← קרא','לחץ "סמן כנקרא" / מחק'],expected:'הודעה מסומנת/נמחקת, מונה עדכני'},
-'BIZ-22':{path:'ממשק מנהל ← "משכורות" ← "עבד יום משכורת"',steps:['כנס כמנהל','כנס ל"משכורות"','לחץ "עבד יום משכורת"','אשר'],expected:'יתרות עובדים מתעדכנות לפי שעות ושכר'},
-'BIZ-23':{path:'ממשק עסק ← "מלאי/מזווה" ← "+ הוסף"',steps:['כנס ל"מלאי"','לחץ "+ הוסף פריט"','הזן שם, כמות, יחידה, תאריך תפוגה','שמור'],expected:'פריט מופיע במלאי העסקי'},
-'BIZ-24':{path:'ממשק עסק ← "מלאי" ← "השתמש"',steps:['כנס ל"מלאי"','לחץ "השתמש" על פריט','הזן כמות','אשר'],expected:'כמות יורדת, אזהרת "מלאי נמוך" אם מתחת לסף'},
-'BIZ-25':{path:'ממשק עסק ← "BizChat" / "עוזר עסקי"',steps:['כנס ל-BizChat','הזן שאלה עסקית (לדוג\' "איך להגדיל מכירות?")'],expected:'AI מחזיר תשובה עסקית רלוונטית בעברית'},
-'BIZ-26':{path:'ממשק עסק ← "מכירות" ← "סינון לפי תקופה"',steps:['כנס ל"מכירות" / Analytics','בחר טווח תאריכים (חודש/רבעון)','לחץ "רענן"'],expected:'גרפים ונתונים מתעדכנים לתקופה שנבחרה'},
-'BIZ-27':{path:'ממשק עסק ← "כספים" ← "+ תנועה"',steps:['כנס ל"כספים"','לחץ "+ תנועה עסקית"','בחר הכנסה/הוצאה, קטגוריה, תאריך, סכום','שמור'],expected:'תנועה מופיעה, יתרה עסקית מתעדכנת'},
-'BIZ-28':{path:'ממשק מנהל ← "הגדרות קבוצה"',steps:['כנס כמנהל','פתח "הגדרות"','ערוך שם עסק, כתובת, טלפון','שמור'],expected:'פרטי עסק מתעדכנים, מוצגים נכון בחנות ובממשק'},
-'BIZ-29':{path:'ממשק עסק ← "בית" ← KPIs',steps:['כנס לדשבורד עסקי','בדוק לוח מחוונים'],expected:'הכנסות חודשיות עדכניות, מספר הזמנות ולקוחות חדשים מוצגים'},
-'BIZ-30':{path:'ממשק עסק ← "שעון" ← "מנוחות"',steps:['כנס ל"שעון"','לחץ "הגדר מנוחה"','הזן שעת התחלה וסיום','שמור'],expected:'מנוחה נרשמת ומנוכה מחישוב שעות עבודה'},
-
-// ── STR ──────────────────────────────────────────────────────────────
-'STR-01':{path:'ממשק עסק ← "הגדרות חנות" ← toggle פעיל',steps:['כנס כמנהל','כנס ל"הגדרות חנות"','הפעל/כבה toggle "פתוח"'],expected:'storefront נפתח/נסגר למבקרים חיצוניים'},
-'STR-02':{path:'ממשק עסק ← "הגדרות חנות" ← פרטים',steps:['כנס להגדרות חנות','ערוך שם, העלה לוגו, העלה באנר','שמור'],expected:'שינויים מוצגים מיידית ב-storefront'},
-'STR-03':{path:'ממשק עסק ← "הגדרות חנות" ← "שעות פתיחה"',steps:['כנס להגדרות','הגדר שעות פתיחה לכל יום','שמור'],expected:'שעות מוצגות בדף החנות הציבורית'},
-'STR-04':{path:'ממשק עסק ← "הגדרות חנות" ← "כינוי URL"',steps:['כנס להגדרות','הגדר alias ייחודי','שמור','נסה לגשת דרך /?store=ALIAS'],expected:'החנות נגישה דרך ה-alias שהוגדר'},
-'STR-05':{path:'ממשק עסק ← "קטלוג" ← "+ מוצר"',steps:['כנס ל"קטלוג"','לחץ "+ מוצר חדש"','הזן שם, מחיר, קטגוריה','העלה תמונה','שמור'],expected:'מוצר מופיע בקטלוג ובחנות הציבורית'},
-'STR-06':{path:'ממשק עסק ← "קטלוג" ← לחץ מוצר ← "ערוך"',steps:['כנס לקטלוג','לחץ על מוצר','לחץ "ערוך"','שנה שם/מחיר/תיאור/תמונה','שמור'],expected:'מוצר מתעדכן בקטלוג ובחנות'},
-'STR-07':{path:'ממשק עסק ← "קטלוג" ← toggle זמינות',steps:['כנס לקטלוג','לחץ toggle "זמין" על מוצר'],expected:'מוצר נעלם מהחנות הציבורית, נשאר בקטלוג הפנימי'},
-'STR-08':{path:'ממשק עסק ← "קטלוג" ← "מחק"',steps:['כנס לקטלוג','לחץ "מחק" ליד מוצר','אשר'],expected:'מוצר הוסר מהקטלוג ומהחנות'},
-'STR-09':{path:'ממשק עסק ← "קטלוג" ← "+ מוצר" ← סוג complex_builder',steps:['הוסף מוצר','בחר סוג "complex_builder"','הגדר אפשרויות (טעמים, גדלים וכו\')','שמור'],expected:'מוצר עם אפשרויות מופיע, ב-POS ניתן לבחור variant'},
-'STR-10':{path:'ממשק עסק ← "קטלוג" ← עריכת מוצר ← "AI תיאור"',steps:['פתח עריכת מוצר','לחץ "צור תיאור AI"','הזן שם המוצר'],expected:'AI מחזיר תיאור שיווקי בעברית'},
-'STR-11':{path:'ממשק עסק ← "קטלוג" ← "AI קטלוג שלם"',steps:['כנס לקטלוג','לחץ "צור קטלוג עם AI"','הזן תיאור העסק','אשר'],expected:'AI יוצר 6-10 מוצרים עם שמות, מחירים ותיאורים'},
-'STR-12':{path:'ספר מוצרים ← catalog.html',steps:['פתח catalog.html','בדוק טעינת מוצרים','חפש מוצר בשדה חיפוש','סנן לפי קטגוריה','לחץ "ייצא PDF"'],expected:'מוצרים נטענים, חיפוש וסינון עובדים, PDF נוצר'},
-'STR-13':{path:'דפדפן ← ?store=CODE',steps:['העתק קוד הקבוצה','פתח URL: /storefront?store=CODE'],expected:'החנות הציבורית נטענת עם מוצרים זמינים בלבד'},
-'STR-14':{path:'דפדפן ← ?store=ALIAS',steps:['פתח URL: /storefront?store=ALIAS'],expected:'אותה תוצאה כמו גישה דרך קוד'},
-'STR-15':{path:'Storefront ← בחר מוצר ← "+ לסל"',steps:['פתח storefront','לחץ על מוצר','לחץ "הוסף לסל"','שנה כמות'],expected:'מוצר בסל, כמות וסכום כולל מתעדכנים'},
-'STR-16':{path:'Storefront ← מוצר עם variants',steps:['פתח storefront','בחר מוצר עם אפשרויות','בחר variant (גודל/טעם)','הוסף לסל'],expected:'variant הנבחר מופיע בסל עם המחיר הנכון'},
-'STR-17':{path:'Storefront ← "לתשלום"',steps:['מלא את הסל','לחץ "לתשלום"','הזן שם, טלפון, כתובת','לחץ "שלח הזמנה"'],expected:'הזמנה נשמרת, מנהל העסק רואה אותה ברשימה'},
-'STR-18':{path:'Storefront ← "לתשלום" ← "קוד קופון"',steps:['הגע לcashout','הזן קוד קופון','לחץ "החל"'],expected:'הנחה מוחלת על הסכום הכולל'},
-'STR-19':{path:'ממשק עסק ← "הזמנות" ← עדכן סטטוס',steps:['כנס ל"הזמנות"','לחץ על הזמנה','שנה סטטוס: ממתינה ← מאושרת ← הושלמה'],expected:'סטטוס מתעדכן, לקוח מקבל עדכון'},
-'STR-20':{path:'ממשק עסק ← "קופונים" ← "+ צור"',steps:['כנס ל"קופונים"','לחץ "+ קופון חדש"','הגדר קוד, סוג הנחה (% / סכום), תאריך תפוגה','שמור'],expected:'קופון פעיל, ניתן לשימוש ב-storefront'},
-'STR-21':{path:'Storefront ← הזנת קופון פג תוקף',steps:['נסה להשתמש בקופון שפג תוקפו'],expected:'הודעת שגיאה "הקופון פג תוקף", הנחה לא מוחלת'},
-'STR-22':{path:'ממשק עסק ← "מבצעים" ← "+ צור"',steps:['כנס ל"מבצעים"','לחץ "+ מבצע"','הזן שם, תמונה, טקסט','הפעל toggle','שמור'],expected:'מבצע מופיע ב-storefront כבאנר'},
-'STR-23':{path:'Storefront ← בדיקת באנר מבצע',steps:['כנס לממשק עסק','הפעל/כבה toggle מבצע','רענן את storefront'],expected:'באנר מבצע מוצג/נעלם בהתאם ל-toggle'},
-
-
-// ── POS ──────────────────────────────────────────────────────────────
-'POS-01':{path:'ממשק עסק ← "קופה" ← "פתח קופה"',steps:['כנס ל"קופה"','לחץ "פתח קופה"','הזן סכום מזומן פתיחה','אשר'],expected:'קופה פתוחה, ניתן לבצע עסקאות'},
-'POS-02':{path:'ממשק קופה ← שדה חיפוש',steps:['קופה פתוחה','הקלד שם מוצר בשדה החיפוש','לחץ על מוצר שנמצא'],expected:'מוצר מתווסף לסל'},
-'POS-03':{path:'ממשק קופה ← "סרוק ברקוד"',steps:['קופה פתוחה','לחץ "סרוק ברקוד"','כוון מצלמה לברקוד'],expected:'מוצר מזוהה ומתווסף לסל אוטומטית'},
-'POS-04':{path:'ממשק קופה ← סל ← עדכן כמות',steps:['מוצר בסל','לחץ + / - ליד המוצר'],expected:'כמות מתעדכנת, סכום כולל מחושב מחדש'},
-'POS-05':{path:'ממשק קופה ← סל ← "הסר"',steps:['מוצר בסל','לחץ X / "הסר" ליד המוצר'],expected:'מוצר הוסר, סה"כ מתעדכן'},
-'POS-06':{path:'ממשק קופה ← "תשלום" ← "מזומן"',steps:['סל מוכן','לחץ "תשלום"','בחר "מזומן"','הזן סכום שהתקבל','לחץ "סיים"'],expected:'עודף מחושב, עסקה נשמרת, קבלה מוצגת'},
-'POS-07':{path:'ממשק קופה ← "תשלום" ← "אשראי"',steps:['סל מוכן','לחץ "תשלום"','בחר "אשראי"','ניקוב / אישור','לחץ "סיים"'],expected:'עסקה נשמרת עם סוג תשלום "אשראי"'},
-'POS-08':{path:'ממשק קופה ← "תשלום" ← "מעורב"',steps:['סל מוכן','לחץ "תשלום"','הזן חלק במזומן, חלק באשראי','אשר'],expected:'עסקה נשמרת עם שני אמצעי תשלום'},
-'POS-09':{path:'ממשק קופה ← לאחר עסקה ← "הדפס קבלה"',steps:['סיים עסקה','לחץ "הדפס קבלה"'],expected:'חלון הדפסה נפתח עם קבלה מעוצבת ונכונה'},
-'POS-10':{path:'ממשק קופה ← לאחר עסקה ← "שלח SMS"',steps:['סיים עסקה','לחץ "שלח קבלה ב-SMS"','הזן מספר טלפון','לחץ "שלח"'],expected:'SMS עם פרטי הקבלה נשלח ללקוח'},
-'POS-11':{path:'ממשק קופה ← "תשלום" ← "קופון"',steps:['סל מוכן','לחץ "תשלום"','הזן קוד קופון','לחץ "החל"'],expected:'הנחת הקופון מופחתת מהסכום הכולל'},
-'POS-12':{path:'ממשק קופה ← פריט בסל ← "הנחה ידנית"',steps:['בחר פריט בסל','לחץ "הנחה ידנית"','הזן % או סכום','אשר (נדרש אישור מנהל אם הוגדר)'],expected:'הנחה מוחלת על הפריט'},
-'POS-13':{path:'ממשק קופה ← "החזר" / Refund',steps:['לחץ "החזר מוצר"','מצא עסקה','בחר פריטים להחזרה','אשר'],expected:'זיכוי נוצר, מלאי מתעדכן, דוח קופה מעודכן'},
-'POS-14':{path:'ממשק קופה ← "סגור קופה"',steps:['לחץ "סגור קופה"','ספור מזומן בקופה','הזן סכום','לחץ "אשר"'],expected:'קופה נסגרת, דוח יומי נשמר'},
-'POS-15':{path:'ממשק מנהל ← "קופה" ← "דוח יומי"',steps:['כנס ל"קופה"','לחץ "דוח יומי"'],expected:'סיכום: סה"כ מזומן, אשראי, מספר עסקאות, ניתן להדפסה'},
-
-// ── B2B ──────────────────────────────────────────────────────────────
-'B2B-01':{path:'ממשק עסק ← "ספקים" ← "+ הוסף"',steps:['כנס ל"ספקים"','לחץ "+ ספק חדש"','הזן שם, טלפון, מייל','שמור'],expected:'ספק מופיע ברשימה'},
-'B2B-02':{path:'ממשק עסק ← "ספקים" ← בחר ספק ← "קטלוג"',steps:['כנס לספק','לחץ "קטלוג ספק"','הוסף מוצר: שם, מחיר, SKU','שמור'],expected:'מוצר מופיע בקטלוג הספק, זמין להזמנת רכש'},
-'B2B-03':{path:'ממשק עסק ← "רכש" ← "+ הזמנה"',steps:['כנס ל"רכש"','לחץ "+ הזמנה חדשה"','בחר ספק','הוסף פריטים וכמויות','שמור'],expected:'הזמנת רכש נשמרת כטיוטה'},
-'B2B-04':{path:'ממשק עסק ← "רכש" ← "קבל הזמנה"',steps:['כנס להזמנה שנשלחה','לחץ "קבלת הזמנה"','אשר כמויות שהתקבלו'],expected:'הזמנה מסומנת "התקבלה", מלאי העסק מתעדכן'},
-'B2B-05':{path:'ממשק עסק ← "רכש" ← עדכן סטטוס',steps:['כנס להזמנת רכש','לחץ "עדכן סטטוס"','בחר: טיוטה → נשלחה → התקבלה'],expected:'סטטוס מתעדכן בהיסטוריה'},
-'B2B-06':{path:'ממשק עסק ← "רכש" ← "היסטוריה"',steps:['כנס ל"רכש"','לחץ "היסטוריית הזמנות"'],expected:'רשימת כל הזמנות הרכש עם תאריכים, סטטוס וסכומים'},
-'B2B-07':{path:'Storefront עסקי ← "B2B קטלוג"',steps:['פתח את הקטלוג העסקי (B2B)'],expected:'מוצרים לעסקים מוצגים עם מחירי סיטונאי'},
-'B2B-08':{path:'Storefront עסקי ← הזמנה מעסק',steps:['עסק B פותח קטלוג עסק A','בוחר מוצרים','שולח הזמנה'],expected:'הזמנה מגיעה לעסק A ברשימת ההזמנות'},
-'B2B-09':{path:'ממשק עסק ← "רכש" ← "ייבוא ממלאי חסר"',steps:['כנס ל"רכש"','לחץ "יצור מרשימת קנייה"'],expected:'הזמנת רכש מתמלאת אוטומטית מפריטים שמלאיים נמוכים'},
-'B2B-10':{path:'ממשק עסק ← "ספקים" ← ערוך/מחק',steps:['כנס לספקים','לחץ "ערוך" ← שנה פרטים ← שמור','לחלופין: "מחק" ← אשר'],expected:'ספק מעודכן / נמחק'},
-'B2B-11':{path:'ממשק עסק ← "רכש" ← הזמנה ← "ייצא PDF"',steps:['כנס להזמנת רכש','לחץ "ייצא PDF"'],expected:'מסמך PDF של הזמנת הרכש נפתח / מורד'},
-'B2B-12':{path:'Storefront ← הזמנה של עסק מקהילה',steps:['עסק בקהילה עם הנחה מוגדרת','עסק אחר מהקהילה מזמין ממנו'],expected:'הנחת קהילה מופחתת אוטומטית מהסכום'},
-
-// ── FIN ──────────────────────────────────────────────────────────────
-'FIN-01':{path:'ממשק ← "כספים" ← "+ הכנסה"',steps:['כנס ל"כספים"','לחץ "+ תנועה"','בחר "הכנסה"','הזן סכום, קטגוריה, תיאור, תאריך','שמור'],expected:'תנועה מופיעה, יתרה עולה'},
-'FIN-02':{path:'ממשק ← "כספים" ← "+ הוצאה"',steps:['כנס ל"כספים"','לחץ "+ תנועה"','בחר "הוצאה"','הזן סכום, קטגוריה, תיאור, תאריך','שמור'],expected:'תנועה מופיעה, יתרה יורדת'},
-'FIN-03':{path:'ממשק ← "כספים" ← לחץ תנועה ← "ערוך"',steps:['לחץ על תנועה קיימת','לחץ "ערוך"','שנה סכום/קטגוריה/תאריך','שמור'],expected:'תנועה מתעדכנת, יתרה מחושבת מחדש'},
-'FIN-04':{path:'ממשק ← "כספים" ← לחץ תנועה ← "מחק"',steps:['לחץ על תנועה','לחץ "מחק"','אשר'],expected:'תנועה נמחקת, יתרה מחושבת מחדש'},
-'FIN-05':{path:'ממשק ← "כספים" ← "+ תנועה" ← "חוזרת"',steps:['הוסף תנועה','סמן "חוזרת"','הגדר תדירות ותאריכי התחלה/סיום','שמור'],expected:'תנועה חוזרת נוצרת אוטומטית'},
-'FIN-06':{path:'ממשק ← "תקציב" ← "ערוך"',steps:['כנס ל"תקציב"','לחץ "ערוך"','הגדר סכום לקטגוריה','שמור'],expected:'תקציב הקטגוריה מתעדכן, גרף מציג שינוי'},
-'FIN-07':{path:'ממשק ← "תקציב" ← בדיקת חריגה',steps:['הוסף הוצאה שעוברת את תקציב הקטגוריה'],expected:'אזהרת חריגה מוצגת (הודעה / צבע אדום)'},
-'FIN-08':{path:'ממשק ← "כספים" ← "גרף חודשי"',steps:['כנס ל"כספים"','עבור ל"גרף"'],expected:'גרף הכנסות/הוצאות לפי חודש, יתרה מסוכמת'},
-'FIN-09':{path:'ממשק ← "כספים" ← "ייצא" / "הדפס"',steps:['כנס ל"כספים"','לחץ "ייצא PDF" / "הדפס"'],expected:'קובץ PDF של דוח Cash Flow נוצר'},
-'FIN-10':{path:'ממשק ← "כספים" ← "תחזית AI"',steps:['כנס ל"כספים"','לחץ "תחזית AI"'],expected:'AI מציג ניתוח מגמות ותחזית להוצאות עתידיות'},
-'FIN-11':{path:'ממשק מנהל ← "כספים" ← "התאמת מאזן"',steps:['כנס כמנהל','כנס ל"כספים"','לחץ "התאמה ידנית"','הזן סכום וסיבה','שמור'],expected:'התאמה מתועדת, יתרה מתעדכנת'},
-'FIN-12':{path:'ממשק מנהל ← "משכורות" ← "עבד יום משכורת"',steps:['כנס כמנהל','כנס ל"משכורות"','לחץ "עבד יום משכורת"','אשר'],expected:'יתרות כל חברי הקבוצה מתעדכנות'},
-
-// ── INV ──────────────────────────────────────────────────────────────
-'INV-01':{path:'ממשק ← "קניות/מלאי" ← "+ הוסף"',steps:['כנס ל"רשימת קניות"','לחץ "+ הוסף"','הזן שם, כמות, יחידה','שמור'],expected:'פריט מוסף לרשימת קניות'},
-'INV-02':{path:'ממשק ← "קניות" ← "ייבוא מהיסטוריה"',steps:['כנס לרשימת קניות','לחץ "ייבא מקנייה קודמת"','בחר קנייה מהיסטוריה'],expected:'פריטים מהקנייה הקודמת מוספים לרשימה'},
-'INV-03':{path:'ממשק ← "קניות" ← "סיים קנייה"',steps:['כנס לרשימת קניות','לחץ "סיים קנייה"','אשר פריטים שנקנו'],expected:'פריטים שסומנו כ"נקנה" עוברים למזווה/מלאי'},
-'INV-04':{path:'ממשק ← "מלאי" ← פריט ← "מחיר היסטורי"',steps:['כנס למלאי','לחץ על פריט','עבור ל"היסטוריית מחירים"'],expected:'הצגת הזול ביותר שנרשם לפריט זה'},
-'INV-05':{path:'ממשק ← "מלאי" ← "+ הוסף ידנית"',steps:['כנס למלאי','לחץ "+ הוסף ידנית"','הזן שם, כמות, יחידה, תאריך תפוגה','שמור'],expected:'פריט מוסף למלאי'},
-'INV-06':{path:'ממשק ← "מלאי" ← פריט ← "השתמש"',steps:['כנס למלאי','לחץ "השתמש" על פריט','הזן כמות','אשר'],expected:'כמות פוחתת, אזהרה אם מגיע לסף מינימום'},
-'INV-07':{path:'ממשק ← "מלאי" ← "תובנת AI"',steps:['כנס למלאי','לחץ "AI insight"'],expected:'ניתוח AI של המלאי, המלצות קנייה'},
-'INV-08':{path:'ממשק ← "קניות" ← "סרוק ברקוד"',steps:['לחץ "סרוק ברקוד"','כוון מצלמה לברקוד של מוצר'],expected:'מוצר מזוהה מהמאגר הגלובלי, שם מתמלא אוטומטית'},
-'INV-09':{path:'ממשק ← "קניות" ← "סרוק קבלה"',steps:['לחץ "סרוק קבלה"','העלה תמונת קבלה','המתן לניתוח AI'],expected:'פריטים ומחירים מהקבלה מחולצים ומוצגים'},
-'INV-10':{path:'ממשק ← "קניות" ← "היסטוריה"',steps:['כנס ל"היסטוריית קניות"'],expected:'רשימת כל הקניות: תאריך, חנות, פריטים, סכום כולל'},
-'INV-11':{path:'ממשק ← "מלאי" ← פריטים לפני תפוגה',steps:['כנס למלאי','חפש/בדוק התראות על פגי תוקף'],expected:'פריטים שתוקפם פג או עומד לפוג מוצגים בצבע אדום/צהוב'},
-'INV-12':{path:'ממשק עסק ← "מלאי" ← "ייצא"',steps:['כנס למלאי','לחץ "ייצא"','בחר CSV / PDF'],expected:'קובץ רשימת המלאי מורד'},
-
-
-// ── AI ───────────────────────────────────────────────────────────────
-'AI-01':{path:'ממשק ← "AI" / "familAI" ← "תובנות תקציב"',steps:['כנס לממשק','לחץ "familAI" / "AI insight"','בחר "תובנות תקציב"'],expected:'AI מחזיר ניתוח הוצאות חודשי, הגדרות חסכון'},
-'AI-02':{path:'ממשק ← "מלאי" / "מזווה" ← "AI insight"',steps:['כנס למלאי','לחץ "AI insight"'],expected:'AI מציין מה חסר במלאי והמלצות קנייה'},
-'AI-03':{path:'ממשק עסק ← "קטלוג" ← עריכת מוצר ← "AI תיאור"',steps:['פתח עריכת מוצר','לחץ "צור תיאור AI"','הזן שם המוצר'],expected:'AI מחזיר תיאור שיווקי בעברית'},
-'AI-04':{path:'ממשק עסק ← "קטלוג" ← "AI קטלוג שלם"',steps:['לחץ "צור קטלוג עם AI"','הזן תיאור עסק','אשר'],expected:'AI יוצר 6-10 מוצרים עם שמות, מחירים ותיאורים'},
-'AI-05':{path:'ממשק משפחה ← "שף AI"',steps:['כנס לשף AI','הזן מרכיבים והעדפות','לחץ "צור מתכון"'],expected:'מתכון מלא: מרכיבים, הוראות, זמן הכנה'},
-'AI-06':{path:'ממשק ← "משימות" ← "בצעתי" ← תמונה',steps:['ילד/עובד לוחץ "בצעתי"','מעלה תמונת הוכחה','AI מנתח'],expected:'AI מאשר/דוחה ביצוע בהתבסס על התמונה'},
-'AI-07':{path:'ממשק עסק ← "BizChat"',steps:['כנס ל-BizChat','הזן שאלה עסקית','לחץ "שלח"'],expected:'AI מחזיר תשובה עסקית רלוונטית בעברית'},
-'AI-08':{path:'ממשק משפחה ← "FamChat"',steps:['כנס ל-FamChat','הזן שאלה','לחץ "שלח"'],expected:'AI מחזיר תשובה מותאמת להקשר משפחתי'},
-'AI-09':{path:'כל ממשק ← "מדריך" / Help',steps:['לחץ על כפתור "עזרה" / "מדריך"','הזן שאלה על המערכת'],expected:'AI מסביר כיצד להשתמש בפיצ\'ר הנדרש'},
-'AI-10':{path:'כל ממשק AI ← בדיקת token limit',steps:['שלח שאלה ארוכה / פגע ב-token limit','המתן לתגובה'],expected:'הודעת שגיאה ברורה, לא תגובה ריקה'},
-'AI-11':{path:'ממשק עסק ← "תמונות" / "יצירת תמונה"',steps:['כנס ליצירת תמונה AI','הזן תיאור','לחץ "צור"'],expected:'תמונה נוצרת ומוצגת, ניתן לשמור'},
-'AI-12':{path:'ממשק ← "משימות" ← "AI משימות"',steps:['כנס ל"משימות"','לחץ "צור משימות עם AI"','הזן הקשר (פרויקט/מטרה)'],expected:'AI מחזיר רשימת משימות מוצעות'},
-'AI-13':{path:'ממשק משפחה ← "מטרות" ← "ייעוץ AI"',steps:['כנס למטרת חיסכון','לחץ "ייעוץ AI"'],expected:'AI מחזיר עצות חיסכון מותאמות'},
-'AI-14':{path:'כל ממשק AI ← בדיקת streaming',steps:['שלח שאלה לכל chatbot','בדוק כיצד מגיעה התגובה'],expected:'טקסט מופיע אות אחר אות (streaming), לא בבת אחת'},
-'AI-15':{path:'כל ממשק AI ← זיכרון session',steps:['שלח שאלה','שלח שאלת המשך שמתייחסת לתשובה הראשונה'],expected:'AI זוכר הקשר מהודעות קודמות בתוך אותה שיחה'},
-
-// ── CAL ──────────────────────────────────────────────────────────────
-'CAL-01':{path:'ממשק עסק ← "קלנדר" ← "הגדרות" ← toggle',steps:['כנס ל"קלנדר"','לחץ "הגדרות"','הפעל toggle "קלנדר פעיל"'],expected:'כפתור "קבע תור" מופיע ב-storefront'},
-'CAL-02':{path:'ממשק עסק ← "קלנדר" ← "שירותים" ← "+ הוסף"',steps:['כנס ל"שירותים"','לחץ "+ שירות"','הזן שם, משך, מחיר','שמור'],expected:'שירות ברשימה ובחנות הציבורית'},
-'CAL-03':{path:'ממשק עסק ← "קלנדר" ← שירות ← "ערוך"',steps:['כנס לשירות','לחץ "ערוך"','שנה שם/משך/מחיר','שמור'],expected:'שירות מעודכן ב-storefront'},
-'CAL-04':{path:'ממשק עסק ← "קלנדר" ← שירות ← "מחק"',steps:['כנס לשירות','לחץ "מחק"','אשר'],expected:'שירות הוסר, לא ניתן עוד לקבוע תורים בגינו'},
-'CAL-05':{path:'ממשק עסק ← "קלנדר" ← "+ תור"',steps:['לחץ "+ תור חדש"','בחר לקוח, שירות, תאריך, שעה','שמור'],expected:'תור מופיע ביומן'},
-'CAL-06':{path:'Storefront ← "קבע תור"',steps:['לקוח פותח storefront','לוחץ "קבע תור"','בוחר שירות ושעה פנויה','מזין פרטים','שולח'],expected:'תור נשמר, מנהל רואה אותו ב-"ממתין לאישור"'},
-'CAL-07':{path:'ממשק עסק ← "קלנדר" ← "ממתין לאישור"',steps:['לקוח שלח בקשת תור','כנס לקלנדר','לחץ "אשר" על הבקשה'],expected:'תור מאושר, מופיע ביומן, לקוח מקבל עדכון'},
-'CAL-08':{path:'ממשק עסק ← "קלנדר" ← תור ← "בטל"',steps:['כנס לתור','לחץ "בטל תור"','הזן סיבה','אשר'],expected:'תור מבוטל, לקוח מקבל הודעה'},
-'CAL-09':{path:'ממשק עסק ← "קלנדר" ← בדיקת כפילות',steps:['נסה לקבוע שני תורים לאותה שעה ואותו נותן שירות'],expected:'שגיאה "השעה תפוסה", תור כפול לא נוצר'},
-'CAL-10':{path:'ממשק עסק ← "קלנדר" ← תצוגת שבוע',steps:['כנס לקלנדר','עבור לתצוגה שבועית'],expected:'כל התורים של השבוע מוצגים לפי ימים ושעות'},
-'CAL-11':{path:'ממשק עסק ← "קלנדר" ← "זמינות"',steps:['כנס להגדרות זמינות','הגדר ימי עבודה (א-ו) ושעות','שמור'],expected:'לקוחות יכולים לקבוע תורים רק בשעות הפתיחה'},
-'CAL-12':{path:'ממשק עסק ← "קלנדר" ← הגדרות תזכורת',steps:['כנס להגדרות תזכורת','הגדר זמן מראש (שעה/יום)','שמור'],expected:'תזכורת SMS/הודעה נשלחת ללקוח לפני התור'},
-
-// ── SHF ──────────────────────────────────────────────────────────────
-'SHF-01':{path:'ממשק עסק ← "משמרות" ← "+ יצור"',steps:['כנס ל"משמרות"','לחץ "+ משמרת חדשה"','הגדר תאריך, שעת התחלה/סיום, תפקיד','שמור'],expected:'משמרת מופיעה בלוח'},
-'SHF-02':{path:'ממשק עסק ← "משמרות" ← שיבוץ עובד',steps:['כנס למשמרת','לחץ "שבץ עובד"','בחר עובד זמין','שמור'],expected:'עובד משויך למשמרת, רואה אותה בממשקו'},
-'SHF-03':{path:'ממשק עובד ← "משמרות" ← "בקש משמרת"',steps:['כנס כעובד','כנס ל"משמרות"','לחץ "בקש משמרת"','בחר תאריך ושעה','שלח'],expected:'בקשה מוצגת אצל המנהל לאישור'},
-'SHF-04':{path:'ממשק מנהל ← "משמרות" ← "בקשות ממתינות"',steps:['כנס כמנהל','עבור ל"בקשות ממתינות"','לחץ "אשר" / "דחה"'],expected:'אישור: עובד משויך. דחייה: עובד מקבל הודעה'},
-'SHF-05':{path:'ממשק עסק ← "משמרות" ← ביטול שיבוץ',steps:['כנס למשמרת','לחץ "הסר עובד"','אשר'],expected:'עובד מנותק מהמשמרת, המשמרת פנויה'},
-'SHF-06':{path:'ממשק עובד ← "משמרות" ← "בקש חילוף"',steps:['כנס למשמרת שלך','לחץ "בקש חילוף"','בחר עובד אחר','שלח לאישור מנהל'],expected:'מנהל מקבל בקשת חילוף ויכול לאשר'},
-'SHF-07':{path:'ממשק עסק ← "משמרות" ← "תצוגה שבועית"',steps:['כנס ל"משמרות"','עבור לתצוגה שבועית'],expected:'לוח שבועי עם כל העובדים וכל המשמרות'},
-'SHF-08':{path:'ממשק מנהל ← "משמרות" ← "סיכום חודשי"',steps:['כנס ל"משמרות"','לחץ "סיכום חודשי"','בחר חודש'],expected:'סה"כ שעות לכל עובד בחודש'},
-'SHF-09':{path:'ממשק עסק ← "משמרות" ← בדיקת חפיפה',steps:['נסה לשבץ עובד לשתי משמרות שמתנגשות בזמן'],expected:'שגיאה "חפיפת משמרות", שיבוץ לא נשמר'},
-'SHF-10':{path:'ממשק עסק ← "משמרות" ← "ייצא"',steps:['כנס ל"משמרות"','לחץ "ייצא"','בחר PDF / CSV'],expected:'לוח משמרות מיוצא לקובץ'},
-
-// ── TSK ──────────────────────────────────────────────────────────────
-'TSK-01':{path:'ממשק ← "משימות" ← "+ יצור"',steps:['כנס ל"משימות"','לחץ "+ משימה חדשה"','הזן כותרת, תיאור, בחר מבצע, מועד, ניקוד','שמור'],expected:'משימה ב-"פתוחות", מבצע רואה אותה'},
-'TSK-02':{path:'ממשק ← "משימות" ← לחץ משימה ← "ערוך"',steps:['לחץ על משימה','לחץ "ערוך"','שנה פרטים','שמור'],expected:'משימה מתעדכנת'},
-'TSK-03':{path:'ממשק ← "משימות" ← "מחק"',steps:['לחץ "מחק" על משימה','אשר'],expected:'משימה נמחקת מהרשימה'},
-'TSK-04':{path:'ממשק ← "משימות" ← "בצעתי"',steps:['כנס כמבצע','לחץ "בצעתי" על משימה'],expected:'סטטוס עובר ל-"ממתין לאישור"'},
-'TSK-05':{path:'ממשק ← "משימות" ← "בצעתי" ← "העלה תמונה"',steps:['לחץ "בצעתי"','לחץ "העלה תמונה הוכחה"','בחר / צלם תמונה','שמור'],expected:'תמונה נשמרת, מנהל/הורה רואה אותה'},
-'TSK-06':{path:'ממשק ← "משימות" ← AI Vision',steps:['עובד/ילד העלה תמונה','AI מנתח'],expected:'AI מאשר/דוחה ביצוע בהתבסס על התמונה'},
-'TSK-07':{path:'ממשק מנהל/הורה ← "משימות" ← "אישור סופי"',steps:['כנס כמנהל/הורה','כנס ל"משימות"','מצא משימה שממתינה לאישור','לחץ "אישור סופי"'],expected:'משימה מסומנת "הושלמה", ניקוד מזוכה'},
-'TSK-08':{path:'ממשק ← "משימות" ← לאחר אישור',steps:['לאחר שמנהל אישר משימה','כנס לפרופיל ← ניקוד'],expected:'ניקוד נוסף לחשבון המבצע'},
-'TSK-09':{path:'ממשק ← "משימות" ← "סינון"',steps:['כנס ל"משימות"','לחץ "סינון"','בחר סטטוס: ממתינות/בביצוע/הושלמו/נדחו'],expected:'רשימת משימות מסוננת לפי הסטטוס'},
-'TSK-10':{path:'ממשק ← "משימות" ← "+ יצור" ← "חוזרת"',steps:['צור משימה','סמן "חוזרת"','בחר תדירות','שמור'],expected:'משימה נוצרת מחדש אוטומטית לפי תדירות'},
-
-
-// ── ACAD ─────────────────────────────────────────────────────────────
-'ACAD-01':{path:'ממשק ← "אקדמיה" ← "ניהול" ← "+ יצור"',steps:['כנס ל"אקדמיה"','לחץ "ניהול חבילות"','לחץ "+ חבילה חדשה"','הזן כותרת, תיאור, תמונה','שמור'],expected:'חבילה חדשה מופיעה ברשימה'},
-'ACAD-02':{path:'ממשק ← "אקדמיה" ← חבילה ← "+ שאלה"',steps:['פתח חבילה','לחץ "+ שאלה"','הזן שאלה ו-4 תשובות','סמן תשובה נכונה','שמור'],expected:'שאלה נוספת לחבילה'},
-'ACAD-03':{path:'ממשק ← "אקדמיה" ← "הקצה"',steps:['כנס ל"אקדמיה"','לחץ "הקצה חבילה"','בחר חבר/עובד','בחר חבילה','אשר'],expected:'חבר/עובד רואה חבילה בממשקו'},
-'ACAD-04':{path:'ממשק חבר ← "אקדמיה" ← בחר חבילה',steps:['כנס כחבר/עובד','כנס לאקדמיה','בחר חבילה מוקצית','ענה על שאלה'],expected:'תשובה נשמרת, ניקוד מתעדכן'},
-'ACAD-05':{path:'ממשק ← "אקדמיה" ← ניקוד',steps:['ענה על שאלה נכונה','כנס לפרופיל'],expected:'ניקוד נוסף לחשבון'},
-'ACAD-06':{path:'ממשק חבר ← "אקדמיה" ← התקדמות',steps:['כנס לאקדמיה'],expected:'מוצג כמה שאלות נענו מתוך כלל החבילה, ניקוד סה"כ'},
-'ACAD-07':{path:'ממשק חבר ← "אקדמיה" ← חבילה לא מוקצית',steps:['נסה לפתוח חבילה שלא הוקצתה לך'],expected:'גישה חסומה, הודעת "לא הוקצית אליך"'},
-'ACAD-08':{path:'ממשק ← "אקדמיה" ← שאלה ← "ערוך"',steps:['כנס לחבילה','לחץ "ערוך" על שאלה','שנה טקסט/תשובות','שמור'],expected:'שאלה מעודכנת'},
-'ACAD-09':{path:'ממשק ← "אקדמיה" ← חבילה ← "מחק"',steps:['לחץ "מחק" על חבילה','אשר'],expected:'חבילה נמחקת, הקצאות בוטלו'},
-'ACAD-10':{path:'ממשק ← "אקדמיה" ← "לוח תוצאות"',steps:['כנס ל"אקדמיה"','לחץ "לוח תוצאות"'],expected:'דירוג חברים לפי ניקוד, מוצג בסדר יורד'},
-
-// ── COM ──────────────────────────────────────────────────────────────
-'COM-01':{path:'ממשק משפחה ← "קהילה" ← "הצטרף"',steps:['כנס ל"קהילה"','לחץ "הצטרף לקהילה"','הזן קוד קהילה'],expected:'אישור הצטרפות, קהילה מופיעה בממשק'},
-'COM-02':{path:'ממשק עסק ← "קהילה" ← "חפש ובקש"',steps:['כנס ל"קהילה"','חפש קהילה לפי שם/עיר','שלח בקשת הצטרפות'],expected:'בקשה נשלחת למנהל הקהילה'},
-'COM-03':{path:'ממשק מנהל קהילה ← "עסקים ממתינים"',steps:['כנס כמנהל קהילה','כנס ל"עסקים ממתינים"','לחץ "אשר" / "דחה"'],expected:'עסק מצטרף / נדחה'},
-'COM-04':{path:'ממשק עסק ← "הגדרות חנות" ← "הנחת קהילה"',steps:['כנס להגדרות חנות','הגדר % הנחה לחברי קהילה','שמור'],expected:'הנחה גלויה ל-storefront לחברי הקהילה'},
-'COM-05':{path:'Storefront ← checkout ← הנחת קהילה',steps:['חבר קהילה נכנס ל-storefront','מוסיף מוצר לסל','הולך לתשלום'],expected:'הנחת קהילה מופחתת אוטומטית מהסכום'},
-'COM-06':{path:'ממשק עסק ← "B2B" ← הזמנה מעסק בקהילה',steps:['פתח קטלוג B2B של עסק אחר בקהילה','הוסף מוצרים לסל','שלח הזמנה'],expected:'הזמנה מגיעה לעסק המוכר'},
-'COM-07':{path:'ממשק ← "קהילה" ← "עזוב קהילה"',steps:['כנס ל"קהילה"','לחץ "עזוב"','אשר'],expected:'הוסר מהקהילה, הנחות בוטלו'},
-'COM-08':{path:'ממשק משפחה ← "קהילה" ← "יוזמות"',steps:['כנס ל"קהילה"','עבור ל"יוזמות"','לחץ על יוזמה ← "הצטרף"'],expected:'משתמש מצטרף ליוזמה'},
-'COM-09':{path:'ממשק ← "קהילה" ← "פיד"',steps:['כנס ל"קהילה"','עבור ל"פיד"'],expected:'עדכוני עסקי הקהילה מוצגים'},
-'COM-10':{path:'ממשק ← "קהילה" ← "חיפוש"',steps:['כנס ל"קהילה"','חפש לפי עיר/שם'],expected:'קהילות מוצגות לפי חיפוש, ניתן לשלוח בקשת הצטרפות'},
-'COM-11':{path:'ממשק מנהל קהילה ← "הגדרות קהילה"',steps:['כנס כמנהל קהילה','ערוך שם, תמונה, תגיות','שמור'],expected:'פרטי קהילה מתעדכנים'},
-'COM-12':{path:'ממשק מנהל קהילה ← "עסקים" ← "הסר"',steps:['כנס לרשימת עסקי קהילה','לחץ "הסר" ליד עסק','אשר'],expected:'עסק הוסר, הנחתו בוטלה'},
-
-// ── NOT ──────────────────────────────────────────────────────────────
-'NOT-01':{path:'ממשק ← "Inbox" / "הודעות"',steps:['SA שולח הודעה לקבוצה','כנס ל-Inbox'],expected:'הודעה מה-SA מוצגת'},
-'NOT-02':{path:'ממשק ← תג הודעות',steps:['SA שולח הודעה חדשה'],expected:'תג \'X\' על אייקון ה-Inbox, X = מספר הודעות שלא נקראו'},
-'NOT-03':{path:'ממשק ← "Inbox" ← "סמן כנקרא"',steps:['פתח הודעה','לחץ "סמן כנקרא"'],expected:'הודעה מסומנת, תג פוחת'},
-'NOT-04':{path:'ממשק ← "Inbox" ← "מחק"',steps:['בחר הודעה','לחץ "מחק"','אשר'],expected:'הודעה נמחקת מה-Inbox'},
-'NOT-05':{path:'נייד ← Push notification',steps:['קבל אירוע חדש (הזמנה/משימה/תור)'],expected:'Push notification מתקבל על מסך הנייד'},
-'NOT-06':{path:'ממשק ← "תקציב" ← לאחר חריגה',steps:['הוסף הוצאה שעוברת את תקציב הקטגוריה'],expected:'pop-up / הודעה "חרגת מתקציב X"'},
-'NOT-07':{path:'ממשק ← "מלאי" ← לאחר מלאי נמוך',steps:['הפחת כמות מלאי עד מתחת לסף','רענן'],expected:'התראה "מלאי נמוך: X"'},
-'NOT-08':{path:'ממשק ← "משימות" ← תזכורת',steps:['צור משימה עם מועד יעד','המתן לתזכורת מוגדרת'],expected:'הודעה "מועד משימה מתקרב: X"'},
-'NOT-09':{path:'ממשק מנהל ← "Inbox" ← "שדר לצוות"',steps:['כנס ל-Inbox','לחץ "שדר לצוות"','כתוב הודעה','שלח'],expected:'כל העובדים מקבלים הודעה ב-Inbox'},
-'NOT-10':{path:'ממשק מנהל ← "Inbox" ← "שלח לחבר בודד"',steps:['כנס ל-Inbox','לחץ "הודעה חדשה"','בחר נמען','כתוב ושלח'],expected:'רק הנמען שנבחר מקבל את ההודעה'},
-
-// ── SA ───────────────────────────────────────────────────────────────
-'SA-01':{path:'sa.html ← מסך כניסה SA',steps:['פתח sa.html','הזן קוד SA וסיסמה','לחץ "כנס"'],expected:'דשבורד SA נטען עם כל הלשוניות'},
-'SA-02':{path:'sa.html ← לשונית "Pulse"',steps:['כנס ל-SA','עבור ל-Pulse'],expected:'נתוני קבוצות, משתמשים ופעילות בזמן אמת מוצגים'},
-'SA-03':{path:'sa.html ← "קבוצות" ← בחר קבוצה',steps:['כנס לניהול קבוצות','חפש קבוצה','לחץ עליה'],expected:'תצוגת 360° עם כל נתוני הקבוצה: משתמשים, מוצרים, עסקאות'},
-'SA-04':{path:'sa.html ← "קבוצות" ← "מחק"',steps:['מצא קבוצה','לחץ "מחק"','הזן אישור','שמור'],expected:'קבוצה ונתוניה נמחקים'},
-'SA-05':{path:'sa.html ← "קבוצות" ← "שדרג לפרמיום"',steps:['מצא קבוצה','לחץ "שדרג פרמיום"','אשר'],expected:'קבוצה מסומנת פרמיום, features פרמיום נפתחות'},
-'SA-06':{path:'sa.html ← "קהילות" ← "+ יצור"',steps:['כנס ל"קהילות"','לחץ "+ קהילה חדשה"','הזן שם, עיר, קוד','שמור'],expected:'קהילה חדשה ברשימה, ניתן להצטרף אליה'},
-'SA-07':{path:'sa.html ← "קהילות" ← "עסקים ממתינים"',steps:['כנס לקהילה','עבור ל"ממתינים"','לחץ "אשר" / "דחה"'],expected:'עסק מצטרף / נדחה מהקהילה'},
-'SA-08':{path:'sa.html ← "Inbox" ← "שדר"',steps:['כנס ל-Inbox SA','לחץ "שדר הודעה"','כתוב הודעה','שלח לכולם'],expected:'כל הקבוצות מקבלות הודעה ב-Inbox שלהן'},
-'SA-09':{path:'sa.html ← "תמיכה" ← בחר פנייה',steps:['כנס ל"תמיכה"','לחץ על פנייה פתוחה','כתוב תגובה','שלח'],expected:'תגובה נשלחת, סטטוס פנייה עובר ל-"טופל"'},
-'SA-10':{path:'sa.html ← "באנרים" ← "+ יצור"',steps:['כנס ל"באנרים"','לחץ "+ באנר"','הזן טקסט, תמונה, צבע','הפעל','שמור'],expected:'באנר מוצג בממשק הרלוונטי'},
-'SA-11':{path:'sa.html ← "הגדרות" ← גלובלי',steps:['כנס ל"הגדרות מערכת"','שנה הגדרה גלובלית','שמור'],expected:'שינוי גלובלי חל על כלל המערכת'},
-'SA-12':{path:'sa.html ← "משתמשים" ← ערוך',steps:['חפש משתמש','לחץ "ערוך"','שנה שם/מייל/הרשאות','שמור'],expected:'פרטי משתמש מתעדכנים'},
-'SA-13':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים: קבוצות חדשות, פעילות יומית, גדילה לאורך זמן'},
-'SA-14':{path:'sa.html ← "ייצוא" ← CSV גלובלי',steps:['כנס ל"ייצוא"','לחץ "ייצא CSV"','בחר: קבוצות / משתמשים'],expected:'קובץ CSV מורד עם כל הנתונים הרלוונטיים'},
-'SA-15':{path:'sa.html ← "הגדרות" ← "מצב תחזוקה"',steps:['כנס להגדרות','הפעל "מצב תחזוקה"','אשר'],expected:'הודעת תחזוקה מוצגת לכל המשתמשים, גישה חסומה'},
-
-
-// ── SMK ──────────────────────────────────────────────────────────────
-'SMK-01':{path:'sa.html ← לשונית "שיווק"',steps:['כנס ל-SA','לחץ לשונית "שיווק"'],expected:'לשונית נטענת עם מודולים: ניוזלטר, מסרים, קמפיינים'},
-'SMK-02':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "בחר לשוני"',steps:['כנס לניוזלטר','לחץ "בחר לשוני"','בחר ערכת צבעים'],expected:'עיצוב הניוזלטר מתעדכן'},
-'SMK-03':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← שדות כותרת',steps:['כנס לניוזלטר','מלא כותרת ראשית','מלא סרטיט','שמור'],expected:'כותרת וסרטיט מוצגים בתצוגה מקדימה'},
-'SMK-04':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← עורך תוכן',steps:['לחץ על אזור התוכן','ערוך טקסט ישירות (contenteditable)','בדוק RTL'],expected:'עריכה חלקה, כיוון RTL תקין, עיצוב נשמר'},
-'SMK-05':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "AI יצור"',steps:['לחץ "AI יצור תוכן"','המתן'],expected:'AI ממלא את עורך הניוזלטר עם תוכן שיווקי בעברית'},
-'SMK-06':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "תצוגה מקדימה"',steps:['לחץ "תצוגה מקדימה"'],expected:'template מוסגר נפתח עם כל האלמנטים'},
-'SMK-07':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "ייצא PDF"',steps:['לחץ "ייצא PDF"'],expected:'חלון הדפסה נפתח, RTL תקין בתצוגה מקדימה'},
-'SMK-08':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← PDF ← בדיקת ריווח RTL',steps:['ייצא PDF','פתח את ה-PDF','בדוק ריווח בין מילות עברית'],expected:'ריווח תקין, אין צמידות בין מילים'},
-'SMK-09':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← בדיקת פיסוק RTL',steps:['ייצא PDF','בדוק מיקום פסיק, נקודה, סימן שאלה'],expected:'סימני פיסוק במיקום RTL הנכון'},
-'SMK-10':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← header',steps:['בדוק header הניוזלטר'],expected:'לוגו ממורכז, גדלים נכונים'},
-'SMK-11':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "העתק"',steps:['לחץ "העתק תוכן"','הדבק ב-Word / מייל'],expected:'תוכן עובר ל-clipboard בפורמט נכון'},
-'SMK-12':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "שדר לכולם"',steps:['הכן ניוזלטר','לחץ "שדר לכל הקבוצות"','אשר'],expected:'הודעה מגיעה ל-Inbox של כל הקבוצות'},
-'SMK-13':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "שדר לסגמנט"',steps:['לחץ "שדר לסגמנט"','סנן לפי סוג קבוצה/תגית','שדר'],expected:'רק הקבוצות המסוננות מקבלות הודעה'},
-'SMK-14':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "הוסף לשוני"',steps:['לחץ "הוסף לשוני"','בחר צבע gradient','עדכן'],expected:'לשוני עם הצבע שנבחר מתווסף, גלוי בתצוגה'},
-'SMK-15':{path:'sa.html ← "שיווק" ← "מסרים" ← "+ יצור"',steps:['כנס ל"מסרים"','לחץ "+ מסר חדש"','הזן כותרת, תוכן, CTA','שמור'],expected:'מסר שיווקי נשמר'},
-'SMK-16':{path:'sa.html ← "שיווק" ← "קמפיינים" ← "תזמון"',steps:['כנס לקמפיין','הגדר תאריך שליחה','אשר'],expected:'קמפיין מתוזמן לשליחה בתאריך שנקבע'},
-'SMK-17':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "שמור טמפלט"',steps:['הכן ניוזלטר','לחץ "שמור כטמפלט"','תן שם','שמור'],expected:'טמפלט נשמר, ניתן לטעינה מחדש'},
-'SMK-18':{path:'sa.html ← "שיווק" ← "לוג השקות"',steps:['כנס ל"לוג השקות"'],expected:'רשימת גרסאות שהושקו: תאריך, תוכן, שליח'},
-'SMK-19':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← "נקה editor"',steps:['לחץ "נקה" / "אפס editor"'],expected:'עורך מתאפס לריק'},
-'SMK-20':{path:'sa.html ← "שיווק" ← "ניוזלטר" ← PDF ← גופן',steps:['ייצא PDF','בדוק גופן Hebrew בתוצאה'],expected:'גופן Arial/Heebo מוצג תקין בעברית ב-PDF'},
-
-// ── PWA ──────────────────────────────────────────────────────────────
-'PWA-01':{path:'Android Chrome ← "הוסף למסך הבית"',steps:['פתח האתר ב-Chrome Android','לחץ תפריט ← "הוסף למסך הבית"','פתח מהמסך הבית'],expected:'האפליקציה נפתחת ב-standalone mode ללא browser UI'},
-'PWA-02':{path:'iPhone Safari ← "שתף" ← "הוסף למסך הבית"',steps:['פתח האתר ב-Safari iOS','לחץ "שתף"','בחר "הוסף למסך הבית"'],expected:'אייקון מוצג על מסך הבית, נפתח כאפליקציה'},
-'PWA-03':{path:'כלי מפתח ← Application ← Service Worker',steps:['פתח devtools','כנס ל-Application','בדוק Service Worker פעיל','בדוק cache'],expected:'Service Worker רשום, cache מכיל קבצי הליבה'},
-'PWA-04':{path:'כל עמוד ← בדיקת RTL עברית',steps:['פתח עמוד','בדוק כיוון טקסט','בדוק גופן (Rubik/Heebo)','בדוק padding/margin'],expected:'כיוון RTL נכון, גופן תקין, padding מותאם'},
-'PWA-05':{path:'נייד 375px ← בדיקת responsive',steps:['פתח ב-iPhone 13/14 (375px)','בדוק שכל אלמנטים גלויים ונגישים'],expected:'ללא overflow, אין אלמנטים חתוכים, כפתורים נגישים'},
-'PWA-06':{path:'Desktop > 1200px ← בדיקת responsive',steps:['פתח על מסך רחב','בדוק max-width, גריד'],expected:'תצוגה מרווחת, גריד תקין, לא מרוח'},
-'PWA-07':{path:'מכשיר 4G ← בדיקת זמן טעינה',steps:['פתח Network devtools','הגדר Throttle: "Fast 4G"','רענן עמוד','מדוד זמן טעינה'],expected:'טעינה ראשונית < 3 שניות'},
-'PWA-08':{path:'כל עמוד ← נפילת DB',steps:['כבה את השרת / DB','רענן עמוד'],expected:'הודעת שגיאה ידידותית בעברית, לא מסך שגיאה גנרי'},
-'PWA-09':{path:'storefront / catalog ← CORS',steps:['פתח storefront מדומיין שונה','בדוק console'],expected:'אין שגיאות CORS, הנתונים נטענים'},
-'PWA-10':{path:'שדות קלט ← XSS injection',steps:['הזן בשדה שם: <script>alert(1)<\/script>','שמור','רענן'],expected:'קוד מוצג כטקסט גולמי, לא מופעל (sanitization)'},
-'PWA-11':{path:'שדות חיפוש ← SQL injection',steps:["הזן בחיפוש: ' OR 1=1 --","חפש"],expected:'אין חשיפת נתונים, שגיאה מבוקרת'},
-'PWA-12':{path:'ממשק עסק ← "קטלוג" ← הוספת מוצר 51',steps:['בחשבון Free עם 50 מוצרים','נסה להוסיף מוצר 51'],expected:'הודעת שגיאה "הגעת למגבלת 50 מוצרים בחשבון חינמי"'},
-
-
-// ── PFAM ─────────────────────────────────────────────────────────────
-'PFAM-01':{path:'ממשק משפחה ← כניסה כ-ADMIN (הורה)',steps:['כנס כהורה (ADMIN)','בדוק לשוניות גלויות'],expected:'גלויות: feed, קניות, מזווה, תקציב, cashflow, הלוואות, מטרות, משימות, חברים, אקדמיה, שף AI'},
-'PFAM-02':{path:'ממשק הורה ← "חברים"',steps:['כנס כהורה','עבור ל"חברים"'],expected:'לשונית פעילה, כפתורי הוסף/ערוך/מחק גלויים ופועלים'},
-'PFAM-03':{path:'ממשק הורה ← "משימות" ← "+ משימה לילד"',steps:['כנס כהורה','לחץ "+ משימה"','בחר ילד כמבצע','הגדר ניקוד','שמור'],expected:'משימה מוקצית לילד, גלויה בממשקו'},
-'PFAM-04':{path:'ממשק הורה ← "משימות" ← "אישור סופי"',steps:['ילד ביצע ומעלה תמונה','כנס כהורה ל"משימות"','לחץ "אישור סופי"'],expected:'משימה "הושלמה", ניקוד מזוכה לילד'},
-'PFAM-05':{path:'ממשק הורה ← "הלוואות" ← "ממתינות"',steps:['ילד שלח בקשת הלוואה','כנס כהורה ל"הלוואות"','לחץ "אשר" / "דחה"'],expected:'אישור: יתרת ילד גדלה. דחייה: בקשה נסגרת'},
-'PFAM-06':{path:'ממשק הורה ← "תקציב" ← "ערוך"',steps:['כנס כהורה','כנס ל"תקציב"','שנה סכומים לקטגוריות','שמור'],expected:'תקציב מתעדכן, גרף מוצג'},
-'PFAM-07':{path:'ממשק הורה ← "אקדמיה" ← "הקצה חבילה"',steps:['כנס כהורה','כנס ל"אקדמיה"','בחר ילד וחבילה','אשר'],expected:'ילד רואה חבילה ויכול לענות'},
-'PFAM-08':{path:'ממשק הורה ← "כספים" / Cash Flow',steps:['כנס כהורה','כנס ל"כספים"'],expected:'הורה רואה את כל תנועות כל חברי המשפחה'},
-'PFAM-09':{path:'ממשק הורה ← "הגדרות קבוצה"',steps:['כנס כהורה','פתח הגדרות קבוצה','שנה שם, קוד, לוגו','שמור'],expected:'פרטי קבוצה מתעדכנים'},
-'PFAM-10':{path:'ממשק הורה ← "פרופיל" ← "הפעל אשף מחדש"',steps:['כנס כהורה','פתח פרופיל','לחץ "הפעל אשף מחדש"'],expected:'אשף Onboarding נפתח משלב 1'},
-'PFAM-11':{path:'ממשק ילד ← בדיקת לשוניות',steps:['כנס כילד (MEMBER)'],expected:'רואה רק לשוניות שהוקצו לו על ידי הורה'},
-'PFAM-12':{path:'ממשק ילד ← ניסיון גישה ל"חברים"',steps:['כנס כילד','חפש לשונית "חברים"'],expected:'לשונית לא מופיעה / חסומה'},
-'PFAM-13':{path:'ממשק ילד ← ניסיון גישה ל"תקציב"',steps:['כנס כילד','חפש לשונית "תקציב"'],expected:'לשונית לא מופיעה אם לא הוקצתה'},
-'PFAM-14':{path:'ממשק ילד ← "הלוואות" ← "בקש"',steps:['כנס כילד','כנס ל"הלוואות"','מלא טופס בקשה','שלח'],expected:'בקשה מופיעה אצל הורה לאישור'},
-'PFAM-15':{path:'ממשק ילד ← "משימות" ← "בצעתי"',steps:['כנס כילד','לחץ "בצעתי" על משימה','צלם/העלה תמונה','שלח'],expected:'תמונה נשמרת, משימה ב-"ממתין לאישור"'},
-'PFAM-16':{path:'ממשק ילד ← "אקדמיה"',steps:['כנס כילד','כנס לאקדמיה'],expected:'גלויות רק חבילות שהוקצו, ניתן לענות ולצבור ניקוד'},
-'PFAM-17':{path:'ממשק ילד ← "קניות" ← "+ הוסף"',steps:['כנס כילד','הוסף פריט לרשימה'],expected:'פריט מופיע, הורה רואה אותו ברשימה'},
-'PFAM-18':{path:'ממשק ילד ← דשבורד ← "יתרה"',steps:['כנס כילד','בדוק הצגת יתרה'],expected:'רואה רק יתרתו שלו, לא יתרות אחים/הורים'},
-'PFAM-19':{path:'ממשק ילד ← ניסיון לשנות הגדרות',steps:['כנס כילד','חפש כפתור "הגדרות קבוצה"'],expected:'כפתור לא קיים / חסום'},
-'PFAM-20':{path:'ממשק ילד ← "שף AI"',steps:['כנס כילד','כנס לשף AI (אם הוקצה)'],expected:'גישה לשף AI עם תפקוד מלא'},
-
-// ── PBIZ ─────────────────────────────────────────────────────────────
-'PBIZ-01':{path:'ממשק עסק ← כניסה כ-ADMIN',steps:['כנס כ-ADMIN (מנהל עסק)','בדוק לשוניות גלויות'],expected:'גלויות: כל לשוניות המערכת כולל ניהול עובדים, הגדרות חנות, Analytics, B2B'},
-'PBIZ-02':{path:'ממשק ADMIN ← "עובדים"',steps:['כנס כ-ADMIN','כנס ל"עובדים"'],expected:'כל כפתורי הוסף/ערוך/מחק עובד פעילים'},
-'PBIZ-03':{path:'ממשק ADMIN ← "עובדים" ← "הרשאות"',steps:['לחץ "הרשאות" ליד עובד','שנה תפקיד ולשוניות גישה','שמור'],expected:'שינויים חלים בכניסה הבאה של העובד'},
-'PBIZ-04':{path:'ממשק ADMIN ← "Analytics" / "מכירות"',steps:['כנס כ-ADMIN','עבור ל"Analytics"'],expected:'גרפים מלאים: הכנסות, מוצרים מובילים, סינון לפי תקופה'},
-'PBIZ-05':{path:'ממשק ADMIN ← "הגדרות חנות"',steps:['כנס כ-ADMIN','עבור ל"הגדרות חנות"','ערוך שם, לוגו, שעות, alias'],expected:'כל הגדרות החנות זמינות ועובדות'},
-'PBIZ-06':{path:'ממשק ADMIN ← "קטלוג"',steps:['כנס כ-ADMIN','עבור ל"קטלוג"'],expected:'כפתורי הוספה, עריכה, מחיקה, הסתרה פעילים'},
-'PBIZ-07':{path:'ממשק ADMIN ← "עובדים" ← "ממתינים"',steps:['עובד שלח בקשת הצטרפות','כנס כ-ADMIN','עבור ל"ממתינים"','לחץ "אשר"'],expected:'עובד מצטרף לקבוצה'},
-'PBIZ-08':{path:'ממשק ADMIN ← "עובדים" ← "הזמן עם תפקיד"',steps:['לחץ "הזמן עובד"','בחר תפקיד: MANAGER/MEMBER/SENIOR','שלח קישור'],expected:'עובד מצטרף עם התפקיד שנבחר'},
-'PBIZ-09':{path:'ממשק ADMIN ← "משכורות" ← "עבד"',steps:['כנס כ-ADMIN','לחץ "עבד יום משכורת"','אשר'],expected:'יתרות כל העובדים מתעדכנות לפי שכר ושעות'},
-'PBIZ-10':{path:'ממשק ADMIN ← "B2B" / "רכש"',steps:['כנס כ-ADMIN','עבור ל"ספקים" / "רכש"'],expected:'לשוניות ספקים והזמנות רכש גלויות ופועלות'},
-'PBIZ-11':{path:'ממשק עסק ← כניסה כ-MANAGER',steps:['כנס כ-MANAGER','בדוק לשוניות גלויות'],expected:'גלויות: feed, שעון, משמרות, קלנדר, חנות, מזווה, משימות, אקדמיה, מכירות, POS, לקוחות'},
-'PBIZ-12':{path:'ממשק MANAGER ← "קופה" / POS',steps:['כנס כ-MANAGER','עבור ל"קופה"','בצע עסקה'],expected:'POS פועל, הפקת קבלה, סגירת קופה אפשרית'},
-'PBIZ-13':{path:'ממשק MANAGER ← ניסיון לניהול עובדים',steps:['כנס כ-MANAGER','חפש לשונית "עובדים"'],expected:'לשונית "עובדים" חסומה, כפתור הוספה לא קיים'},
-'PBIZ-14':{path:'ממשק MANAGER ← ניסיון לגשת להגדרות חנות',steps:['כנס כ-MANAGER','חפש "הגדרות חנות"'],expected:'לשונית לא מופיעה'},
-'PBIZ-15':{path:'ממשק MANAGER ← "משמרות"',steps:['כנס כ-MANAGER','כנס ל"משמרות"'],expected:'ניתן לשבץ עובדים, לאשר/לדחות בקשות משמרת'},
-'PBIZ-16':{path:'ממשק MANAGER ← "משימות" ← "אישור סופי"',steps:['עובד שלח להשלמה','כנס כ-MANAGER','לחץ "אישור סופי"'],expected:'משימה מסומנת "הושלמה"'},
-'PBIZ-17':{path:'ממשק MANAGER ← ניסיון גישה ל-cashflow',steps:['כנס כ-MANAGER','חפש "cashflow" / "תקציב"'],expected:'לשונית לא מופיעה'},
-'PBIZ-18':{path:'ממשק MANAGER ← "שעון" ← דוח נוכחות',steps:['כנס כ-MANAGER','כנס ל"שעון"','עבור ל"דוח"'],expected:'רואה שעות של כל העובדים, לא רק שלו'},
-'PBIZ-19':{path:'ממשק עסק ← כניסה כ-SENIOR',steps:['כנס כ-SENIOR','בדוק לשוניות'],expected:'גלויות: feed, שעון, משמרות, מזווה, משימות, אקדמיה, POS'},
-'PBIZ-20':{path:'ממשק SENIOR ← "קופה"',steps:['כנס כ-SENIOR','עבור ל"קופה"','בצע עסקה'],expected:'POS פועל, הפקת קבלה — ללא סגירת קופה'},
-'PBIZ-21':{path:'ממשק SENIOR ← ניסיון לגשת ל-CRM',steps:['כנס כ-SENIOR','חפש "לקוחות"'],expected:'לשונית לא מופיעה'},
-'PBIZ-22':{path:'ממשק SENIOR ← ניסיון לגשת ל-Analytics',steps:['כנס כ-SENIOR','חפש "מכירות" / "Analytics"'],expected:'לשונית לא מופיעה'},
-'PBIZ-23':{path:'ממשק SENIOR ← "מזווה"',steps:['כנס כ-SENIOR','כנס ל"מזווה"'],expected:'ניתן לסמן שימוש בפריט, לא ניתן למחוק'},
-'PBIZ-24':{path:'ממשק עסק ← כניסה כ-MEMBER',steps:['כנס כ-MEMBER','בדוק לשוניות'],expected:'גלויות: feed, שעון נוכחות, משמרות, משימות, אקדמיה בלבד'},
-'PBIZ-25':{path:'ממשק MEMBER ← "שעון"',steps:['כנס כ-MEMBER','כנס ל"שעון"'],expected:'רואה רק את השעות שלו עצמו'},
-'PBIZ-26':{path:'ממשק MEMBER ← ניסיון לגשת ל-POS',steps:['כנס כ-MEMBER','חפש "קופה"'],expected:'לשונית לא מופיעה / חסומה'},
-'PBIZ-27':{path:'ממשק MEMBER ← ניסיון לגשת לחנות',steps:['כנס כ-MEMBER','חפש "חנות" / "קטלוג"'],expected:'לשונית לא מופיעה'},
-'PBIZ-28':{path:'ממשק MEMBER ← "משימות" ← "בצעתי"',steps:['כנס כ-MEMBER','לחץ "בצעתי"','צלם/העלה תמונה','שלח'],expected:'תמונה נשמרת, ממתינה לאישור מנהל'},
-'PBIZ-29':{path:'ממשק MEMBER ← "משמרות" ← "בקש"',steps:['כנס כ-MEMBER','כנס ל"משמרות"','לחץ "בקש משמרת"','בחר תאריך ושעה','שלח'],expected:'בקשה מגיעה למנהל לאישור'},
-'PBIZ-30':{path:'ממשק MEMBER ← "אקדמיה"',steps:['כנס כ-MEMBER','כנס לאקדמיה'],expected:'רואה רק חבילות שהוקצו לו'},
-'PBIZ-31':{path:'ממשק ADMIN ← "עובדים" ← "הרשאות" ← הוסף לשונית',steps:['כנס כ-ADMIN','פתח הרשאות MEMBER ספציפי','הוסף לשונית "pos"','שמור'],expected:'עובד זה רואה POS בכניסה הבאה'},
-'PBIZ-32':{path:'ממשק ADMIN ← "עובדים" ← "הרשאות" ← הסר לשונית',steps:['פתח הרשאות MANAGER','הסר לשונית "customers"','שמור'],expected:'מנהל זה לא רואה לקוחות בכניסה הבאה'},
-'PBIZ-33':{path:'ממשק ADMIN ← "עובדים" ← שינוי תפקיד',steps:['שנה תפקיד MEMBER ל-MANAGER','שמור','עובד מתנתק ומתחבר מחדש'],expected:'עובד רואה לשוניות MANAGER'},
-'PBIZ-34':{path:'ממשק עובד ← ניסיון גישה ל-sa.html',steps:['כנס כעובד בכל תפקיד','נסה לגשת ל-/sa.html'],expected:'גישה חסומה, הפנייה לדף כניסה'},
-'PBIZ-35':{path:'ממשק עסק ← הצטרפות עובד חדש ללא תפקיד',steps:['עובד מצטרף ללא role מפורש'],expected:'עובד מקבל תפקיד MEMBER כברירת מחדל'},
-
-// ── SAF ──────────────────────────────────────────────────────────────
-'SAF-01':{path:'sa.html ← מסך כניסה',steps:['פתח sa.html','הזן קוד SA + סיסמה','לחץ "כנס"'],expected:'POST /api/superadmin/login מחזיר token, נשמר ב-localStorage, דשבורד נטען'},
-'SAF-02':{path:'sa.html ← טעינה עם token שמור',steps:['כנס ל-SA','סגור לשונית','פתח מחדש sa.html'],expected:'window.onload מזהה token ב-localStorage, כניסה ישירה לדשבורד ללא הקלדה מחדש'},
-'SAF-03':{path:'sa.html ← "התנתק"',steps:['לחץ "התנתק"'],expected:'token נמחק מ-localStorage, חזרה למסך כניסה'},
-'SAF-04':{path:'sa.html ← כניסה עם קוד שגוי',steps:['הזן קוד SA שגוי','לחץ "כנס"'],expected:'הודעת שגיאה "קוד שגוי", לא נכנס לדשבורד'},
-'SAF-05':{path:'sa.html ← "Pulse"',steps:['כנס ל-SA','עבור ל-Pulse'],expected:'סה"כ משתמשים, קבוצות, הזמנות נטענים מ-/api/sa/pulse'},
-'SAF-06':{path:'sa.html ← "Pulse" ← KPIs',steps:['עבור ל-Pulse','בדוק familyUsers + businessUsers'],expected:'מספרים מוצגים, מתעדכנים בזמן אמת'},
-'SAF-07':{path:'sa.html ← "Pulse" ← פעילות חיה',steps:['עבור ל-Pulse','בדוק stream פעילות'],expected:'רשימת פעולות/אנומליות אחרונות מוצגת'},
-'SAF-08':{path:'sa.html ← "קבוצות" ← חיפוש',steps:['כנס ל"קבוצות"','הקלד שם/קוד בשדה חיפוש'],expected:'תוצאות מסוננות בזמן אמת'},
-'SAF-09':{path:'sa.html ← "קבוצות" ← לחץ קבוצה',steps:['כנס לניהול קבוצות','לחץ על קבוצה'],expected:'תצוגת 360°: כל משתמשים, מוצרים ועסקאות'},
-'SAF-10':{path:'sa.html ← "קבוצות" ← "מחק"',steps:['מצא קבוצה','לחץ "מחק"','הזן אישור','אשר'],expected:'קבוצה נמחקת מהרשימה ומה-DB'},
-'SAF-11':{path:'sa.html ← "קבוצות" ← toggle פרמיום',steps:['לחץ toggle פרמיום על קבוצה'],expected:'קבוצה מסומנת פרמיום, features פרמיום נפתחות'},
-'SAF-12':{path:'sa.html ← "קבוצות" ← "ערוך מנהל"',steps:['כנס לקבוצה','לחץ "ערוך מנהל ראשי"','שנה שם/מייל','שמור'],expected:'פרטי מנהל הקבוצה מתעדכנים'},
-'SAF-13':{path:'sa.html ← "קהילות" ← "+ יצור"',steps:['כנס ל"קהילות"','לחץ "+ קהילה חדשה"','הזן שם, עיר, תגיות, קוד','שמור'],expected:'קהילה חדשה ברשימה'},
-'SAF-14':{path:'sa.html ← "קהילות" ← עסק ממתין ← "אשר"',steps:['עסק שלח בקשת הצטרפות לקהילה','כנס ל-SA ל"קהילות"','מצא עסק ממתין','לחץ "אשר"'],expected:'עסק מצטרף לקהילה'},
-'SAF-15':{path:'sa.html ← "קהילות" ← עסק ממתין ← "דחה"',steps:['מצא עסק ממתין','לחץ "דחה"'],expected:'עסק מוסר מהממתינים, לא מצטרף'},
-'SAF-16':{path:'sa.html ← "קהילות" ← חיפוש ועריכה',steps:['חפש קהילה','לחץ "ערוך"','שנה פרטים','שמור'],expected:'פרטי קהילה מתעדכנים'},
-'SAF-17':{path:'sa.html ← "Inbox" ← "שדר לכולם"',steps:['כנס ל-Inbox SA','לחץ "שדר לכל הקבוצות"','מלא כותרת וטקסט','שלח'],expected:'הודעה מופיעה ב-Inbox של כל הקבוצות במערכת'},
-'SAF-18':{path:'sa.html ← "Inbox" ← "שדר לקבוצה"',steps:['לחץ "שדר לקבוצה"','בחר קבוצה ספציפית','שלח'],expected:'רק הקבוצה שנבחרה מקבלת הודעה'},
-'SAF-19':{path:'sa.html ← "באנרים" ← "+ יצור"',steps:['כנס ל"באנרים"','לחץ "+ באנר"','הזן טקסט, צבע, תמונה, תאריכי הצגה','שמור'],expected:'באנר נשמר, ניתן להפעלה'},
-'SAF-20':{path:'sa.html ← "באנרים" ← toggle הפעלה',steps:['לחץ toggle על באנר'],expected:'באנר מופיע/נעלם בממשק בהתאם ל-toggle'},
-'SAF-21':{path:'sa.html ← "תמיכה" ← רשימת פניות',steps:['כנס ל"תמיכה"'],expected:'טיקטים פתוחים מוצגים לפי דחיפות'},
-'SAF-22':{path:'sa.html ← "תמיכה" ← לחץ פנייה ← "תגובה"',steps:['כנס לפנייה','כתוב תגובה','לחץ "שלח"'],expected:'תגובה נשלחת, סטטוס עובר ל-"טופל"'},
-'SAF-23':{path:'sa.html ← "שותפים"',steps:['כנס ל"שותפים"'],expected:'רשימת שותפי מערכת עם פרטים ועמלות'},
-'SAF-24':{path:'sa.html ← "שותפים" ← "+ הוסף"',steps:['לחץ "+ שותף חדש"','הזן שם, מייל, עמלה','שמור'],expected:'שותף נוסף לרשימה'},
-'SAF-25':{path:'sa.html ← כל קריאת API',steps:['בדוק Network devtools בזמן שימוש ב-SA'],expected:'כל בקשה כוללת Authorization: Bearer <token>'},
-'SAF-26':{path:'API ← בקשה ללא token',steps:['שלח בקשה ל-/api/sa/... ללא Authorization header'],expected:'שרת מחזיר 401 / 403'},
-'SAF-27':{path:'sa.html ← כל לשונית ← לחיצה ראשונה',steps:['לחץ על לשונית שעוד לא נפתחה'],expected:'switchSATab() נקרא, תוכן הלשונית נטען'},
-'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
-
-}; // סיום GUIDE_BOOK
-
-// ============================================================
-// STATE
+// 2. STATE MANAGEMENT & LOCAL STORAGE
 // ============================================================
 function loadState() {
-  try {
-    state = JSON.parse(localStorage.getItem('qa_state') || '{}');
-    versions = JSON.parse(localStorage.getItem('qa_versions') || '[]');
-    const notes = localStorage.getItem('qa_run_notes') || '';
-    const v = document.getElementById('run-notes');
-    if(v) v.value = notes;
-    const rv = document.getElementById('sb-ver');
-    if(rv && versions.length) rv.textContent = versions[versions.length-1].num;
-  } catch(e){}
+    try {
+        state = JSON.parse(localStorage.getItem('qa_state') || '{}');
+        almVersions = JSON.parse(localStorage.getItem('qa_versions_db') || '[]');
+        qaRunNotes = localStorage.getItem('qa_run_notes') || '';
+    } catch(e) { console.error('State load error', e); }
 }
 
 function saveState() {
-  localStorage.setItem('qa_state', JSON.stringify(state));
-  const n = document.getElementById('run-notes');
-  if(n) localStorage.setItem('qa_run_notes', n.value);
-  updateStats();
+    localStorage.setItem('qa_state', JSON.stringify(state));
 }
 
 function getStatus(id) { return state[id]?.s || null; }
 function getNote(id)   { return state[id]?.n || ''; }
 
 function setStatus(id, s) {
-  if(!state[id]) state[id]={};
-  state[id].s = state[id].s === s ? null : s;
-  updateRowUI(id);
-  saveState();
-  updateSidebarBadges();
+    if(!state[id]) state[id] = {};
+    if(state[id].s === s) delete state[id].s; // toggle off
+    else state[id].s = s;
+    saveState();
+    renderTests(currentFilter);
+    if(currentView === 'dashboard') updateStats();
 }
 
-function setNote(id, n) {
-  if(!state[id]) state[id]={};
-  state[id].n = n;
-  saveState();
-  const btn = document.querySelector(`[data-note-btn="${id}"]`);
-  if(btn) btn.classList.toggle('has-note', !!n);
-}
-
-// ============================================================
-// RENDER
-// ============================================================
-function renderTests(filter) {
-  const container = document.getElementById('tests-container');
-  if(!container) return;
-  let html = '';
-  const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-  sections.forEach(sec => {
-    const tests = sec.tests;
-    const counts = countSection(tests);
-    const pct = tests.length ? Math.round((counts.ok + counts.skip) / tests.length * 100) : 0;
-    html += `
-    <div class="section" id="sec-${sec.id}">
-      <div class="section-head" onclick="toggleSection(this)">
-        <h3><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}</h3>
-        <div class="section-meta">
-          <span style="font-size:0.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
-          <span style="font-size:0.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
-          <span class="section-pct">${pct}%</span>
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${sec.color}"></div></div>
-          <i class="fa-solid fa-chevron-down chevron"></i>
-        </div>
-      </div>
-      <div class="section-body">
-        <table>
-          <thead><tr>
-            <th style="width:80px">מזהה</th>
-            <th>בדיקה</th>
-            <th style="width:80px">עדיפות</th>
-            <th>סטטוס</th>
-          </tr></thead>
-          <tbody id="tbody-${sec.id}">
-            ${tests.map(t => renderRow(t, sec)).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-function renderRow(t, sec) {
-  const s = getStatus(t.id);
-  const n = getNote(t.id);
-  const envHtml = t.envs.map(e => `<span class="env-tag env-${e}">${{family:'משפחה',biz:'עסק',comm:'קהילה',sa:'SA',all:'הכל'}[e]||e}</span>`).join('');
-  const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
-  const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
-  const guide = GUIDE_BOOK[t.id];
-  const guideHtml = guide ? `
-  <tr id="guide-row-${t.id}" class="guide-row" style="display:none">
-    <td colspan="4">
-      <div class="guide-box">
-        <div class="guide-path"><i class="fa-solid fa-route"></i> ${guide.path}</div>
-        <div class="guide-body">
-          <div class="guide-steps">
-            <div class="guide-label">צעדי בדיקה</div>
-            <ol>${guide.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
-          </div>
-          <div class="guide-expected">
-            <div class="guide-label">צפוי (רצוי)</div>
-            <p>${guide.expected}</p>
-          </div>
-        </div>
-      </div>
-    </td>
-  </tr>` : '';
-  return `
-  <tr id="row-${t.id}" class="${s?'row-'+s:''}">
-    <td><span class="test-id">${t.id}</span></td>
-    <td>
-      <div class="test-name">${t.name}</div>
-      <div class="test-desc">${t.desc}</div>
-      <div class="test-env">${envHtml}</div>
-    </td>
-    <td><span class="prio ${prioClass}">${prioLabel}</span></td>
-    <td>
-      <div class="status-btns">
-        <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${t.id}','ok')" title="תקין"><i class="fa-solid fa-check"></i></button>
-        <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
-        <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
-        <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip')" title="דלג"><i class="fa-solid fa-minus"></i></button>
-        <button class="guide-btn ${guide?'active':''}" onclick="toggleGuide('${t.id}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
-        <button class="note-btn ${n?'has-note':''}" data-note-btn="${t.id}" onclick="toggleNote('${t.id}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
-      </div>
-    </td>
-  </tr>
-  ${guideHtml}
-  <tr id="note-row-${t.id}" class="note-row" style="display:none">
-    <td colspan="4">
-      <textarea class="note-input" rows="2" placeholder="הוסף הערה, צעדי שחזור, תיאור הבאג..." oninput="setNote('${t.id}',this.value)">${n}</textarea>
-    </td>
-  </tr>`;
-}
-
-function toggleGuide(id) {
-  const row = document.getElementById(`guide-row-${id}`);
-  if(!row) return;
-  row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
-}
-
-function toggleNote(id) {
-  const row = document.getElementById(`note-row-${id}`);
-  if(!row) return;
-  const visible = row.style.display !== 'none';
-  row.style.display = visible ? 'none' : 'table-row';
-  if(!visible) row.querySelector('textarea').focus();
+function setNote(id, v) {
+    if(!state[id]) state[id] = {};
+    state[id].n = v;
+    saveState();
+    const btn = document.querySelector(`button[data-note-btn="${id}"]`);
+    if(btn) {
+        if(v.trim()) btn.classList.add('has-note');
+        else btn.classList.remove('has-note');
+    }
 }
 
 // ============================================================
-// STATS
+// 3. API FETCHING & MERGING (STATIC TESTS + KANBAN TASKS)
 // ============================================================
-function allTests() { return SECTIONS.flatMap(s=>s.tests); }
-function countSection(tests) {
-  let ok=0,fail=0,warn=0,skip=0,none=0;
-  tests.forEach(t=>{
-    const s=getStatus(t.id);
-    if(s==='ok') ok++; else if(s==='fail') fail++; else if(s==='warn') warn++; else if(s==='skip') skip++; else none++;
-  });
-  return {ok,fail,warn,skip,none};
+async function loadAllData() {
+    if (!saToken) { showToast('נדרש חיבור למערכת המנהל'); return; }
+    
+    // Clear existing tests to prevent duplicates on reload
+    SECTIONS.forEach(sec => sec.tests = []);
+
+    try {
+        // A. Load Static QA Tests
+        const qaRes = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
+        if (qaRes.ok) {
+            const qaData = await qaRes.json();
+            if (qaData.success && qaData.tests) {
+                qaData.tests.forEach(t => {
+                    let targetSec = SECTIONS.find(s => s.title === t.category || s.id === t.category);
+                    if (!targetSec) targetSec = SECTIONS.find(s => s.id === 'general');
+                    targetSec.tests.push({ id: t.id, name: t.name, desc: t.description, prio: t.priority, envs: ['all'], isStatic: true });
+                });
+            }
+        }
+    } catch(e) { console.warn('Static tests load skipped'); }
+
+    try {
+        // B. Load dynamic ALM Kanban tasks
+        const devRes = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
+        if (devRes.ok) {
+            const devData = await devRes.json();
+            if (devData.success) {
+                almDevTasks = devData.tasks;
+                injectKanbanTasks();
+            }
+        }
+    } catch(e) { console.error('ALM Data Error:', e); }
+
+    // Finalize UI rendering
+    buildSidebarNavigation();
+    updateStats();
+    if(currentView === 'tests') renderTests(currentFilter);
+    if(currentView === 'versions') renderALMHub();
 }
 
-function updateStats() {
-  const all = allTests();
-  const c = countSection(all);
-  const done = c.ok + c.fail + c.warn + c.skip;
-  const pct = all.length ? Math.round(done/all.length*100) : 0;
-  setText('s-total', all.length);
-  setText('s-ok', c.ok);
-  setText('s-fail', c.fail + c.warn);
-  setText('s-skip', c.skip);
-  setText('s-pct', pct+'%');
-  setText('sb-fail-count', c.fail + c.warn);
-  if(done > 0) {
-    const now = new Date().toLocaleString('he-IL');
-    setText('run-date', now);
-    const v = document.getElementById('sb-ver');
-    setText('run-ver', v ? v.textContent : '—');
-  }
-  renderModuleCards();
-  updateSidebarBadges();
-}
+// Map kanban tasks into the proper sections based on the strict rules
+function injectKanbanTasks() {
+    almDevTasks.forEach(kt => {
+        const testObj = {
+            id: 'TASK-' + kt.id, name: kt.title, desc: kt.description || 'ללא תיאור',
+            prio: kt.priority, envs: [kt.environment && kt.environment.trim() !== '' ? kt.environment : 'all'], isKanban: true, kanbanTask: kt
+        };
 
-function setText(id, v) { const e=document.getElementById(id); if(e) e.textContent=v; }
-
-function renderModuleCards() {
-  const el = document.getElementById('module-cards');
-  if(!el) return;
-  el.innerHTML = SECTIONS.map(sec => {
-    const c = countSection(sec.tests);
-    const pct = sec.tests.length ? Math.round((c.ok+c.skip)/sec.tests.length*100) : 0;
-    const offset = 126 - (pct/100*126);
-    return `<div class="stat-card" style="text-align:right;display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="showView('tests');filterSection('${sec.id}')">
-      <div class="progress-ring-wrap">
-        <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
-          <circle class="ring-bg" cx="24" cy="24" r="20"/>
-          <circle class="ring-fill" cx="24" cy="24" r="20" style="stroke:${sec.color};stroke-dashoffset:${offset}"/>
-        </svg>
-        <div class="ring-pct" style="color:${sec.color}">${pct}%</div>
-      </div>
-      <div>
-        <div style="font-weight:700;font-size:0.8rem;color:#0f172a">${sec.title}</div>
-        <div style="font-size:0.7rem;color:#64748b;margin-top:2px">${c.ok}✓ ${c.fail}✗ ${c.warn}⚠ ${c.none} ממתינות</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function updateSidebarBadges() {
-  const c = countSection(allTests());
-  const failEl = document.getElementById('sb-fail-count');
-  if(failEl) {
-    failEl.textContent = c.fail + c.warn;
-    failEl.className = 'sb-badge ' + ((c.fail+c.warn)>0?'badge-fail':'badge-ok');
-  }
-}
-
-// ============================================================
-// REPORT
-// ============================================================
-function generateReport() {
-  showView('report');
-  const container = document.getElementById('report-container');
-  const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
-  if(!fails.length) {
-    container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
-      <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:700;font-size:1rem">כל הבדיקות שבוצעו עברו בהצלחה!</p>
-    </div>`;
-    return;
-  }
-
-  const critical = fails.filter(t=>t.prio==='critical');
-  const high = fails.filter(t=>t.prio==='high');
-  const other = fails.filter(t=>!['critical','high'].includes(t.prio));
-
-  let html = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;padding:1rem;margin-bottom:1.25rem;display:flex;gap:1rem;align-items:center">
-    <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#dc2626"></i>
-    <div><div style="font-weight:800;font-size:0.95rem;color:#991b1b">נמצאו ${fails.length} בדיקות שנכשלו</div>
-    <div style="font-size:0.78rem;color:#dc2626;margin-top:2px">${critical.length} קריטיות · ${high.length} עדיפות גבוהה · ${other.length} אחרות</div></div>
-  </div>`;
-
-  const renderGroup = (title, color, items) => {
-    if(!items.length) return '';
-    let g = `<div style="font-weight:700;font-size:0.8rem;color:${color};margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em">${title}</div>`;
-    items.forEach(t=>{
-      const s = getStatus(t.id);
-      const n = getNote(t.id);
-      const secName = SECTIONS.find(sec=>sec.tests.some(tt=>tt.id===t.id))?.title||'';
-      const isWarn = s==='warn';
-      g+=`<div class="report-item${isWarn?' report-item-warn':''}">
-        <div class="report-icon ${isWarn?'r-warn-icon':'r-fail-icon'}"><i class="fa-solid ${isWarn?'fa-triangle-exclamation':'fa-xmark'}"></i></div>
-        <div class="report-text">
-          <div class="report-test-id">${t.id} · ${secName}</div>
-          <div class="report-test-name">${t.name}</div>
-          <div class="report-section-name">${t.desc}</div>
-          ${n?`<div class="report-note"><i class="fa-solid fa-pen-to-square" style="margin-left:4px"></i>${n}</div>`:''}
-        </div>
-        <span class="prio prio-${t.prio}" style="flex-shrink:0">${{critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]}</span>
-      </div>`;
+        // RULE 1: Fresh tasks in progress WITHOUT a target go to 'General' (The queue)
+        if (kt.status === 'in_progress' && (!kt.target_version || kt.target_version.trim() === '')) {
+            const sec = SECTIONS.find(s => s.id === 'general');
+            if(sec) sec.tests.unshift(testObj);
+        }
+        // RULE 2: Tasks in QA, Done, or In-Progress WITH a target go to their specific module
+        else if (kt.status === 'qa' || kt.status === 'done' || (kt.status === 'in_progress' && kt.target_version && kt.target_version !== 'SORTING')) {
+            let targetSec = SECTIONS.find(s => s.id === kt.module_name);
+            if (targetSec) {
+                targetSec.tests.unshift(testObj);
+            } else {
+                const genSec = SECTIONS.find(s => s.id === 'general');
+                if(genSec) genSec.tests.unshift(testObj); // Fallback
+            }
+        }
     });
-    return g;
-  };
-
-  html += renderGroup('🔴 קריטי — לטפל מיידית', '#dc2626', critical);
-  html += renderGroup('🟠 עדיפות גבוהה', '#ea580c', high);
-  html += renderGroup('🟡 עדיפות בינונית/נמוכה', '#ca8a04', other);
-
-  container.innerHTML = html;
 }
 
 // ============================================================
-// VERSIONS
-// ============================================================
-function renderVersions() {
-  const el = document.getElementById('versions-container');
-  if(!el) return;
-  if(!versions.length) {
-    el.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-code-branch" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">עדיין לא נוצרה גרסה. לחץ "גרסה חדשה" להתחיל.</p>
-    </div>`;
-    return;
-  }
-  el.innerHTML = [...versions].reverse().map(v=>`
-  <div class="version-card">
-    <div class="version-header">
-      <div style="display:flex;align-items:center;gap:0.75rem">
-        <span class="version-num">${v.num}</span>
-        <span class="version-tag vtag-${v.type}">${{release:'Release',beta:'Beta',hotfix:'Hotfix'}[v.type]||v.type}</span>
-      </div>
-      <span class="version-date">${v.date}</span>
-    </div>
-    <div class="version-summary">${v.summary||'ללא סיכום'}</div>
-    <div class="version-stats">
-      <span class="vs-ok">${v.ok||0} עברו</span>
-      <span class="vs-fail">${v.fail||0} נכשלו</span>
-      <span style="color:#94a3b8">${v.total||0} סה"כ</span>
-    </div>
-    ${v.notes?`<div class="version-notes">${v.notes}</div>`:''}
-  </div>`).join('');
-}
-
-function newVersion() {
-  const num = prompt('מספר גרסה (למשל v1.2.0):','v1.0.0');
-  if(!num) return;
-  const type = prompt('סוג (release / beta / hotfix):','release');
-  const summary = prompt('סיכום השינויים:','');
-  const notes = prompt('הערות נוספות (אופציונלי):','');
-  const c = countSection(allTests());
-  versions.push({num,type:type||'release',summary,notes,date:new Date().toLocaleDateString('he-IL'),ok:c.ok,fail:c.fail+c.warn,total:allTests().length,state:JSON.parse(JSON.stringify(state))});
-  localStorage.setItem('qa_versions', JSON.stringify(versions));
-  const sb=document.getElementById('sb-ver');
-  if(sb) sb.textContent=num;
-  renderVersions();
-  showToast(`גרסה ${num} נשמרה!`);
-}
-
-// ============================================================
-// NAVIGATION & UI
+// 4. UI RENDERING & NAVIGATION
 // ============================================================
 function showView(v) {
-  currentView = v;
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  const el = document.getElementById(`view-${v}`);
-  if(el) el.classList.add('active');
-  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-  const map={dashboard:0,tests:1,report:2,versions:3};
-  const links = document.querySelectorAll('.sidebar .sb-link');
-  if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  if(v==='tests') renderTests(currentFilter);
-  if(v==='versions') renderVersions();
-  if(v==='dashboard') updateStats();
+    currentView = v;
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById(`view-${v}`);
+    if(el) el.classList.add('active');
+    
+    // Manage active links in sidebar
+    document.querySelectorAll('.sb-section:first-of-type .sb-link').forEach(l => l.classList.remove('active'));
+    const viewToIdx = { dashboard: 0, tests: 1, report: 2, versions: 3 };
+    const links = document.querySelectorAll('.sb-section:first-of-type .sb-link');
+    if(viewToIdx[v] !== undefined && links[viewToIdx[v]]) links[viewToIdx[v]].classList.add('active');
+    
+    if(v === 'tests') renderTests(currentFilter);
+    if(v === 'versions') renderALMHub();
+    if(v === 'dashboard') updateStats();
 }
 
 function filterSection(id) {
-  currentFilter = id;
-  showView('tests');
+    currentFilter = id;
+    showView('tests');
 }
 
 function showAllTests() {
-  currentFilter = null;
-  renderTests(null);
-}
-
-function filterFails() {
-  const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id))).map(t=>t.id);
-  document.querySelectorAll('table tbody tr').forEach(row=>{
-    if(row.id && row.id.startsWith('row-')) {
-      const id = row.id.replace('row-','');
-      const show = fails.includes(id) || !row.id;
-      row.style.display = show ? '' : 'none';
-      const noteRow = document.getElementById(`note-row-${id}`);
-      if(noteRow) noteRow.style.display = 'none';
-    }
-  });
-}
-
-function markAll(s) {
-  if(!confirm(`לסמן את כל הבדיקות כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
-  allTests().forEach(t => { state[t.id]={s}; });
-  saveState();
-  renderTests(currentFilter);
-  showToast('כל הבדיקות סומנו!');
-}
-
-function resetAll() {
-  if(!confirm('לאפס את כל הסטטוסים? פעולה זו לא ניתנת לביטול.')) return;
-  state={};
-  saveState();
-  renderTests(currentFilter);
-  if(currentView==='dashboard') updateStats();
-  showToast('אופס! כל הנתונים אופסו.');
+    currentFilter = null;
+    document.getElementById('qa-search-input').value = '';
+    renderTests(null);
 }
 
 function toggleSection(head) {
-  head.closest('.section').classList.toggle('collapsed');
+    head.closest('.section').classList.toggle('collapsed');
 }
 
-async function exportReport() {
-  const c = countSection(allTests());
-  const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id)));
-  
-  // 1. שמירה מקומית (הורדת קובץ)
-  let txt = `דוח QA — Oneflow Life\n`;
-  txt += `תאריך: ${new Date().toLocaleString('he-IL')}\n`;
-  txt += `סה"כ: ${allTests().length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
-  txt += `=== בדיקות שנכשלו ===\n\n`;
-  fails.forEach(t=>{
-    const n=getNote(t.id);
-    txt+=`[${t.id}] ${t.name}\n  תיאור: ${t.desc}\n  עדיפות: ${t.prio}\n`;
-    if(n) txt+=`  הערה: ${n}\n`;
-    txt+='\n';
-  });
-  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `qa-report-${new Date().toISOString().slice(0,10)}.txt`;
-  a.click();
-  
-  // 2. סנכרון התוצאות לשרת (Feedback Loop ל-ALM)
-  if (saToken) {
-      try {
-          const userName = JSON.parse(localStorage.getItem('ofl_sa_user') || '{}').name || 'QA Tester';
-          const runResults = {
-              total: allTests().length,
-              passed: c.ok,
-              failed: c.fail + c.warn,
-              skipped: c.skip,
-              failedTests: fails.map(t => ({ id: t.id, note: getNote(t.id) }))
-          };
-          
-          await fetch(`${API}/sa/qa/runs`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-              body: JSON.stringify({ versionId: null, testerName: userName, results: runResults })
-          });
-          showToast('הדוח נשמר בשרת והורד למחשב!');
-      } catch(e) { console.error('Error saving QA run to server', e); }
-  } else {
-      showToast('הדוח הורד! (לא נשמר בשרת - חסר טוקן)');
-  }
+function buildSidebarNavigation() {
+    const sbContainer = document.getElementById('sidebar-categories');
+    if (!sbContainer) return;
+    
+    let html = `<div class="sb-section-title">סינון לפי מודול</div>`;
+    SECTIONS.forEach(sec => {
+        // Only show sections that have tests (or always show General)
+        if (sec.tests.length > 0 || sec.id === 'general') {
+            const isGen = sec.id === 'general';
+            html += `<div class="sb-link" onclick="filterSection('${sec.id}')" style="${isGen?'color:#f43f5e;font-weight:bold;':''}"><i class="fa-solid ${sec.icon}"></i> ${sec.title} <span style="margin-right:auto;font-size:0.6rem;background:rgba(255,255,255,0.1);padding:0.1rem 0.4rem;border-radius:10px;">${sec.tests.length}</span></div>`;
+        }
+    });
+    sbContainer.innerHTML = html;
+}
+
+// ============================================================
+// 5. TEST LIST & SEARCH
+// ============================================================
+function filterTestsBySearch() {
+    const term = document.getElementById('qa-search-input').value.toLowerCase();
+    document.querySelectorAll('.section-body tbody tr').forEach(row => {
+        if(row.classList.contains('guide-row') || row.classList.contains('note-row')) return;
+        const text = row.innerText.toLowerCase();
+        const show = text.includes(term);
+        row.style.display = show ? '' : 'none';
+        
+        const id = row.id.replace('row-','');
+        const noteRow = document.getElementById(`note-row-${id}`);
+        if(!show && noteRow) noteRow.style.display = 'none';
+    });
+}
+
+function renderTests(filter) {
+    const container = document.getElementById('tests-container');
+    if(!container) return;
+    let html = '';
+    const sectionsToRender = filter ? SECTIONS.filter(s => s.id === filter) : SECTIONS;
+    
+    sectionsToRender.forEach(sec => {
+        if (sec.tests.length === 0) return; 
+        const counts = countSection(sec.tests);
+        const pct = sec.tests.length ? Math.round((counts.ok + counts.skip) / sec.tests.length * 100) : 0;
+        
+        html += `
+        <div class="section" id="sec-${sec.id}">
+          <div class="section-head" onclick="toggleSection(this)">
+            <h3><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}</h3>
+            <div class="section-meta">
+              <span style="font-size:0.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
+              <span style="font-size:0.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
+              <span class="section-pct">${pct}%</span>
+              <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${sec.color}"></div></div>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </div>
+          </div>
+          <div class="section-body">
+            <table>
+              <thead><tr><th style="width:80px">מזהה</th><th>פרטי משימה / בדיקה</th><th style="width:80px">עדיפות</th><th>סטטוס ופעולות</th></tr></thead>
+              <tbody id="tbody-${sec.id}">
+                ${sec.tests.map(t => renderRow(t)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    });
+    
+    if(html === '') html = `<div style="text-align:center;padding:3rem;color:var(--text-muted)"><i class="fa-solid fa-check-double" style="font-size:3rem;margin-bottom:1rem;"></i><p>אין נתונים להצגה בקטגוריה זו.</p></div>`;
+    container.innerHTML = html;
+    
+    if(document.getElementById('qa-search-input').value) filterTestsBySearch();
+}
+
+function renderRow(t) {
+    const s = getStatus(t.id);
+    const n = getNote(t.id);
+    const envHtml = t.envs.map(e => `<span class="env-tag env-${e}">${{family:'משפחה',biz:'עסק',comm:'קהילה',sa:'SA',all:'הכל'}[e]||e}</span>`).join('');
+    const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
+    const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
+
+    // ALM Action Buttons for Kanban Tasks
+    let actionBtn = '';
+    if (t.isKanban) {
+        if (t.kanbanTask.status === 'in_progress' && (!t.kanbanTask.target_version || t.kanbanTask.target_version.trim() === '')) {
+            actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-purple" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="almApproveForSorting(${t.kanbanTask.id})"><i class="fa-solid fa-arrow-left"></i> אשר והעבר למיון</button></div>`;
+        } else if (t.kanbanTask.status === 'qa') {
+            actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-green" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="almPassQA(${t.kanbanTask.id})"><i class="fa-solid fa-check-double"></i> בדיקה עברה (סגור ל-DONE)</button></div>`;
+        }
+    }
+
+    return `
+    <tr id="row-${t.id}" class="${s?'row-'+s:''}">
+      <td><span class="test-id" style="${t.isKanban?'color:var(--new);font-weight:bold':''}">${t.id}</span></td>
+      <td>
+        <div class="test-name" style="${t.isKanban?'color:#6d28d9; font-weight:800;':''}">${t.isKanban?'<i class="fa-solid fa-laptop-code"></i> ':''}${t.name}</div>
+        <div class="test-desc">${t.desc}</div>
+        <div class="test-env">${envHtml}</div>
+        ${actionBtn}
+      </td>
+      <td><span class="prio ${prioClass}">${prioLabel}</span></td>
+      <td>
+        <div class="status-btns">
+          <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${t.id}','ok')" title="תקין"><i class="fa-solid fa-check"></i></button>
+          <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+          <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
+          <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip')" title="דלג"><i class="fa-solid fa-minus"></i></button>
+          <button class="note-btn ${n?'has-note':''}" data-note-btn="${t.id}" onclick="toggleNote('${t.id}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
+        </div>
+      </td>
+    </tr>
+    <tr id="note-row-${t.id}" class="note-row" style="display:none">
+      <td colspan="4"><textarea class="note-input" rows="2" placeholder="הוסף הערה, שגיאה, או צעדי שחזור..." oninput="setNote('${t.id}',this.value)">${n}</textarea></td>
+    </tr>`;
+}
+
+function toggleNote(id) {
+    const row = document.getElementById(`note-row-${id}`);
+    if(!row) return;
+    const isVisible = row.style.display !== 'none';
+    row.style.display = isVisible ? 'none' : 'table-row';
+    if(!isVisible) row.querySelector('textarea').focus();
+}
+
+// ============================================================
+// 6. STATISTICS & DASHBOARD
+// ============================================================
+function allTests() { return SECTIONS.flatMap(s=>s.tests); }
+function countSection(tests) {
+    let ok=0,fail=0,warn=0,skip=0,none=0;
+    tests.forEach(t=>{
+        const s=getStatus(t.id);
+        if(s==='ok') ok++; else if(s==='fail') fail++; else if(s==='warn') warn++; else if(s==='skip') skip++; else none++;
+    });
+    return {ok,fail,warn,skip,none};
+}
+
+function updateStats() {
+    const all = allTests();
+    const c = countSection(all);
+    const done = c.ok + c.fail + c.warn + c.skip;
+    const pct = all.length ? Math.round(done/all.length*100) : 0;
+    
+    document.getElementById('s-total').textContent = all.length;
+    document.getElementById('s-ok').textContent = c.ok;
+    document.getElementById('s-fail').textContent = c.fail + c.warn;
+    document.getElementById('s-skip').textContent = c.skip;
+    document.getElementById('s-pct').textContent = pct + '%';
+    
+    const failBadge = document.getElementById('sb-fail-count');
+    if(failBadge) {
+        failBadge.textContent = c.fail + c.warn;
+        failBadge.className = 'sb-badge ' + ((c.fail+c.warn)>0?'badge-fail':'badge-ok');
+    }
+    
+    const cardsEl = document.getElementById('module-cards');
+    if(cardsEl) {
+        cardsEl.innerHTML = SECTIONS.filter(sec => sec.tests.length > 0).map(sec => {
+            const cc = countSection(sec.tests);
+            const cpct = sec.tests.length ? Math.round((cc.ok+cc.skip)/sec.tests.length*100) : 0;
+            const offset = 126 - (cpct/100*126);
+            return `<div class="stat-card" style="text-align:right;display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="filterSection('${sec.id}')">
+              <div class="progress-ring-wrap">
+                <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
+                  <circle class="ring-bg" cx="24" cy="24" r="20"/><circle class="ring-fill" cx="24" cy="24" r="20" style="stroke:${sec.color};stroke-dashoffset:${offset}"/>
+                </svg>
+                <div class="ring-pct" style="color:${sec.color}">${cpct}%</div>
+              </div>
+              <div>
+                <div style="font-weight:700;font-size:0.8rem;color:var(--text-main)">${sec.title}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px">${cc.ok}✓ ${cc.fail}✗ ${cc.warn}⚠ ${cc.none} ממתינות</div>
+              </div>
+            </div>`;
+        }).join('');
+    }
+}
+
+// ============================================================
+// 7. REPORTS
+// ============================================================
+function generateReport() {
+    showView('report');
+    const container = document.getElementById('report-container');
+    const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
+    
+    if(fails.length === 0) {
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)"><i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;"></i><p style="font-weight:700;font-size:1rem">כל הבדיקות שבוצעו עברו בהצלחה!</p></div>`;
+        return;
+    }
+
+    const critical = fails.filter(t=>t.prio==='critical');
+    const high = fails.filter(t=>t.prio==='high');
+    const other = fails.filter(t=>!['critical','high'].includes(t.prio));
+
+    let html = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;padding:1rem;margin-bottom:1.25rem;display:flex;gap:1rem;align-items:center">
+      <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:var(--fail)"></i>
+      <div><div style="font-weight:800;font-size:0.95rem;color:#991b1b">נמצאו ${fails.length} בדיקות שנכשלו</div>
+      <div style="font-size:0.78rem;color:var(--fail);margin-top:2px">${critical.length} קריטיות · ${high.length} עדיפות גבוהה · ${other.length} אחרות</div></div>
+    </div>`;
+
+    const renderGroup = (title, color, items) => {
+        if(!items.length) return '';
+        let g = `<div style="font-weight:700;font-size:0.8rem;color:${color};margin:1rem 0 0.5rem;text-transform:uppercase;">${title}</div>`;
+        items.forEach(t=>{
+            const s = getStatus(t.id);
+            const n = getNote(t.id);
+            const secName = SECTIONS.find(sec=>sec.tests.some(tt=>tt.id===t.id))?.title||'';
+            g+=`<div class="report-item ${s==='warn'?'report-item-warn':''}">
+              <div class="report-icon ${s==='warn'?'r-warn-icon':'r-fail-icon'}"><i class="fa-solid ${s==='warn'?'fa-triangle-exclamation':'fa-xmark'}"></i></div>
+              <div class="report-text">
+                <div class="report-test-id">${t.id} · ${secName}</div>
+                <div class="report-test-name">${t.name}</div>
+                ${n?`<div class="report-note"><i class="fa-solid fa-pen-to-square"></i> ${n}</div>`:''}
+              </div>
+            </div>`;
+        });
+        return g;
+    };
+
+    html += renderGroup('🔴 קריטי — לטפל מיידית', '#dc2626', critical);
+    html += renderGroup('🟠 עדיפות גבוהה', '#ea580c', high);
+    html += renderGroup('🟡 עדיפות בינונית/נמוכה', '#ca8a04', other);
+    container.innerHTML = html;
+}
+
+function exportReport() {
+    const c = countSection(allTests());
+    const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id)));
+    let txt = `דוח QA — Oneflow Life\nתאריך: ${new Date().toLocaleString('he-IL')}\nסה"כ: ${allTests().length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
+    if(fails.length > 0) txt += `=== בדיקות שנכשלו ===\n\n`;
+    fails.forEach(t=>{
+        txt+=`[${t.id}] ${t.name}\n  תיאור: ${t.desc}\n  עדיפות: ${t.prio}\n${getNote(t.id)?`  הערה: ${getNote(t.id)}\n`:''}\n`;
+    });
+    const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `qa-report-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    showToast('הדוח נוצר והורד למחשב!');
+}
+
+function filterFails() {
+    const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id))).map(t=>t.id);
+    document.querySelectorAll('.section-body tbody tr').forEach(row=>{
+        if(row.classList.contains('note-row')) return;
+        const id = row.id.replace('row-','');
+        row.style.display = fails.includes(id) ? '' : 'none';
+        const noteRow = document.getElementById(`note-row-${id}`);
+        if(noteRow) noteRow.style.display = 'none';
+    });
+}
+
+function markAll(s) {
+    if(!confirm(`לסמן את כל הבדיקות במסך הנוכחי כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
+    const testsToMark = currentFilter ? SECTIONS.find(sec=>sec.id===currentFilter).tests : allTests();
+    testsToMark.forEach(t => { state[t.id] = {s}; });
+    saveState();
+    renderTests(currentFilter);
+    if(currentView==='dashboard') updateStats();
+    showToast('הבדיקות סומנו בהצלחה!');
+}
+
+function resetAll() {
+    if(!confirm('לאפס את כל הסטטוסים? פעולה זו תמחק את כל ההיסטוריה המקומית.')) return;
+    state = {};
+    saveState();
+    renderTests(currentFilter);
+    updateStats();
+    showToast('כל הנתונים אופסו.');
+}
+
+// ============================================================
+// 8. ALM HUB & KANBAN SYNC ACTIONS
+// ============================================================
+async function almApproveForSorting(taskId) {
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description, 
+                targetVersion: 'SORTING', environment: kt.environment, moduleName: kt.module_name 
+            })
+        });
+        if(res.ok) { showToast('המשימה עברה למיון!'); await loadAllData(); }
+    } catch(e) { showToast('שגיאה בשמירה לשרת'); }
+}
+
+async function almAssignTask(taskId) {
+    const verSel = document.getElementById(`assign-ver-${taskId}`).value;
+    const envSel = document.getElementById(`assign-env-${taskId}`).value;
+    const modSel = document.getElementById(`assign-mod-${taskId}`).value;
+    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול (קטגוריה בספר)!');
+
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description,
+                targetVersion: verSel, environment: envSel, moduleName: modSel 
+            })
+        });
+        if(res.ok) { showToast('המשימה שויכה בהצלחה!'); await loadAllData(); }
+    } catch(e) { showToast('שגיאת רשת'); }
+}
+
+async function almMarkDevDone(taskId) {
+    if(!confirm('הפיתוח הסתיים? המשימה תעבור לעמודת QA.')) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'qa', systemOverride: true })
+        });
+        if(res.ok) { showToast('עבר בהצלחה ל-QA!'); await loadAllData(); }
+    } catch(e) { showToast('שגיאה בעדכון'); }
+}
+
+async function almPassQA(taskId) {
+    if(!confirm('הבדיקה עברה? המשימה תשחרר סופית ללקוח.')) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'done', systemOverride: true })
+        });
+        if(res.ok) { showToast('המשימה שוחררה ל-DONE!'); await loadAllData(); }
+    } catch(e) { showToast('שגיאה בעדכון'); }
+}
+
+// ============================================================
+// 9. VERSIONS MANAGEMENT UI
+// ============================================================
+function openNewVersionModal() { document.getElementById('modal-new-version').style.display = 'flex'; }
+function closeNewVersionModal() { document.getElementById('modal-new-version').style.display = 'none'; }
+
+function saveNewVersion() {
+    const name = document.getElementById('nv-name').value.trim();
+    if(!name) return showToast('נא להזין שם גרסה');
+    if(almVersions.find(v => v.name === name)) return showToast('שם גרסה זה כבר קיים');
+
+    almVersions.push({ id: 'v_' + Date.now(), name, targetDate: document.getElementById('nv-date').value, status: 'planning' });
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    closeNewVersionModal();
+    showToast('גרסה הוקמה בהצלחה!');
+    renderALMHub();
+}
+
+function releaseVersion(verName) {
+    if(!confirm(`להשיק את גרסה ${verName} ללקוחות?`)) return;
+    const ver = almVersions.find(v => v.name === verName);
+    if(ver) ver.status = 'released';
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    showToast('🚀 הגרסה שוחררה בהצלחה!');
+    renderALMHub();
+}
+
+function renderALMHub() {
+    const board = document.getElementById('alm-versions-board');
+    const unassigned = document.getElementById('alm-unassigned-tasks');
+    if(!board || !unassigned) return;
+
+    // Build strict module dropdown from SKELETON (prevents routing errors)
+    const moduleOptions = BASE_CATEGORIES.filter(c => c.id !== 'general').map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+
+    // Left Panel: Sorting Queue
+    const tasksForSorting = almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
+    if(tasksForSorting.length === 0) {
+        unassigned.innerHTML = `<div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted);"><i class="fa-solid fa-check-double" style="font-size:2.5rem; margin-bottom:0.75rem; opacity:0.5;"></i><div style="font-weight:700; font-size:0.8rem;">תור המיון ריק</div></div>`;
+    } else {
+        unassigned.innerHTML = tasksForSorting.map(t => `
+        <div style="background:white; padding:1rem; border-radius:0.75rem; border:1px solid var(--border); margin-bottom:0.5rem;">
+            <div style="font-size:0.8rem; font-weight:800; color:var(--text-main); margin-bottom:0.2rem;">${t.title}</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.75rem;">${t.description || 'ללא תיאור'}</div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <select id="assign-ver-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border); font-size:0.7rem; outline:none; background:var(--bg);">
+                    <option value="">-- שייך לגרסה או עצמאי --</option>
+                    <option value="STANDALONE" style="font-weight:bold;color:var(--primary);">★ פיתוח עצמאי (ללא גרסה)</option>
+                    ${almVersions.map(v => `<option value="${v.name}">${v.name}</option>`).join('')}
+                </select>
+                <div style="display:flex; gap:0.4rem;">
+                    <select id="assign-env-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border); font-size:0.7rem; outline:none; flex:1; background:var(--bg);">
+                        <option value="all">סביבה (כללי)</option><option value="family">משפחות</option><option value="biz">עסקים</option><option value="comm">קהילות</option><option value="sa">סופר אדמין</option>
+                    </select>
+                    <select id="assign-mod-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border); font-size:0.7rem; outline:none; flex:1; background:var(--bg);">
+                        <option value="">-- שייך לקטגוריה בספר --</option>
+                        ${moduleOptions}
+                    </select>
+                </div>
+                <button onclick="almAssignTask(${t.id})" style="background:var(--primary); color:white; border:none; padding:0.45rem; border-radius:0.4rem; font-size:0.7rem; font-weight:700; cursor:pointer;">שמור שיוך <i class="fa-solid fa-check"></i></button>
+            </div>
+        </div>`).join('');
+    }
+
+    // Right Panel: Standalone Tasks SLA
+    const standaloneTasks = almDevTasks.filter(t => t.target_version === 'STANDALONE');
+    let standaloneHtml = '';
+    if (standaloneTasks.length > 0) {
+        standaloneHtml = `
+        <div style="background:var(--bg); border-radius:1rem; border:1px solid var(--border); padding:1.5rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:#475569; margin-bottom:1rem;"><i class="fa-solid fa-bolt text-amber-500"></i> פיתוחים עצמאיים (SLA)</h3>
+            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                ${standaloneTasks.map(t => {
+                    const isDone = t.status === 'done';
+                    const isQA = t.status === 'qa';
+                    let pct = isDone ? 100 : (isQA ? 50 : 10);
+                    return `
+                    <div style="background:white; border:1px solid var(--border); border-radius:0.5rem; padding:0.75rem 1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <div style="font-size:0.85rem; font-weight:700;">${t.title}</div>
+                            <span style="font-size:0.6rem; background:#eff6ff; color:var(--primary); padding:0.2rem 0.5rem; border-radius:99px;">${isDone ? 'הושלם סופית' : (isQA ? 'ממתין ל-QA' : 'בפיתוח')}</span>
+                        </div>
+                        <div style="height:6px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:0.75rem;">
+                            <div style="height:100%; width:${pct}%; background:${isDone?'var(--ok)':'#f59e0b'}; transition:width 0.5s;"></div>
+                        </div>
+                        ${(!isQA && !isDone) ? `<button onclick="almMarkDevDone(${t.id})" class="btn btn-outline" style="font-size:0.65rem; padding:0.2rem 0.6rem;">הפיתוח הסתיים - העבר ל-QA</button>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }
+
+    // Right Panel: Versions SLA
+    let versionsHtml = almVersions.slice().reverse().map(v => {
+        const vTasks = almDevTasks.filter(t => t.target_version === v.name);
+        const total = vTasks.length;
+        const devDone = vTasks.filter(t => t.status === 'qa' || t.status === 'done').length;
+        const devPct = total > 0 ? Math.round((devDone / total) * 100) : 0;
+        const qaDone = vTasks.filter(t => t.status === 'done').length;
+        const qaPct = total > 0 ? Math.round((qaDone / total) * 100) : 0;
+        const isReady = (qaPct === 100 && total > 0);
+        const isReleased = (v.status === 'released');
+
+        return `
+        <div style="background:white; border-radius:1rem; border:1px solid ${isReady?'var(--ok)':'var(--border)'}; padding:1.5rem; position:relative; overflow:hidden; opacity:${isReleased?0.7:1}; margin-bottom:1rem;">
+            <div style="position:absolute; top:0; left:0; width:5px; height:100%; background:${isReady?'var(--ok)':'#6366f1'};"></div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                        <h3 style="font-size:1.25rem; font-weight:900;">${v.name}</h3>
+                        <span style="font-size:0.6rem; font-weight:800; background:${isReady?'#dcfce7':'#eff6ff'}; color:${isReady?'#166534':'#1d4ed8'}; padding:0.2rem 0.6rem; border-radius:99px;">${isReleased?'הושק לאוויר':(isReady?'מוכן להשקה':'בפיתוח פעיל')}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);"><i class="fa-regular fa-calendar"></i> יעד: ${v.targetDate || 'לא מוגדר'}</div>
+                </div>
+                ${!isReleased ? (isReady ? `<button class="btn btn-green" onclick="releaseVersion('${v.name}')"><i class="fa-solid fa-rocket"></i> שחרר גרסה</button>` : `<button class="btn btn-outline" disabled>ממתין לפיתוח ו-QA</button>`) : `<span style="font-weight:800; color:var(--ok);"><i class="fa-solid fa-check-double"></i> באוויר</span>`}
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; background:var(--bg); padding:1.25rem; border-radius:0.75rem;">
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-code text-indigo-500"></i> פיתוח</span><span style="color:${devPct===100?'var(--ok)':'#6366f1'}">${devPct}%</span></div>
+                    <div style="height:8px; background:var(--border); border-radius:99px; overflow:hidden;"><div style="height:100%; width:${devPct}%; background:${devPct===100?'var(--ok)':'#6366f1'}; transition:width 0.5s;"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-vial-circle-check text-emerald-500"></i> בדיקות QA</span><span style="color:var(--ok)">${qaPct}%</span></div>
+                    <div style="height:8px; background:var(--border); border-radius:99px; overflow:hidden;"><div style="height:100%; width:${qaPct}%; background:var(--ok); transition:width 0.5s;"></div></div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="font-size:0.8rem; font-weight:800; border-bottom:2px solid var(--border); padding-bottom:0.25rem; margin-bottom:0.75rem;">תכולה (${total})</h4>
+                ${total === 0 ? `<div style="font-size:0.75rem; color:var(--text-muted);">אין משימות בגרסה.</div>` : 
+                `<div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    ${vTasks.map(t => {
+                        const isDone = (t.status === 'done');
+                        const isQA = (t.status === 'qa' || t.status === 'done');
+                        return `
+                        <div style="display:flex; align-items:center; justify-content:space-between; background:${isDone?'#f0fdf4':'#fff'}; border:1px solid ${isDone?'#bbf7d0':'var(--border)'}; padding:0.6rem 1rem; border-radius:0.5rem;">
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <div style="font-size:0.8rem; font-weight:800; text-decoration:${isDone?'line-through':'none'};">${t.title}</div>
+                            </div>
+                            <div style="display:flex; gap:0.4rem;">
+                                ${!isQA ? `<button onclick="almMarkDevDone(${t.id})" class="btn" style="background:#eff6ff; color:var(--primary); font-size:0.65rem; padding:0.3rem 0.6rem;">פיתוח הסתיים</button>` : 
+                                 (!isDone ? `<span style="font-size:0.65rem; font-weight:800; color:#ea580c;"><i class="fa-solid fa-vial"></i> ממתין לבדיקה בספר</span>` : 
+                                 `<span style="font-size:0.65rem; font-weight:800; color:var(--ok);"><i class="fa-solid fa-check"></i> הושלם</span>`)}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`}
+            </div>
+        </div>`;
+    }).join('');
+
+    if (almVersions.length === 0 && standaloneTasks.length === 0) {
+        versionsHtml = `<div style="text-align:center; padding:4rem; background:white; border-radius:1rem; border:1px dashed var(--border); color:var(--text-muted);"><p style="font-weight:700;">הקם את הגרסה הראשונה שלך!</p></div>`;
+    }
+    board.innerHTML = standaloneHtml + versionsHtml;
 }
 
 function showToast(msg) {
-  const t = document.getElementById('qa-toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2500);
+    const t = document.getElementById('qa-toast');
+    if(!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 // ============================================================
-// INIT
+// 10. SYSTEM BOOTSTRAP
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-  loadState();
-  // תחילה נטען נתונים מהשרת (יחליף את המערך הריק SECTIONS)
-  loadTestsFromServer().then(() => {
-      // רק אחרי שהמידע נמשך, הממשק יתרנדר מחדש
-      updateStats();
-      renderTests(null);
-      renderVersions();
-  });
+    loadState();
+    loadAllData();
 });
-
 </script>
 </body>
 </html>
