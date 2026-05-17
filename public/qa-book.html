@@ -797,7 +797,7 @@ window.seedDatabase = async function(legacyData) {
 'PWA-07':{path:'מכשיר 4G ← בדיקת זמן טעינה',steps:['פתח Network devtools','הגדר Throttle: "Fast 4G"','רענן עמוד','מדוד זמן טעינה'],expected:'טעינה ראשונית < 3 שניות'},
 'PWA-08':{path:'כל עמוד ← נפילת DB',steps:['כבה את השרת / DB','רענן עמוד'],expected:'הודעת שגיאה ידידותית בעברית, לא מסך שגיאה גנרי'},
 'PWA-09':{path:'storefront / catalog ← CORS',steps:['פתח storefront מדומיין שונה','בדוק console'],expected:'אין שגיאות CORS, הנתונים נטענים'},
-'PWA-10':{path:'שדות קלט ← XSS injection',steps:['הזן בשדה שם: <script>alert(1)</script>','שמור','רענן'],expected:'קוד מוצג כטקסט גולמי, לא מופעל (sanitization)'},
+'PWA-10':{path:'שדות קלט ← XSS injection',steps:['הזן בשדה שם: <script>alert(1)<\/script>','שמור','רענן'],expected:'קוד מוצג כטקסט גולמי, לא מופעל (sanitization)'},
 'PWA-11':{path:'שדות חיפוש ← SQL injection',steps:["הזן בחיפוש: ' OR 1=1 --","חפש"],expected:'אין חשיפת נתונים, שגיאה מבוקרת'},
 'PWA-12':{path:'ממשק עסק ← "קטלוג" ← הוספת מוצר 51',steps:['בחשבון Free עם 50 מוצרים','נסה להוסיף מוצר 51'],expected:'הודעת שגיאה "הגעת למגבלת 50 מוצרים בחשבון חינמי"'},
 
