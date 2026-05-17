@@ -3175,13 +3175,13 @@ window.verifyMasterOTP = async function(e) {
         
         if (data.success) {
             clearInterval(otpInterval);
-            localStorage.setItem('saToken', data.token);
-            localStorage.setItem('saUser', JSON.stringify(data.user));
+            // תיקון קריטי: שמירה בשמות המשתנים שהמערכת מצפה להם!
+            localStorage.setItem('ofl_sa_token', data.token);
+            localStorage.setItem('ofl_sa_user', JSON.stringify(data.user));
             showToast('success', 'האימות הצליח! מתחבר...');
             setTimeout(() => window.location.reload(), 1000);
         } else {
             showToast('error', data.error);
-            // מרוקנים את הקופסאות אם טעו
             boxes.forEach(b => b.value = ''); 
             boxes[0].focus();
         }
@@ -3189,45 +3189,4 @@ window.verifyMasterOTP = async function(e) {
         showToast('error', 'שגיאה באימות הקוד מול השרת');
     }
 };
-// בדיקת סטטוס חיבור אוטומטית ואתחול מערכת מלא (Auto-Login & Init)
-document.addEventListener("DOMContentLoaded", function() {
-    const token = localStorage.getItem('saToken');
-    const userRaw = localStorage.getItem('saUser');
-    
-    if (token && userRaw) {
-        try {
-            // טעינת המשתמש לזיכרון הגלובלי של האפליקציה (קריטי להרשאות!)
-            window.saToken = token;
-            window.saUser = JSON.parse(userRaw);
-            
-            if (window.saUser && window.saUser.role === 'master') {
-                // הצגת ממשק הניהול
-                document.getElementById('auth-container').classList.add('hidden');
-                document.getElementById('sa-dashboard-container').classList.remove('hidden');
-                
-                // עדכון שם המנהל בסרגל העליון
-                const topbarName = document.getElementById('topbar-user-name');
-                if (topbarName) topbarName.innerText = window.saUser.name;
-                
-                // חשיפת כל כפתורי הניווט בסרגל הצד למנהל-על
-                document.querySelectorAll('[id^="btn-sa-tab-"]').forEach(btn => {
-                    btn.classList.remove('hidden');
-                    btn.classList.add('flex');
-                });
-                
-                // פתיחה אוטומטית של טאב 'דופק מערכת' כדי למנוע מסך ריק
-                if (typeof switchSATab === 'function') switchSATab('pulse');
-                
-                // טעינת נתונים ברקע
-                if (typeof loadSAData === 'function') loadSAData();
-                if (typeof loadSATickets === 'function') loadSATickets();
-                
-                showToast('success', 'ברוך הבא למערכת, ' + window.saUser.name);
-            }
-        } catch(e) {
-            console.error("שגיאה בפענוח נתוני המשתמש. מנקה זיכרון:", e);
-            localStorage.removeItem('saToken');
-            localStorage.removeItem('saUser');
-        }
-    }
-});
+
