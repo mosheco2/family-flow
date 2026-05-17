@@ -3058,3 +3058,134 @@ setInterval(() => {
         loadInternalChat(currentChatRoom);
     }
 }, 15000);
+// ============================================================
+// --- SMS OTP LOGIN LOGIC ---
+// ============================================================
+
+window.toggleLoginMode = function() {
+    const masterStep1 = document.getElementById('sa-login-master-step1');
+    const staffLogin = document.getElementById('sa-login-staff');
+    if (masterStep1.classList.contains('hidden')) {
+        masterStep1.classList.remove('hidden');
+        staffLogin.classList.add('hidden');
+    } else {
+        masterStep1.classList.add('hidden');
+        staffLogin.classList.remove('hidden');
+    }
+};
+
+let otpInterval;
+window.sendMasterOTP = async function(e) {
+    if(e) e.preventDefault();
+    const phoneInput = document.getElementById('sa-phone').value.trim();
+    if (!phoneInput) return showToast('error', 'נא להזין מספר טלפון');
+    
+    // מוסיף קידומת +972 אוטומטית אם המשתמש הזין רק 05X...
+    let formattedPhone = phoneInput;
+    if (formattedPhone.startsWith('05')) {
+        formattedPhone = '+972' + formattedPhone.substring(1);
+    }
+
+    const btn = e.currentTarget;
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר SMS...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/superadmin/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formattedPhone })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'הקוד נשלח! בדוק את ה-SMS שלך');
+            document.getElementById('sa-login-master-step1').classList.add('hidden');
+            document.getElementById('sa-login-master-step2').classList.remove('hidden');
+            
+            // הפעלת טיימר 5 דקות
+            let timeLeft = 300; 
+            otpInterval = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                const s = (timeLeft % 60).toString().padStart(2, '0');
+                document.getElementById('otp-timer').innerText = `תוקף הקוד: ${m}:${s}`;
+                if (timeLeft <= 0) {
+                    clearInterval(otpInterval);
+                    document.getElementById('otp-timer').innerText = 'פג תוקף הקוד. חזור לאחור ונסה שוב.';
+                    document.getElementById('otp-timer').classList.add('text-red-500');
+                }
+            }, 1000);
+            
+            // קפיצה אוטומטית למשבצת הראשונה
+            setTimeout(() => document.querySelectorAll('.otp-box')[0].focus(), 100);
+        } else {
+            showToast('error', data.error);
+        }
+    } catch (err) {
+        showToast('error', 'שגיאת רשת בשליחת הקוד');
+    } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    }
+};
+
+window.handleOTPInput = function(e, index) {
+    const boxes = document.querySelectorAll('.otp-box');
+    
+    // מחיקה ומעבר למשבצת קודמת
+    if (e.key === 'Backspace' && index > 0 && boxes[index].value === '') {
+        boxes[index - 1].focus();
+    } 
+    // הקלדה ומעבר למשבצת הבאה
+    else if (e.target.value.length === 1 && index < 5) {
+        boxes[index + 1].focus();
+    }
+    
+    // אם הזינו את כל 6 הספרות - שלח אוטומטית
+    let code = '';
+    boxes.forEach(b => code += b.value);
+    if (code.length === 6) {
+        verifyMasterOTP();
+    }
+};
+
+window.verifyMasterOTP = async function(e) {
+    if(e) e.preventDefault();
+    const boxes = document.querySelectorAll('.otp-box');
+    let code = '';
+    boxes.forEach(b => code += b.value);
+    
+    if (code.length !== 6) return showToast('error', 'נא להזין קוד אימות בן 6 ספרות');
+    
+    let phoneInput = document.getElementById('sa-phone').value.trim();
+    let formattedPhone = phoneInput;
+    if (formattedPhone.startsWith('05')) {
+        formattedPhone = '+972' + formattedPhone.substring(1);
+    }
+
+    try {
+        const res = await fetch(`${API}/superadmin/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formattedPhone, code })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            clearInterval(otpInterval);
+            localStorage.setItem('saToken', data.token);
+            localStorage.setItem('saUser', JSON.stringify(data.user));
+            showToast('success', 'האימות הצליח! מתחבר...');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast('error', data.error);
+            // מרוקנים את הקופסאות אם טעו
+            boxes.forEach(b => b.value = ''); 
+            boxes[0].focus();
+        }
+    } catch (err) {
+        showToast('error', 'שגיאה באימות הקוד מול השרת');
+    }
+};
