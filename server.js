@@ -17,6 +17,43 @@ app.use(express.static('public'));
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
+// ============================================================
+// TWILIO SMS OTP CONFIGURATION & LOGIC
+// ============================================================
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+const otpCache = new Map();
+
+async function sendSMSviaTwilio(to, body) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+        throw new Error('הגדרות Twilio (SID, Token או מספר טלפון) חסרות במשתני הסביבה של השרת');
+    }
+    
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+    const basicAuth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+    
+    const params = new URLSearchParams();
+    params.append('To', to);
+    params.append('From', TWILIO_PHONE_NUMBER);
+    params.append('Body', body);
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${basicAuth}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || 'שגיאה פנימית בתקשורת מול שרת ה-SMS של Twilio');
+    }
+    return data;
+}
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -839,6 +876,67 @@ function verifySA(req, res, next) {
     next();
 }
 
+// ============================================================
+// --- SMS OTP LOGIN (SUPER ADMIN MASTER) ---
+// ============================================================
+
+app.post('/api/superadmin/send-otp', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        
+        // אבטחה: הגדר ב-Render משתנה סביבה בשם SUPERADMIN_PHONE עם המספר שלך (למשל: +972501234567)
+        const allowedPhone = process.env.SUPERADMIN_PHONE;
+        
+        if (!allowedPhone || phone !== allowedPhone) {
+            // לא נגיד "חסר מספר" להאקרים, נחזיר שגיאה כללית או שהמספר לא מורשה
+            return res.json({ success: false, error: 'מספר הטלפון שהוזן אינו מורשה גישה לחשבון מנהל העל.' });
+        }
+        
+        const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 דקות
+        
+        otpCache.set(phone, { code: generatedCode, expiresAt });
+        
+        const smsText = `קוד הגישה שלך למערכת Oneflow הוא: ${generatedCode}. הקוד בתוקף ל-5 דקות.`;
+        await sendSMSviaTwilio(phone, smsText);
+        
+        res.json({ success: true, message: 'קוד אימות נשלח בהצלחה' });
+    } catch (e) {
+        console.error('OTP Send Error:', e);
+        res.json({ success: false, error: 'שגיאה בשליחת ה-SMS: ' + e.message });
+    }
+});
+
+app.post('/api/superadmin/verify-otp', async (req, res) => {
+    try {
+        const { phone, code } = req.body;
+        
+        const cachedData = otpCache.get(phone);
+        if (!cachedData) return res.json({ success: false, error: 'לא נמצאה בקשת התחברות פעילה למספר זה' });
+        
+        if (Date.now() > cachedData.expiresAt) {
+            otpCache.delete(phone);
+            return res.json({ success: false, error: 'פג תוקפו של הקוד (חלפו 5 דקות). נסה שנית.' });
+        }
+        
+        if (cachedData.code !== code) return res.json({ success: false, error: 'הקוד שהוקלד אינו תקין' });
+        
+        // אימות עבר בהצלחה
+        otpCache.delete(phone);
+        
+        const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
+        const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
+        
+        res.json({ 
+            success: true, 
+            token: 'SA_SECRET_TOKEN_2026',
+            user: { id: 0, name: 'מנהל על (Master)', email: currentCode, team: 'Management', permissions: ['all'] }
+        });
+    } catch (e) {
+        console.error('OTP Verify Error:', e);
+        res.json({ success: false, error: 'שגיאה באימות הקוד' });
+    }
+});
 app.post('/api/superadmin/login', async (req, res) => {
     try {
         const { code, password } = req.body;
