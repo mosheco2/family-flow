@@ -131,15 +131,22 @@ pool.connect()
     // צ'אט פנימי מערכתי (Internal Whispers) - ספרינט 3
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_internal_chat (id SERIAL PRIMARY KEY, room VARCHAR(50) DEFAULT 'general', sender_name VARCHAR(100), sender_id INT, message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       
-      // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
+     // מרכז פיתוח, מוצר ו-QA (סופר אדמין)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      
+      // הרחבת טבלת המשימות לשיוך הנדסי מלא (ALM)
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS version_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS assigned_developer VARCHAR(100)`); } catch(e) {}
       
       // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
+      
+      // טבלת תתי-משימות פיתוח לרזולוציית ביצוע (ALM)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_sub_tasks (id SERIAL PRIMARY KEY, task_id INT REFERENCES sa_dev_tasks(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, is_done BOOLEAN DEFAULT FALSE, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
     // טבלת צ'אט צוות פנימי
     try {
           await client.query(`CREATE TABLE IF NOT EXISTS team_chat (
@@ -4444,11 +4451,7 @@ app.post('/api/groups/:id/logo', async (req, res) => {
     }
 });
 
-// ============================================================
-// --- SUPER ADMIN: DEV & PRODUCT MATRIX (KANBAN & QA) ---
-// ============================================================
-
-// --- KANBAN TASKS ---
+// --- KANBAN TASKS (ALM UPGRADED) ---
 app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM sa_dev_tasks ORDER BY priority DESC, created_at DESC');
@@ -4458,11 +4461,11 @@ app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
 
 app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
     try {
-        const { title, type, priority, status, description, environment, moduleName, originalTicketId, targetVersion } = req.body;
+        const { title, type, priority, status, description, environment, moduleName, originalTicketId, targetVersion, versionId, assignedDeveloper } = req.body;
         const result = await pool.query(
-            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, target_version) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', originalTicketId || null, targetVersion || '']
+            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, target_version, version_id, assigned_developer) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', originalTicketId || null, targetVersion || '', versionId || null, assignedDeveloper || '']
         );
         res.json({ success: true, task: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4470,10 +4473,10 @@ app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
 
 app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
     try {
-        const { title, type, priority, status, description, targetVersion } = req.body;
+        const { title, type, priority, status, description, targetVersion, versionId, environment, moduleName, assignedDeveloper } = req.body;
         await pool.query(
-            `UPDATE sa_dev_tasks SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, updated_at=CURRENT_TIMESTAMP WHERE id=$7`,
-            [title, type, priority, status, description, targetVersion, req.params.id]
+            `UPDATE sa_dev_tasks SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, version_id=$7, environment=$8, module_name=$9, assigned_developer=$10, updated_at=CURRENT_TIMESTAMP WHERE id=$11`,
+            [title, type, priority, status, description, targetVersion, versionId || null, environment || '', moduleName || '', assignedDeveloper || '', req.params.id]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4481,7 +4484,13 @@ app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
 
 app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, systemOverride } = req.body;
+        
+        // חסימת העברה ידנית ל-DONE - המשימה חייבת לעבור תהליך QA מסודר
+        if (status === 'done' && !systemOverride) {
+            return res.status(403).json({ error: 'חסימת מערכת: לא ניתן להעביר משימה לסטטוס "בוצע" ידנית. המשימה תיסגר אוטומטית ברגע שכל תתי-המשימות יסתיימו וריצת ה-QA בספר המוצר תעבור בהצלחה.' });
+        }
+        
         await pool.query('UPDATE sa_dev_tasks SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4490,6 +4499,55 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
 app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
     try {
         await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- DEV SUB-TASKS (ALM) ---
+app.get('/api/sa/dev/subtasks', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM sa_dev_sub_tasks ORDER BY id ASC');
+        res.json({ success: true, subtasks: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/dev/subtasks', verifySA, async (req, res) => {
+    try {
+        const { taskId, title } = req.body;
+        const result = await pool.query(`INSERT INTO sa_dev_sub_tasks (task_id, title) VALUES ($1, $2) RETURNING *`, [taskId, title]);
+        res.json({ success: true, subtask: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/subtasks/:id/toggle', verifySA, async (req, res) => {
+    try {
+        const { isDone } = req.body;
+        const result = await pool.query(`UPDATE sa_dev_sub_tasks SET is_done=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 RETURNING *`, [isDone, req.params.id]);
+        res.json({ success: true, subtask: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/dev/subtasks/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_dev_sub_tasks WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- VERSIONS MANAGEMENT EXTENSION ---
+app.put('/api/sa/versions/:id', verifySA, async (req, res) => {
+    try {
+        const { name, targetDate, status } = req.body;
+        await pool.query('UPDATE sa_versions SET name=$1, target_date=$2, status=$3 WHERE id=$4', [name, targetDate || null, status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/versions/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE sa_qa_runs SET version_id = NULL WHERE version_id = $1', [req.params.id]);
+        await pool.query('UPDATE sa_dev_tasks SET version_id = NULL WHERE version_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM sa_versions WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
