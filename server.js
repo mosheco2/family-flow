@@ -937,7 +937,7 @@ app.post('/api/superadmin/verify-otp', async (req, res) => {
         res.json({ 
             success: true, 
             token: 'SA_SECRET_TOKEN_2026',
-            user: { id: 0, name: 'מנהל על (Master)', email: currentCode, team: 'Management', permissions: ['all'] }
+            user: { id: 1, name: 'Super Admin Master', role: 'master', email: currentCode, team: 'Management', permissions: ['all'] }
         });
     } catch (e) {
         console.error('OTP Verify Error:', e);
