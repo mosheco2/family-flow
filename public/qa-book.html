@@ -373,9 +373,36 @@ tr:hover td{background:#fafbfc}
 // API CONNECTION & DATA
 // ============================================================
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-const saToken = localStorage.getItem('ofl_sa_token'); // מתבסס על ההתחברות לסופר-אדמין
+const saToken = localStorage.getItem('ofl_sa_token') || localStorage.getItem('saToken'); // אבטחת טוקן כפולה
 
-let SECTIONS = []; // יאוכלס דינמית מהשרת
+// אתחול קשיח של שלד הקטגוריות. חובה כדי שגם אם המסד ריק, יהיה לקנבן לאן להזריק את המשימות!
+const BASE_CATEGORIES = {
+    'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
+    'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
+    'סביבת משפחה': { id: 'family', icon: 'fa-house', color: '#22c55e' },
+    'סביבת עסק': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
+    'חנות ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
+    'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
+    'רכש ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
+    'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
+    'מלאי': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
+    'AI ופיצ\'רים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
+    'יומן ותורים': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
+    'משמרות': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
+    'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
+    'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
+    'קהילות': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
+    'התראות ו-Inbox': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
+    'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
+    'SA — שיווק': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
+    'PWA ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
+    'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
+};
+
+let SECTIONS = Object.keys(BASE_CATEGORIES).map(key => ({
+    id: BASE_CATEGORIES[key].id, title: key, icon: BASE_CATEGORIES[key].icon, color: BASE_CATEGORIES[key].color, tests: []
+}));
+
 let state = {};
 let versions = [];
 let currentView = 'dashboard';
@@ -384,90 +411,32 @@ let currentFilter = null;
 // ============================================================
 // SERVER INTEGRATION
 // ============================================================
-async function displayUnauthorizedMessage(message) {
-    const grid = document.getElementById('matrix-grid');
-    if (grid) {
-        grid.innerHTML = `
-            <div style="grid-column: 1/-1; background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-w-xl mx-auto mt-10">
-                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
-                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
-                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;">בצע בדיקה מחודשת</button>
-            </div>
-        `;
-    }
-}
-
 async function loadTestsFromServer() {
     if (!saToken) {
-        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה למערכת הניהול הראשית (sa.html) ולאחר מכן לרענן עמוד זה.');
+        console.warn('No SA token found, running ALM in isolated mode');
         return;
     }
     
     try {
         const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
-        
-        if (res.status === 401 || res.status === 403) {
-            displayUnauthorizedMessage('פג תוקף החיבור המאובטח (השרת אותחל). אנא כנס למסך הניהול (sa.html), בצע התנתקות והתחברות מחדש, ואז רענן דף זה.');
-            return;
-        }
+        if (!res.ok) return; // לא קריטי אם נכשל, נמשיך עם השלד הריק שממתין למשימות קנבן
 
         const data = await res.json();
-        
-        if (data.success) {
-            const catMap = {
-                'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
-                'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
-                'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
-                'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
-                'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
-                'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
-                'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
-                'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
-                'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
-                'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
-                'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
-                'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
-                'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
-                'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
-                'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
-                'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
-                'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
-                'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
-                'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
-                'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
-                'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
-                'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
-                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
-            };
-
-            const grouped = {};
+        if (data.success && data.tests && data.tests.length > 0) {
             data.tests.forEach(t => {
                 const catName = t.category || 'כללי';
-                const meta = catMap[catName] || { id: 'general', icon: 'fa-inbox', color: '#f43f5e' };
+                let targetSec = SECTIONS.find(s => s.title === catName || s.id === catName);
+                if (!targetSec) targetSec = SECTIONS.find(s => s.id === 'general');
                 
-                if (!grouped[catName]) {
-                    grouped[catName] = { id: meta.id, icon: meta.icon, color: meta.color, title: catName, tests: [] };
+                if (targetSec) {
+                    targetSec.tests.push({
+                        id: t.id, name: t.name, desc: t.description, prio: t.priority, envs: ['all'] 
+                    });
                 }
-                grouped[catName].tests.push({
-                    id: t.id,
-                    name: t.name,
-                    desc: t.description,
-                    prio: t.priority,
-                    envs: ['all'] 
-                });
             });
-            
-            SECTIONS = Object.values(grouped);
-            
-            updateStats();
-            renderTests(null);
-        } else {
-            displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
         }
     } catch(e) {
-        console.error('Error loading tests:', e);
-        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
+        console.warn('Core tests loading skipped, continuing with Kanban ALM tasks...', e);
     }
 }
 
@@ -980,24 +949,6 @@ function filterTestsBySearch() {
         row.style.display = show ? '' : 'none';
         
         // הסתרה/הצגה של אזורי הערות בהתאמה
-        const id = row.id.replace('row-','');
-        const noteRow = document.getElementById(`note-row-${id}`);
-        const guideRow = document.getElementById(`guide-row-${id}`);
-        if(!show) {
-            if(noteRow) noteRow.style.display = 'none';
-            if(guideRow) guideRow.style.display = 'none';
-        }
-    });
-}
-
-function filterTestsBySearch() {
-    const term = document.getElementById('qa-search-input').value.toLowerCase();
-    document.querySelectorAll('.section-body tbody tr').forEach(row => {
-        if(row.classList.contains('guide-row') || row.classList.contains('note-row')) return;
-        const text = row.innerText.toLowerCase();
-        const show = text.includes(term);
-        row.style.display = show ? '' : 'none';
-        
         const id = row.id.replace('row-','');
         const noteRow = document.getElementById(`note-row-${id}`);
         const guideRow = document.getElementById(`guide-row-${id}`);
