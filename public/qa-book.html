@@ -1812,7 +1812,7 @@ function renderQATaskRow(task) {
     <div class="qa-task-actions">
       <button class="qa-pass-btn" onclick="passQATest(${task.id})"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
       <button class="qa-fail-btn" onclick="failQATest(${task.id})"><i class="fa-solid fa-xmark"></i> נכשל</button>
-      <button class="qa-guide-btn${(a.qa_guide_open?'active':'')}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
+      <button class="qa-guide-btn${a.qa_guide_open?' active':''}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
       <button onclick="toggleQANote(${task.id})" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
     </div>
   </div>
