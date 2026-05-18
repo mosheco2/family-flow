@@ -615,6 +615,7 @@ let kanbanTasks = [];
 let taskAssignments = {};
 let dismissedTaskIds = new Set();
 let deletedTestIds   = new Set();
+let deletedVersionNums = new Set();
 let testQueue = new Set();
 let hiddenBookTests = new Set();
   let versionTasks = {};
@@ -1551,8 +1552,9 @@ function loadState() {
     versions        = JSON.parse(localStorage.getItem('qa_versions')         || '[]');
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
-    deletedTestIds   = new Set(JSON.parse(localStorage.getItem('qa_deleted_tests')   || '[]'));
-    hiddenBookTests  = new Set(JSON.parse(localStorage.getItem('qa_hidden_tests')    || '[]'));
+    deletedTestIds     = new Set(JSON.parse(localStorage.getItem('qa_deleted_tests')    || '[]'));
+    hiddenBookTests    = new Set(JSON.parse(localStorage.getItem('qa_hidden_tests')     || '[]'));
+    deletedVersionNums = new Set(JSON.parse(localStorage.getItem('qa_deleted_versions') || '[]'));
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -1583,6 +1585,7 @@ function saveState() {
   localStorage.setItem('qa_dismissed_tasks', JSON.stringify([...dismissedTaskIds]));
   localStorage.setItem('qa_deleted_tests',   JSON.stringify([...deletedTestIds]));
   localStorage.setItem('qa_hidden_tests',    JSON.stringify([...hiddenBookTests]));
+  localStorage.setItem('qa_deleted_versions', JSON.stringify([...deletedVersionNums]));
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
@@ -2035,16 +2038,23 @@ function applyGuideEdits() {
 }
 
 async function clearProductBook() {
-  const count = SECTIONS.reduce((n,s) => n + s.tests.length, 0);
-  if(!count) { showToast('ספר המוצר כבר ריק'); return; }
-  if(!confirm(`הסתר את כל ${count} הערכים מספר המוצר?\nהדשבורד והקטגוריות יישארו ללא שינוי.`)) return;
-  // מסתיר מהתצוגה בלבד — לא מוחק ולא פוגע ב-SECTIONS/Dashboard
-  SECTIONS.forEach(sec => sec.tests.forEach(t => hiddenBookTests.add(t.id)));
+  const allTests = SECTIONS.flatMap(s => s.tests);
+  if(!allTests.length) { showToast('אין תוצאות לאיפוס'); return; }
+  if(!confirm(`אפס את תוצאות הבדיקה של ${allTests.length} פריטים?\nהמשימות יישארו — רק הסטטוסים יאופסו.`)) return;
+  // אפס סטטוסים בלבד — המשימות נשארות
+  allTests.forEach(t => {
+    Object.keys(state).forEach(k => {
+      if(k.startsWith(t.id + ':') && state[k]) state[k].s = null;
+    });
+  });
+  hiddenBookTests.clear();
   saveState();
-  renderTests(null);
+  scheduleServerSave();
+  renderTests(currentFilter);
+  updateStats();
   const c = document.getElementById('hidden-count');
-  if(c) c.textContent = hiddenBookTests.size ? `(${hiddenBookTests.size})` : '';
-  showToast('ספר המוצר הוסתר ✓ — לשחזור לחץ "מוסתרים"');
+  if(c) c.textContent = '';
+  showToast('כל הסטטוסים אופסו ✓ — המשימות נשארו בספר');
 }
 
 function restoreHiddenBook() {
@@ -2064,7 +2074,6 @@ function restoreHiddenBook() {
   container.innerHTML = rows.join('');
 }
 
-  
 function deleteTest(testId) {
   if(!confirm(`מחק את הבדיקה ${testId} מספר המוצר?`)) return;
   deletedTestIds.add(testId);
@@ -2118,7 +2127,7 @@ async function passQATest(taskId) {
       await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json','Authorization':saToken},
-        body: JSON.stringify({status:'done',systemOverride:true})
+        body: JSON.stringify({status:'released',systemOverride:true})
       });
     } catch(e) { console.warn('passQATest server sync:', e.message); }
     // הוסף לSECTIONS מקומית
@@ -2667,7 +2676,9 @@ async function setVersionTargetDate(vNum) {
 async function deleteVersion(vNum) {
   if(!confirm(`מחק את גרסה ${vNum}?\nכל המשימות המשויכות יישארו אך יאבדו את השיוך לגרסה. לא ניתן לשחזר.`)) return;
   versions = versions.filter(v => v.num !== vNum);
+  deletedVersionNums.add(vNum);
   localStorage.setItem('qa_versions', JSON.stringify(versions));
+  saveState();
   if(saToken) {
     try {
       await fetch(`${API}/sa/versions/name/${encodeURIComponent(vNum)}`, {
@@ -3073,7 +3084,7 @@ async function pushResultsToServer() {
     if(!k.includes(':')) return;
     const parts = k.split(':');
     const testId = parts[0], env = parts[1];
-    if(v && (v.s || v.n)) results.push({ testId, env, status: v.s || null, note: v.n || '' });
+    if(v) results.push({ testId, env, status: v.s || null, note: v.n || '' });
   });
 
   // עריכות מדריך בדיקה — צעדים וצפוי (ספר המוצר)
@@ -3113,8 +3124,8 @@ async function loadVersionsFromServer() {
     if(!res.ok) return;
     const data = await res.json();
     if(data.success && Array.isArray(data.versions) && data.versions.length) {
-      versions = data.versions.map(v => ({
-        num:     v.name,
+      versions = data.versions.filter(v => !deletedVersionNums.has(v.name)).map(v => ({
+      num:     v.name,
         type:    v.status === 'released' ? 'release' : v.status || 'release',
         date:       v.target_date ? new Date(v.target_date).toLocaleDateString('he-IL') : new Date(v.created_at).toLocaleDateString('he-IL'),
         targetDate: v.target_date || null,
