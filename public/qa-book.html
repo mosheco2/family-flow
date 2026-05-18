@@ -344,6 +344,8 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 .qa-task-note-wrap{padding:0 1.25rem .6rem;background:#faf5ff;border-bottom:1px solid #f1f5f9;display:none}
 .qa-task-note-wrap.open{display:block}
 .qa-task-note-input{width:100%;padding:.45rem .75rem;border:1px solid #c4b5fd;border-radius:.5rem;font-family:inherit;font-size:.78rem;color:#3b0764;background:white;outline:none;resize:none}
+.hide-book-btn{padding:.2rem .4rem;border:1px solid #fde68a;border-radius:.35rem;background:#fffbeb;color:#b45309;cursor:pointer;font-size:.65rem;font-family:inherit;transition:.15s}
+.hide-book-btn:hover{background:#fef3c7;border-color:#d97706}
 </style>
 </head>
 <body>
@@ -455,9 +457,11 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 <!-- QA STAGING VIEW -->
 <div id="view-tests" class="view">
   <div class="page-header">
-    <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
+       <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
-      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
+      <button class="btn btn-green" onclick="startTestRun()"><i class="fa-solid fa-play"></i> הרץ בדיקות</button>
+      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()">
+      <i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
     </div>
   </div>
   <div id="qa-staging-container">
@@ -488,7 +492,17 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
       <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
       <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
       <button class="btn btn-outline" onclick="showAllBook()"><i class="fa-solid fa-list"></i> הצג הכל</button>
+            <button class="btn btn-outline" onclick="clearProductBook()" style="color:#ef4444;border-color:#fecaca"><i class="fa-solid fa-trash-can"></i> נקה ספר</button>
+      <button class="btn btn-outline" onclick="const p=document.getElementById('hidden-book-panel');p.style.display=p.style.display==='none'?'block':'none';restoreHiddenBook()"><i class="fa-solid fa-eye-slash"></i> מוסתרים <span id="hidden-count"></span></button>
     </div>
+  </div>
+  <!-- Hidden tests panel -->
+  <div id="hidden-book-panel" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+      <span style="font-size:.78rem;font-weight:700;color:#92400e"><i class="fa-solid fa-eye-slash"></i> בדיקות מוסתרות מהספר</span>
+      <button onclick="document.getElementById('hidden-book-panel').style.display='none'" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.8rem"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="hidden-book-list"></div>
   </div>
   <!-- Search -->
   <div class="search-wrap">
@@ -601,7 +615,8 @@ let kanbanTasks = [];
 let taskAssignments = {};
 let dismissedTaskIds = new Set();
 let deletedTestIds   = new Set();
-let testQueue = new Set();  
+let testQueue = new Set();
+let hiddenBookTests = new Set();
   let versionTasks = {};
 
 // ============================================================
@@ -1537,6 +1552,7 @@ function loadState() {
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
     deletedTestIds   = new Set(JSON.parse(localStorage.getItem('qa_deleted_tests')   || '[]'));
+    hiddenBookTests  = new Set(JSON.parse(localStorage.getItem('qa_hidden_tests')    || '[]'));
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -1566,6 +1582,7 @@ function saveState() {
   localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
   localStorage.setItem('qa_dismissed_tasks', JSON.stringify([...dismissedTaskIds]));
   localStorage.setItem('qa_deleted_tests',   JSON.stringify([...deletedTestIds]));
+  localStorage.setItem('qa_hidden_tests',    JSON.stringify([...hiddenBookTests]));
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
@@ -1583,6 +1600,7 @@ function setStatus(id, s, env) {
   saveState();
   updateSidebarBadges();
   scheduleServerSave();
+  if(_runMode) _updateRunBanner();
 }
 
 function setNote(id, n, env) {
@@ -1619,6 +1637,7 @@ const ENV_LABELS = {family:'🏠 משפחה', biz:'💼 עסק', comm:'🤝 קה
 function getTestRows(sec) {
   const rows = [];
   sec.tests.forEach(t => {
+    if(hiddenBookTests.has(t.id)) return;
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
@@ -1757,7 +1776,8 @@ function renderRow(t, sec, env) {
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
         <button class="guide-btn active" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק שורה"><i class="fa-solid fa-trash-can"></i></button>
+        <button class="hide-book-btn" onclick="hideFromBook('${t.id}')" title="הסר מהספר (נשמר במסד)"><i class="fa-solid fa-eye-slash"></i> הסר</button>
+        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק לצמיתות"><i class="fa-solid fa-trash-can"></i></button>
       </div>
     </td>
   </tr>
@@ -1820,36 +1840,32 @@ function renderQAStaging() {
   // בדיקות מספר המוצר שנבחרו לתור
   let plannedHtml = '';
   if(testQueue.size) {
-    const rows = [];
+    const rowsHtml = [];
     testQueue.forEach(testId => {
-      let test = null, secTitle = '';
-      SECTIONS.forEach(sec => { const found = sec.tests.find(x=>x.id===testId); if(found){test=found;secTitle=sec.title;} });
-      if(!test) return;
+      let test = null, sec = null;
+      SECTIONS.forEach(s => { const found = s.tests.find(x=>x.id===testId); if(found){test=found;sec=s;} });
+      if(!test||!sec) return;
       const env = (typeof ENV_MAP!=='undefined'&&ENV_MAP[testId])?ENV_MAP[testId][0]:'family';
-      const s = getStatus(testId, env);
-      rows.push(`<tr>
-        <td><span class="test-id">${testId}</span><div style="font-size:.63rem;color:#94a3b8;margin-top:2px">${secTitle}</div></td>
-        <td><div class="test-name">${test.name}</div></td>
-        <td>
-          <div class="status-btns">
-            <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${testId}','ok','${env}')" title="תקין"><i class="fa-solid fa-check"></i></button>
-            <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${testId}','fail','${env}')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
-            <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${testId}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
-            <button onclick="testQueue.delete('${testId}');renderTestQueueBar();renderQAStaging()" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.68rem;padding:.1rem .25rem" title="הסר מהתור"><i class="fa-solid fa-circle-minus"></i></button>
-          </div>
-        </td>
-      </tr>`);
+      rowsHtml.push(renderRow(test, sec, env));
     });
-    if(rows.length) {
+    if(rowsHtml.length) {
       plannedHtml = `<div class="qa-version-block" style="margin-bottom:1rem">
         <div class="qa-ver-head" onclick="toggleQABlock('qavb-planned')">
-          <h3><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> בדיקות מתוכננות מספר המוצר <span style="font-size:.7rem;font-weight:400;color:#64748b">(${rows.length})</span></h3>
-          <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-planned"></i>
+          <h3><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> בדיקות מתוכננות מספר המוצר <span style="font-size:.7rem;font-weight:400;color:#64748b">(${rowsHtml.length})</span></h3>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <button onclick="event.stopPropagation();clearTestQueue()" style="font-size:.63rem;border:1px solid #fecaca;border-radius:.35rem;background:#fff5f5;color:#ef4444;cursor:pointer;padding:.12rem .45rem">נקה תור</button>
+            <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-planned"></i>
+          </div>
         </div>
         <div class="qa-ver-body" id="qavb-planned">
           <table style="width:100%">
-            <thead><tr><th style="width:90px">מזהה</th><th>בדיקה</th><th style="width:130px">סטטוס</th></tr></thead>
-            <tbody>${rows.join('')}</tbody>
+            <thead><tr>
+              <th style="width:95px">מזהה / סביבה</th>
+              <th>בדיקה</th>
+              <th style="width:75px">עדיפות</th>
+              <th>סטטוס</th>
+            </tr></thead>
+            <tbody>${rowsHtml.join('')}</tbody>
           </table>
         </div>
       </div>`;
@@ -2008,6 +2024,52 @@ function applyGuideEdits() {
   });
 }
 
+  function hideFromBook(testId) {
+  hiddenBookTests.add(testId);
+  saveState();
+  renderTests(currentFilter);
+  updateStats();
+  const c = document.getElementById('hidden-count');
+  if(c) c.textContent = hiddenBookTests.size ? `(${hiddenBookTests.size})` : '';
+  showToast('הבדיקה הוסרה מהתצוגה — "מוסתרים" לשחזור');
+}
+
+async function clearProductBook() {
+  const count = SECTIONS.reduce((n,s) => n + s.tests.length, 0);
+  if(!count) { showToast('ספר המוצר כבר ריק'); return; }
+  if(!confirm(`נקה את כל ${count} הערכים מספר המוצר?\nהם יוחזרו רק אחרי סבב QA חדש.`)) return;
+  SECTIONS.forEach(sec => sec.tests.forEach(t => deletedTestIds.add(t.id)));
+  SECTIONS = [];
+  hiddenBookTests.clear();
+  saveState();
+  renderTests(null);
+  updateStats();
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/qa/tests`, { method:'DELETE', headers:{Authorization:saToken} });
+    } catch(e) { console.warn('clearProductBook:', e.message); }
+  }
+  showToast('ספר המוצר נוקה ✓');
+}
+
+function restoreHiddenBook() {
+  const container = document.getElementById('hidden-book-list');
+  if(!container) return;
+  if(!hiddenBookTests.size) { container.innerHTML = '<div style="padding:.5rem;color:#94a3b8;font-size:.75rem">אין בדיקות מוסתרות</div>'; return; }
+  const rows = [];
+  hiddenBookTests.forEach(testId => {
+    let name = testId;
+    SECTIONS.forEach(s => { const t = s.tests.find(x=>x.id===testId); if(t) name=t.name; });
+    rows.push(`<div style="display:flex;align-items:center;gap:.75rem;padding:.4rem .5rem;border-bottom:1px solid #fde68a;font-size:.78rem">
+      <span class="test-id">${testId}</span>
+      <span style="flex:1">${name}</span>
+      <button onclick="hiddenBookTests.delete('${testId}');saveState();renderTests(currentFilter);restoreHiddenBook()" style="border:1px solid #bfdbfe;border-radius:.35rem;background:#eff6ff;color:#3b82f6;cursor:pointer;font-size:.65rem;padding:.12rem .45rem;font-family:inherit">שחזר</button>
+    </div>`);
+  });
+  container.innerHTML = rows.join('');
+}
+
+  
 function deleteTest(testId) {
   if(!confirm(`מחק את הבדיקה ${testId} מספר המוצר?`)) return;
   deletedTestIds.add(testId);
@@ -2405,10 +2467,58 @@ function renderTestQueueBar() {
   bar.innerHTML = `
     <span>בדיקות נבחרות</span>
     <span class="queue-bar-count">${testQueue.size}</span>
-    <button class="queue-bar-run" onclick="runSelectedTests()"><i class="fa-solid fa-play"></i> הרץ בדיקות</button>
+    <button class="queue-bar-run" onclick="runSelectedTests()"><i class="fa-solid fa-flask"></i> שלח לרשימת בדיקות</button>
     <button class="queue-bar-clear" onclick="clearTestQueue()"><i class="fa-solid fa-xmark"></i></button>`;
 }
 
+let _runMode = false;
+
+function startTestRun() {
+  const hasInqa = kanbanTasks.some(t => taskAssignments[t.id]?.status === 'inqa');
+  if(!testQueue.size && !hasInqa) {
+    showToast('בחר בדיקות מספר המוצר תחילה, או המתן למשימות QA מה-ALM');
+    return;
+  }
+  _runMode = true;
+  _updateRunBanner();
+  showToast('מצב הרצה פעיל — סמן כל בדיקה וסיים בסיום');
+}
+
+function _updateRunBanner() {
+  let banner = document.getElementById('run-mode-banner');
+  if(!_runMode) { if(banner) banner.remove(); return; }
+  const qIds = [...testQueue];
+  const done = qIds.filter(id => {
+    const env = (typeof ENV_MAP!=='undefined'&&ENV_MAP[id])?ENV_MAP[id][0]:'family';
+    return !!getStatus(id, env);
+  }).length;
+  if(!banner) {
+    banner = document.createElement('div');
+    banner.id = 'run-mode-banner';
+    banner.style.cssText = 'background:#0f172a;color:white;border-radius:.75rem;padding:.75rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;font-size:.8rem;font-weight:600;flex-wrap:wrap';
+    const container = document.getElementById('qa-staging-container');
+    if(container) container.before(banner);
+  }
+  banner.innerHTML = `
+    <i class="fa-solid fa-circle-play" style="color:#22c55e;font-size:1.1rem"></i>
+    <span>מצב הרצה פעיל</span>
+    ${qIds.length ? `<span style="background:#1e3a5f;border-radius:.5rem;padding:.15rem .6rem;font-size:.73rem;color:#7dd3fc">${done}/${qIds.length} מהתור הושלמו</span>` : ''}
+    <button onclick="finishTestRun()" style="margin-right:auto;padding:.35rem .85rem;background:#22c55e;border:none;border-radius:.5rem;color:white;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer">
+      <i class="fa-solid fa-flag-checkered"></i> סיים הרצה והפק דוח
+    </button>
+    <button onclick="_runMode=false;_updateRunBanner()" style="padding:.32rem .7rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:.5rem;color:#94a3b8;font-family:inherit;font-size:.75rem;cursor:pointer">ביטול</button>`;
+}
+
+function finishTestRun() {
+  _runMode = false;
+  _updateRunBanner();
+  clearTestQueue();
+  generateReport();
+  showView('report');
+  showToast('הרצת הבדיקות הסתיימה — הדוח הופק');
+}
+
+  
 function renderInboxView() {
   const el = document.getElementById('inbox-container');
   if(!el) return;
