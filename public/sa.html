@@ -196,11 +196,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           </div>
         </nav>
         <main id="sa-main-content">
-          <div class="sa-top-bar relative z-50">
+          <div class="sa-top-bar">
             <div class="sa-top-bar-title" id="sa-topbar-title">
               <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> לוח בקרה
             </div>
-            <div class="flex items-center gap-4">
+            
+            <div class="flex items-center gap-4 relative z-50">
                 <div class="relative cursor-pointer" onclick="toggleSANotifications()">
                     <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
                         <i class="fa-solid fa-bell"></i>
@@ -209,8 +210,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     
                     <div id="sa-notif-dropdown" class="hidden absolute left-0 top-12 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden cursor-default" onclick="event.stopPropagation()">
                         <div class="bg-slate-50 border-b border-slate-100 p-3 flex justify-between items-center">
-                            <h4 class="font-bold text-slate-700 text-sm">התראות המערכת</h4>
-                            <button onclick="markAllNotifsRead()" class="text-[10px] text-blue-600 hover:underline font-bold">סמן הכל כנקרא</button>
+                            <h4 class="font-bold text-slate-700 text-sm m-0">התראות המערכת</h4>
+                            <button onclick="markAllNotifsRead()" class="text-[10px] text-blue-600 hover:underline font-bold bg-transparent border-none cursor-pointer">סמן הכל כנקרא</button>
                         </div>
                         <div id="sa-notif-list" class="max-h-80 overflow-y-auto modal-scroll p-2 space-y-1">
                             <div class="text-center text-slate-400 py-6 text-xs">אין התראות חדשות</div>
