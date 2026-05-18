@@ -3294,3 +3294,931 @@ window.openSAProfileModal = function() {
     const modal = getEl('sa-profile-modal');
     if (modal) modal.classList.remove('hidden');
 };
+// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};// ==========================================
+// --- מערכת עוזרת אישית (AI) לסופר אדמין ---
+// ==========================================
+
+// פונקציה למשיכת תמונת ה-AI מהגדרות המערכת הכלליות
+window.loadSAAssistantLogo = async function() {
+    try {
+        const res = await fetch(`${API}/system/settings`, { headers: { 'Authorization': saToken }});
+        const data = await res.json();
+        if (data.success && data.settings && data.settings.ai_logo_url) {
+            const logoUrl = data.settings.ai_logo_url;
+            const bubbleIcon = getEl('sa-ai-bubble-icon');
+            const headerIcon = getEl('sa-ai-header-icon');
+            if (bubbleIcon) bubbleIcon.src = logoUrl;
+            if (headerIcon) headerIcon.src = logoUrl;
+        }
+    } catch(e) { console.log('SA AI Logo load skipped or failed.'); }
+};
+
+window.toggleSAAIChat = function() {
+    const chatWindow = getEl('sa-ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        chatWindow.classList.add('flex');
+        window.loadSAAssistantLogo(); // נסה למשוך לוגו בפתיחה
+        setTimeout(() => getEl('sa-ai-input').focus(), 100);
+    } else {
+        chatWindow.classList.add('hidden');
+        chatWindow.classList.remove('flex');
+    }
+};
+
+window.sendSAAIMessage = async function(e) {
+    e.preventDefault();
+    const input = getEl('sa-ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const chatMessages = getEl('sa-ai-chat-messages');
+    const btn = getEl('btn-sa-ai-send');
+    const currentLogo = getEl('sa-ai-bubble-icon').src;
+
+    // הוספת הודעת המשתמש (סופר אדמין)
+    chatMessages.innerHTML += `
+        <div class="flex gap-2 justify-end fade-in">
+            <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
+                ${safeStr(text)}
+            </div>
+        </div>
+    `;
+    input.value = '';
+    btn.disabled = true;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // שליחת הבקשה לראוט ה-AI הכללי שלך בשרת
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, context: 'superadmin_assistant' })
+        });
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            // תמיכה בעיצוב טקסט מודגש ושורות חדשות מה-AI
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};
