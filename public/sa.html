@@ -196,10 +196,38 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           </div>
         </nav>
         <main id="sa-main-content">
-          <div class="sa-top-bar">
-            <div class="sa-top-bar-title">
-              <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> ניהול מערכת ראשי
+          <div class="sa-top-bar relative z-50">
+            <div class="sa-top-bar-title" id="sa-topbar-title">
+              <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> לוח בקרה
             </div>
+            <div class="flex items-center gap-4">
+                <div class="relative cursor-pointer" onclick="toggleSANotifications()">
+                    <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                    <span id="sa-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full hidden border border-white">0</span>
+                    
+                    <div id="sa-notif-dropdown" class="hidden absolute left-0 top-12 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden cursor-default" onclick="event.stopPropagation()">
+                        <div class="bg-slate-50 border-b border-slate-100 p-3 flex justify-between items-center">
+                            <h4 class="font-bold text-slate-700 text-sm">התראות המערכת</h4>
+                            <button onclick="markAllNotifsRead()" class="text-[10px] text-blue-600 hover:underline font-bold">סמן הכל כנקרא</button>
+                        </div>
+                        <div id="sa-notif-list" class="max-h-80 overflow-y-auto modal-scroll p-2 space-y-1">
+                            <div class="text-center text-slate-400 py-6 text-xs">אין התראות חדשות</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 border-r border-slate-200 pr-4">
+                    <div class="text-left hidden sm:block">
+                        <div id="topbar-user-name" class="font-bold text-sm text-slate-800 leading-none">מנהל מערכת</div>
+                        <div class="text-[10px] text-slate-500 font-bold mt-1">מחובר</div>
+                    </div>
+                    <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-user-astronaut"></i>
+                    </div>
+                </div>
+            </div>
+          </div>
           </div>
             <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 modal-scroll relative">
 
@@ -1337,13 +1365,16 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <div id="dev-kanban-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+<div id="dev-kanban-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('dev-kanban-task-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-black text-slate-800 mb-6" id="kanban-modal-title">משימה חדשה</h3>
             
             <div class="space-y-4 mb-6">
                 <input type="hidden" id="kanban-task-id">
+                <input type="hidden" id="kanban-task-owner-id">
+                <input type="hidden" id="kanban-task-ticket-id">
+                
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">כותרת המשימה:</label>
                     <input type="text" id="kanban-task-title" class="modern-input py-2.5 text-sm font-bold bg-slate-50" placeholder="למשל: הוספת כפתור ייצוא ל-PDF">
@@ -1372,16 +1403,34 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <label class="text-xs font-bold text-slate-600 block mb-1">פירוט (אופציונלי):</label>
                     <textarea id="kanban-task-desc" class="modern-input py-3 text-sm h-24 resize-none bg-slate-50" placeholder="תיאור מורחב למפתח..."></textarea>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-1">שיוך לגרסה עתידית (Roadmap):</label>
-                    <input type="text" id="kanban-task-version" class="modern-input py-2.5 text-sm font-mono dir-ltr text-right bg-slate-50" placeholder="v2.2.0">
-                </div>
             </div>
             
             <div class="flex gap-3">
                 <button onclick="deleteKanbanTask()" id="btn-kanban-delete" class="hidden shrink-0 bg-red-50 text-red-600 w-12 h-12 rounded-xl hover:bg-red-100 transition flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
                 <button onclick="saveKanbanTaskData()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור משימה</button>
             </div>
+        </div>
+    </div>
+
+    <div id="sa-feedback-loop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('sa-feedback-loop-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-handshake"></i></div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 leading-tight">סגירת מעגל מול הלקוח</h3>
+                    <p class="text-[10px] text-slate-500 font-bold">שליחת עדכון ללקוח וסגירת קריאת השירות</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                <p class="text-xs text-slate-600 mb-2 font-bold">נוסח ההודעה (ניתן לעריכה):</p>
+                <textarea id="feedback-loop-text" class="modern-input text-sm h-32 resize-none border-emerald-200 focus:border-emerald-500"></textarea>
+            </div>
+            
+            <input type="hidden" id="feedback-loop-ticket-id">
+            <button onclick="executeFeedbackLoop()" class="w-full bg-emerald-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> סגור קריאה ושלח עדכון</button>
         </div>
     </div>
 
