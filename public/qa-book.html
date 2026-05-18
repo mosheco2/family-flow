@@ -258,6 +258,14 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 .btn-refresh.spinning{opacity:.7;pointer-events:none}
 .btn-refresh.spinning i{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+ .row-checkbox{width:.95rem;height:.95rem;cursor:pointer;accent-color:#3b82f6;flex-shrink:0;margin-top:2px}
+.row-selected td{background:#eff6ff!important}
+.sec-select-all-btn{font-size:.62rem;font-weight:600;color:#3b82f6;cursor:pointer;border:1px solid #bfdbfe;background:#eff6ff;border-radius:.35rem;padding:.1rem .45rem;margin-right:.5rem;vertical-align:middle}
+.queue-bar{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#0f172a;color:white;border-radius:1rem;padding:.65rem 1.25rem;display:flex;align-items:center;gap:.85rem;box-shadow:0 4px 24px rgba(0,0,0,0.35);z-index:300;font-size:.8rem;font-weight:600;white-space:nowrap;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateX(-50%) translateY(16px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+.queue-bar-count{background:#3b82f6;border-radius:.5rem;padding:.15rem .55rem;font-size:.72rem}
+.queue-bar-run{padding:.32rem .8rem;background:#22c55e;border:none;border-radius:.5rem;color:white;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer}
+.queue-bar-clear{padding:.32rem .7rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:.5rem;color:#94a3b8;font-family:inherit;font-size:.75rem;cursor:pointer} 
 .refresh-indicator{font-size:.65rem;color:#94a3b8;display:inline-flex;align-items:center;gap:.3rem}
 .task-inbox-section{padding:.6rem .85rem;border-bottom:1px solid #f1f5f9}
 
@@ -352,6 +360,12 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="sb-version">
     <span>גרסה נוכחית</span>
     <span id="sb-ver">v1.0.0</span>
+  </div>
+  <div style="padding:.5rem .75rem .25rem">
+    <button onclick="refreshSystem()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.38rem .85rem;background:#1e3a5f;border:1px solid rgba(255,255,255,0.15);border-radius:.5rem;color:#7dd3fc;font-family:inherit;font-size:.73rem;font-weight:600;cursor:pointer">
+      <i class="fa-solid fa-rotate"></i> רענן מערכת
+    </button>
+    <div id="sb-refresh-label" style="font-size:.6rem;color:#475569;text-align:center;margin-top:.25rem">ממתין לרענון</div>
   </div>
   <div class="sb-section">
     <div class="sb-section-title">ניווט ראשי</div>
@@ -587,6 +601,7 @@ let kanbanTasks = [];
 let taskAssignments = {};
 let dismissedTaskIds = new Set();
 let deletedTestIds   = new Set();
+let testQueue = new Set();  
   let versionTasks = {};
 
 // ============================================================
@@ -1650,7 +1665,10 @@ function renderTests(filter) {
     html += `
     <div class="section" id="sec-${sec.id}">
       <div class="section-head" onclick="toggleSection(this)">
-        <h3><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}</h3>
+        <h3>
+          <i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}
+          <button class="sec-select-all-btn" onclick="event.stopPropagation();selectSectionForQueue('${sec.id}')" title="בחר/בטל בחירה לכל הבדיקות בקטגוריה">בחר הכל</button>
+        </h3>
         <div class="section-meta">
           <span style="font-size:.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
           <span style="font-size:.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
@@ -1715,11 +1733,16 @@ function renderRow(t, sec, env) {
       </div>
     </td>
   </tr>`;
-  return `
-  <tr id="row-${rowKey}" class="${s?'row-'+s:''}">
+   return `
+  <tr id="row-${rowKey}" data-testid="${t.id}" class="${s?'row-'+s:''} ${testQueue.has(t.id)?'row-selected':''}">
     <td>
-      <span class="test-id">${t.id}</span>
-      <div style="margin-top:3px"><span class="${envCls}">${envLabel}</span></div>
+      <div style="display:flex;align-items:flex-start;gap:.4rem">
+        <input type="checkbox" class="row-checkbox" data-qcb="${t.id}" ${testQueue.has(t.id)?'checked':''} onchange="toggleTestQueue('${t.id}',this)" title="הוסף לתור בדיקות">
+        <div>
+          <span class="test-id">${t.id}</span>
+          <div style="margin-top:3px"><span class="${envCls}">${envLabel}</span></div>
+        </div>
+      </div>
     </td>
     <td>
       <div class="test-name">${t.name}</div>
@@ -1793,8 +1816,48 @@ function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
   const inqaTasks = kanbanTasks.filter(t => taskAssignments[t.id]?.status === 'inqa');
-  if(!inqaTasks.length) {
-    el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub</p></div>`;
+
+  // בדיקות מספר המוצר שנבחרו לתור
+  let plannedHtml = '';
+  if(testQueue.size) {
+    const rows = [];
+    testQueue.forEach(testId => {
+      let test = null, secTitle = '';
+      SECTIONS.forEach(sec => { const found = sec.tests.find(x=>x.id===testId); if(found){test=found;secTitle=sec.title;} });
+      if(!test) return;
+      const env = (typeof ENV_MAP!=='undefined'&&ENV_MAP[testId])?ENV_MAP[testId][0]:'family';
+      const s = getStatus(testId, env);
+      rows.push(`<tr>
+        <td><span class="test-id">${testId}</span><div style="font-size:.63rem;color:#94a3b8;margin-top:2px">${secTitle}</div></td>
+        <td><div class="test-name">${test.name}</div></td>
+        <td>
+          <div class="status-btns">
+            <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${testId}','ok','${env}')" title="תקין"><i class="fa-solid fa-check"></i></button>
+            <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${testId}','fail','${env}')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+            <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${testId}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
+            <button onclick="testQueue.delete('${testId}');renderTestQueueBar();renderQAStaging()" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.68rem;padding:.1rem .25rem" title="הסר מהתור"><i class="fa-solid fa-circle-minus"></i></button>
+          </div>
+        </td>
+      </tr>`);
+    });
+    if(rows.length) {
+      plannedHtml = `<div class="qa-version-block" style="margin-bottom:1rem">
+        <div class="qa-ver-head" onclick="toggleQABlock('qavb-planned')">
+          <h3><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> בדיקות מתוכננות מספר המוצר <span style="font-size:.7rem;font-weight:400;color:#64748b">(${rows.length})</span></h3>
+          <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-planned"></i>
+        </div>
+        <div class="qa-ver-body" id="qavb-planned">
+          <table style="width:100%">
+            <thead><tr><th style="width:90px">מזהה</th><th>בדיקה</th><th style="width:130px">סטטוס</th></tr></thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+  }
+
+  if(!inqaTasks.length && !plannedHtml) {
+    el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub, או לאחר בחירת בדיקות מספר המוצר</p></div>`;
     return;
   }
   const standalones = inqaTasks.filter(t => taskAssignments[t.id]?.versionId === '__standalone__');
@@ -1834,7 +1897,7 @@ function renderQAStaging() {
       </div>
     </div>`;
   }
-  el.innerHTML = html;
+  el.innerHTML = plannedHtml + html;
 }
 
 function renderQATaskRow(task) {
@@ -2147,9 +2210,12 @@ async function refreshSystem(silent = false) {
 }
 
 function _updateRefreshLabel() {
-  const el = document.getElementById('last-refresh-label');
-  if(!el || !_lastRefresh) return;
-  el.textContent = 'עודכן: ' + _lastRefresh.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(!_lastRefresh) return;
+  const txt = 'עודכן: ' + _lastRefresh.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  ['last-refresh-label','sb-refresh-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = txt;
+  });
 }
 
 function startAutoRefresh(intervalSec = 30) {
@@ -2231,7 +2297,10 @@ function renderVersionTracker() {
     html += `<div class="version-track-card">
       <div class="vt-header">
         <div class="vt-num"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>${v.num} <span class="version-tag vtag-${v.type}">${{release:'Release',beta:'Beta',hotfix:'Hotfix'}[v.type]||v.type}</span></div>
-        <span class="version-date">${v.date}</span>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span class="version-date">${v.date}</span>
+          <button onclick="deleteVersion('${v.num}')" title="מחק גרסה" style="border:none;background:none;color:#fca5a5;cursor:pointer;font-size:.72rem;padding:.15rem .3rem;border-radius:.3rem" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#fca5a5'"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
       </div>
       <div class="vt-target-date">
         <i class="fa-solid fa-calendar-days"></i>
@@ -2292,6 +2361,52 @@ function dismissKanbanTask(taskId) {
   if(currentView==='inbox') renderInboxView();
   if(currentView==='alm')   renderALMHub();
   showToast('המשימה הוסרה מהתצוגה');
+}
+
+  function toggleTestQueue(testId, checkbox) {
+  if(testQueue.has(testId)) { testQueue.delete(testId); if(checkbox) checkbox.checked = false; }
+  else                       { testQueue.add(testId);    if(checkbox) checkbox.checked = true; }
+  const allRows = document.querySelectorAll(`[data-testid="${testId}"]`);
+  allRows.forEach(r => r.classList.toggle('row-selected', testQueue.has(testId)));
+  const cbs = document.querySelectorAll(`[data-qcb="${testId}"]`);
+  cbs.forEach(cb => cb.checked = testQueue.has(testId));
+  renderTestQueueBar();
+}
+
+function selectSectionForQueue(secId) {
+  const sec = SECTIONS.find(s=>s.id===secId);
+  if(!sec) return;
+  const added = !sec.tests.every(t => testQueue.has(t.id));
+  sec.tests.forEach(t => added ? testQueue.add(t.id) : testQueue.delete(t.id));
+  renderTests(currentFilter);
+  renderTestQueueBar();
+}
+
+function clearTestQueue() {
+  testQueue.clear();
+  renderTests(currentFilter);
+  renderTestQueueBar();
+}
+
+function runSelectedTests() {
+  showView('tests');
+  showToast(`${testQueue.size} בדיקות בתור ההרצה`);
+}
+
+function renderTestQueueBar() {
+  let bar = document.getElementById('test-queue-bar');
+  if(!testQueue.size) { if(bar) bar.remove(); return; }
+  if(!bar) {
+    bar = document.createElement('div');
+    bar.id = 'test-queue-bar';
+    bar.className = 'queue-bar';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <span>בדיקות נבחרות</span>
+    <span class="queue-bar-count">${testQueue.size}</span>
+    <button class="queue-bar-run" onclick="runSelectedTests()"><i class="fa-solid fa-play"></i> הרץ בדיקות</button>
+    <button class="queue-bar-clear" onclick="clearTestQueue()"><i class="fa-solid fa-xmark"></i></button>`;
 }
 
 function renderInboxView() {
@@ -2444,6 +2559,20 @@ async function setVersionTargetDate(vNum) {
   showToast(parsed ? `תאריך יעד עודכן: ${new Date(parsed).toLocaleDateString('he-IL')}` : 'תאריך יעד הוסר');
 }
 
+async function deleteVersion(vNum) {
+  if(!confirm(`מחק את גרסה ${vNum}?\nכל המשימות המשויכות יישארו אך יאבדו את השיוך לגרסה. לא ניתן לשחזר.`)) return;
+  versions = versions.filter(v => v.num !== vNum);
+  localStorage.setItem('qa_versions', JSON.stringify(versions));
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/versions/name/${encodeURIComponent(vNum)}`, {
+        method: 'DELETE', headers: { Authorization: saToken }
+      });
+    } catch(e) { console.warn('deleteVersion:', e.message); }
+  }
+  renderVersionTracker();
+  showToast(`גרסה ${vNum} נמחקה`);
+}
 // ============================================================
 // STATS  (env-aware)
 // ============================================================
@@ -2503,8 +2632,8 @@ function renderModuleCards() {
     const c = countSection(sec.tests);
     const pct = sec.tests.length ? Math.round((c.ok+c.skip)/sec.tests.length*100) : 0;
     const offset = 126 - (pct/100*126);
-    return `<div class="stat-card" style="text-align:right;display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="showView('tests');filterSection('${sec.id}')">
-      <div class="progress-ring-wrap">
+    return `<div class="stat-card" style="text-align:right;display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="filterBook('${sec.id}')">
+    <div class="progress-ring-wrap">
         <svg class="progress-ring" width="48" height="48" viewBox="0 0 48 48">
           <circle class="ring-bg" cx="24" cy="24" r="20"/>
           <circle class="ring-fill" cx="24" cy="24" r="20" style="stroke:${sec.color};stroke-dashoffset:${offset}"/>
