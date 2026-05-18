@@ -1694,8 +1694,7 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
-      // ספר מוצר ראשי — רק משימות שעברו passQATest (DEV-*)
-      if(currentView === 'book' && !currentFilter && !t.id.startsWith('DEV-')) return;
+      rows.push({t, env});
     });
   });
   return rows;
@@ -1764,21 +1763,18 @@ function renderTests(filter) {
     return;
   }
 
-  // ספר מוצר ראשי (ללא קטגוריה ספציפית) — הצג רק בדיקות מאושרות
+  // ספר מוצר ראשי — הצג רק DEV-* (אושרו דרך passQATest)
+  let _bookFilter = null;
   if(currentView === 'book' && !filter) {
-    const hasAnyOk = SECTIONS.some(sec => sec.tests.some(t =>
-      (t.envs&&t.envs.length?t.envs:['family']).some(env =>
-        (currentEnvFilter==='all'||env===currentEnvFilter) && getStatus(t.id,env)==='ok'
-      )
-    ));
-    if(!hasAnyOk) {
+    const devTests = SECTIONS.flatMap(s => s.tests.filter(t => t.id.startsWith('DEV-')));
+    if(!devTests.length) {
       container.innerHTML = `
         <div style="text-align:center;padding:4rem 2rem;max-width:520px;margin:0 auto">
           <i class="fa-solid fa-circle-check" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
-          <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">אין בדיקות מאושרות עדיין</h3>
-                    <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
-            ספר המוצר מציג משימות שעברו את תהליך QA Staging ואושרו דרך "בדיקה עברה".<br>
-            כדי שמשימה תופיע כאן — עבור ל<strong style="color:#475569">רשימת בדיקות מלאה</strong> ולחץ "בדיקה עברה" על המשימה.
+          <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">ספר המוצר ריק</h3>
+          <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
+            ספר המוצר מציג רק משימות שעברו QA Staging ואושרו.<br>
+            לחץ "בדיקה עברה" על משימה ב<strong style="color:#475569">רשימת בדיקות מלאה</strong> כדי שתופיע כאן.
           </p>
           <button class="btn btn-dark" onclick="showView('tests')" style="margin:0 auto">
             <i class="fa-solid fa-flask"></i> עבור לרשימת בדיקות
@@ -1786,12 +1782,14 @@ function renderTests(filter) {
         </div>`;
       return;
     }
+    _bookFilter = new Set(devTests.map(t => t.id));
   }
 
   let html = '';
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   sections.forEach(sec => {
-    const rows = getTestRows(sec);
+    const allRows = getTestRows(sec);
+    const rows = _bookFilter ? allRows.filter(({t}) => _bookFilter.has(t.id)) : allRows;
     const counts = countSectionRows(rows);
     const total = rows.length || 1;
     const pct = Math.round((counts.ok + counts.skip) / total * 100);
