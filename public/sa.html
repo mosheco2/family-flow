@@ -1658,6 +1658,43 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </div>
         </div>
     </div>
-
+<div id="sa-ai-widget" class="fixed bottom-6 left-6 z-[9999] flex flex-col items-end fade-in">
+        <div id="sa-ai-chat-window" class="hidden bg-white w-80 sm:w-96 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex-col transition-all mb-4" style="height: 550px; max-height: 80vh;">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center shrink-0 shadow-md">
+                <div class="flex items-center gap-3">
+                    <img id="sa-ai-header-icon" src="https://cdn-icons-png.flaticon.com/512/8943/8943377.png" class="w-10 h-10 rounded-full bg-white/20 p-1 object-cover shadow-sm">
+                    <div>
+                        <h3 class="font-black text-sm tracking-wide">עוזרת AI - סופר אדמין</h3>
+                        <div class="text-[10px] text-indigo-100 flex items-center gap-1 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> מחוברת וזמינה לפעולה</div>
+                    </div>
+                </div>
+                <button onclick="toggleSAAIChat()" class="text-white hover:text-indigo-200 transition bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div id="sa-ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 text-sm custom-scrollbar">
+                <div class="flex gap-2">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><i class="fa-solid fa-robot text-indigo-600 text-sm"></i></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium">
+                        היי! אני כאן לעזור לך בניהול השוטף. תרצה שאבדוק סטטוס קריאות, שאחפש מידע בספר ה-QA, או שאבצע ניתוח נתונים?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-3 bg-white border-t border-slate-100 shrink-0">
+                <form onsubmit="sendSAAIMessage(event)" class="flex gap-2 relative">
+                    <input type="text" id="sa-ai-input" class="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 text-xs font-bold rounded-2xl focus:border-indigo-400 focus:bg-white transition-all outline-none" placeholder="הקלד פקודה או שאלה..." autocomplete="off">
+                    <button type="submit" id="btn-sa-ai-send" class="absolute left-1.5 top-1.5 w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center transition shadow-md"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+                </form>
+            </div>
+        </div>
+        
+        <button onclick="toggleSAAIChat()" class="w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform border-4 border-indigo-50 relative group">
+            <img id="sa-ai-bubble-icon" src="https://cdn-icons-png.flaticon.com/512/8943/8943377.png" class="w-full h-full object-cover rounded-full p-0.5">
+            <span class="absolute -top-1 -right-1 flex h-4 w-4">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-500 border-2 border-white"></span>
+            </span>
+        </button>
+    </div>
 </body>
 </html>
