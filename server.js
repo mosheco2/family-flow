@@ -144,7 +144,7 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
-      
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
       // טבלת תתי-משימות פיתוח לרזולוציית ביצוע (ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_sub_tasks (id SERIAL PRIMARY KEY, task_id INT REFERENCES sa_dev_tasks(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, is_done BOOLEAN DEFAULT FALSE, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
     // טבלת צ'אט צוות פנימי
@@ -4729,6 +4729,49 @@ app.get('/api/system/public-config', async (req, res) => {
     } catch(e) {
         res.status(500).json({ error: 'Failed to fetch config' });
     }
+});
+
+// ============================================================
+// QA TEST RESULTS — שמירת תוצאות בדיקה per test per env
+// ============================================================
+
+// שליפת כל תוצאות הסשן הנוכחי
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT test_id, env, status, note, updated_at FROM sa_qa_test_results ORDER BY updated_at DESC'
+        );
+        res.json({ success: true, results: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירה/עדכון batch של תוצאות (מהקליינט, debounced 1.5s)
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+    try {
+        const { results } = req.body;
+        if(!results || !results.length) return res.json({ success: true, saved: 0 });
+        let saved = 0;
+        for(const r of results) {
+            if(!r.testId || !r.env) continue;
+            await pool.query(
+                `INSERT INTO sa_qa_test_results (test_id, env, status, note)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (test_id, env) DO UPDATE
+                 SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = CURRENT_TIMESTAMP`,
+                [r.testId, r.env, r.status || null, r.note || '']
+            );
+            saved++;
+        }
+        res.json({ success: true, saved });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// איפוס כל תוצאות הסשן (לפני ריצה חדשה)
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_qa_test_results');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(port, () => {
