@@ -1416,8 +1416,8 @@ const ENV_MAP = {
 // ============================================================
 function loadState() {
   try {
-    state = JSON.parse(localStorage.getItem('qa_state') || '{}');
-    versions = JSON.parse(localStorage.getItem('qa_versions') || '[]');
+    state           = JSON.parse(localStorage.getItem('qa_state')            || '{}');
+    versions        = JSON.parse(localStorage.getItem('qa_versions')         || '[]');
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
@@ -1425,6 +1425,22 @@ function loadState() {
     const rv = document.getElementById('sb-ver');
     if(rv && versions.length) rv.textContent = versions[versions.length-1].num;
   } catch(e){}
+}
+
+// מהגר state ישן (ללא :env) לפורמט החדש
+function migrateState() {
+  let migrated = false;
+  Object.keys(state).forEach(k => {
+    if(k.includes(':')) return; // כבר בפורמט חדש
+    const envs = (typeof ENV_MAP !== 'undefined' && ENV_MAP[k]) ? ENV_MAP[k] : ['family','biz'];
+    envs.forEach(env => {
+      const nk = `${k}:${env}`;
+      if(!state[nk] && state[k].s) state[nk] = { ...state[k] };
+    });
+    delete state[k];
+    migrated = true;
+  });
+  if(migrated) { localStorage.setItem('qa_state', JSON.stringify(state)); }
 }
 
 function saveState() {
@@ -1446,6 +1462,7 @@ function setStatus(id, s, env) {
   updateRowUI(id, env);
   saveState();
   updateSidebarBadges();
+  scheduleServerSave();
 }
 
 function setNote(id, n, env) {
@@ -1456,6 +1473,7 @@ function setNote(id, n, env) {
   const rowKey = env ? `${id}:${env}` : id;
   const btn = document.querySelector(`[data-note-btn="${rowKey}"]`);
   if(btn) btn.classList.toggle('has-note', !!n);
+  scheduleServerSave();
 }
 
 function updateRowUI(id, env) {
@@ -1464,6 +1482,13 @@ function updateRowUI(id, env) {
   if(!row) return;
   const s = getStatus(id, env);
   row.className = s ? `row-${s}` : '';
+  // Update each status button's active class visually
+  const btns = row.querySelectorAll('.s-btn');
+  const sts  = ['ok','fail','warn','skip'];
+  btns.forEach((btn, i) => {
+    if(i < sts.length)
+      btn.className = `s-btn${s === sts[i] ? ' active-' + sts[i] : ''}`;
+  });
 }
 
 // ============================================================
@@ -1684,14 +1709,37 @@ function applySearchFilter() {
 async function loadKanbanTasks() {
   if(!saToken) return;
   try {
-    const res = await fetch(`${API}/sa/kanban/tasks?status=in_progress`, { headers: { 'Authorization': saToken } });
+    const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': saToken } });
     if(!res.ok) return;
     const data = await res.json();
-    if(data.success && Array.isArray(data.tasks)) kanbanTasks = data.tasks;
-    else if(Array.isArray(data)) kanbanTasks = data;
+    if(data.success && Array.isArray(data.tasks)) {
+      // הצג משימות שב-in_progress או qa (לא backlog/done)
+      kanbanTasks = data.tasks.filter(t => ['in_progress','qa'].includes(t.status));
+      // סנכרן taskAssignments מהשרת אם אין נתוני override מקומיים
+      kanbanTasks.forEach(task => {
+        if(!taskAssignments[task.id]) {
+          if(task.status === 'qa') {
+            taskAssignments[task.id] = {
+              status: 'inqa',
+              versionId: task.target_version || '',
+              module: task.module_name || '',
+              env: task.environment || 'all'
+            };
+          } else if(task.module_name) {
+            taskAssignments[task.id] = {
+              status: 'assigned',
+              versionId: task.target_version || '',
+              module: task.module_name,
+              env: task.environment || 'all'
+            };
+          }
+        }
+      });
+      saveState();
+    }
     if(currentView==='tests') renderTests(currentFilter);
     if(currentView==='alm')   renderALMHub();
-    showToast(`נטענו ${kanbanTasks.length} משימות מהקנבן`);
+    if(kanbanTasks.length) showToast(`נטענו ${kanbanTasks.length} משימות פעילות`);
   } catch(e) { console.warn('Kanban not available:', e.message); }
 }
 
@@ -1801,43 +1849,100 @@ function renderVTRow(task) {
 
 function approveForSorting(taskId) {
   taskAssignments[taskId] = {...(taskAssignments[taskId]||{}), status:'sorting'};
-  saveState(); renderTests(currentFilter);
-  if(currentView==='alm') renderALMHub();
+  saveState();
+  if(currentView==='tests') renderTests(currentFilter);
+  if(currentView==='alm')   renderALMHub();
   showToast('המשימה הועברה לתור המיון');
 }
 
-function assignTask(taskId) {
+async function assignTask(taskId) {
   const verId = document.getElementById(`sq-ver-${taskId}`)?.value;
   const mod   = document.getElementById(`sq-mod-${taskId}`)?.value;
   const env   = document.getElementById(`sq-env-${taskId}`)?.value;
   if(!verId || !mod) { showToast('יש לבחור גרסה ומודול'); return; }
   taskAssignments[taskId] = {status:'assigned', versionId:verId, module:mod, env:env||'all'};
-  saveState(); renderALMHub();
+  saveState();
+  // סנכרן לשרת
+  const task = kanbanTasks.find(t => t.id == taskId);
+  if(saToken && task) {
+    try {
+      await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({
+          title: task.title, type: task.type || 'feature',
+          priority: task.priority || 'normal', status: task.status,
+          description: task.description || '',
+          targetVersion: verId !== '__standalone__' ? verId : '',
+          versionId: null,
+          environment: env || '', moduleName: mod,
+          assignedDeveloper: task.assigned_developer || ''
+        })
+      });
+    } catch(e) { console.warn('assignTask sync failed:', e.message); }
+  }
+  renderALMHub();
   showToast('שיוך נשמר!');
 }
 
-function completeDevTask(taskId) {
+async function completeDevTask(taskId) {
   if(!taskAssignments[taskId]) return;
   taskAssignments[taskId].status = 'inqa';
-  saveState(); renderALMHub(); renderTests(currentFilter);
+  saveState();
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ status: 'qa' })
+      });
+    } catch(e) { console.warn('completeDevTask sync failed:', e.message); }
+  }
+  renderALMHub(); renderTests(currentFilter);
   showToast('פיתוח הסתיים — המשימה עברה לשלב QA');
 }
 
-function closeTaskDone(taskId) {
+async function closeTaskDone(taskId) {
   if(!taskAssignments[taskId]) return;
   taskAssignments[taskId].status = 'done';
-  saveState(); renderALMHub(); renderTests(currentFilter);
+  saveState();
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ status: 'done', systemOverride: true })
+      });
+    } catch(e) { console.warn('closeTaskDone sync failed:', e.message); }
+  }
+  renderALMHub(); renderTests(currentFilter);
   showToast('המשימה נסגרה כ-DONE ✅');
 }
 
-function newALMVersion() {
+async function newALMVersion() {
   const num  = prompt('מספר גרסה (למשל v1.2.0):', 'v1.0.0'); if(!num) return;
   const type = prompt('סוג (release / beta / hotfix):', 'release');
   const summary = prompt('סיכום השינויים:', '');
   const allRows = allTestRows();
-  const c = countSectionRows(allRows);
-  versions.push({num, type:type||'release', summary, notes:'', date:new Date().toLocaleDateString('he-IL'), ok:c.ok, fail:c.fail+c.warn, total:allRows.length, state:JSON.parse(JSON.stringify(state))});
+  const cnt = countSectionRows(allRows);
+  const vObj = {
+    num, type:type||'release', summary, notes:'',
+    date: new Date().toLocaleDateString('he-IL'),
+    ok: cnt.ok, fail: cnt.fail+cnt.warn, total: allRows.length,
+    state: JSON.parse(JSON.stringify(state))
+  };
+  versions.push(vObj);
   localStorage.setItem('qa_versions', JSON.stringify(versions));
+  // שמור בשרת
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ name: num, targetDate: null })
+      });
+    } catch(e) { console.warn('Version server save failed:', e.message); }
+  }
   const sb = document.getElementById('sb-ver'); if(sb) sb.textContent = num;
   renderVersionTracker(); showToast(`גרסה ${num} נשמרה!`);
 }
@@ -2164,18 +2269,97 @@ function showToast(msg) {
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
+
+// ============================================================
+// SERVER SYNC — QA Results + Versions
+// ============================================================
+
+// טעינת תוצאות QA מהשרת (על גבי state קיים, לא מדרוס)
+async function loadResultsFromServer() {
+  if(!saToken) return;
+  try {
+    const res = await fetch(`${API}/sa/qa/results`, { headers: { 'Authorization': saToken } });
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.success && Array.isArray(data.results)) {
+      data.results.forEach(r => {
+        if(!r.test_id || !r.env) return;
+        const k = sk(r.test_id, r.env);
+        // עדיפות לנתוני שרת — מדרוס localStorage ישן
+        state[k] = { s: r.status || null, n: r.note || '' };
+      });
+      localStorage.setItem('qa_state', JSON.stringify(state));
+    }
+  } catch(e) { console.warn('loadResultsFromServer:', e.message); }
+}
+
+// שמירת תוצאות QA לשרת (batch, debounced)
+let _saveTimer = null;
+function scheduleServerSave() {
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(pushResultsToServer, 1500);
+}
+
+async function pushResultsToServer() {
+  if(!saToken) return;
+  const results = [];
+  Object.entries(state).forEach(([k, v]) => {
+    if(!k.includes(':')) return; // דלג על מפתחות ישנים שעוד לא הוסרו
+    const parts = k.split(':');
+    const testId = parts[0], env = parts[1];
+    if(v && (v.s || v.n)) results.push({ testId, env, status: v.s || null, note: v.n || '' });
+  });
+  if(!results.length) return;
+  try {
+    await fetch(`${API}/sa/qa/results/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+      body: JSON.stringify({ results })
+    });
+  } catch(e) { console.warn('pushResultsToServer:', e.message); }
+}
+
+// טעינת גרסאות מהשרת
+async function loadVersionsFromServer() {
+  if(!saToken) return;
+  try {
+    const res = await fetch(`${API}/sa/versions`, { headers: { 'Authorization': saToken } });
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.success && Array.isArray(data.versions) && data.versions.length) {
+      versions = data.versions.map(v => ({
+        num:     v.name,
+        type:    v.status === 'released' ? 'release' : v.status || 'release',
+        date:    v.target_date ? new Date(v.target_date).toLocaleDateString('he-IL') : new Date(v.created_at).toLocaleDateString('he-IL'),
+        summary: v.description || '',
+        notes:   '',
+        ok: 0, fail: 0,
+        total: 0
+      }));
+      localStorage.setItem('qa_versions', JSON.stringify(versions));
+      const sb = document.getElementById('sb-ver');
+      if(sb && versions.length) sb.textContent = versions[versions.length-1].num;
+    }
+  } catch(e) { console.warn('loadVersionsFromServer:', e.message); }
+}
+
 // ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
-  // תחילה נטען נתונים מהשרת (יחליף את המערך הריק SECTIONS)
-  loadTestsFromServer().then(() => {
-      // רק אחרי שהמידע נמשך, הממשק יתרנדר מחדש
+  migrateState(); // המרת סטטוסים ישנים לפורמט env-aware
+  loadTestsFromServer().then(async () => {
       updateStats();
       renderTests(null);
       renderVersions();
-      loadKanbanTasks().catch(()=>{});  // ברקע — לא חוסם
+      // טעינת נתוני שרת ברקע
+      await loadResultsFromServer();   // תוצאות QA שמורות
+      await loadVersionsFromServer();  // גרסאות מהשרת
+      updateStats();
+      renderTests(currentFilter);
+      renderVersions();
+      loadKanbanTasks().catch(()=>{});
   });
 });
 
