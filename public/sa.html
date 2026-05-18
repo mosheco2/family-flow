@@ -408,14 +408,16 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-headset text-blue-500"></i> ניהול קריאות שירות</h2>
                                 <p class="text-sm text-slate-500 mt-1">טיפול בפניות לקוחות, משפחות ועסקים.</p>
                             </div>
-                            <div class="flex gap-2 w-full sm:w-auto">
-                                <button onclick="openSlaMatrixModal()" class="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center gap-2"><i class="fa-solid fa-stopwatch"></i> מקרא SLA</button>
-                                <div class="relative w-full sm:w-64">
+<div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                                <button onclick="openNewTicketModal()" class="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-plus"></i> פתיחת קריאה</button>
+                                <button onclick="openSlaMatrixModal()" class="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-stopwatch"></i> SLA</button>
+                                <div class="relative w-full sm:w-64 shrink-0">
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="sa-search-tickets" onkeyup="filterSATickets()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש מספר קריאה, לקוח או נושא...">
+                                    <input type="text" id="sa-search-tickets" onkeyup="filterSATickets()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש קריאה...">
                                 </div>
-                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-rotate-right"></i></button>
+                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-rotate-right"></i></button>
                             </div>
+                            
                         </div>
                         <div id="sa-tickets-full-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[300px]"></div>
                     </div>
@@ -829,9 +831,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
 
                         <div id="dev-content-kanban" class="hidden flex-col h-full fade-in">
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                 <div class="flex items-center gap-3">
                                     <h3 class="font-bold text-slate-800 text-lg">לוח משימות טכני <span class="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2" id="kanban-total-count">0 משימות</span></h3>
+                                    <button onclick="loadDevTasks()" class="bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2 mr-2">
+                                        <i class="fa-solid fa-rotate"></i> רענן
+                                    </button>
+                                </div>
                                 </div>
                                 <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-wrap justify-end">
                                     <div class="relative w-full sm:w-56">
@@ -1509,8 +1515,32 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=11"></script>
-   <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
+<div id="sa-new-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100000] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative border border-slate-200">
+            <button onclick="document.getElementById('sa-new-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-headset text-indigo-500"></i> פתיחת קריאת שירות יזומה</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שיוך לקבוצה / לקוח (אופציונלי)</label>
+                    <select id="new-ticket-group" class="modern-input py-2 px-3 text-sm font-bold bg-slate-50">
+                        <option value="">-- ללא שיוך קבוצה --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">נושא הקריאה</label>
+                    <input type="text" id="new-ticket-subject" class="modern-input py-2 px-3 text-sm bg-slate-50" placeholder="כותרת קצרה לתקלה/בקשה">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">תיאור ופרטים</label>
+                    <textarea id="new-ticket-desc" class="modern-input py-2 px-3 text-sm h-24 resize-none bg-slate-50" placeholder="פרט את הבעיה ככל הניתן..."></textarea>
+                </div>
+                <button onclick="submitNewTicket()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md mt-2">פתח קריאה במערכת</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sa-app.js?v=12"></script>
+    <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-black mb-2 text-slate-800"><i class="fa-solid fa-stopwatch text-purple-500 mr-2"></i> מקרא וחוקי התראות (SLA Matrix)</h3>
