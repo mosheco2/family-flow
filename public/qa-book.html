@@ -754,9 +754,16 @@ async function loadTestsFromServer() {
         } else {
             displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
         }
-    } catch(e) {
+       } catch(e) {
         console.error('Error loading tests:', e);
-        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
+        const container = document.getElementById('tests-container');
+        if(container) container.innerHTML = `<div style="text-align:center;padding:3rem;color:#dc2626">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size:2.5rem;margin-bottom:1rem;display:block"></i>
+          <p style="font-weight:700">שגיאת חיבור לשרת</p>
+          <p style="font-size:.8rem;color:#64748b;margin-top:.5rem">${e.message}</p>
+          <p style="font-size:.75rem;color:#94a3b8;margin-top:.5rem">ודא שהשרת רץ ושה-routes של SA QA הוספו ל-server.js</p>
+        </div>`;
+        showToast('שגיאה: ' + e.message);
     }
 }
 
