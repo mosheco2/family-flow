@@ -1694,7 +1694,6 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
-      if(currentView === 'book' && getStatus(t.id, env) !== 'ok') return;
       rows.push({t, env});
     });
   });
