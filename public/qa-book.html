@@ -1929,9 +1929,9 @@ function toggleTestQueue(rowKey, cb) {
 
 function clearTestQueue() {
   testQueue.clear();
-  _runMode = false;
   renderTestQueueBar();
-  renderTests(currentFilter);
+  if(currentView === 'tests') renderQAStaging();
+  else renderTests(currentFilter);
 }
 
 function renderTestQueueBar() {
@@ -1962,20 +1962,13 @@ function renderTestQueueBar() {
 }
 
 function sendToRunList() {
-  _runMode = true;
-  currentFilter = null;
-  const h2 = document.querySelector('#view-book .page-header h2');
-  if(h2) h2.innerHTML = `<i class="fa-solid fa-flask" style="color:#6366f1"></i> סשן בדיקה פעיל`;
-  showView('book');
-  renderTests(null);
+  showView('tests');
+  renderQAStaging();
+  showToast(`✅ ${testQueue.size} בדיקות נוספו לרשימת הבדיקות`);
 }
 
 function endRunSession() {
-  _runMode = false;
   clearTestQueue();
-  const h2 = document.querySelector('#view-book .page-header h2');
-  if(h2) h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
-  renderTests(currentFilter);
 }
 function renderKanbanCard(task) {
   const assign = taskAssignments[task.id] || {status:'inbox'};
@@ -2018,13 +2011,72 @@ function toggleNote(rowKey) {
   row.style.display = visible ? 'none' : 'table-row';
   if(!visible) { const ta = row.querySelector('textarea'); if(ta) ta.focus(); }
 }
-
+function renderQueuedTestRow(t, env) {
+  const s = getStatus(t.id, env);
+  const n = getNote(t.id, env) || '';
+  const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env;
+  const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
+  const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio||'';
+  const isDone = s !== null;
+  return `
+  <div class="qa-task-row${isDone?' qa-task-done':''}" id="qtr-${t.id}-${env}" style="${isDone?'opacity:.6;background:#f0fdf4':''}">
+    <div class="qa-task-info">
+      <div class="qa-task-title">
+        ${isDone?`<i class="fa-solid fa-circle-check" style="color:#16a34a;margin-left:.4rem"></i>`:''}
+        ${t.name}
+      </div>
+      <div class="qa-task-meta">
+        ${prioLabel?`<span class="prio ${prioClass}">${prioLabel}</span>`:''}
+        <span class="env-tag env-${env}">${envLabel}</span>
+        <span style="font-size:.67rem;color:#64748b">${t.id}</span>
+      </div>
+      ${t.desc?`<div class="qa-task-desc">${t.desc}</div>`:''}
+    </div>
+    <div class="qa-task-actions">
+      <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${t.id}','ok','${env}');renderQAStaging()" title="תקין"><i class="fa-solid fa-check"></i></button>
+      <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail','${env}');renderQAStaging()" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+      <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn','${env}');renderQAStaging()" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
+      <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}');renderQAStaging()" title="דלג"><i class="fa-solid fa-minus"></i></button>
+      <button onclick="testQueue.delete('${t.id}:${env}');renderTestQueueBar();renderQAStaging()" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.25rem" title="הסר מהרשימה"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+  ${n?`<div style="padding:.3rem 1rem .5rem;font-size:.72rem;color:#64748b;background:#fffbeb;border-bottom:1px solid #fef3c7"><i class="fa-solid fa-pen-to-square" style="margin-left:4px"></i>${n}</div>`:''}`;
+}
 // ── QA STAGING ──────────────────────────────────────────────────────────────
 function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
   const inqaTasks = kanbanTasks.filter(t => taskAssignments[t.id]?.status === 'inqa');
-
+  let manualHtml = '';
+  if(testQueue.size > 0) {
+    const queuedRows = [];
+    testQueue.forEach(rk => {
+      const [testId, env] = rk.split(':');
+      SECTIONS.forEach(sec => {
+        const t = sec.tests.find(tt => tt.id === testId);
+        if(t && !queuedRows.find(r => r.t.id === testId && r.env === env)) queuedRows.push({t, env});
+      });
+    });
+    if(queuedRows.length) {
+      const done = queuedRows.filter(({t, env}) => getStatus(t.id, env) !== null).length;
+      manualHtml = `<div class="qa-version-block" style="margin-bottom:1rem">
+        <div class="qa-ver-head" onclick="toggleQABlock('qavb-manual')">
+          <h3><i class="fa-solid fa-flask" style="color:#6366f1"></i> בדיקות שנבחרו ידנית
+            <span style="font-size:.7rem;font-weight:500;color:#64748b">(${done}/${queuedRows.length} הושלמו)</span>
+          </h3>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <button class="qa-fail-btn" style="font-size:.72rem;padding:.2rem .6rem" onclick="event.stopPropagation();clearTestQueue()">
+              <i class="fa-solid fa-xmark"></i> נקה רשימה
+            </button>
+            <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-manual"></i>
+          </div>
+        </div>
+        <div class="qa-ver-body" id="qavb-manual">
+          ${queuedRows.map(({t, env}) => renderQueuedTestRow(t, env)).join('')}
+        </div>
+      </div>`;
+    }
+  }
   // בדיקות מספר המוצר שנבחרו לתור
   let plannedHtml = '';
   if(testQueue.size) {
@@ -2071,7 +2123,7 @@ function renderQAStaging() {
     if(!byVer[vid]) byVer[vid] = [];
     byVer[vid].push(t);
   });
-  let html = '';
+  let html = manualHtml;
   function _qaTaskEnvs(task) {
     const a = taskAssignments[task.id] || {};
     const env = a.env || 'all';
