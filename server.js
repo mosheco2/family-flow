@@ -364,7 +364,19 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
+// הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
+app.post('/api/superadmin/tickets', verifySA, async (req, res) => {
+    try {
+        const { subject, description, group_id } = req.body;
+        const initialLog = [{ date: new Date().toISOString(), sender: 'צוות מערכת (יזום)', isStaff: true, isInternal: false, message: description }];
+        
+        await pool.query(
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, NULL, $2, $3, $4, $5)',
+            [group_id || null, subject, description, 'open', JSON.stringify(initialLog)]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // שליפת הקריאות עבור פאנל ה-Super Admin (כולל צוותים משויכים וזמני SLA)
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
