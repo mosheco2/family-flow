@@ -2037,19 +2037,14 @@ function applyGuideEdits() {
 async function clearProductBook() {
   const count = SECTIONS.reduce((n,s) => n + s.tests.length, 0);
   if(!count) { showToast('ספר המוצר כבר ריק'); return; }
-  if(!confirm(`נקה את כל ${count} הערכים מספר המוצר?\nהם יוחזרו רק אחרי סבב QA חדש.`)) return;
-  SECTIONS.forEach(sec => sec.tests.forEach(t => deletedTestIds.add(t.id)));
-  SECTIONS = [];
-  hiddenBookTests.clear();
+  if(!confirm(`הסתר את כל ${count} הערכים מספר המוצר?\nהדשבורד והקטגוריות יישארו ללא שינוי.`)) return;
+  // מסתיר מהתצוגה בלבד — לא מוחק ולא פוגע ב-SECTIONS/Dashboard
+  SECTIONS.forEach(sec => sec.tests.forEach(t => hiddenBookTests.add(t.id)));
   saveState();
   renderTests(null);
-  updateStats();
-  if(saToken) {
-    try {
-      await fetch(`${API}/sa/qa/tests`, { method:'DELETE', headers:{Authorization:saToken} });
-    } catch(e) { console.warn('clearProductBook:', e.message); }
-  }
-  showToast('ספר המוצר נוקה ✓');
+  const c = document.getElementById('hidden-count');
+  if(c) c.textContent = hiddenBookTests.size ? `(${hiddenBookTests.size})` : '';
+  showToast('ספר המוצר הוסתר ✓ — לשחזור לחץ "מוסתרים"');
 }
 
 function restoreHiddenBook() {
