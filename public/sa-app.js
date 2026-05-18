@@ -22,19 +22,21 @@ window.onload = () => {
     if (savedToken && savedUser) {
         saToken = savedToken;
         window.currentSAUser = JSON.parse(savedUser);
+        
+        // סנכרון שם המשתמש המחובר בסרגל העליון (סעיף 3)
+        const nameEl = getEl('topbar-user-name');
+        if (nameEl && window.currentSAUser.name) {
+            nameEl.innerText = window.currentSAUser.name;
+        }
+        
         getEl('auth-container').classList.add('hidden');
         getEl('sa-dashboard-container').classList.remove('hidden');
         applyUserPermissions();
         loadSAData();
         window.switchSATab('pulse');
         
-        // Polling - רענון משימות והתראות ברקע כל 30 שניות
-        setInterval(() => {
-            if (saToken) loadDevTasks();
-        }, 30000);
-        
-        // טעינה ראשונית כדי שמערכת ההתראות תתעדכן מיד
-        loadDevTasks();
+        // טעינה ורינדור ראשוני של תיבת ההתראות והמונה
+        window.renderSANotifications();
     }
 };
 
@@ -2050,14 +2052,20 @@ window.renderKanbanBoard = function() {
             feedbackBtn = `<button onclick="event.stopPropagation(); window.openFeedbackLoopModal('${task.id}', '${task.original_ticket_id}')" class="w-full mt-3 bg-emerald-50 text-emerald-600 border border-emerald-200 py-1.5 rounded-lg text-[10px] font-black hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-handshake mr-1"></i> סגירת מעגל ללקוח</button>`;
         }
 
+        // הפקת תצוגה מקדימה נקייה וקריאה של תוכן הלקוח מבחוץ (סעיף 1)
+        const cleanDesc = task.desc ? task.desc.replace(/\\n/g, ' ').substring(0, 75) + (task.desc.length > 75 ? '...' : '') : 'ללא תיאור מורחב';
+
         const cardHtml = `
-        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative flex flex-col min-h-[100px]">
+        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative flex flex-col min-h-[120px]">
             <div class="mb-2 w-full text-right">${statusBadge}</div>
             <div class="flex justify-between items-start mb-2">
                 ${typeBadge}
                 <span class="text-[10px]" title="דחיפות">${prioIcon}</span>
             </div>
-            <h5 class="font-bold text-slate-800 text-xs leading-snug mb-3">${safeStr(task.title)}</h5>
+            
+            <h5 class="font-black text-slate-800 text-xs leading-snug mb-1.5">${safeStr(task.title)}</h5>
+            <p class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-2 mb-3 leading-normal font-medium">${safeStr(cleanDesc)}</p>
+            
             <div class="flex justify-between items-end mt-auto">
                 <span class="text-[9px] text-slate-400 font-mono">#${task.id}</span>
                 <div class="flex flex-col items-end gap-1">
@@ -3274,4 +3282,15 @@ window.verifyMasterOTP = async function(e) {
         showToast('error', 'שגיאה באימות הקוד מול השרת');
     }
 };
-
+// פתיחת מודל פרופיל מנהל מערכת וסנכרון נתונים
+window.openSAProfileModal = function() {
+    if (!window.currentSAUser) return;
+    getEl('prof-user-name').innerText = window.currentSAUser.name || 'מנהל מערכת';
+    getEl('prof-user-email').innerText = window.currentSAUser.email || '---';
+    
+    const perms = window.currentSAUser.permissions || [];
+    getEl('prof-user-perms').innerText = perms.includes('all') ? '✓ גישת על מלאה (Master API)' : 'גישה מוגבלת לפי תפקיד';
+    
+    const modal = getEl('sa-profile-modal');
+    if (modal) modal.classList.remove('hidden');
+};
