@@ -188,12 +188,16 @@ tr:hover td{background:#fafbfc}
 .qa-guide-panel.open{display:block}
 .qa-guide-path{padding:.35rem .7rem;background:#f1f5f9;color:#475569;font-size:.68rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.4rem}
 .qa-guide-path i{color:#3b82f6;font-size:.62rem}
-.qa-guide-cols{display:grid;grid-template-columns:1fr 1fr;background:white}
+.qa-guide-cols{display:grid;grid-template-columns:1fr 1fr 1fr;background:white}
+.qa-guide-madrich{padding:.45rem .7rem;border-left:1px solid #e2e8f0;background:#f0f9ff}
 .qa-guide-kayyam{padding:.45rem .7rem;border-left:1px solid #e2e8f0}
 .qa-guide-matzuy{padding:.45rem .7rem;background:#fffbeb}
 .qa-guide-label{font-size:.58rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+.qa-guide-madrich .qa-guide-label{color:#0369a1}
 .qa-guide-kayyam p{color:#166534;margin:0;line-height:1.5}
-.qa-guide-matzuy-input{width:100%;box-sizing:border-box;border:1px solid #fde68a;border-radius:.35rem;padding:.3rem .45rem;font-family:inherit;font-size:.7rem;resize:vertical;background:#fffdf0;color:#1e293b;direction:rtl;min-height:44px}
+.qa-guide-madrich-input{width:100%;box-sizing:border-box;border:1px solid #bae6fd;border-radius:.35rem;padding:.3rem .45rem;font-family:inherit;font-size:.7rem;resize:vertical;background:#f0f9ff;color:#1e293b;direction:rtl;min-height:52px}
+.qa-guide-madrich-input:focus{outline:none;border-color:#38bdf8;background:white}
+.qa-guide-matzuy-input{width:100%;box-sizing:border-box;border:1px solid #fde68a;border-radius:.35rem;padding:.3rem .45rem;font-family:inherit;font-size:.7rem;resize:vertical;background:#fffdf0;color:#1e293b;direction:rtl;min-height:52px}
 .qa-guide-matzuy-input:focus{outline:none;border-color:#f59e0b}
 .qa-guide-btn{width:30px;height:30px;border-radius:.45rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:.68rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .qa-guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
@@ -1822,13 +1826,17 @@ function renderQATaskRow(task) {
   <div class="qa-guide-panel${a.qa_guide_open?' open':''}" id="qa-guide-${task.id}">
     <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${task.title}${a.module?' · '+a.module:''}</div>
     <div class="qa-guide-cols">
+      <div class="qa-guide-madrich">
+        <div class="qa-guide-label">מדריך בדיקה (צעדים)</div>
+        <textarea class="qa-guide-madrich-input" rows="3" placeholder="1. כנס לדף...&#10;2. בצע פעולה...&#10;3. בדוק תוצאה..." oninput="saveQAGuideSteps(${task.id},this.value)">${a.qa_guide_steps||''}</textarea>
+      </div>
       <div class="qa-guide-kayyam">
         <div class="qa-guide-label">קיים (צפוי)</div>
         <p style="font-size:.72rem;color:#166534;margin:0;line-height:1.5">${task.description||'אין תיאור מפורט'}</p>
       </div>
       <div class="qa-guide-matzuy">
         <div class="qa-guide-label">מצוי (בפועל)</div>
-        <textarea class="qa-guide-matzuy-input" rows="2" placeholder="רשום מה נמצא בפועל..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
+        <textarea class="qa-guide-matzuy-input" rows="3" placeholder="רשום מה נמצא בפועל..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
       </div>
     </div>
   </div>`;
@@ -1851,6 +1859,12 @@ function toggleQANote(taskId) {
 function saveQANote(taskId, note) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_note = note;
+  saveState();
+}
+
+function saveQAGuideSteps(taskId, steps) {
+  if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
+  taskAssignments[taskId].qa_guide_steps = steps;
   saveState();
 }
 
@@ -1893,9 +1907,12 @@ async function passQATest(taskId) {
     if(sec && !sec.tests.find(t=>t.id===newId)) {
       const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
       sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
-      // שמור מדריך בדיקה מהמשימה
-      if(task.description) {
-        GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: [task.title], expected: task.description};
+      // שמור מדריך בדיקה מהמשימה (כולל צעדים שהוזנו ידנית)
+      if(task.description || a.qa_guide_steps) {
+        const rawSteps = a.qa_guide_steps
+          ? a.qa_guide_steps.split('\n').map(s=>s.trim()).filter(Boolean)
+          : [task.title];
+        GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: rawSteps, expected: task.description||task.title};
       }
     }
   }
