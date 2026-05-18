@@ -270,6 +270,30 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 .vt-done-btn{background:#dcfce7;color:#15803d}.vt-done-btn:hover{background:#bbf7d0}
 .standalone-section{margin-top:.9rem;padding-top:.9rem;border-top:2px dashed #e2e8f0}
 .standalone-label{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.45rem}
+/* ── QA STAGING ─────────────────────────────────────────── */
+.qa-version-block{background:white;border-radius:1rem;border:1px solid #e2e8f0;margin-bottom:1.25rem;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.qa-ver-head{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;cursor:pointer;user-select:none}
+.qa-ver-head h3{font-size:.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:.5rem}
+.qa-ver-body{padding:0}
+.qa-ver-body.collapsed{display:none}
+.qa-task-row{display:flex;align-items:flex-start;gap:1rem;padding:.85rem 1.25rem;border-bottom:1px solid #f1f5f9;transition:background .15s}
+.qa-task-row:last-child{border-bottom:none}
+.qa-task-row:hover{background:#fafbfc}
+.qa-task-info{flex:1;min-width:0}
+.qa-task-title{font-weight:600;font-size:.84rem;color:#1e293b;margin-bottom:.2rem}
+.qa-task-meta{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.25rem}
+.qa-task-desc{font-size:.72rem;color:#64748b;margin-top:2px}
+.qa-task-actions{display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;flex-shrink:0}
+.qa-pass-btn{padding:.35rem .85rem;background:#dcfce7;color:#15803d;border:none;border-radius:.5rem;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.qa-pass-btn:hover{background:#bbf7d0}
+.qa-fail-btn{padding:.28rem .75rem;background:#fee2e2;color:#dc2626;border:none;border-radius:.5rem;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.qa-fail-btn:hover{background:#fecaca}
+.qa-standalone-label{font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:.6rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.qa-all-pass-btn{padding:.32rem .8rem;background:#7c3aed;color:white;border:none;border-radius:.5rem;font-family:inherit;font-size:.74rem;font-weight:700;cursor:pointer}
+.qa-all-pass-btn:hover{background:#6d28d9}
+.qa-task-note-wrap{padding:0 1.25rem .6rem;background:#faf5ff;border-bottom:1px solid #f1f5f9;display:none}
+.qa-task-note-wrap.open{display:block}
+.qa-task-note-input{width:100%;padding:.45rem .75rem;border:1px solid #c4b5fd;border-radius:.5rem;font-family:inherit;font-size:.78rem;color:#3b0764;background:white;outline:none;resize:none}
 </style>
 </head>
 <body>
@@ -290,39 +314,40 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="sb-section">
     <div class="sb-section-title">ניווט ראשי</div>
     <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד בדיקות</div>
-    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת בדיקות</div>
+    <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-flask"></i> רשימת בדיקות מלאה (QA)</div>
+    <div class="sb-link" onclick="showView('book')"><i class="fa-solid fa-book-open"></i> ספר המוצר</div>
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
     <div class="sb-link" onclick="showView('alm')"><i class="fa-solid fa-diagram-project"></i> ALM Hub — פיתוח</div>
     <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> היסטוריית גרסאות</div>
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
-    <div class="sb-link" onclick="filterSection('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
-    <div class="sb-link" onclick="filterSection('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
-    <div class="sb-link" onclick="filterSection('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
-    <div class="sb-link" onclick="filterSection('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
-    <div class="sb-link" onclick="filterSection('biz')"><i class="fa-solid fa-briefcase"></i> סביבת עסק</div>
-    <div class="sb-link" onclick="filterSection('store')"><i class="fa-solid fa-store"></i> חנות ו-Storefront</div>
-    <div class="sb-link" onclick="filterSection('pos')"><i class="fa-solid fa-cash-register"></i> קופה (POS)</div>
-    <div class="sb-link" onclick="filterSection('b2b')"><i class="fa-solid fa-truck"></i> רכש ו-B2B</div>
-    <div class="sb-link" onclick="filterSection('finance')"><i class="fa-solid fa-shekel-sign"></i> פיננסים</div>
-    <div class="sb-link" onclick="filterSection('inventory')"><i class="fa-solid fa-boxes-stacked"></i> מלאי</div>
-    <div class="sb-link" onclick="filterSection('ai')"><i class="fa-solid fa-robot"></i> AI ופיצ'רים</div>
-    <div class="sb-link" onclick="filterSection('calendar')"><i class="fa-solid fa-calendar"></i> יומן ותורים</div>
-    <div class="sb-link" onclick="filterSection('shifts')"><i class="fa-solid fa-clock-rotate-left"></i> משמרות</div>
-    <div class="sb-link" onclick="filterSection('tasks')"><i class="fa-solid fa-list-check"></i> משימות</div>
-    <div class="sb-link" onclick="filterSection('academy')"><i class="fa-solid fa-graduation-cap"></i> אקדמיה</div>
-    <div class="sb-link" onclick="filterSection('community')"><i class="fa-solid fa-people-group"></i> קהילות</div>
-    <div class="sb-link" onclick="filterSection('notif')"><i class="fa-solid fa-bell"></i> התראות ו-Inbox</div>
-    <div class="sb-link" onclick="filterSection('sa')"><i class="fa-solid fa-shield"></i> SuperAdmin</div>
-    <div class="sb-link" onclick="filterSection('samktg')"><i class="fa-solid fa-paper-plane"></i> SA — שיווק</div>
-    <div class="sb-link" onclick="filterSection('sa_full')"><i class="fa-solid fa-shield-halved"></i> SA — sa.html</div>
+    <div class="sb-link" onclick="filterBook('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
+    <div class="sb-link" onclick="filterBook('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
+    <div class="sb-link" onclick="filterBook('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
+    <div class="sb-link" onclick="filterBook('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
+    <div class="sb-link" onclick="filterBook('biz')"><i class="fa-solid fa-briefcase"></i> סביבת עסק</div>
+    <div class="sb-link" onclick="filterBook('store')"><i class="fa-solid fa-store"></i> חנות ו-Storefront</div>
+    <div class="sb-link" onclick="filterBook('pos')"><i class="fa-solid fa-cash-register"></i> קופה (POS)</div>
+    <div class="sb-link" onclick="filterBook('b2b')"><i class="fa-solid fa-truck"></i> רכש ו-B2B</div>
+    <div class="sb-link" onclick="filterBook('finance')"><i class="fa-solid fa-shekel-sign"></i> פיננסים</div>
+    <div class="sb-link" onclick="filterBook('inventory')"><i class="fa-solid fa-boxes-stacked"></i> מלאי</div>
+    <div class="sb-link" onclick="filterBook('ai')"><i class="fa-solid fa-robot"></i> AI ופיצ'רים</div>
+    <div class="sb-link" onclick="filterBook('calendar')"><i class="fa-solid fa-calendar"></i> יומן ותורים</div>
+    <div class="sb-link" onclick="filterBook('shifts')"><i class="fa-solid fa-clock-rotate-left"></i> משמרות</div>
+    <div class="sb-link" onclick="filterBook('tasks')"><i class="fa-solid fa-list-check"></i> משימות</div>
+    <div class="sb-link" onclick="filterBook('academy')"><i class="fa-solid fa-graduation-cap"></i> אקדמיה</div>
+    <div class="sb-link" onclick="filterBook('community')"><i class="fa-solid fa-people-group"></i> קהילות</div>
+    <div class="sb-link" onclick="filterBook('notif')"><i class="fa-solid fa-bell"></i> התראות ו-Inbox</div>
+    <div class="sb-link" onclick="filterBook('sa')"><i class="fa-solid fa-shield"></i> SuperAdmin</div>
+    <div class="sb-link" onclick="filterBook('samktg')"><i class="fa-solid fa-paper-plane"></i> SA — שיווק</div>
+    <div class="sb-link" onclick="filterBook('sa_full')"><i class="fa-solid fa-shield-halved"></i> SA — sa.html</div>
   </div>
   <div class="sb-section">
     <div class="sb-section-title">הרשאות לפי תפקיד</div>
-    <div class="sb-link" onclick="filterSection('perm_fam')"><i class="fa-solid fa-user-shield"></i> הורה vs ילד</div>
-    <div class="sb-link" onclick="filterSection('perm_biz')"><i class="fa-solid fa-user-tie"></i> עובדים בעסק (4 רמות)</div>
-    <div class="sb-link" onclick="filterSection('pwa')"><i class="fa-solid fa-mobile"></i> PWA ואבטחה</div>
+    <div class="sb-link" onclick="filterBook('perm_fam')"><i class="fa-solid fa-user-shield"></i> הורה vs ילד</div>
+    <div class="sb-link" onclick="filterBook('perm_biz')"><i class="fa-solid fa-user-tie"></i> עובדים בעסק (4 רמות)</div>
+    <div class="sb-link" onclick="filterBook('pwa')"><i class="fa-solid fa-mobile"></i> PWA ואבטחה</div>
   </div>
   <div style="padding:1rem;margin-top:auto;border-top:1px solid rgba(255,255,255,0.08)">
     <button class="btn btn-dark" style="width:100%;justify-content:center;font-size:0.75rem" onclick="exportReport()"><i class="fa-solid fa-download"></i> ייצא דוח</button>
@@ -371,22 +396,39 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   </div>
 </div>
 
-<!-- TESTS VIEW -->
+<!-- QA STAGING VIEW -->
 <div id="view-tests" class="view">
   <div class="page-header">
-    <h2><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> רשימת בדיקות מלאה</h2>
+    <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
+    <div class="page-actions">
+      <button class="btn btn-outline" onclick="loadKanbanTasks()"><i class="fa-solid fa-rotate"></i> רענן משימות</button>
+    </div>
+  </div>
+  <div id="qa-staging-container">
+    <div style="text-align:center;padding:4rem;color:#94a3b8">
+      <i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
+      <p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p>
+      <p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub</p>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT BOOK VIEW -->
+<div id="view-book" class="view">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר</h2>
     <div class="page-actions">
       <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
       <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
       <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
-      <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
+      <button class="btn btn-outline" onclick="showAllBook()"><i class="fa-solid fa-list"></i> הצג הכל</button>
     </div>
   </div>
   <!-- Search -->
   <div class="search-wrap">
     <i class="fa-solid fa-magnifying-glass"></i>
     <input id="qa-search" type="text" placeholder="חפש בדיקה, מזהה או מילת מפתח..." oninput="filterBySearch(this.value)" dir="rtl">
-    <button onclick="clearSearch()" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:0;font-size:.85rem" title="נקה חיפוש"><i class="fa-solid fa-xmark"></i></button>
+    <button onclick="clearSearch()" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:0;font-size:.85rem"><i class="fa-solid fa-xmark"></i></button>
   </div>
   <!-- Env Tabs -->
   <div class="env-tabs-wrap">
@@ -1673,6 +1715,186 @@ function toggleNote(rowKey) {
   if(!visible) { const ta = row.querySelector('textarea'); if(ta) ta.focus(); }
 }
 
+// ── QA STAGING ──────────────────────────────────────────────────────────────
+function renderQAStaging() {
+  const el = document.getElementById('qa-staging-container');
+  if(!el) return;
+  const inqaTasks = kanbanTasks.filter(t => taskAssignments[t.id]?.status === 'inqa');
+  if(!inqaTasks.length) {
+    el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub</p></div>`;
+    return;
+  }
+  const standalones = inqaTasks.filter(t => taskAssignments[t.id]?.versionId === '__standalone__');
+  const byVer = {};
+  inqaTasks.filter(t => taskAssignments[t.id]?.versionId !== '__standalone__').forEach(t => {
+    const vid = taskAssignments[t.id].versionId || '__none__';
+    if(!byVer[vid]) byVer[vid] = [];
+    byVer[vid].push(t);
+  });
+  let html = '';
+  Object.entries(byVer).forEach(([vid, tasks]) => {
+    const passedCount = tasks.filter(t => taskAssignments[t.id]?.qa_passed).length;
+    html += `<div class="qa-version-block">
+      <div class="qa-ver-head" onclick="toggleQABlock('qavb-${vid}')">
+        <h3><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i> גרסה: ${vid}
+          <span style="font-size:.7rem;font-weight:500;color:#64748b">(${passedCount}/${tasks.length} עברו)</span>
+        </h3>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          ${passedCount === tasks.length && tasks.length > 0
+            ? `<button class="qa-all-pass-btn" onclick="event.stopPropagation();passVersionQA('${vid}')"><i class="fa-solid fa-check-double"></i> סגור גרסה — הכל עבר</button>` : ''}
+          <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-${vid}"></i>
+        </div>
+      </div>
+      <div class="qa-ver-body" id="qavb-${vid}">
+        ${tasks.map(t => renderQATaskRow(t)).join('')}
+      </div>
+    </div>`;
+  });
+  if(standalones.length) {
+    html += `<div class="qa-version-block">
+      <div class="qa-ver-head" onclick="toggleQABlock('qavb-standalone')">
+        <h3><i class="fa-solid fa-bolt" style="color:#f59e0b"></i> משימות עצמאיות (Standalone)</h3>
+        <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-standalone"></i>
+      </div>
+      <div class="qa-ver-body" id="qavb-standalone">
+        ${standalones.map(t => renderQATaskRow(t)).join('')}
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderQATaskRow(task) {
+  const a = taskAssignments[task.id] || {};
+  const passed = a.qa_passed;
+  const modLabel = SECTIONS.find(s=>s.id===a.module)?.title || a.module || '—';
+  const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[a.env] || a.env || '';
+  const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[task.priority]||'prio-medium';
+  const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[task.priority]||task.priority||'';
+  if(passed) return `
+  <div class="qa-task-row" style="opacity:.6;background:#f0fdf4">
+    <div class="qa-task-info">
+      <div class="qa-task-title"><i class="fa-solid fa-circle-check" style="color:#16a34a;margin-left:.4rem"></i>${task.title}</div>
+      <div class="qa-task-meta"><span class="task-badge tbadge-done">✅ עבר QA</span><span style="font-size:.68rem;color:#64748b">${modLabel}${envLabel?' · '+envLabel:''}</span></div>
+    </div>
+  </div>`;
+  return `
+  <div class="qa-task-row" id="qa-row-${task.id}">
+    <div class="qa-task-info">
+      <div class="qa-task-title">${task.title}</div>
+      <div class="qa-task-meta">
+        ${prioLabel?`<span class="prio ${prioClass}">${prioLabel}</span>`:''}
+        <span class="env-tag env-${a.env||'family'}">${envLabel}</span>
+        <span style="font-size:.68rem;color:#7c3aed;background:#faf5ff;padding:.1rem .4rem;border-radius:99px">${modLabel}</span>
+      </div>
+      ${task.description?`<div class="qa-task-desc">${task.description}</div>`:''}
+    </div>
+    <div class="qa-task-actions">
+      <button class="qa-pass-btn" onclick="passQATest(${task.id})"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
+      <button class="qa-fail-btn" onclick="failQATest(${task.id})"><i class="fa-solid fa-xmark"></i> נכשל</button>
+      <button onclick="toggleQANote(${task.id})" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
+    </div>
+  </div>
+  <div class="qa-task-note-wrap" id="qa-note-${task.id}">
+    <textarea class="qa-task-note-input" rows="2" placeholder="הערות בדיקה, צעדי שחזור..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
+  </div>`;
+}
+
+function toggleQABlock(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('chev-' + id);
+  if(!body) return;
+  const open = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', open);
+  if(chev) chev.style.transform = open ? 'rotate(-90deg)' : '';
+}
+
+function toggleQANote(taskId) {
+  const el = document.getElementById(`qa-note-${taskId}`);
+  if(el) el.classList.toggle('open');
+}
+
+function saveQANote(taskId, note) {
+  if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
+  taskAssignments[taskId].qa_note = note;
+  saveState();
+}
+
+async function passQATest(taskId) {
+  const a = taskAssignments[taskId];
+  if(!a) return;
+  a.qa_passed = true;
+  a.status = 'done';
+  saveState();
+  // הוסף לספר המוצר
+  const task = kanbanTasks.find(t=>t.id==taskId);
+  if(task && saToken) {
+    const newId = `DEV-${taskId}`;
+    const catMap = {'auth':'אימות ומשתמשים','onboard':'אשף הכניסה (Onboarding)','family':'סביבת משפחה — לשוניות ראשיות','biz':'סביבת עסק — לשוניות ראשיות','store':'חנות, קטלוג ו-Storefront','pos':'קופה (POS)','b2b':'רכש, ספקים ו-B2B','finance':'פיננסים ותקציב','inventory':'מלאי, רכש וקניות','ai':"AI ופיצ'רים חכמים",'calendar':'יומן, תורים והזמנות','shifts':'משמרות ולוח עובדים','tasks':'משימות','academy':'אקדמיה','community':'קהילות ו-B2B קהילה','notif':'התראות, Inbox ותקשורת','sa':'SuperAdmin','samktg':'SuperAdmin — שיווק וניוזלטר','sa_full':'SuperAdmin — sa.html ו-sa-app.js','pwa':'PWA, ביצועים ואבטחה','perm_fam':'הרשאות — סביבת משפחה (הורה vs ילד)','perm_biz':'הרשאות — סביבת עסק (4 תפקידים)','general':'כללי'};
+    const catName = catMap[a.module] || 'כללי';
+    try {
+      await fetch(`${API}/sa/qa/tests`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({id:newId, category:catName, name:task.title, description:task.description||'', priority:task.priority||'medium'})
+      });
+      await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({status:'done',systemOverride:true})
+      });
+    } catch(e) { console.warn('passQATest server sync:', e.message); }
+    // הוסף לSECTIONS מקומית
+    const sec = SECTIONS.find(s=>s.id===a.module) || SECTIONS.find(s=>s.id==='general');
+    if(sec && !sec.tests.find(t=>t.id===newId)) {
+      const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
+      sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
+    }
+  }
+  renderQAStaging();
+  updateStats();
+  showToast('✅ בדיקה עברה — נוספה לספר המוצר!');
+}
+
+async function failQATest(taskId) {
+  const a = taskAssignments[taskId];
+  if(!a) return;
+  a.qa_failed = true;
+  saveState();
+  // החזר לפיתוח
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({status:'in_progress'})
+      });
+    } catch(e) {}
+  }
+  a.status = 'assigned'; // החזר לשיוך, לא inqa
+  delete a.qa_failed;
+  saveState();
+  renderQAStaging();
+  showToast('❌ משימה הוחזרה לפיתוח');
+}
+
+async function passVersionQA(verId) {
+  if(!confirm(`לסגור את גרסה ${verId} כעברה QA?`)) return;
+  const tasks = kanbanTasks.filter(t => taskAssignments[t.id]?.versionId === verId && taskAssignments[t.id]?.status === 'inqa');
+  for(const t of tasks) await passQATest(t.id);
+  showToast(`גרסה ${verId} נסגרה בהצלחה! ✅`);
+}
+
+function showAllBook() {
+  currentFilter = null;
+  renderTests(null);
+}
+
+function filterBook(id) {
+  currentFilter = id;
+  showView('book');
+}
+
 // ── ENV FILTER ──────────────────────────────────────────────────────────────
 function setEnvFilter(env) {
   currentEnvFilter = env;
@@ -1737,7 +1959,8 @@ async function loadKanbanTasks() {
       });
       saveState();
     }
-    if(currentView==='tests') renderTests(currentFilter);
+    if(currentView==='tests') renderQAStaging();
+    if(currentView==='book')  renderTests(currentFilter);
     if(currentView==='alm')   renderALMHub();
     if(kanbanTasks.length) showToast(`נטענו ${kanbanTasks.length} משימות פעילות`);
   } catch(e) { console.warn('Kanban not available:', e.message); }
@@ -1898,7 +2121,8 @@ async function completeDevTask(taskId) {
       });
     } catch(e) { console.warn('completeDevTask sync failed:', e.message); }
   }
-  renderALMHub(); renderTests(currentFilter);
+  renderALMHub();
+  if(currentView==='tests') renderQAStaging();
   showToast('פיתוח הסתיים — המשימה עברה לשלב QA');
 }
 
@@ -1915,7 +2139,8 @@ async function closeTaskDone(taskId) {
       });
     } catch(e) { console.warn('closeTaskDone sync failed:', e.message); }
   }
-  renderALMHub(); renderTests(currentFilter);
+  renderALMHub();
+  if(currentView==='tests') renderQAStaging();
   showToast('המשימה נסגרה כ-DONE ✅');
 }
 
@@ -2150,10 +2375,11 @@ function showView(v) {
   const el = document.getElementById(`view-${v}`);
   if(el) el.classList.add('active');
   document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-  const map={dashboard:0,tests:1,report:2,versions:3};
+  const map={dashboard:0,tests:1,book:2,report:3,versions:4,alm:5};
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  if(v==='tests')    renderTests(currentFilter);
+  if(v==='tests')    renderQAStaging();
+  if(v==='book')     renderTests(currentFilter);
   if(v==='versions') renderVersions();
   if(v==='alm')      renderALMHub();
   if(v==='dashboard') updateStats();
@@ -2353,6 +2579,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateStats();
       renderTests(null);
       renderVersions();
+      renderQAStaging();
       // טעינת נתוני שרת ברקע
       await loadResultsFromServer();   // תוצאות QA שמורות
       await loadVersionsFromServer();  // גרסאות מהשרת
