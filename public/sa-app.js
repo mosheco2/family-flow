@@ -27,6 +27,14 @@ window.onload = () => {
         applyUserPermissions();
         loadSAData();
         window.switchSATab('pulse');
+        
+        // Polling - רענון משימות והתראות ברקע כל 30 שניות
+        setInterval(() => {
+            if (saToken) loadDevTasks();
+        }, 30000);
+        
+        // טעינה ראשונית כדי שמערכת ההתראות תתעדכן מיד
+        loadDevTasks();
     }
 };
 
@@ -2104,8 +2112,9 @@ window.dropKanbanTask = async function(ev, newStatus) {
     
     if (!task) return;
 
-    if (newStatus === 'done' && task.status !== 'done') {
-        showToast('error', 'משימה זו מנוהלת הנדסית. היא תעבור אוטומטית ל-DONE רק לאחר אישור הבודק בספר ה-QA.');
+    // חוסמים מעבר ידני ל-DONE *רק* למשימות שנמצאות כעת "בפיתוח"
+    if (newStatus === 'done' && task.status === 'in_progress') {
+        showToast('error', 'משימה זו נמצאת בפיתוח. היא תעבור ל-DONE רק לאחר אישור בודק בספר ה-QA.');
         return; 
     }
 
@@ -2122,7 +2131,64 @@ window.dropKanbanTask = async function(ev, newStatus) {
             if (newStatus === 'in_progress') {
                 showToast('success', 'המשימה הועברה לפיתוח, וממתינה לאישור ומיון בספר ה-QA.');
             }
+            
+            // סגירת מעגל: אם הועברה ל-DONE ידנית מבאג או מבקלאוג, ויש לה שיוך טיקט - פתח חלונית ללקוח
+            if (newStatus === 'done' && task.original_ticket_id) {
+                if(typeof confetti === 'function') confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+                setTimeout(() => {
+                    window.openFeedbackLoopModal(task.id, task.original_ticket_id);
+                }, 800);
+            }
         } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+    }
+};
+
+// פונקציות לפתיחת קריאת שירות יזומה
+window.openNewTicketModal = function() {
+    getEl('new-ticket-subject').value = '';
+    getEl('new-ticket-desc').value = '';
+    
+    const groupSelect = getEl('new-ticket-group');
+    if (groupSelect && typeof saAllGroups !== 'undefined') {
+        groupSelect.innerHTML = '<option value="">-- ללא שיוך לקבוצה (פנימי) --</option>' + 
+            saAllGroups.map(g => `<option value="${g.id}">${safeStr(g.name)} (קוד: ${safeStr(g.group_code)})</option>`).join('');
+    }
+    
+    const modal = getEl('sa-new-ticket-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.submitNewTicket = async function() {
+    const subject = val('new-ticket-subject');
+    const desc = val('new-ticket-desc');
+    const groupId = val('new-ticket-group') || null;
+    
+    if(!subject || !desc) return showToast('error', 'חובה למלא נושא ותיאור');
+    
+    const btn = document.querySelector('#sa-new-ticket-modal button.bg-indigo-600');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> פותח קריאה...'; }
+    
+    try {
+        const payload = { subject, description: desc };
+        if (groupId) payload.groupId = groupId;
+        
+        const res = await fetch(`${API}/superadmin/tickets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הקריאה נוצרה בהצלחה!');
+            getEl('sa-new-ticket-modal').classList.add('hidden');
+            loadSATickets();
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת קריאה');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת ביצירת קריאה'); 
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = 'פתח קריאה במערכת'; }
     }
 };
 
