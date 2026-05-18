@@ -661,7 +661,8 @@ let taskAssignments = {};
 let dismissedTaskIds = new Set();
 let deletedTestIds   = new Set();
 let deletedVersionNums = new Set();
-let testQueue = new Set();
+let testQueue = new Set(); // מפתחות: "testId:env"
+let _runMode = false;
 let hiddenBookTests = new Set();
 let versionTasks = {};
 let _runMode = false;      // מצב סשן בדיקה פעיל
@@ -1743,9 +1744,12 @@ function renderTestQueueBar() {
 }
 
 function sendToRunList() {
-  if(!testQueue.size) return;
-  showView('tests');
-  showToast(`${testQueue.size} בדיקות נשלחו לרשימת הבדיקות`);
+  _runMode = true;
+  currentFilter = null;
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = `<i class="fa-solid fa-flask" style="color:#6366f1"></i> סשן בדיקה פעיל`;
+  showView('book');
+  renderTests(null);
 }
 
   
