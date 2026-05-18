@@ -251,6 +251,14 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 .task-action-btn{padding:.28rem .6rem;border-radius:.45rem;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
 .tbtn-approve{background:#ede9fe;color:#6d28d9}.tbtn-approve:hover{background:#ddd6fe}
 .tbtn-done-qa{background:#dcfce7;color:#15803d}.tbtn-done-qa:hover{background:#bbf7d0}
+.task-dismiss-btn{padding:.2rem .45rem;border:1px solid #fecaca;border-radius:.35rem;background:#fff5f5;color:#ef4444;cursor:pointer;font-size:.65rem;font-family:inherit;line-height:1;transition:.15s;flex-shrink:0}
+.task-dismiss-btn:hover{background:#fee2e2;border-color:#ef4444}
+.btn-refresh{display:inline-flex;align-items:center;gap:.4rem;padding:.38rem .85rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.5rem;color:#475569;font-family:inherit;font-size:.75rem;font-weight:600;cursor:pointer;transition:.15s}
+.btn-refresh:hover{background:#eff6ff;border-color:#bfdbfe;color:#3b82f6}
+.btn-refresh.spinning{opacity:.7;pointer-events:none}
+.btn-refresh.spinning i{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-indicator{font-size:.65rem;color:#94a3b8;display:inline-flex;align-items:center;gap:.3rem}
 .task-inbox-section{padding:.6rem .85rem;border-bottom:1px solid #f1f5f9}
 
 /* ── ALM HUB LAYOUT ─────────────────────────────────────── */
@@ -435,7 +443,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="page-header">
     <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
-      <button class="btn btn-outline" onclick="loadKanbanTasks()"><i class="fa-solid fa-rotate"></i> רענן משימות</button>
+      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
     </div>
   </div>
   <div id="qa-staging-container">
@@ -510,7 +518,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <h2><i class="fa-solid fa-diagram-project" style="color:#7c3aed"></i> ALM Hub — מחזור חיי פיתוח</h2>
     <div class="page-actions">
       <button class="btn btn-purple" onclick="newALMVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
-      <button class="btn btn-outline" onclick="loadKanbanTasks()"><i class="fa-solid fa-rotate"></i> רענן משימות</button>
+      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
     </div>
   </div>
   <div class="alm-split">
@@ -567,6 +575,7 @@ let currentFilter = null;
 let currentEnvFilter = 'all';
 let kanbanTasks = [];
 let taskAssignments = {};
+let dismissedTaskIds = new Set();
 let versionTasks = {};
 
 // ============================================================
@@ -1522,6 +1531,7 @@ function migrateState() {
 function saveState() {
   localStorage.setItem('qa_state', JSON.stringify(state));
   localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
+  localStorage.setItem('qa_dismissed_tasks', JSON.stringify([...dismissedTaskIds]));
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
@@ -1623,7 +1633,7 @@ function renderTests(filter) {
     if(sec.id === 'general') {
       const inbox = kanbanTasks.filter(tk => {
         const st = taskAssignments[tk.id]?.status;
-        return !st || st === 'inbox';
+        return (!st || st === 'inbox') && !dismissedTaskIds.has(String(tk.id));
       });
       if(inbox.length) {
         inboxHtml = `<div class="task-inbox-section">${inbox.map(renderKanbanCard).join('')}</div>`;
@@ -1752,7 +1762,8 @@ function renderKanbanCard(task) {
   const prioClsMp = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'};
   let btn = '';
   if(st === 'inbox')
-    btn = `<button class="task-action-btn tbtn-approve" onclick="approveForSorting(${task.id})">✔ העבר למיון</button>`;
+    btn = `<button class="task-action-btn tbtn-approve" onclick="approveForSorting(${task.id})">✔ העבר למיון</button>
+           <button class="task-dismiss-btn" onclick="dismissKanbanTask(${task.id})" title="הסר מהתצוגה"><i class="fa-solid fa-eye-slash"></i></button>`;
   else if(st === 'inqa')
     btn = `<button class="task-action-btn tbtn-done-qa" onclick="closeTaskDone(${task.id})">✅ בדיקה עברה — סגור</button>`;
   return `<div class="task-row ${rowMap[st]||'task-row-inbox'}">
@@ -2120,8 +2131,35 @@ async function loadKanbanTasks() {
     if(currentView==='tests') renderQAStaging();
     if(currentView==='book')  renderTests(currentFilter);
     if(currentView==='alm')   renderALMHub();
-    if(kanbanTasks.length) showToast(`נטענו ${kanbanTasks.length} משימות פעילות`);
   } catch(e) { console.warn('Kanban not available:', e.message); }
+}
+
+let _lastRefresh = null;
+let _autoRefreshTimer = null;
+
+async function refreshSystem(silent = false) {
+  const btn = document.getElementById('refresh-btn');
+  if(btn) btn.classList.add('spinning');
+  try {
+    await loadKanbanTasks();
+    await loadResultsFromServer();
+    await loadVersionsFromServer();
+    _lastRefresh = new Date();
+    _updateRefreshLabel();
+    if(!silent) showToast('המערכת עודכנה ✓');
+  } catch(e) { console.warn('refreshSystem:', e.message); }
+  if(btn) btn.classList.remove('spinning');
+}
+
+function _updateRefreshLabel() {
+  const el = document.getElementById('last-refresh-label');
+  if(!el || !_lastRefresh) return;
+  el.textContent = 'עודכן: ' + _lastRefresh.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function startAutoRefresh(intervalSec = 30) {
+  if(_autoRefreshTimer) clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = setInterval(() => refreshSystem(true), intervalSec * 1000);
 }
 
 function renderALMHub() { renderSortingQueue(); renderVersionTracker(); }
@@ -2250,6 +2288,15 @@ function approveForSorting(taskId) {
   if(currentView==='tests') renderTests(currentFilter);
   if(currentView==='alm')   renderALMHub();
   showToast('המשימה הועברה לתור המיון');
+}
+
+function dismissKanbanTask(taskId) {
+  dismissedTaskIds.add(String(taskId));
+  saveState();
+  scheduleServerSave();
+  if(currentView==='book') renderTests(currentFilter);
+  if(currentView==='alm')  renderALMHub();
+  showToast('המשימה הוסרה מהתצוגה');
 }
 
 async function assignTask(taskId) {
@@ -2745,6 +2792,11 @@ async function loadResultsFromServer() {
           taskAssignments[tid].qa_guide_steps = r.note || '';
           return;
         }
+        if(r.env === 'dismissed') {
+          const tid = r.test_id.replace(/^TASK-/, '');
+          dismissedTaskIds.add(tid);
+          return;
+        }
         // תוצאת בדיקה רגילה
         const k = sk(r.test_id, r.env);
         state[k] = { s: r.status || null, n: r.note || '' };
@@ -2788,6 +2840,11 @@ async function pushResultsToServer() {
   Object.entries(taskAssignments).forEach(([taskId, a]) => {
     if(a.qa_note)        results.push({ testId: `TASK-${taskId}`, env: 'qa-note',  status: null, note: a.qa_note });
     if(a.qa_guide_steps) results.push({ testId: `TASK-${taskId}`, env: 'qa-steps', status: null, note: a.qa_guide_steps });
+  });
+
+  // משימות מוסתרות (dismissed)
+  dismissedTaskIds.forEach(taskId => {
+    results.push({ testId: `TASK-${taskId}`, env: 'dismissed', status: 'dismissed', note: '' });
   });
 
   if(!results.length) return;
@@ -2840,6 +2897,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQAStaging();
       // טעינת נתוני שרת ברקע
       await loadResultsFromServer();   // תוצאות QA שמורות
+      startAutoRefresh(30);
       await loadVersionsFromServer();  // גרסאות מהשרת
       updateStats();
       renderTests(currentFilter);
