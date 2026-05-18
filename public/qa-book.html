@@ -180,6 +180,24 @@ tr:hover td{background:#fafbfc}
 .guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
 .guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
 .guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
+.guide-actual-section{padding:.5rem .75rem;background:#fffbeb;border-top:1px solid #fde68a}
+.guide-actual-section .guide-label{color:#92400e}
+.guide-actual-input{width:100%;box-sizing:border-box;border:1px solid #fde68a;border-radius:.4rem;padding:.35rem .5rem;font-family:inherit;font-size:.72rem;resize:vertical;background:#fffdf0;color:#1e293b;direction:rtl}
+.guide-actual-input:focus{outline:none;border-color:#f59e0b;background:#fff}
+.qa-guide-panel{display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.55rem;margin:.3rem 0 .5rem;overflow:hidden;font-size:.74rem}
+.qa-guide-panel.open{display:block}
+.qa-guide-path{padding:.35rem .7rem;background:#f1f5f9;color:#475569;font-size:.68rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.4rem}
+.qa-guide-path i{color:#3b82f6;font-size:.62rem}
+.qa-guide-cols{display:grid;grid-template-columns:1fr 1fr;background:white}
+.qa-guide-kayyam{padding:.45rem .7rem;border-left:1px solid #e2e8f0}
+.qa-guide-matzuy{padding:.45rem .7rem;background:#fffbeb}
+.qa-guide-label{font-size:.58rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem}
+.qa-guide-kayyam p{color:#166534;margin:0;line-height:1.5}
+.qa-guide-matzuy-input{width:100%;box-sizing:border-box;border:1px solid #fde68a;border-radius:.35rem;padding:.3rem .45rem;font-family:inherit;font-size:.7rem;resize:vertical;background:#fffdf0;color:#1e293b;direction:rtl;min-height:44px}
+.qa-guide-matzuy-input:focus{outline:none;border-color:#f59e0b}
+.qa-guide-btn{width:30px;height:30px;border-radius:.45rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:.68rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.qa-guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
+.qa-guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
 
 @media print{
   .sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}
@@ -1626,24 +1644,26 @@ function renderRow(t, sec, env) {
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
-  const guideHtml = guide ? `
+  const _guideInner = guide
+    ? `<div class="guide-path"><i class="fa-solid fa-route"></i> ${guide.path}</div>
+       <div class="guide-body">
+         <div class="guide-steps"><div class="guide-label">מדריך בדיקה</div><ol>${guide.steps.map(st=>`<li>${st}</li>`).join('')}</ol></div>
+         <div class="guide-expected"><div class="guide-label">קיים (צפוי)</div><p>${guide.expected}</p></div>
+       </div>`
+    : `<div class="guide-path"><i class="fa-solid fa-circle-info"></i> ${t.name}</div>
+       <div class="guide-body"><div class="guide-expected" style="grid-column:1/-1"><div class="guide-label">קיים (צפוי)</div><p>${t.desc||'אין תיאור מפורט'}</p></div></div>`;
+  const guideHtml = `
   <tr id="guide-row-${rowKey}" class="guide-row" style="display:none">
     <td colspan="4">
       <div class="guide-box">
-        <div class="guide-path"><i class="fa-solid fa-route"></i> ${guide.path}</div>
-        <div class="guide-body">
-          <div class="guide-steps">
-            <div class="guide-label">צעדי בדיקה</div>
-            <ol>${guide.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
-          </div>
-          <div class="guide-expected">
-            <div class="guide-label">צפוי (רצוי)</div>
-            <p>${guide.expected}</p>
-          </div>
+        ${_guideInner}
+        <div class="guide-actual-section">
+          <div class="guide-label">מצוי (בפועל)</div>
+          <textarea class="guide-actual-input" rows="2" placeholder="רשום מה נמצא בפועל בבדיקה..." oninput="setNote('${t.id}',this.value,'${env}')">${n}</textarea>
         </div>
       </div>
     </td>
-  </tr>` : '';
+  </tr>`;
   return `
   <tr id="row-${rowKey}" class="${s?'row-'+s:''}">
     <td>
@@ -1661,7 +1681,7 @@ function renderRow(t, sec, env) {
         <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail','${env}')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
         <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn','${env}')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
-        <button class="guide-btn ${guide?'':''}${guide?'active':''}" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
+        <button class="guide-btn active" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
       </div>
     </td>
@@ -1792,11 +1812,25 @@ function renderQATaskRow(task) {
     <div class="qa-task-actions">
       <button class="qa-pass-btn" onclick="passQATest(${task.id})"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
       <button class="qa-fail-btn" onclick="failQATest(${task.id})"><i class="fa-solid fa-xmark"></i> נכשל</button>
+      <button class="qa-guide-btn${(a.qa_guide_open?'active':'')}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
       <button onclick="toggleQANote(${task.id})" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
     </div>
   </div>
   <div class="qa-task-note-wrap" id="qa-note-${task.id}">
     <textarea class="qa-task-note-input" rows="2" placeholder="הערות בדיקה, צעדי שחזור..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
+  </div>
+  <div class="qa-guide-panel${a.qa_guide_open?' open':''}" id="qa-guide-${task.id}">
+    <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${task.title}${a.module?' · '+a.module:''}</div>
+    <div class="qa-guide-cols">
+      <div class="qa-guide-kayyam">
+        <div class="qa-guide-label">קיים (צפוי)</div>
+        <p style="font-size:.72rem;color:#166534;margin:0;line-height:1.5">${task.description||'אין תיאור מפורט'}</p>
+      </div>
+      <div class="qa-guide-matzuy">
+        <div class="qa-guide-label">מצוי (בפועל)</div>
+        <textarea class="qa-guide-matzuy-input" rows="2" placeholder="רשום מה נמצא בפועל..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1818,6 +1852,16 @@ function saveQANote(taskId, note) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_note = note;
   saveState();
+}
+
+function toggleQAGuide(taskId) {
+  const panel = document.getElementById(`qa-guide-${taskId}`);
+  if(!panel) return;
+  const isOpen = panel.classList.toggle('open');
+  if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
+  taskAssignments[taskId].qa_guide_open = isOpen;
+  const btn = document.querySelector(`#qa-row-${taskId} .qa-guide-btn`);
+  if(btn) btn.classList.toggle('active', isOpen);
 }
 
 async function passQATest(taskId) {
@@ -1849,6 +1893,10 @@ async function passQATest(taskId) {
     if(sec && !sec.tests.find(t=>t.id===newId)) {
       const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
       sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
+      // שמור מדריך בדיקה מהמשימה
+      if(task.description) {
+        GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: [task.title], expected: task.description};
+      }
     }
   }
   renderQAStaging();
