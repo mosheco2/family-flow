@@ -1874,6 +1874,7 @@ function saveQANote(taskId, note) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_note = note;
   saveState();
+  scheduleServerSave();
 }
 
 function saveGuideSteps(testId, stepsText) {
@@ -1881,6 +1882,7 @@ function saveGuideSteps(testId, stepsText) {
   if(!GUIDE_BOOK[testId]) GUIDE_BOOK[testId] = {path:'', steps:[], expected:''};
   GUIDE_BOOK[testId].steps = stepsText.split('\n').map(s=>s.trim()).filter(Boolean);
   saveState();
+  scheduleServerSave();
 }
 
 function saveGuideExpected(testId, expectedText) {
@@ -1888,6 +1890,7 @@ function saveGuideExpected(testId, expectedText) {
   if(!GUIDE_BOOK[testId]) GUIDE_BOOK[testId] = {path:'', steps:[], expected:''};
   GUIDE_BOOK[testId].expected = expectedText;
   saveState();
+  scheduleServerSave();
 }
 
 function applyGuideEdits() {
@@ -1925,6 +1928,7 @@ function saveQAGuideSteps(taskId, steps) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_guide_steps = steps;
   saveState();
+  scheduleServerSave();
 }
 
 function toggleQAGuide(taskId) {
@@ -2634,11 +2638,37 @@ async function loadResultsFromServer() {
     if(data.success && Array.isArray(data.results)) {
       data.results.forEach(r => {
         if(!r.test_id || !r.env) return;
+
+        // עריכות מדריך ספר המוצר
+        if(r.env === 'guide-steps') {
+          state[`guide_steps_${r.test_id}`] = r.note || '';
+          return;
+        }
+        if(r.env === 'guide-expected') {
+          state[`guide_expected_${r.test_id}`] = r.note || '';
+          return;
+        }
+        // הערות משימות QA Staging
+        if(r.env === 'qa-note') {
+          const tid = r.test_id.replace(/^TASK-/, '');
+          if(!taskAssignments[tid]) taskAssignments[tid] = {};
+          taskAssignments[tid].qa_note = r.note || '';
+          return;
+        }
+        if(r.env === 'qa-steps') {
+          const tid = r.test_id.replace(/^TASK-/, '');
+          if(!taskAssignments[tid]) taskAssignments[tid] = {};
+          taskAssignments[tid].qa_guide_steps = r.note || '';
+          return;
+        }
+        // תוצאת בדיקה רגילה
         const k = sk(r.test_id, r.env);
-        // עדיפות לנתוני שרת — מדרוס localStorage ישן
         state[k] = { s: r.status || null, n: r.note || '' };
       });
+      // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
+      applyGuideEdits();
       localStorage.setItem('qa_state', JSON.stringify(state));
+      localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
     }
   } catch(e) { console.warn('loadResultsFromServer:', e.message); }
 }
@@ -2653,12 +2683,29 @@ function scheduleServerSave() {
 async function pushResultsToServer() {
   if(!saToken) return;
   const results = [];
+
+  // תוצאות בדיקה רגילות (testId:env → status + note)
   Object.entries(state).forEach(([k, v]) => {
-    if(!k.includes(':')) return; // דלג על מפתחות ישנים שעוד לא הוסרו
+    if(!k.includes(':')) return;
     const parts = k.split(':');
     const testId = parts[0], env = parts[1];
     if(v && (v.s || v.n)) results.push({ testId, env, status: v.s || null, note: v.n || '' });
   });
+
+  // עריכות מדריך בדיקה — צעדים וצפוי (ספר המוצר)
+  Object.entries(state).forEach(([k, v]) => {
+    const mSteps = k.match(/^guide_steps_(.+)$/);
+    const mExp   = k.match(/^guide_expected_(.+)$/);
+    if(mSteps && v) results.push({ testId: mSteps[1], env: 'guide-steps',    status: null, note: v });
+    if(mExp   && v) results.push({ testId: mExp[1],   env: 'guide-expected', status: null, note: v });
+  });
+
+  // הערות ומדריך משימות QA Staging
+  Object.entries(taskAssignments).forEach(([taskId, a]) => {
+    if(a.qa_note)        results.push({ testId: `TASK-${taskId}`, env: 'qa-note',  status: null, note: a.qa_note });
+    if(a.qa_guide_steps) results.push({ testId: `TASK-${taskId}`, env: 'qa-steps', status: null, note: a.qa_guide_steps });
+  });
+
   if(!results.length) return;
   try {
     await fetch(`${API}/sa/qa/results/bulk`, {
