@@ -664,6 +664,8 @@ let deletedVersionNums = new Set();
 let testQueue = new Set();
 let hiddenBookTests = new Set();
 let versionTasks = {};
+let testQueue = new Set(); // מפתחות: "testId:env"
+let _runMode = false;      // מצב סשן בדיקה פעיל
 // ============================================================
 // SERVER INTEGRATION
 // ============================================================
@@ -1694,6 +1696,7 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
+      if(_runMode && testQueue.size && !testQueue.has(`${t.id}:${env}`)) return;
       rows.push({t, env});
     });
   });
@@ -1823,6 +1826,21 @@ function renderTests(filter) {
       </div>
     </div>`;
   });
+  if(_runMode && testQueue.size) {
+    const done = [...testQueue].filter(rk => {
+      const parts = rk.split(':'); const id = parts[0]; const env = parts[1];
+      return getStatus(id, env) !== null;
+    }).length;
+    html = `<div style="background:#1e293b;color:#fff;border-radius:.75rem;padding:.75rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;font-size:.82rem;flex-wrap:wrap">
+      <i class="fa-solid fa-flask" style="color:#a78bfa;font-size:1.1rem"></i>
+      <strong>סשן בדיקה פעיל</strong>
+      <span style="color:#94a3b8">${done} / ${testQueue.size} הושלמו</span>
+      <div style="flex:1"></div>
+      <button onclick="endRunSession()" style="background:#ef4444;color:#fff;border:none;border-radius:1rem;padding:.25rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer">
+        <i class="fa-solid fa-stop"></i> סיים סשן
+      </button>
+    </div>` + html;
+  }
   container.innerHTML = html;
   applySearchFilter();
 }
@@ -1864,11 +1882,14 @@ function renderRow(t, sec, env) {
       </div>
     </td>
   </tr>`;
-   return `
-  <tr id="row-${rowKey}" data-testid="${t.id}" class="${s?'row-'+s:''} ${testQueue.has(t.id)?'row-selected':''}">
+  return `
+  <tr id="row-${rowKey}" class="${s?'row-'+s:''}">
     <td>
-      <div style="display:flex;align-items:flex-start;gap:.4rem">
-        <input type="checkbox" class="row-checkbox" data-qcb="${t.id}" ${testQueue.has(t.id)?'checked':''} onchange="toggleTestQueue('${t.id}',this)" title="הוסף לתור בדיקות">
+      <div style="display:flex;align-items:flex-start;gap:.35rem">
+        <input type="checkbox" class="row-cb"
+               ${testQueue.has(rowKey)?'checked':''}
+               onchange="toggleTestQueue('${rowKey}',this)"
+               style="margin-top:2px;cursor:pointer;accent-color:#6366f1;flex-shrink:0">
         <div>
           <span class="test-id">${t.id}</span>
           <div style="margin-top:3px"><span class="${envCls}">${envLabel}</span></div>
@@ -1888,8 +1909,7 @@ function renderRow(t, sec, env) {
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
         <button class="guide-btn active" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="hide-book-btn" onclick="hideFromBook('${t.id}')" title="הסר מהספר (נשמר במסד)"><i class="fa-solid fa-eye-slash"></i> הסר</button>
-        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק לצמיתות"><i class="fa-solid fa-trash-can"></i></button>
+        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק שורה"><i class="fa-solid fa-trash-can"></i></button>
       </div>
     </td>
   </tr>
@@ -1900,7 +1920,61 @@ function renderRow(t, sec, env) {
     </td>
   </tr>`;
 }
+function toggleTestQueue(rowKey, cb) {
+  if(cb && cb.checked) testQueue.add(rowKey); else testQueue.delete(rowKey);
+  renderTestQueueBar();
+}
 
+function clearTestQueue() {
+  testQueue.clear();
+  _runMode = false;
+  renderTestQueueBar();
+  renderTests(currentFilter);
+}
+
+function renderTestQueueBar() {
+  let bar = document.getElementById('test-queue-bar');
+  if(!bar) {
+    bar = document.createElement('div');
+    bar.id = 'test-queue-bar';
+    bar.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(1rem);background:#1e293b;color:#fff;border-radius:2rem;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.75rem;font-size:.82rem;box-shadow:0 4px 24px rgba(0,0,0,.3);z-index:9999;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap';
+    document.body.appendChild(bar);
+  }
+  if(!testQueue.size) {
+    bar.style.opacity = '0';
+    bar.style.pointerEvents = 'none';
+    bar.style.transform = 'translateX(-50%) translateY(1rem)';
+    return;
+  }
+  bar.style.opacity = '1';
+  bar.style.pointerEvents = 'auto';
+  bar.style.transform = 'translateX(-50%) translateY(0)';
+  bar.innerHTML = `
+    <span><strong>${testQueue.size}</strong> בדיקות נבחרות</span>
+    <button onclick="sendToRunList()" style="background:#6366f1;color:#fff;border:none;border-radius:1rem;padding:.3rem .9rem;font-size:.8rem;font-weight:700;cursor:pointer">
+      <i class="fa-solid fa-flask"></i> שלח לרשימת בדיקות
+    </button>
+    <button onclick="clearTestQueue()" style="background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:1rem;padding:.3rem .6rem;font-size:.8rem;cursor:pointer" title="נקה בחירה">
+      <i class="fa-solid fa-xmark"></i>
+    </button>`;
+}
+
+function sendToRunList() {
+  _runMode = true;
+  currentFilter = null;
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = `<i class="fa-solid fa-flask" style="color:#6366f1"></i> סשן בדיקה פעיל`;
+  showView('book');
+  renderTests(null);
+}
+
+function endRunSession() {
+  _runMode = false;
+  clearTestQueue();
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
+  renderTests(currentFilter);
+}
 function renderKanbanCard(task) {
   const assign = taskAssignments[task.id] || {status:'inbox'};
   const st = assign.status || 'inbox';
