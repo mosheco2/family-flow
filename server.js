@@ -221,6 +221,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           await client.query(`CREATE TABLE IF NOT EXISTS inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
       } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
 
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
+      
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -4767,6 +4769,45 @@ app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
 });
 
 // איפוס כל תוצאות הסשן (לפני ריצה חדשה)
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sa_qa_test_results');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ============================================================
+// QA TEST RESULTS — שמירת תוצאות בדיקה per test per env
+// ============================================================
+
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT test_id, env, status, note, updated_at FROM sa_qa_test_results ORDER BY updated_at DESC'
+        );
+        res.json({ success: true, results: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+    try {
+        const { results } = req.body;
+        if(!results || !results.length) return res.json({ success: true, saved: 0 });
+        let saved = 0;
+        for(const r of results) {
+            if(!r.testId || !r.env) continue;
+            await pool.query(
+                `INSERT INTO sa_qa_test_results (test_id, env, status, note)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (test_id, env) DO UPDATE
+                 SET status = EXCLUDED.status, note = EXCLUDED.note, updated_at = CURRENT_TIMESTAMP`,
+                [r.testId, r.env, r.status || null, r.note || '']
+            );
+            saved++;
+        }
+        res.json({ success: true, saved });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
     try {
         await pool.query('DELETE FROM sa_qa_test_results');
