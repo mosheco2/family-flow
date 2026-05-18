@@ -1694,6 +1694,7 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
+      if(currentView === 'book' && getStatus(t.id, env) !== 'ok') return;
       rows.push({t, env});
     });
   });
@@ -1757,20 +1758,37 @@ function renderTests(filter) {
       <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
         <i class="fa-solid fa-book-open" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
         <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">ספר המוצר ריק</h3>
-        <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
-          ספר המוצר מייצג את <strong style="color:#475569">כלל יכולות המערכת שאושרו</strong> לאחר סבב פיתוח ובדיקות QA מוצלח.<br>
-          הוא מאורגן לפי סביבות, מודולים וסוגי משתמשים.<br><br>
-          יכולות יתווספו לכאן דרך <strong style="color:#475569">תהליך QA Staging</strong> — לאחר שמשימת פיתוח עוברת בדיקה ומאושרת.
+        <p style="font-size:.82rem;color:#94a3b8;line-height:1.75">
+          יכולות יופיעו כאן לאחר שיסומנו כ-<strong style="color:#16a34a">✓ תקין</strong> בסבב בדיקות.
         </p>
-        <div style="display:flex;flex-direction:column;gap:.5rem;align-items:center">
-          <div style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.5rem 1rem">
-            <i class="fa-solid fa-flask" style="color:#ef4444"></i> בצע סבב בדיקות QA Staging
-            <i class="fa-solid fa-arrow-left" style="color:#94a3b8"></i>
-            <i class="fa-solid fa-check" style="color:#22c55e"></i> כל משימה שעוברת QA מתווספת לכאן
-          </div>
-        </div>
       </div>`;
     return;
+  }
+
+  // בדוק אם יש בכלל שורות ok בסקשנים הנוכחיים
+  if(currentView === 'book') {
+    const secs = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
+    const hasAnyOk = secs.some(sec => sec.tests.some(t =>
+      (t.envs&&t.envs.length?t.envs:['family']).some(env =>
+        (currentEnvFilter==='all'||env===currentEnvFilter) && getStatus(t.id,env)==='ok'
+      )
+    ));
+    if(!hasAnyOk) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:4rem 2rem;max-width:520px;margin:0 auto">
+          <i class="fa-solid fa-circle-check" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
+          <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">אין בדיקות מאושרות עדיין</h3>
+          <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
+            ספר המוצר מציג רק בדיקות שסומנו כ-<strong style="color:#16a34a">✓ תקין</strong>.<br>
+            כרגע אין בדיקות מאושרות ${filter?'בקטגוריה זו':'במערכת'}.<br><br>
+            כדי לאשר בדיקות — עבור ל<strong style="color:#475569">רשימת בדיקות מלאה</strong>, בצע בדיקות וסמן ✓ על הבדיקות שעברו.
+          </p>
+          <button class="btn btn-dark" onclick="showView('tests')" style="margin:0 auto">
+            <i class="fa-solid fa-flask"></i> עבור לרשימת בדיקות
+          </button>
+        </div>`;
+      return;
+    }
   }
 
   let html = '';
