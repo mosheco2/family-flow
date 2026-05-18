@@ -286,6 +286,13 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 .vt-tasks{margin-top:.45rem;border-top:1px solid #e2e8f0;padding-top:.45rem}
 .vt-task-row{display:flex;align-items:center;justify-content:space-between;padding:.28rem 0;font-size:.74rem;border-bottom:1px solid #f1f5f9;gap:.4rem}
 .vt-task-row:last-child{border-bottom:none}
+.vt-target-date{display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:#64748b;margin-top:.3rem;padding:.28rem 0;border-top:1px solid #f1f5f9}
+.vt-target-date i{color:#94a3b8;font-size:.65rem}
+.vt-deadline-ok{color:#15803d;font-weight:600}
+.vt-deadline-warn{color:#d97706;font-weight:600}
+.vt-deadline-late{color:#dc2626;font-weight:600}
+.vt-edit-date-btn{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.65rem;padding:.1rem .25rem;border-radius:.3rem;transition:.15s}
+.vt-edit-date-btn:hover{background:#f1f5f9;color:#3b82f6}
 .vt-task-name{flex:1;color:#1e293b;font-weight:500}
 .vt-task-module{font-size:.63rem;color:#94a3b8;background:#f1f5f9;border-radius:99px;padding:.08rem .38rem;flex-shrink:0}
 .vt-task-status{font-size:.63rem;font-weight:700;padding:.13rem .42rem;border-radius:99px;flex-shrink:0}
@@ -1580,6 +1587,29 @@ function getTestRows(sec) {
 function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
+
+  // ספר המוצר ריק — טרם הושלם סבב בדיקות מקיף
+  if(!SECTIONS.length) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
+        <i class="fa-solid fa-book-open" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
+        <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">ספר המוצר ריק</h3>
+        <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
+          ספר המוצר מייצג את <strong style="color:#475569">כלל יכולות המערכת שאושרו</strong> לאחר סבב פיתוח ובדיקות QA מוצלח.<br>
+          הוא מאורגן לפי סביבות, מודולים וסוגי משתמשים.<br><br>
+          יכולות יתווספו לכאן דרך <strong style="color:#475569">תהליך QA Staging</strong> — לאחר שמשימת פיתוח עוברת בדיקה ומאושרת.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:.5rem;align-items:center">
+          <div style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.5rem 1rem">
+            <i class="fa-solid fa-flask" style="color:#ef4444"></i> בצע סבב בדיקות QA Staging
+            <i class="fa-solid fa-arrow-left" style="color:#94a3b8"></i>
+            <i class="fa-solid fa-check" style="color:#22c55e"></i> כל משימה שעוברת QA מתווספת לכאן
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
   let html = '';
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   sections.forEach(sec => {
@@ -2157,10 +2187,26 @@ function renderVersionTracker() {
     const qaDone  = tasks.filter(t => taskAssignments[t.id]?.status === 'done');
     const devPct = tasks.length ? Math.round(devDone.length/tasks.length*100) : 0;
     const qaPct  = tasks.length ? Math.round(qaDone.length/tasks.length*100) : 0;
+    const _tdRaw = v.targetDate;
+    let _tdDisplay = '', _tdCls = '';
+    if(_tdRaw) {
+      const _td = new Date(_tdRaw); const _now = new Date();
+      const _diff = Math.round((_td - _now) / 86400000);
+      _tdDisplay = _td.toLocaleDateString('he-IL');
+      _tdCls = _diff < 0 ? 'vt-deadline-late' : _diff <= 7 ? 'vt-deadline-warn' : 'vt-deadline-ok';
+    }
     html += `<div class="version-track-card">
       <div class="vt-header">
         <div class="vt-num"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>${v.num} <span class="version-tag vtag-${v.type}">${{release:'Release',beta:'Beta',hotfix:'Hotfix'}[v.type]||v.type}</span></div>
         <span class="version-date">${v.date}</span>
+      </div>
+      <div class="vt-target-date">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>תאריך יעד:</span>
+        ${_tdDisplay
+          ? `<span class="${_tdCls}">${_tdDisplay}</span>`
+          : '<span style="color:#94a3b8;font-style:italic">לא נקבע</span>'}
+        <button class="vt-edit-date-btn" onclick="setVersionTargetDate('${v.num}')" title="עדכן תאריך יעד"><i class="fa-solid fa-pen-to-square"></i></button>
       </div>
       <div class="vt-sla-wrap">
         <div class="vt-sla-label"><span>⚙️ Dev</span><span>${devPct}%</span></div>
@@ -2276,11 +2322,14 @@ async function newALMVersion() {
   const num  = prompt('מספר גרסה (למשל v1.2.0):', 'v1.0.0'); if(!num) return;
   const type = prompt('סוג (release / beta / hotfix):', 'release');
   const summary = prompt('סיכום השינויים:', '');
+  const targetDateRaw = prompt('תאריך יעד לשחרור (DD/MM/YYYY, אופציונלי):', '');
+  const targetDate = _parseDate(targetDateRaw);
   const allRows = allTestRows();
   const cnt = countSectionRows(allRows);
   const vObj = {
     num, type:type||'release', summary, notes:'',
     date: new Date().toLocaleDateString('he-IL'),
+    targetDate: targetDate || null,
     ok: cnt.ok, fail: cnt.fail+cnt.warn, total: allRows.length,
     state: JSON.parse(JSON.stringify(state))
   };
@@ -2292,12 +2341,47 @@ async function newALMVersion() {
       await fetch(`${API}/sa/versions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-        body: JSON.stringify({ name: num, targetDate: null })
+        body: JSON.stringify({ name: num, targetDate: targetDate || null })
       });
     } catch(e) { console.warn('Version server save failed:', e.message); }
   }
   const sb = document.getElementById('sb-ver'); if(sb) sb.textContent = num;
   renderVersionTracker(); showToast(`גרסה ${num} נשמרה!`);
+}
+
+function _parseDate(str) {
+  if(!str || !str.trim()) return null;
+  // DD/MM/YYYY or YYYY-MM-DD
+  const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  const m2 = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m2) return str;
+  return null;
+}
+
+async function setVersionTargetDate(vNum) {
+  const v = versions.find(x=>x.num===vNum); if(!v) return;
+  const cur = v.targetDate ? new Date(v.targetDate).toLocaleDateString('he-IL') : '';
+  const raw = prompt(`תאריך יעד לגרסה ${vNum} (DD/MM/YYYY):`, cur);
+  if(raw === null) return; // cancel
+  const parsed = _parseDate(raw.trim()) || null;
+  v.targetDate = parsed;
+  localStorage.setItem('qa_versions', JSON.stringify(versions));
+  // שמור בשרת
+  if(saToken) {
+    try {
+      // מחפש את ה-id של הגרסה מהשרת אם קיים
+      const verFromServer = versions.find(x=>x.num===vNum && x.serverId);
+      const endpoint = verFromServer ? `${API}/sa/versions/${verFromServer.serverId}` : `${API}/sa/versions/name/${encodeURIComponent(vNum)}`;
+      await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ targetDate: parsed })
+      });
+    } catch(e) { console.warn('setVersionTargetDate sync:', e.message); }
+  }
+  renderVersionTracker();
+  showToast(parsed ? `תאריך יעד עודכן: ${new Date(parsed).toLocaleDateString('he-IL')}` : 'תאריך יעד הוסר');
 }
 
 // ============================================================
@@ -2727,7 +2811,9 @@ async function loadVersionsFromServer() {
       versions = data.versions.map(v => ({
         num:     v.name,
         type:    v.status === 'released' ? 'release' : v.status || 'release',
-        date:    v.target_date ? new Date(v.target_date).toLocaleDateString('he-IL') : new Date(v.created_at).toLocaleDateString('he-IL'),
+        date:       v.target_date ? new Date(v.target_date).toLocaleDateString('he-IL') : new Date(v.created_at).toLocaleDateString('he-IL'),
+        targetDate: v.target_date || null,
+        serverId:   v.id || null,
         summary: v.description || '',
         notes:   '',
         ok: 0, fail: 0,
