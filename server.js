@@ -135,10 +135,12 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_matrix (id SERIAL PRIMARY KEY, environment VARCHAR(50), module_name VARCHAR(100), scenario_name TEXT, expected_result TEXT, status VARCHAR(20) DEFAULT 'untested', last_tested_at TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_tasks (id SERIAL PRIMARY KEY, title VARCHAR(255), type VARCHAR(50), priority VARCHAR(50), status VARCHAR(50) DEFAULT 'backlog', description TEXT, environment VARCHAR(50), module_name VARCHAR(100), original_ticket_id INT, target_version VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       
-      // הרחבת טבלת המשימות לשיוך הנדסי מלא (ALM)
+      // הרחבת טבלת המשימות לשיוך הנדסי מלא (ALM) וחיבור מערכת התראות
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS description TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS version_id INT`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS assigned_developer VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS owner_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
       
       // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
@@ -4463,13 +4465,28 @@ app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
 
 app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
     try {
-        const { title, type, priority, status, description, environment, moduleName, originalTicketId, targetVersion, versionId, assignedDeveloper } = req.body;
+        // Updated to catch owner_id and original_ticket_id
+        const { title, type, priority, status, description, environment, moduleName, targetVersion, versionId, assignedDeveloper, owner_id, original_ticket_id } = req.body;
         const result = await pool.query(
-            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, target_version, version_id, assigned_developer) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', originalTicketId || null, targetVersion || '', versionId || null, assignedDeveloper || '']
+            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, owner_id, target_version, version_id, assigned_developer) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', original_ticket_id || null, owner_id || null, targetVersion || '', versionId || null, assignedDeveloper || '']
         );
         res.json({ success: true, task: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+    try {
+        // Updated to process owner_id and original_ticket_id on updates
+        const { title, type, priority, status, description, targetVersion, versionId, environment, moduleName, assignedDeveloper, owner_id, original_ticket_id } = req.body;
+        await pool.query(
+            `UPDATE sa_dev_tasks 
+             SET title=$1, type=$2, priority=$3, status=$4, description=$5, target_version=$6, version_id=$7, environment=$8, module_name=$9, assigned_developer=$10, owner_id=$11, original_ticket_id=$12, updated_at=CURRENT_TIMESTAMP 
+             WHERE id=$13`,
+            [title, type, priority, status, description, targetVersion, versionId || null, environment || '', moduleName || '', assignedDeveloper || '', owner_id || null, original_ticket_id || null, req.params.id]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
