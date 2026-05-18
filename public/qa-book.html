@@ -1694,9 +1694,8 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
-      // ספר מוצר ראשי בלבד — רק בדיקות מאושרות
-      if(currentView === 'book' && !currentFilter && getStatus(t.id, env) !== 'ok') return;
-      rows.push({t, env});
+      // ספר מוצר ראשי — רק משימות שעברו passQATest (DEV-*)
+      if(currentView === 'book' && !currentFilter && !t.id.startsWith('DEV-')) return;
     });
   });
   return rows;
@@ -1777,9 +1776,9 @@ function renderTests(filter) {
         <div style="text-align:center;padding:4rem 2rem;max-width:520px;margin:0 auto">
           <i class="fa-solid fa-circle-check" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
           <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">אין בדיקות מאושרות עדיין</h3>
-          <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
-            ספר המוצר מציג רק בדיקות שסומנו כ-<strong style="color:#16a34a">✓ תקין</strong>.<br>
-            כדי לאשר בדיקות — עבור ל<strong style="color:#475569">רשימת בדיקות מלאה</strong>, בצע בדיקות וסמן ✓ על הבדיקות שעברו.
+                    <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
+            ספר המוצר מציג משימות שעברו את תהליך QA Staging ואושרו דרך "בדיקה עברה".<br>
+            כדי שמשימה תופיע כאן — עבור ל<strong style="color:#475569">רשימת בדיקות מלאה</strong> ולחץ "בדיקה עברה" על המשימה.
           </p>
           <button class="btn btn-dark" onclick="showView('tests')" style="margin:0 auto">
             <i class="fa-solid fa-flask"></i> עבור לרשימת בדיקות
