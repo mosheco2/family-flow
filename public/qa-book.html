@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -288,44 +287,42 @@ tr:hover td{background:#fafbfc}
 
 <!-- TESTS VIEW -->
 <div id="view-tests" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> רשימת בדיקות מלאה</h2>
-    <div class="page-actions">
-      <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
-      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
-      <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
-      <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
-    </div>
-  </div>
-  <div id="tests-container"></div>
+  <div class="page-header">
+    <h2><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> רשימת בדיקות מלאה</h2>
+    <div class="page-actions">
+      <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
+      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
+      <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
+      <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
+    </div>
+  </div>
+  <div id="tests-container"></div>
 </div>
 
-<!-- REPORT VIEW -->
 <div id="view-report" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i> דוח תקלות ובאגים</h2>
-    <div class="page-actions">
-      <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
-      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
-    </div>
-  </div>
-  <div id="report-container">
-    <div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">לחץ על "הפק דוח תקלות" כדי לראות בדיקות שנכשלו</p>
-    </div>
-  </div>
+  <div class="page-header">
+    <h2><i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i> דוח תקלות ובאגים</h2>
+    <div class="page-actions">
+      <button class="btn btn-dark" onclick="generateReport()"><i class="fa-solid fa-rotate"></i> רענן דוח</button>
+      <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> הדפס</button>
+    </div>
+  </div>
+  <div id="report-container">
+    <div style="text-align:center;padding:3rem;color:#94a3b8">
+      <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
+      <p style="font-weight:600">לחץ על "הפק דוח תקלות" כדי לראות בדיקות שנכשלו</p>
+    </div>
+  </div>
 </div>
 
-<!-- VERSIONS VIEW -->
 <div id="view-versions" class="view">
-  <div class="page-header">
-    <h2><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i> ניהול גרסאות</h2>
-    <div class="page-actions">
-      <button class="btn btn-purple" onclick="newVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
-    </div>
-  </div>
-  <div id="versions-container"></div>
+  <div class="page-header">
+    <h2><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i> ניהול גרסאות</h2>
+    <div class="page-actions">
+      <button class="btn btn-purple" onclick="newVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
+    </div>
+  </div>
+  <div id="versions-container"></div>
 </div>
 
 </main>
@@ -348,132 +345,132 @@ let currentFilter = null;
 // SERVER INTEGRATION
 // ============================================================
 async function displayUnauthorizedMessage(message) {
-    const grid = document.getElementById('matrix-grid');
-    if (grid) {
-        grid.innerHTML = `
-            <div style="grid-column: 1/-1; background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-w-xl mx-auto mt-10">
-                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
-                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
-                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;">בצע בדיקה מחודשת</button>
-            </div>
-        `;
-    }
+    const grid = document.getElementById('matrix-grid');
+    if (grid) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; background: white; padding: 3rem; border-radius: 20px; text-align: center; border: 2px dashed #cbd5e1; max-w-xl mx-auto mt-10">
+                <i class="fa-solid fa-lock" style="font-size: 3rem; color: #6366f1; margin-bottom: 1rem;"></i>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">נדרש אימות סופר אדמין</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">${message}</p>
+                <button onclick="window.location.reload()" style="background: #4f46e5; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: opacity 0.2s;">בצע בדיקה מחודשת</button>
+            </div>
+        `;
+    }
 }
 
 async function loadTestsFromServer() {
-    if (!saToken) {
-        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה למערכת הניהול הראשית (sa.html) ולאחר מכן לרענן עמוד זה.');
-        return;
-    }
-    
-    try {
-        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
-        
-        if (res.status === 401 || res.status === 403) {
-            displayUnauthorizedMessage('פג תוקף החיבור המאובטח (השרת אותחל). אנא כנס למסך הניהול (sa.html), בצע התנתקות והתחברות מחדש, ואז רענן דף זה.');
-            return;
-        }
+    if (!saToken) {
+        displayUnauthorizedMessage('מפתח הגישה חסר. נא להיכנס תחילה למערכת הניהול הראשית (sa.html) ולאחר מכן לרענן עמוד זה.');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
+        
+        if (res.status === 401 || res.status === 403) {
+            displayUnauthorizedMessage('פג תוקף החיבור המאובטח (השרת אותחל). אנא כנס למסך הניהול (sa.html), בצע התנתקות והתחברות מחדש, ואז רענן דף זה.');
+            return;
+        }
 
-        const data = await res.json();
-        
-        if (data.success) {
-            const catMap = {
-                'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
-                'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
-                'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
-                'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
-                'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
-                'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
-                'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
-                'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
-                'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
-                'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
-                'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
-                'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
-                'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
-                'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
-                'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
-                'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
-                'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
-                'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
-                'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
-                'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
-                'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
-                'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
-                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
-            };
+        const data = await res.json();
+        
+        if (data.success) {
+            const catMap = {
+                'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
+                'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
+                'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
+                'סביבת עסק — לשוניות ראשיות': { id: 'biz', icon: 'fa-briefcase', color: '#f59e0b' },
+                'חנות, קטלוג ו-Storefront': { id: 'store', icon: 'fa-store', color: '#8b5cf6' },
+                'קופה (POS)': { id: 'pos', icon: 'fa-cash-register', color: '#0ea5e9' },
+                'רכש, ספקים ו-B2B': { id: 'b2b', icon: 'fa-truck', color: '#06b6d4' },
+                'פיננסים ותקציב': { id: 'finance', icon: 'fa-shekel-sign', color: '#10b981' },
+                'מלאי, רכש וקניות': { id: 'inventory', icon: 'fa-boxes-stacked', color: '#f97316' },
+                'AI ופיצ\'רים חכמים': { id: 'ai', icon: 'fa-robot', color: '#a855f7' },
+                'יומן, תורים והזמנות': { id: 'calendar', icon: 'fa-calendar', color: '#0ea5e9' },
+                'משמרות ולוח עובדים': { id: 'shifts', icon: 'fa-clock-rotate-left', color: '#f43f5e' },
+                'משימות': { id: 'tasks', icon: 'fa-list-check', color: '#84cc16' },
+                'אקדמיה': { id: 'academy', icon: 'fa-graduation-cap', color: '#f59e0b' },
+                'קהילות ו-B2B קהילה': { id: 'community', icon: 'fa-people-group', color: '#14b8a6' },
+                'התראות, Inbox ותקשורת': { id: 'notif', icon: 'fa-bell', color: '#f97316' },
+                'SuperAdmin': { id: 'sa', icon: 'fa-shield', color: '#64748b' },
+                'SuperAdmin — שיווק וניוזלטר': { id: 'samktg', icon: 'fa-paper-plane', color: '#ec4899' },
+                'PWA, ביצועים ואבטחה': { id: 'pwa', icon: 'fa-mobile', color: '#ec4899' },
+                'הרשאות — סביבת משפחה (הורה vs ילד)': { id: 'perm_fam', icon: 'fa-user-shield', color: '#0ea5e9' },
+                'הרשאות — סביבת עסק (4 תפקידים)': { id: 'perm_biz', icon: 'fa-user-tie', color: '#f59e0b' },
+                'SuperAdmin — sa.html ו-sa-app.js': { id: 'sa_full', icon: 'fa-shield-halved', color: '#6366f1' },
+                'כללי': { id: 'general', icon: 'fa-inbox', color: '#f43f5e' }
+            };
 
-            const grouped = {};
-            data.tests.forEach(t => {
-                const catName = t.category || 'כללי';
-                const meta = catMap[catName] || { id: 'general', icon: 'fa-inbox', color: '#f43f5e' };
-                
-                if (!grouped[catName]) {
-                    grouped[catName] = { id: meta.id, icon: meta.icon, color: meta.color, title: catName, tests: [] };
-                }
-                grouped[catName].tests.push({
-                    id: t.id,
-                    name: t.name,
-                    desc: t.description,
-                    prio: t.priority,
-                    envs: ['all'] 
-                });
-            });
-            
-            SECTIONS = Object.values(grouped);
-            
-            updateStats();
-            renderTests(null);
-        } else {
-            displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
-        }
-    } catch(e) {
-        console.error('Error loading tests:', e);
-        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
-    }
+            const grouped = {};
+            data.tests.forEach(t => {
+                const catName = t.category || 'כללי';
+                const meta = catMap[catName] || { id: 'general', icon: 'fa-inbox', color: '#f43f5e' };
+                
+                if (!grouped[catName]) {
+                    grouped[catName] = { id: meta.id, icon: meta.icon, color: meta.color, title: catName, tests: [] };
+                }
+                grouped[catName].tests.push({
+                    id: t.id,
+                    name: t.name,
+                    desc: t.description,
+                    prio: t.priority,
+                    envs: ['all'] 
+                });
+            });
+            
+            SECTIONS = Object.values(grouped);
+            
+            updateStats();
+            renderTests(null);
+        } else {
+            displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
+        }
+    } catch(e) {
+        console.error('Error loading tests:', e);
+        displayUnauthorizedMessage('שגיאת רשת פנימית. ודא שהשרת רץ ושהכתובת מוגדרת כראוי.');
+    }
 }
 
 // פונקציה חד פעמית לייבוא הנתונים הסטטיים הישנים לשרת (Bulk Import)
 window.seedDatabase = async function(legacyData) {
-    if(!confirm('האם לייבא את כל הבדיקות למסד הנתונים?')) return;
-    try {
-        let allTestsToSeed = [];
-        legacyData.forEach(sec => {
-            if (sec.tests) {
-                sec.tests.forEach(t => {
-                    allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
-                });
-            }
-        });
-        
-        const res = await fetch(`${API}/sa/qa/tests/bulk`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ tests: allTestsToSeed })
-        });
-        
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            const data = await res.json();
-            if(data.success) {
-                showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
-                loadTestsFromServer();
-            } else {
-                console.error('Server error:', data.error);
-                showToast('השרת החזיר שגיאה: ' + data.error);
-            }
-        } else {
-            const text = await res.text();
-            console.error('Server returned plain text:', text);
-            showToast('שגיאה לא צפויה בשרת (ראה קונסול)');
-        }
-    } catch(e) { 
-        console.error('Network Error:', e);
-        showToast('שגיאת תקשורת בייבוא נתונים'); 
-    }
+    if(!confirm('האם לייבא את כל הבדיקות למסד הנתונים?')) return;
+    try {
+        let allTestsToSeed = [];
+        legacyData.forEach(sec => {
+            if (sec.tests) {
+                sec.tests.forEach(t => {
+                    allTestsToSeed.push({ id: t.id, cat: sec.title, name: t.name, desc: t.desc, prio: t.prio });
+                });
+            }
+        });
+        
+        const res = await fetch(`${API}/sa/qa/tests/bulk`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ tests: allTestsToSeed })
+        });
+        
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            const data = await res.json();
+            if(data.success) {
+                showToast(`יובאו בהצלחה ${data.inserted} בדיקות! מרענן מחדש...`);
+                loadTestsFromServer();
+            } else {
+                console.error('Server error:', data.error);
+                showToast('השרת החזיר שגיאה: ' + data.error);
+            }
+        } else {
+            const text = await res.text();
+            console.error('Server returned plain text:', text);
+            showToast('שגיאה לא צפויה בשרת (ראה קונסול)');
+        }
+    } catch(e) { 
+        console.error('Network Error:', e);
+        showToast('שגיאת תקשורת בייבוא נתונים'); 
+    }
 };
 
-  const GUIDE_BOOK = {
+  const GUIDE_BOOK = {
 
 // ── AUTH ──────────────────────────────────────────────────────────────
 'AUTH-01':{path:'דף הבית ← "הרשמה"',steps:['פתח את האתר/אפליקציה','לחץ "הרשמה"','בחר סוג "משפחה"','מלא שם, מייל, סיסמה','לחץ "צור קבוצה"'],expected:'קוד קבוצה ייחודי מוצג, ניתוב לאשף Onboarding'},
@@ -891,7 +888,7 @@ window.seedDatabase = async function(legacyData) {
 'SAF-27':{path:'sa.html ← כל לשונית ← לחיצה ראשונה',steps:['לחץ על לשונית שעוד לא נפתחה'],expected:'switchSATab() נקרא, תוכן הלשונית נטען'},
 'SAF-28':{path:'sa.html ← "Stats"',steps:['כנס ל"Stats"'],expected:'גרפים, מגמות, נתוני שימוש יומי/חודשי מוצגים'},
 
-}; // סיום GUIDE_BOOK
+};
 
 // ============================================================
 // STATE
@@ -899,12 +896,9 @@ window.seedDatabase = async function(legacyData) {
 function loadState() {
   try {
     state = JSON.parse(localStorage.getItem('qa_state') || '{}');
-    versions = JSON.parse(localStorage.getItem('qa_versions') || '[]');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
-    const rv = document.getElementById('sb-ver');
-    if(rv && versions.length) rv.textContent = versions[versions.length-1].num;
   } catch(e){}
 }
 
@@ -921,9 +915,8 @@ function getNote(id)   { return state[id]?.n || ''; }
 function setStatus(id, s) {
   if(!state[id]) state[id]={};
   state[id].s = state[id].s === s ? null : s;
-  updateRowUI(id);
   saveState();
-  updateSidebarBadges();
+  renderTests(currentFilter);
 }
 
 function setNote(id, n) {
@@ -931,21 +924,43 @@ function setNote(id, n) {
   state[id].n = n;
   saveState();
   const btn = document.querySelector(`[data-note-btn="${id}"]`);
-  if(btn) btn.classList.toggle('has-note', !!n);
+  if(btn) {
+    if(n.trim()) btn.classList.add('has-note');
+    else btn.classList.remove('has-note');
+  }
 }
 
 // ============================================================
 // RENDER
 // ============================================================
+function filterTestsBySearch() {
+    const term = document.getElementById('qa-search-input').value.toLowerCase();
+    document.querySelectorAll('.section-body tbody tr').forEach(row => {
+        if(row.classList.contains('guide-row') || row.classList.contains('note-row')) return;
+        const text = row.innerText.toLowerCase();
+        const show = text.includes(term);
+        row.style.display = show ? '' : 'none';
+        
+        const id = row.id.replace('row-','');
+        const noteRow = document.getElementById(`note-row-${id}`);
+        const guideRow = document.getElementById(`guide-row-${id}`);
+        if(!show) {
+            if(noteRow) noteRow.style.display = 'none';
+            if(guideRow) guideRow.style.display = 'none';
+        }
+    });
+}
+
 function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
   let html = '';
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   sections.forEach(sec => {
-    const tests = sec.tests;
-    const counts = countSection(tests);
-    const pct = tests.length ? Math.round((counts.ok + counts.skip) / tests.length * 100) : 0;
+    if (sec.tests.length === 0) return;
+
+    const counts = countSection(sec.tests);
+    const pct = sec.tests.length ? Math.round((counts.ok + counts.skip) / sec.tests.length * 100) : 0;
     html += `
     <div class="section" id="sec-${sec.id}">
       <div class="section-head" onclick="toggleSection(this)">
@@ -962,27 +977,47 @@ function renderTests(filter) {
         <table>
           <thead><tr>
             <th style="width:80px">מזהה</th>
-            <th>בדיקה</th>
+            <th>בדיקה / משימה</th>
             <th style="width:80px">עדיפות</th>
-            <th>סטטוס</th>
+            <th>סטטוס ופעולות</th>
           </tr></thead>
           <tbody id="tbody-${sec.id}">
-            ${tests.map(t => renderRow(t, sec)).join('')}
+            ${sec.tests.map(t => renderRow(t, sec)).join('')}
           </tbody>
         </table>
       </div>
     </div>`;
   });
+  
+  if(html === '') html = `<div style="text-align:center;padding:3rem;color:#94a3b8"><i class="fa-solid fa-check-double" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600">אין נתונים להצגה בקטגוריה זו.</p></div>`;
   container.innerHTML = html;
+
+  if(document.getElementById('qa-search-input') && document.getElementById('qa-search-input').value) {
+      filterTestsBySearch();
+  }
 }
 
 function renderRow(t, sec) {
-  const s = getStatus(t.id);
+  let s = getStatus(t.id);
+  if (t.isKanban && t.kanbanTask.status === 'done' && s !== 'ok') { s = 'ok'; }
+
   const n = getNote(t.id);
   const envHtml = t.envs.map(e => `<span class="env-tag env-${e}">${{family:'משפחה',biz:'עסק',comm:'קהילה',sa:'SA',all:'הכל'}[e]||e}</span>`).join('');
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
+
+  let actionBtn = '';
+  if (t.isKanban) {
+      if (t.kanbanTask.status === 'in_progress' && (!t.kanbanTask.target_version || t.kanbanTask.target_version.trim() === '')) {
+          actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-purple" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="almApproveForSorting(${t.kanbanTask.id})"><i class="fa-solid fa-arrow-left"></i> אשר והעבר למיון</button></div>`;
+      } else if (t.kanbanTask.status === 'qa') {
+          actionBtn = `<div style="margin-top:0.5rem;"><button class="btn btn-green" style="padding:0.25rem 0.6rem; font-size:0.7rem;" onclick="almPassQA(${t.kanbanTask.id})"><i class="fa-solid fa-check-double"></i> בדיקה עברה - סגור ל-DONE</button></div>`;
+      } else if (t.kanbanTask.status === 'done') {
+          actionBtn = `<div style="margin-top:0.5rem;"><span style="font-size:0.65rem; font-weight:800; color:#16a34a;"><i class="fa-solid fa-check"></i> הושלמה במלואה</span></div>`;
+      }
+  }
+
   const guideHtml = guide ? `
   <tr id="guide-row-${t.id}" class="guide-row" style="display:none">
     <td colspan="4">
@@ -1003,11 +1038,12 @@ function renderRow(t, sec) {
   </tr>` : '';
   return `
   <tr id="row-${t.id}" class="${s?'row-'+s:''}">
-    <td><span class="test-id">${t.id}</span></td>
+    <td><span class="test-id" style="${t.isKanban?'color:#7c3aed;font-weight:bold':''}">${t.id}</span></td>
     <td>
-      <div class="test-name">${t.name}</div>
+      <div class="test-name" style="${t.isKanban?'color:#6d28d9; font-weight:800;':''}">${t.isKanban?'<i class="fa-solid fa-laptop-code"></i> ':''}${t.name}</div>
       <div class="test-desc">${t.desc}</div>
       <div class="test-env">${envHtml}</div>
+      ${actionBtn}
     </td>
     <td><span class="prio ${prioClass}">${prioLabel}</span></td>
     <td>
@@ -1016,7 +1052,7 @@ function renderRow(t, sec) {
         <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
         <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip')" title="דלג"><i class="fa-solid fa-minus"></i></button>
-        <button class="guide-btn ${guide?'active':''}" onclick="toggleGuide('${t.id}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
+        ${guide?`<button class="guide-btn" onclick="toggleGuide('${t.id}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>`:''}
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${t.id}" onclick="toggleNote('${t.id}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
       </div>
     </td>
@@ -1050,7 +1086,8 @@ function allTests() { return SECTIONS.flatMap(s=>s.tests); }
 function countSection(tests) {
   let ok=0,fail=0,warn=0,skip=0,none=0;
   tests.forEach(t=>{
-    const s=getStatus(t.id);
+    let s=getStatus(t.id);
+    if(t.isKanban && t.kanbanTask.status === 'done') s = 'ok';
     if(s==='ok') ok++; else if(s==='fail') fail++; else if(s==='warn') warn++; else if(s==='skip') skip++; else none++;
   });
   return {ok,fail,warn,skip,none};
@@ -1071,7 +1108,7 @@ function updateStats() {
     const now = new Date().toLocaleString('he-IL');
     setText('run-date', now);
     const v = document.getElementById('sb-ver');
-    setText('run-ver', v ? v.textContent : '—');
+    if(v && almVersions.length) v.textContent = almVersions[almVersions.length-1].name;
   }
   renderModuleCards();
   updateSidebarBadges();
@@ -1082,7 +1119,7 @@ function setText(id, v) { const e=document.getElementById(id); if(e) e.textConte
 function renderModuleCards() {
   const el = document.getElementById('module-cards');
   if(!el) return;
-  el.innerHTML = SECTIONS.map(sec => {
+  el.innerHTML = SECTIONS.filter(sec => sec.tests.length > 0).map(sec => {
     const c = countSection(sec.tests);
     const pct = sec.tests.length ? Math.round((c.ok+c.skip)/sec.tests.length*100) : 0;
     const offset = 126 - (pct/100*126);
@@ -1112,6 +1149,215 @@ function updateSidebarBadges() {
 }
 
 // ============================================================
+// ALM ACTIONS
+// ============================================================
+async function almApproveForSorting(taskId) {
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description, 
+                targetVersion: 'SORTING', environment: kt.environment, moduleName: kt.module_name 
+            })
+        });
+        if(res.ok) { showToast('המשימה עברה למיון!'); await loadALMData(); }
+    } catch(e) {}
+}
+
+async function almAssignTask(taskId) {
+    const verSel = document.getElementById(`assign-ver-${taskId}`).value;
+    const envSel = document.getElementById(`assign-env-${taskId}`).value;
+    const modSel = document.getElementById(`assign-mod-${taskId}`).value;
+    if(!verSel || !modSel) return showToast('שגיאה: חובה לבחור יעד ומודול!');
+
+    const kt = almDevTasks.find(t => t.id === taskId);
+    if(!kt) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ 
+                title: kt.title, type: kt.type, priority: kt.priority, status: kt.status, description: kt.description,
+                targetVersion: verSel, environment: envSel, moduleName: modSel 
+            })
+        });
+        if(res.ok) { showToast('המשימה שויכה בהצלחה!'); await loadALMData(); }
+    } catch(e) {}
+}
+
+async function almMarkDevDone(taskId) {
+    if(!confirm('הפיתוח הסתיים? המשימה תעבור ל-QA.')) return;
+    try {
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'qa', systemOverride: true })
+        });
+        if(res.ok) { showToast('עבר בהצלחה ל-QA!'); await loadALMData(); }
+    } catch(e) {}
+}
+
+async function almPassQA(taskId) {
+    if(!confirm('הבדיקה עברה? המשימה תשחרר סופית.')) return;
+    try {
+        setStatus('TASK-' + taskId, 'ok'); 
+        const res = await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'done', systemOverride: true })
+        });
+        if(res.ok) { showToast('המשימה שוחררה ל-DONE!'); await loadALMData(); }
+    } catch(e) {}
+}
+
+function openNewVersionModal() { document.getElementById('modal-new-version').style.display = 'flex'; }
+function closeNewVersionModal() { document.getElementById('modal-new-version').style.display = 'none'; }
+function saveNewVersion() {
+    const name = document.getElementById('nv-name').value.trim();
+    if(!name) return showToast('נא להזין שם גרסה');
+    almVersions.push({ id: 'v_' + Date.now(), name, targetDate: document.getElementById('nv-date').value, status: 'planning' });
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    closeNewVersionModal();
+    showToast('גרסה הוקמה בהצלחה!');
+    renderALMHub();
+}
+function releaseVersion(verName) {
+    if(!confirm(`להשיק את גרסה ${verName} ללקוחות?`)) return;
+    const ver = almVersions.find(v => v.name === verName);
+    if(ver) ver.status = 'released';
+    localStorage.setItem('qa_versions_db', JSON.stringify(almVersions));
+    showToast('🚀 הגרסה שוחררה בהצלחה!');
+    renderALMHub();
+}
+
+function renderALMHub() {
+    const board = document.getElementById('alm-versions-board');
+    const unassigned = document.getElementById('alm-unassigned-tasks');
+    if(!board || !unassigned) return;
+
+    const moduleOptions = BASE_CATEGORIES.filter(c => c.id !== 'general').map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+
+    const tasksForSorting = almDevTasks.filter(t => t.status === 'in_progress' && t.target_version === 'SORTING');
+    if(tasksForSorting.length === 0) {
+        unassigned.innerHTML = `<div style="text-align:center; padding:2.5rem 1rem; color:#94a3b8;"><i class="fa-solid fa-check-double" style="font-size:2.5rem; margin-bottom:0.75rem; opacity:0.5;"></i><div style="font-weight:700; font-size:0.8rem;">תור המיון ריק</div></div>`;
+    } else {
+        unassigned.innerHTML = tasksForSorting.map(t => `
+        <div style="background:white; padding:1rem; border-radius:0.75rem; border:1px solid #e2e8f0; margin-bottom:0.5rem;">
+            <div style="font-size:0.8rem; font-weight:800; color:#0f172a; margin-bottom:0.2rem;">${t.title}</div>
+            <div style="font-size:0.7rem; color:#64748b; margin-bottom:0.75rem;">${t.description || 'ללא תיאור'}</div>
+            <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <select id="assign-ver-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; background:#f8fafc;">
+                    <option value="">-- שייך לגרסה או עצמאי --</option>
+                    <option value="STANDALONE" style="font-weight:bold;color:#7c3aed;">★ פיתוח עצמאי (ללא גרסה)</option>
+                    ${almVersions.map(v => `<option value="${v.name}">${v.name}</option>`).join('')}
+                </select>
+                <div style="display:flex; gap:0.4rem;">
+                    <select id="assign-env-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
+                        <option value="all">סביבה (כללי)</option><option value="family">משפחות</option><option value="biz">עסקים</option><option value="comm">קהילות</option><option value="sa">סופר אדמין</option>
+                    </select>
+                    <select id="assign-mod-${t.id}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid #cbd5e1; font-size:0.7rem; outline:none; flex:1; background:#f8fafc;">
+                        <option value="">-- קטגוריה בספר --</option>
+                        ${moduleOptions}
+                    </select>
+                </div>
+                <button onclick="almAssignTask(${t.id})" style="background:#3b82f6; color:white; border:none; padding:0.45rem; border-radius:0.4rem; font-size:0.7rem; font-weight:700; cursor:pointer;">שמור שיוך <i class="fa-solid fa-check"></i></button>
+            </div>
+        </div>`).join('');
+    }
+
+    const standaloneTasks = almDevTasks.filter(t => t.target_version === 'STANDALONE');
+    let standaloneHtml = '';
+    if (standaloneTasks.length > 0) {
+        standaloneHtml = `
+        <div style="background:#f8fafc; border-radius:1rem; border:1px solid #cbd5e1; padding:1.5rem; margin-bottom:1.5rem;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:#475569; margin-bottom:1rem;"><i class="fa-solid fa-bolt text-amber-500"></i> פיתוחים עצמאיים (SLA)</h3>
+            <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                ${standaloneTasks.map(t => {
+                    const isDone = t.status === 'done';
+                    const isQA = t.status === 'qa';
+                    let pct = isDone ? 100 : (isQA ? 50 : 10);
+                    return `
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.75rem 1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <div style="font-size:0.85rem; font-weight:700;">${t.title}</div>
+                            <span style="font-size:0.6rem; background:#eff6ff; color:#3b82f6; padding:0.2rem 0.5rem; border-radius:99px;">${isDone ? 'הושלם סופית' : (isQA ? 'ממתין ל-QA' : 'בפיתוח')}</span>
+                        </div>
+                        <div style="height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-bottom:0.75rem;">
+                            <div style="height:100%; width:${pct}%; background:${isDone?'#16a34a':'#f59e0b'}; transition:width 0.5s;"></div>
+                        </div>
+                        ${(!isQA && !isDone) ? `<button onclick="almMarkDevDone(${t.id})" class="btn btn-outline" style="font-size:0.65rem; padding:0.2rem 0.6rem;">הפיתוח הסתיים - העבר ל-QA</button>` : ''}
+                        ${(isQA) ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.2rem 0.6rem; width:100%; justify-content:center;">בדיקה עברה - סגור משימה</button>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }
+
+    let versionsHtml = almVersions.slice().reverse().map(v => {
+        const vTasks = almDevTasks.filter(t => t.target_version === v.name);
+        const total = vTasks.length;
+        const devDone = vTasks.filter(t => t.status === 'qa' || t.status === 'done').length;
+        const devPct = total > 0 ? Math.round((devDone / total) * 100) : 0;
+        const qaDone = vTasks.filter(t => t.status === 'done').length;
+        const qaPct = total > 0 ? Math.round((qaDone / total) * 100) : 0;
+        const isReady = (qaPct === 100 && total > 0);
+        const isReleased = (v.status === 'released');
+
+        return `
+        <div style="background:white; border-radius:1rem; border:1px solid ${isReady?'#16a34a':'#e2e8f0'}; padding:1.5rem; position:relative; overflow:hidden; opacity:${isReleased?0.7:1}; margin-bottom:1rem;">
+            <div style="position:absolute; top:0; left:0; width:5px; height:100%; background:${isReady?'#16a34a':'#6366f1'};"></div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                        <h3 style="font-size:1.25rem; font-weight:900;">${v.name}</h3>
+                        <span style="font-size:0.6rem; font-weight:800; background:${isReady?'#dcfce7':'#eff6ff'}; color:${isReady?'#166534':'#1d4ed8'}; padding:0.2rem 0.6rem; border-radius:99px;">${isReleased?'הושק לאוויר':(isReady?'מוכן להשקה':'בפיתוח פעיל')}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b;"><i class="fa-regular fa-calendar"></i> יעד: ${v.targetDate || 'לא מוגדר'}</div>
+                </div>
+                ${!isReleased ? (isReady ? `<button class="btn btn-green" onclick="releaseVersion('${v.name}')"><i class="fa-solid fa-rocket"></i> שחרר גרסה</button>` : `<button class="btn btn-outline" disabled>ממתין לפיתוח ו-QA</button>`) : `<span style="font-weight:800; color:#16a34a;"><i class="fa-solid fa-check-double"></i> באוויר</span>`}
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; background:#f8fafc; padding:1.25rem; border-radius:0.75rem;">
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-code text-indigo-500"></i> פיתוח</span><span style="color:${devPct===100?'#16a34a':'#6366f1'}">${devPct}%</span></div>
+                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${devPct}%; background:${devPct===100?'#16a34a':'#6366f1'}; transition:width 0.5s;"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; font-weight:800; margin-bottom:0.5rem;"><span><i class="fa-solid fa-vial-circle-check text-emerald-500"></i> בדיקות QA</span><span style="color:#16a34a">${qaPct}%</span></div>
+                    <div style="height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden;"><div style="height:100%; width:${qaPct}%; background:#16a34a; transition:width 0.5s;"></div></div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="font-size:0.8rem; font-weight:800; border-bottom:2px solid #e2e8f0; padding-bottom:0.25rem; margin-bottom:0.75rem;">תכולה (${total})</h4>
+                ${total === 0 ? `<div style="font-size:0.75rem; color:#94a3b8;">אין משימות בגרסה.</div>` : 
+                `<div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    ${vTasks.map(t => {
+                        const isDone = (t.status === 'done');
+                        const isQA = (t.status === 'qa' || t.status === 'done');
+                        return `
+                        <div style="display:flex; align-items:center; justify-content:space-between; background:${isDone?'#f0fdf4':'#fff'}; border:1px solid ${isDone?'#bbf7d0':'#e2e8f0'}; padding:0.6rem 1rem; border-radius:0.5rem;">
+                            <div style="display:flex; align-items:center; gap:0.75rem;">
+                                <div style="font-size:0.8rem; font-weight:800; text-decoration:${isDone?'line-through':'none'};">${t.title}</div>
+                            </div>
+                            <div style="display:flex; gap:0.4rem;">
+                                ${!isQA ? `<button onclick="almMarkDevDone(${t.id})" class="btn" style="background:#eff6ff; color:#3b82f6; font-size:0.65rem; padding:0.3rem 0.6rem;">פיתוח הסתיים</button>` : 
+                                 (!isDone ? `<button onclick="almPassQA(${t.id})" class="btn btn-green" style="font-size:0.65rem; padding:0.3rem 0.6rem;">בדיקה עברה - סגור ל-DONE</button>` : 
+                                 `<span style="font-size:0.65rem; font-weight:800; color:#16a34a;"><i class="fa-solid fa-check"></i> הושלם</span>`)}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`}
+            </div>
+        </div>`;
+    }).join('');
+
+    if (almVersions.length === 0 && standaloneTasks.length === 0) {
+        versionsHtml = `<div style="text-align:center; padding:4rem; background:white; border-radius:1rem; border:1px dashed #cbd5e1; color:#94a3b8;"><p style="font-weight:700;">הקם את הגרסה הראשונה שלך!</p></div>`;
+    }
+    board.innerHTML = standaloneHtml + versionsHtml;
+}
+
+// ============================================================
 // REPORT
 // ============================================================
 function generateReport() {
@@ -1119,7 +1365,7 @@ function generateReport() {
   const container = document.getElementById('report-container');
   const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
   if(!fails.length) {
-    container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
+    container.innerHTML = `<div style="text-align:center;padding:3rem;color:#16a34a">
       <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
       <p style="font-weight:700;font-size:1rem">כל הבדיקות שבוצעו עברו בהצלחה!</p>
     </div>`;
@@ -1165,80 +1411,6 @@ function generateReport() {
   container.innerHTML = html;
 }
 
-// ============================================================
-// VERSIONS
-// ============================================================
-function renderVersions() {
-  const el = document.getElementById('versions-container');
-  if(!el) return;
-  if(!versions.length) {
-    el.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-code-branch" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">עדיין לא נוצרה גרסה. לחץ "גרסה חדשה" להתחיל.</p>
-    </div>`;
-    return;
-  }
-  el.innerHTML = [...versions].reverse().map(v=>`
-  <div class="version-card">
-    <div class="version-header">
-      <div style="display:flex;align-items:center;gap:0.75rem">
-        <span class="version-num">${v.num}</span>
-        <span class="version-tag vtag-${v.type}">${{release:'Release',beta:'Beta',hotfix:'Hotfix'}[v.type]||v.type}</span>
-      </div>
-      <span class="version-date">${v.date}</span>
-    </div>
-    <div class="version-summary">${v.summary||'ללא סיכום'}</div>
-    <div class="version-stats">
-      <span class="vs-ok">${v.ok||0} עברו</span>
-      <span class="vs-fail">${v.fail||0} נכשלו</span>
-      <span style="color:#94a3b8">${v.total||0} סה"כ</span>
-    </div>
-    ${v.notes?`<div class="version-notes">${v.notes}</div>`:''}
-  </div>`).join('');
-}
-
-function newVersion() {
-  const num = prompt('מספר גרסה (למשל v1.2.0):','v1.0.0');
-  if(!num) return;
-  const type = prompt('סוג (release / beta / hotfix):','release');
-  const summary = prompt('סיכום השינויים:','');
-  const notes = prompt('הערות נוספות (אופציונלי):','');
-  const c = countSection(allTests());
-  versions.push({num,type:type||'release',summary,notes,date:new Date().toLocaleDateString('he-IL'),ok:c.ok,fail:c.fail+c.warn,total:allTests().length,state:JSON.parse(JSON.stringify(state))});
-  localStorage.setItem('qa_versions', JSON.stringify(versions));
-  const sb=document.getElementById('sb-ver');
-  if(sb) sb.textContent=num;
-  renderVersions();
-  showToast(`גרסה ${num} נשמרה!`);
-}
-
-// ============================================================
-// NAVIGATION & UI
-// ============================================================
-function showView(v) {
-  currentView = v;
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  const el = document.getElementById(`view-${v}`);
-  if(el) el.classList.add('active');
-  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-  const map={dashboard:0,tests:1,report:2,versions:3};
-  const links = document.querySelectorAll('.sidebar .sb-link');
-  if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  if(v==='tests') renderTests(currentFilter);
-  if(v==='versions') renderVersions();
-  if(v==='dashboard') updateStats();
-}
-
-function filterSection(id) {
-  currentFilter = id;
-  showView('tests');
-}
-
-function showAllTests() {
-  currentFilter = null;
-  renderTests(null);
-}
-
 function filterFails() {
   const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id))).map(t=>t.id);
   document.querySelectorAll('table tbody tr').forEach(row=>{
@@ -1253,20 +1425,21 @@ function filterFails() {
 }
 
 function markAll(s) {
-  if(!confirm(`לסמן את כל הבדיקות כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
-  allTests().forEach(t => { state[t.id]={s}; });
+  if(!confirm(`לסמן את כל הבדיקות במסך כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
+  const testsToMark = currentFilter ? SECTIONS.find(sec=>sec.id===currentFilter).tests : allTests();
+  testsToMark.forEach(t => { state[t.id]={s}; });
   saveState();
   renderTests(currentFilter);
   showToast('כל הבדיקות סומנו!');
 }
 
 function resetAll() {
-  if(!confirm('לאפס את כל הסטטוסים? פעולה זו לא ניתנת לביטול.')) return;
+  if(!confirm('לאפס את כל הסטטוסים? פעולה זו תמחק את ההיסטוריה המקומית.')) return;
   state={};
   saveState();
   renderTests(currentFilter);
   if(currentView==='dashboard') updateStats();
-  showToast('אופס! כל הנתונים אופסו.');
+  showToast('כל הנתונים אופסו.');
 }
 
 function toggleSection(head) {
@@ -1277,7 +1450,6 @@ async function exportReport() {
   const c = countSection(allTests());
   const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id)));
   
-  // 1. שמירה מקומית (הורדת קובץ)
   let txt = `דוח QA — Oneflow Life\n`;
   txt += `תאריך: ${new Date().toLocaleString('he-IL')}\n`;
   txt += `סה"כ: ${allTests().length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
@@ -1294,7 +1466,6 @@ async function exportReport() {
   a.download = `qa-report-${new Date().toISOString().slice(0,10)}.txt`;
   a.click();
   
-  // 2. סנכרון התוצאות לשרת (Feedback Loop ל-ALM)
   if (saToken) {
       try {
           const userName = JSON.parse(localStorage.getItem('ofl_sa_user') || '{}').name || 'QA Tester';
@@ -1320,6 +1491,7 @@ async function exportReport() {
 
 function showToast(msg) {
   const t = document.getElementById('qa-toast');
+  if(!t) return;
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2500);
@@ -1328,17 +1500,10 @@ function showToast(msg) {
 // ============================================================
 // INIT
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadState();
-  // תחילה נטען נתונים מהשרת (יחליף את המערך הריק SECTIONS)
-  loadTestsFromServer().then(() => {
-      // רק אחרי שהמידע נמשך, הממשק יתרנדר מחדש
-      updateStats();
-      renderTests(null);
-      renderVersions();
-  });
+  await loadAllData();
 });
-
 </script>
 </body>
 </html>
