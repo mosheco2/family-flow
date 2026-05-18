@@ -170,13 +170,18 @@ tr:hover td{background:#fafbfc}
 .guide-box{border:1px solid #e2e8f0;border-radius:0.6rem;overflow:hidden;font-size:0.75rem}
 .guide-path{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;background:#f1f5f9;color:#475569;font-size:0.7rem;border-bottom:1px solid #e2e8f0}
 .guide-path i{color:#3b82f6;font-size:0.65rem}
-.guide-body{display:grid;grid-template-columns:1fr 1fr;gap:0;background:white}
-.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid #e2e8f0}
-.guide-expected{padding:0.5rem 0.75rem;background:#f0fdf4}
+.guide-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:white}
+.guide-steps{padding:0.5rem 0.75rem;border-left:1px solid #e2e8f0;background:#f0f9ff}
+.guide-expected{padding:0.5rem 0.75rem;background:#f0fdf4;border-left:1px solid #e2e8f0}
 .guide-label{font-size:0.6rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem}
-.guide-steps ol{margin:0;padding-right:1rem;color:#374151;line-height:1.6}
-.guide-steps ol li{margin-bottom:0.1rem}
-.guide-expected p{color:#166534;font-weight:500;margin:0;line-height:1.5}
+.guide-steps .guide-label{color:#0369a1}
+.guide-expected .guide-label{color:#15803d}
+.guide-steps-input{width:100%;box-sizing:border-box;border:1px solid #bae6fd;border-radius:.35rem;padding:.3rem .5rem;font-family:inherit;font-size:.72rem;resize:vertical;background:#f0f9ff;color:#1e293b;direction:rtl;min-height:60px}
+.guide-steps-input:focus{outline:none;border-color:#38bdf8;background:white}
+.guide-expected-input{width:100%;box-sizing:border-box;border:1px solid #bbf7d0;border-radius:.35rem;padding:.3rem .5rem;font-family:inherit;font-size:.72rem;resize:vertical;background:#f0fdf4;color:#166534;direction:rtl;min-height:60px;font-weight:500}
+.guide-expected-input:focus{outline:none;border-color:#4ade80;background:white}
+.delete-test-btn{width:28px;height:28px;border-radius:.45rem;border:1px solid #fecaca;background:#fff5f5;color:#ef4444;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.delete-test-btn:hover{background:#fee2e2;border-color:#ef4444}
 .guide-btn{width:32px;height:32px;border-radius:0.5rem;border:1px solid #e2e8f0;background:white;color:#94a3b8;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
 .guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
 .guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
@@ -1648,14 +1653,22 @@ function renderRow(t, sec, env) {
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
-  const _guideInner = guide
-    ? `<div class="guide-path"><i class="fa-solid fa-route"></i> ${guide.path}</div>
-       <div class="guide-body">
-         <div class="guide-steps"><div class="guide-label">מדריך בדיקה</div><ol>${guide.steps.map(st=>`<li>${st}</li>`).join('')}</ol></div>
-         <div class="guide-expected"><div class="guide-label">קיים (צפוי)</div><p>${guide.expected}</p></div>
-       </div>`
-    : `<div class="guide-path"><i class="fa-solid fa-circle-info"></i> ${t.name}</div>
-       <div class="guide-body"><div class="guide-expected" style="grid-column:1/-1"><div class="guide-label">קיים (צפוי)</div><p>${t.desc||'אין תיאור מפורט'}</p></div></div>`;
+  const _savedSteps    = state[`guide_steps_${t.id}`];
+  const _savedExpected = state[`guide_expected_${t.id}`];
+  const _stepsVal    = _savedSteps    != null ? _savedSteps    : (guide ? guide.steps.join('\n') : '');
+  const _expectedVal = _savedExpected != null ? _savedExpected : (guide ? guide.expected : (t.desc||''));
+  const _pathLabel   = guide ? guide.path : t.name;
+  const _guideInner = `<div class="guide-path"><i class="fa-solid fa-route"></i> ${_pathLabel}</div>
+     <div class="guide-body">
+       <div class="guide-steps">
+         <div class="guide-label">מדריך בדיקה (צעדים)</div>
+         <textarea class="guide-steps-input" rows="4" placeholder="1. פתח את...&#10;2. לחץ על...&#10;3. בדוק ש..." oninput="saveGuideSteps('${t.id}',this.value)">${_stepsVal}</textarea>
+       </div>
+       <div class="guide-expected">
+         <div class="guide-label">קיים (צפוי)</div>
+         <textarea class="guide-expected-input" rows="4" placeholder="מה אמור לקרות..." oninput="saveGuideExpected('${t.id}',this.value)">${_expectedVal}</textarea>
+       </div>
+     </div>`;
   const guideHtml = `
   <tr id="guide-row-${rowKey}" class="guide-row" style="display:none">
     <td colspan="4">
@@ -1687,6 +1700,7 @@ function renderRow(t, sec, env) {
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
         <button class="guide-btn active" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק שורה"><i class="fa-solid fa-trash-can"></i></button>
       </div>
     </td>
   </tr>
@@ -1860,6 +1874,51 @@ function saveQANote(taskId, note) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_note = note;
   saveState();
+}
+
+function saveGuideSteps(testId, stepsText) {
+  state[`guide_steps_${testId}`] = stepsText;
+  if(!GUIDE_BOOK[testId]) GUIDE_BOOK[testId] = {path:'', steps:[], expected:''};
+  GUIDE_BOOK[testId].steps = stepsText.split('\n').map(s=>s.trim()).filter(Boolean);
+  saveState();
+}
+
+function saveGuideExpected(testId, expectedText) {
+  state[`guide_expected_${testId}`] = expectedText;
+  if(!GUIDE_BOOK[testId]) GUIDE_BOOK[testId] = {path:'', steps:[], expected:''};
+  GUIDE_BOOK[testId].expected = expectedText;
+  saveState();
+}
+
+function applyGuideEdits() {
+  Object.keys(state).forEach(k => {
+    const mSteps = k.match(/^guide_steps_(.+)$/);
+    const mExp   = k.match(/^guide_expected_(.+)$/);
+    if(mSteps) {
+      const id = mSteps[1];
+      if(!GUIDE_BOOK[id]) GUIDE_BOOK[id] = {path:'', steps:[], expected:''};
+      GUIDE_BOOK[id].steps = state[k].split('\n').map(s=>s.trim()).filter(Boolean);
+    }
+    if(mExp) {
+      const id = mExp[1];
+      if(!GUIDE_BOOK[id]) GUIDE_BOOK[id] = {path:'', steps:[], expected:''};
+      GUIDE_BOOK[id].expected = state[k];
+    }
+  });
+}
+
+function deleteTest(testId) {
+  if(!confirm(`מחק את הבדיקה ${testId} מספר המוצר?`)) return;
+  SECTIONS.forEach(sec => { sec.tests = sec.tests.filter(t => t.id !== testId); });
+  Object.keys(state).forEach(k => {
+    if(k.startsWith(testId+':') || k.startsWith('guide_steps_'+testId) || k.startsWith('guide_expected_'+testId)) delete state[k];
+  });
+  delete GUIDE_BOOK[testId];
+  saveState();
+  if(saToken) fetch(`${API}/sa/qa/tests/${testId}`, {method:'DELETE',headers:{Authorization:saToken}}).catch(()=>{});
+  renderTests(currentFilter);
+  updateStats();
+  showToast('🗑️ הבדיקה הוסרה מספר המוצר');
 }
 
 function saveQAGuideSteps(taskId, steps) {
@@ -2639,7 +2698,8 @@ async function loadVersionsFromServer() {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
-  migrateState(); // המרת סטטוסים ישנים לפורמט env-aware
+  migrateState();
+  applyGuideEdits(); // המרת סטטוסים ישנים לפורמט env-aware
   loadTestsFromServer().then(async () => {
       updateStats();
       renderTests(null);
