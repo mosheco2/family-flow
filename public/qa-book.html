@@ -1770,8 +1770,8 @@ function renderTests(filter) {
 
   // ספר מוצר ראשי — הצג רק DEV-* (אושרו דרך passQATest)
   let _bookFilter = null;
-  if(currentView === 'book' && !filter) {
-    const devTests = SECTIONS.flatMap(s => s.tests.filter(t => t.id.startsWith('DEV-')));
+  if(currentView === 'book' && !filter && !_runMode) {
+  const devTests = SECTIONS.flatMap(s => s.tests.filter(t => t.id.startsWith('DEV-')));
     if(!devTests.length) {
       container.innerHTML = `
         <div style="text-align:center;padding:4rem 2rem;max-width:520px;margin:0 auto">
