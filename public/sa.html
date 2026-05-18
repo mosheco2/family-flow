@@ -189,45 +189,50 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               <i class="fa-solid fa-handshake"></i> שותפים
             </button>
           </div>
-          <div class="sb-footer">
-            <button onclick="logoutSA()" class="sb-logout">
-              <i class="fa-solid fa-right-from-bracket"></i> התנתק מהמערכת
+          <div class="p-4 mt-auto border-t border-slate-800/50">
+                    <button onclick="logoutSA()" class="flex items-center gap-3 w-full p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition font-bold text-sm">
+                        <i class="fa-solid fa-sign-out-alt"></i>
+                        התנתק מהמערכת
+                    </button>
+                </div>
+            </div> </aside>
+
+        <main class="flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300" id="sa-main-content">
+            
+            <button onclick="toggleSASidebar()" class="absolute top-4 right-4 z-[60] text-slate-400 hover:text-indigo-600 bg-white shadow-md w-8 h-8 flex items-center justify-center rounded-full transition-all md:hidden">
+                <i class="fa-solid fa-bars"></i>
             </button>
-          </div>
-        </nav>
-        <main id="sa-main-content">
-          <div class="sa-top-bar">
-                <div class="flex items-center justify-between w-full relative z-50">
-                    <div class="sa-top-bar-title" id="sa-topbar-title">
-                        <i class="fa-solid fa-gauge-high" style="color:#6366f1; margin-left: 0.5rem;"></i> לוח בקרה
-                    </div>
-                    
-                    <div class="flex items-center gap-4">
-                        <div class="relative cursor-pointer" onclick="toggleSANotifications()">
-                            <div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-                                <i class="fa-solid fa-bell text-sm"></i>
+
+            <div class="sa-top-bar">
+                <div class="sa-top-bar-title" id="sa-topbar-title">
+                  <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> לוח בקרה
+                </div>
+                
+                <div class="flex items-center gap-4 relative z-50">
+                    <div class="relative cursor-pointer" onclick="toggleSANotifications()">
+                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                            <i class="fa-solid fa-bell"></i>
+                        </div>
+                        <span id="sa-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full hidden border border-white">0</span>
+                        
+                        <div id="sa-notif-dropdown" class="hidden absolute left-0 top-12 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden cursor-default" onclick="event.stopPropagation()">
+                            <div class="bg-slate-50 border-b border-slate-100 p-3 flex justify-between items-center">
+                                <h4 class="font-bold text-slate-700 text-sm m-0">התראות המערכת</h4>
+                                <button onclick="markAllNotifsRead()" class="text-[10px] text-blue-600 hover:underline font-bold bg-transparent border-none cursor-pointer p-0 m-0">סמן הכל כנקרא</button>
                             </div>
-                            <span id="sa-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full hidden border border-white">0</span>
-                            
-                            <div id="sa-notif-dropdown" class="hidden absolute left-0 top-11 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden cursor-default" onclick="event.stopPropagation()">
-                                <div class="bg-slate-50 border-b border-slate-100 p-3 flex justify-between items-center">
-                                    <h4 class="font-bold text-slate-700 text-xs m-0">התראות המערכת</h4>
-                                    <button onclick="markAllNotifsRead()" class="text-[10px] text-blue-600 hover:underline font-bold bg-transparent border-none cursor-pointer p-0">סמן הכל כנקרא</button>
-                                </div>
-                                <div id="sa-notif-list" class="max-h-80 overflow-y-auto modal-scroll p-2 space-y-1 text-right">
-                                    <div class="text-center text-slate-400 py-6 text-xs">אין התראות חדשות</div>
-                                </div>
+                            <div id="sa-notif-list" class="max-h-80 overflow-y-auto modal-scroll p-2 space-y-1 text-right">
+                                <div class="text-center text-slate-400 py-6 text-xs">אין התראות חדשות</div>
                             </div>
                         </div>
-                        
-                        <div class="flex items-center gap-2 border-r border-slate-200 pr-4">
-                            <div class="text-right hidden sm:block">
-                                <div id="topbar-user-name" class="font-bold text-xs text-slate-800 leading-none">מנהל מערכת</div>
-                                <div class="text-[9px] text-slate-400 font-bold mt-1">מחובר</div>
-                            </div>
-                            <div class="w-9 h-9 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-sm shadow-inner">
-                                <i class="fa-solid fa-user-astronaut"></i>
-                            </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 border-r border-slate-200 pr-4">
+                        <div class="text-right hidden sm:block">
+                            <div id="topbar-user-name" class="font-bold text-sm text-slate-800 leading-none">מנהל מערכת</div>
+                            <div class="text-[10px] text-slate-500 font-bold mt-1">מחובר</div>
+                        </div>
+                        <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-inner">
+                            <i class="fa-solid fa-user-astronaut"></i>
                         </div>
                     </div>
                 </div>
