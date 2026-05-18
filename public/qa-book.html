@@ -364,8 +364,8 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
-    <div class="sb-link" onclick="filterBook('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
-    <div class="sb-link" onclick="filterBook('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
+    <div class="sb-link" onclick="showView('inbox')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (ממתינות לאישור)</div>
+  <div class="sb-link" onclick="filterBook('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
     <div class="sb-link" onclick="filterBook('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
     <div class="sb-link" onclick="filterBook('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
     <div class="sb-link" onclick="filterBook('biz')"><i class="fa-solid fa-briefcase"></i> סביבת עסק</div>
@@ -453,6 +453,16 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
       <p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub</p>
     </div>
   </div>
+</div>
+<!-- INBOX VIEW -->
+<div id="view-inbox" class="view">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-inbox" style="color:#f43f5e"></i> כללי — ממתינות לאישור</h2>
+    <div class="page-actions">
+      <button class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button>
+    </div>
+  </div>
+  <div id="inbox-container"></div>
 </div>
 
 <!-- PRODUCT BOOK VIEW -->
@@ -576,7 +586,8 @@ let currentEnvFilter = 'all';
 let kanbanTasks = [];
 let taskAssignments = {};
 let dismissedTaskIds = new Set();
-let versionTasks = {};
+let deletedTestIds   = new Set();
+  let versionTasks = {};
 
 // ============================================================
 // SERVER INTEGRATION
@@ -656,7 +667,12 @@ async function loadTestsFromServer() {
             });
             
             SECTIONS = Object.values(grouped);
-            
+            if(deletedTestIds.size) {
+              SECTIONS.forEach(sec => { sec.tests = sec.tests.filter(t => !deletedTestIds.has(t.id)); });
+              SECTIONS = SECTIONS.filter(sec => sec.tests.length > 0);
+            }
+
+            updateStats();            
             updateStats();
             renderTests(null);
         } else {
@@ -1505,6 +1521,7 @@ function loadState() {
     versions        = JSON.parse(localStorage.getItem('qa_versions')         || '[]');
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
+    deletedTestIds   = new Set(JSON.parse(localStorage.getItem('qa_deleted_tests')   || '[]'));
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -1533,6 +1550,7 @@ function saveState() {
   localStorage.setItem('qa_state', JSON.stringify(state));
   localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
   localStorage.setItem('qa_dismissed_tasks', JSON.stringify([...dismissedTaskIds]));
+  localStorage.setItem('qa_deleted_tests',   JSON.stringify([...deletedTestIds]));
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
@@ -1929,6 +1947,7 @@ function applyGuideEdits() {
 
 function deleteTest(testId) {
   if(!confirm(`מחק את הבדיקה ${testId} מספר המוצר?`)) return;
+  deletedTestIds.add(testId);
   SECTIONS.forEach(sec => { sec.tests = sec.tests.filter(t => t.id !== testId); });
   Object.keys(state).forEach(k => {
     if(k.startsWith(testId+':') || k.startsWith('guide_steps_'+testId) || k.startsWith('guide_expected_'+testId)) delete state[k];
@@ -2270,9 +2289,27 @@ function dismissKanbanTask(taskId) {
   dismissedTaskIds.add(String(taskId));
   saveState();
   scheduleServerSave();
-  if(currentView==='book') renderTests(currentFilter);
-  if(currentView==='alm')  renderALMHub();
+  if(currentView==='inbox') renderInboxView();
+  if(currentView==='alm')   renderALMHub();
   showToast('המשימה הוסרה מהתצוגה');
+}
+
+function renderInboxView() {
+  const el = document.getElementById('inbox-container');
+  if(!el) return;
+  const inbox = kanbanTasks.filter(tk => {
+    const st = taskAssignments[tk.id]?.status;
+    return (!st || st === 'inbox') && !dismissedTaskIds.has(String(tk.id));
+  });
+  if(!inbox.length) {
+    el.innerHTML = `<div style="text-align:center;padding:4rem 2rem">
+      <i class="fa-solid fa-inbox" style="font-size:3rem;color:#e2e8f0;display:block;margin-bottom:1rem"></i>
+      <p style="font-weight:600;font-size:.9rem;color:#64748b">אין משימות חדשות ממתינות לאישור</p>
+      <p style="font-size:.78rem;color:#94a3b8;margin-top:.5rem">משימות חדשות מה-ALM יופיעו כאן לאחר שהמפתח יעדכן אותן</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div class="task-inbox-section">${inbox.map(renderKanbanCard).join('')}</div>`;
 }
 
 async function assignTask(taskId) {
@@ -2614,6 +2651,7 @@ function showView(v) {
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
   if(v==='tests')    renderQAStaging();
+  if(v==='inbox')    renderInboxView();
   if(v==='book')     renderTests(currentFilter);
   if(v==='versions') renderVersions();
   if(v==='alm')      renderALMHub();
