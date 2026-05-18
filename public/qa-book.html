@@ -1504,6 +1504,7 @@ function loadState() {
     state           = JSON.parse(localStorage.getItem('qa_state')            || '{}');
     versions        = JSON.parse(localStorage.getItem('qa_versions')         || '[]');
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
+    dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -1628,30 +1629,6 @@ function renderTests(filter) {
     const total = rows.length || 1;
     const pct = Math.round((counts.ok + counts.skip) / total * 100);
 
-    // כללי: הצג גם משימות קנבן שבסטטוס inbox
-    let inboxHtml = '';
-    if(sec.id === 'general') {
-      const inbox = kanbanTasks.filter(tk => {
-        const st = taskAssignments[tk.id]?.status;
-        return (!st || st === 'inbox') && !dismissedTaskIds.has(String(tk.id));
-      });
-      if(inbox.length) {
-        inboxHtml = `<div class="task-inbox-section">${inbox.map(renderKanbanCard).join('')}</div>`;
-      }
-      // הצג גם משימות inqa שמשויכות לקטגוריה הזו
-    }
-    // משימות inqa שמשויכות לקטגוריה הזו
-    let inqaHtml = '';
-    if(sec.id !== 'general') {
-      const inqaTasks = kanbanTasks.filter(tk => {
-        const a = taskAssignments[tk.id];
-        return a && a.status === 'inqa' && a.module === sec.id;
-      });
-      if(inqaTasks.length) {
-        inqaHtml = `<div class="task-inbox-section">${inqaTasks.map(renderKanbanCard).join('')}</div>`;
-      }
-    }
-
     html += `
     <div class="section" id="sec-${sec.id}">
       <div class="section-head" onclick="toggleSection(this)">
@@ -1665,7 +1642,6 @@ function renderTests(filter) {
         </div>
       </div>
       <div class="section-body">
-        ${inboxHtml}${inqaHtml}
         <table>
           <thead><tr>
             <th style="width:95px">מזהה / סביבה</th>
