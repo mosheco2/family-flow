@@ -1996,6 +1996,11 @@ function renderQAStaging() {
     byVer[vid].push(t);
   });
   let html = '';
+  function _qaTaskEnvs(task) {
+    const a = taskAssignments[task.id] || {};
+    const env = a.env || 'all';
+    return env === 'all' ? ['family','biz'] : [env];
+  }
   Object.entries(byVer).forEach(([vid, tasks]) => {
     const passedCount = tasks.filter(t => taskAssignments[t.id]?.qa_passed).length;
     html += `<div class="qa-version-block">
@@ -2010,7 +2015,7 @@ function renderQAStaging() {
         </div>
       </div>
       <div class="qa-ver-body" id="qavb-${vid}">
-        ${tasks.map(t => renderQATaskRow(t)).join('')}
+        ${tasks.flatMap(t => _qaTaskEnvs(t).map(e => renderQATaskRow(t, e))).join('')}
       </div>
     </div>`;
   });
@@ -2021,21 +2026,22 @@ function renderQAStaging() {
         <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-standalone"></i>
       </div>
       <div class="qa-ver-body" id="qavb-standalone">
-        ${standalones.map(t => renderQATaskRow(t)).join('')}
+        ${standalones.flatMap(t => _qaTaskEnvs(t).map(e => renderQATaskRow(t, e))).join('')}
       </div>
     </div>`;
   }
-  el.innerHTML = plannedHtml + html;
+  el.innerHTML = html;
 }
 
-function renderQATaskRow(task) {
+function renderQATaskRow(task, env) {
   const a = taskAssignments[task.id] || {};
-  const passed = a.qa_passed;
+  const rowKey = `${task.id}-${env}`;
+  const envPassed = a[`qa_env_${env}`] || a.qa_passed;
   const modLabel = SECTIONS.find(s=>s.id===a.module)?.title || a.module || '—';
-  const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[a.env] || a.env || '';
+  const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env || '';
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[task.priority]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[task.priority]||task.priority||'';
-  if(passed) return `
+  if(envPassed) return `
   <div class="qa-task-row" style="opacity:.6;background:#f0fdf4">
     <div class="qa-task-info">
       <div class="qa-task-title"><i class="fa-solid fa-circle-check" style="color:#16a34a;margin-left:.4rem"></i>${task.title}</div>
@@ -2043,28 +2049,28 @@ function renderQATaskRow(task) {
     </div>
   </div>`;
   return `
-  <div class="qa-task-row" id="qa-row-${task.id}">
+  <div class="qa-task-row" id="qa-row-${rowKey}">
     <div class="qa-task-info">
       <div class="qa-task-title">${task.title}</div>
       <div class="qa-task-meta">
         ${prioLabel?`<span class="prio ${prioClass}">${prioLabel}</span>`:''}
-        <span class="env-tag env-${a.env||'family'}">${envLabel}</span>
+        <span class="env-tag env-${env}">${envLabel}</span>
         <span style="font-size:.68rem;color:#7c3aed;background:#faf5ff;padding:.1rem .4rem;border-radius:99px">${modLabel}</span>
       </div>
       ${task.description?`<div class="qa-task-desc">${task.description}</div>`:''}
     </div>
     <div class="qa-task-actions">
-      <button class="qa-pass-btn" onclick="passQATest(${task.id})"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
+      <button class="qa-pass-btn" onclick="passQAEnv(${task.id}, '${env}')"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
       <button class="qa-fail-btn" onclick="failQATest(${task.id})"><i class="fa-solid fa-xmark"></i> נכשל</button>
-      <button class="qa-guide-btn${a.qa_guide_open?' active':''}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
-      <button onclick="toggleQANote(${task.id})" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
+      <button class="qa-guide-btn${a.qa_guide_open?' active':''}" onclick="toggleQAGuide(${task.id}, '${env}')" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
+      <button onclick="toggleQANote(${task.id}, '${env}')" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
     </div>
   </div>
-  <div class="qa-task-note-wrap" id="qa-note-${task.id}">
+  <div class="qa-task-note-wrap" id="qa-note-${rowKey}">
     <textarea class="qa-task-note-input" rows="2" placeholder="הערות בדיקה, צעדי שחזור..." oninput="saveQANote(${task.id},this.value)">${a.qa_note||''}</textarea>
   </div>
-  <div class="qa-guide-panel${a.qa_guide_open?' open':''}" id="qa-guide-${task.id}">
-    <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${task.title}${a.module?' · '+a.module:''}</div>
+  <div class="qa-guide-panel${a.qa_guide_open?' open':''}" id="qa-guide-${rowKey}">
+    <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${task.title}${a.module?' · '+a.module:''} · ${envLabel}</div>
     <div class="qa-guide-cols">
       <div class="qa-guide-madrich">
         <div class="qa-guide-label">מדריך בדיקה (צעדים)</div>
@@ -2091,8 +2097,9 @@ function toggleQABlock(id) {
   if(chev) chev.style.transform = open ? 'rotate(-90deg)' : '';
 }
 
-function toggleQANote(taskId) {
-  const el = document.getElementById(`qa-note-${taskId}`);
+function toggleQANote(taskId, env) {
+  const key = env ? `${taskId}-${env}` : taskId;
+  const el = document.getElementById(`qa-note-${key}`);
   if(el) el.classList.toggle('open');
 }
 
@@ -2205,17 +2212,18 @@ function saveQAGuideSteps(taskId, steps) {
   scheduleServerSave();
 }
 
-function toggleQAGuide(taskId) {
-  const panel = document.getElementById(`qa-guide-${taskId}`);
+function toggleQAGuide(taskId, env) {
+  const key = env ? `${taskId}-${env}` : taskId;
+  const panel = document.getElementById(`qa-guide-${key}`);
   if(!panel) return;
   const isOpen = panel.classList.toggle('open');
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_guide_open = isOpen;
-  const btn = document.querySelector(`#qa-row-${taskId} .qa-guide-btn`);
+  const btn = document.querySelector(`#qa-row-${key} .qa-guide-btn`);
   if(btn) btn.classList.toggle('active', isOpen);
 }
 
-async function passQATest(taskId) {
+async function passQATest(taskId, _skipNav = false) {
   const a = taskAssignments[taskId];
   if(!a) return;
   a.qa_passed = true;
@@ -2228,39 +2236,34 @@ async function passQATest(taskId) {
     const catMap = {'auth':'אימות ומשתמשים','onboard':'אשף הכניסה (Onboarding)','family':'סביבת משפחה — לשוניות ראשיות','biz':'סביבת עסק — לשוניות ראשיות','store':'חנות, קטלוג ו-Storefront','pos':'קופה (POS)','b2b':'רכש, ספקים ו-B2B','finance':'פיננסים ותקציב','inventory':'מלאי, רכש וקניות','ai':"AI ופיצ'רים חכמים",'calendar':'יומן, תורים והזמנות','shifts':'משמרות ולוח עובדים','tasks':'משימות','academy':'אקדמיה','community':'קהילות ו-B2B קהילה','notif':'התראות, Inbox ותקשורת','sa':'SuperAdmin','samktg':'SuperAdmin — שיווק וניוזלטר','sa_full':'SuperAdmin — sa.html ו-sa-app.js','pwa':'PWA, ביצועים ואבטחה','perm_fam':'הרשאות — סביבת משפחה (הורה vs ילד)','perm_biz':'הרשאות — סביבת עסק (4 תפקידים)','general':'כללי'};
     const catName = catMap[a.module] || 'כללי';
     try {
-      // שלח 'released' לסופר אדמין (מופיע בעמודת שוחרר)
+      await fetch(`${API}/sa/qa/tests`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({id:newId, category:catName, name:task.title, description:task.description||'', priority:task.priority||'medium'})
+      });
       await fetch(`${API}/sa/dev/tasks/${taskId}/status`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json','Authorization':saToken},
         body: JSON.stringify({status:'released',systemOverride:true})
       });
     } catch(e) { console.warn('passQATest server sync:', e.message); }
-    // שאל האם להוסיף לספר המוצר
-    const addToBook = confirm(`✅ בדיקה עברה!\n\nהאם להוסיף את "${task.title}" לספר המוצר?`);
-    if(addToBook) {
-      try {
-        await fetch(`${API}/sa/qa/tests`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json','Authorization':saToken},
-          body: JSON.stringify({id:newId, category:catName, name:task.title, description:task.description||'', priority:task.priority||'medium'})
-        });
-      } catch(e) {}
-      const sec = SECTIONS.find(s=>s.id===a.module) || SECTIONS.find(s=>s.id==='general');
-      if(sec && !sec.tests.find(t=>t.id===newId)) {
-        const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
-        sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
-        if(task.description || a.qa_guide_steps) {
-          const rawSteps = a.qa_guide_steps
-            ? a.qa_guide_steps.split('\n').map(s=>s.trim()).filter(Boolean)
-            : [task.title];
-          GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: rawSteps, expected: task.description||task.title};
-        }
+    // הוסף לSECTIONS מקומית
+    const sec = SECTIONS.find(s=>s.id===a.module) || SECTIONS.find(s=>s.id==='general');
+    if(sec && !sec.tests.find(t=>t.id===newId)) {
+      const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
+      sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
+      if(task.description || a.qa_guide_steps) {
+        const rawSteps = a.qa_guide_steps
+          ? a.qa_guide_steps.split('\n').map(s=>s.trim()).filter(Boolean)
+          : [task.title];
+        GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: rawSteps, expected: task.description||task.title};
       }
     }
   }
   renderQAStaging();
   updateStats();
   showToast('✅ בדיקה עברה — נוספה לספר המוצר!');
+  if(!_skipNav) showBook();
 }
 
 async function failQATest(taskId) {
@@ -2285,11 +2288,27 @@ async function failQATest(taskId) {
   showToast('❌ משימה הוחזרה לפיתוח');
 }
 
+  async function passQAEnv(taskId, env) {
+  const a = taskAssignments[taskId];
+  if(!a) return;
+  a[`qa_env_${env}`] = true;
+  saveState();
+  const taskEnvs = (a.env === 'all' || !a.env) ? ['family','biz'] : [a.env];
+  const allEnvsDone = taskEnvs.every(e => a[`qa_env_${e}`]);
+  renderQAStaging();
+  if(!allEnvsDone) {
+    const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env;
+    showToast(`✅ ${envLabel} עברה — ממתין לסביבות נוספות`);
+    return;
+  }
+  await passQATest(taskId);
+}
 async function passVersionQA(verId) {
   if(!confirm(`לסגור את גרסה ${verId} כעברה QA?`)) return;
   const tasks = kanbanTasks.filter(t => taskAssignments[t.id]?.versionId === verId && taskAssignments[t.id]?.status === 'inqa');
-  for(const t of tasks) await passQATest(t.id);
+  for(const t of tasks) await passQATest(t.id, true);
   showToast(`גרסה ${verId} נסגרה בהצלחה! ✅`);
+  showBook();
 }
 
 function showAllBook() {
@@ -2685,12 +2704,13 @@ async function assignTask(taskId) {
         headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
         body: JSON.stringify({
           title: task.title, type: task.type || 'feature',
-          priority: task.priority || 'normal', status: task.status,
+          priority: task.priority || 'normal', status: 'in_progress',
           description: task.description || '',
           targetVersion: verId !== '__standalone__' ? verId : '',
           versionId: null,
           environment: env || '', moduleName: mod,
-          assignedDeveloper: task.assigned_developer || ''
+          assignedDeveloper: task.assigned_developer || '',
+          devStartDate: new Date().toISOString()
         })
       });
     } catch(e) { console.warn('assignTask sync failed:', e.message); }
@@ -2907,86 +2927,87 @@ function updateSidebarBadges() {
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
-  const allRows = [];
+  const STATUS_LABEL = {ok:'✅ תקין',fail:'❌ נכשל',warn:'⚠️ אזהרה',skip:'⏭️ דולג'};
+  const STATUS_COLOR = {ok:'#16a34a',fail:'#dc2626',warn:'#d97706',skip:'#64748b'};
+  const ENV_ORDER = ['family','biz','comm','sa'];
+  const ENV_LABEL = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'};
+
+  // רק שורות שנבדקו (סטטוס לא null)
+  const rows = [];
   SECTIONS.forEach(sec => {
     sec.tests.forEach(t => {
       const envs = t.envs && t.envs.length ? t.envs : ['family'];
       envs.forEach(env => {
-        allRows.push({t, sec, env, s: getStatus(t.id, env), n: getNote(t.id, env)});
+        const s = getStatus(t.id, env);
+        if(s) rows.push({t, env, s, sec});
       });
     });
   });
-  if(!allRows.length) {
+
+  if(!rows.length) {
     container.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8">
-      <i class="fa-solid fa-clipboard-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
-      <p style="font-weight:600">ספר המוצר ריק — אין בדיקות להפקת דוח</p>
+      <i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
+      <p style="font-weight:700;font-size:1rem">לא בוצעו בדיקות עדיין</p>
+      <p style="font-size:.82rem;margin-top:.5rem">הדוח מציג רק שורות שנבדקו. עבור לרשימת הבדיקות והתחל לבדוק.</p>
     </div>`;
     return;
   }
-  const total = allRows.length;
-  const counts = {ok:0,fail:0,warn:0,skip:0,none:0};
-  allRows.forEach(r => { counts[r.s||'none']++; });
-  const pct = Math.round(counts.ok / total * 100);
-  const envOrder = ['family','biz','comm','sa'];
-  const envNames = {family:'🏠 סביבת משפחה',biz:'💼 סביבת עסק',comm:'🤝 קהילה',sa:'🛡️ SuperAdmin'};
-  const statusLabel = {ok:'✅ תקין',fail:'❌ נכשל',warn:'⚠️ אזהרה',skip:'⏭️ דולג',none:'○ לא נבדק'};
-  const statusColor = {ok:'#16a34a',fail:'#dc2626',warn:'#d97706',skip:'#94a3b8',none:'#cbd5e1'};
-  // group by env → sec
-  const byEnv = {};
-  allRows.forEach(r => {
-    if(!byEnv[r.env]) byEnv[r.env] = {};
-    if(!byEnv[r.env][r.sec.id]) byEnv[r.env][r.sec.id] = {sec:r.sec, rows:[]};
-    byEnv[r.env][r.sec.id].rows.push(r);
-  });
-  const sortedEnvs = envOrder.filter(e => byEnv[e]).concat(Object.keys(byEnv).filter(e=>!envOrder.includes(e)));
-  let html = `<div style="background:white;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">
-    <div style="font-weight:800;font-size:.95rem;color:#0f172a">סיכום דוח בדיקות</div>
-    <span style="color:#16a34a;font-weight:700"><i class="fa-solid fa-check"></i> ${counts.ok} תקין</span>
-    <span style="color:#dc2626;font-weight:700"><i class="fa-solid fa-xmark"></i> ${counts.fail} נכשל</span>
-    <span style="color:#d97706;font-weight:700"><i class="fa-solid fa-triangle-exclamation"></i> ${counts.warn} אזהרה</span>
-    <span style="color:#94a3b8;font-weight:700"><i class="fa-solid fa-minus"></i> ${counts.skip} דולג</span>
-    <span style="color:#cbd5e1;font-weight:700"><i class="fa-regular fa-circle"></i> ${counts.none} לא נבדק</span>
-    <div style="margin-right:auto;font-weight:800;font-size:.95rem;color:#3b82f6">${pct}% הצלחה (${total} בדיקות)</div>
+
+  const cntOk   = rows.filter(r=>r.s==='ok').length;
+  const cntFail = rows.filter(r=>r.s==='fail').length;
+  const cntWarn = rows.filter(r=>r.s==='warn').length;
+  const cntSkip = rows.filter(r=>r.s==='skip').length;
+  const total   = rows.length;
+  const passPct = Math.round((cntOk+cntSkip)/total*100);
+
+  let html = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center">
+    <div style="font-weight:800;font-size:1.05rem;color:#1e293b">דוח בדיקות — ${total} שורות</div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;font-size:.8rem">
+      <span style="color:#16a34a;font-weight:700">✅ ${cntOk} תקין</span>
+      <span style="color:#dc2626;font-weight:700">❌ ${cntFail} נכשל</span>
+      <span style="color:#d97706;font-weight:700">⚠️ ${cntWarn} אזהרה</span>
+      <span style="color:#64748b;font-weight:700">⏭️ ${cntSkip} דולג</span>
+    </div>
+    <div style="margin-right:auto;font-size:.82rem;background:#dcfce7;color:#166534;padding:.25rem .75rem;border-radius:99px;font-weight:700">${passPct}% עברו</div>
   </div>`;
-  sortedEnvs.forEach(env => {
-    const secs = Object.values(byEnv[env]).sort((a,b)=>a.sec.title.localeCompare(b.sec.title,'he'));
-    html += `<div style="margin-bottom:1.75rem">
-    <div style="font-weight:800;font-size:.9rem;color:#0f172a;padding:.5rem 0;border-bottom:2px solid #e2e8f0;margin-bottom:.75rem">${envNames[env]||env}</div>`;
-    secs.forEach(({sec, rows}) => {
-      html += `<div style="margin-bottom:1.25rem">
-      <div style="font-weight:700;font-size:.8rem;color:#475569;padding:.3rem .6rem;background:#f8fafc;border-radius:.5rem;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem">
-        <i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}
-        <span style="font-size:.65rem;color:#94a3b8;font-weight:500">(${rows.length})</span>
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:.77rem">
-        <thead><tr style="background:#f1f5f9">
-          <th style="text-align:right;padding:.35rem .5rem;color:#64748b;font-weight:700;width:85px">מזהה</th>
-          <th style="text-align:right;padding:.35rem .5rem;color:#64748b;font-weight:700">שם / תרחיש</th>
-          <th style="text-align:right;padding:.35rem .5rem;color:#64748b;font-weight:700;width:70px">עדיפות</th>
-          <th style="text-align:center;padding:.35rem .5rem;color:#64748b;font-weight:700;width:85px">סטטוס</th>
-          <th style="text-align:right;padding:.35rem .5rem;color:#64748b;font-weight:700">הערות</th>
-        </tr></thead>
-        <tbody>
-        ${rows.map(r => {
-          const col = statusColor[r.s||'none'];
-          const lbl = statusLabel[r.s||'none'];
-          const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[r.t.prio]||'';
-          return `<tr style="border-bottom:1px solid #f1f5f9">
-            <td style="padding:.35rem .5rem;font-family:monospace;font-size:.66rem;color:#94a3b8">${r.t.id}</td>
-            <td style="padding:.35rem .5rem">
-              <div style="font-weight:500;color:#1e293b">${r.t.name}</div>
-              ${r.t.desc?`<div style="font-size:.68rem;color:#64748b">${r.t.desc}</div>`:''}
-            </td>
-            <td style="padding:.35rem .5rem"><span class="prio prio-${r.t.prio||'medium'}">${prioLabel}</span></td>
-            <td style="padding:.35rem .5rem;text-align:center;font-weight:700;color:${col}">${lbl}</td>
-            <td style="padding:.35rem .5rem;color:#64748b;font-style:italic">${r.n||''}</td>
-          </tr>`;
-        }).join('')}
-        </tbody>
-      </table></div>`;
+
+  ENV_ORDER.forEach(env => {
+    const envRows = rows.filter(r => r.env === env);
+    if(!envRows.length) return;
+    html += `<div style="font-size:.78rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.06em;margin:1.25rem 0 .5rem">${ENV_LABEL[env]||env}</div>`;
+    const bySec = {};
+    envRows.forEach(r => {
+      const sid = r.sec.id;
+      if(!bySec[sid]) bySec[sid] = {sec:r.sec, rows:[]};
+      bySec[sid].rows.push(r);
     });
-    html += '</div>';
+    Object.values(bySec).forEach(({sec, rows: srows}) => {
+      html += `<div style="margin-bottom:.75rem">
+        <div style="font-size:.72rem;font-weight:700;color:#7c3aed;background:#faf5ff;padding:.2rem .6rem;border-radius:.3rem;margin-bottom:.3rem;display:inline-block">${sec.title}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.75rem">
+          <thead><tr style="background:#f1f5f9;color:#475569">
+            <th style="padding:.35rem .5rem;text-align:right;font-weight:600;white-space:nowrap">מזהה</th>
+            <th style="padding:.35rem .5rem;text-align:right;font-weight:600">שם בדיקה</th>
+            <th style="padding:.35rem .5rem;text-align:right;font-weight:600;white-space:nowrap">עדיפות</th>
+            <th style="padding:.35rem .5rem;text-align:right;font-weight:600;white-space:nowrap">סטטוס</th>
+            <th style="padding:.35rem .5rem;text-align:right;font-weight:600">הערות</th>
+          </tr></thead>
+          <tbody>${srows.map(r => {
+            const note = getNote(r.t.id, r.env) || '';
+            const prioLbl = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[r.t.prio]||r.t.prio||'';
+            return `<tr style="border-bottom:1px solid #f1f5f9">
+              <td style="padding:.3rem .5rem;color:#64748b;white-space:nowrap">${r.t.id}</td>
+              <td style="padding:.3rem .5rem">${r.t.name}</td>
+              <td style="padding:.3rem .5rem;white-space:nowrap">${prioLbl}</td>
+              <td style="padding:.3rem .5rem;white-space:nowrap;color:${STATUS_COLOR[r.s]||'#64748b'};font-weight:600">${STATUS_LABEL[r.s]||r.s}</td>
+              <td style="padding:.3rem .5rem;color:#64748b">${note}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+    });
   });
+
   container.innerHTML = html;
 }
 
