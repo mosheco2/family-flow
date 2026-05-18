@@ -1856,15 +1856,99 @@ window.addMatrixItemPrompt = async function(envType) {
 };
 
 // ==========================================
-// --- KANBAN BOARD LOGIC (CONNECTED TO SERVER) ---
+// --- NOTIFICATIONS & INBOX SYSTEM ---
+// ==========================================
+window.addSANotification = function(text, type='info', ticketId=null) {
+    if(!window.currentSAUser) return;
+    const uid = window.currentSAUser.id;
+    let notifs = JSON.parse(localStorage.getItem('sa_notifs_' + uid) || '[]');
+    notifs.unshift({ id: Date.now(), text, type, ticketId, read: false, date: new Date().toISOString() });
+    localStorage.setItem('sa_notifs_' + uid, JSON.stringify(notifs));
+    window.renderSANotifications();
+};
+
+window.renderSANotifications = function() {
+    if(!window.currentSAUser) return;
+    const uid = window.currentSAUser.id;
+    let notifs = JSON.parse(localStorage.getItem('sa_notifs_' + uid) || '[]');
+    const unreadCount = notifs.filter(n => !n.read).length;
+    
+    const badge = document.getElementById('sa-notif-badge');
+    if (badge) {
+        if (unreadCount > 0) { badge.innerText = unreadCount; badge.classList.remove('hidden'); } 
+        else { badge.classList.add('hidden'); }
+    }
+    
+    const list = document.getElementById('sa-notif-list');
+    if (!list) return;
+    
+    if (notifs.length === 0) {
+        list.innerHTML = '<div class="text-center text-slate-400 py-6 text-xs">אין התראות חדשות</div>';
+        return;
+    }
+    
+    const iconMap = { 'info': 'fa-info-circle text-blue-500', 'success': 'fa-check-circle text-green-500', 'warning': 'fa-exclamation-triangle text-orange-500' };
+    list.innerHTML = notifs.map(n => {
+        const bgClass = n.read ? 'bg-white opacity-60' : 'bg-blue-50/50';
+        return `
+        <div class="${bgClass} p-3 rounded-xl border border-slate-100 flex gap-3 items-start cursor-pointer hover:bg-slate-50 transition" onclick="markNotifRead(${n.id})">
+            <i class="fa-solid ${iconMap[n.type] || iconMap['info']} mt-0.5"></i>
+            <div class="flex-1">
+                <p class="text-xs font-bold text-slate-800 leading-tight">${safeStr(n.text)}</p>
+                <div class="flex justify-between mt-1.5 items-center">
+                    <span class="text-[9px] text-slate-400 font-bold">${new Date(n.date).toLocaleString('he-IL', {hour:'2-digit',minute:'2-digit', dateStyle:'short'})}</span>
+                    ${n.ticketId ? `<span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 rounded"><i class="fa-solid fa-ticket"></i> קריאה ${n.ticketId}</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.toggleSANotifications = function() {
+    const dd = document.getElementById('sa-notif-dropdown');
+    if (dd) {
+        dd.classList.toggle('hidden');
+        if (!dd.classList.contains('hidden')) window.renderSANotifications();
+    }
+};
+
+window.markNotifRead = function(notifId) {
+    if(!window.currentSAUser) return;
+    const uid = window.currentSAUser.id;
+    let notifs = JSON.parse(localStorage.getItem('sa_notifs_' + uid) || '[]');
+    const idx = notifs.findIndex(n => n.id === notifId);
+    if (idx > -1) { notifs[idx].read = true; localStorage.setItem('sa_notifs_' + uid, JSON.stringify(notifs)); }
+    window.renderSANotifications();
+};
+
+window.markAllNotifsRead = function() {
+    if(!window.currentSAUser) return;
+    const uid = window.currentSAUser.id;
+    let notifs = JSON.parse(localStorage.getItem('sa_notifs_' + uid) || '[]');
+    notifs.forEach(n => n.read = true);
+    localStorage.setItem('sa_notifs_' + uid, JSON.stringify(notifs));
+    window.renderSANotifications();
+};
+
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('sa-notif-dropdown');
+    if (dropdown && !dropdown.classList.contains('hidden') && !e.target.closest('.relative.cursor-pointer')) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+// ==========================================
+// --- KANBAN BOARD LOGIC & NOTIFICATION SYNC ---
 // ==========================================
 
 let devKanbanTasks = [];
 
 window.loadDevTasks = async function() {
     try {
+        const previousTasks = JSON.parse(localStorage.getItem('sa_last_known_tasks') || '[]');
         const res = await fetch(`${API}/sa/dev/tasks`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : '' }});
         const data = await res.json();
+        
         if(data.success) {
             devKanbanTasks = data.tasks.map(t => ({
                 id: t.id.toString(),
@@ -1873,8 +1957,29 @@ window.loadDevTasks = async function() {
                 priority: t.priority,
                 status: t.status,
                 desc: t.description || '',
-                version: t.target_version || ''
+                version: t.target_version || '',
+                owner_id: t.owner_id || null,
+                original_ticket_id: t.original_ticket_id || null
             }));
+
+            // SYNC ENGINE: בודק אם סטטוס משימה ששייכת ליוזר הזה השתנה, ושולח התראה לתיבה
+            if (window.currentSAUser) {
+                devKanbanTasks.forEach(newTask => {
+                    if (newTask.owner_id && parseInt(newTask.owner_id) === parseInt(window.currentSAUser.id)) {
+                        const oldTask = previousTasks.find(old => old.id === newTask.id);
+                        if (oldTask) {
+                            if (oldTask.status === 'in_progress' && newTask.status === 'qa') {
+                                window.addSANotification(`המשימה "${newTask.title}" סיימה פיתוח ועברה לבדיקות QA בספר.`, 'warning', newTask.original_ticket_id);
+                            } else if (oldTask.status === 'qa' && newTask.status === 'done') {
+                                window.addSANotification(`המשימה "${newTask.title}" עברה בדיקות QA בהצלחה ושוחררה ללקוחות!`, 'success', newTask.original_ticket_id);
+                            } else if ((!oldTask.version || oldTask.version === 'SORTING') && newTask.version && newTask.version !== 'SORTING') {
+                                window.addSANotification(`המשימה "${newTask.title}" אושרה ושוייכה לגרסת יעד: ${newTask.version}.`, 'info', newTask.original_ticket_id);
+                            }
+                        }
+                    }
+                });
+            }
+            localStorage.setItem('sa_last_known_tasks', JSON.stringify(devKanbanTasks));
             renderKanbanBoard();
         }
     } catch(e) { console.error('Error loading tasks', e); }
@@ -1884,7 +1989,6 @@ window.renderKanbanBoard = function() {
     const columns = { 'backlog': getEl('col-backlog'), 'in_progress': getEl('col-in_progress'), 'qa': getEl('col-qa'), 'done': getEl('col-done') };
     const counts = { 'backlog': 0, 'in_progress': 0, 'qa': 0, 'done': 0 };
     
-    // סינון משולב (גרסה + חיפוש טקסטואלי חופשי)
     const versionFilter = val('kanban-version-filter').trim().toLowerCase();
     const searchFilter = val('kanban-search') ? val('kanban-search').trim().toLowerCase() : '';
     
@@ -1902,7 +2006,7 @@ window.renderKanbanBoard = function() {
     Object.values(columns).forEach(col => { if(col) col.innerHTML = ''; });
     
     if(filteredTasks.length === 0) {
-        if(columns.backlog) columns.backlog.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">לא נמצאו משימות התואמות לחיפוש/סינון.</div>`;
+        if(columns.backlog) columns.backlog.innerHTML = `<div class="text-[10px] text-slate-400 text-center py-4 border border-dashed border-slate-300 rounded-xl">לא נמצאו משימות.</div>`;
     }
 
     filteredTasks.forEach(task => {
@@ -1920,23 +2024,39 @@ window.renderKanbanBoard = function() {
         else if(task.priority === 'high') prioIcon = '🔴';
         else if(task.priority === 'low') prioIcon = '🔵';
 
-        const versionBadge = task.version ? `<span class="bg-indigo-50 border border-indigo-100 text-indigo-600 font-mono text-[9px] px-1.5 rounded tracking-widest">${task.version}</span>` : '';
-        
-        // תגית המראה למפתח שהמשימה בפיתוח ממתינה לאישור ה-QA
-        const almBadge = (task.status === 'in_progress') ? `<div class="text-[9px] bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 mb-2 inline-block shadow-sm w-full text-center"><i class="fa-solid fa-paper-plane text-blue-400"></i> עבר לספר מוצר (ממתין למיון)</div>` : '';
+        // הדיגול הויזואלי החכם בהתאם לסטטוס בספר (סעיף 5 באפיון)
+        let statusBadge = '';
+        if (task.version === 'SORTING') {
+            statusBadge = '<span class="bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-inbox"></i> ממתין למיון בספר</span>';
+        } else if (task.status === 'in_progress' && task.version) {
+            statusBadge = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-code"></i> יעד: ${task.version}</span>`;
+        } else if (task.status === 'qa') {
+            statusBadge = '<span class="bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-vial"></i> ממתין ל-QA בספר</span>';
+        } else if (task.status === 'done') {
+            statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-check-double"></i> שוחרר ללקוחות</span>';
+        }
+
+        // כפתור סגירת מעגל - מוצג רק למשימות שסיימו ובאו מלקוח
+        let feedbackBtn = '';
+        if (task.status === 'done' && task.original_ticket_id) {
+            feedbackBtn = `<button onclick="event.stopPropagation(); window.openFeedbackLoopModal('${task.id}', '${task.original_ticket_id}')" class="w-full mt-3 bg-emerald-50 text-emerald-600 border border-emerald-200 py-1.5 rounded-lg text-[10px] font-black hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-handshake mr-1"></i> סגירת מעגל ללקוח</button>`;
+        }
 
         const cardHtml = `
-        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative">
-            ${almBadge}
+        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative flex flex-col min-h-[100px]">
+            <div class="mb-2 w-full text-right">${statusBadge}</div>
             <div class="flex justify-between items-start mb-2">
                 ${typeBadge}
                 <span class="text-[10px]" title="דחיפות">${prioIcon}</span>
             </div>
-            <h5 class="font-bold text-slate-800 text-xs leading-snug mb-2">${safeStr(task.title)}</h5>
+            <h5 class="font-bold text-slate-800 text-xs leading-snug mb-3">${safeStr(task.title)}</h5>
             <div class="flex justify-between items-end mt-auto">
                 <span class="text-[9px] text-slate-400 font-mono">#${task.id}</span>
-                ${versionBadge}
+                <div class="flex flex-col items-end gap-1">
+                    ${task.original_ticket_id ? `<span class="text-[8px] font-bold text-slate-400 bg-slate-50 px-1 rounded border border-slate-100"><i class="fa-solid fa-ticket"></i> טיקט ${task.original_ticket_id}</span>` : ''}
+                </div>
             </div>
+            ${feedbackBtn}
         </div>
         `;
         columns[task.status].innerHTML += cardHtml;
@@ -1949,17 +2069,6 @@ window.renderKanbanBoard = function() {
     
     const totalEl = getEl('kanban-total-count');
     if (totalEl) totalEl.innerText = `${filteredTasks.length} משימות`;
-    
-    const releaseBtn = getEl('btn-release-version');
-    if (releaseBtn) {
-        if (versionFilter && counts['done'] > 0) {
-            releaseBtn.classList.remove('hidden');
-            releaseBtn.classList.add('flex', 'fade-in');
-        } else {
-            releaseBtn.classList.add('hidden');
-            releaseBtn.classList.remove('flex', 'fade-in');
-        }
-    }
 };
 
 window.prepareReleaseFromVersion = function() {
@@ -1983,7 +2092,6 @@ window.prepareReleaseFromVersion = function() {
     
     switchDevTab('release');
     showToast('success', 'הפיתוחים יובאו בהצלחה! לחץ כעת על "נסח ועצב עם FamilAI"');
-    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
 };
 
 window.allowKanbanDrop = function(ev) { ev.preventDefault(); };
@@ -1996,9 +2104,8 @@ window.dropKanbanTask = async function(ev, newStatus) {
     
     if (!task) return;
 
-    // חסימת העברה ל-DONE למעט על ידי מנגנון ה-QA (עוקף חסימה)
     if (newStatus === 'done' && task.status !== 'done') {
-        showToast('error', 'משימה זו מנוהלת הנדסית. היא תעבור אוטומטית ל-DONE רק לאחר אישור בספר ה-QA.');
+        showToast('error', 'משימה זו מנוהלת הנדסית. היא תעבור אוטומטית ל-DONE רק לאחר אישור הבודק בספר ה-QA.');
         return; 
     }
 
@@ -2012,128 +2119,10 @@ window.dropKanbanTask = async function(ev, newStatus) {
                 body: JSON.stringify({ status: newStatus })
             });
             
-            // חיווי על העברה לשער הפיתוח (QA Book)
             if (newStatus === 'in_progress') {
-                showToast('success', 'המשימה הועברה לפיתוח, וממתינה לאישור ולמיון בספר ה-QA.');
-            }
-            
-            // ריצה של סגירת המעגל (קורה רק כשה-QA Book שולח את העקיפה ל-DONE)
-            if (newStatus === 'done') {
-                if (typeof confetti === 'function') {
-                    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
-                }
-
-                setTimeout(async () => {
-                    const textToSearch = (task.description || '') + ' ' + (task.title || '');
-                    const ticketMatch = textToSearch.match(/(?:קריאה|פנייה|טיקט)\s*#?(\d+)/i);
-                    const originalTicketId = task.original_ticket_id || (ticketMatch ? ticketMatch[1] : null);
-
-                    if (originalTicketId) {
-                        if (confirm(`🔁 סגירת מעגל (Feedback Loop):\nזיהינו שהמשימה קשורה לקריאת שירות #${originalTicketId}.\nלסגור את הקריאה ולשלוח עדכון אוטומטי ללקוח?`)) {
-                            try {
-                                const res = await fetch(`${API}/sa/tickets/${originalTicketId}/feedback-loop`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                                    body: JSON.stringify({ taskTitle: task.title, version: task.target_version })
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                    showToast('success', `קריאה #${originalTicketId} נסגרה. הלקוח עודכן! 🎉`);
-                                    if (typeof loadSATickets === 'function') loadSATickets();
-                                }
-                            } catch(err) { console.error('Feedback loop error', err); }
-                        }
-                    }
-                }, 1200);
+                showToast('success', 'המשימה הועברה לפיתוח, וממתינה לאישור ומיון בספר ה-QA.');
             }
         } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
-    }
-};
-
-// פתיחת מודל יצירת הבדיקה
-window.openQAGeneratorModal = function(task) {
-    window.currentQATask = task;
-    getEl('qa-gen-task-title').innerText = 'משימה: ' + task.title;
-    
-    // ניקוי שדות וקביעת "כללי" כברירת מחדל לבקשת המשתמש
-    getEl('qa-gen-id').value = 'AUTO-' + Math.floor(1000 + Math.random() * 9000);
-    getEl('qa-gen-category').value = 'כללי';
-    getEl('qa-gen-name').value = '';
-    getEl('qa-gen-desc').value = '';
-    getEl('qa-gen-prio').value = 'medium';
-    
-    getEl('sa-qa-generator-modal').classList.remove('hidden');
-};
-
-// יצירת טיוטה דרך AI
-window.runQA_AIGeneration = async function() {
-    if (!window.currentQATask) return;
-    const task = window.currentQATask;
-    
-    getEl('qa-gen-overlay').classList.remove('hidden');
-    getEl('qa-gen-overlay').classList.add('flex');
-    
-    try {
-        const res = await fetch(`${API}/sa/ai/generate-qa`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ taskTitle: task.title, taskDesc: task.description, module: task.module_name })
-        });
-        const data = await res.json();
-        
-        if (data.success && data.test) {
-            getEl('qa-gen-id').value = data.test.id || getEl('qa-gen-id').value;
-            // דריסה מכוונת: לא משנה מה ה-AI כתב, נשאיר 'כללי'
-            getEl('qa-gen-category').value = 'כללי'; 
-            getEl('qa-gen-name').value = data.test.name || '';
-            getEl('qa-gen-desc').value = data.test.description || '';
-            
-            const prio = (data.test.priority || '').toLowerCase();
-            if (prio.includes('high') || prio.includes('גבוה')) getEl('qa-gen-prio').value = 'high';
-            else if (prio.includes('crit')) getEl('qa-gen-prio').value = 'critical';
-            else if (prio.includes('low') || prio.includes('נמוך')) getEl('qa-gen-prio').value = 'low';
-            else getEl('qa-gen-prio').value = 'medium';
-            
-            showToast('success', 'הטיוטה מוכנה! עברו עליה ושמרו.');
-        } else {
-            showToast('error', 'שגיאת AI: ' + (data.error || 'נא להזין ידנית'));
-        }
-    } catch (e) {
-        showToast('error', 'שגיאת רשת מול שרת ה-AI');
-    } finally {
-        getEl('qa-gen-overlay').classList.add('hidden');
-        getEl('qa-gen-overlay').classList.remove('flex');
-    }
-};
-
-// שמירה ידנית של הבדיקה למסד הנתונים
-window.saveQAManually = async function() {
-    const qaData = {
-        id: val('qa-gen-id'),
-        category: val('qa-gen-category'),
-        name: val('qa-gen-name'),
-        description: val('qa-gen-desc'),
-        priority: val('qa-gen-prio')
-    };
-    
-    if (!qaData.id || !qaData.name || !qaData.description) return showToast('error', 'חובה למלא מזהה, שם ותיאור.');
-    
-    try {
-        const res = await fetch(`${API}/sa/qa/tests`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify(qaData)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'הבדיקה נשמרה בהצלחה לספר המוצר!');
-            getEl('sa-qa-generator-modal').classList.add('hidden');
-        } else {
-            showToast('error', 'שגיאה בשמירת הבדיקה: ' + data.error);
-        }
-    } catch (e) {
-        showToast('error', 'שגיאת תקשורת עם השרת');
     }
 };
 
@@ -2151,7 +2140,8 @@ window.openKanbanTaskModal = function(id = null) {
         getEl('kanban-task-type').value = task.type || 'feature';
         getEl('kanban-task-priority').value = task.priority || 'normal';
         getEl('kanban-task-desc').value = task.desc || '';
-        getEl('kanban-task-version').value = task.version || '';
+        getEl('kanban-task-owner-id').value = task.owner_id || '';
+        getEl('kanban-task-ticket-id').value = task.original_ticket_id || '';
         delBtn.classList.remove('hidden');
     } else {
         getEl('kanban-modal-title').innerHTML = '<i class="fa-solid fa-plus text-indigo-500 mr-2"></i> משימה חדשה';
@@ -2160,7 +2150,8 @@ window.openKanbanTaskModal = function(id = null) {
         getEl('kanban-task-type').value = 'feature';
         getEl('kanban-task-priority').value = 'normal';
         getEl('kanban-task-desc').value = '';
-        getEl('kanban-task-version').value = '';
+        getEl('kanban-task-owner-id').value = window.currentSAUser ? window.currentSAUser.id : '';
+        getEl('kanban-task-ticket-id').value = '';
         delBtn.classList.add('hidden');
     }
     modal.classList.remove('hidden');
@@ -2172,11 +2163,15 @@ window.saveKanbanTaskData = async function() {
     const type = val('kanban-task-type');
     const priority = val('kanban-task-priority');
     const desc = val('kanban-task-desc');
-    const version = val('kanban-task-version');
+    const ownerId = val('kanban-task-owner-id');
+    const ticketId = val('kanban-task-ticket-id');
     
     if (!title) return showToast('error', 'חובה להזין כותרת למשימה');
     
-    const payload = { title, type, priority, description: desc, targetVersion: version };
+    const payload = { 
+        title, type, priority, description: desc, 
+        owner_id: ownerId, original_ticket_id: ticketId 
+    };
     
     try {
         if (id) {
@@ -2192,7 +2187,7 @@ window.saveKanbanTaskData = async function() {
                 body: JSON.stringify(payload)
             });
         }
-        showToast('success', 'המשימה נשמרה במסד הנתונים!');
+        showToast('success', 'המשימה נשמרה בלוח!');
         getEl('dev-kanban-task-modal').classList.add('hidden');
         loadDevTasks();
     } catch(e) { showToast('error', 'שגיאת רשת בשמירת משימה'); }
@@ -2211,59 +2206,7 @@ window.deleteKanbanTask = async function() {
 };
 
 // ==========================================
-// --- חיבור בין המטריקס (QA) לקנבן (Dev) ---
-// ==========================================
-
-window.saveBugToKanban = async function() {
-    const actual = val('dev-bug-actual');
-    const expected = val('dev-bug-expected');
-    const title = getEl('dev-bug-test-title').innerText;
-    const priority = val('dev-bug-priority');
-    const testId = val('dev-bug-test-id');
-    
-    if (!actual) return showToast('error', 'נא לפרט מה קרה בפועל כדי שהצוות יבין את הבאג.');
-    
-    const payload = {
-        title: 'באג: ' + title,
-        type: 'bug',
-        priority: priority,
-        status: 'backlog',
-        description: `מקור: ספר המוצר (Sanity Check)\nמזהה: ${testId}\n\nתוצאה מצופה:\n${expected}\n\nתוצאה בפועל:\n${actual}`,
-        targetVersion: ''
-    };
-    
-    try {
-        await fetch(`${API}/sa/dev/tasks`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : '' },
-            body: JSON.stringify(payload)
-        });
-        getEl('dev-bug-modal').classList.add('hidden');
-        showToast('success', 'הבאג נשלח בהצלחה ללוח הפיתוח!');
-        loadDevTasks();
-    } catch(e) { showToast('error', 'שגיאת רשת ביצירת הבאג'); }
-};
-
-// ==========================================
-// --- אתחול וניתוב (Override) ---
-// ==========================================
-
-const _originalSwitchDevTab = window.switchDevTab;
-window.switchDevTab = function(tabId) {
-    if(typeof _originalSwitchDevTab === 'function') _originalSwitchDevTab(tabId);
-    if (tabId === 'matrix') renderProductMatrix();
-    if (tabId === 'kanban') loadDevTasks(); 
-};
-
-const _originalSwitchSATabDev = window.switchSATab;
-window.switchSATab = function(tabId) {
-    if(typeof _originalSwitchSATabDev === 'function') _originalSwitchSATabDev(tabId);
-    if (tabId === 'devops') {
-        loadProductMatrix(); // טוען את ספר המוצר מהשרת
-        loadDevTasks();      // טוען את הקנבן מהשרת
-    }
-};
-// ==========================================
-// --- המרת קריאת שירות למשימת פיתוח ---
+// --- המרת קריאת שירות למשימת פיתוח (סעיפים 1+4 באפיון) ---
 // ==========================================
 window.convertTicketToDevTask = function() {
     if (!saCurrentTicketId) return;
@@ -2271,27 +2214,68 @@ window.convertTicketToDevTask = function() {
     const t = saTicketsCache.find(x => x.id === saCurrentTicketId);
     if (!t) return;
     
-    // סוגרים את חלון הטיקט
     document.getElementById('sa-ticket-modal').classList.add('hidden');
-    
-    // עוברים לטאב של פיתוח
     switchSATab('devops');
     switchDevTab('kanban');
     
-    // מכינים את הטקסט למודאל ה-Kanban
     const defaultTitle = `פנייה #${t.id}: ${t.subject}`;
     const defaultDesc = `קריאת שירות #${t.id}\nמאת: ${t.group_name} (${t.user_name})\n\nתיאור התקלה מהלקוח:\n${t.description}`;
     
-    // פותחים את מודאל יצירת המשימה
     openKanbanTaskModal();
     
-    // מזריקים פנימה את הנתונים
-    getEl('kanban-task-title').value = defaultTitle;
-    getEl('kanban-task-desc').value = defaultDesc;
-    getEl('kanban-task-type').value = 'bug';
-    getEl('kanban-task-priority').value = 'high';
+    setTimeout(() => {
+        // שמירת ה"אבא" של המשימה במשתנים הנסתרים
+        getEl('kanban-task-owner-id').value = window.currentSAUser ? window.currentSAUser.id : '';
+        getEl('kanban-task-ticket-id').value = t.id;
+        
+        getEl('kanban-task-title').value = defaultTitle;
+        getEl('kanban-task-desc').value = defaultDesc;
+        getEl('kanban-task-type').value = 'bug';
+        getEl('kanban-task-priority').value = 'high';
+        
+        showToast('info', 'הקריאה קושרה! השלם את יצירת המשימה.');
+    }, 100);
+};
+
+// ==========================================
+// --- סגירת מעגל ללקוח (Feedback Loop) ---
+// ==========================================
+window.openFeedbackLoopModal = function(taskId, ticketId) {
+    getEl('feedback-loop-task-id').value = taskId;
+    getEl('feedback-loop-ticket-id').value = ticketId;
     
-    showToast('info', 'הפרטים הועתקו! השלם את יצירת המשימה ושלח לפיתוח.');
+    const t = saTicketsCache.find(x => x.id === parseInt(ticketId));
+    const clientName = t ? t.user_name : 'לקוח יקר';
+    const taskObj = devKanbanTasks.find(task => task.id === taskId);
+    let taskTitle = taskObj ? taskObj.title : 'בקשת השירות שלך';
+    taskTitle = taskTitle.replace(/^פנייה #[0-9]+:\s*/, '').replace(/^באג:\s*/, ''); // מנקה את הטקסט שייראה יפה ללקוח
+
+    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nשמחים לעדכן שהבקשה שלך בנושא "${taskTitle}" טופלה בהצלחה ועלתה לאוויר בגרסה האחרונה.\n\nתודה על הסבלנות,\nצוות התמיכה.`;
+    getEl('sa-feedback-loop-modal').classList.remove('hidden');
+};
+
+window.executeFeedbackLoop = async function() {
+    const ticketId = val('feedback-loop-ticket-id');
+    const text = val('feedback-loop-text');
+    
+    if(!text) return showToast('error', 'הזן נוסח להודעה');
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${ticketId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: text, status: 'resolved', isInternal: false, senderName: senderName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המעגל נסגר! הלקוח עודכן והקריאה נסגרה. 🎉');
+            getEl('sa-feedback-loop-modal').classList.add('hidden');
+            if(typeof loadSATickets === 'function') loadSATickets(); // מרענן את רשימת הטיקטים
+        } else {
+            showToast('error', data.error || 'שגיאה בסגירת מעגל');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת בחיבור ללקוח'); }
 };
 // ==========================================
 // ==========================================
