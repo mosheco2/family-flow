@@ -4815,6 +4815,16 @@ app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+    try {
+        const { targetDate } = req.body;
+        await pool.query(
+            'UPDATE sa_versions SET target_date=$1 WHERE name=$2',
+            [targetDate || null, req.params.name]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
