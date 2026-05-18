@@ -4842,6 +4842,241 @@ app.put('/api/sa/versions/name/:name', verifySA, async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ─── SA QA MODULE ────────────────────────────────────────────────────────────
+
+// Create tables if not exist
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sa_product_book (
+        id TEXT PRIMARY KEY,
+        section_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        envs TEXT[] DEFAULT ARRAY['family'],
+        icon TEXT,
+        color TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS sa_qa_test_results (
+        test_id TEXT NOT NULL,
+        env TEXT NOT NULL,
+        status TEXT,
+        note TEXT,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (test_id, env)
+      );
+      CREATE TABLE IF NOT EXISTS sa_versions (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS sa_dev_tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        module TEXT,
+        status TEXT DEFAULT 'pending',
+        version_id INTEGER REFERENCES sa_versions(id),
+        env TEXT DEFAULT 'family',
+        qa_passed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log('SA QA tables ready');
+  } catch(e) {
+    console.error('SA QA table init error:', e.message);
+  }
+})();
+
+// ── Product Book ──────────────────────────────────────────────────────────────
+
+app.get('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_product_book ORDER BY section_id, id');
+    res.json({ tests: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    const { id, section_id, title, description, envs, icon, color } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_product_book (id, section_id, title, description, envs, icon, color)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET
+         section_id=EXCLUDED.section_id, title=EXCLUDED.title,
+         description=EXCLUDED.description, envs=EXCLUDED.envs,
+         icon=EXCLUDED.icon, color=EXCLUDED.color
+       RETURNING *`,
+      [id, section_id, title, description || '', envs || ['family'], icon || '', color || '']
+    );
+    res.json({ test: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/tests', verifySA, async (req, res) => {
+  try {
+    await pool.query('TRUNCATE TABLE sa_product_book');
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/tests/:id', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_product_book WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── QA Results ────────────────────────────────────────────────────────────────
+
+app.get('/api/sa/qa/results', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_qa_test_results');
+    res.json({ results: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/qa/results/bulk', verifySA, async (req, res) => {
+  try {
+    const { results } = req.body; // [{testId, env, status, note}]
+    if (!Array.isArray(results) || !results.length) return res.json({ ok: true });
+    const values = results.map((r, i) => {
+      const base = i * 4;
+      return `($${base+1},$${base+2},$${base+3},$${base+4},NOW())`;
+    }).join(',');
+    const flat = results.flatMap(r => [r.testId, r.env, r.status || null, r.note || '']);
+    await pool.query(
+      `INSERT INTO sa_qa_test_results (test_id, env, status, note, updated_at)
+       VALUES ${values}
+       ON CONFLICT (test_id, env) DO UPDATE SET
+         status=EXCLUDED.status, note=EXCLUDED.note, updated_at=NOW()`,
+      flat
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/qa/results', verifySA, async (req, res) => {
+  try {
+    await pool.query('TRUNCATE TABLE sa_qa_test_results');
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Versions ──────────────────────────────────────────────────────────────────
+
+app.get('/api/sa/versions', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_versions ORDER BY created_at DESC');
+    res.json({ versions: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/versions', verifySA, async (req, res) => {
+  try {
+    const { name, notes } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_versions (name, notes) VALUES ($1,$2)
+       ON CONFLICT (name) DO UPDATE SET notes=EXCLUDED.notes
+       RETURNING *`,
+      [name, notes || '']
+    );
+    res.json({ version: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    await pool.query('UPDATE sa_versions SET notes=$1 WHERE name=$2', [notes || '', req.params.name]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/versions/name/:name', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_versions WHERE name=$1', [req.params.name]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dev Tasks (skip if already defined above) ─────────────────────────────────
+
+app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM sa_dev_tasks ORDER BY created_at DESC');
+    res.json({ tasks: rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
+  try {
+    const { id, title, module, status, version_id, env } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO sa_dev_tasks (id, title, module, status, version_id, env)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (id) DO UPDATE SET
+         title=EXCLUDED.title, module=EXCLUDED.module,
+         status=EXCLUDED.status, version_id=EXCLUDED.version_id, env=EXCLUDED.env
+       RETURNING *`,
+      [id, title, module || '', status || 'pending', version_id || null, env || 'family']
+    );
+    res.json({ task: rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
+  try {
+    const { status, qa_passed } = req.body;
+    await pool.query(
+      'UPDATE sa_dev_tasks SET status=$1, qa_passed=$2 WHERE id=$3',
+      [status || 'pending', qa_passed === true, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
