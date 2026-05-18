@@ -698,8 +698,8 @@ async function loadTestsFromServer() {
 
         const data = await res.json();
         
-        if (data.success) {
-            const catMap = {
+        if (data.tests) {
+      const catMap = {
                 'אימות ומשתמשים': { id: 'auth', icon: 'fa-key', color: '#3b82f6' },
                 'אשף הכניסה (Onboarding)': { id: 'onboard', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' },
                 'סביבת משפחה — לשוניות ראשיות': { id: 'family', icon: 'fa-house', color: '#22c55e' },
@@ -3254,8 +3254,8 @@ async function loadResultsFromServer() {
     const res = await fetch(`${API}/sa/qa/results`, { headers: { 'Authorization': saToken } });
     if(!res.ok) return;
     const data = await res.json();
-    if(data.success && Array.isArray(data.results)) {
-      data.results.forEach(r => {
+    if(Array.isArray(data.results)) {
+    data.results.forEach(r => {
         if(!r.test_id || !r.env) return;
 
         // עריכות מדריך ספר המוצר
@@ -3352,8 +3352,8 @@ async function loadVersionsFromServer() {
     const res = await fetch(`${API}/sa/versions`, { headers: { 'Authorization': saToken } });
     if(!res.ok) return;
     const data = await res.json();
-    if(data.success && Array.isArray(data.versions) && data.versions.length) {
-      versions = data.versions.filter(v => !deletedVersionNums.has(v.name)).map(v => ({
+    if(Array.isArray(data.versions) && data.versions.length) {
+    versions = data.versions.filter(v => !deletedVersionNums.has(v.name)).map(v => ({
       num:     v.name,
         type:    v.status === 'released' ? 'release' : v.status || 'release',
         date:       v.target_date ? new Date(v.target_date).toLocaleDateString('he-IL') : new Date(v.created_at).toLocaleDateString('he-IL'),
