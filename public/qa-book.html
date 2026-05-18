@@ -1694,7 +1694,8 @@ function getTestRows(sec) {
     const envs = t.envs && t.envs.length ? t.envs : ['family'];
     envs.forEach(env => {
       if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
-      if(currentView === 'book' && getStatus(t.id, env) !== 'ok') return;
+      // ספר מוצר ראשי בלבד — רק בדיקות מאושרות
+      if(currentView === 'book' && !currentFilter && getStatus(t.id, env) !== 'ok') return;
       rows.push({t, env});
     });
   });
@@ -1752,7 +1753,6 @@ function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
 
-  // ספר המוצר ריק — טרם הושלם סבב בדיקות מקיף
   if(!SECTIONS.length) {
     container.innerHTML = `
       <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
@@ -1765,10 +1765,9 @@ function renderTests(filter) {
     return;
   }
 
-  // בדוק אם יש בכלל שורות ok בסקשנים הנוכחיים
-  if(currentView === 'book') {
-    const secs = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-    const hasAnyOk = secs.some(sec => sec.tests.some(t =>
+  // ספר מוצר ראשי (ללא קטגוריה ספציפית) — הצג רק בדיקות מאושרות
+  if(currentView === 'book' && !filter) {
+    const hasAnyOk = SECTIONS.some(sec => sec.tests.some(t =>
       (t.envs&&t.envs.length?t.envs:['family']).some(env =>
         (currentEnvFilter==='all'||env===currentEnvFilter) && getStatus(t.id,env)==='ok'
       )
@@ -1780,7 +1779,6 @@ function renderTests(filter) {
           <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">אין בדיקות מאושרות עדיין</h3>
           <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
             ספר המוצר מציג רק בדיקות שסומנו כ-<strong style="color:#16a34a">✓ תקין</strong>.<br>
-            כרגע אין בדיקות מאושרות ${filter?'בקטגוריה זו':'במערכת'}.<br><br>
             כדי לאשר בדיקות — עבור ל<strong style="color:#475569">רשימת בדיקות מלאה</strong>, בצע בדיקות וסמן ✓ על הבדיקות שעברו.
           </p>
           <button class="btn btn-dark" onclick="showView('tests')" style="margin:0 auto">
