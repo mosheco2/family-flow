@@ -186,6 +186,90 @@ tr:hover td{background:#fafbfc}
   .main{margin-right:0}
   .section{break-inside:avoid}
 }
+
+/* ── ENV TABS ──────────────────────────────────────────────── */
+.env-tabs-wrap{background:white;border-radius:.75rem;border:1px solid #e2e8f0;padding:.55rem 1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.env-tab{padding:.28rem .8rem;border-radius:99px;border:1.5px solid #e2e8f0;background:white;font-family:inherit;font-size:.77rem;font-weight:600;cursor:pointer;color:#64748b;transition:all .15s}
+.env-tab:hover{border-color:#94a3b8;color:#1e293b}
+.env-tab.active{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}
+.env-tab.env-tab-family.active{border-color:#1d4ed8;background:#dbeafe;color:#1d4ed8}
+.env-tab.env-tab-biz.active{border-color:#92400e;background:#fef3c7;color:#92400e}
+.env-tab.env-tab-comm.active{border-color:#166534;background:#dcfce7;color:#166534}
+.env-tab.env-tab-sa.active{border-color:#7e22ce;background:#fae8ff;color:#7e22ce}
+
+/* ── SEARCH BAR ──────────────────────────────────────────── */
+.search-wrap{background:white;border-radius:.75rem;border:1px solid #e2e8f0;padding:.45rem 1rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem}
+.search-wrap i{color:#94a3b8;font-size:.85rem}
+#qa-search{flex:1;border:none;outline:none;font-family:inherit;font-size:.85rem;color:#1e293b;background:transparent;direction:rtl}
+#qa-search::placeholder{color:#cbd5e1}
+
+/* ── ROW STATUS TINTS ───────────────────────────────────── */
+tr.row-ok td{background:#f0fdf4}
+tr.row-fail td{background:#fef2f2}
+tr.row-warn td{background:#fffbeb}
+tr.row-skip td{background:#f8fafc;opacity:.75}
+tr.row-done td{background:#f0fdf4;opacity:.85}
+
+/* ── KANBAN TASK CARDS (in כללי) ────────────────────────── */
+.task-row{border-radius:.55rem;margin-bottom:.35rem;padding:.55rem .85rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;border-right:3px solid transparent}
+.task-row-inbox{background:#fff7ed;border-right-color:#f97316}
+.task-row-sorting{background:#faf5ff;border-right-color:#7c3aed}
+.task-row-inqa{background:#eff6ff;border-right-color:#3b82f6}
+.task-row-done{background:#f0fdf4;opacity:.82;border-right-color:#16a34a}
+.task-badge{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;padding:.18rem .5rem;border-radius:99px}
+.tbadge-inbox{background:#ffedd5;color:#c2410c}
+.tbadge-sorting{background:#ede9fe;color:#6d28d9}
+.tbadge-inqa{background:#dbeafe;color:#1d4ed8}
+.tbadge-done{background:#dcfce7;color:#15803d}
+.task-action-btn{padding:.28rem .6rem;border-radius:.45rem;font-family:inherit;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.tbtn-approve{background:#ede9fe;color:#6d28d9}.tbtn-approve:hover{background:#ddd6fe}
+.tbtn-done-qa{background:#dcfce7;color:#15803d}.tbtn-done-qa:hover{background:#bbf7d0}
+.task-inbox-section{padding:.6rem .85rem;border-bottom:1px solid #f1f5f9}
+
+/* ── ALM HUB LAYOUT ─────────────────────────────────────── */
+.alm-split{display:grid;grid-template-columns:1fr 1.7fr;gap:1rem;align-items:start}
+@media(max-width:1100px){.alm-split{grid-template-columns:1fr}}
+.alm-panel{background:white;border-radius:1rem;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.alm-panel-head{padding:.8rem 1.2rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between}
+.alm-panel-head h3{font-size:.88rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:.45rem}
+.alm-panel-body{padding:.7rem}
+
+/* ── SORT QUEUE ─────────────────────────────────────────── */
+.sort-task-card{background:#faf5ff;border:1px solid #e9d5ff;border-radius:.6rem;padding:.7rem 1rem;margin-bottom:.45rem}
+.sort-task-card:last-child{margin-bottom:0}
+.sort-task-title{font-weight:600;font-size:.82rem;color:#1e293b;margin-bottom:.3rem;display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+.sort-task-id{font-size:.65rem;color:#7c3aed;font-family:monospace;font-weight:700;flex-shrink:0}
+.sort-task-desc{font-size:.72rem;color:#64748b;margin-bottom:.45rem}
+.sort-task-selects{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.45rem}
+.sort-select{padding:.28rem .55rem;border:1.5px solid #ddd6fe;border-radius:.5rem;font-family:inherit;font-size:.74rem;color:#3b0764;background:white;outline:none;cursor:pointer}
+.sort-select:focus{border-color:#7c3aed}
+.sort-save-btn{padding:.32rem .8rem;background:#7c3aed;color:white;border:none;border-radius:.5rem;font-family:inherit;font-size:.74rem;font-weight:700;cursor:pointer}
+.sort-save-btn:hover{background:#6d28d9}
+
+/* ── VERSION TRACKER ────────────────────────────────────── */
+.version-track-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.9rem 1rem;margin-bottom:.65rem}
+.version-track-card:last-child{margin-bottom:0}
+.vt-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem}
+.vt-num{font-size:.82rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:.45rem}
+.vt-sla-wrap{margin-bottom:.5rem}
+.vt-sla-label{font-size:.63rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.22rem;display:flex;justify-content:space-between}
+.vt-sla-bar{height:5px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-bottom:.3rem}
+.vt-sla-fill-dev{height:100%;background:#f59e0b;border-radius:99px;transition:width .4s}
+.vt-sla-fill-qa{height:100%;background:#3b82f6;border-radius:99px;transition:width .4s}
+.vt-tasks{margin-top:.45rem;border-top:1px solid #e2e8f0;padding-top:.45rem}
+.vt-task-row{display:flex;align-items:center;justify-content:space-between;padding:.28rem 0;font-size:.74rem;border-bottom:1px solid #f1f5f9;gap:.4rem}
+.vt-task-row:last-child{border-bottom:none}
+.vt-task-name{flex:1;color:#1e293b;font-weight:500}
+.vt-task-module{font-size:.63rem;color:#94a3b8;background:#f1f5f9;border-radius:99px;padding:.08rem .38rem;flex-shrink:0}
+.vt-task-status{font-size:.63rem;font-weight:700;padding:.13rem .42rem;border-radius:99px;flex-shrink:0}
+.vts-dev{background:#ffedd5;color:#c2410c}
+.vts-qa{background:#dbeafe;color:#1d4ed8}
+.vts-done{background:#dcfce7;color:#15803d}
+.vt-action-btn{padding:.22rem .55rem;border:none;border-radius:.42rem;font-family:inherit;font-size:.68rem;font-weight:700;cursor:pointer;flex-shrink:0}
+.vt-devdone-btn{background:#ffedd5;color:#c2410c}.vt-devdone-btn:hover{background:#fed7aa}
+.vt-done-btn{background:#dcfce7;color:#15803d}.vt-done-btn:hover{background:#bbf7d0}
+.standalone-section{margin-top:.9rem;padding-top:.9rem;border-top:2px dashed #e2e8f0}
+.standalone-label{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.45rem}
 </style>
 </head>
 <body>
@@ -208,7 +292,8 @@ tr:hover td{background:#fafbfc}
     <div class="sb-link active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge-high"></i> דשבורד בדיקות</div>
     <div class="sb-link" onclick="showView('tests')"><i class="fa-solid fa-list-check"></i> רשימת בדיקות</div>
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
-    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> ניהול גרסאות</div>
+    <div class="sb-link" onclick="showView('alm')"><i class="fa-solid fa-diagram-project"></i> ALM Hub — פיתוח</div>
+    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> היסטוריית גרסאות</div>
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
@@ -297,6 +382,21 @@ tr:hover td{background:#fafbfc}
       <button class="btn btn-outline" onclick="showAllTests()"><i class="fa-solid fa-list"></i> הצג הכל</button>
     </div>
   </div>
+  <!-- Search -->
+  <div class="search-wrap">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input id="qa-search" type="text" placeholder="חפש בדיקה, מזהה או מילת מפתח..." oninput="filterBySearch(this.value)" dir="rtl">
+    <button onclick="clearSearch()" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:0;font-size:.85rem" title="נקה חיפוש"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <!-- Env Tabs -->
+  <div class="env-tabs-wrap">
+    <span style="font-size:.72rem;font-weight:700;color:#64748b;margin-left:.5rem">סביבה:</span>
+    <button id="env-tab-all"    class="env-tab active"            onclick="setEnvFilter('all')">הכל</button>
+    <button id="env-tab-family" class="env-tab env-tab-family"    onclick="setEnvFilter('family')">🏠 משפחה</button>
+    <button id="env-tab-biz"    class="env-tab env-tab-biz"       onclick="setEnvFilter('biz')">💼 עסק</button>
+    <button id="env-tab-comm"   class="env-tab env-tab-comm"      onclick="setEnvFilter('comm')">🤝 קהילה</button>
+    <button id="env-tab-sa"     class="env-tab env-tab-sa"        onclick="setEnvFilter('sa')">🛡️ SA</button>
+  </div>
   <div id="tests-container"></div>
 </div>
 
@@ -328,6 +428,51 @@ tr:hover td{background:#fafbfc}
   <div id="versions-container"></div>
 </div>
 
+<!-- ALM HUB VIEW -->
+<div id="view-alm" class="view">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-diagram-project" style="color:#7c3aed"></i> ALM Hub — מחזור חיי פיתוח</h2>
+    <div class="page-actions">
+      <button class="btn btn-purple" onclick="newALMVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
+      <button class="btn btn-outline" onclick="loadKanbanTasks()"><i class="fa-solid fa-rotate"></i> רענן משימות</button>
+    </div>
+  </div>
+  <div class="alm-split">
+    <!-- LEFT: Sort Queue -->
+    <div>
+      <div class="alm-panel">
+        <div class="alm-panel-head">
+          <h3><i class="fa-solid fa-inbox" style="color:#7c3aed"></i> תור מיון
+            <span id="sort-queue-count" class="sb-badge badge-pending" style="margin-right:.4rem">0</span>
+          </h3>
+          <span style="font-size:.68rem;color:#94a3b8">משימות שאושרו לשיוך לגרסה</span>
+        </div>
+        <div class="alm-panel-body" id="sort-queue-container">
+          <div style="text-align:center;padding:2rem;color:#94a3b8">
+            <i class="fa-solid fa-inbox" style="font-size:2rem;margin-bottom:.6rem;display:block"></i>
+            <p style="font-size:.78rem">אין משימות בתור המיון</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- RIGHT: Version Tracker -->
+    <div>
+      <div class="alm-panel">
+        <div class="alm-panel-head">
+          <h3><i class="fa-solid fa-rocket" style="color:#3b82f6"></i> מעקב גרסאות פעילות</h3>
+        </div>
+        <div class="alm-panel-body" id="version-tracker-container">
+          <div style="text-align:center;padding:2rem;color:#94a3b8">
+            <i class="fa-solid fa-code-branch" style="font-size:2rem;margin-bottom:.6rem;display:block"></i>
+            <p style="font-size:.78rem">צור גרסה חדשה כדי להתחיל לעקוב</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 </main>
 </div>
 
@@ -343,6 +488,10 @@ let state = {};
 let versions = [];
 let currentView = 'dashboard';
 let currentFilter = null;
+let currentEnvFilter = 'all';
+let kanbanTasks = [];
+let taskAssignments = {};
+let versionTasks = {};
 
 // ============================================================
 // SERVER INTEGRATION
@@ -417,7 +566,7 @@ async function loadTestsFromServer() {
                     name: t.name,
                     desc: t.description,
                     prio: t.priority,
-                    envs: ['all'] 
+                    envs: (typeof ENV_MAP !== 'undefined' && ENV_MAP[t.id]) ? ENV_MAP[t.id] : ['family','biz']
                 });
             });
             
@@ -893,13 +1042,383 @@ window.seedDatabase = async function(legacyData) {
 
 }; // סיום GUIDE_BOOK
 
+const ENV_MAP = {
+  'AUTH-01':['family'],
+  'AUTH-02':['biz'],
+  'AUTH-03':['family', 'biz'],
+  'AUTH-04':['family', 'biz'],
+  'AUTH-05':['family', 'biz'],
+  'AUTH-06':['family', 'biz'],
+  'AUTH-07':['family', 'biz'],
+  'AUTH-08':['family', 'biz'],
+  'AUTH-09':['family', 'biz'],
+  'AUTH-10':['family', 'biz'],
+  'AUTH-11':['family', 'biz'],
+  'AUTH-12':['family', 'biz'],
+  'AUTH-13':['biz'],
+  'AUTH-14':['family', 'biz'],
+  'AUTH-15':['family', 'biz'],
+  'ONBD-01':['family', 'biz'],
+  'ONBD-02':['family', 'biz'],
+  'ONBD-03':['family'],
+  'ONBD-04':['biz'],
+  'ONBD-05':['family', 'biz'],
+  'ONBD-06':['family', 'biz'],
+  'ONBD-07':['family', 'biz'],
+  'ONBD-08':['family', 'biz'],
+  'FAM-01':['family'],
+  'FAM-02':['family'],
+  'FAM-03':['family'],
+  'FAM-04':['family'],
+  'FAM-05':['family'],
+  'FAM-06':['family'],
+  'FAM-07':['family'],
+  'FAM-08':['family'],
+  'FAM-09':['family'],
+  'FAM-10':['family'],
+  'FAM-11':['family'],
+  'FAM-12':['family'],
+  'FAM-13':['family'],
+  'FAM-14':['family'],
+  'FAM-15':['family'],
+  'FAM-16':['family'],
+  'FAM-17':['family'],
+  'FAM-18':['family'],
+  'FAM-19':['family'],
+  'FAM-20':['family'],
+  'FAM-21':['family'],
+  'FAM-22':['family'],
+  'FAM-23':['family'],
+  'FAM-24':['family'],
+  'FAM-25':['family'],
+  'FAM-26':['family'],
+  'FAM-27':['family'],
+  'FAM-28':['family'],
+  'FAM-29':['family'],
+  'FAM-30':['family'],
+  'BIZ-01':['biz'],
+  'BIZ-02':['biz'],
+  'BIZ-03':['biz'],
+  'BIZ-04':['biz'],
+  'BIZ-05':['biz'],
+  'BIZ-06':['biz'],
+  'BIZ-07':['biz'],
+  'BIZ-08':['biz'],
+  'BIZ-09':['biz'],
+  'BIZ-10':['biz'],
+  'BIZ-11':['biz'],
+  'BIZ-12':['biz'],
+  'BIZ-13':['biz'],
+  'BIZ-14':['biz'],
+  'BIZ-15':['biz'],
+  'BIZ-16':['biz'],
+  'BIZ-17':['biz'],
+  'BIZ-18':['biz'],
+  'BIZ-19':['biz'],
+  'BIZ-21':['biz'],
+  'BIZ-22':['biz'],
+  'BIZ-23':['biz'],
+  'BIZ-24':['biz'],
+  'BIZ-25':['biz'],
+  'BIZ-26':['biz'],
+  'BIZ-27':['biz'],
+  'BIZ-28':['biz'],
+  'BIZ-29':['biz'],
+  'BIZ-30':['biz'],
+  'STR-01':['biz'],
+  'STR-02':['biz'],
+  'STR-03':['biz'],
+  'STR-04':['biz'],
+  'STR-05':['biz'],
+  'STR-06':['biz'],
+  'STR-07':['biz'],
+  'STR-08':['biz'],
+  'STR-09':['biz'],
+  'STR-10':['biz'],
+  'STR-11':['biz'],
+  'STR-12':['biz'],
+  'STR-13':['biz'],
+  'STR-14':['biz'],
+  'STR-15':['biz'],
+  'STR-16':['biz'],
+  'STR-17':['biz'],
+  'STR-18':['biz'],
+  'STR-19':['biz'],
+  'STR-20':['biz'],
+  'STR-21':['biz'],
+  'STR-22':['biz'],
+  'STR-23':['biz'],
+  'POS-01':['biz'],
+  'POS-02':['biz'],
+  'POS-03':['biz'],
+  'POS-04':['biz'],
+  'POS-05':['biz'],
+  'POS-06':['biz'],
+  'POS-07':['biz'],
+  'POS-08':['biz'],
+  'POS-09':['biz'],
+  'POS-10':['biz'],
+  'POS-11':['biz'],
+  'POS-12':['biz'],
+  'POS-13':['biz'],
+  'POS-14':['biz'],
+  'POS-15':['biz'],
+  'B2B-01':['biz'],
+  'B2B-02':['biz'],
+  'B2B-03':['biz'],
+  'B2B-04':['biz'],
+  'B2B-05':['biz'],
+  'B2B-06':['biz'],
+  'B2B-07':['biz', 'comm'],
+  'B2B-08':['biz', 'comm'],
+  'B2B-09':['biz'],
+  'B2B-10':['biz'],
+  'B2B-11':['biz'],
+  'B2B-12':['biz', 'comm'],
+  'FIN-01':['family', 'biz'],
+  'FIN-02':['family', 'biz'],
+  'FIN-03':['family', 'biz'],
+  'FIN-04':['family', 'biz'],
+  'FIN-05':['family', 'biz'],
+  'FIN-06':['family', 'biz'],
+  'FIN-07':['family', 'biz'],
+  'FIN-08':['family', 'biz'],
+  'FIN-09':['family', 'biz'],
+  'FIN-10':['family', 'biz'],
+  'FIN-11':['biz'],
+  'FIN-12':['biz'],
+  'INV-01':['family', 'biz'],
+  'INV-02':['family'],
+  'INV-03':['family', 'biz'],
+  'INV-04':['family'],
+  'INV-05':['family', 'biz'],
+  'INV-06':['family', 'biz'],
+  'INV-07':['family', 'biz'],
+  'INV-08':['family', 'biz'],
+  'INV-09':['family', 'biz'],
+  'INV-10':['family'],
+  'INV-11':['family', 'biz'],
+  'INV-12':['biz'],
+  'AI-01':['family', 'biz'],
+  'AI-02':['family', 'biz'],
+  'AI-03':['biz'],
+  'AI-04':['biz'],
+  'AI-05':['family'],
+  'AI-06':['family', 'biz'],
+  'AI-07':['biz'],
+  'AI-08':['family'],
+  'AI-09':['family', 'biz'],
+  'AI-10':['family', 'biz'],
+  'AI-11':['biz'],
+  'AI-12':['family', 'biz'],
+  'AI-13':['family'],
+  'AI-14':['family', 'biz'],
+  'AI-15':['family', 'biz'],
+  'CAL-01':['biz'],
+  'CAL-02':['biz'],
+  'CAL-03':['biz'],
+  'CAL-04':['biz'],
+  'CAL-05':['biz'],
+  'CAL-06':['biz'],
+  'CAL-07':['biz'],
+  'CAL-08':['biz'],
+  'CAL-09':['biz'],
+  'CAL-10':['biz'],
+  'CAL-11':['biz'],
+  'CAL-12':['biz'],
+  'SHF-01':['biz'],
+  'SHF-02':['biz'],
+  'SHF-03':['biz'],
+  'SHF-04':['biz'],
+  'SHF-05':['biz'],
+  'SHF-06':['biz'],
+  'SHF-07':['biz'],
+  'SHF-08':['biz'],
+  'SHF-09':['biz'],
+  'SHF-10':['biz'],
+  'TSK-01':['family', 'biz'],
+  'TSK-02':['family', 'biz'],
+  'TSK-03':['family', 'biz'],
+  'TSK-04':['family', 'biz'],
+  'TSK-05':['family', 'biz'],
+  'TSK-06':['family', 'biz'],
+  'TSK-07':['family', 'biz'],
+  'TSK-08':['family', 'biz'],
+  'TSK-09':['family', 'biz'],
+  'TSK-10':['family', 'biz'],
+  'ACAD-01':['family', 'biz'],
+  'ACAD-02':['family', 'biz'],
+  'ACAD-03':['family', 'biz'],
+  'ACAD-04':['family', 'biz'],
+  'ACAD-05':['family', 'biz'],
+  'ACAD-06':['family', 'biz'],
+  'ACAD-07':['family', 'biz'],
+  'ACAD-08':['family', 'biz'],
+  'ACAD-09':['family', 'biz'],
+  'ACAD-10':['family', 'biz'],
+  'COM-01':['family'],
+  'COM-02':['biz'],
+  'COM-03':['biz', 'comm'],
+  'COM-04':['biz', 'comm'],
+  'COM-05':['biz', 'comm'],
+  'COM-06':['biz', 'comm'],
+  'COM-07':['family', 'biz'],
+  'COM-08':['family'],
+  'COM-09':['family', 'comm'],
+  'COM-10':['family', 'biz'],
+  'COM-11':['comm'],
+  'COM-12':['comm'],
+  'NOT-01':['family', 'biz'],
+  'NOT-02':['family', 'biz'],
+  'NOT-03':['family', 'biz'],
+  'NOT-04':['family', 'biz'],
+  'NOT-05':['family', 'biz'],
+  'NOT-06':['family', 'biz'],
+  'NOT-07':['family', 'biz'],
+  'NOT-08':['family', 'biz'],
+  'NOT-09':['biz'],
+  'NOT-10':['family', 'biz'],
+  'SA-01':['sa'],
+  'SA-02':['sa'],
+  'SA-03':['sa'],
+  'SA-04':['sa'],
+  'SA-05':['sa'],
+  'SA-06':['sa'],
+  'SA-07':['sa'],
+  'SA-08':['sa'],
+  'SA-09':['sa'],
+  'SA-10':['sa'],
+  'SA-11':['sa'],
+  'SA-12':['sa'],
+  'SA-13':['sa'],
+  'SA-14':['sa'],
+  'SA-15':['sa'],
+  'SMK-01':['sa'],
+  'SMK-02':['sa'],
+  'SMK-03':['sa'],
+  'SMK-04':['sa'],
+  'SMK-05':['sa'],
+  'SMK-06':['sa'],
+  'SMK-07':['sa'],
+  'SMK-08':['sa'],
+  'SMK-09':['sa'],
+  'SMK-10':['sa'],
+  'SMK-11':['sa'],
+  'SMK-12':['sa'],
+  'SMK-13':['sa'],
+  'SMK-14':['sa'],
+  'SMK-15':['sa'],
+  'SMK-16':['sa'],
+  'SMK-17':['sa'],
+  'SMK-18':['sa'],
+  'SMK-19':['sa'],
+  'SMK-20':['sa'],
+  'PWA-01':['family', 'biz'],
+  'PWA-02':['family', 'biz'],
+  'PWA-03':['family', 'biz'],
+  'PWA-04':['family', 'biz'],
+  'PWA-05':['family', 'biz'],
+  'PWA-06':['family', 'biz'],
+  'PWA-07':['family', 'biz'],
+  'PWA-08':['family', 'biz'],
+  'PWA-09':['biz'],
+  'PWA-10':['family', 'biz'],
+  'PWA-11':['family', 'biz'],
+  'PWA-12':['biz'],
+  'PFAM-01':['family'],
+  'PFAM-02':['family'],
+  'PFAM-03':['family'],
+  'PFAM-04':['family'],
+  'PFAM-05':['family'],
+  'PFAM-06':['family'],
+  'PFAM-07':['family'],
+  'PFAM-08':['family'],
+  'PFAM-09':['family'],
+  'PFAM-10':['family'],
+  'PFAM-11':['family'],
+  'PFAM-12':['family'],
+  'PFAM-13':['family'],
+  'PFAM-14':['family'],
+  'PFAM-15':['family'],
+  'PFAM-16':['family'],
+  'PFAM-17':['family'],
+  'PFAM-18':['family'],
+  'PFAM-19':['family'],
+  'PFAM-20':['family'],
+  'PBIZ-01':['biz'],
+  'PBIZ-02':['biz'],
+  'PBIZ-03':['biz'],
+  'PBIZ-04':['biz'],
+  'PBIZ-05':['biz'],
+  'PBIZ-06':['biz'],
+  'PBIZ-07':['biz'],
+  'PBIZ-08':['biz'],
+  'PBIZ-09':['biz'],
+  'PBIZ-10':['biz'],
+  'PBIZ-11':['biz'],
+  'PBIZ-12':['biz'],
+  'PBIZ-13':['biz'],
+  'PBIZ-14':['biz'],
+  'PBIZ-15':['biz'],
+  'PBIZ-16':['biz'],
+  'PBIZ-17':['biz'],
+  'PBIZ-18':['biz'],
+  'PBIZ-19':['biz'],
+  'PBIZ-20':['biz'],
+  'PBIZ-21':['biz'],
+  'PBIZ-22':['biz'],
+  'PBIZ-23':['biz'],
+  'PBIZ-24':['biz'],
+  'PBIZ-25':['biz'],
+  'PBIZ-26':['biz'],
+  'PBIZ-27':['biz'],
+  'PBIZ-28':['biz'],
+  'PBIZ-29':['biz'],
+  'PBIZ-30':['biz'],
+  'PBIZ-31':['biz'],
+  'PBIZ-32':['biz'],
+  'PBIZ-33':['biz'],
+  'PBIZ-34':['biz'],
+  'PBIZ-35':['biz'],
+  'SAF-01':['sa'],
+  'SAF-02':['sa'],
+  'SAF-03':['sa'],
+  'SAF-04':['sa'],
+  'SAF-05':['sa'],
+  'SAF-06':['sa'],
+  'SAF-07':['sa'],
+  'SAF-08':['sa'],
+  'SAF-09':['sa'],
+  'SAF-10':['sa'],
+  'SAF-11':['sa'],
+  'SAF-12':['sa'],
+  'SAF-13':['sa'],
+  'SAF-14':['sa'],
+  'SAF-15':['sa'],
+  'SAF-16':['sa'],
+  'SAF-17':['sa'],
+  'SAF-18':['sa'],
+  'SAF-19':['sa'],
+  'SAF-20':['sa'],
+  'SAF-21':['sa'],
+  'SAF-22':['sa'],
+  'SAF-23':['sa'],
+  'SAF-24':['sa'],
+  'SAF-25':['sa'],
+  'SAF-26':['sa'],
+  'SAF-27':['sa'],
+  'SAF-28':['sa']
+};
+
+
 // ============================================================
-// STATE
+// STATE  (env-aware — key = "testId:env")
 // ============================================================
 function loadState() {
   try {
     state = JSON.parse(localStorage.getItem('qa_state') || '{}');
     versions = JSON.parse(localStorage.getItem('qa_versions') || '[]');
+    taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -910,81 +1429,138 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem('qa_state', JSON.stringify(state));
+  localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
 }
 
-function getStatus(id) { return state[id]?.s || null; }
-function getNote(id)   { return state[id]?.n || ''; }
+function sk(id, env)       { return env ? `${id}:${env}` : id; }
+function getStatus(id, env){ return state[sk(id,env)]?.s || null; }
+function getNote(id, env)  { return state[sk(id,env)]?.n || ''; }
 
-function setStatus(id, s) {
-  if(!state[id]) state[id]={};
-  state[id].s = state[id].s === s ? null : s;
-  updateRowUI(id);
+function setStatus(id, s, env) {
+  const k = sk(id, env);
+  if(!state[k]) state[k] = {};
+  state[k].s = state[k].s === s ? null : s;
+  updateRowUI(id, env);
   saveState();
   updateSidebarBadges();
 }
 
-function setNote(id, n) {
-  if(!state[id]) state[id]={};
-  state[id].n = n;
+function setNote(id, n, env) {
+  const k = sk(id, env);
+  if(!state[k]) state[k] = {};
+  state[k].n = n;
   saveState();
-  const btn = document.querySelector(`[data-note-btn="${id}"]`);
+  const rowKey = env ? `${id}:${env}` : id;
+  const btn = document.querySelector(`[data-note-btn="${rowKey}"]`);
   if(btn) btn.classList.toggle('has-note', !!n);
 }
 
+function updateRowUI(id, env) {
+  const rowKey = env ? `${id}:${env}` : id;
+  const row = document.getElementById(`row-${rowKey}`);
+  if(!row) return;
+  const s = getStatus(id, env);
+  row.className = s ? `row-${s}` : '';
+}
+
 // ============================================================
-// RENDER
+// RENDER  (Option B — תמיד שורות נפרדות לכל סביבה)
 // ============================================================
+const ENV_LABELS = {family:'🏠 משפחה', biz:'💼 עסק', comm:'🤝 קהילה', sa:'🛡️ SA'};
+
+function getTestRows(sec) {
+  const rows = [];
+  sec.tests.forEach(t => {
+    const envs = t.envs && t.envs.length ? t.envs : ['family'];
+    envs.forEach(env => {
+      if(currentEnvFilter !== 'all' && env !== currentEnvFilter) return;
+      rows.push({t, env});
+    });
+  });
+  return rows;
+}
+
 function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
   let html = '';
   const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
   sections.forEach(sec => {
-    const tests = sec.tests;
-    const counts = countSection(tests);
-    const pct = tests.length ? Math.round((counts.ok + counts.skip) / tests.length * 100) : 0;
+    const rows = getTestRows(sec);
+    const counts = countSectionRows(rows);
+    const total = rows.length || 1;
+    const pct = Math.round((counts.ok + counts.skip) / total * 100);
+
+    // כללי: הצג גם משימות קנבן שבסטטוס inbox
+    let inboxHtml = '';
+    if(sec.id === 'general') {
+      const inbox = kanbanTasks.filter(tk => {
+        const st = taskAssignments[tk.id]?.status;
+        return !st || st === 'inbox';
+      });
+      if(inbox.length) {
+        inboxHtml = `<div class="task-inbox-section">${inbox.map(renderKanbanCard).join('')}</div>`;
+      }
+      // הצג גם משימות inqa שמשויכות לקטגוריה הזו
+    }
+    // משימות inqa שמשויכות לקטגוריה הזו
+    let inqaHtml = '';
+    if(sec.id !== 'general') {
+      const inqaTasks = kanbanTasks.filter(tk => {
+        const a = taskAssignments[tk.id];
+        return a && a.status === 'inqa' && a.module === sec.id;
+      });
+      if(inqaTasks.length) {
+        inqaHtml = `<div class="task-inbox-section">${inqaTasks.map(renderKanbanCard).join('')}</div>`;
+      }
+    }
+
     html += `
     <div class="section" id="sec-${sec.id}">
       <div class="section-head" onclick="toggleSection(this)">
         <h3><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}</h3>
         <div class="section-meta">
-          <span style="font-size:0.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
-          <span style="font-size:0.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
+          <span style="font-size:.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
+          <span style="font-size:.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
           <span class="section-pct">${pct}%</span>
           <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${sec.color}"></div></div>
           <i class="fa-solid fa-chevron-down chevron"></i>
         </div>
       </div>
       <div class="section-body">
+        ${inboxHtml}${inqaHtml}
         <table>
           <thead><tr>
-            <th style="width:80px">מזהה</th>
+            <th style="width:95px">מזהה / סביבה</th>
             <th>בדיקה</th>
-            <th style="width:80px">עדיפות</th>
+            <th style="width:75px">עדיפות</th>
             <th>סטטוס</th>
           </tr></thead>
           <tbody id="tbody-${sec.id}">
-            ${tests.map(t => renderRow(t, sec)).join('')}
+            ${rows.map(({t, env}) => renderRow(t, sec, env)).join('')}
           </tbody>
         </table>
       </div>
     </div>`;
   });
   container.innerHTML = html;
+  applySearchFilter();
 }
 
-function renderRow(t, sec) {
-  const s = getStatus(t.id);
-  const n = getNote(t.id);
-  const envHtml = t.envs.map(e => `<span class="env-tag env-${e}">${{family:'משפחה',biz:'עסק',comm:'קהילה',sa:'SA',all:'הכל'}[e]||e}</span>`).join('');
+function renderRow(t, sec, env) {
+  const rowKey = `${t.id}:${env}`;
+  const s = getStatus(t.id, env);
+  const n = getNote(t.id, env);
+  const envLabel = ENV_LABELS[env] || env;
+  const envCls   = `env-tag env-${env}`;
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[t.prio]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]||t.prio;
   const guide = GUIDE_BOOK[t.id];
   const guideHtml = guide ? `
-  <tr id="guide-row-${t.id}" class="guide-row" style="display:none">
+  <tr id="guide-row-${rowKey}" class="guide-row" style="display:none">
     <td colspan="4">
       <div class="guide-box">
         <div class="guide-path"><i class="fa-solid fa-route"></i> ${guide.path}</div>
@@ -1002,63 +1578,302 @@ function renderRow(t, sec) {
     </td>
   </tr>` : '';
   return `
-  <tr id="row-${t.id}" class="${s?'row-'+s:''}">
-    <td><span class="test-id">${t.id}</span></td>
+  <tr id="row-${rowKey}" class="${s?'row-'+s:''}">
+    <td>
+      <span class="test-id">${t.id}</span>
+      <div style="margin-top:3px"><span class="${envCls}">${envLabel}</span></div>
+    </td>
     <td>
       <div class="test-name">${t.name}</div>
       <div class="test-desc">${t.desc}</div>
-      <div class="test-env">${envHtml}</div>
     </td>
     <td><span class="prio ${prioClass}">${prioLabel}</span></td>
     <td>
       <div class="status-btns">
-        <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${t.id}','ok')" title="תקין"><i class="fa-solid fa-check"></i></button>
-        <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
-        <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
-        <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip')" title="דלג"><i class="fa-solid fa-minus"></i></button>
-        <button class="guide-btn ${guide?'active':''}" onclick="toggleGuide('${t.id}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
-        <button class="note-btn ${n?'has-note':''}" data-note-btn="${t.id}" onclick="toggleNote('${t.id}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="setStatus('${t.id}','ok','${env}')" title="תקין"><i class="fa-solid fa-check"></i></button>
+        <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="setStatus('${t.id}','fail','${env}')" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+        <button class="s-btn ${s==='warn'?'active-warn':''}" onclick="setStatus('${t.id}','warn','${env}')" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
+        <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
+        <button class="guide-btn ${guide?'':''}${guide?'active':''}" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
+        <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
       </div>
     </td>
   </tr>
   ${guideHtml}
-  <tr id="note-row-${t.id}" class="note-row" style="display:none">
+  <tr id="note-row-${rowKey}" class="note-row" style="display:none">
     <td colspan="4">
-      <textarea class="note-input" rows="2" placeholder="הוסף הערה, צעדי שחזור, תיאור הבאג..." oninput="setNote('${t.id}',this.value)">${n}</textarea>
+      <textarea class="note-input" rows="2" placeholder="הוסף הערה, צעדי שחזור, תיאור הבאג..." oninput="setNote('${t.id}',this.value,'${env}')">${n}</textarea>
     </td>
   </tr>`;
 }
 
-function toggleGuide(id) {
-  const row = document.getElementById(`guide-row-${id}`);
+function renderKanbanCard(task) {
+  const assign = taskAssignments[task.id] || {status:'inbox'};
+  const st = assign.status || 'inbox';
+  const statusMap = {inbox:'📥 ממתין למיון', sorting:'🔀 בתור מיון', inqa:'🔬 בדיקת QA', done:'✅ הושלם'};
+  const badgeMap  = {inbox:'tbadge-inbox', sorting:'tbadge-sorting', inqa:'tbadge-inqa', done:'tbadge-done'};
+  const rowMap    = {inbox:'task-row-inbox', sorting:'task-row-sorting', inqa:'task-row-inqa', done:'task-row-done'};
+  const prioLbl   = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[task.priority]||'';
+  const prioClsMp = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'};
+  let btn = '';
+  if(st === 'inbox')
+    btn = `<button class="task-action-btn tbtn-approve" onclick="approveForSorting(${task.id})">✔ העבר למיון</button>`;
+  else if(st === 'inqa')
+    btn = `<button class="task-action-btn tbtn-done-qa" onclick="closeTaskDone(${task.id})">✅ בדיקה עברה — סגור</button>`;
+  return `<div class="task-row ${rowMap[st]||'task-row-inbox'}">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:2px">
+        <span style="font-weight:700;font-size:.82rem;color:#1e293b">${task.title}</span>
+        <span class="task-badge ${badgeMap[st]||'tbadge-inbox'}">${statusMap[st]||st}</span>
+        ${prioLbl?`<span class="prio ${prioClsMp[task.priority]||'prio-medium'}">${prioLbl}</span>`:''}
+      </div>
+      ${task.description?`<div style="font-size:.72rem;color:#64748b">${task.description}</div>`:''}
+      ${assign.versionId?`<div style="font-size:.67rem;color:#7c3aed;margin-top:2px">📦 ${assign.versionId}${assign.module?' · '+assign.module:''}</div>`:''}
+    </div>
+    ${btn}
+  </div>`;
+}
+
+function toggleGuide(rowKey) {
+  const row = document.getElementById(`guide-row-${rowKey}`);
   if(!row) return;
   row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 }
 
-function toggleNote(id) {
-  const row = document.getElementById(`note-row-${id}`);
+function toggleNote(rowKey) {
+  const row = document.getElementById(`note-row-${rowKey}`);
   if(!row) return;
   const visible = row.style.display !== 'none';
   row.style.display = visible ? 'none' : 'table-row';
-  if(!visible) row.querySelector('textarea').focus();
+  if(!visible) { const ta = row.querySelector('textarea'); if(ta) ta.focus(); }
+}
+
+// ── ENV FILTER ──────────────────────────────────────────────────────────────
+function setEnvFilter(env) {
+  currentEnvFilter = env;
+  document.querySelectorAll('.env-tab').forEach(b => b.classList.remove('active'));
+  const tab = document.getElementById(`env-tab-${env}`);
+  if(tab) tab.classList.add('active');
+  renderTests(currentFilter);
+}
+
+// ── LIVE SEARCH ─────────────────────────────────────────────────────────────
+let _searchQ = '';
+
+function filterBySearch(q) { _searchQ = (q||'').toLowerCase().trim(); applySearchFilter(); }
+function clearSearch() {
+  const el = document.getElementById('qa-search');
+  if(el) el.value = '';
+  _searchQ = '';
+  applySearchFilter();
+}
+
+function applySearchFilter() {
+  document.querySelectorAll('table tbody tr[id^="row-"]').forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const show = !_searchQ || text.includes(_searchQ);
+    row.style.display = show ? '' : 'none';
+    const rowKey = row.id.replace('row-','');
+    const gr = document.getElementById(`guide-row-${rowKey}`);
+    const nr = document.getElementById(`note-row-${rowKey}`);
+    if(!show) { if(gr) gr.style.display='none'; if(nr) nr.style.display='none'; }
+  });
+}
+
+// ── ALM HUB ─────────────────────────────────────────────────────────────────
+async function loadKanbanTasks() {
+  if(!saToken) return;
+  try {
+    const res = await fetch(`${API}/sa/kanban/tasks?status=in_progress`, { headers: { 'Authorization': saToken } });
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.success && Array.isArray(data.tasks)) kanbanTasks = data.tasks;
+    else if(Array.isArray(data)) kanbanTasks = data;
+    if(currentView==='tests') renderTests(currentFilter);
+    if(currentView==='alm')   renderALMHub();
+    showToast(`נטענו ${kanbanTasks.length} משימות מהקנבן`);
+  } catch(e) { console.warn('Kanban not available:', e.message); }
+}
+
+function renderALMHub() { renderSortingQueue(); renderVersionTracker(); }
+
+function renderSortingQueue() {
+  const el = document.getElementById('sort-queue-container');
+  const cnt = document.getElementById('sort-queue-count');
+  if(!el) return;
+  const tasks = kanbanTasks.filter(t => taskAssignments[t.id]?.status === 'sorting');
+  if(cnt) cnt.textContent = tasks.length;
+  if(!tasks.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8"><i class="fa-solid fa-inbox" style="font-size:2rem;margin-bottom:.6rem;display:block"></i><p style="font-size:.78rem">אין משימות בתור המיון</p></div>`;
+    return;
+  }
+  const catOpts = SECTIONS.map(s=>`<option value="${s.id}">${s.title}</option>`).join('');
+  const verOpts = versions.length ? versions.map(v=>`<option value="${v.num}">${v.num}</option>`).join('') : '<option value="">אין גרסאות</option>';
+  el.innerHTML = tasks.map(task => `
+  <div class="sort-task-card">
+    <div class="sort-task-title">
+      <span>${task.title}</span>
+      <span class="sort-task-id">#${task.id}</span>
+    </div>
+    ${task.description?`<div class="sort-task-desc">${task.description}</div>`:''}
+    <div class="sort-task-selects">
+      <select class="sort-select" id="sq-ver-${task.id}">
+        <option value="">📦 בחר גרסה</option>${verOpts}
+        <option value="__standalone__">⚡ עצמאי</option>
+      </select>
+      <select class="sort-select" id="sq-mod-${task.id}">
+        <option value="">🗂 בחר מודול</option>${catOpts}
+      </select>
+      <select class="sort-select" id="sq-env-${task.id}">
+        <option value="">🌍 סביבה</option>
+        <option value="family">🏠 משפחה</option>
+        <option value="biz">💼 עסק</option>
+        <option value="comm">🤝 קהילה</option>
+        <option value="sa">🛡️ SA</option>
+      </select>
+    </div>
+    <button class="sort-save-btn" onclick="assignTask(${task.id})"><i class="fa-solid fa-floppy-disk"></i> שמור שיוך</button>
+  </div>`).join('');
+}
+
+function renderVersionTracker() {
+  const el = document.getElementById('version-tracker-container');
+  if(!el) return;
+  const assigned = kanbanTasks.filter(t => ['assigned','inqa','done'].includes(taskAssignments[t.id]?.status));
+  const standalones = assigned.filter(t => taskAssignments[t.id].versionId === '__standalone__');
+  const byVer = {};
+  assigned.filter(t => taskAssignments[t.id].versionId !== '__standalone__').forEach(t => {
+    const vid = taskAssignments[t.id].versionId;
+    if(!byVer[vid]) byVer[vid] = [];
+    byVer[vid].push(t);
+  });
+  if(!versions.length && !Object.keys(byVer).length && !standalones.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8"><i class="fa-solid fa-code-branch" style="font-size:2rem;margin-bottom:.6rem;display:block"></i><p style="font-size:.78rem">צור גרסה חדשה כדי להתחיל לעקוב</p></div>`;
+    return;
+  }
+  let html = '';
+  versions.slice().reverse().forEach(v => {
+    const tasks = byVer[v.num] || [];
+    const devDone = tasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
+    const qaDone  = tasks.filter(t => taskAssignments[t.id]?.status === 'done');
+    const devPct = tasks.length ? Math.round(devDone.length/tasks.length*100) : 0;
+    const qaPct  = tasks.length ? Math.round(qaDone.length/tasks.length*100) : 0;
+    html += `<div class="version-track-card">
+      <div class="vt-header">
+        <div class="vt-num"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>${v.num} <span class="version-tag vtag-${v.type}">${{release:'Release',beta:'Beta',hotfix:'Hotfix'}[v.type]||v.type}</span></div>
+        <span class="version-date">${v.date}</span>
+      </div>
+      <div class="vt-sla-wrap">
+        <div class="vt-sla-label"><span>⚙️ Dev</span><span>${devPct}%</span></div>
+        <div class="vt-sla-bar"><div class="vt-sla-fill-dev" style="width:${devPct}%"></div></div>
+        <div class="vt-sla-label"><span>🔬 QA</span><span>${qaPct}%</span></div>
+        <div class="vt-sla-bar"><div class="vt-sla-fill-qa" style="width:${qaPct}%"></div></div>
+      </div>
+      ${tasks.length
+        ? `<div class="vt-tasks">${tasks.map(renderVTRow).join('')}</div>`
+        : '<div style="font-size:.74rem;color:#94a3b8;padding:.2rem 0">אין משימות משויכות לגרסה עדיין</div>'}
+    </div>`;
+  });
+  if(standalones.length) {
+    html += `<div class="standalone-section">
+      <div class="standalone-label">⚡ פיתוחים עצמאיים</div>
+      <div class="version-track-card" style="border-style:dashed">${standalones.map(renderVTRow).join('')}</div>
+    </div>`;
+  }
+  el.innerHTML = html || `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:.78rem">אין משימות משויכות לגרסאות</div>`;
+}
+
+function renderVTRow(task) {
+  const a = taskAssignments[task.id] || {status:'assigned'};
+  const st = a.status;
+  const stLbl   = {assigned:'⚙️ בפיתוח', inqa:'🔬 QA', done:'✅ הושלם'};
+  const stCls   = {assigned:'vts-dev', inqa:'vts-qa', done:'vts-done'};
+  let btn = '';
+  if(st==='assigned') btn = `<button class="vt-action-btn vt-devdone-btn" onclick="completeDevTask(${task.id})">⚙️ פיתוח הסתיים</button>`;
+  else if(st==='inqa') btn = `<button class="vt-action-btn vt-done-btn" onclick="closeTaskDone(${task.id})">✅ QA עבר</button>`;
+  return `<div class="vt-task-row">
+    <span class="vt-task-name">${task.title}</span>
+    ${a.module?`<span class="vt-task-module">${a.module}</span>`:''}
+    <span class="vt-task-status ${stCls[st]||'vts-dev'}">${stLbl[st]||st}</span>
+    ${btn}
+  </div>`;
+}
+
+function approveForSorting(taskId) {
+  taskAssignments[taskId] = {...(taskAssignments[taskId]||{}), status:'sorting'};
+  saveState(); renderTests(currentFilter);
+  if(currentView==='alm') renderALMHub();
+  showToast('המשימה הועברה לתור המיון');
+}
+
+function assignTask(taskId) {
+  const verId = document.getElementById(`sq-ver-${taskId}`)?.value;
+  const mod   = document.getElementById(`sq-mod-${taskId}`)?.value;
+  const env   = document.getElementById(`sq-env-${taskId}`)?.value;
+  if(!verId || !mod) { showToast('יש לבחור גרסה ומודול'); return; }
+  taskAssignments[taskId] = {status:'assigned', versionId:verId, module:mod, env:env||'all'};
+  saveState(); renderALMHub();
+  showToast('שיוך נשמר!');
+}
+
+function completeDevTask(taskId) {
+  if(!taskAssignments[taskId]) return;
+  taskAssignments[taskId].status = 'inqa';
+  saveState(); renderALMHub(); renderTests(currentFilter);
+  showToast('פיתוח הסתיים — המשימה עברה לשלב QA');
+}
+
+function closeTaskDone(taskId) {
+  if(!taskAssignments[taskId]) return;
+  taskAssignments[taskId].status = 'done';
+  saveState(); renderALMHub(); renderTests(currentFilter);
+  showToast('המשימה נסגרה כ-DONE ✅');
+}
+
+function newALMVersion() {
+  const num  = prompt('מספר גרסה (למשל v1.2.0):', 'v1.0.0'); if(!num) return;
+  const type = prompt('סוג (release / beta / hotfix):', 'release');
+  const summary = prompt('סיכום השינויים:', '');
+  const allRows = allTestRows();
+  const c = countSectionRows(allRows);
+  versions.push({num, type:type||'release', summary, notes:'', date:new Date().toLocaleDateString('he-IL'), ok:c.ok, fail:c.fail+c.warn, total:allRows.length, state:JSON.parse(JSON.stringify(state))});
+  localStorage.setItem('qa_versions', JSON.stringify(versions));
+  const sb = document.getElementById('sb-ver'); if(sb) sb.textContent = num;
+  renderVersionTracker(); showToast(`גרסה ${num} נשמרה!`);
 }
 
 // ============================================================
-// STATS
+// STATS  (env-aware)
 // ============================================================
 function allTests() { return SECTIONS.flatMap(s=>s.tests); }
-function countSection(tests) {
+
+function allTestRows() {
+  const rows = [];
+  SECTIONS.forEach(sec => sec.tests.forEach(t => {
+    (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => rows.push({t,env}));
+  }));
+  return rows;
+}
+
+function countSectionRows(rows) {
   let ok=0,fail=0,warn=0,skip=0,none=0;
-  tests.forEach(t=>{
-    const s=getStatus(t.id);
+  rows.forEach(({t,env}) => {
+    const s = getStatus(t.id, env);
     if(s==='ok') ok++; else if(s==='fail') fail++; else if(s==='warn') warn++; else if(s==='skip') skip++; else none++;
   });
   return {ok,fail,warn,skip,none};
 }
 
+function countSection(tests) {
+  // backward-compat wrapper — counts across all envs
+  const rows = [];
+  tests.forEach(t => (t.envs&&t.envs.length?t.envs:['family']).forEach(env=>rows.push({t,env})));
+  return countSectionRows(rows);
+}
+
 function updateStats() {
-  const all = allTests();
-  const c = countSection(all);
+  const all = allTestRows();
+  const c = countSectionRows(all);
   const done = c.ok + c.fail + c.warn + c.skip;
   const pct = all.length ? Math.round(done/all.length*100) : 0;
   setText('s-total', all.length);
@@ -1103,7 +1918,7 @@ function renderModuleCards() {
 }
 
 function updateSidebarBadges() {
-  const c = countSection(allTests());
+  const c = countSectionRows(allTestRows());
   const failEl = document.getElementById('sb-fail-count');
   if(failEl) {
     failEl.textContent = c.fail + c.warn;
@@ -1117,7 +1932,16 @@ function updateSidebarBadges() {
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
-  const fails = allTests().filter(t => ['fail','warn'].includes(getStatus(t.id)));
+  // collect unique failing tests across all envs
+  const _failSet = new Set();
+  const fails = [];
+  allTests().forEach(t => {
+    (t.envs&&t.envs.length?t.envs:['family']).forEach(env => {
+      if(['fail','warn'].includes(getStatus(t.id,env)) && !_failSet.has(t.id)) {
+        _failSet.add(t.id); fails.push(t);
+      }
+    });
+  });
   if(!fails.length) {
     container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
       <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
@@ -1141,7 +1965,7 @@ function generateReport() {
     let g = `<div style="font-weight:700;font-size:0.8rem;color:${color};margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em">${title}</div>`;
     items.forEach(t=>{
       const s = getStatus(t.id);
-      const n = getNote(t.id);
+      const n = getNote(t.id, null) || '';
       const secName = SECTIONS.find(sec=>sec.tests.some(tt=>tt.id===t.id))?.title||'';
       const isWarn = s==='warn';
       g+=`<div class="report-item${isWarn?' report-item-warn':''}">
@@ -1224,8 +2048,9 @@ function showView(v) {
   const map={dashboard:0,tests:1,report:2,versions:3};
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
-  if(v==='tests') renderTests(currentFilter);
+  if(v==='tests')    renderTests(currentFilter);
   if(v==='versions') renderVersions();
+  if(v==='alm')      renderALMHub();
   if(v==='dashboard') updateStats();
 }
 
@@ -1240,21 +2065,26 @@ function showAllTests() {
 }
 
 function filterFails() {
-  const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id))).map(t=>t.id);
-  document.querySelectorAll('table tbody tr').forEach(row=>{
-    if(row.id && row.id.startsWith('row-')) {
-      const id = row.id.replace('row-','');
-      const show = fails.includes(id) || !row.id;
-      row.style.display = show ? '' : 'none';
-      const noteRow = document.getElementById(`note-row-${id}`);
-      if(noteRow) noteRow.style.display = 'none';
-    }
+  const failKeys = new Set();
+  allTests().forEach(t => {
+    (t.envs&&t.envs.length?t.envs:['family']).forEach(env => {
+      if(['fail','warn'].includes(getStatus(t.id,env))) failKeys.add(`${t.id}:${env}`);
+    });
+  });
+  document.querySelectorAll('table tbody tr[id^="row-"]').forEach(row => {
+    const rowKey = row.id.replace('row-','');
+    const show = failKeys.has(rowKey);
+    row.style.display = show ? '' : 'none';
+    const nr = document.getElementById(`note-row-${rowKey}`);
+    const gr = document.getElementById(`guide-row-${rowKey}`);
+    if(nr && !show) nr.style.display='none';
+    if(gr && !show) gr.style.display='none';
   });
 }
 
 function markAll(s) {
   if(!confirm(`לסמן את כל הבדיקות כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
-  allTests().forEach(t => { state[t.id]={s}; });
+  allTests().forEach(t => { (t.envs&&t.envs.length?t.envs:['family']).forEach(env=>{ state[sk(t.id,env)]={s}; }); });
   saveState();
   renderTests(currentFilter);
   showToast('כל הבדיקות סומנו!');
@@ -1274,13 +2104,22 @@ function toggleSection(head) {
 }
 
 async function exportReport() {
-  const c = countSection(allTests());
-  const fails = allTests().filter(t=>['fail','warn'].includes(getStatus(t.id)));
+  const allRows = allTestRows();
+  const c = countSectionRows(allRows);
+  const _expFailSet = new Set();
+  const fails = [];
+  allTests().forEach(t => {
+    (t.envs&&t.envs.length?t.envs:['family']).forEach(env => {
+      if(['fail','warn'].includes(getStatus(t.id,env)) && !_expFailSet.has(t.id)) {
+        _expFailSet.add(t.id); fails.push(t);
+      }
+    });
+  });
   
   // 1. שמירה מקומית (הורדת קובץ)
   let txt = `דוח QA — Oneflow Life\n`;
   txt += `תאריך: ${new Date().toLocaleString('he-IL')}\n`;
-  txt += `סה"כ: ${allTests().length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
+  txt += `סה"כ: ${allRows.length} | עברו: ${c.ok} | נכשלו: ${c.fail+c.warn} | דולגו: ${c.skip}\n\n`;
   txt += `=== בדיקות שנכשלו ===\n\n`;
   fails.forEach(t=>{
     const n=getNote(t.id);
@@ -1299,11 +2138,11 @@ async function exportReport() {
       try {
           const userName = JSON.parse(localStorage.getItem('ofl_sa_user') || '{}').name || 'QA Tester';
           const runResults = {
-              total: allTests().length,
+              total: allRows.length,
               passed: c.ok,
               failed: c.fail + c.warn,
               skipped: c.skip,
-              failedTests: fails.map(t => ({ id: t.id, note: getNote(t.id) }))
+              failedTests: fails.map(t => ({ id: t.id, note: getNote(t.id, null) }))
           };
           
           await fetch(`${API}/sa/qa/runs`, {
@@ -1336,6 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateStats();
       renderTests(null);
       renderVersions();
+      loadKanbanTasks().catch(()=>{});  // ברקע — לא חוסם
   });
 });
 
