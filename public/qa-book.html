@@ -2696,8 +2696,6 @@ function renderTestQueueBar() {
     <button class="queue-bar-clear" onclick="clearTestQueue()"><i class="fa-solid fa-xmark"></i></button>`;
 }
 
-let _runMode = false;
-
 function startTestRun() {
   const hasInqa = kanbanTasks.some(t => taskAssignments[t.id]?.status === 'inqa');
   if(!testQueue.size && !hasInqa) {
