@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const {  } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -372,7 +372,31 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
         if (!genAI) {
             return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
         }
-        
+
+        // פונקציה לווידוא תקינות טבלאות בעליית השרת
+async function initDB() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS internal_messages (
+                id SERIAL PRIMARY KEY,
+                title TEXT,
+                content TEXT,
+                target_type VARCHAR(50),
+                target_id INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS message_acknowledgments (
+                message_id INTEGER,
+                employee_id INTEGER,
+                status VARCHAR(20),
+                responded_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (message_id, employee_id)
+            );
+        `);
+        console.log('Database tables initialized successfully.');
+    } catch (e) { console.error('DB Init Error:', e); }
+}
+initDB();
         // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
@@ -5099,7 +5123,7 @@ app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
 app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
   try {
     const { status, qa_passed } = req.body;
-    await pool.query(
+    await .query(
       'UPDATE sa_dev_tasks SET status=$1, qa_passed=$2 WHERE id=$3',
       [status || 'pending', qa_passed === true, req.params.id]
     );
@@ -5111,11 +5135,45 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
 
 app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
   try {
-    await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+    await .query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// --- ראוטים למערכת הודעות פנימיות ---
+
+app.post('/api/messages/broadcast', verifySA, async (req, res) => {
+  const { title, content, targetType, targetId } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO internal_messages (title, content, target_type, target_id) VALUES ($1, $2, $3, $4) RETURNING id',
+      [title, content, targetType, targetId]
+    );
+    res.json({ success: true, messageId: rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/messages/acknowledge', async (req, res) => {
+  const { messageId, employeeId, status } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO message_acknowledgments (message_id, employee_id, status) VALUES ($1, $2, $3) ON CONFLICT (message_id, employee_id) DO UPDATE SET status=$3, responded_at=NOW()',
+      [messageId, employeeId, status]
+    );
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/messages/:id/stats', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT e.name, ma.status, ma.responded_at FROM message_acknowledgments ma JOIN employees e ON ma.employee_id = e.id WHERE ma.message_id = $1',
+      [req.params.id]
+    );
+    res.json({ success: true, stats: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
