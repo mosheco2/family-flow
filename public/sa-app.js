@@ -3399,9 +3399,102 @@ window.sendSAAIMessage = async function(e) {
         const typingEl = getEl(typingId);
         if(typingEl) typingEl.remove();
         chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת</div>`;
-    } finally {
+   } finally {
         btn.disabled = false;
         setTimeout(() => input.focus(), 100);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 };
+
+// ==========================================
+// --- מערכת הודעות פנימיות ואישורים ---
+// ==========================================
+
+function toggleIntMsgTarget() {
+    const type = val('int-msg-target-type');
+    const wrapper = getEl('int-msg-target-val-wrapper');
+    if (type === 'team') {
+        wrapper.classList.remove('hidden');
+        const select = getEl('int-msg-target-val');
+        if (typeof saTeamsCache !== 'undefined' && saTeamsCache.length > 0) {
+            select.innerHTML = saTeamsCache.map(t => `<option value="${t.id}">${safeStr(t.name)}</option>`).join('');
+        } else {
+            select.innerHTML = '<option value="">אין צוותים מוגדרים (או חסר קאש)</option>';
+        }
+    } else {
+        wrapper.classList.add('hidden');
+    }
+}
+
+function openInternalMsgModal() {
+    getEl('int-msg-title').value = '';
+    getEl('int-msg-content').value = '';
+    getEl('int-msg-target-type').value = 'all';
+    toggleIntMsgTarget();
+    getEl('sa-internal-msg-modal').classList.remove('hidden');
+}
+
+async function sendInternalMsg() {
+    const title = val('int-msg-title');
+    const content = val('int-msg-content');
+    const targetType = val('int-msg-target-type');
+    const targetId = targetType === 'team' ? val('int-msg-target-val') : null;
+
+    if (!title || !content) return showToast('error', 'יש למלא נושא ותוכן.');
+
+    try {
+        const res = await fetch(`${API}/messages/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ title, content, targetType, targetId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הודעה פנימית נשלחה בהצלחה!');
+            getEl('sa-internal-msg-modal').classList.add('hidden');
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הודעה.');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת בשליחת הודעה.');
+    }
+}
+
+async function openInternalMsgStatsModal(msgId, title) {
+    getEl('stats-msg-title').innerText = `מנתח נתונים עבור: ${title}`;
+    const tbody = getEl('stats-msg-body');
+    tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-slate-400">טוען נתונים...</td></tr>';
+    getEl('sa-internal-msg-stats-modal').classList.remove('hidden');
+
+    try {
+        const res = await fetch(`${API}/messages/${msgId}/stats`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            if (!data.stats || data.stats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-slate-400">טרם התקבלו מענים מאף עובד.</td></tr>';
+            } else {
+                tbody.innerHTML = data.stats.map(s => {
+                    let statusHtml = '';
+                    if(s.status === 'read') statusHtml = '<span class="text-blue-500 bg-blue-50 px-2 py-1 rounded font-bold">קראתי</span>';
+                    else if(s.status === 'approved') statusHtml = '<span class="text-green-500 bg-green-50 px-2 py-1 rounded font-bold">אישרתי</span>';
+                    else if(s.status === 'rejected') statusHtml = '<span class="text-red-500 bg-red-50 px-2 py-1 rounded font-bold">ביטלתי</span>';
+                    else statusHtml = '<span class="text-slate-400">לא ידוע</span>';
+
+                    const dateStr = s.responded_at ? new Date(s.responded_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'}) : '---';
+
+                    return `
+                        <tr>
+                            <td class="px-4 py-2 font-bold text-slate-700">${safeStr(s.name)}</td>
+                            <td class="px-4 py-2 text-center">${statusHtml}</td>
+                            <td class="px-4 py-2 text-slate-500 dir-ltr">${dateStr}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">${safeStr(data.error)}</td></tr>`;
+        }
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">שגיאת רשת.</td></tr>';
+    }
+}
