@@ -575,6 +575,8 @@ let kanbanTasks = [];
 let taskAssignments = {};
 let dismissedTaskIds = new Set();
 let versionTasks = {};
+// אוסף מזהי בדיקות שאושרו לספר המוצר (DEV-* + עברו ריצת בדיקות)
+let approvedTests = new Set(JSON.parse(localStorage.getItem('approved_tests') || '[]'));
 
 // ============================================================
 // SERVER INTEGRATION
@@ -1631,17 +1633,34 @@ function renderTests(filter) {
   }
 
   let html = '';
-  const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
 
-  // אם הפילטר לא מצא קטגוריה — הצג הודעה ברורה
+  // בספר המוצר — סנן רק בדיקות שאושרו
+  let rawSections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
+  const sections = currentView === 'book' && approvedTests.size > 0
+    ? rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0)
+    : rawSections;
+
+  // אם אין קטגוריות להציג — הצג הודעה מתאימה
   if(!sections.length) {
-    container.innerHTML = `
-      <div style="text-align:center;padding:3rem;color:#94a3b8">
-        <i class="fa-solid fa-magnifying-glass" style="font-size:2rem;margin-bottom:.75rem;display:block"></i>
-        <p style="font-size:.85rem;font-weight:600">לא נמצאו בדיקות לקטגוריה זו</p>
-        <p style="font-size:.75rem;margin-top:.4rem">ייתכן שהנתונים עדיין בטעינה, נסה לרענן את המערכת.</p>
-        <button class="btn btn-outline" style="margin-top:1rem" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן</button>
-      </div>`;
+    if(currentView === 'book') {
+      container.innerHTML = `
+        <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
+          <i class="fa-solid fa-book-open" style="font-size:3rem;color:#e2e8f0;display:block;margin-bottom:1rem"></i>
+          <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">ספר המוצר ריק</h3>
+          <p style="font-size:.82rem;color:#94a3b8;line-height:1.7">
+            ספר המוצר מציג רק בדיקות שעברו סבב QA מאושר.<br>
+            לאחר "סיים ריצה" עם בדיקות שסומנו ✓, הן יופיעו כאן.
+          </p>
+          <button class="btn btn-purple" style="margin-top:1rem" onclick="showView('tests')"><i class="fa-solid fa-flask"></i> עבור ל-QA Staging</button>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div style="text-align:center;padding:3rem;color:#94a3b8">
+          <i class="fa-solid fa-magnifying-glass" style="font-size:2rem;margin-bottom:.75rem;display:block"></i>
+          <p style="font-size:.85rem;font-weight:600">לא נמצאו בדיקות לקטגוריה זו</p>
+          <button class="btn btn-outline" style="margin-top:1rem" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן</button>
+        </div>`;
+    }
     return;
   }
   sections.forEach(sec => {
@@ -1651,7 +1670,7 @@ function renderTests(filter) {
     const pct = Math.round((counts.ok + counts.skip) / total * 100);
     const addBtn = sec.id === 'general'
       ? `<button onclick="event.stopPropagation();addNewQATask()" style="margin-right:.5rem;border:1px solid #7c3aed;background:#faf5ff;color:#7c3aed;border-radius:.4rem;padding:.1rem .5rem;font-size:.65rem;cursor:pointer;vertical-align:middle" title="הוסף משימה חדשה לבדיקת QA"><i class="fa-solid fa-plus"></i> הוסף משימה</button>`
-      : `<button onclick="event.stopPropagation();addTestToSection('${sec.id}')" style="margin-right:.5rem;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:.4rem;padding:.1rem .4rem;font-size:.65rem;cursor:pointer;vertical-align:middle" title="הוסף בדיקה חדשה"><i class="fa-solid fa-plus"></i></button>`;
+      : `<button onclick="event.stopPropagation();addTestToSection('${sec.id}')" style="margin-right:.5rem;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:.4rem;padding:.1rem .5rem;font-size:.65rem;cursor:pointer;vertical-align:middle" title="הוסף משימה"><i class="fa-solid fa-plus"></i> הוסף משימה</button>`;
 
     html += `
     <div class="section" id="sec-${sec.id}">
@@ -2079,7 +2098,6 @@ async function passQATest(taskId) {
     if(sec && !sec.tests.find(t=>t.id===newId)) {
       const envs = a.env && a.env !== 'all' ? [a.env] : ['family','biz'];
       sec.tests.push({id:newId, name:task.title, desc:task.description||'', prio:task.priority||'medium', envs});
-      // שמור מדריך בדיקה מהמשימה (כולל צעדים שהוזנו ידנית)
       if(task.description || a.qa_guide_steps) {
         const rawSteps = a.qa_guide_steps
           ? a.qa_guide_steps.split('\n').map(s=>s.trim()).filter(Boolean)
@@ -2087,6 +2105,9 @@ async function passQATest(taskId) {
         GUIDE_BOOK[newId] = {path: catName + ' — ' + (a.module||''), steps: rawSteps, expected: task.description||task.title};
       }
     }
+    // הוסף לספר המוצר המאושר
+    approvedTests.add(newId);
+    localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
   }
   renderQAStaging();
   updateStats();
@@ -2857,7 +2878,16 @@ async function finalizeTestRun() {
   };
   _qaRuns.unshift(run);
   localStorage.setItem('qa_runs', JSON.stringify(_qaRuns));
-  inqaTasks.forEach(task => { if(taskAssignments[task.id]) taskAssignments[task.id].status = 'archived'; });
+  // הוסף בדיקות שעברו (ok) לספר המוצר המאושר
+  manualItems.forEach(item => {
+    if(item.status === 'ok') approvedTests.add(item.testId);
+  });
+  inqaTasks.forEach(task => {
+    const a = taskAssignments[task.id] || {};
+    if(a.qa_passed) approvedTests.add(`DEV-${task.id}`);
+    if(a.status !== 'archived') a.status = 'archived';
+  });
+  localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
   saveState();
   showView('versions');
   renderVersions();
