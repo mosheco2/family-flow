@@ -364,23 +364,46 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ראוט עוזרת AI למנהל המערכת (Super Admin) - מחובר למנוע ה-REST הישיר והיציב
+// ראוט עוזרת AI למנהל המערכת (Super Admin) - מודל הדגל PRO ליכולות שיא
 app.post('/api/ai/chat', verifySA, async (req, res) => {
     try {
         const { message } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY;
         
-        const prompt = `אתה עוזר וירטואלי (AI Assistant) למנהל מערכת (Super Admin) במערכת Oneflow Life. 
-        התפקיד שלך הוא לעזור למנהל בפעולות, חיזוי, מתן רעיונות וניתוח.
-        ענה תמיד בעברית תקנית, בצורה מקצועית, קצרה ולעניין.
-        בקשת המנהל אליך: ${message}`;
+        if (!apiKey) {
+            return res.status(500).json({ success: false, error: 'מפתח Gemini לא מוגדר ב-ENV של השרת.' });
+        }
         
-        // שימוש בפונקציית המעקף החכמה שכבר קיימת אצלך בקובץ!
-        const reply = await callGeminiDirect(prompt);
+        // הזרקת זהות מקצועית ויכולות אנליטיות מורחבות
+        const systemInstruction = `אתה עוזר AI מתקדם ברמת Expert (מומחה) למנהל העל (Super Admin) של מערכת Oneflow Life. 
+המערכת מנהלת קהילות, משפחות, עסקים, קריאות שירות, תהליכי פיתוח (ALM/QA) ותקציבים.
+המטרה שלך היא לספק ניתוחי עומק, חיזוי מגמות, ייעול תהליכים, ורעיונות אוטומציה.
+התשובות שלך צריכות להיות מקצועיות, חדות, אנליטיות ומבוססות על נתונים והיגיון עסקי.
+אם המנהל מבקש ממך לבצע פעולה פיזית במסד הנתונים, הסבר לו שכרגע אין לך גישת כתיבה ישירה (Write Access), אך ספק לו את הפקודה המדויקת, ההנחיה, או שאילתת ה-SQL שהוא צריך להריץ כדי לבצע זאת.`;
+
+        const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
         
+        // פנייה ישירה למודל החזק ביותר: gemini-1.5-pro
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error?.message || 'שגיאה משרתי גוגל');
+        }
+
+        const reply = data.candidates[0].content.parts[0].text;
         res.json({ success: true, reply });
+
     } catch(e) { 
         console.error('AI Chat Error:', e.message);
-        res.status(500).json({ success: false, error: `תקלת גוגל: ${e.message}` }); 
+        res.status(500).json({ success: false, error: `תקלת תקשורת מול גוגל: ${e.message}` }); 
     }
 });
 // הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
