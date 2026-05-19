@@ -396,7 +396,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <div class="sb-link" onclick="showBook()"><i class="fa-solid fa-book-open"></i> ספר המוצר</div>
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
     <div class="sb-link" onclick="showView('alm')"><i class="fa-solid fa-diagram-project"></i> ALM Hub — פיתוח</div>
-    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-code-branch"></i> היסטוריית גרסאות</div>
+    <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-clock-rotate-left"></i> היסטוריה</div>
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
@@ -477,11 +477,10 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 <!-- QA STAGING VIEW -->
 <div id="view-tests" class="view">
   <div class="page-header">
-       <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
+    <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
-      <button class="btn btn-green" onclick="startTestRun()"><i class="fa-solid fa-play"></i> הרץ בדיקות</button>
-      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()">
-      <i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
+      <button class="btn btn-green" onclick="finalizeTestRun()"><i class="fa-solid fa-flag-checkered"></i> סיים הרצה ושמור להיסטוריה</button>
+      <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
     </div>
   </div>
   <div id="qa-staging-container">
@@ -562,10 +561,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 <!-- VERSIONS VIEW -->
 <div id="view-versions" class="view">
   <div class="page-header">
-    <h2><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i> היסטוריית גרסאות</h2>
-    <div class="page-actions">
-      <button class="btn btn-purple" onclick="newVersion()"><i class="fa-solid fa-plus"></i> גרסה חדשה</button>
-    </div>
+    <h2><i class="fa-solid fa-clock-rotate-left" style="color:#7c3aed"></i> היסטוריה</h2>
   </div>
   <!-- Filters -->
   <div style="background:white;border-radius:.75rem;padding:.85rem 1rem;margin-bottom:1rem;border:1px solid #e2e8f0;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
@@ -1806,6 +1802,9 @@ function renderTests(filter) {
           <button class="sec-select-all-btn" onclick="event.stopPropagation();selectSectionForQueue('${sec.id}')">בחר הכל</button>
         </h3>
         <div class="section-meta">
+         <h3><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}</h3>
+        <div class="section-meta">
+          <button onclick="event.stopPropagation();addTestToSection('${sec.id}')" style="border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:.4rem;padding:.15rem .5rem;font-size:.68rem;cursor:pointer;margin-left:.3rem" title="הוסף בדיקה חדשה"><i class="fa-solid fa-plus"></i></button>
           <span style="font-size:.7rem;color:var(--ok);font-weight:700">${counts.ok}✓</span>
           <span style="font-size:.7rem;color:var(--fail);font-weight:700">${counts.fail}✗</span>
           <span class="section-pct">${pct}%</span>
@@ -2046,7 +2045,7 @@ function renderQueuedTestRow(t, env) {
 function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
-  const inqaTasks = kanbanTasks.filter(t => taskAssignments[t.id]?.status === 'inqa');
+  const inqaTasks = kanbanTasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
   let manualHtml = '';
   if(testQueue.size > 0) {
     const queuedRows = [];
@@ -2317,7 +2316,7 @@ function restoreHiddenBook() {
   });
   container.innerHTML = rows.join('');
 }
-
+  
 function deleteTest(testId) {
   if(!confirm(`מחק את הבדיקה ${testId} מספר המוצר?`)) return;
   deletedTestIds.add(testId);
@@ -2333,6 +2332,31 @@ function deleteTest(testId) {
   showToast('🗑️ הבדיקה הוסרה מספר המוצר');
 }
 
+async function addTestToSection(secId) {
+  const name = prompt('שם הבדיקה:'); if(!name) return;
+  const desc = prompt('תיאור קצר (אופציונלי):', '') || '';
+  const prio = prompt('עדיפות (critical/high/medium/low):', 'medium') || 'medium';
+  const envsRaw = prompt('סביבות (family,biz,comm,sa — מופרדות בפסיק):', 'family') || 'family';
+  const envs = envsRaw.split(',').map(e=>e.trim()).filter(Boolean);
+  const sec = SECTIONS.find(s => s.id === secId);
+  if(!sec) return;
+  const newId = `${secId.toUpperCase()}-${Date.now().toString().slice(-4)}`;
+  const newTest = {id:newId, name, desc, prio, envs};
+  sec.tests.push(newTest);
+  if(saToken) {
+    try {
+      await fetch(`${API}/sa/qa/tests`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({id:newId, category:sec.title, name, description:desc, priority:prio})
+      });
+    } catch(e) { console.warn('addTest save:', e.message); }
+  }
+  renderTests(currentFilter);
+  updateStats();
+  showToast(`✅ בדיקה "${name}" נוספה לקטגוריה ${sec.title}`);
+}
+  
 function saveQAGuideSteps(taskId, steps) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_guide_steps = steps;
@@ -2439,11 +2463,6 @@ async function passVersionQA(verId) {
   showBook();
 }
 
-function showAllBook() {
-  currentFilter = null;
-  renderTests(null);
-}
-
 function showBook() {
   currentFilter = null;
   const h2 = document.querySelector('#view-book .page-header h2');
@@ -2451,16 +2470,23 @@ function showBook() {
   showView('book');
 }
 
+  function showAllBook() {
+  currentFilter = null;
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
+  showView('book');
+  renderTests(null);
+}
+
 function filterBook(id) {
   currentFilter = id;
   const sec = SECTIONS.find(s => s.id === id);
   const h2 = document.querySelector('#view-book .page-header h2');
-  if(h2) {
-    h2.innerHTML = sec
-      ? `<i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}`
-      : `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
-  }
+  if(h2) h2.innerHTML = sec
+    ? `<i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i> ${sec.title}`
+    : `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
   showView('book');
+  renderTests(id);
 }
 
 // ── ENV FILTER ──────────────────────────────────────────────────────────────
@@ -2995,6 +3021,16 @@ function countSection(tests) {
 function updateStats() {
   const all = allTestRows();
   const c = countSectionRows(all);
+  // הוסף ספירת משימות SA (kanban)
+  kanbanTasks.forEach(task => {
+    const a = taskAssignments[task.id] || {};
+    if(['inqa','done','archived'].includes(a.status)) {
+      if(a.qa_passed) c.ok++;
+      else if(a.status === 'done' && !a.qa_passed) c.fail++;
+      else c.none++;
+      all.push({t:{id:`SA-${task.id}`,envs:['family']},env:'family'});
+    }
+  });
   const done = c.ok + c.fail + c.warn + c.skip;
   const pct = all.length ? Math.round(done/all.length*100) : 0;
   setText('s-total', all.length);
@@ -3155,6 +3191,117 @@ function setVerFilter(f) {
 
 function filterVersions() { _verPage = 0; renderVersions(); }
 
+let _qaRuns = JSON.parse(localStorage.getItem('qa_runs') || '[]');
+
+async function finalizeTestRun() {
+  const inqaTasks = kanbanTasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
+  const manualItems = [];
+  testQueue.forEach(rk => {
+    const [testId, env] = rk.split(':');
+    SECTIONS.forEach(sec => {
+      const t = sec.tests.find(tt => tt.id === testId);
+      if(t) manualItems.push({testId, testName:t.name, env, status:getStatus(testId,env)||null, note:getNote(testId,env)||''});
+    });
+  });
+  if(!inqaTasks.length && !manualItems.length) { showToast('אין משימות בהרצה הנוכחית'); return; }
+  if(!confirm('לסיים את ההרצה ולשמור להיסטוריה?')) return;
+
+  const byVer = {};
+  const standalones = [];
+  inqaTasks.forEach(task => {
+    const a = taskAssignments[task.id] || {};
+    const item = {taskId:task.id, title:task.title, qa_passed:!!a.qa_passed, qa_note:a.qa_note||'', module:a.module||'', env:a.env||'all'};
+    if(a.versionId === '__standalone__') standalones.push(item);
+    else { const v = a.versionId||'ללא גרסה'; if(!byVer[v]) byVer[v]=[]; byVer[v].push(item); }
+  });
+
+  const groups = [];
+  Object.entries(byVer).forEach(([verId, tasks]) => {
+    const ok = tasks.filter(t=>t.qa_passed).length;
+    groups.push({type:'version', versionId:verId, tasks, stats:{ok, fail:tasks.length-ok, total:tasks.length}});
+  });
+  if(standalones.length) {
+    const ok = standalones.filter(t=>t.qa_passed).length;
+    groups.push({type:'standalone', tasks:standalones, stats:{ok, fail:standalones.length-ok, total:standalones.length}});
+  }
+  if(manualItems.length) {
+    const ok = manualItems.filter(i=>i.status==='ok').length;
+    const fail = manualItems.filter(i=>['fail','warn'].includes(i.status)).length;
+    groups.push({type:'manual', tests:manualItems, stats:{ok, fail, total:manualItems.length}});
+  }
+
+  const totalOk   = groups.reduce((s,g)=>s+g.stats.ok,0);
+  const totalFail = groups.reduce((s,g)=>s+g.stats.fail,0);
+  const totalAll  = groups.reduce((s,g)=>s+g.stats.total,0);
+
+  const run = {
+    id: Date.now(),
+    date: new Date().toLocaleDateString('he-IL'),
+    time: new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}),
+    groups,
+    stats:{ok:totalOk, fail:totalFail, total:totalAll}
+  };
+  _qaRuns.unshift(run);
+  localStorage.setItem('qa_runs', JSON.stringify(_qaRuns));
+
+  // נקה משימות שהסתיימו מה-staging
+  inqaTasks.forEach(task => { if(taskAssignments[task.id]) taskAssignments[task.id].status = 'archived'; });
+  clearTestQueue();
+  saveState();
+
+  showView('versions');
+  renderVersions();
+  showToast('✅ הרצת הבדיקות נשמרה בהיסטוריה');
+}
+
+function toggleRunEntry(runId) {
+  const body = document.getElementById(`run-body-${runId}`);
+  const chev = document.getElementById(`run-chev-${runId}`);
+  if(!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if(chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function toggleRunGroup(gid) {
+  const body = document.getElementById(`rg-body-${gid}`);
+  const chev = document.getElementById(`rg-chev-${gid}`);
+  if(!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if(chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function generateRunReport(runId) {
+  const run = _qaRuns.find(r => r.id === runId);
+  if(!run) return;
+  const container = document.getElementById('report-container');
+  const STATUS_COLOR = {ok:'#16a34a',fail:'#dc2626',warn:'#d97706',skip:'#64748b'};
+  let html = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.25rem;margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:center">
+    <div style="font-weight:800;font-size:1rem;color:#1e293b">דוח הרצה — ${run.date} ${run.time}</div>
+    <span style="color:#16a34a;font-weight:700">✅ ${run.stats.ok}</span>
+    <span style="color:#dc2626;font-weight:700">❌ ${run.stats.fail}</span>
+    <span style="color:#64748b">סה"כ ${run.stats.total}</span>
+  </div>`;
+  run.groups.forEach(g => {
+    const title = g.type==='version' ? `גרסה: ${g.versionId}` : g.type==='standalone' ? 'עצמאיות' : 'בדיקות ידניות';
+    html += `<div style="font-weight:700;font-size:.78rem;color:#7c3aed;margin:.75rem 0 .3rem">${title}</div>`;
+    const items = g.type==='manual' ? g.tests.map(i=>({name:i.testName, status:i.status||'none', note:i.note, env:i.env}))
+      : g.tasks.map(t=>({name:t.title, status:t.qa_passed?'ok':'fail', note:t.qa_note, env:t.env}));
+    html += `<table style="width:100%;border-collapse:collapse;font-size:.75rem"><thead><tr style="background:#f1f5f9">
+      <th style="padding:.3rem .5rem;text-align:right">שם</th><th style="padding:.3rem .5rem;text-align:right">סביבה</th>
+      <th style="padding:.3rem .5rem;text-align:right">סטטוס</th><th style="padding:.3rem .5rem;text-align:right">הערות</th>
+    </tr></thead><tbody>${items.map(i=>`<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:.3rem .5rem">${i.name}</td>
+      <td style="padding:.3rem .5rem;color:#64748b">${i.env||''}</td>
+      <td style="padding:.3rem .5rem;font-weight:700;color:${STATUS_COLOR[i.status]||'#64748b'}">${i.status==='ok'?'✅ עבר':i.status==='fail'?'❌ נכשל':'—'}</td>
+      <td style="padding:.3rem .5rem;color:#64748b">${i.note||''}</td>
+    </tr>`).join('')}</tbody></table>`;
+  });
+  container.innerHTML = html;
+  showView('report');
+}
+  
 function renderVersions() {
   const el = document.getElementById('versions-container');
   const pag = document.getElementById('ver-pagination');
