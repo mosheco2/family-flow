@@ -364,7 +364,7 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ראוט עוזרת AI למנהל המערכת (Super Admin) - מודל הדגל PRO ליכולות שיא
+// ראוט עוזרת AI למנהל המערכת (Super Admin) - מודל Flash המהיר עם יכולות מומחה (Expert)
 app.post('/api/ai/chat', verifySA, async (req, res) => {
     try {
         const { message } = req.body;
@@ -374,7 +374,7 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
             return res.status(500).json({ success: false, error: 'מפתח Gemini לא מוגדר ב-ENV של השרת.' });
         }
         
-        // הזרקת זהות מקצועית ויכולות אנליטיות מורחבות
+        // הזרקת זהות מקצועית (System Prompt) - זה מה שהופך את המודל למומחה אנליטי חזק
         const systemInstruction = `אתה עוזר AI מתקדם ברמת Expert (מומחה) למנהל העל (Super Admin) של מערכת Oneflow Life. 
 המערכת מנהלת קהילות, משפחות, עסקים, קריאות שירות, תהליכי פיתוח (ALM/QA) ותקציבים.
 המטרה שלך היא לספק ניתוחי עומק, חיזוי מגמות, ייעול תהליכים, ורעיונות אוטומציה.
@@ -383,8 +383,8 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
         
-        // פנייה ישירה למודל החזק ביותר עם הסיומת המדויקת: gemini-1.5-pro-latest
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
+        // חזרנו למודל gemini-1.5-flash שעובד בוודאות על המפתח שלך ומהיר פי 3
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
