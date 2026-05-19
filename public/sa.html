@@ -568,8 +568,35 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-               <div id="sa-view-inbox" class="hidden space-y-8 fade-in">
-                    <div class="bg-gradient-to-br from-indigo-900 to-purple-900 p-6 sm:p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden border border-indigo-800">
+<div id="sa-view-inbox" class="hidden space-y-6">
+            
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md mb-8">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-rays text-indigo-500"></i> הודעות פנימיות לצוות ולעובדים</h2>
+                        <p class="text-sm text-slate-500 mt-1">שליחת הודעות לעובדים, עם מעקב אישורי קריאה.</p>
+                    </div>
+                    <button onclick="openInternalMsgModal()" class="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-100 transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> הודעה פנימית חדשה
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right whitespace-nowrap">
+                        <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                            <tr>
+                                <th class="px-4 py-3 rounded-tr-lg">כותרת ההודעה</th>
+                                <th class="px-4 py-3">קהל יעד</th>
+                                <th class="px-4 py-3">תאריך שליחה</th>
+                                <th class="px-4 py-3 text-center rounded-tl-lg">פעולות וסטטיסטיקה</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sa-internal-msg-list" class="divide-y divide-slate-100">
+                            <tr><td colspan="4" class="px-4 py-4 text-center text-slate-500">טוען הודעות פנימיות...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+                <div class="bg-gradient-to-br from-indigo-900 to-purple-900 p-6 sm:p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden border border-indigo-800">
                         <i class="fa-solid fa-satellite-dish absolute -left-10 -bottom-10 text-9xl text-white opacity-5 transform -rotate-12 pointer-events-none"></i>
                         <h2 class="text-2xl font-black mb-2 flex items-center gap-2 relative z-10"><i class="fa-solid fa-paper-plane text-indigo-400"></i> הפצת הודעות מרכזית (Broadcast)</h2>
                         <p class="text-sm text-indigo-200 mb-6 relative z-10">הודעות שיישלחו מכאן יופיעו ישירות בתיבת ההודעות (Inbox) של מנהלי המערכת (לקוחות, משפחות, בעלי עסקים).</p>
@@ -612,33 +639,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                             </div>
                                         </div>
 
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md mb-8">
-                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                    <div>
-                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-rays text-indigo-500"></i> הודעות פנימיות לצוות ולעובדים</h2>
-                        <p class="text-sm text-slate-500 mt-1">שליחת הודעות לעובדים, עם מעקב אישורי קריאה.</p>
-                    </div>
-                    <button onclick="openInternalMsgModal()" class="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-100 transition flex items-center gap-2">
-                        <i class="fa-solid fa-plus"></i> הודעה פנימית חדשה
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-right whitespace-nowrap">
-                        <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
-                            <tr>
-                                <th class="px-4 py-3 rounded-tr-lg">כותרת ההודעה</th>
-                                <th class="px-4 py-3">קהל יעד</th>
-                                <th class="px-4 py-3">תאריך שליחה</th>
-                                <th class="px-4 py-3 text-center rounded-tl-lg">פעולות וסטטיסטיקה</th>
-                            </tr>
-                        </thead>
-                       <tbody id="sa-internal-msg-list" class="divide-y divide-slate-100">
-                            <tr><td colspan="4" class="px-4 py-4 text-center text-slate-500">התשתית מוכנה - הטענת הנתונים תתווסף בשלב הבא</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+                  </div>
 
         <div id="sa-view-content" class="hidden space-y-8 fade-in">
                     
