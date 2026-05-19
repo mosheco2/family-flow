@@ -383,8 +383,8 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
         
-        // פנייה ישירה למודל החזק ביותר: gemini-1.5-pro
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+        // פנייה ישירה למודל החזק ביותר עם הסיומת המדויקת: gemini-1.5-pro-latest
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
