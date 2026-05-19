@@ -5144,6 +5144,13 @@ app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
 
 // --- ראוטים למערכת הודעות פנימיות ---
 
+app.get('/api/messages/broadcast', verifySA, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM internal_messages ORDER BY created_at DESC');
+    res.json({ success: true, messages: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/messages/broadcast', verifySA, async (req, res) => {
   const { title, content, targetType, targetId } = req.body;
   try {
