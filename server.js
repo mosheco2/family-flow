@@ -365,17 +365,18 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ראוט עוזרת AI למנהל המערכת (Super Admin)
+// ראוט עוזרת AI למנהל המערכת (Super Admin) - גרסת תאימות לאחור ודיבאג
 app.post('/api/ai/chat', verifySA, async (req, res) => {
     try {
         const { message } = req.body;
+        
         if (!genAI) {
-            return res.status(500).json({ success: false, error: 'מפתח Gemini לא מוגדר בשרת Oneflow Life.' });
+            return res.status(500).json({ success: false, error: 'מפתח Gemini לא מוגדר בשרת.' });
         }
         
-        // בחירת מודל מהיר וחכם
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // שימוש במודל יציב שתמך בכל גרסאות הספריה הישנות
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         
-        // הזרקת פרומפט (הקשר) מערכתי כדי שה-AI ידע מי הוא
         const prompt = `אתה עוזר וירטואלי (AI Assistant) למנהל מערכת (Super Admin) במערכת Oneflow Life. 
         התפקיד שלך הוא לעזור למנהל בפעולות, חיזוי, מתן רעיונות וניתוח.
         ענה תמיד בעברית תקנית, בצורה מקצועית, קצרה ולעניין.
@@ -386,8 +387,9 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
         
         res.json({ success: true, reply });
     } catch(e) { 
-        console.error('AI Chat Error:', e);
-        res.status(500).json({ success: false, error: 'שגיאת תקשורת מול שרתי ה-AI של Google.' }); 
+        console.error('AI Chat Error:', e.message);
+        // עכשיו נראה בדיוק מה גוגל אומרת לנו על המסך!
+        res.status(500).json({ success: false, error: `תקלת גוגל: ${e.message}` }); 
     }
 });
 // הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
