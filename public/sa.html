@@ -632,16 +632,15 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <th class="px-4 py-3 text-center rounded-tl-lg">פעולות וסטטיסטיקה</th>
                             </tr>
                         </thead>
-                        <tbody id="sa-internal-msg-list" class="divide-y divide-slate-100">
+                       <tbody id="sa-internal-msg-list" class="divide-y divide-slate-100">
                             <tr><td colspan="4" class="px-4 py-4 text-center text-slate-500">התשתית מוכנה - הטענת הנתונים תתווסף בשלב הבא</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-
         </div>
 
-<div id="sa-view-content" class="hidden space-y-8 fade-in">
+        <div id="sa-view-content" class="hidden space-y-8 fade-in">
                     
                     <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
                         <h2 class="text-xl font-black mb-4 text-indigo-900"><i class="fa-solid fa-paint-roller text-indigo-500 mr-2"></i> מיתוג גלובלי מערכתי (White-Label)</h2>
@@ -1688,14 +1687,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 <div id="sa-ai-widget" class="fixed bottom-6 right-6 z-[9999] flex flex-col items-start fade-in pointer-events-none">
-    
-    <div id="sa-ai-chat-window" class="hidden pointer-events-auto bg-white ...">
-        </div>
-
-    <button onclick="toggleSAAIChat()" class="pointer-events-auto w-16 h-16 ...">
-        </button>
-</div>
-    <div id="sa-ai-chat-window" class="hidden bg-white w-80 sm:w-96 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex-col transition-all mb-4" style="height: 550px; max-height: 80vh;">
+        
+        <div id="sa-ai-chat-window" class="hidden pointer-events-auto bg-white w-80 sm:w-96 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex-col transition-all mb-4" style="height: 550px; max-height: 80vh;">
             <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center shrink-0 shadow-md">
                 <div class="flex items-center gap-3">
                     <img id="sa-ai-header-icon" src="https://cdn-icons-png.flaticon.com/512/8943/8943377.png" class="w-10 h-10 rounded-full bg-white/20 p-1 object-cover shadow-sm">
@@ -1724,7 +1717,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </div>
         </div>
         
-        <button onclick="toggleSAAIChat()" class="w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform border-4 border-indigo-50 relative group">
+        <button onclick="toggleSAAIChat()" class="pointer-events-auto w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform border-4 border-indigo-50 relative group">
             <img id="sa-ai-bubble-icon" src="https://cdn-icons-png.flaticon.com/512/8943/8943377.png" class="w-full h-full object-cover rounded-full p-0.5">
            <span class="absolute -top-1 -right-1 flex h-4 w-4">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
