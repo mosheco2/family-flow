@@ -5123,7 +5123,7 @@ app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
 app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
   try {
     const { status, qa_passed } = req.body;
-    await .query(
+    await pool.query(
       'UPDATE sa_dev_tasks SET status=$1, qa_passed=$2 WHERE id=$3',
       [status || 'pending', qa_passed === true, req.params.id]
     );
@@ -5135,7 +5135,7 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
 
 app.delete('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
   try {
-    await .query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+    await pool.query('DELETE FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch(e) {
     res.status(500).json({ error: e.message });
