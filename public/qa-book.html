@@ -577,6 +577,8 @@ let dismissedTaskIds = new Set();
 let versionTasks = {};
 // אוסף מזהי בדיקות שאושרו לספר המוצר (DEV-* + עברו ריצת בדיקות)
 let approvedTests = new Set(JSON.parse(localStorage.getItem('approved_tests') || '[]'));
+// תור בדיקות ידניות לסבב QA הנוכחי (rowKey = testId:env)
+let testQueue = new Set(JSON.parse(localStorage.getItem('qa_test_queue') || '[]'));
 
 // ============================================================
 // SERVER INTEGRATION
@@ -1606,6 +1608,101 @@ function getTestRows(sec) {
   return rows;
 }
 
+// ============================================================
+// TEST QUEUE — בחירת בדיקות לסבב QA
+// ============================================================
+function toggleTestInQueue(rowKey) {
+  if(testQueue.has(rowKey)) testQueue.delete(rowKey);
+  else testQueue.add(rowKey);
+  localStorage.setItem('qa_test_queue', JSON.stringify([...testQueue]));
+  const cb = document.getElementById(`cb-${rowKey.replace(':','-')}`);
+  if(cb) cb.checked = testQueue.has(rowKey);
+  renderStagingBar();
+}
+
+function selectAllInCategory() {
+  if(!currentFilter) return;
+  const sec = SECTIONS.find(s=>s.id===currentFilter);
+  if(!sec) return;
+  const rows = getTestRows(sec);
+  const allRk = rows.map(({t,env}) => `${t.id}:${env}`);
+  const allSel = allRk.length > 0 && allRk.every(rk => testQueue.has(rk));
+  allRk.forEach(rk => { if(allSel) testQueue.delete(rk); else testQueue.add(rk); });
+  localStorage.setItem('qa_test_queue', JSON.stringify([...testQueue]));
+  renderTests(currentFilter);
+}
+
+function clearTestQueue() {
+  testQueue.clear();
+  localStorage.setItem('qa_test_queue', JSON.stringify([]));
+}
+
+function removeFromQueue(rowKey) {
+  testQueue.delete(rowKey);
+  localStorage.setItem('qa_test_queue', JSON.stringify([...testQueue]));
+  renderQAStaging();
+}
+
+function renderStagingBar() {
+  const bar = document.getElementById('staging-ctrl-bar');
+  if(!bar) return;
+  const count = testQueue.size;
+  if(count === 0) {
+    bar.innerHTML = _stagingBarInner(0, false);
+  } else {
+    bar.innerHTML = _stagingBarInner(count, true);
+  }
+}
+
+function _stagingBarInner(count, hasItems) {
+  if(!currentFilter) return '';
+  const sec = SECTIONS.find(s=>s.id===currentFilter);
+  const allRows = sec ? getTestRows(sec) : [];
+  const allRk = allRows.map(({t,env}) => `${t.id}:${env}`);
+  const allSel = allRk.length > 0 && allRk.every(rk => testQueue.has(rk));
+  return `
+    <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.8rem;font-weight:600;color:#475569">
+      <input type="checkbox" ${allSel?'checked':''} onchange="selectAllInCategory()" style="width:.95rem;height:.95rem;cursor:pointer">
+      בחר הכל (${allRows.length})
+    </label>
+    ${hasItems ? `
+    <span style="font-size:.78rem;color:#7c3aed;font-weight:700">${count} נבחרו</span>
+    <button class="btn btn-purple" onclick="showView('tests')" style="font-size:.74rem;padding:.25rem .7rem">
+      <i class="fa-solid fa-flask"></i> שלח לסטייג'ינג
+    </button>
+    <button onclick="clearTestQueue();renderTests(currentFilter)" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.74rem;padding:.2rem .4rem">
+      <i class="fa-solid fa-xmark"></i> נקה
+    </button>` : ''}`;
+}
+
+function renderManualStagingRow(rk) {
+  const [testId, env] = rk.split(':');
+  const s = getStatus(testId, env);
+  const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env;
+  let testName = testId, secTitle = '';
+  SECTIONS.forEach(sec => {
+    const t = sec.tests.find(tt => tt.id === testId);
+    if(t) { testName = t.name; secTitle = sec.title; }
+  });
+  const sClass = {ok:'qa-pass-btn',fail:'qa-fail-btn',warn:'qa-pass-btn',skip:''}[s]||'';
+  return `
+  <div class="qa-task-row" id="mqa-row-${rk.replace(':','-')}">
+    <div class="qa-task-info">
+      <div class="qa-task-title"><span style="color:#64748b;font-size:.7rem;margin-left:.4rem">${testId}</span>${testName}</div>
+      <div class="qa-task-meta">
+        <span class="env-tag env-${env}">${envLabel}</span>
+        ${secTitle?`<span style="font-size:.68rem;color:#7c3aed;background:#faf5ff;padding:.1rem .4rem;border-radius:99px">${secTitle}</span>`:''}
+      </div>
+    </div>
+    <div class="qa-task-actions">
+      <button class="qa-pass-btn" style="${s==='ok'?'':'opacity:.55'}" onclick="setStatus('${testId}','ok','${env}');renderQAStaging()"><i class="fa-solid fa-check"></i> עבר</button>
+      <button class="qa-fail-btn" style="${s==='fail'?'':'opacity:.55'}" onclick="setStatus('${testId}','fail','${env}');renderQAStaging()"><i class="fa-solid fa-xmark"></i> נכשל</button>
+      <button class="qa-pass-btn" style="background:#d97706;${s==='warn'?'':'opacity:.55'}" onclick="setStatus('${testId}','warn','${env}');renderQAStaging()"><i class="fa-solid fa-triangle-exclamation"></i> אזהרה</button>
+      <button onclick="removeFromQueue('${rk}')" title="הסר מהרשימה" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:.2rem .3rem"><i class="fa-solid fa-trash-can" style="font-size:.75rem"></i></button>
+    </div>
+  </div>`;
+}
+
 function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
@@ -1663,6 +1760,13 @@ function renderTests(filter) {
     }
     return;
   }
+  // פס בחירה לסטייג'ינג — רק בתצוגת קטגוריה
+  if(filter && currentView === 'book') {
+    html += `<div id="staging-ctrl-bar" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+      ${_stagingBarInner(testQueue.size, testQueue.size > 0)}
+    </div>`;
+  }
+
   sections.forEach(sec => {
     const rows = getTestRows(sec);
     const counts = countSectionRows(rows);
@@ -1687,13 +1791,14 @@ function renderTests(filter) {
       <div class="section-body">
         <table>
           <thead><tr>
+            ${filter && currentView==='book' ? '<th style="width:32px"></th>' : ''}
             <th style="width:95px">מזהה / סביבה</th>
             <th>בדיקה</th>
             <th style="width:75px">עדיפות</th>
             <th>סטטוס</th>
           </tr></thead>
           <tbody id="tbody-${sec.id}">
-            ${rows.map(({t, env}) => renderRow(t, sec, env)).join('')}
+            ${rows.map(({t, env}) => renderRow(t, sec, env, !!(filter && currentView==='book'))).join('')}
           </tbody>
         </table>
       </div>
@@ -1703,7 +1808,7 @@ function renderTests(filter) {
   applySearchFilter();
 }
 
-function renderRow(t, sec, env) {
+function renderRow(t, sec, env, showCb) {
   const rowKey = `${t.id}:${env}`;
   const s = getStatus(t.id, env);
   const n = getNote(t.id, env);
@@ -1728,9 +1833,10 @@ function renderRow(t, sec, env) {
          <textarea class="guide-expected-input" rows="4" placeholder="מה אמור לקרות..." oninput="saveGuideExpected('${t.id}',this.value)">${_expectedVal}</textarea>
        </div>
      </div>`;
+  const colSpan = showCb ? 5 : 4;
   const guideHtml = `
   <tr id="guide-row-${rowKey}" class="guide-row" style="display:none">
-    <td colspan="4">
+    <td colspan="${colSpan}">
       <div class="guide-box">
         ${_guideInner}
         <div class="guide-actual-section">
@@ -1742,6 +1848,7 @@ function renderRow(t, sec, env) {
   </tr>`;
   return `
   <tr id="row-${rowKey}" class="${s?'row-'+s:''}">
+    ${showCb ? `<td style="width:32px;text-align:center;vertical-align:middle"><input type="checkbox" id="cb-${rowKey.replace(':','-')}" ${testQueue.has(rowKey)?'checked':''} onchange="toggleTestInQueue('${rowKey}')" style="width:.95rem;height:.95rem;cursor:pointer"></td>` : ''}
     <td>
       <span class="test-id">${t.id}</span>
       <div style="margin-top:3px"><span class="${envCls}">${envLabel}</span></div>
@@ -1765,7 +1872,7 @@ function renderRow(t, sec, env) {
   </tr>
   ${guideHtml}
   <tr id="note-row-${rowKey}" class="note-row" style="display:none">
-    <td colspan="4">
+    <td colspan="${colSpan}">
       <textarea class="note-input" rows="2" placeholder="הוסף הערה, צעדי שחזור, תיאור הבאג..." oninput="setNote('${t.id}',this.value,'${env}')">${n}</textarea>
     </td>
   </tr>`;
@@ -1856,6 +1963,26 @@ function renderQAStaging() {
       </div>
       <div class="qa-ver-body" id="qavb-standalone">
         ${standalones.map(t => renderQATaskRow(t)).join('')}
+      </div>
+    </div>`;
+  }
+  // בדיקות ידניות שנבחרו מקטגוריה
+  if(testQueue.size > 0) {
+    const manOk   = [...testQueue].filter(rk => { const [id,env]=rk.split(':'); return getStatus(id,env)==='ok'; }).length;
+    html += `<div class="qa-version-block">
+      <div class="qa-ver-head" onclick="toggleQABlock('qavb-manual')">
+        <h3><i class="fa-solid fa-list-check" style="color:#3b82f6"></i> בדיקות ידניות שנבחרו
+          <span style="font-size:.7rem;font-weight:500;color:#64748b">(${manOk}/${testQueue.size} עברו)</span>
+        </h3>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <button onclick="event.stopPropagation();clearTestQueue();renderQAStaging()" style="border:none;background:#fee2e2;color:#dc2626;border-radius:.4rem;padding:.15rem .55rem;font-size:.7rem;cursor:pointer">
+            <i class="fa-solid fa-trash-can"></i> נקה רשימה
+          </button>
+          <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s" id="chev-qavb-manual"></i>
+        </div>
+      </div>
+      <div class="qa-ver-body" id="qavb-manual">
+        ${[...testQueue].map(rk => renderManualStagingRow(rk)).join('')}
       </div>
     </div>`;
   }
@@ -2888,6 +3015,8 @@ async function finalizeTestRun() {
     if(a.status !== 'archived') a.status = 'archived';
   });
   localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
+  // נקה תור בדיקות ידניות לאחר שמירה
+  clearTestQueue();
   saveState();
   showView('versions');
   renderVersions();
