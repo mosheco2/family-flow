@@ -3336,7 +3336,7 @@ window.sendSAAIMessage = async function(e) {
     const btn = getEl('btn-sa-ai-send');
     const currentLogo = getEl('sa-ai-bubble-icon').src;
 
-    // הוספת הודעת המשתמש (סופר אדמין)
+    // הוספת הודעת המשתמש (סופר אדמין) למסך
     chatMessages.innerHTML += `
         <div class="flex gap-2 justify-end fade-in">
             <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-medium max-w-[85%] leading-relaxed">
@@ -3347,6 +3347,91 @@ window.sendSAAIMessage = async function(e) {
     input.value = '';
     btn.disabled = true;
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // אנימציית טעינה (Typing)
+    const typingId = 'ai-typing-' + Date.now();
+    chatMessages.innerHTML += `
+        <div id="${typingId}" class="flex gap-2 fade-in">
+            <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-400 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="w-2 h-2 bg-indigo-300 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+                <span class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+            </div>
+        </div>
+    `;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        // --- הזרקת קונטקסט: בניית מאגר המידע שיישלח ל-AI מאחורי הקלעים ---
+        // ניקח את המערכים הקיימים בזכרון הממשק, אבל נסנן אותם כדי לא להעמיס את גוגל יותר מדי.
+        
+        // 1. קריאות שירות (טיקטים)
+        const activeTickets = saTicketsCache.map(t => ({
+            id: t.id, title: t.title, status: t.status, priority: t.priority,
+            creator: t.creator_name, created_at: t.created_at
+        }));
+
+        // 2. קהילות ועסקים
+        const activeCommunities = saCommunitiesCache.map(c => ({ id: c.id, name: c.name, type: c.type }));
+        const activeBusinesses = saBusinessesCache.map(b => ({ id: b.id, name: b.name, type: b.type }));
+        
+        // 3. משתמשים (סיכום בלבד כדי לחסוך מקום)
+        const totalUsers = saAllUsers.length;
+
+        // בניית הקונטקסט
+        const systemContextData = {
+            total_users: totalUsers,
+            communities: activeCommunities,
+            businesses: activeBusinesses,
+            tickets: activeTickets,
+            // אפשר להוסיף כאן בעתיד גם משימות פיתוח (sa_dev_tasks) אם יש לך קאש שלהן!
+        };
+
+        const enrichedMessage = `
+--- מידע פנימי בזמן אמת ממסד הנתונים (מצב נוכחי) ---
+${JSON.stringify(systemContextData)}
+----------------------------------------------------
+שאלת מנהל המערכת: 
+${text}
+`;
+        // -------------------------------------------------------------------
+
+        // שליחת הבקשה לשרת עם המידע המועשר!
+        const res = await fetch(`${API}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: enrichedMessage }) // מעבירים את ההודעה המועשרת
+        });
+        
+        const data = await res.json();
+        
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        
+        if (data.success) {
+            let reply = data.reply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-indigo-700">$1</b>');
+            chatMessages.innerHTML += `
+                <div class="flex gap-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                        ${reply}
+                    </div>
+                </div>
+            `;
+        } else {
+            chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאה בתשובת ה-AI: ${safeStr(data.error)}</div>`;
+        }
+    } catch(err) {
+        const typingEl = getEl(typingId);
+        if(typingEl) typingEl.remove();
+        chatMessages.innerHTML += `<div class="text-xs text-red-500 text-center my-3 bg-red-50 p-2 rounded-lg border border-red-100">שגיאת תקשורת מול שרת ה-AI</div>`;
+    } finally {
+        btn.disabled = false;
+        setTimeout(() => input.focus(), 100);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+};
 
     // אנימציית טעינה (Typing)
     const typingId = 'ai-typing-' + Date.now();
