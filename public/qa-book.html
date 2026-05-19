@@ -3083,7 +3083,8 @@ async function loadResultsFromServer() {
         }
         // תוצאת בדיקה רגילה
         const k = sk(r.test_id, r.env);
-        state[k] = { s: r.status || null, n: r.note || '' };
+        // אל תדרוס מצב מקומי — אם קיים, המקומי סמכותי (למשל ניקוי סימון)
+        if(!(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
       });
       // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
       applyGuideEdits();
@@ -3109,7 +3110,7 @@ async function pushResultsToServer() {
     if(!k.includes(':')) return;
     const parts = k.split(':');
     const testId = parts[0], env = parts[1];
-    if(v && (v.s || v.n)) results.push({ testId, env, status: v.s || null, note: v.n || '' });
+    if(v && ('s' in v || v.n)) results.push({ testId, env, status: v.s || null, note: v.n || '' });
   });
 
   // עריכות מדריך בדיקה — צעדים וצפוי (ספר המוצר)
