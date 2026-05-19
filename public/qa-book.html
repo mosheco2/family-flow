@@ -1636,7 +1636,7 @@ function renderTests(filter) {
 
   // בספר המוצר — סנן רק בדיקות שאושרו
   let rawSections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-  const sections = currentView === 'book'
+  const sections = (currentView === 'book' && !filter)
     ? rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0)
     : rawSections;
 
