@@ -3443,10 +3443,15 @@ window.openInternalMsgModal = function() {
 };
 
 window.sendInternalMsg = async function() {
-    const title = val('int-msg-title');
-    const content = val('int-msg-content');
-    const targetType = val('int-msg-target-type');
-    const targetId = targetType === 'team' ? val('int-msg-target-val') : null;
+    const titleEl = document.getElementById('int-msg-title');
+    const contentEl = document.getElementById('int-msg-content');
+    const targetTypeEl = document.getElementById('int-msg-target-type');
+    const targetValEl = document.getElementById('int-msg-target-val');
+
+    const title = titleEl ? titleEl.value.trim() : '';
+    const content = contentEl ? contentEl.value.trim() : '';
+    const targetType = targetTypeEl ? targetTypeEl.value : 'all';
+    const targetId = targetType === 'team' && targetValEl ? targetValEl.value : null;
 
     if (!title || !content) {
         if (typeof showToast === 'function') showToast('error', 'יש למלא נושא ותוכן.');
@@ -3464,8 +3469,13 @@ window.sendInternalMsg = async function() {
         if (data.success) {
             if (typeof showToast === 'function') showToast('success', 'הודעה פנימית נשלחה בהצלחה!');
             else alert('הודעה פנימית נשלחה בהצלחה!');
-            const modalEl = getEl('sa-internal-msg-modal');
+            const modalEl = document.getElementById('sa-internal-msg-modal');
             if (modalEl) modalEl.classList.add('hidden');
+            
+            // טעינה מחדש של הטבלה מיד לאחר שליחה מוצלחת!
+            if (typeof window.loadInternalMessages === 'function') {
+                window.loadInternalMessages();
+            }
         } else {
             if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשליחת הודעה.');
             else alert(data.error || 'שגיאה בשליחת הודעה.');
@@ -3475,6 +3485,42 @@ window.sendInternalMsg = async function() {
         else alert('שגיאת רשת בשליחת הודעה.');
     }
 };
+
+window.loadInternalMessages = async function() {
+    const tbody = document.getElementById('sa-internal-msg-list');
+    if (!tbody) return;
+    try {
+        const res = await fetch(`${API}/messages/broadcast`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            if (!data.messages || data.messages.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-slate-500">אין הודעות פנימיות עדיין</td></tr>';
+            } else {
+                tbody.innerHTML = data.messages.map(m => {
+                    const dateStr = new Date(m.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+                    const targetStr = m.target_type === 'all' ? 'כל העובדים' : `צוות מס' ${m.target_id}`;
+                    return `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-50">
+                            <td class="px-4 py-3 font-bold text-slate-700">${safeStr(m.title)}</td>
+                            <td class="px-4 py-3 text-slate-600">${targetStr}</td>
+                            <td class="px-4 py-3 text-slate-500 dir-ltr text-right">${dateStr}</td>
+                            <td class="px-4 py-3 text-center">
+                                <button onclick="openInternalMsgStatsModal(${m.id}, '${safeStr(m.title)}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm">צפה בסטטיסטיקה</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-red-500">שגיאה בטעינת נתונים</td></tr>';
+    }
+};
+
+// הפעלה אוטומטית לטעינת ההיסטוריה לתוך הטבלה בכל פעם שהקובץ עולה
+setTimeout(() => {
+    if (typeof window.loadInternalMessages === 'function') window.loadInternalMessages();
+}, 1500);
 
 window.openInternalMsgStatsModal = async function(msgId, title) {
     const titleEl = getEl('stats-msg-title');
