@@ -605,12 +605,41 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                                     </div>
                                                 </div>
                                                 <button id="btn-sa-inbox-send" onclick="sendSABroadcastMessage()" class="w-full mt-4 bg-indigo-500 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-600 transition flex items-center justify-center gap-2">
-                                                    <i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות
-                                                </button>
+                                                            <i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
+
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md mb-8">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-rays text-indigo-500"></i> הודעות פנימיות לצוות ולעובדים</h2>
+                        <p class="text-sm text-slate-500 mt-1">שליחת הודעות לעובדים, עם מעקב אישורי קריאה.</p>
+                    </div>
+                    <button onclick="openInternalMsgModal()" class="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-100 transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> הודעה פנימית חדשה
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right whitespace-nowrap">
+                        <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                            <tr>
+                                <th class="px-4 py-3 rounded-tr-lg">כותרת ההודעה</th>
+                                <th class="px-4 py-3">קהל יעד</th>
+                                <th class="px-4 py-3">תאריך שליחה</th>
+                                <th class="px-4 py-3 text-center rounded-tl-lg">פעולות וסטטיסטיקה</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sa-internal-msg-list" class="divide-y divide-slate-100">
+                            <tr><td colspan="4" class="px-4 py-4 text-center text-slate-500">התשתית מוכנה - הטענת הנתונים תתווסף בשלב הבא</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
 
 <div id="sa-view-content" class="hidden space-y-8 fade-in">
                     
@@ -1697,11 +1726,65 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         
         <button onclick="toggleSAAIChat()" class="w-16 h-16 bg-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform border-4 border-indigo-50 relative group">
             <img id="sa-ai-bubble-icon" src="https://cdn-icons-png.flaticon.com/512/8943/8943377.png" class="w-full h-full object-cover rounded-full p-0.5">
-            <span class="absolute -top-1 -right-1 flex h-4 w-4">
+           <span class="absolute -top-1 -right-1 flex h-4 w-4">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-500 border-2 border-white"></span>
             </span>
         </button>
     </div>
+
+<div id="sa-internal-msg-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative border border-slate-200">
+        <button onclick="document.getElementById('sa-internal-msg-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-paper-plane text-indigo-500"></i> הודעה פנימית חדשה</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">נושא ההודעה:</label>
+                <input type="text" id="int-msg-title" class="modern-input py-2 px-3 text-sm bg-slate-50 w-full" placeholder="למשל: עדכון נהלים חשוב">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">תוכן ההודעה:</label>
+                <textarea id="int-msg-content" class="modern-input py-2 px-3 text-sm h-28 resize-none bg-slate-50 w-full" placeholder="פרט את ההודעה..."></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">קהל יעד:</label>
+                <select id="int-msg-target-type" onchange="toggleIntMsgTarget()" class="modern-input py-2 px-3 text-sm bg-slate-50 cursor-pointer w-full">
+                    <option value="all">כל העובדים (כללי)</option>
+                    <option value="team">צוות ספציפי</option>
+                </select>
+            </div>
+            <div id="int-msg-target-val-wrapper" class="hidden">
+                 <label class="text-xs font-bold text-slate-600 block mb-1">בחר צוות:</label>
+                 <select id="int-msg-target-val" class="modern-input py-2 px-3 text-sm bg-slate-50 cursor-pointer w-full">
+                 </select>
+            </div>
+            <button onclick="sendInternalMsg()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md mt-2">שלח הודעה</button>
+        </div>
+    </div>
+</div>
+
+<div id="sa-internal-msg-stats-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative border border-slate-200">
+        <button onclick="document.getElementById('sa-internal-msg-stats-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="text-xl font-black text-slate-800 mb-2 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-500"></i> סטטיסטיקת אישורים</h3>
+        <p class="text-xs text-slate-500 mb-4 font-bold" id="stats-msg-title">מנתח נתונים...</p>
+        
+        <div class="overflow-y-auto max-h-80 modal-scroll border border-slate-100 rounded-xl">
+             <table class="w-full text-sm text-right whitespace-nowrap">
+                 <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase sticky top-0">
+                     <tr>
+                         <th class="px-4 py-2">שם העובד</th>
+                         <th class="px-4 py-2 text-center">סטטוס מענה</th>
+                         <th class="px-4 py-2">תאריך פעולה</th>
+                     </tr>
+                 </thead>
+                 <tbody id="stats-msg-body" class="divide-y divide-slate-100">
+                 </tbody>
+             </table>
+        </div>
+        <button onclick="document.getElementById('sa-internal-msg-stats-modal').classList.add('hidden')" class="w-full mt-4 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition">סגור תצוגה</button>
+    </div>
+</div>
+
 </body>
 </html>
