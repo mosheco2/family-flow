@@ -1,5 +1,5 @@
 const express = require('express');
-const {  } = require('pg');
+const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
