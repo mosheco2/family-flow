@@ -654,9 +654,20 @@ async function loadTestsFromServer() {
             });
             
             SECTIONS = Object.values(grouped);
-            
+
             updateStats();
-            renderTests(null);
+            // עדכן תצוגה בהתאם לפילטר הנוכחי
+            if(currentView === 'book') {
+              renderTests(currentFilter);
+              // עדכן כותרת אם יש פילטר פעיל
+              if(currentFilter) {
+                const activeSec = SECTIONS.find(s => s.id === currentFilter);
+                const h2 = document.querySelector('#view-book .page-header h2');
+                if(h2 && activeSec) h2.innerHTML = `<i class="fa-solid ${activeSec.icon}" style="color:${activeSec.color}"></i> ${activeSec.title}`;
+              }
+            } else {
+              renderTests(null);
+            }
         } else {
             displayUnauthorizedMessage('שגיאה לא צפויה בקריאת הנתונים מהשרת.');
         }
@@ -1597,28 +1608,6 @@ function renderTests(filter) {
   const container = document.getElementById('tests-container');
   if(!container) return;
 
-  // בספר המוצר — הצג רק בדיקות שאושרו (DEV-*)
-  let visibleSections = SECTIONS;
-  if(currentView === 'book') {
-    visibleSections = SECTIONS.map(sec => ({
-      ...sec,
-      tests: sec.tests.filter(t => t.id.startsWith('DEV-'))
-    })).filter(sec => sec.tests.length > 0);
-    if(!visibleSections.length) {
-      container.innerHTML = `
-        <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
-          <i class="fa-solid fa-book-open" style="font-size:3.5rem;color:#e2e8f0;display:block;margin-bottom:1.25rem"></i>
-          <h3 style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:.6rem">ספר המוצר ריק</h3>
-          <p style="font-size:.82rem;color:#94a3b8;line-height:1.75;margin-bottom:1.25rem">
-            ספר המוצר מציג יכולות שאושרו לאחר עבור QA.<br>
-            יכולות יתווספו לכאן לאחר שמשימת פיתוח תעבור בדיקה ב-QA Staging.
-          </p>
-          <button class="btn btn-purple" onclick="showView('tests')"><i class="fa-solid fa-flask"></i> עבור ל-QA Staging</button>
-        </div>`;
-      return;
-    }
-  }
-
   if(!SECTIONS.length) {
     container.innerHTML = `
       <div style="text-align:center;padding:4rem 2rem;max-width:500px;margin:0 auto">
@@ -1628,8 +1617,33 @@ function renderTests(filter) {
     return;
   }
 
+  // עדכן כותרת עמוד לפי הפילטר הפעיל
+  if(currentView === 'book') {
+    const h2 = document.querySelector('#view-book .page-header h2');
+    if(h2) {
+      if(filter) {
+        const activeSec = SECTIONS.find(s => s.id === filter);
+        if(activeSec) h2.innerHTML = `<i class="fa-solid ${activeSec.icon}" style="color:${activeSec.color}"></i> ${activeSec.title}`;
+      } else {
+        h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
+      }
+    }
+  }
+
   let html = '';
-  const sections = filter ? visibleSections.filter(s=>s.id===filter) : visibleSections;
+  const sections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
+
+  // אם הפילטר לא מצא קטגוריה — הצג הודעה ברורה
+  if(!sections.length) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:3rem;color:#94a3b8">
+        <i class="fa-solid fa-magnifying-glass" style="font-size:2rem;margin-bottom:.75rem;display:block"></i>
+        <p style="font-size:.85rem;font-weight:600">לא נמצאו בדיקות לקטגוריה זו</p>
+        <p style="font-size:.75rem;margin-top:.4rem">ייתכן שהנתונים עדיין בטעינה, נסה לרענן את המערכת.</p>
+        <button class="btn btn-outline" style="margin-top:1rem" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן</button>
+      </div>`;
+    return;
+  }
   sections.forEach(sec => {
     const rows = getTestRows(sec);
     const counts = countSectionRows(rows);
