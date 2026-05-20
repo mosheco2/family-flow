@@ -395,12 +395,12 @@ function renderLivePulse(activityData, stats) {
     _setKPI('kpi-active-biz', stats.businesses ?? '--');
 
     const pendingCount = activityData.filter(a =>
-        a.description.includes('ממתין') || a.description.includes('הוזמן') || a.description.includes('ממתינה')
+        a.description?.includes('ממתין') || a.description?.includes('הוזמן') || a.description?.includes('ממתינה')
     ).length;
     _setKPI('dash-pending-biz', pendingCount || 0);
 
     const bizGroups = new Set(activityData
-        .filter(a => a.description.includes('רכש') || a.description.includes('קופה') || a.description.includes('תור') || a.is_financial)
+        .filter(a => a.description?.includes('רכש') || a.description?.includes('קופה') || a.description?.includes('תור') || a.is_financial)
         .map(a => a.group_name).filter(Boolean));
     _setKPI('kpi-biz-24h', bizGroups.size || 0);
 
@@ -415,11 +415,11 @@ function renderLivePulse(activityData, stats) {
     // backward-compat IDs from old pulse panel
     if (getEl('pulse-active-users')) getEl('pulse-active-users').textContent = totalUsers;
 
-    const ordersCount = activityData.filter(a => a.description.includes('רכש') || a.description.includes('קופה') || a.description.includes('תור')).length;
+    const ordersCount = activityData.filter(a => a.description?.includes('רכש') || a.description?.includes('קופה') || a.description?.includes('תור')).length;
     if (getEl('pulse-orders-today')) getEl('pulse-orders-today').textContent = ordersCount;
 
     const aiCount = activityData.filter(a =>
-        a.description.includes('AI') || a.description.includes('חפיפה') || a.description.includes('המלצה')
+        a.description?.includes('AI') || a.description?.includes('חפיפה') || a.description?.includes('המלצה')
     ).length;
     if (getEl('pulse-ai-reqs')) getEl('pulse-ai-reqs').textContent = aiCount * 2 || '--';
 
@@ -444,7 +444,7 @@ function renderLivePulse(activityData, stats) {
     _setKPI('dash-open-tickets', openTickets);
 
     const errorCount = activityData.filter(a =>
-        a.description.includes('שגיאה') || a.description.includes('תקלה') || a.description.includes('נפל')
+        a.description?.includes('שגיאה') || a.description?.includes('תקלה') || a.description?.includes('נפל')
     ).length;
     _setKPI('kpi-errors', errorCount);
     // backward-compat: old pulse-errors element
@@ -513,8 +513,8 @@ function renderLivePulse(activityData, stats) {
         let icon = '<i class="fa-solid fa-bolt text-slate-400"></i>';
         let bgGlow = '';
         if (a.is_financial) { icon = '<i class="fa-solid fa-coins text-green-400"></i>'; bgGlow = 'border-l-2 border-l-green-500/50'; }
-        if (a.description.includes('AI') || a.description.includes('חפיפה') || a.description.includes('המלצה')) { icon = '<i class="fa-solid fa-microchip text-purple-400"></i>'; bgGlow = 'border-l-2 border-l-purple-500/50'; }
-        if (a.description.includes('שגיאה') || a.description.includes('תקלה') || a.description.includes('נפל')) { icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>'; bgGlow = 'border-l-2 border-l-red-500/50'; }
+        if (a.description?.includes('AI') || a.description?.includes('חפיפה') || a.description?.includes('המלצה')) { icon = '<i class="fa-solid fa-microchip text-purple-400"></i>'; bgGlow = 'border-l-2 border-l-purple-500/50'; }
+        if (a.description?.includes('שגיאה') || a.description?.includes('תקלה') || a.description?.includes('נפל')) { icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>'; bgGlow = 'border-l-2 border-l-red-500/50'; }
         const amountHtml = a.is_financial ? `<span class="text-green-400 font-mono font-bold tracking-wider dir-ltr ml-3">+₪${a.amount}</span>` : '';
         const timeStr = new Date(a.date).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
         return `
@@ -1053,7 +1053,9 @@ async function loadSAData() {
             setTxt('sa-stat-biz-users', data.stats.businessUsers);
         }
 
-        if (data.activity && data.stats) renderLivePulse(data.activity, data.stats);
+        if (data.activity && data.stats) {
+            try { renderLivePulse(data.activity, data.stats); } catch(pulseErr) { console.error('renderLivePulse error:', pulseErr); }
+        }
         
         const actList = getEl('sa-activity-list');
         if (actList) {
@@ -1088,7 +1090,7 @@ async function loadSAData() {
         // תיקון סנכרון: טוען צוותים ונציגים כבר בהתחלה עבור כל המודולים
         if(typeof loadSAHRData === 'function') loadSAHRData();
         
-    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+    } catch (e) { console.error('loadSAData error:', e); showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 window.saveAllBanners = async function() {
