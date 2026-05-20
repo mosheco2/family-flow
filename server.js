@@ -5192,6 +5192,48 @@ app.get('/api/messages/:id/stats', verifySA, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ראוט דשבורד מרכזי - דופק מערכת (Pulse) - גרסה חסינת קריסות
+app.get('/api/superadmin/pulse', verifySA, async (req, res) => {
+    try {
+        const [users, tickets, tasks, groups] = await Promise.all([
+            pool.query('SELECT COUNT(*) as total FROM users'),
+            pool.query('SELECT status, priority FROM support_tickets'),
+            pool.query('SELECT status FROM sa_dev_tasks'),
+            pool.query('SELECT COUNT(*) as total FROM family_groups')
+        ]);
+
+        const openTicketsCount = tickets.rows.filter(t => t.status === 'open' || t.status === 'Open' || t.status === 'in_progress').length;
+        const pendingTasksCount = tasks.rows.filter(t => t.status === 'pending' || t.status === 'backlog').length;
+        const totalTicketsCount = tickets.rows.length;
+        const resolvedCount = tickets.rows.filter(t => t.status === 'resolved' || t.status === 'Resolved').length;
+        const qaPercentage = totalTicketsCount > 0 ? Math.round((resolvedCount / totalTicketsCount) * 100) : 100;
+
+        res.json({
+            success: true,
+            snapshot: {
+                totalUsers: parseInt(users.rows[0].total || 0),
+                activeEnvironments: parseInt(groups.rows[0].total || 0),
+                openTickets: openTicketsCount,
+                pendingTasks: pendingTasksCount,
+                systemErrors: 0
+            },
+            stats: {
+                totalTickets: totalTicketsCount,
+                qaPercentage: qaPercentage
+            }
+        });
+    } catch(e) { 
+        console.error('Pulse API Resilient Error Handled:', e);
+        // החזרת מבנה נתונים ריק תקין כדי למנוע קריסת קליינט
+        res.json({
+            success: false,
+            snapshot: { totalUsers: 0, activeEnvironments: 0, openTickets: 0, pendingTasks: 0, systemErrors: 1 },
+            stats: { totalTickets: 0, qaPercentage: 100 }
+        });
+    }
+});
+
+// הפעלת השרת
 app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+    console.log(`Server is running on port ${port}`);
 });
