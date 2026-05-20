@@ -1082,7 +1082,7 @@ async function loadSAData() {
         }
         
         if(typeof renderLoginSlidesAdmin === 'function') renderLoginSlidesAdmin();
-        if(typeof renderSAGroups === 'function') renderSAGroups();
+        if(typeof renderSAGroups === 'function') { try { renderSAGroups(); } catch(e) { console.error('renderSAGroups error:', e); } }
         if(typeof loadSACommunityData === 'function') loadSACommunityData();
         if(typeof loadSATickets === 'function') loadSATickets();
         if(typeof loadSAPartners === 'function') loadSAPartners();
@@ -1219,6 +1219,7 @@ async function saveWelcomeMsg(type = 'FAMILY') {
 
 function renderSAGroups() {
     const groupsList = getEl('sa-groups-list');
+    if (!groupsList) return;
     let gHtml = '';
     const term = val('sa-search-group').toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
