@@ -1957,108 +1957,97 @@ window.loadProductMatrix = async function() {
 window.renderProductMatrix = function() {
     const listEl = document.getElementById('product-matrix-list');
     if (!listEl) return;
-    
-    // הגדרת נראות הסביבות שלך
-    const envConfigs = {
-        'family': { name: 'ONEFLOW LIFE (משפחות)', icon: 'fa-house-chimney text-emerald-500', color: 'emerald' },
-        'business': { name: 'ONEFLOW LIFE BIZ (עסקים)', icon: 'fa-briefcase text-blue-500', color: 'blue' },
-        'community': { name: 'COMMUNITIES (קהילות)', icon: 'fa-users-rays text-indigo-500', color: 'indigo' },
-        'sa': { name: 'SUPER ADMIN (ניהול)', icon: 'fa-shield-halved text-slate-500', color: 'slate' }
-    };
 
-    // המרת רשימת השרת השטוחה למבנה היררכי להצגה
-    const grouped = productMatrixData.reduce((acc, item) => {
-        const env = item.environment || 'family';
-        const mod = item.module_name || 'כללי';
-        if (!acc[env]) acc[env] = {};
-        if (!acc[env][mod]) acc[env][mod] = [];
-        acc[env][mod].push(item);
-        return acc;
-    }, {});
+    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול' };
 
-    let html = '';
-    let totalTests = 0; let passedCount = 0; let failedCount = 0; let untestedCount = 0;
-
-    Object.keys(grouped).forEach(envKey => {
-        const envConfig = envConfigs[envKey] || envConfigs['family'];
-        const modules = grouped[envKey];
-        
-        html += `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-5 fade-in">
-                    <div class="bg-${envConfig.color}-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg"><i class="fa-solid ${envConfig.icon}"></i></div>
-                            <h2 class="text-lg font-black text-slate-800">${envConfig.name}</h2>
-                        </div>
-                        <button onclick="addMatrixItemPrompt('${envKey}')" class="text-xs bg-white border border-${envConfig.color}-200 text-${envConfig.color}-600 px-3 py-1.5 rounded-lg shadow-sm font-bold hover:bg-${envConfig.color}-100 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף בדיקה</button>
-                    </div>
-                    <div class="p-4 space-y-4">`;
-        
-        Object.keys(modules).forEach(modName => {
-            html += `<div class="border border-slate-100 rounded-xl overflow-hidden">
-                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cube text-slate-400 ml-1"></i> ${modName}</h3>
-                        </div>
-                        <div class="divide-y divide-slate-50">`;
-            
-            modules[modName].forEach(test => {
-                totalTests++;
-                if (test.status === 'passed') passedCount++;
-                else if (test.status === 'failed') failedCount++;
-                else if (test.status === 'untested') untestedCount++;
-
-                let statusBg = 'bg-slate-100 text-slate-500'; let statusIcon = 'fa-circle-minus'; let statusLabel = 'טרם נבדק';
-                if (test.status === 'passed') { statusBg = 'bg-green-100 text-green-700'; statusIcon = 'fa-check'; statusLabel = 'תקין'; }
-                if (test.status === 'failed') { statusBg = 'bg-red-100 text-red-700'; statusIcon = 'fa-bug'; statusLabel = 'באג / נכשל'; }
-                if (test.status === 'in_dev') { statusBg = 'bg-blue-100 text-blue-700'; statusIcon = 'fa-person-digging'; statusLabel = 'בפיתוח'; }
-
-                html += `
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 gap-3 hover:bg-slate-50 transition relative group">
-                        <div class="flex-1 pr-8">
-                            <button onclick="deleteMatrixItem(${test.id})" class="text-slate-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2 p-2" title="מחק תרחיש"><i class="fa-solid fa-trash-can"></i></button>
-                            <span class="text-sm font-bold text-slate-700 block">${safeStr(test.scenario_name)}</span>
-                            <span class="text-[10px] text-slate-400 mt-0.5 block">צפי: ${safeStr(test.expected_result)}</span>
-                        </div>
-                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
-                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${statusBg} flex items-center gap-1 border border-white/50 w-24 justify-center shadow-sm">
-                                <i class="fa-solid ${statusIcon}"></i> ${statusLabel}
-                            </span>
-                            <select onchange="changeTestStatus(${test.id}, this.value, '${safeStr(test.scenario_name).replace(/'/g, "\\'")}', '${envKey}', '${safeStr(test.expected_result).replace(/'/g, "\\'")}')" class="modern-input py-1.5 px-2 text-xs bg-white font-bold w-auto cursor-pointer shadow-sm">
-                                <option value="untested" ${test.status === 'untested' ? 'selected' : ''}>טרם נבדק ⚪</option>
-                                <option value="passed" ${test.status === 'passed' ? 'selected' : ''}>תקין (Passed) 🟢</option>
-                                <option value="failed" ${test.status === 'failed' ? 'selected' : ''}>באג (Failed) 🔴</option>
-                                <option value="in_dev" ${test.status === 'in_dev' ? 'selected' : ''}>בפיתוח 🚧</option>
-                            </select>
-                        </div>
-                    </div>`;
-            });
-            html += `</div></div>`;
-        });
-        html += `</div></div>`;
+    let totalTests = 0, passedCount = 0, failedCount = 0, untestedCount = 0;
+    productMatrixData.forEach(item => {
+        totalTests++;
+        if (item.status === 'passed') passedCount++;
+        else if (item.status === 'failed') failedCount++;
+        else untestedCount++;
     });
-    
+
     if (productMatrixData.length === 0) {
-        html = `<div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
-                    <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 mb-3"></i>
-                    <h3 class="text-slate-600 font-bold">ספר המוצר ריק</h3>
-                    <p class="text-slate-400 text-sm mt-1 mb-4">הוסף את תרחיש הבדיקה הראשון שלך באמצעות הכפתורים למעלה.</p>
-                    <div class="flex justify-center gap-2">
-                        <button onclick="addMatrixItemPrompt('family')" class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-200 transition">תרחיש משפחה</button>
-                        <button onclick="addMatrixItemPrompt('business')" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-blue-200 transition">תרחיש עסק</button>
-                    </div>
-                </div>`;
+        listEl.innerHTML = `<div class="text-center py-12">
+            <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 mb-3"></i>
+            <p class="text-slate-500 font-bold">ספר המוצר ריק</p>
+            <p class="text-slate-400 text-xs mt-1">הוסף פריטים דרך ספר ה-QA</p>
+        </div>`;
+    } else {
+        const last10 = [...productMatrixData].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 10);
+        listEl.innerHTML = `
+            <table class="w-full text-sm text-right whitespace-nowrap">
+                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                    <tr>
+                        <th class="px-4 py-3 rounded-tr-lg">יכולת / תרחיש</th>
+                        <th class="px-4 py-3">מודול</th>
+                        <th class="px-4 py-3">סביבה</th>
+                        <th class="px-4 py-3 max-w-xs">שימוש / תוצאה צפויה</th>
+                        <th class="px-4 py-3 text-center rounded-tl-lg">סטטוס</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    ${last10.map(item => {
+                        let statusBg = 'bg-slate-100 text-slate-500', statusIcon = 'fa-circle-minus', statusLabel = 'טרם';
+                        if (item.status === 'passed')  { statusBg = 'bg-green-100 text-green-700';  statusIcon = 'fa-check';          statusLabel = 'אושר'; }
+                        if (item.status === 'failed')  { statusBg = 'bg-red-100 text-red-700';      statusIcon = 'fa-bug';            statusLabel = 'באג'; }
+                        if (item.status === 'in_dev')  { statusBg = 'bg-blue-100 text-blue-700';    statusIcon = 'fa-person-digging'; statusLabel = 'בפיתוח'; }
+                        const expected = (item.expected_result || '').slice(0, 60) + ((item.expected_result || '').length > 60 ? '…' : '');
+                        return `<tr class="hover:bg-slate-50 transition">
+                            <td class="px-4 py-3 font-bold text-slate-700">${safeStr(item.scenario_name)}</td>
+                            <td class="px-4 py-3 text-slate-500 text-xs">${safeStr(item.module_name)}</td>
+                            <td class="px-4 py-3 text-slate-500 text-xs">${envNames[item.environment] || item.environment || ''}</td>
+                            <td class="px-4 py-3 text-slate-400 text-xs max-w-xs" title="${safeStr(item.expected_result)}">${safeStr(expected)}</td>
+                            <td class="px-4 py-3 text-center"><span class="px-2 py-1 rounded-md text-[10px] font-bold ${statusBg} inline-flex items-center gap-1"><i class="fa-solid ${statusIcon}"></i>${statusLabel}</span></td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
     }
-    
-    listEl.innerHTML = html;
 
     const progressPct = totalTests === 0 ? 0 : Math.round((passedCount / totalTests) * 100);
-    const progressBar = document.getElementById('matrix-progress-bar');
-    if (progressBar) progressBar.style.width = `${progressPct}%`;
-    const progressText = document.getElementById('matrix-progress-text');
-    if (progressText) progressText.innerText = `${progressPct}% כיסוי תקין`;
-    
-    if(getEl('matrix-count-passed')) getEl('matrix-count-passed').innerText = passedCount;
-    if(getEl('matrix-count-failed')) getEl('matrix-count-failed').innerText = failedCount;
-    if(getEl('matrix-count-untested')) getEl('matrix-count-untested').innerText = untestedCount;
+    if (getEl('matrix-progress-bar')) getEl('matrix-progress-bar').style.width = `${progressPct}%`;
+    if (getEl('matrix-progress-text')) getEl('matrix-progress-text').innerText = `${progressPct}% אושרו`;
+    if (getEl('matrix-count-passed')) getEl('matrix-count-passed').innerText = passedCount;
+    if (getEl('matrix-count-failed')) getEl('matrix-count-failed').innerText = failedCount;
+    if (getEl('matrix-count-untested')) getEl('matrix-count-untested').innerText = untestedCount;
+};
+
+window.searchProductFeature = function(query) {
+    const resultsEl = getEl('matrix-search-results');
+    if (!resultsEl) return;
+    if (!query.trim()) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
+
+    const q = query.toLowerCase();
+    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול' };
+    const results = productMatrixData.filter(item =>
+        (item.scenario_name || '').toLowerCase().includes(q) ||
+        (item.module_name || '').toLowerCase().includes(q) ||
+        (item.expected_result || '').toLowerCase().includes(q)
+    );
+
+    if (results.length === 0) {
+        resultsEl.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו יכולות תואמות</p>';
+    } else {
+        resultsEl.innerHTML = results.slice(0, 20).map(item => {
+            let badge = 'bg-slate-100 text-slate-500', icon = 'fa-circle-minus', label = 'טרם';
+            if (item.status === 'passed') { badge = 'bg-green-100 text-green-700'; icon = 'fa-check'; label = 'אושר'; }
+            if (item.status === 'failed') { badge = 'bg-red-100 text-red-700'; icon = 'fa-bug'; label = 'באג'; }
+            if (item.status === 'in_dev') { badge = 'bg-blue-100 text-blue-700'; icon = 'fa-person-digging'; label = 'בפיתוח'; }
+            return `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-indigo-200 transition">
+                <div class="flex justify-between items-start gap-2 mb-1.5">
+                    <span class="font-bold text-slate-700 text-sm leading-snug">${safeStr(item.scenario_name)}</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">${envNames[item.environment] || ''} › ${safeStr(item.module_name)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badge} inline-flex items-center gap-1"><i class="fa-solid ${icon}"></i>${label}</span>
+                    </div>
+                </div>
+                ${item.expected_result ? `<p class="text-xs text-slate-500 leading-relaxed"><i class="fa-solid fa-circle-info text-indigo-400 ml-1"></i>${safeStr(item.expected_result)}</p>` : ''}
+            </div>`;
+        }).join('');
+    }
+    resultsEl.classList.remove('hidden');
 };
 
 window.changeTestStatus = async function(id, newStatus, title, envId, expected) {
