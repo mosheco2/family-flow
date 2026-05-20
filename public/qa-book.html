@@ -2904,12 +2904,13 @@ function generateReport() {
     if(!items.length) return '';
     let g = `<div style="font-weight:700;font-size:0.8rem;color:${color};margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em">${title}</div>`;
     items.forEach(({t, failEnvs})=>{
+      // skip items where all failing envs are already queued for staging
+      if(failEnvs.every(env => testQueue.has(`${t.id}:${env}`))) return;
       const s = getStatus(t.id, failEnvs[0]);
       const n = getNote(t.id, failEnvs[0]) || '';
       const secName = SECTIONS.find(sec=>sec.tests.some(tt=>tt.id===t.id))?.title||'';
       const isWarn = s==='warn';
-      const envsJson = JSON.stringify(failEnvs);
-      const inQueue = failEnvs.some(env => testQueue.has(`${t.id}:${env}`));
+      const envsData = failEnvs.join(',');
       g+=`<div class="report-item${isWarn?' report-item-warn':''}">
         <div class="report-icon ${isWarn?'r-warn-icon':'r-fail-icon'}"><i class="fa-solid ${isWarn?'fa-triangle-exclamation':'fa-xmark'}"></i></div>
         <div class="report-text">
@@ -2920,9 +2921,9 @@ function generateReport() {
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem;flex-shrink:0">
           <span class="prio prio-${t.prio}">${{critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]}</span>
-          <button onclick="sendReportItemToStaging('${t.id}',${envsJson})"
-            style="font-size:.68rem;padding:.22rem .55rem;border-radius:.35rem;border:1px solid ${inQueue?'#7c3aed':'#e2e8f0'};background:${inQueue?'#f5f3ff':'#f8fafc'};color:${inQueue?'#7c3aed':'#475569'};cursor:pointer;white-space:nowrap;font-family:inherit">
-            <i class="fa-solid fa-flask"></i> ${inQueue?'נוסף ✓':'שלח לסטייג\'ינג'}
+          <button data-tid="${t.id}" data-envs="${envsData}" onclick="_rptSend(this)"
+            style="font-size:.68rem;padding:.22rem .55rem;border-radius:.35rem;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer;white-space:nowrap;font-family:inherit">
+            <i class="fa-solid fa-flask"></i> שלח לסטייג'ינג
           </button>
         </div>
       </div>`;
@@ -2935,6 +2936,10 @@ function generateReport() {
   html += renderGroup('🟡 עדיפות בינונית/נמוכה', '#ca8a04', other);
 
   container.innerHTML = html;
+}
+
+function _rptSend(btn) {
+  sendReportItemToStaging(btn.dataset.tid, btn.dataset.envs.split(','));
 }
 
 function sendReportItemToStaging(testId, envs) {
