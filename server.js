@@ -4585,6 +4585,21 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
         }
         
         await pool.query('UPDATE sa_dev_tasks SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
+
+        // כשמשימה מסיימת — נכנסת אוטומטית לספר המוצר
+        if (status === 'done') {
+            const taskRes = await pool.query('SELECT * FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+            if (taskRes.rows.length > 0) {
+                const t = taskRes.rows[0];
+                const bookId = `DEV-${t.id}`;
+                await pool.query(`
+                    INSERT INTO sa_product_book (id, category, name, description, priority)
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description
+                `, [bookId, t.module_name || t.environment || 'general', t.title, t.description || '', t.priority || 'medium']);
+            }
+        }
+
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -4648,8 +4663,31 @@ app.delete('/api/sa/versions/:id', verifySA, async (req, res) => {
 // --- PRODUCT MATRIX (QA) ---
 app.get('/api/sa/matrix', verifySA, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM sa_product_matrix ORDER BY environment, module_name, id');
-        res.json({ success: true, matrix: result.rows });
+        const matrixResult = await pool.query(
+            'SELECT id::text, environment, module_name, scenario_name, expected_result, status, last_tested_at, \'matrix\' as source FROM sa_product_matrix ORDER BY environment, module_name, id'
+        );
+        // ספר המוצר מספר QA — כל הפריטים, סטטוס לפי תוצאות QA
+        const bookResult = await pool.query(`
+            SELECT
+                pb.id::text                                    AS id,
+                'book'                                         AS environment,
+                pb.category                                    AS module_name,
+                pb.name                                        AS scenario_name,
+                pb.description                                 AS expected_result,
+                COALESCE((
+                    SELECT CASE
+                        WHEN COUNT(*) FILTER (WHERE qr.status = 'ok')   > 0 THEN 'passed'
+                        WHEN COUNT(*) FILTER (WHERE qr.status = 'fail') > 0 THEN 'failed'
+                        ELSE 'untested'
+                    END
+                    FROM sa_qa_test_results qr WHERE qr.test_id = pb.id
+                ), 'untested')                                 AS status,
+                NULL                                           AS last_tested_at,
+                'book'                                         AS source
+            FROM sa_product_book pb
+            ORDER BY pb.category, pb.id
+        `);
+        res.json({ success: true, matrix: [...matrixResult.rows, ...bookResult.rows] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
