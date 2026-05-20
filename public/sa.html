@@ -268,278 +268,260 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-pulse" class="hidden space-y-5 fade-in">
+                <div id="sa-view-pulse" class="hidden fade-in">
 
-                    <!-- ─── HEADER: title + Live/Lifetime toggle + fullscreen ─── -->
-                    <div class="flex flex-wrap items-center justify-between gap-4">
-                        <div class="flex items-center gap-3">
-                            <span class="w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                <i class="fa-solid fa-heart-pulse text-red-400 animate-pulse"></i>
+                    <!-- header -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-heart-pulse text-red-400 text-sm animate-pulse"></i>
                             </span>
                             <div>
-                                <h2 class="text-xl font-black text-slate-800">דופק מערכת</h2>
-                                <p class="text-[10px] text-slate-400">Command Center — Oneflow Life Ecosystem</p>
+                                <h2 class="text-base font-black text-slate-800 leading-tight">דופק מערכת</h2>
+                                <p class="text-[9px] text-slate-400">Command Center — Oneflow Life</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <div class="flex bg-slate-100 rounded-2xl p-1 gap-1">
+                        <div class="flex items-center gap-2">
+                            <div class="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
                                 <button id="pulse-btn-live" onclick="setPulseMode('live')"
-                                    class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-white transition flex items-center gap-2">
+                                    class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-white transition flex items-center gap-1.5">
                                     <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> זמן אמת
                                 </button>
                                 <button id="pulse-btn-lifetime" onclick="setPulseMode('lifetime')"
-                                    class="px-4 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> היסטוריה
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-clock-rotate-left text-[10px]"></i> היסטוריה
                                 </button>
                             </div>
-                            <span id="pulse-last-update" class="text-[10px] text-slate-400 font-mono hidden"></span>
+                            <span id="pulse-last-update" class="text-[9px] text-slate-400 font-mono"></span>
+                            <button onclick="loadSAData()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition" title="רענן">
+                                <i class="fa-solid fa-rotate-right text-xs"></i>
+                            </button>
                             <button onclick="togglePulseFullscreen()"
-                                class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
-                                title="חדר מצב — מסך מלא עם ריענון אוטומטי">
-                                <i class="fa-solid fa-expand text-sm"></i>
+                                class="w-7 h-7 rounded-lg bg-slate-800 text-white hover:bg-slate-700 flex items-center justify-center transition"
+                                title="חדר מצב — מסך מלא">
+                                <i class="fa-solid fa-expand text-xs"></i>
                             </button>
                         </div>
                     </div>
 
-                    <!-- ─── CAT 1: BIZ & Environments ─── -->
-                    <div class="rounded-3xl border border-amber-100 bg-amber-50/40 p-5">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-briefcase"></i></span>
-                            <div><h3 class="font-black text-slate-800 text-sm">עסקים וסביבות</h3><p class="text-[10px] text-slate-400">BIZ &amp; Environments</p></div>
+                    <!-- ─── CAT 1: BIZ ─── -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-100">
+                            <span class="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-briefcase"></i></span>
+                            <h3 class="font-black text-slate-700 text-xs">עסקים וסביבות</h3>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">עסקים פעילים</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-amber-600" id="kpi-active-biz">--</span><span class="text-[10px] text-slate-400">סה"כ</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">סטטוס Active</p>
+                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">עסקים פעילים</p>
+                                <span class="text-2xl font-black text-amber-600" id="kpi-active-biz">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Active</p>
                             </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ממתינים לאישור</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-orange-500" id="dash-pending-biz">--</span><span class="text-[10px] text-slate-400">עסקים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Onboarding</p>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">ממתינים לאישור</p>
+                                <span class="text-2xl font-black text-orange-500" id="dash-pending-biz">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Onboarding</p>
                             </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">פעילות 24 שעות</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-green-600" id="kpi-biz-24h">--</span><span class="text-[10px] text-slate-400">עסקים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">מכירה / קופה / תור</p>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">פעילות 24 ש'</p>
+                                <span class="text-2xl font-black text-green-600" id="kpi-biz-24h">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">קופה / תור</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">סה"כ נרשמו</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-total-biz">--</span><span class="text-[10px] text-slate-400">עסקים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Lifetime</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">סה"כ נרשמו</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-biz">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">הכנסה מצטברת</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-biz-revenue">--</span><span class="text-[10px] text-slate-400">₪</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">מנויים + עמלות</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">הכנסה מצטברת</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-biz-revenue">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">שעות עבודה</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-work-hours">--</span><span class="text-[10px] text-slate-400">ש'</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">נוהלו במערכת</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ─── CAT 2: Family & Users ─── -->
-                    <div class="rounded-3xl border border-emerald-100 bg-emerald-50/40 p-5">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-house-chimney-user"></i></span>
-                            <div><h3 class="font-black text-slate-800 text-sm">משפחות ומשתמשים</h3><p class="text-[10px] text-slate-400">Family &amp; End-Users</p></div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">משתמשים פעילים</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-emerald-600" id="kpi-online-users">--</span><span class="text-[10px] text-slate-400">משתמשים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">כלל הסביבות</p>
-                            </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">משפחות 24 שעות</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-teal-600" id="kpi-families-24h">--</span><span class="text-[10px] text-slate-400">פעילות</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">מטלות / בנק</p>
-                            </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">קבוצות משפחה</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-green-600" id="kpi-active-families">--</span><span class="text-[10px] text-slate-400">קבוצות</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">רשומות</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">סך משפחות</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-total-families">--</span><span class="text-[10px] text-slate-400">רשומות</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">ילדים במערכת</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-total-kids">--</span><span class="text-[10px] text-slate-400">ילדים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">חינוך פיננסי (אומדן)</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">משימות הושלמו</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-tasks-done">--</span><span class="text-[10px] text-slate-400">סה"כ</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Lifetime</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">שעות עבודה</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-work-hours">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ─── CAT 3: Traffic & Marketplace ─── -->
-                    <div class="rounded-3xl border border-blue-100 bg-blue-50/40 p-5">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="w-8 h-8 rounded-xl bg-blue-500 text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-chart-line"></i></span>
-                            <div><h3 class="font-black text-slate-800 text-sm">תעבורה ופיננסים</h3><p class="text-[10px] text-slate-400">Traffic &amp; Marketplace</p></div>
+                    <!-- ─── CAT 2: FAMILY ─── -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 border-b border-emerald-100">
+                            <span class="w-5 h-5 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-house-chimney-user"></i></span>
+                            <h3 class="font-black text-slate-700 text-xs">משפחות ומשתמשים</h3>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">GMV יומי</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-blue-600" id="kpi-gmv-today">--</span><span class="text-[10px] text-slate-400">₪</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">מכירות היום</p>
+                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משתמשים פעילים</p>
+                                <span class="text-2xl font-black text-emerald-600" id="kpi-online-users">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">כלל הסביבות</p>
                             </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">קריאות AI</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-purple-600" id="kpi-ai-today">--</span><span class="text-[10px] text-slate-400">שאילתות</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">24 שעות אחרונות</p>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משפחות 24 ש'</p>
+                                <span class="text-2xl font-black text-teal-600" id="kpi-families-24h">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">פעילות</p>
                             </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">חיבורי קהילה</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-cyan-600" id="kpi-community-connections">--</span><span class="text-[10px] text-slate-400">פעילים</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">עסקים-קהילות</p>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קבוצות משפחה</p>
+                                <span class="text-2xl font-black text-green-600" id="kpi-active-families">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">רשומות</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">GMV מצטבר</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-gmv-total">--</span><span class="text-[10px] text-slate-400">₪</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Lifetime</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">סך משפחות</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-families">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">הנחות קהילה</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-community-discounts">--</span><span class="text-[10px] text-slate-400">₪</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">נוצלו Lifetime</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">ילדים במערכת</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-kids">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">אומדן</p>
                             </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">מטבעות וירטואליים</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-tokens-issued">--</span><span class="text-[10px] text-slate-400">Tokens</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">הונפקו</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ─── CAT 4: System & QA Health ─── -->
-                    <div class="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="w-8 h-8 rounded-xl bg-slate-700 text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-shield-halved"></i></span>
-                            <div><h3 class="font-black text-slate-800 text-sm">בריאות מערכת ו-QA</h3><p class="text-[10px] text-slate-400">System &amp; QA Health</p></div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm transition" id="kpi-tickets-card" onclick="switchSATab('support')" style="cursor:pointer">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">קריאות פתוחות</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-slate-700" id="dash-open-tickets">--</span><span class="text-[10px] text-slate-400">קריאות</span></div>
-                                <p class="text-[9px] font-bold mt-1" id="kpi-sla-label">SLA תקין ✓</p>
-                            </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm transition" id="kpi-errors-card">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">תקלות פעילות</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-green-600" id="kpi-errors">0</span><span class="text-[10px] text-slate-400">שגיאות</span></div>
-                                <p class="text-[9px] text-green-500 font-bold mt-1" id="kpi-errors-label">מערכת תקינה ✓</p>
-                            </div>
-                            <div class="pulse-live-card bg-white rounded-2xl p-4 border border-slate-200 shadow-sm" onclick="switchSATab('devops')" style="cursor:pointer">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">משימות ובאגים</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-500" id="dash-open-tasks">--</span><span class="text-[10px] text-slate-400">פתוחות</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Kanban</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">קריאות נסגרו</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-resolved-tickets">--</span><span class="text-[10px] text-slate-400">טופלו</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">QA Health</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-qa-health">--</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">% פיצ'רים עברו בדיקות</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden bg-white rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">גרסאות פורסמו</p>
-                                <div class="mt-2 flex items-baseline gap-1"><span class="text-3xl font-black text-indigo-600" id="kpi-releases">--</span><span class="text-[10px] text-slate-400">Releases</span></div>
-                                <p class="text-[9px] text-slate-400 mt-1">מאז ההקמה</p>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">משימות הושלמו</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-tasks-done">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ─── LIVE STREAM ─── -->
-                    <div class="bg-slate-900 rounded-3xl p-5 shadow-xl text-white relative overflow-hidden border border-slate-800" id="pulse-stream-section">
-                        <div id="pulse-anomaly-alert" class="hidden absolute top-0 right-0 left-0 bg-red-600 text-white py-1.5 text-center text-xs font-bold animate-pulse z-20">
-                            <i class="fa-solid fa-triangle-exclamation"></i> זוהתה אנומליה במערכת! בדוק את הלוג.
+                    <!-- ─── CAT 3: TRAFFIC ─── -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 border-b border-blue-100">
+                            <span class="w-5 h-5 rounded-lg bg-blue-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-chart-line"></i></span>
+                            <h3 class="font-black text-slate-700 text-xs">תעבורה ופיננסים</h3>
                         </div>
-                        <div class="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 z-10"></div>
-                        <div class="flex justify-between items-center mb-3 relative z-10">
-                            <h3 class="text-xs font-black text-slate-200 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> זרם פעולות אחרונות
-                            </h3>
-                            <div class="flex items-center gap-3">
-                                <span id="pulse-last-update-stream" class="text-[10px] text-slate-500 font-mono"></span>
-                                <button onclick="loadSAData()" class="text-slate-400 hover:text-white text-xs flex items-center gap-1.5 transition"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">GMV יומי</p>
+                                <span class="text-2xl font-black text-blue-600" id="kpi-gmv-today">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">מכירות היום</p>
                             </div>
-                        </div>
-                        <div id="pulse-live-stream" class="space-y-1.5 h-52 overflow-y-auto text-xs relative z-10">
-                            <div class="text-center text-slate-500 py-10 flex flex-col items-center gap-3">
-                                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-slate-600"></i>
-                                <span>מתחבר לערוץ הנתונים...</span>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קריאות AI</p>
+                                <span class="text-2xl font-black text-purple-600" id="kpi-ai-today">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">24 שעות</p>
+                            </div>
+                            <div class="pulse-live-card p-3 text-center">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">חיבורי קהילה</p>
+                                <span class="text-2xl font-black text-cyan-600" id="kpi-community-connections">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">עסקים-קהילות</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">GMV מצטבר</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-gmv-total">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">הנחות קהילה</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-community-discounts">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">מטבעות וירטואליים</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-tokens-issued">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Tokens</p>
                             </div>
                         </div>
                     </div>
+
+                    <!-- ─── CAT 4: SYSTEM ─── -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+                            <span class="w-5 h-5 rounded-lg bg-slate-700 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-shield-halved"></i></span>
+                            <h3 class="font-black text-slate-700 text-xs">בריאות מערכת ו-QA</h3>
+                        </div>
+                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
+                            <div class="pulse-live-card p-3 text-center cursor-pointer hover:bg-slate-50 transition" id="kpi-tickets-card" onclick="switchSATab('support')">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קריאות פתוחות</p>
+                                <span class="text-2xl font-black text-slate-700" id="dash-open-tickets">--</span>
+                                <p class="text-[9px] font-bold mt-0.5" id="kpi-sla-label">SLA תקין ✓</p>
+                            </div>
+                            <div class="pulse-live-card p-3 text-center transition" id="kpi-errors-card">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">תקלות פעילות</p>
+                                <span class="text-2xl font-black text-green-600" id="kpi-errors">0</span>
+                                <p class="text-[9px] text-green-500 font-bold mt-0.5" id="kpi-errors-label">מערכת תקינה ✓</p>
+                            </div>
+                            <div class="pulse-live-card p-3 text-center cursor-pointer hover:bg-slate-50 transition" onclick="switchSATab('devops')">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משימות ובאגים</p>
+                                <span class="text-2xl font-black text-indigo-500" id="dash-open-tasks">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Kanban</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">קריאות נסגרו</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-resolved-tickets">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">QA Health</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-qa-health">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">% בדיקות עברו</p>
+                            </div>
+                            <div class="pulse-lifetime-card hidden p-3 text-center">
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">גרסאות פורסמו</p>
+                                <span class="text-2xl font-black text-indigo-600" id="kpi-releases">--</span>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Releases</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- anomaly alert strip -->
+                    <div id="pulse-anomaly-alert" class="hidden mt-2 bg-red-600 text-white py-1.5 text-center text-xs font-bold rounded-xl animate-pulse">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> זוהתה אנומליה במערכת! בדוק את הלוג.
+                    </div>
+
+                    <!-- hidden elements kept for JS backward-compat -->
+                    <span id="pulse-last-update-stream" class="hidden"></span>
+                    <span id="pulse-live-stream" class="hidden"></span>
                 </div>
 
                 <!-- ══ FULLSCREEN WAR ROOM OVERLAY ══ -->
-                <div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 z-[9999] p-8 flex flex-col gap-5 overflow-auto">
+                <div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 z-[9999] p-6 flex flex-col gap-4 overflow-auto">
                     <div class="flex items-center justify-between flex-shrink-0">
-                        <div class="flex items-center gap-4">
-                            <span class="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center">
-                                <i class="fa-solid fa-heart-pulse text-red-400 text-xl animate-pulse"></i>
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center">
+                                <i class="fa-solid fa-heart-pulse text-red-400 text-lg animate-pulse"></i>
                             </span>
                             <div>
-                                <h1 class="text-2xl font-black text-white">דופק מערכת — Oneflow Life</h1>
-                                <p class="text-slate-400 text-sm" id="pulse-fs-time">--</p>
+                                <h1 class="text-xl font-black text-white">דופק מערכת — Oneflow Life</h1>
+                                <p class="text-slate-400 text-xs" id="pulse-fs-time">--</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3">
                             <span class="text-xs text-slate-500 font-mono" id="pulse-fs-refresh-label">מתרענן בעוד --</span>
-                            <button onclick="togglePulseFullscreen()" class="text-slate-300 hover:text-white text-sm flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition">
+                            <button onclick="togglePulseFullscreen()" class="text-slate-300 hover:text-white text-sm flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl transition">
                                 <i class="fa-solid fa-compress"></i> יציאה
                             </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-slate-900 rounded-3xl p-6 border border-amber-500/20">
-                            <p class="text-amber-400 text-xs font-bold uppercase tracking-widest mb-4"><i class="fa-solid fa-briefcase mr-2"></i>עסקים</p>
-                            <div class="space-y-4">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+                        <div class="bg-slate-900 rounded-2xl p-5 border border-amber-500/20">
+                            <p class="text-amber-400 text-[10px] font-bold uppercase tracking-widest mb-3"><i class="fa-solid fa-briefcase mr-1"></i>עסקים</p>
+                            <div class="space-y-3">
                                 <div><span class="text-5xl font-black text-white" id="fs-active-biz">--</span><p class="text-slate-400 text-xs mt-1">עסקים פעילים</p></div>
                                 <div><span class="text-3xl font-black text-amber-400" id="fs-biz-24h">--</span><p class="text-slate-400 text-xs mt-1">פעילות 24 ש'</p></div>
                             </div>
                         </div>
-                        <div class="bg-slate-900 rounded-3xl p-6 border border-emerald-500/20">
-                            <p class="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-4"><i class="fa-solid fa-house-chimney-user mr-2"></i>משפחות</p>
-                            <div class="space-y-4">
+                        <div class="bg-slate-900 rounded-2xl p-5 border border-emerald-500/20">
+                            <p class="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mb-3"><i class="fa-solid fa-house-chimney-user mr-1"></i>משפחות</p>
+                            <div class="space-y-3">
                                 <div><span class="text-5xl font-black text-white" id="fs-online-users">--</span><p class="text-slate-400 text-xs mt-1">משתמשים פעילים</p></div>
                                 <div><span class="text-3xl font-black text-emerald-400" id="fs-active-families">--</span><p class="text-slate-400 text-xs mt-1">קבוצות משפחה</p></div>
                             </div>
                         </div>
-                        <div class="bg-slate-900 rounded-3xl p-6 border border-blue-500/20">
-                            <p class="text-blue-400 text-xs font-bold uppercase tracking-widest mb-4"><i class="fa-solid fa-chart-line mr-2"></i>תעבורה</p>
-                            <div class="space-y-4">
+                        <div class="bg-slate-900 rounded-2xl p-5 border border-blue-500/20">
+                            <p class="text-blue-400 text-[10px] font-bold uppercase tracking-widest mb-3"><i class="fa-solid fa-chart-line mr-1"></i>תעבורה</p>
+                            <div class="space-y-3">
                                 <div><span class="text-5xl font-black text-white" id="fs-gmv-today">--</span><p class="text-slate-400 text-xs mt-1">₪ GMV היום</p></div>
                                 <div><span class="text-3xl font-black text-purple-400" id="fs-ai-today">--</span><p class="text-slate-400 text-xs mt-1">קריאות AI (24ש')</p></div>
                             </div>
                         </div>
-                        <div class="bg-slate-900 rounded-3xl p-6 border border-red-500/20">
-                            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4"><i class="fa-solid fa-shield-halved mr-2"></i>בריאות מערכת</p>
-                            <div class="space-y-4">
+                        <div class="bg-slate-900 rounded-2xl p-5 border border-red-500/20">
+                            <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-3"><i class="fa-solid fa-shield-halved mr-1"></i>בריאות מערכת</p>
+                            <div class="space-y-3">
                                 <div><span class="text-5xl font-black text-green-400" id="fs-errors">0</span><p class="text-slate-400 text-xs mt-1">תקלות פעילות</p></div>
                                 <div><span class="text-3xl font-black text-slate-300" id="fs-open-tickets">--</span><p class="text-slate-400 text-xs mt-1">קריאות פתוחות</p></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="bg-black/50 rounded-2xl border border-white/10 overflow-hidden flex-shrink-0">
-                        <div class="bg-white/5 px-4 py-2 border-b border-white/10 flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                            <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Stream</h4>
-                        </div>
-                        <div id="pulse-fs-stream" class="p-3 h-28 overflow-y-auto text-[10px] text-slate-300 space-y-1"></div>
                     </div>
                 </div>
 
