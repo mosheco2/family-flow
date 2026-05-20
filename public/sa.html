@@ -401,25 +401,88 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-support" class="hidden space-y-8 fade-in">
-                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                <div id="sa-view-support" class="hidden space-y-6 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                             <div>
-                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-headset text-blue-500"></i> ניהול קריאות שירות</h2>
-                                <p class="text-sm text-slate-500 mt-1">טיפול בפניות לקוחות, משפחות ועסקים.</p>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-headset text-blue-500"></i> ניהול קריאות שירות (SLA)</h2>
+                                <p class="text-sm text-slate-500 mt-1">ניהול קריאות, מעקב זמני תגובה, וניתוב לצוותים.</p>
                             </div>
-<div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                            <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
                                 <button onclick="openNewTicketModal()" class="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-plus"></i> פתיחת קריאה</button>
                                 <button onclick="openSlaMatrixModal()" class="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-stopwatch"></i> SLA</button>
-                                <div class="relative w-full sm:w-64 shrink-0">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="sa-search-tickets" onkeyup="filterSATickets()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש קריאה...">
-                                </div>
-                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-rotate-right"></i></button>
+                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-rotate-right"></i> רענן נתונים</button>
                             </div>
-                            
                         </div>
-                        <div id="sa-tickets-full-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[300px]"></div>
+
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end mb-6">
+                            <div class="flex-1 min-w-[150px]">
+                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">חיפוש חופשי (מזהה, לקוח, נושא):</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-search absolute right-3 top-2.5 text-slate-400 text-xs"></i>
+                                    <input type="text" id="ticket-filter-search" oninput="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-8 text-sm focus:border-indigo-500 outline-none transition bg-white" placeholder="הקלד לחיפוש...">
+                                </div>
+                            </div>
+                            <div class="w-full sm:w-28">
+                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">סטטוס:</label>
+                                <select id="ticket-filter-status" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
+                                    <option value="all">הכל</option>
+                                    <option value="open">פתוח</option>
+                                    <option value="in_progress">בטיפול</option>
+                                    <option value="resolved">סגור</option>
+                                </select>
+                            </div>
+                            <div class="w-full sm:w-28">
+                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">דחיפות:</label>
+                                <select id="ticket-filter-priority" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
+                                    <option value="all">הכל</option>
+                                    <option value="low">נמוכה</option>
+                                    <option value="normal">רגילה</option>
+                                    <option value="high">גבוהה</option>
+                                    <option value="critical">קריטית</option>
+                                </select>
+                            </div>
+                            <div class="w-full sm:w-36">
+                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">תקופה:</label>
+                                <select id="ticket-filter-period" onchange="toggleCustomDates(); applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
+                                    <option value="all">כל הזמנים</option>
+                                    <option value="1m">חודש אחרון</option>
+                                    <option value="3m">3 חודשים אחרונים</option>
+                                    <option value="6m">חצי שנה אחרונה</option>
+                                    <option value="custom">מותאם אישית</option>
+                                </select>
+                            </div>
+                            <div id="ticket-custom-dates" class="hidden flex gap-2 w-full lg:w-auto">
+                                <div class="flex-1">
+                                    <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">מתאריך:</label>
+                                    <input type="date" id="ticket-filter-from" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-1.5 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
+                                </div>
+                                <div class="flex-1">
+                                    <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">עד תאריך:</label>
+                                    <input type="date" id="ticket-filter-to" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-1.5 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto modal-scroll min-h-[300px]">
+                                <table class="w-full text-sm text-right whitespace-nowrap">
+                                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3 font-bold">מזהה</th>
+                                            <th class="px-4 py-3 font-bold">נושא הקריאה</th>
+                                            <th class="px-4 py-3 font-bold">לקוח / יוצר</th>
+                                            <th class="px-4 py-3 font-bold">תאריך פתיחה</th>
+                                            <th class="px-4 py-3 font-bold text-center">דחיפות</th>
+                                            <th class="px-4 py-3 font-bold text-center">סטטוס ו-SLA</th>
+                                            <th class="px-4 py-3 font-bold text-center">פעולות</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sa-tickets-table-body" class="divide-y divide-slate-100">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
