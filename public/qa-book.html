@@ -1564,6 +1564,81 @@ const ENV_MAP = {
   'SAF-28':['sa']
 };
 
+// ============================================================
+// GUIDE_BOOK → שחזור בדיקות שנמחקו
+// הפעל מהקונסול: restoreFromGuideBook()
+// ============================================================
+window.restoreFromGuideBook = async function() {
+  if(!saToken) { alert('אין saToken — כנס ל-sa.html תחילה ורענן'); return; }
+  const total = Object.keys(GUIDE_BOOK).length;
+  if(!confirm(`שחזר ${total} בדיקות מ-GUIDE_BOOK לשרת?\n(מוסיף רק חסרות — לא ידרוס קיימות)`)) return;
+
+  const prefixToCat = {
+    'AUTH':'אימות ומשתמשים',
+    'ONBD':'אשף הכניסה (Onboarding)',
+    'FAM':'סביבת משפחה — לשוניות ראשיות',
+    'BIZ':'סביבת עסק — לשוניות ראשיות',
+    'STR':'חנות, קטלוג ו-Storefront',
+    'POS':'קופה (POS)',
+    'B2B':'רכש, ספקים ו-B2B',
+    'FIN':'פיננסים ותקציב',
+    'INV':'מלאי, רכש וקניות',
+    'AI':"AI ופיצ'רים חכמים",
+    'CAL':'יומן, תורים והזמנות',
+    'SHF':'משמרות ולוח עובדים',
+    'TSK':'משימות',
+    'ACAD':'אקדמיה',
+    'COM':'קהילות ו-B2B קהילה',
+    'NOT':'התראות, Inbox ותקשורת',
+    'SA':'SuperAdmin',
+    'SMK':'SuperAdmin — שיווק וניוזלטר',
+    'PWA':'PWA, ביצועים ואבטחה',
+    'PFAM':'הרשאות — סביבת משפחה (הורה vs ילד)',
+    'PBIZ':'הרשאות — סביבת עסק (4 תפקידים)',
+    'SAF':'SuperAdmin — sa.html ו-sa-app.js'
+  };
+  const prefixToPrio = {
+    'AUTH':'critical','ONBD':'high','FAM':'medium','BIZ':'medium',
+    'STR':'high','POS':'critical','B2B':'medium','FIN':'high',
+    'INV':'medium','AI':'low','CAL':'medium','SHF':'medium',
+    'TSK':'medium','ACAD':'low','COM':'low','NOT':'medium',
+    'SA':'high','SMK':'low','PWA':'medium',
+    'PFAM':'critical','PBIZ':'critical','SAF':'critical'
+  };
+
+  const tests = Object.entries(GUIDE_BOOK).map(([id, g]) => {
+    const prefix = id.replace(/-\d+$/, '');
+    const cat  = prefixToCat[prefix] || 'כללי';
+    const prio = prefixToPrio[prefix] || 'medium';
+    const pathParts = g.path.split('←').map(s => s.trim().replace(/^["'«»\s]+|["'«»\s]+$/g, ''));
+    const lastName = pathParts[pathParts.length - 1];
+    const envs = ENV_MAP[id];
+    const envSuffix = envs && envs.length === 1
+      ? ({family:' — משפחה', biz:' — עסק', sa:' — SA', comm:' — קהילה'}[envs[0]] || ` — ${envs[0]}`)
+      : '';
+    return { id, cat, name: `${lastName}${envSuffix}`, desc: g.expected, prio, envs: envs || ['family','biz'] };
+  });
+
+  try {
+    showToast('⏳ שולח נתונים לשרת...');
+    const res = await fetch(`${API}/sa/qa/tests/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+      body: JSON.stringify({ tests })
+    });
+    const data = await res.json();
+    if(data.success) {
+      showToast(`✅ שוחזרו ${data.inserted} בדיקות מ-GUIDE_BOOK`);
+      loadTestsFromServer();
+    } else {
+      showToast('❌ שגיאת שרת: ' + (data.error || 'לא ידוע'));
+      console.error('restoreFromGuideBook error:', data);
+    }
+  } catch(e) {
+    showToast('❌ שגיאת תקשורת');
+    console.error('restoreFromGuideBook:', e);
+  }
+};
 
 // ============================================================
 // STATE  (env-aware — key = "testId:env")
@@ -1980,7 +2055,7 @@ function renderRow(t, sec, env, showCb) {
         <button class="s-btn ${s==='skip'?'active-skip':''}" onclick="setStatus('${t.id}','skip','${env}')" title="דלג"><i class="fa-solid fa-minus"></i></button>
         <button class="guide-btn active" onclick="toggleGuide('${rowKey}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
         <button class="note-btn ${n?'has-note':''}" data-note-btn="${rowKey}" onclick="toggleNote('${rowKey}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="delete-test-btn" onclick="deleteTest('${t.id}')" title="מחק שורה"><i class="fa-solid fa-trash-can"></i></button>
+        <button class="delete-test-btn" onclick="${currentFilter===null?`removeFromBook('${t.id}')`:`deleteTest('${t.id}')`}" title="${currentFilter===null?'הסר מספר המוצר':'מחק שורה'}"><i class="fa-solid fa-trash-can"></i></button>
       </div>
     </td>
   </tr>
@@ -2209,6 +2284,14 @@ function applyGuideEdits() {
       GUIDE_BOOK[id].expected = state[k];
     }
   });
+}
+
+function removeFromBook(testId) {
+  if(!confirm(`להסיר את ${testId} מספר המוצר?`)) return;
+  approvedTests.delete(testId);
+  localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
+  renderTests(null);
+  showToast('הבדיקה הוסרה מספר המוצר');
 }
 
 function deleteTest(testId) {
