@@ -268,138 +268,91 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-pulse" class="hidden fade-in">
+                <div id="sa-view-pulse" class="hidden space-y-6 fade-in">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('support')">
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-headset"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">קריאות פתוחות</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">ממתינות לטיפול צוות תמיכה</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-blue-600" id="dash-open-tickets">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">קריאות</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('devops')">
+                            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-bug"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">משימות ובאגים</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">פתוחות בלוח הפיתוח (Kanban)</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-indigo-600" id="dash-open-tasks">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">פתוחות</span>
+                            </div>
+                        </div>
 
-                    <!-- header -->
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                <i class="fa-solid fa-heart-pulse text-red-400 text-sm animate-pulse"></i>
-                            </span>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer group" onclick="switchSATab('comm')">
+                            <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-store"></i>
+                            </div>
+                            <h3 class="text-lg font-black text-slate-800">אישורי עסקים</h3>
+                            <p class="text-[11px] text-slate-500 mt-1">ממתינים להצטרפות לקהילות</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-3xl font-black text-orange-600" id="dash-pending-biz">0</span>
+                                <span class="text-[10px] font-bold text-slate-400 mb-1">בקשות</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl text-white relative overflow-hidden border border-slate-800">
+                        <div id="pulse-anomaly-alert" class="hidden absolute top-0 right-0 left-0 bg-red-600 text-white py-1.5 text-center text-xs font-bold animate-pulse z-20">
+                            <i class="fa-solid fa-triangle-exclamation"></i> זוהתה אנומליה או חוסר פעילות בעסק פעיל! בדוק את הלוג.
+                        </div>
+                        <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-90 z-10"></div>
+                        
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 relative z-10 gap-4">
                             <div>
-                                <h2 class="text-base font-black text-slate-800 leading-tight">דופק מערכת</h2>
-                                <p class="text-[9px] text-slate-400">Command Center — Oneflow Life</p>
+                                <h2 class="text-xl font-black flex items-center gap-3"><i class="fa-solid fa-satellite-dish text-indigo-400"></i> ניטור מערכת (Live)</h2>
+                                <p class="text-slate-400 text-xs mt-1">מדדי ביצוע בזמן אמת</p>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-white" id="pulse-active-users">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">משתמשים פעילים</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-green-400" id="pulse-orders-today">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">הזמנות (24 ש')</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-purple-400" id="pulse-ai-reqs">--</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">קריאות AI (24 ש')</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-xl font-black text-orange-400" id="pulse-errors">0</span>
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">תקלות מערכת</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span id="pulse-last-update" class="text-[9px] text-slate-400 font-mono"></span>
-                            <button id="pulse-btn-live" class="hidden"></button>
-                            <button id="pulse-btn-lifetime" class="hidden"></button>
-                            <button onclick="loadSAData()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition" title="רענן">
-                                <i class="fa-solid fa-rotate-right text-xs"></i>
-                            </button>
-                            <button onclick="togglePulseFullscreen()"
-                                class="w-7 h-7 rounded-lg bg-slate-800 text-white hover:bg-slate-700 flex items-center justify-center transition"
-                                title="חדר מצב — מסך מלא">
-                                <i class="fa-solid fa-expand text-xs"></i>
-                            </button>
+                        
+                        <div class="bg-black/40 rounded-2xl border border-white/10 overflow-hidden relative z-10">
+                            <div class="bg-white/5 px-5 py-3 border-b border-white/10 flex justify-between items-center">
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest">זרם פעולות אחרונות (Live Stream)</h3>
+                                <button onclick="loadSAData()" class="text-slate-400 hover:text-white transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> רענן ידנית</button>
+                            </div>
+                            <div id="pulse-live-stream" class="space-y-1.5 p-3 h-72 overflow-y-auto modal-scroll text-xs">
+                                <div class="text-center text-slate-500 py-12 flex flex-col items-center gap-3">
+                                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-600"></i>
+                                    <span>מתחבר לערוץ הנתונים...</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- ─── KPI GRID — dual value cards ─── -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-briefcase text-amber-400 text-[10px]"></i> עסקים</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-amber-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-amber-600" id="kpi-biz-24h">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">סה"כ</p><span class="text-2xl font-black text-slate-500" id="kpi-total-biz">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-store text-orange-400 text-[10px]"></i> עסקים פעילים</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-orange-400 font-bold uppercase mb-1">פעילים</p><span class="text-2xl font-black text-orange-500" id="kpi-active-biz">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">ממתינים</p><span class="text-2xl font-black text-slate-500" id="dash-pending-biz">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-shekel-sign text-green-400 text-[10px]"></i> הכנסות</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-green-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-green-600" id="kpi-gmv-today">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">סה"כ</p><span class="text-2xl font-black text-slate-500" id="kpi-gmv-total">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-house-chimney-user text-emerald-400 text-[10px]"></i> משפחות</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-emerald-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-emerald-600" id="kpi-families-24h">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">סה"כ</p><span class="text-2xl font-black text-slate-500" id="kpi-total-families">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-users text-teal-400 text-[10px]"></i> משתמשים</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-teal-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-teal-600" id="kpi-online-users">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">סה"כ</p><span class="text-2xl font-black text-slate-500" id="kpi-total-kids">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-people-group text-cyan-400 text-[10px]"></i> קהילות</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-cyan-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-cyan-600" id="kpi-community-connections">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">הנחות</p><span class="text-2xl font-black text-slate-500" id="kpi-community-discounts">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-robot text-purple-400 text-[10px]"></i> AI</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-purple-400 font-bold uppercase mb-1">24 שעות</p><span class="text-2xl font-black text-purple-600" id="kpi-ai-today">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">טוקנים</p><span class="text-2xl font-black text-slate-500" id="kpi-tokens-issued">--</span></div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3 cursor-pointer hover:bg-slate-50 transition" id="kpi-tickets-card" onclick="switchSATab('support')">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-headset text-slate-400 text-[10px]"></i> תמיכה</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-red-400 font-bold uppercase mb-1">פתוחות</p><span class="text-2xl font-black text-slate-700" id="dash-open-tickets">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">נסגרו</p><span class="text-2xl font-black text-slate-500" id="kpi-resolved-tickets">--</span></div>
-                            </div>
-                            <p class="text-[8px] font-bold mt-1.5 text-center" id="kpi-sla-label">SLA תקין ✓</p>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3" id="kpi-errors-card">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-shield-halved text-red-400 text-[10px]"></i> בריאות מערכת</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-red-400 font-bold uppercase mb-1">תקלות</p><span class="text-2xl font-black text-green-600" id="kpi-errors">0</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">QA %</p><span class="text-2xl font-black text-slate-500" id="kpi-qa-health">--</span></div>
-                            </div>
-                            <p class="text-[8px] font-bold text-green-500 mt-1.5 text-center" id="kpi-errors-label">מערכת תקינה ✓</p>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3 cursor-pointer hover:bg-slate-50 transition" onclick="switchSATab('devops')">
-                            <p class="text-xs font-bold text-slate-700 text-right mb-2 flex items-center justify-end gap-1.5"><i class="fa-solid fa-code-branch text-indigo-400 text-[10px]"></i> פיתוח</p>
-                            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
-                                <div class="text-center px-2"><p class="text-[8px] text-indigo-400 font-bold uppercase mb-1">משימות</p><span class="text-2xl font-black text-indigo-500" id="dash-open-tasks">--</span></div>
-                                <div class="text-center px-2"><p class="text-[8px] text-slate-400 font-bold uppercase mb-1">גרסאות</p><span class="text-2xl font-black text-slate-500" id="kpi-releases">--</span></div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- anomaly alert -->
-                    <div id="pulse-anomaly-alert" class="hidden mt-2 bg-red-600 text-white py-1.5 text-center text-xs font-bold rounded-xl animate-pulse">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> זוהתה אנומליה במערכת! בדוק את הלוג.
-                    </div>
-
-                    <!-- JS compat — old IDs kept hidden -->
-                    <span id="pulse-last-update-stream" class="hidden"></span>
-                    <span id="pulse-live-stream" class="hidden"></span>
-                    <span id="kpi-active-families" class="hidden"></span>
-                    <span id="kpi-biz-revenue" class="hidden"></span>
-                    <span id="kpi-work-hours" class="hidden"></span>
-                    <span id="kpi-tasks-done" class="hidden"></span>
-                    <span id="pulse-active-users" class="hidden"></span>
-                    <span id="pulse-orders-today" class="hidden"></span>
-                    <span id="pulse-ai-reqs" class="hidden"></span>
-                    <span id="pulse-errors" class="hidden"></span>
-
+                </div>
 
                 <div id="sa-view-stats" class="hidden space-y-8 fade-in">
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -448,88 +401,25 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-support" class="hidden space-y-6 fade-in">
-                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
-                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
+                <div id="sa-view-support" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-slate-100 pb-4">
                             <div>
-                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-headset text-blue-500"></i> ניהול קריאות שירות (SLA)</h2>
-                                <p class="text-sm text-slate-500 mt-1">ניהול קריאות, מעקב זמני תגובה, וניתוב לצוותים.</p>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-headset text-blue-500"></i> ניהול קריאות שירות</h2>
+                                <p class="text-sm text-slate-500 mt-1">טיפול בפניות לקוחות, משפחות ועסקים.</p>
                             </div>
-                            <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
+<div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
                                 <button onclick="openNewTicketModal()" class="bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-emerald-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-plus"></i> פתיחת קריאה</button>
                                 <button onclick="openSlaMatrixModal()" class="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-stopwatch"></i> SLA</button>
-                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-rotate-right"></i> רענן נתונים</button>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end mb-6">
-                            <div class="flex-1 min-w-[150px]">
-                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">חיפוש חופשי (מזהה, לקוח, נושא):</label>
-                                <div class="relative">
-                                    <i class="fa-solid fa-search absolute right-3 top-2.5 text-slate-400 text-xs"></i>
-                                    <input type="text" id="ticket-filter-search" oninput="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg py-2 pl-2 pr-8 text-sm focus:border-indigo-500 outline-none transition bg-white" placeholder="הקלד לחיפוש...">
+                                <div class="relative w-full sm:w-64 shrink-0">
+                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="sa-search-tickets" onkeyup="filterSATickets()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חפש קריאה...">
                                 </div>
+                                <button onclick="loadSATickets()" class="bg-blue-50 text-blue-600 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-blue-100 transition shrink-0"><i class="fa-solid fa-rotate-right"></i></button>
                             </div>
-                            <div class="w-full sm:w-28">
-                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">סטטוס:</label>
-                                <select id="ticket-filter-status" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
-                                    <option value="all">הכל</option>
-                                    <option value="open">פתוח</option>
-                                    <option value="in_progress">בטיפול</option>
-                                    <option value="resolved">סגור</option>
-                                </select>
-                            </div>
-                            <div class="w-full sm:w-28">
-                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">דחיפות:</label>
-                                <select id="ticket-filter-priority" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
-                                    <option value="all">הכל</option>
-                                    <option value="low">נמוכה</option>
-                                    <option value="normal">רגילה</option>
-                                    <option value="high">גבוהה</option>
-                                    <option value="critical">קריטית</option>
-                                </select>
-                            </div>
-                            <div class="w-full sm:w-36">
-                                <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">תקופה:</label>
-                                <select id="ticket-filter-period" onchange="toggleCustomDates(); applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-2 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
-                                    <option value="all">כל הזמנים</option>
-                                    <option value="1m">חודש אחרון</option>
-                                    <option value="3m">3 חודשים אחרונים</option>
-                                    <option value="6m">חצי שנה אחרונה</option>
-                                    <option value="custom">מותאם אישית</option>
-                                </select>
-                            </div>
-                            <div id="ticket-custom-dates" class="hidden flex gap-2 w-full lg:w-auto">
-                                <div class="flex-1">
-                                    <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">מתאריך:</label>
-                                    <input type="date" id="ticket-filter-from" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-1.5 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
-                                </div>
-                                <div class="flex-1">
-                                    <label class="text-[10px] font-bold text-slate-500 mb-1 block uppercase tracking-wider">עד תאריך:</label>
-                                    <input type="date" id="ticket-filter-to" onchange="applyTicketFilters()" class="w-full border border-slate-200 rounded-lg p-1.5 text-sm cursor-pointer outline-none bg-white focus:border-indigo-500 transition">
-                                </div>
-                            </div>
+                            
                         </div>
-                        
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <div class="overflow-x-auto modal-scroll min-h-[300px]">
-                                <table class="w-full text-sm text-right whitespace-nowrap">
-                                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase tracking-wider">
-                                        <tr>
-                                            <th class="px-4 py-3 font-bold">מזהה</th>
-                                            <th class="px-4 py-3 font-bold">נושא ותוכן הקריאה</th>
-                                            <th class="px-4 py-3 font-bold">לקוח / יוצר</th>
-                                            <th class="px-4 py-3 font-bold">תאריך פתיחה</th>
-                                            <th class="px-4 py-3 font-bold text-center">דחיפות</th>
-                                            <th class="px-4 py-3 font-bold text-center">סטטוס ו-SLA</th>
-                                            <th class="px-4 py-3 font-bold text-center">פעולות</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="sa-tickets-table-body" class="divide-y divide-slate-100">
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <div id="sa-tickets-full-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[300px]"></div>
                     </div>
                 </div>
 
@@ -1890,169 +1780,5 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
     </div>
 </div>
 
-
-<!-- ══ FULLSCREEN WAR ROOM OVERLAY ══ -->
-<div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 flex flex-col" style="z-index:999999;padding:1.5rem;gap:1rem;">
-    <div class="flex items-center justify-between flex-shrink-0">
-        <div class="flex items-center gap-4">
-            <span class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
-                <i class="fa-solid fa-heart-pulse text-red-400 text-lg animate-pulse"></i>
-            </span>
-            <div>
-                <h1 class="text-2xl font-black text-white leading-tight">דופק מערכת &#x2014; Oneflow Life</h1>
-                <p class="text-slate-400 text-sm" id="pulse-fs-time">--</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-3">
-            <span class="text-sm text-slate-500 font-mono" id="pulse-fs-refresh-label">מתרענן בעוד --</span>
-            <button onclick="togglePulseFullscreen()" class="text-slate-300 hover:text-white text-sm flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition">
-                <i class="fa-solid fa-compress"></i> יציאה
-            </button>
-        </div>
-    </div>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 flex-1">
-
-        <div class="bg-slate-900 rounded-2xl border border-amber-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-amber-400 mb-4">עסקים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-amber-400">24ש'</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-active-biz">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-biz-24h">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-orange-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-orange-400 mb-4">עסקים פעילים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-orange-400">פעילים</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-kpi-active-biz">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">ממתינים</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-pending-biz">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-green-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-green-400 mb-4">הכנסות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-green-400">24ש'</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-gmv-today">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-gmv-total">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-emerald-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-emerald-400 mb-4">משפחות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-emerald-400">24ש'</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-online-users">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-active-families">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-teal-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-teal-400 mb-4">משתמשים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-teal-400">24ש'</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-users-24h">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-total-kids">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-cyan-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-cyan-400 mb-4">קהילות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-cyan-400">חיבורים</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-connections">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">הנחות</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-discounts">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-purple-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-purple-400 mb-4">AI</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-purple-400">24ש'</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-ai-today">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">טוקנים</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-tokens">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-slate-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-slate-300 mb-4">תמיכה</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-red-400">פתוחות</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-open-tickets">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">נסגרו</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-resolved">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-red-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-red-400 mb-4">מערכת</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-red-400">תקלות</p>
-                    <span class="text-6xl font-black text-green-400 leading-none" id="fs-errors">0</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">QA %</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-qa">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-slate-900 rounded-2xl border border-indigo-500/20 p-5 flex flex-col">
-            <p class="text-xl font-black text-indigo-400 mb-4">פיתוח</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-indigo-400">משימות</p>
-                    <span class="text-6xl font-black text-white leading-none" id="fs-tasks">--</span>
-                </div>
-                <div class="flex flex-col items-center justify-center px-3 gap-2">
-                    <p class="text-sm font-bold text-slate-400">גרסאות</p>
-                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-releases">--</span>
-                </div>
-            </div>
-        </div>
-
-    </div>
-</div>
 </body>
 </html>
