@@ -208,10 +208,33 @@ tr:hover td{background:#fafbfc}
 .qa-guide-btn:hover{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
 .qa-guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
 
+/* ── VISUAL BOOK ─────────────────────────────────────────────── */
+.vb-section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;padding:.5rem 0 .35rem;margin-top:1.25rem;border-top:2px solid #f1f5f9;display:flex;align-items:center;gap:.4rem}
+.vb-section-title:first-child{margin-top:0;border-top:none}
+.vb-card{background:white;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.1rem;margin-bottom:.65rem;break-inside:avoid}
+.vb-card-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.55rem}
+.vb-card-id{font-size:.68rem;font-weight:700;color:#64748b;background:#f1f5f9;padding:.1rem .4rem;border-radius:.3rem;font-family:monospace}
+.vb-card-name{font-size:.88rem;font-weight:700;color:#1e293b;flex:1}
+.vb-card-env{font-size:.63rem}
+.vb-field-label{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.2rem}
+.vb-steps{font-size:.75rem;color:#334155;line-height:1.7;white-space:pre-wrap;background:#f8fafc;border-radius:.4rem;padding:.5rem .65rem;border:1px solid #e2e8f0;margin-bottom:.55rem}
+.vb-expected{font-size:.75rem;color:#166534;line-height:1.6;background:#f0fdf4;border-radius:.4rem;padding:.4rem .65rem;border:1px solid #bbf7d0;margin-bottom:.55rem}
+.vb-screenshot-slot{border:2px dashed #e2e8f0;border-radius:.6rem;padding:.75rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative;min-height:56px}
+.vb-screenshot-slot:hover{border-color:#93c5fd}
+.vb-screenshot-slot img{max-width:100%;max-height:320px;border-radius:.4rem;display:block;margin:0 auto}
+.vb-screenshot-add{font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.3rem}
+.vb-screenshot-add i{font-size:1rem;color:#cbd5e1}
+.vb-screenshot-actions{display:flex;gap:.4rem;justify-content:center;margin-top:.4rem}
+.vb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:.65rem}
+.vb-empty{text-align:center;padding:4rem 2rem;color:#94a3b8}
+
 @media print{
-  .sidebar,.page-actions,.status-btns,.note-btn,.guide-btn{display:none!important}
+  .sidebar,.page-actions,.status-btns,.note-btn,.guide-btn,.vb-screenshot-slot button,.vb-screenshot-actions,.no-print{display:none!important}
   .main{margin-right:0}
   .section{break-inside:avoid}
+  #view-visual .vb-card{break-inside:avoid;border:1px solid #e2e8f0}
+  #view-visual .page-header{display:none!important}
+  #view-visual-print-header{display:block!important}
 }
 
 /* ── ENV TABS ──────────────────────────────────────────────── */
@@ -361,6 +384,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <div class="sb-link" onclick="showView('report')"><i class="fa-solid fa-triangle-exclamation"></i> דוח תקלות <span class="sb-badge badge-fail" id="sb-fail-count">0</span></div>
     <div class="sb-link" onclick="showView('alm')"><i class="fa-solid fa-diagram-project"></i> ALM Hub — פיתוח</div>
     <div class="sb-link" onclick="showView('versions')"><i class="fa-solid fa-clock-rotate-left"></i> היסטוריה</div>
+    <div class="sb-link" onclick="showView('visual')"><i class="fa-solid fa-book"></i> ספר מוצר ויזואלי</div>
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
@@ -465,6 +489,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
       <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
       <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
       <button class="btn btn-outline" onclick="showAllBook()"><i class="fa-solid fa-list"></i> הצג הכל</button>
+      <button class="btn btn-purple" onclick="showView('visual')"><i class="fa-solid fa-book"></i> ספר ויזואלי</button>
     </div>
   </div>
   <!-- Search -->
@@ -508,6 +533,18 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <h2><i class="fa-solid fa-clock-rotate-left" style="color:#7c3aed"></i> היסטוריה</h2>
   </div>
   <div id="versions-container"></div>
+</div>
+
+<!-- VISUAL PRODUCT BOOK VIEW -->
+<div id="view-visual" class="view">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-book" style="color:#8b5cf6"></i> ספר מוצר ויזואלי</h2>
+    <div class="page-actions">
+      <button class="btn btn-purple" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
+      <button class="btn btn-outline" onclick="showAllBook()"><i class="fa-solid fa-arrow-right"></i> חזור לספר המוצר</button>
+    </div>
+  </div>
+  <div id="visual-book-container"></div>
 </div>
 
 <!-- ALM HUB VIEW -->
@@ -579,6 +616,7 @@ let versionTasks = {};
 let approvedTests = new Set(JSON.parse(localStorage.getItem('approved_tests') || '[]'));
 // תור בדיקות ידניות לסבב QA הנוכחי (rowKey = testId:env)
 let testQueue = new Set(JSON.parse(localStorage.getItem('qa_test_queue') || '[]'));
+let productBookScreenshots = JSON.parse(localStorage.getItem('product_book_screenshots') || '{}');
 
 // ============================================================
 // SERVER INTEGRATION
@@ -1519,6 +1557,7 @@ function loadState() {
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
     _qaRuns         = JSON.parse(localStorage.getItem('qa_runs')             || '[]');
+    productBookScreenshots = JSON.parse(localStorage.getItem('product_book_screenshots') || '{}');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -3085,6 +3124,116 @@ function newVersion() {
 }
 
 // ============================================================
+// VISUAL PRODUCT BOOK
+// ============================================================
+function renderVisualBook() {
+  const el = document.getElementById('visual-book-container');
+  if(!el) return;
+  const approvedList = [...approvedTests];
+  if(!approvedList.length) {
+    el.innerHTML = `<div class="vb-empty">
+      <i class="fa-solid fa-book" style="font-size:3rem;margin-bottom:1rem;display:block;color:#e2e8f0"></i>
+      <p style="font-weight:600;font-size:.9rem">ספר המוצר הויזואלי ריק</p>
+      <p style="font-size:.78rem;margin-top:.4rem">לאחר אישור בדיקות בסבב QA, הן יופיעו כאן אוטומטית.</p>
+    </div>`;
+    return;
+  }
+  let html = '';
+  SECTIONS.forEach(sec => {
+    const approvedInSec = sec.tests.filter(t => approvedTests.has(t.id));
+    if(!approvedInSec.length) return;
+    html += `<div class="vb-section-title"><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i>${sec.title}</div>`;
+    html += `<div class="vb-grid">`;
+    approvedInSec.forEach(t => {
+      const guide = GUIDE_BOOK[t.id];
+      const savedSteps    = state[`guide_steps_${t.id}`];
+      const savedExpected = state[`guide_expected_${t.id}`];
+      const stepsVal    = savedSteps    != null ? savedSteps    : (guide ? guide.steps.join('\n') : (t.desc || ''));
+      const expectedVal = savedExpected != null ? savedExpected : (guide ? guide.expected : '');
+      const envs = t.envs && t.envs.length ? t.envs : ['family'];
+      const envLabels = envs.map(e => `<span class="env-tag env-${e} vb-card-env">${{family:'🏠',biz:'💼',comm:'🤝',sa:'🛡️'}[e]||e}</span>`).join('');
+      const shot = productBookScreenshots[t.id];
+      const shotHtml = shot
+        ? `<div class="vb-screenshot-slot" onclick="document.getElementById('vb-file-${t.id}').click()">
+            <img src="${shot.dataUrl}" alt="צילום מסך">
+            <div class="vb-screenshot-actions no-print">
+              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem" onclick="event.stopPropagation();document.getElementById('vb-file-${t.id}').click()"><i class="fa-solid fa-camera"></i> החלף</button>
+              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem;color:#dc2626" onclick="event.stopPropagation();removeVBScreenshot('${t.id}')"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+           </div>`
+        : `<div class="vb-screenshot-slot no-print" onclick="document.getElementById('vb-file-${t.id}').click()">
+            <div class="vb-screenshot-add"><i class="fa-solid fa-camera"></i> לחץ להוספת צילום מסך</div>
+           </div>`;
+      html += `<div class="vb-card">
+        <div class="vb-card-header">
+          <span class="vb-card-id">${t.id}</span>
+          <span class="vb-card-name">${t.name}</span>
+          ${envLabels}
+        </div>
+        ${stepsVal ? `<div class="vb-field-label">מדריך בדיקה</div><div class="vb-steps">${stepsVal}</div>` : ''}
+        ${expectedVal ? `<div class="vb-field-label">קיים (צפוי)</div><div class="vb-expected">${expectedVal}</div>` : ''}
+        ${shotHtml}
+        <input type="file" id="vb-file-${t.id}" accept="image/*" style="display:none" onchange="uploadVBScreenshot('${t.id}',this)">
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  // DEV-* approved tests (SA tasks)
+  const devApproved = approvedList.filter(id => id.startsWith('DEV-'));
+  if(devApproved.length) {
+    html += `<div class="vb-section-title"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>פיתוחים שאושרו (SA)</div><div class="vb-grid">`;
+    devApproved.forEach(id => {
+      const taskId = id.replace('DEV-','');
+      const task = kanbanTasks.find(t => String(t.id) === taskId);
+      const a = taskAssignments[taskId] || {};
+      const shot = productBookScreenshots[id];
+      const shotHtml = shot
+        ? `<div class="vb-screenshot-slot" onclick="document.getElementById('vb-file-${id}').click()">
+            <img src="${shot.dataUrl}" alt="צילום מסך">
+            <div class="vb-screenshot-actions no-print">
+              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem" onclick="event.stopPropagation();document.getElementById('vb-file-${id}').click()"><i class="fa-solid fa-camera"></i> החלף</button>
+              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem;color:#dc2626" onclick="event.stopPropagation();removeVBScreenshot('${id}')"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+           </div>`
+        : `<div class="vb-screenshot-slot no-print" onclick="document.getElementById('vb-file-${id}').click()">
+            <div class="vb-screenshot-add"><i class="fa-solid fa-camera"></i> לחץ להוספת צילום מסך</div>
+           </div>`;
+      html += `<div class="vb-card">
+        <div class="vb-card-header">
+          <span class="vb-card-id">${id}</span>
+          <span class="vb-card-name">${task ? task.title : id}</span>
+        </div>
+        ${task && task.description ? `<div class="vb-field-label">תיאור</div><div class="vb-steps">${task.description}</div>` : ''}
+        ${a.qa_note ? `<div class="vb-field-label">הערות QA</div><div class="vb-expected">${a.qa_note}</div>` : ''}
+        ${shotHtml}
+        <input type="file" id="vb-file-${id}" accept="image/*" style="display:none" onchange="uploadVBScreenshot('${id}',this)">
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function uploadVBScreenshot(testId, input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    productBookScreenshots[testId] = { dataUrl: e.target.result, uploadedAt: new Date().toLocaleDateString('he-IL') };
+    try { localStorage.setItem('product_book_screenshots', JSON.stringify(productBookScreenshots)); } catch(err) { showToast('הקובץ גדול מדי לאחסון'); return; }
+    renderVisualBook();
+    showToast('✅ צילום המסך נוסף');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeVBScreenshot(testId) {
+  delete productBookScreenshots[testId];
+  localStorage.setItem('product_book_screenshots', JSON.stringify(productBookScreenshots));
+  renderVisualBook();
+}
+
+// ============================================================
 // NAVIGATION & UI
 // ============================================================
 function showView(v) {
@@ -3093,7 +3242,7 @@ function showView(v) {
   const el = document.getElementById(`view-${v}`);
   if(el) el.classList.add('active');
   document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-  const map={dashboard:0,tests:1,book:2,report:3,versions:4,alm:5};
+  const map={dashboard:0,tests:1,book:2,report:3,versions:4,alm:5,visual:6};
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
   if(v==='tests')    renderQAStaging();
@@ -3101,6 +3250,7 @@ function showView(v) {
   if(v==='versions') renderVersions();
   if(v==='alm')      renderALMHub();
   if(v==='dashboard') updateStats();
+  if(v==='visual')   renderVisualBook();
 }
 
 function filterSection(id) {
