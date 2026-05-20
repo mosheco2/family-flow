@@ -464,6 +464,14 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// מחיקת קריאת שירות מהסופר אדמין
+app.delete('/api/superadmin/tickets/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM support_tickets WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // הראוט החדש: ניהול סיווגים והעברות טיפול, כולל שמירת המקרא של SLA
 app.get('/api/sa/sla-matrix', verifySA, async (req, res) => {
     try {
