@@ -1518,6 +1518,7 @@ function loadState() {
     versions        = JSON.parse(localStorage.getItem('qa_versions')         || '[]');
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
+    _qaRuns         = JSON.parse(localStorage.getItem('qa_runs')             || '[]');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -1546,6 +1547,7 @@ function saveState() {
   localStorage.setItem('qa_state', JSON.stringify(state));
   localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
   localStorage.setItem('qa_dismissed_tasks', JSON.stringify([...dismissedTaskIds]));
+  try { localStorage.setItem('qa_runs', JSON.stringify(_qaRuns)); } catch(e){}
   const n = document.getElementById('run-notes');
   if(n) localStorage.setItem('qa_run_notes', n.value);
   updateStats();
@@ -1678,13 +1680,20 @@ function _stagingBarInner(count, hasItems) {
 function renderManualStagingRow(rk) {
   const [testId, env] = rk.split(':');
   const s = getStatus(testId, env);
+  const n = getNote(testId, env);
   const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env;
   let testName = testId, secTitle = '';
   SECTIONS.forEach(sec => {
     const t = sec.tests.find(tt => tt.id === testId);
     if(t) { testName = t.name; secTitle = sec.title; }
   });
-  const sClass = {ok:'qa-pass-btn',fail:'qa-fail-btn',warn:'qa-pass-btn',skip:''}[s]||'';
+  const guide = GUIDE_BOOK[testId];
+  const _savedSteps    = state[`guide_steps_${testId}`];
+  const _savedExpected = state[`guide_expected_${testId}`];
+  const stepsVal    = _savedSteps    != null ? _savedSteps    : (guide ? guide.steps.join('\n') : '');
+  const expectedVal = _savedExpected != null ? _savedExpected : (guide ? guide.expected : '');
+  const pathLabel   = guide ? guide.path : testName;
+  const guideId     = `mqa-guide-${rk.replace(':','-')}`;
   return `
   <div class="qa-task-row" id="mqa-row-${rk.replace(':','-')}">
     <div class="qa-task-info">
@@ -1698,9 +1707,32 @@ function renderManualStagingRow(rk) {
       <button class="qa-pass-btn" style="${s==='ok'?'':'opacity:.55'}" onclick="setStatus('${testId}','ok','${env}');renderQAStaging()"><i class="fa-solid fa-check"></i> עבר</button>
       <button class="qa-fail-btn" style="${s==='fail'?'':'opacity:.55'}" onclick="setStatus('${testId}','fail','${env}');renderQAStaging()"><i class="fa-solid fa-xmark"></i> נכשל</button>
       <button class="qa-pass-btn" style="background:#d97706;${s==='warn'?'':'opacity:.55'}" onclick="setStatus('${testId}','warn','${env}');renderQAStaging()"><i class="fa-solid fa-triangle-exclamation"></i> אזהרה</button>
+      <button class="qa-guide-btn" onclick="toggleMQAGuide('${guideId}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
       <button onclick="removeFromQueue('${rk}')" title="הסר מהרשימה" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:.2rem .3rem"><i class="fa-solid fa-trash-can" style="font-size:.75rem"></i></button>
     </div>
+  </div>
+  <div id="${guideId}" class="qa-guide-panel" style="display:none">
+    <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${pathLabel}</div>
+    <div class="qa-guide-cols">
+      <div class="qa-guide-madrich">
+        <div class="qa-guide-label">מדריך בדיקה (צעדים)</div>
+        <textarea class="qa-guide-madrich-input" rows="3" placeholder="1. כנס לדף...&#10;2. בצע פעולה...&#10;3. בדוק תוצאה..." oninput="saveGuideSteps('${testId}',this.value)">${stepsVal}</textarea>
+      </div>
+      <div class="qa-guide-kayyam">
+        <div class="qa-guide-label">קיים (צפוי)</div>
+        <p style="font-size:.72rem;color:#166534;margin:0;line-height:1.5">${expectedVal||'אין תיאור מפורט'}</p>
+      </div>
+      <div class="qa-guide-matzuy">
+        <div class="qa-guide-label">מצוי (בפועל)</div>
+        <textarea class="qa-guide-matzuy-input" rows="3" placeholder="רשום מה נמצא בפועל..." oninput="setNote('${testId}',this.value,'${env}')">${n}</textarea>
+      </div>
+    </div>
   </div>`;
+}
+
+function toggleMQAGuide(id) {
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function renderTests(filter) {
@@ -3004,7 +3036,7 @@ async function finalizeTestRun() {
     stats:{ok:totalOk, fail:totalFail, total:totalAll}
   };
   _qaRuns.unshift(run);
-  localStorage.setItem('qa_runs', JSON.stringify(_qaRuns));
+  try { localStorage.setItem('qa_runs', JSON.stringify(_qaRuns)); } catch(e){ console.error('qa_runs save failed:', e); }
   // הוסף בדיקות שעברו (ok) לספר המוצר המאושר
   manualItems.forEach(item => {
     if(item.status === 'ok') approvedTests.add(item.testId);
