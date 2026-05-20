@@ -209,23 +209,39 @@ tr:hover td{background:#fafbfc}
 .qa-guide-btn.active{color:#3b82f6;border-color:#bfdbfe;background:#eff6ff}
 
 /* ── VISUAL BOOK ─────────────────────────────────────────────── */
-.vb-section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;padding:.5rem 0 .35rem;margin-top:1.25rem;border-top:2px solid #f1f5f9;display:flex;align-items:center;gap:.4rem}
+.vb-section-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;padding:.5rem 0 .35rem;margin-top:1.5rem;border-top:2px solid #f1f5f9;display:flex;align-items:center;gap:.4rem}
 .vb-section-title:first-child{margin-top:0;border-top:none}
-.vb-card{background:white;border:1px solid #e2e8f0;border-radius:.75rem;padding:1rem 1.1rem;margin-bottom:.65rem;break-inside:avoid}
-.vb-card-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.55rem}
-.vb-card-id{font-size:.68rem;font-weight:700;color:#64748b;background:#f1f5f9;padding:.1rem .4rem;border-radius:.3rem;font-family:monospace}
-.vb-card-name{font-size:.88rem;font-weight:700;color:#1e293b;flex:1}
-.vb-card-env{font-size:.63rem}
-.vb-field-label{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.2rem}
-.vb-steps{font-size:.75rem;color:#334155;line-height:1.7;white-space:pre-wrap;background:#f8fafc;border-radius:.4rem;padding:.5rem .65rem;border:1px solid #e2e8f0;margin-bottom:.55rem}
-.vb-expected{font-size:.75rem;color:#166534;line-height:1.6;background:#f0fdf4;border-radius:.4rem;padding:.4rem .65rem;border:1px solid #bbf7d0;margin-bottom:.55rem}
-.vb-screenshot-slot{border:2px dashed #e2e8f0;border-radius:.6rem;padding:.75rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative;min-height:56px}
-.vb-screenshot-slot:hover{border-color:#93c5fd}
-.vb-screenshot-slot img{max-width:100%;max-height:320px;border-radius:.4rem;display:block;margin:0 auto}
-.vb-screenshot-add{font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.3rem}
-.vb-screenshot-add i{font-size:1rem;color:#cbd5e1}
-.vb-screenshot-actions{display:flex;gap:.4rem;justify-content:center;margin-top:.4rem}
-.vb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:.65rem}
+.vb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:.75rem;margin-bottom:.5rem}
+.vb-card{background:white;border:1px solid #e2e8f0;border-radius:.85rem;padding:1.1rem 1.2rem;break-inside:avoid;transition:box-shadow .15s}
+.vb-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.vb-card.vb-editing{border-color:#a5b4fc;box-shadow:0 0 0 3px rgba(139,92,246,.08)}
+.vb-card-top{display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.6rem}
+.vb-card-id{font-size:.65rem;font-weight:700;color:#64748b;background:#f1f5f9;padding:.1rem .4rem;border-radius:.3rem;font-family:monospace;flex-shrink:0;margin-top:.1rem}
+.vb-card-title{font-size:.9rem;font-weight:700;color:#1e293b;flex:1;line-height:1.4}
+.vb-card-title-input{font-size:.88rem;font-weight:700;color:#1e293b;flex:1;border:1px solid #a5b4fc;border-radius:.4rem;padding:.25rem .5rem;font-family:inherit;outline:none;background:#fafafe;direction:rtl;min-width:0}
+.vb-edit-btn{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem .35rem;border-radius:.35rem;flex-shrink:0;white-space:nowrap;transition:all .15s}
+.vb-edit-btn:hover{background:#f1f5f9;color:#475569}
+.vb-save-btn{border:1px solid #6d28d9;background:#7c3aed;color:white;cursor:pointer;font-size:.72rem;padding:.25rem .6rem;border-radius:.35rem;flex-shrink:0;white-space:nowrap;font-family:inherit}
+.vb-utypes{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.55rem}
+.vb-utype{font-size:.68rem;padding:.15rem .5rem;border-radius:99px;font-weight:600;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.vb-utype.ut-family{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.vb-utype.ut-biz{background:#fefce8;color:#854d0e;border-color:#fde68a}
+.vb-utype.ut-comm{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+.vb-utype.ut-sa{background:#faf5ff;color:#6d28d9;border-color:#ddd6fe}
+.vb-utype-edit{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.55rem}
+.vb-utype-edit label{font-size:.72rem;display:flex;align-items:center;gap:.25rem;cursor:pointer;color:#475569}
+.vb-description{font-size:.8rem;color:#334155;line-height:1.75;background:#f8fafc;border-radius:.45rem;padding:.6rem .75rem;border:1px solid #e2e8f0;margin-bottom:.7rem;white-space:pre-wrap}
+.vb-desc-input{width:100%;box-sizing:border-box;font-size:.8rem;color:#334155;line-height:1.75;background:#f8fafc;border:1px solid #a5b4fc;border-radius:.45rem;padding:.55rem .7rem;font-family:inherit;resize:vertical;min-height:80px;direction:rtl;outline:none;margin-bottom:.7rem}
+.vb-desc-input:focus{border-color:#7c3aed;background:white}
+.vb-screenshots{display:flex;flex-direction:column;gap:.55rem}
+.vb-shot-item{border:1px solid #e2e8f0;border-radius:.55rem;overflow:hidden}
+.vb-shot-img{width:100%;max-height:280px;object-fit:contain;background:#f8fafc;display:block;cursor:pointer}
+.vb-shot-footer{display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;background:#f8fafc;border-top:1px solid #f1f5f9}
+.vb-caption{font-size:.7rem;color:#64748b;flex:1;font-style:italic}
+.vb-caption-input{flex:1;font-size:.7rem;color:#475569;border:1px solid #e2e8f0;border-radius:.3rem;padding:.2rem .4rem;font-family:inherit;direction:rtl;outline:none;background:white}
+.vb-caption-input:focus{border-color:#a5b4fc}
+.vb-add-shot{border:2px dashed #e2e8f0;border-radius:.55rem;padding:.65rem;text-align:center;cursor:pointer;color:#94a3b8;font-size:.75rem;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:all .15s}
+.vb-add-shot:hover{border-color:#93c5fd;color:#3b82f6;background:#eff6ff}
 .vb-empty{text-align:center;padding:4rem 2rem;color:#94a3b8}
 
 @media print{
@@ -616,7 +632,9 @@ let versionTasks = {};
 let approvedTests = new Set(JSON.parse(localStorage.getItem('approved_tests') || '[]'));
 // תור בדיקות ידניות לסבב QA הנוכחי (rowKey = testId:env)
 let testQueue = new Set(JSON.parse(localStorage.getItem('qa_test_queue') || '[]'));
-let productBookScreenshots = JSON.parse(localStorage.getItem('product_book_screenshots') || '{}');
+// ספר מוצר ויזואלי — נתוני יכולות {title, description, userTypes, screenshots:[{dataUrl,caption}]}
+let vbCapabilities = JSON.parse(localStorage.getItem('vb_capabilities') || '{}');
+const _vbEditMode = new Set();
 
 // ============================================================
 // SERVER INTEGRATION
@@ -1557,7 +1575,7 @@ function loadState() {
     taskAssignments = JSON.parse(localStorage.getItem('qa_task_assignments') || '{}');
     dismissedTaskIds = new Set(JSON.parse(localStorage.getItem('qa_dismissed_tasks') || '[]'));
     _qaRuns         = JSON.parse(localStorage.getItem('qa_runs')             || '[]');
-    productBookScreenshots = JSON.parse(localStorage.getItem('product_book_screenshots') || '{}');
+    vbCapabilities = JSON.parse(localStorage.getItem('vb_capabilities') || '{}');
     const notes = localStorage.getItem('qa_run_notes') || '';
     const v = document.getElementById('run-notes');
     if(v) v.value = notes;
@@ -3126,11 +3144,92 @@ function newVersion() {
 // ============================================================
 // VISUAL PRODUCT BOOK
 // ============================================================
+// ============================================================
+// VISUAL PRODUCT BOOK — ספר יכולות מערכת
+// ============================================================
+
+const VB_USER_TYPES = [
+  {id:'family', label:'🏠 משפחה',  cls:'ut-family'},
+  {id:'biz',    label:'💼 עסק',    cls:'ut-biz'},
+  {id:'comm',   label:'🤝 קהילה',  cls:'ut-comm'},
+  {id:'sa',     label:'🛡️ SA',     cls:'ut-sa'},
+];
+
+function _saveVBCaps() {
+  try { localStorage.setItem('vb_capabilities', JSON.stringify(vbCapabilities)); }
+  catch(e) { showToast('שגיאת אחסון — ייתכן שהתמונות גדולות מדי'); }
+}
+
+// מחזיר נתוני יכולת קיימים או יוצר מהנתונים הקיימים (auto-init)
+function _getOrInitVBCap(id, fallback) {
+  if(vbCapabilities[id]) return vbCapabilities[id];
+  const cap = {
+    title: fallback.title || id,
+    description: fallback.description || '',
+    userTypes: fallback.userTypes || ['family'],
+    screenshots: []
+  };
+  return cap;
+}
+
+function _renderVBCard(id, fallback) {
+  const cap = _getOrInitVBCap(id, fallback);
+  const editing = _vbEditMode.has(id);
+  const safeId  = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  // user type badges / checkboxes
+  const utView = VB_USER_TYPES
+    .filter(u => cap.userTypes.includes(u.id))
+    .map(u => `<span class="vb-utype ${u.cls}">${u.label}</span>`).join('');
+  const utEdit = VB_USER_TYPES
+    .map(u => `<label class="vb-utype-edit"><input type="checkbox" ${cap.userTypes.includes(u.id)?'checked':''} data-ut="${u.id}"> ${u.label}</label>`).join('');
+
+  // screenshots
+  const shotsHtml = cap.screenshots.map((s,i) => `
+    <div class="vb-shot-item">
+      <img class="vb-shot-img" src="${s.dataUrl}" alt="צילום מסך ${i+1}" onclick="this.requestFullscreen&&this.requestFullscreen()">
+      <div class="vb-shot-footer">
+        ${editing
+          ? `<input class="vb-caption-input" value="${(s.caption||'').replace(/"/g,'&quot;')}" placeholder="כיתוב לתמונה..." oninput="vbCapabilities['${id}'].screenshots[${i}].caption=this.value">`
+          : `<span class="vb-caption">${s.caption||''}</span>`}
+        ${editing ? `<button onclick="removeVBScreenshot('${id}',${i})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:.75rem;padding:.1rem .3rem"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+      </div>
+    </div>`).join('');
+
+  const addShotBtn = `
+    <div class="vb-add-shot no-print" onclick="document.getElementById('vbf-${safeId}').click()">
+      <i class="fa-solid fa-camera"></i> הוסף תמונה
+    </div>
+    <input type="file" id="vbf-${safeId}" accept="image/*" multiple style="display:none" onchange="uploadVBScreenshot('${id}',this)">`;
+
+  return `
+  <div class="vb-card${editing?' vb-editing':''}" id="vbcard-${safeId}">
+    <div class="vb-card-top">
+      <span class="vb-card-id">${id}</span>
+      ${editing
+        ? `<input class="vb-card-title-input" id="vbt-${safeId}" value="${cap.title.replace(/"/g,'&quot;')}">`
+        : `<span class="vb-card-title">${cap.title}</span>`}
+      ${editing
+        ? `<button class="vb-save-btn" onclick="saveVBCard('${id}')"><i class="fa-solid fa-check"></i> שמור</button>`
+        : `<button class="vb-edit-btn no-print" onclick="toggleVBEdit('${id}')"><i class="fa-solid fa-pen"></i> ערוך</button>`}
+    </div>
+    <div id="vbut-${safeId}" class="vb-utypes${editing?' vb-utype-edit':''}">
+      ${editing ? utEdit : utView}
+    </div>
+    ${editing
+      ? `<textarea class="vb-desc-input" id="vbd-${safeId}" placeholder="תאר את היכולת — מה המשתמש יכול לעשות...">${cap.description}</textarea>`
+      : (cap.description ? `<div class="vb-description">${cap.description}</div>` : `<div class="vb-description" style="color:#94a3b8;font-style:italic">אין תיאור — לחץ "ערוך" להוספה</div>`)}
+    <div class="vb-screenshots">
+      ${shotsHtml}
+      ${editing || !cap.screenshots.length ? addShotBtn : `${addShotBtn}`}
+    </div>
+  </div>`;
+}
+
 function renderVisualBook() {
   const el = document.getElementById('visual-book-container');
   if(!el) return;
-  const approvedList = [...approvedTests];
-  if(!approvedList.length) {
+  if(!approvedTests.size) {
     el.innerHTML = `<div class="vb-empty">
       <i class="fa-solid fa-book" style="font-size:3rem;margin-bottom:1rem;display:block;color:#e2e8f0"></i>
       <p style="font-weight:600;font-size:.9rem">ספר המוצר הויזואלי ריק</p>
@@ -3142,95 +3241,108 @@ function renderVisualBook() {
   SECTIONS.forEach(sec => {
     const approvedInSec = sec.tests.filter(t => approvedTests.has(t.id));
     if(!approvedInSec.length) return;
-    html += `<div class="vb-section-title"><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i>${sec.title}</div>`;
-    html += `<div class="vb-grid">`;
+    html += `<div class="vb-section-title"><i class="fa-solid ${sec.icon}" style="color:${sec.color}"></i>${sec.title}</div><div class="vb-grid">`;
     approvedInSec.forEach(t => {
       const guide = GUIDE_BOOK[t.id];
-      const savedSteps    = state[`guide_steps_${t.id}`];
       const savedExpected = state[`guide_expected_${t.id}`];
-      const stepsVal    = savedSteps    != null ? savedSteps    : (guide ? guide.steps.join('\n') : (t.desc || ''));
-      const expectedVal = savedExpected != null ? savedExpected : (guide ? guide.expected : '');
+      const desc = savedExpected != null ? savedExpected : (guide ? guide.expected : (t.desc || ''));
       const envs = t.envs && t.envs.length ? t.envs : ['family'];
-      const envLabels = envs.map(e => `<span class="env-tag env-${e} vb-card-env">${{family:'🏠',biz:'💼',comm:'🤝',sa:'🛡️'}[e]||e}</span>`).join('');
-      const shot = productBookScreenshots[t.id];
-      const shotHtml = shot
-        ? `<div class="vb-screenshot-slot" onclick="document.getElementById('vb-file-${t.id}').click()">
-            <img src="${shot.dataUrl}" alt="צילום מסך">
-            <div class="vb-screenshot-actions no-print">
-              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem" onclick="event.stopPropagation();document.getElementById('vb-file-${t.id}').click()"><i class="fa-solid fa-camera"></i> החלף</button>
-              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem;color:#dc2626" onclick="event.stopPropagation();removeVBScreenshot('${t.id}')"><i class="fa-solid fa-trash-can"></i></button>
-            </div>
-           </div>`
-        : `<div class="vb-screenshot-slot no-print" onclick="document.getElementById('vb-file-${t.id}').click()">
-            <div class="vb-screenshot-add"><i class="fa-solid fa-camera"></i> לחץ להוספת צילום מסך</div>
-           </div>`;
-      html += `<div class="vb-card">
-        <div class="vb-card-header">
-          <span class="vb-card-id">${t.id}</span>
-          <span class="vb-card-name">${t.name}</span>
-          ${envLabels}
-        </div>
-        ${stepsVal ? `<div class="vb-field-label">מדריך בדיקה</div><div class="vb-steps">${stepsVal}</div>` : ''}
-        ${expectedVal ? `<div class="vb-field-label">קיים (צפוי)</div><div class="vb-expected">${expectedVal}</div>` : ''}
-        ${shotHtml}
-        <input type="file" id="vb-file-${t.id}" accept="image/*" style="display:none" onchange="uploadVBScreenshot('${t.id}',this)">
-      </div>`;
+      html += _renderVBCard(t.id, { title: t.name, description: desc, userTypes: envs });
     });
     html += `</div>`;
   });
-  // DEV-* approved tests (SA tasks)
-  const devApproved = approvedList.filter(id => id.startsWith('DEV-'));
+  // DEV-* (SA tasks)
+  const devApproved = [...approvedTests].filter(id => id.startsWith('DEV-'));
   if(devApproved.length) {
-    html += `<div class="vb-section-title"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>פיתוחים שאושרו (SA)</div><div class="vb-grid">`;
+    html += `<div class="vb-section-title"><i class="fa-solid fa-code-branch" style="color:#7c3aed"></i>פיתוחים שאושרו</div><div class="vb-grid">`;
     devApproved.forEach(id => {
       const taskId = id.replace('DEV-','');
       const task = kanbanTasks.find(t => String(t.id) === taskId);
       const a = taskAssignments[taskId] || {};
-      const shot = productBookScreenshots[id];
-      const shotHtml = shot
-        ? `<div class="vb-screenshot-slot" onclick="document.getElementById('vb-file-${id}').click()">
-            <img src="${shot.dataUrl}" alt="צילום מסך">
-            <div class="vb-screenshot-actions no-print">
-              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem" onclick="event.stopPropagation();document.getElementById('vb-file-${id}').click()"><i class="fa-solid fa-camera"></i> החלף</button>
-              <button class="btn btn-outline" style="font-size:.68rem;padding:.2rem .6rem;color:#dc2626" onclick="event.stopPropagation();removeVBScreenshot('${id}')"><i class="fa-solid fa-trash-can"></i></button>
-            </div>
-           </div>`
-        : `<div class="vb-screenshot-slot no-print" onclick="document.getElementById('vb-file-${id}').click()">
-            <div class="vb-screenshot-add"><i class="fa-solid fa-camera"></i> לחץ להוספת צילום מסך</div>
-           </div>`;
-      html += `<div class="vb-card">
-        <div class="vb-card-header">
-          <span class="vb-card-id">${id}</span>
-          <span class="vb-card-name">${task ? task.title : id}</span>
-        </div>
-        ${task && task.description ? `<div class="vb-field-label">תיאור</div><div class="vb-steps">${task.description}</div>` : ''}
-        ${a.qa_note ? `<div class="vb-field-label">הערות QA</div><div class="vb-expected">${a.qa_note}</div>` : ''}
-        ${shotHtml}
-        <input type="file" id="vb-file-${id}" accept="image/*" style="display:none" onchange="uploadVBScreenshot('${id}',this)">
-      </div>`;
+      html += _renderVBCard(id, { title: task ? task.title : id, description: task?.description || a.qa_note || '', userTypes: [a.env||'family'] });
     });
     html += `</div>`;
   }
   el.innerHTML = html;
 }
 
-function uploadVBScreenshot(testId, input) {
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    productBookScreenshots[testId] = { dataUrl: e.target.result, uploadedAt: new Date().toLocaleDateString('he-IL') };
-    try { localStorage.setItem('product_book_screenshots', JSON.stringify(productBookScreenshots)); } catch(err) { showToast('הקובץ גדול מדי לאחסון'); return; }
-    renderVisualBook();
-    showToast('✅ צילום המסך נוסף');
-  };
-  reader.readAsDataURL(file);
+function toggleVBEdit(id) {
+  if(_vbEditMode.has(id)) _vbEditMode.delete(id);
+  else _vbEditMode.add(id);
+  renderVisualBook();
+  // גלול לכרטיס
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const card = document.getElementById('vbcard-' + safeId);
+  if(card) card.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
-function removeVBScreenshot(testId) {
-  delete productBookScreenshots[testId];
-  localStorage.setItem('product_book_screenshots', JSON.stringify(productBookScreenshots));
+function saveVBCard(id) {
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const titleEl = document.getElementById('vbt-' + safeId);
+  const descEl  = document.getElementById('vbd-' + safeId);
+  const utWrap  = document.getElementById('vbut-' + safeId);
+  const existing = vbCapabilities[id] || {};
+  const userTypes = [];
+  if(utWrap) utWrap.querySelectorAll('input[type=checkbox]').forEach(cb => { if(cb.checked) userTypes.push(cb.dataset.ut); });
+  vbCapabilities[id] = {
+    title:       titleEl ? titleEl.value : (existing.title || id),
+    description: descEl  ? descEl.value  : (existing.description || ''),
+    userTypes:   userTypes.length ? userTypes : (existing.userTypes || ['family']),
+    screenshots: existing.screenshots || []
+  };
+  _saveVBCaps();
+  _vbEditMode.delete(id);
   renderVisualBook();
+  showToast('✅ נשמר');
+}
+
+function uploadVBScreenshot(id, input) {
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      if(!vbCapabilities[id]) {
+        // init from DOM if card exists
+        const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const titleEl = document.getElementById('vbt-' + safeId);
+        vbCapabilities[id] = { title: titleEl ? titleEl.value : id, description: '', userTypes: ['family'], screenshots: [] };
+      }
+      vbCapabilities[id].screenshots.push({ dataUrl: e.target.result, caption: '' });
+      loaded++;
+      if(loaded === files.length) {
+        _saveVBCaps();
+        renderVisualBook();
+        showToast(`✅ ${loaded} תמונה נוספה`);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeVBScreenshot(id, idx) {
+  if(!vbCapabilities[id]) return;
+  vbCapabilities[id].screenshots.splice(idx, 1);
+  _saveVBCaps();
+  renderVisualBook();
+}
+
+// ── לשימוש AI: עדכון יכולות בצובר ──────────────────────────
+// קבל: { "AUTH-01": { title, description, userTypes }, ... }
+function batchUpdateVBCapabilities(data) {
+  Object.entries(data).forEach(([id, cap]) => {
+    const existing = vbCapabilities[id] || {};
+    vbCapabilities[id] = {
+      title:       cap.title       ?? existing.title       ?? id,
+      description: cap.description ?? existing.description ?? '',
+      userTypes:   cap.userTypes   ?? existing.userTypes   ?? ['family'],
+      screenshots: cap.screenshots ?? existing.screenshots ?? []
+    };
+  });
+  _saveVBCaps();
+  if(currentView === 'visual') renderVisualBook();
+  showToast(`✅ עודכנו ${Object.keys(data).length} יכולות`);
 }
 
 // ============================================================
