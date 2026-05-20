@@ -1925,8 +1925,8 @@ function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
   const inqaTasks = kanbanTasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
-  if(!inqaTasks.length) {
-    el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub</p></div>`;
+  if(!inqaTasks.length && testQueue.size === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub, או לאחר בחירת בדיקות מקטגוריה</p></div>`;
     return;
   }
   const standalones = inqaTasks.filter(t => taskAssignments[t.id]?.versionId === '__standalone__');
