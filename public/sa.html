@@ -304,164 +304,203 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <!-- ─── CAT 1: BIZ ─── -->
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-amber-50 border-b border-amber-100">
-                            <span class="w-5 h-5 rounded-lg bg-amber-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-briefcase"></i></span>
-                            <h3 class="font-black text-slate-700 text-xs">עסקים וסביבות</h3>
-                        </div>
-                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">עסקים פעילים</p>
-                                <span class="text-2xl font-black text-amber-600" id="kpi-active-biz">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Active</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">ממתינים לאישור</p>
-                                <span class="text-2xl font-black text-orange-500" id="dash-pending-biz">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Onboarding</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">פעילות 24 ש'</p>
-                                <span class="text-2xl font-black text-green-600" id="kpi-biz-24h">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">קופה / תור</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">סה"כ נרשמו</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-biz">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">הכנסה מצטברת</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-biz-revenue">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">שעות עבודה</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-work-hours">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- ─── KPI GRID ─── -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
 
-                    <!-- ─── CAT 2: FAMILY ─── -->
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 border-b border-emerald-100">
-                            <span class="w-5 h-5 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-house-chimney-user"></i></span>
-                            <h3 class="font-black text-slate-700 text-xs">משפחות ומשתמשים</h3>
-                        </div>
-                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משתמשים פעילים</p>
-                                <span class="text-2xl font-black text-emerald-600" id="kpi-online-users">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">כלל הסביבות</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משפחות 24 ש'</p>
-                                <span class="text-2xl font-black text-teal-600" id="kpi-families-24h">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">פעילות</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קבוצות משפחה</p>
-                                <span class="text-2xl font-black text-green-600" id="kpi-active-families">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">רשומות</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">סך משפחות</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-families">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">ילדים במערכת</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-total-kids">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">אומדן</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">משימות הושלמו</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-tasks-done">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
+                        <!-- live cards -->
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-amber-600 bg-amber-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-active-biz">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">עסקים פעילים</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Active</p>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- ─── CAT 3: TRAFFIC ─── -->
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-2 overflow-hidden">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 border-b border-blue-100">
-                            <span class="w-5 h-5 rounded-lg bg-blue-500 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-chart-line"></i></span>
-                            <h3 class="font-black text-slate-700 text-xs">תעבורה ופיננסים</h3>
-                        </div>
-                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">GMV יומי</p>
-                                <span class="text-2xl font-black text-blue-600" id="kpi-gmv-today">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">מכירות היום</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קריאות AI</p>
-                                <span class="text-2xl font-black text-purple-600" id="kpi-ai-today">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">24 שעות</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">חיבורי קהילה</p>
-                                <span class="text-2xl font-black text-cyan-600" id="kpi-community-connections">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">עסקים-קהילות</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">GMV מצטבר</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-gmv-total">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">הנחות קהילה</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-community-discounts">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">₪ Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">מטבעות וירטואליים</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-tokens-issued">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Tokens</p>
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-orange-500 bg-orange-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="dash-pending-biz">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">ממתינים לאישור</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Onboarding</p>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- ─── CAT 4: SYSTEM ─── -->
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
-                            <span class="w-5 h-5 rounded-lg bg-slate-700 text-white flex items-center justify-center text-[10px] flex-shrink-0"><i class="fa-solid fa-shield-halved"></i></span>
-                            <h3 class="font-black text-slate-700 text-xs">בריאות מערכת ו-QA</h3>
-                        </div>
-                        <div class="grid grid-cols-3 divide-x divide-x-reverse divide-slate-100">
-                            <div class="pulse-live-card p-3 text-center cursor-pointer hover:bg-slate-50 transition" id="kpi-tickets-card" onclick="switchSATab('support')">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">קריאות פתוחות</p>
-                                <span class="text-2xl font-black text-slate-700" id="dash-open-tickets">--</span>
-                                <p class="text-[9px] font-bold mt-0.5" id="kpi-sla-label">SLA תקין ✓</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center transition" id="kpi-errors-card">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">תקלות פעילות</p>
-                                <span class="text-2xl font-black text-green-600" id="kpi-errors">0</span>
-                                <p class="text-[9px] text-green-500 font-bold mt-0.5" id="kpi-errors-label">מערכת תקינה ✓</p>
-                            </div>
-                            <div class="pulse-live-card p-3 text-center cursor-pointer hover:bg-slate-50 transition" onclick="switchSATab('devops')">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">משימות ובאגים</p>
-                                <span class="text-2xl font-black text-indigo-500" id="dash-open-tasks">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Kanban</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">קריאות נסגרו</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-resolved-tickets">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Lifetime</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">QA Health</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-qa-health">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">% בדיקות עברו</p>
-                            </div>
-                            <div class="pulse-lifetime-card hidden p-3 text-center">
-                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-wide mb-1">גרסאות פורסמו</p>
-                                <span class="text-2xl font-black text-indigo-600" id="kpi-releases">--</span>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Releases</p>
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-green-600 bg-green-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-biz-24h">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">פעילות 24 ש'</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">קופה / תור</p>
                             </div>
                         </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-emerald-600 bg-emerald-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-online-users">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">משתמשים פעילים</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">כלל הסביבות</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-teal-600 bg-teal-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-families-24h">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">משפחות 24 ש'</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">פעילות</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-green-700 bg-green-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-active-families">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">קבוצות משפחה</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">רשומות</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-blue-600 bg-blue-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-gmv-today">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">GMV יומי</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">מכירות היום</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-purple-600 bg-purple-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-ai-today">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">קריאות AI</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">24 שעות</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-cyan-600 bg-cyan-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-community-connections">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">חיבורי קהילה</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">עסקים-קהילות</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition" id="kpi-tickets-card" onclick="switchSATab('support')">
+                            <span class="text-xl font-black text-slate-700 bg-slate-100 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="dash-open-tickets">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">קריאות פתוחות</p>
+                                <p class="text-[10px] font-bold mt-0.5" id="kpi-sla-label">SLA תקין ✓</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3" id="kpi-errors-card">
+                            <span class="text-xl font-black text-green-600 bg-green-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-errors">0</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">תקלות פעילות</p>
+                                <p class="text-[10px] font-bold text-green-500 mt-0.5" id="kpi-errors-label">מערכת תקינה ✓</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-live-card bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition" onclick="switchSATab('devops')">
+                            <span class="text-xl font-black text-indigo-500 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="dash-open-tasks">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">משימות ובאגים</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Kanban</p>
+                            </div>
+                        </div>
+
+                        <!-- lifetime cards (hidden by default) -->
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-total-biz">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">סה"כ עסקים</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-biz-revenue">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">הכנסה מצטברת</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">₪ Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-work-hours">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">שעות עבודה</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-total-families">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">סך משפחות</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-total-kids">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">ילדים במערכת</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">אומדן</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-tasks-done">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">משימות הושלמו</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-gmv-total">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">GMV מצטבר</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">₪ Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-community-discounts">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">הנחות קהילה</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">₪ Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-tokens-issued">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">מטבעות וירטואליים</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Tokens</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-resolved-tickets">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">קריאות נסגרו</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Lifetime</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-qa-health">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">QA Health</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">% בדיקות עברו</p>
+                            </div>
+                        </div>
+
+                        <div class="pulse-lifetime-card hidden bg-white rounded-xl border border-indigo-100 shadow-sm p-3 flex items-center justify-between gap-3">
+                            <span class="text-xl font-black text-indigo-600 bg-indigo-50 min-w-[3rem] text-center px-2 py-1.5 rounded-lg leading-tight" id="kpi-releases">--</span>
+                            <div class="text-right flex-1">
+                                <p class="text-sm font-bold text-slate-700 leading-snug">גרסאות פורסמו</p>
+                                <p class="text-[10px] text-indigo-400 mt-0.5">Releases</p>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- anomaly alert strip -->
@@ -472,7 +511,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <!-- hidden elements kept for JS backward-compat -->
                     <span id="pulse-last-update-stream" class="hidden"></span>
                     <span id="pulse-live-stream" class="hidden"></span>
-                </div>
 
                 <!-- ══ FULLSCREEN WAR ROOM OVERLAY ══ -->
                 <div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 z-[9999] p-6 flex flex-col gap-4 overflow-auto">
