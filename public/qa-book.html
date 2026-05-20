@@ -2868,16 +2868,17 @@ function updateSidebarBadges() {
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
-  // collect unique failing tests across all envs
-  const _failSet = new Set();
-  const fails = [];
+  // אסוף כשלונות עם סביבות
+  const failMap = {};
   allTests().forEach(t => {
     (t.envs&&t.envs.length?t.envs:['family']).forEach(env => {
-      if(['fail','warn'].includes(getStatus(t.id,env)) && !_failSet.has(t.id)) {
-        _failSet.add(t.id); fails.push(t);
+      if(['fail','warn'].includes(getStatus(t.id,env))) {
+        if(!failMap[t.id]) failMap[t.id] = { t, failEnvs:[] };
+        failMap[t.id].failEnvs.push(env);
       }
     });
   });
+  const fails = Object.values(failMap);
   if(!fails.length) {
     container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--ok)">
       <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:1rem;display:block"></i>
@@ -2886,24 +2887,29 @@ function generateReport() {
     return;
   }
 
-  const critical = fails.filter(t=>t.prio==='critical');
-  const high = fails.filter(t=>t.prio==='high');
-  const other = fails.filter(t=>!['critical','high'].includes(t.prio));
+  const critical = fails.filter(({t})=>t.prio==='critical');
+  const high     = fails.filter(({t})=>t.prio==='high');
+  const other    = fails.filter(({t})=>!['critical','high'].includes(t.prio));
 
-  let html = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;padding:1rem;margin-bottom:1.25rem;display:flex;gap:1rem;align-items:center">
+  let html = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;padding:1rem;margin-bottom:1.25rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
     <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#dc2626"></i>
-    <div><div style="font-weight:800;font-size:0.95rem;color:#991b1b">נמצאו ${fails.length} בדיקות שנכשלו</div>
+    <div style="flex:1"><div style="font-weight:800;font-size:0.95rem;color:#991b1b">נמצאו ${fails.length} בדיקות שנכשלו</div>
     <div style="font-size:0.78rem;color:#dc2626;margin-top:2px">${critical.length} קריטיות · ${high.length} עדיפות גבוהה · ${other.length} אחרות</div></div>
+    <button class="btn btn-purple" onclick="sendAllFailsToStaging()" style="font-size:.75rem">
+      <i class="fa-solid fa-flask"></i> שלח הכל לסטייג'ינג
+    </button>
   </div>`;
 
   const renderGroup = (title, color, items) => {
     if(!items.length) return '';
     let g = `<div style="font-weight:700;font-size:0.8rem;color:${color};margin:1rem 0 0.5rem;text-transform:uppercase;letter-spacing:0.05em">${title}</div>`;
-    items.forEach(t=>{
-      const s = getStatus(t.id);
-      const n = getNote(t.id, null) || '';
+    items.forEach(({t, failEnvs})=>{
+      const s = getStatus(t.id, failEnvs[0]);
+      const n = getNote(t.id, failEnvs[0]) || '';
       const secName = SECTIONS.find(sec=>sec.tests.some(tt=>tt.id===t.id))?.title||'';
       const isWarn = s==='warn';
+      const envsJson = JSON.stringify(failEnvs);
+      const inQueue = failEnvs.some(env => testQueue.has(`${t.id}:${env}`));
       g+=`<div class="report-item${isWarn?' report-item-warn':''}">
         <div class="report-icon ${isWarn?'r-warn-icon':'r-fail-icon'}"><i class="fa-solid ${isWarn?'fa-triangle-exclamation':'fa-xmark'}"></i></div>
         <div class="report-text">
@@ -2912,7 +2918,13 @@ function generateReport() {
           <div class="report-section-name">${t.desc}</div>
           ${n?`<div class="report-note"><i class="fa-solid fa-pen-to-square" style="margin-left:4px"></i>${n}</div>`:''}
         </div>
-        <span class="prio prio-${t.prio}" style="flex-shrink:0">${{critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem;flex-shrink:0">
+          <span class="prio prio-${t.prio}">${{critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[t.prio]}</span>
+          <button onclick="sendReportItemToStaging('${t.id}',${envsJson})"
+            style="font-size:.68rem;padding:.22rem .55rem;border-radius:.35rem;border:1px solid ${inQueue?'#7c3aed':'#e2e8f0'};background:${inQueue?'#f5f3ff':'#f8fafc'};color:${inQueue?'#7c3aed':'#475569'};cursor:pointer;white-space:nowrap;font-family:inherit">
+            <i class="fa-solid fa-flask"></i> ${inQueue?'נוסף ✓':'שלח לסטייג\'ינג'}
+          </button>
+        </div>
       </div>`;
     });
     return g;
@@ -2923,6 +2935,26 @@ function generateReport() {
   html += renderGroup('🟡 עדיפות בינונית/נמוכה', '#ca8a04', other);
 
   container.innerHTML = html;
+}
+
+function sendReportItemToStaging(testId, envs) {
+  envs.forEach(env => testQueue.add(`${testId}:${env}`));
+  localStorage.setItem('qa_test_queue', JSON.stringify([...testQueue]));
+  generateReport();
+  showToast('✅ הבדיקה נוספה לסטייג\'ינג');
+}
+
+function sendAllFailsToStaging() {
+  allTests().forEach(t => {
+    (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => {
+      if (['fail', 'warn'].includes(getStatus(t.id, env))) {
+        testQueue.add(`${t.id}:${env}`);
+      }
+    });
+  });
+  localStorage.setItem('qa_test_queue', JSON.stringify([...testQueue]));
+  generateReport();
+  showToast('✅ כל הכשלונות נוספו לסטייג\'ינג');
 }
 
 // ============================================================
