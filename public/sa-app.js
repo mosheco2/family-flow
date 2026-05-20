@@ -343,22 +343,72 @@ function renderLivePulse(activityData, stats) {
 let saCurrentTicketId = null;
 
 async function loadSATickets() {
-    const list = getEl('sa-tickets-full-list');
-    if(!list) return;
-    list.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i><p>טוען קריאות שירות...</p></div>';
+    const tbody = getEl('sa-tickets-table-body');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-3"></i><br>טוען קריאות שירות...</td></tr>';
     try {
         const res = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
         if (data.success) {
             saTicketsCache = data.tickets || [];
-            renderSATickets();
+            applyTicketFilters(); 
+            updateSADashboard(); 
         } else {
-            list.innerHTML = '<div class="col-span-full text-center text-red-500">שגיאה בטעינת קריאות</div>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-red-500 py-6">שגיאה בטעינת קריאות</td></tr>';
         }
-    } catch(e) { list.innerHTML = '<div class="col-span-full text-center text-red-500">שגיאת תקשורת</div>'; }
+    } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-red-500 py-6">שגיאת תקשורת</td></tr>'; }
 }
 
-function filterSATickets() { renderSATickets(); }
+window.toggleCustomDates = function() {
+    const period = val('ticket-filter-period');
+    const customDiv = getEl('ticket-custom-dates');
+    if (customDiv) {
+        if (period === 'custom') customDiv.classList.remove('hidden');
+        else customDiv.classList.add('hidden');
+    }
+};
+
+window.applyTicketFilters = function() {
+    if (!saTicketsCache) return;
+    const searchVal = val('ticket-filter-search') ? val('ticket-filter-search').toLowerCase() : '';
+    const statusVal = val('ticket-filter-status') || 'all';
+    const priorityVal = val('ticket-filter-priority') || 'all';
+    const periodVal = val('ticket-filter-period') || 'all';
+    
+    let filtered = saTicketsCache.filter(t => {
+        let match = true;
+        if (searchVal) {
+            const text = `${t.subject} ${t.user_name} ${t.group_name} ${t.id}`.toLowerCase();
+            if (!text.includes(searchVal)) match = false;
+        }
+        if (statusVal !== 'all' && t.status !== statusVal) match = false;
+        if (priorityVal !== 'all' && t.priority !== priorityVal) match = false;
+        
+        if (match && periodVal !== 'all') {
+            const tDate = new Date(t.created_at);
+            const now = new Date();
+            if (periodVal === '1m') {
+                const threshold = new Date(now.setMonth(now.getMonth() - 1));
+                if (tDate < threshold) match = false;
+            } else if (periodVal === '3m') {
+                const threshold = new Date(now.setMonth(now.getMonth() - 3));
+                if (tDate < threshold) match = false;
+            } else if (periodVal === '6m') {
+                const threshold = new Date(now.setMonth(now.getMonth() - 6));
+                if (tDate < threshold) match = false;
+            } else if (periodVal === 'custom') {
+                const fromVal = val('ticket-filter-from');
+                const toVal = val('ticket-filter-to');
+                if (fromVal && tDate < new Date(fromVal)) match = false;
+                if (toVal && tDate > new Date(toVal + 'T23:59:59')) match = false;
+            }
+        }
+        return match;
+    });
+
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    renderSATicketsTable(filtered);
+};
 
 let saSlaRulesCache = [];
 
@@ -367,62 +417,43 @@ window.loadSlaMatrix = async function() {
         const res = await fetch(`${API}/sa/sla-matrix`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
         if (data.success) {
-            saSlaRulesCache = data.sla || [{ type: '*', priority: '*', hours: 24 }]; // ברירת מחדל אם ריק
+            saSlaRulesCache = data.sla || [{ type: '*', priority: '*', hours: 24 }];
         }
     } catch(e) { console.error('Error loading SLA', e); }
 };
 
 function getTicketSlaMaxHours(type, priority) {
     if (!saSlaRulesCache || saSlaRulesCache.length === 0) return 24;
-    // עדיפות 1: התאמה מדויקת
     let match = saSlaRulesCache.find(r => r.type === type && r.priority === priority);
-    // עדיפות 2: סוג מתאים, דחיפות כללית
     if (!match) match = saSlaRulesCache.find(r => r.type === type && r.priority === '*');
-    // עדיפות 3: סוג כללי, דחיפות מתאימה
     if (!match) match = saSlaRulesCache.find(r => r.type === '*' && r.priority === priority);
-    // עדיפות 4: הכל כללי
     if (!match) match = saSlaRulesCache.find(r => r.type === '*' && r.priority === '*');
-    
     return match ? parseInt(match.hours) : 24;
 }
 
-function renderSATickets() {
-    const list = getEl('sa-tickets-full-list');
-    if (!list) return;
-    const query = val('sa-search-tickets').toLowerCase().trim();
-    let filtered = saTicketsCache;
-    
-    if (query) {
-        filtered = filtered.filter(t => 
-            String(t.id).includes(query) || 
-            (t.subject && t.subject.toLowerCase().includes(query)) ||
-            (t.group_name && t.group_name.toLowerCase().includes(query)) ||
-            (t.user_name && t.user_name.toLowerCase().includes(query))
-        );
-    }
-    
-    if (filtered.length === 0) {
-        list.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">לא נמצאו קריאות התואמות לחיפוש.</div>';
+function renderSATicketsTable(tickets) {
+    const tbody = getEl('sa-tickets-table-body');
+    if(!tbody) return;
+    if(!tickets || tickets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500 bg-white">לא נמצאו קריאות התואמות לסינון המבוקש.</td></tr>';
         return;
     }
 
-    // מוודאים שטבלת ה-SLA נטענה
     if (saSlaRulesCache.length === 0) loadSlaMatrix();
 
-    let html = '';
     const statusMap = {
-        'open': { text: 'פתוח (ממתין)', color: 'bg-red-100 text-red-700 border-red-200' },
+        'open': { text: 'פתוח', color: 'bg-red-100 text-red-700 border-red-200' },
         'in_progress': { text: 'בטיפול', color: 'bg-orange-100 text-orange-700 border-orange-200' },
         'resolved': { text: 'סגור', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' }
     };
     
-    const prioMap = { 'critical': '🚨 קריטי', 'high': '🔴 גבוה', 'normal': '🟡 רגיל', 'low': '🔵 נמוך' };
+    const prioMap = { 'critical': '🚨 קריטית', 'high': '🔴 גבוהה', 'normal': '🟡 רגילה', 'low': '🔵 נמוכה' };
 
-    filtered.forEach(t => {
+    tbody.innerHTML = tickets.map(t => {
         const st = statusMap[t.status] || statusMap['open'];
-        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
+        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
         const pLabel = prioMap[t.priority] || prioMap['normal'];
-        
+
         let slaHtml = '';
         if (t.status !== 'resolved') {
             const timeSinceUpdate = new Date() - new Date(t.status_updated_at || t.created_at);
@@ -430,38 +461,62 @@ function renderSATickets() {
             const maxHours = getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
             
             if (hoursOpen >= maxHours) {
-                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse" title="יעד: ${maxHours} שעות"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
+                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse text-[10px]" title="יעד: ${maxHours} שעות"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
             } else {
-                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold" title="יעד: ${maxHours} שעות"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
+                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold text-[10px]" title="יעד: ${maxHours} שעות"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
             }
         }
-        
-        const teamHtml = t.assigned_team_name ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded truncate max-w-[100px]"><i class="fa-solid fa-shield-cat"></i> ${safeStr(t.assigned_team_name)}</span>` : '<span class="bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded">לא שויך</span>';
 
-        html += `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer group" onclick="openSATicketModal(${t.id})">
-            <div>
-                <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
-                    <div class="pr-2">
-                        <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mb-2 inline-block">קריאה #${t.id} <span class="ml-1 px-1 bg-slate-200 rounded">${pLabel}</span></span>
-                        <h4 class="font-bold text-slate-800 text-base leading-tight group-hover:text-blue-600 transition">${safeStr(t.subject)}</h4>
-                        <p class="text-[11px] text-slate-500 mt-1.5 flex items-center gap-2"><i class="fa-solid fa-building text-slate-300"></i> ${safeStr(t.group_name)} ${slaHtml}</p>
+        return `
+            <tr class="hover:bg-slate-50 transition border-b border-slate-100 group">
+                <td class="px-4 py-3 text-slate-400 font-bold text-xs">#${t.id}</td>
+                <td class="px-4 py-3 font-bold text-slate-800 text-sm max-w-[200px] truncate" title="${safeStr(t.subject)}">${safeStr(t.subject)}</td>
+                <td class="px-4 py-3 text-slate-600 text-xs">
+                    <div class="font-bold">${safeStr(t.group_name)}</div>
+                    <div class="text-[10px] text-slate-400"><i class="fa-regular fa-user mr-1"></i>${safeStr(t.user_name)}</div>
+                </td>
+                <td class="px-4 py-3 text-slate-500 dir-ltr text-right text-xs">${dateStr}</td>
+                <td class="px-4 py-3 text-center text-xs font-medium">${pLabel}</td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
+                        ${slaHtml}
                     </div>
-                    <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
-                </div>
-                <p class="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed">${safeStr(t.description)}</p>
-            </div>
-            <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <div class="flex items-center gap-2">
-                    <span><i class="fa-solid fa-user mr-1"></i> ${safeStr(t.user_name)}</span>
-                    ${teamHtml}
-                </div>
-                <span><i class="fa-regular fa-clock mr-1"></i> ${dateStr}</span>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="openSATicketModal(${t.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-expand ml-1"></i>פרטים</button>
+                        <button onclick="deleteTicket(${t.id})" class="bg-white text-slate-300 px-2.5 py-1.5 rounded-lg text-xs hover:text-red-600 hover:bg-red-50 transition border border-slate-200 hover:border-red-100" title="מחק קריאה"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
+
+window.deleteTicket = async function(id) {
+    if(!confirm('האם אתה בטוח שברצונך למחוק קריאת שירות זו לצמיתות? פעולה זו אינה הפיכה!')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': saToken }
+        });
+        const data = await res.json();
+        if(data.success) {
+            if(typeof showToast === 'function') showToast('success', 'הקריאה נמחקה בהצלחה.');
+            else alert('הקריאה נמחקה בהצלחה.');
+            saTicketsCache = saTicketsCache.filter(t => t.id !== id);
+            applyTicketFilters(); 
+            updateSADashboard(); 
+        } else {
+            if(typeof showToast === 'function') showToast('error', 'שגיאה: ' + data.error);
+            else alert('שגיאה: ' + data.error);
+        }
+    } catch(e) {
+        if(typeof showToast === 'function') showToast('error', 'שגיאת תקשורת במחיקת קריאה.');
+        else alert('שגיאת תקשורת.');
+    }
+};
 
 function openSATicketModal(id) {
     const t = saTicketsCache.find(x => x.id === id);
