@@ -233,7 +233,7 @@ window.switchSATab = function(tabId) {
     // טעינת נתונים פר טאב
     if (tabId === 'dashboard') updateSADashboard();
     if (tabId === 'hr') loadSAHRData();
-    if (tabId === 'devops') { loadProductMatrix(); loadDevTasks(); }
+    if (tabId === 'devops') { switchDevTab('matrix'); loadProductMatrix(); loadDevTasks(); }
     if (tabId === 'support') loadSATickets();
     if (tabId === 'clients') loadSAData();
     if (tabId === 'partners') loadSAPartners();
