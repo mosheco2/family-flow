@@ -470,7 +470,10 @@ function renderSATicketsTable(tickets) {
         return `
             <tr class="hover:bg-slate-50 transition border-b border-slate-100 group">
                 <td class="px-4 py-3 text-slate-400 font-bold text-xs">#${t.id}</td>
-                <td class="px-4 py-3 font-bold text-slate-800 text-sm max-w-[200px] truncate" title="${safeStr(t.subject)}">${safeStr(t.subject)}</td>
+                <td class="px-4 py-3 max-w-[250px]">
+                    <div class="font-bold text-slate-800 text-sm truncate" title="${safeStr(t.subject)}">${safeStr(t.subject)}</div>
+                    <div class="text-[11px] text-slate-500 truncate mt-0.5" title="${safeStr(t.description)}">${safeStr(t.description)}</div>
+                </td>
                 <td class="px-4 py-3 text-slate-600 text-xs">
                     <div class="font-bold">${safeStr(t.group_name)}</div>
                     <div class="text-[10px] text-slate-400"><i class="fa-regular fa-user mr-1"></i>${safeStr(t.user_name)}</div>
