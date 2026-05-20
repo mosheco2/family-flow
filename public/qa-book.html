@@ -404,7 +404,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   </div>
 <div class="sb-section">
     <div class="sb-section-title">מודולים</div>
-    <div class="sb-link" onclick="filterBook('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות)</div>
+    <div class="sb-link" onclick="showView('general')" style="color:#f43f5e;font-weight:bold"><i class="fa-solid fa-inbox"></i> כללי (משימות חדשות) <span class="sb-badge badge-pending" id="sb-general-count" style="display:none"></span></div>
     <div class="sb-link" onclick="filterBook('auth')"><i class="fa-solid fa-key"></i> אימות ומשתמשים</div>
     <div class="sb-link" onclick="filterBook('onboard')"><i class="fa-solid fa-wand-magic-sparkles"></i> אשף Onboarding</div>
     <div class="sb-link" onclick="filterBook('family')"><i class="fa-solid fa-house"></i> סביבת משפחה</div>
@@ -441,6 +441,22 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 <main class="main">
 
 <!-- DASHBOARD VIEW -->
+<div id="view-general" class="view">
+  <div class="page-header">
+    <h2><i class="fa-solid fa-inbox" style="color:#f43f5e"></i> כללי — משימות חדשות מהפיתוח</h2>
+    <div class="page-actions">
+      <button class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן</button>
+    </div>
+  </div>
+  <div id="general-queue-container">
+    <div style="text-align:center;padding:3rem;color:#94a3b8">
+      <i class="fa-solid fa-inbox" style="font-size:2rem;display:block;margin-bottom:.6rem"></i>
+      <p style="font-size:.78rem">אין משימות חדשות ממתינות</p>
+      <p style="font-size:.7rem;margin-top:.3rem;opacity:.7">משימות מופיעות כאן כשסטטוסן בסופר-אדמין עובר ל"בפיתוח"</p>
+    </div>
+  </div>
+</div>
+
 <div id="view-dashboard" class="view active">
   <div class="page-header">
     <h2><i class="fa-solid fa-gauge-high" style="color:#3b82f6"></i> דשבורד בדיקות</h2>
@@ -3488,12 +3504,82 @@ function showView(v) {
   const map={dashboard:0,tests:1,book:2,report:3,versions:4,alm:5,visual:6};
   const links = document.querySelectorAll('.sidebar .sb-link');
   if(map[v]!==undefined && links[map[v]]) links[map[v]].classList.add('active');
+  // הדגשת כפתור "כללי" בסיידבר
+  if(v==='general') {
+    document.querySelectorAll('.sb-link').forEach(l => {
+      if(l.textContent.includes('כללי')) l.classList.add('active');
+    });
+  }
   if(v==='tests')    renderQAStaging();
   if(v==='book')     renderTests(currentFilter);
   if(v==='versions') renderVersions();
   if(v==='alm')      renderALMHub();
   if(v==='dashboard') updateStats();
   if(v==='visual')   renderVisualBook();
+  if(v==='general')  renderGeneralQueue();
+}
+
+function renderGeneralQueue() {
+  const el = document.getElementById('general-queue-container');
+  const cnt = document.getElementById('sb-general-count');
+  if(!el) return;
+
+  // משימות חדשות: status='in_progress' ועדיין לא שויכו לתהליך ALM
+  const newTasks = kanbanTasks.filter(t =>
+    t.status === 'in_progress' &&
+    !taskAssignments[t.id] &&
+    !dismissedTaskIds.has(t.id)
+  );
+
+  if(cnt) { cnt.textContent = newTasks.length || ''; cnt.style.display = newTasks.length ? '' : 'none'; }
+
+  if(newTasks.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8">
+      <i class="fa-solid fa-inbox" style="font-size:2rem;display:block;margin-bottom:.6rem"></i>
+      <p style="font-size:.78rem">אין משימות חדשות ממתינות</p>
+      <p style="font-size:.7rem;margin-top:.3rem;opacity:.7">משימות מופיעות כאן כשסטטוסן בסופר-אדמין עובר ל"בפיתוח"</p>
+    </div>`;
+    return;
+  }
+
+  const prioLabel = {critical:'🔴 קריטי', high:'🟠 גבוה', medium:'🟡 בינוני', low:'⚪ נמוך'};
+  el.innerHTML = `<div style="display:grid;gap:.6rem;padding:.25rem 0">
+    ${newTasks.map(t => `
+      <div class="task-row task-row-inbox">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:.25rem">${t.title}</div>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-bottom:.2rem">
+            <span class="task-badge tbadge-inbox"><i class="fa-solid fa-inbox"></i> חדש מ-SA</span>
+            ${t.priority ? `<span class="task-badge" style="background:#fef3c7;color:#92400e">${prioLabel[t.priority]||t.priority}</span>` : ''}
+            ${t.environment ? `<span class="task-badge" style="background:#e0e7ff;color:#3730a3">${t.environment}</span>` : ''}
+            ${t.module_name ? `<span class="task-badge" style="background:#f3f4f6;color:#374151">${t.module_name}</span>` : ''}
+          </div>
+          ${t.description ? `<div style="font-size:.74rem;color:#64748b;line-height:1.4">${t.description}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:.35rem;flex-shrink:0;align-items:center">
+          <button class="task-action-btn tbtn-approve" onclick="approveToALM(${t.id})">
+            <i class="fa-solid fa-arrow-left"></i> אשר ← ALM
+          </button>
+          <button class="task-dismiss-btn" onclick="dismissGeneralTask(${t.id})" title="הסתר">
+            <i class="fa-solid fa-eye-slash"></i>
+          </button>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function approveToALM(taskId) {
+  taskAssignments[taskId] = { status: 'sorting', versionId: '', module: '', env: 'all' };
+  saveState();
+  renderGeneralQueue();
+  if(currentView === 'alm') renderALMHub();
+}
+
+function dismissGeneralTask(taskId) {
+  dismissedTaskIds.add(taskId);
+  saveState();
+  renderGeneralQueue();
 }
 
 function filterSection(id) {
