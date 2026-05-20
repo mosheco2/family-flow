@@ -282,49 +282,241 @@ window.switchDevTab = function(tabId) {
     if (activeBtn) activeBtn.className = 'flex-1 px-5 py-2.5 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition';
 };
 
+// ── System Pulse globals ──────────────────────────────────────────────────────
+let _pulseMode = 'live';
+let _pulseFullscreenTimer = null;
+let _pulseCountdown = 30;
+
+function _setKPI(id, value) {
+    const el = getEl(id);
+    if (el) el.textContent = (value !== null && value !== undefined) ? value : '--';
+}
+
+function _syncFullscreenCards() {
+    const map = {
+        'fs-active-biz':       'kpi-active-biz',
+        'fs-biz-24h':          'kpi-biz-24h',
+        'fs-online-users':     'kpi-online-users',
+        'fs-active-families':  'kpi-active-families',
+        'fs-gmv-today':        'kpi-gmv-today',
+        'fs-ai-today':         'kpi-ai-today',
+        'fs-errors':           'kpi-errors',
+        'fs-open-tickets':     'dash-open-tickets',
+    };
+    Object.entries(map).forEach(([fsId, srcId]) => {
+        const src = getEl(srcId);
+        const dst = getEl(fsId);
+        if (src && dst) dst.textContent = src.textContent;
+    });
+    const fsHealth = getEl('fs-health-card');
+    const errorEl = getEl('kpi-errors');
+    if (fsHealth && errorEl) {
+        const errs = parseInt(errorEl.textContent) || 0;
+        fsHealth.textContent = errs === 0 ? '✅ תקין' : `⚠️ ${errs} שגיאות`;
+        fsHealth.className = errs === 0
+            ? 'text-4xl font-black text-green-400'
+            : 'text-4xl font-black text-red-400 animate-pulse';
+    }
+}
+
+function _updateFSTime() {
+    const el = getEl('pulse-fs-time');
+    if (el) el.textContent = new Date().toLocaleString('he-IL', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+}
+
+function setPulseMode(mode) {
+    _pulseMode = mode;
+    document.querySelectorAll('.pulse-live-card').forEach(el => {
+        el.classList.toggle('hidden', mode !== 'live');
+    });
+    document.querySelectorAll('.pulse-lifetime-card').forEach(el => {
+        el.classList.toggle('hidden', mode !== 'lifetime');
+    });
+    const btnLive     = getEl('pulse-btn-live');
+    const btnLifetime = getEl('pulse-btn-lifetime');
+    if (btnLive && btnLifetime) {
+        btnLive.className     = mode === 'live'
+            ? 'px-4 py-1.5 text-sm font-bold rounded-full bg-slate-800 text-white shadow transition'
+            : 'px-4 py-1.5 text-sm font-medium rounded-full text-slate-500 hover:text-slate-700 transition';
+        btnLifetime.className = mode === 'lifetime'
+            ? 'px-4 py-1.5 text-sm font-bold rounded-full bg-slate-800 text-white shadow transition'
+            : 'px-4 py-1.5 text-sm font-medium rounded-full text-slate-500 hover:text-slate-700 transition';
+    }
+}
+
+function togglePulseFullscreen() {
+    const overlay = getEl('pulse-fullscreen-overlay');
+    if (!overlay) return;
+    const isOpen = !overlay.classList.contains('hidden');
+    if (isOpen) {
+        overlay.classList.add('hidden');
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        clearInterval(_pulseFullscreenTimer);
+        _pulseFullscreenTimer = null;
+    } else {
+        overlay.classList.remove('hidden');
+        _syncFullscreenCards();
+        _updateFSTime();
+        _pulseCountdown = 30;
+        const refreshLabel = getEl('pulse-fs-refresh-label');
+        if (refreshLabel) refreshLabel.textContent = `רענון בעוד ${_pulseCountdown}s`;
+        document.documentElement.requestFullscreen().catch(() => {});
+        _pulseFullscreenTimer = setInterval(() => {
+            _pulseCountdown--;
+            if (refreshLabel) refreshLabel.textContent = `רענון בעוד ${_pulseCountdown}s`;
+            if (_pulseCountdown <= 0) {
+                _pulseCountdown = 30;
+                loadSAData();
+                _syncFullscreenCards();
+                _updateFSTime();
+            }
+        }, 1000);
+    }
+}
+
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        const overlay = getEl('pulse-fullscreen-overlay');
+        if (overlay && !overlay.classList.contains('hidden')) {
+            overlay.classList.add('hidden');
+            clearInterval(_pulseFullscreenTimer);
+            _pulseFullscreenTimer = null;
+        }
+    }
+});
+
 function renderLivePulse(activityData, stats) {
     const stream = getEl('pulse-live-stream');
-    if (!stream) return;
 
+    // ── Category 1: עסקים וסביבות ────────────────────────────────────────────
+    _setKPI('kpi-active-biz', stats.businesses ?? '--');
+
+    const pendingCount = activityData.filter(a =>
+        a.description?.includes('ממתין') || a.description?.includes('הוזמן') || a.description?.includes('ממתינה')
+    ).length;
+    _setKPI('dash-pending-biz', pendingCount || 0);
+
+    const bizGroups = new Set(activityData
+        .filter(a => a.description?.includes('רכש') || a.description?.includes('קופה') || a.description?.includes('תור') || a.is_financial)
+        .map(a => a.group_name).filter(Boolean));
+    _setKPI('kpi-biz-24h', bizGroups.size || 0);
+
+    const totalRevenue = activityData.filter(a => a.is_financial).reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+    _setKPI('kpi-total-biz', stats.businesses ?? '--');
+    _setKPI('kpi-biz-revenue', totalRevenue > 0 ? `₪${totalRevenue.toFixed(0)}` : '--');
+    _setKPI('kpi-work-hours', '--');
+
+    // ── Category 2: משפחות ומשתמשים ─────────────────────────────────────────
     const totalUsers = (stats.familyUsers || 0) + (stats.businessUsers || 0);
-    getEl('pulse-active-users').innerText = totalUsers;
-    const ordersCount = activityData.filter(a => a.description.includes('רכש') || a.description.includes('קופה') || a.description.includes('תור')).length;
-    getEl('pulse-orders-today').innerText = ordersCount;
-    const aiReqs = activityData.filter(a => a.description.includes('AI') || a.description.includes('חפיפה')).length;
-    getEl('pulse-ai-reqs').innerText = aiReqs * 2 || '--'; 
+    _setKPI('kpi-online-users', totalUsers);
+    // backward-compat IDs from old pulse panel
+    if (getEl('pulse-active-users')) getEl('pulse-active-users').textContent = totalUsers;
 
-    const errorCount = activityData.filter(a => a.description.includes('שגיאה') || a.description.includes('נמחק') || a.description.includes('תקלה')).length;
-    const errorsEl = getEl('pulse-errors');
-    errorsEl.innerText = errorCount;
-    if (errorCount > 0) {
-        errorsEl.classList.replace('text-orange-400', 'text-red-500');
-        errorsEl.parentElement.classList.add('animate-pulse', 'border-red-500');
-    } else {
-        errorsEl.classList.replace('text-red-500', 'text-orange-400');
-        errorsEl.parentElement.classList.remove('animate-pulse', 'border-red-500');
+    const ordersCount = activityData.filter(a => a.description?.includes('רכש') || a.description?.includes('קופה') || a.description?.includes('תור')).length;
+    if (getEl('pulse-orders-today')) getEl('pulse-orders-today').textContent = ordersCount;
+
+    const aiCount = activityData.filter(a =>
+        a.description?.includes('AI') || a.description?.includes('חפיפה') || a.description?.includes('המלצה')
+    ).length;
+    if (getEl('pulse-ai-reqs')) getEl('pulse-ai-reqs').textContent = aiCount * 2 || '--';
+
+    const familyGroups = new Set(activityData.map(a => a.group_name).filter(Boolean));
+    _setKPI('kpi-families-24h', familyGroups.size || 0);
+    _setKPI('kpi-active-families', stats.families ?? '--');
+    _setKPI('kpi-total-families', stats.families ?? '--');
+    _setKPI('kpi-total-kids', stats.familyUsers ?? '--');
+    _setKPI('kpi-tasks-done', '--');
+
+    // ── Category 3: תעבורה ופיננסים ─────────────────────────────────────────
+    const gmvToday = activityData.filter(a => a.is_financial).reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+    _setKPI('kpi-gmv-today', gmvToday > 0 ? `₪${gmvToday.toFixed(0)}` : '₪0');
+    _setKPI('kpi-ai-today', aiCount || 0);
+    _setKPI('kpi-community-connections', stats.activeConnections ?? '--');
+    _setKPI('kpi-gmv-total', gmvToday > 0 ? `₪${gmvToday.toFixed(0)}` : '--');
+    _setKPI('kpi-community-discounts', '--');
+    _setKPI('kpi-tokens-issued', '--');
+
+    // ── Category 4: מערכת ו-QA Health ────────────────────────────────────────
+    const openTickets = saTicketsCache.filter(t => t.status === 'open' || t.status === 'pending').length;
+    _setKPI('dash-open-tickets', openTickets);
+
+    const errorCount = activityData.filter(a =>
+        a.description?.includes('שגיאה') || a.description?.includes('תקלה') || a.description?.includes('נפל')
+    ).length;
+    _setKPI('kpi-errors', errorCount);
+    // backward-compat: old pulse-errors element
+    if (getEl('pulse-errors')) {
+        getEl('pulse-errors').textContent = errorCount;
+        if (errorCount > 0) {
+            getEl('pulse-errors').classList.replace('text-orange-400', 'text-red-500');
+        } else {
+            getEl('pulse-errors').classList.replace('text-red-500', 'text-orange-400');
+        }
+    }
+
+    // SLA breach detection
+    const now = Date.now();
+    const slaBreached = saTicketsCache.filter(t => {
+        if (t.status !== 'open' && t.status !== 'pending') return false;
+        return (now - new Date(t.created_at).getTime()) > 86400000;
+    }).length;
+    const slaLabel = getEl('kpi-sla-label');
+    const ticketsCard = getEl('kpi-tickets-card');
+    if (slaLabel) {
+        slaLabel.textContent = slaBreached > 0 ? `⚠️ ${slaBreached} חרגו מ-SLA` : 'בתוך SLA ✓';
+        slaLabel.className = slaBreached > 0 ? 'text-xs font-bold text-red-500 animate-pulse' : 'text-xs font-medium text-green-600';
+    }
+    if (ticketsCard) {
+        ticketsCard.classList.toggle('border-red-400', slaBreached > 0);
+        ticketsCard.classList.toggle('animate-pulse', slaBreached > 0);
+    }
+
+    const errorsCard = getEl('kpi-errors-card');
+    const errorsLabel = getEl('kpi-errors-label');
+    if (errorsCard) errorsCard.classList.toggle('border-red-400', errorCount > 0);
+    if (errorsLabel) {
+        errorsLabel.textContent = errorCount > 0 ? `${errorCount} שגיאות פעילות` : 'נקי ✓';
+        errorsLabel.className = errorCount > 0 ? 'text-xs font-bold text-red-500 animate-pulse' : 'text-xs font-medium text-green-600';
     }
 
     const anomalyAlert = getEl('pulse-anomaly-alert');
-    if (anomalyAlert) {
-        if (errorCount >= 3) anomalyAlert.classList.remove('hidden');
-        else anomalyAlert.classList.add('hidden');
-    }
+    if (anomalyAlert) anomalyAlert.classList.toggle('hidden', errorCount < 3);
 
+    try {
+        const qaState = JSON.parse(localStorage.getItem('qa_state') || '{}');
+        const passed = Object.values(qaState).filter(v => v === 'pass').length;
+        const total  = Object.keys(qaState).length;
+        _setKPI('kpi-qa-health', total > 0 ? `${Math.round(passed / total * 100)}%` : '--');
+    } catch { _setKPI('kpi-qa-health', '--'); }
+
+    _setKPI('kpi-resolved-tickets', saTicketsCache.filter(t => t.status === 'resolved' || t.status === 'closed').length || '--');
+    _setKPI('kpi-releases', '--');
+    _setKPI('dash-open-tasks', getEl('dash-open-tasks') ? getEl('dash-open-tasks').textContent : '--');
+
+    // timestamps
+    const tsEl = getEl('pulse-last-update');
+    if (tsEl) tsEl.textContent = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const tsStream = getEl('pulse-last-update-stream');
+    if (tsStream) tsStream.textContent = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+    // ── Live activity stream ───────────────────────────────────────────────────
+    if (!stream) return;
     if (activityData.length === 0) {
         stream.innerHTML = '<p class="text-slate-400 text-center py-4">אין פעילות בדקות האחרונות.</p>';
         return;
     }
 
-    stream.innerHTML = activityData.slice(0, 15).map(a => {
+    stream.innerHTML = activityData.slice(0, 20).map(a => {
         let icon = '<i class="fa-solid fa-bolt text-slate-400"></i>';
         let bgGlow = '';
         if (a.is_financial) { icon = '<i class="fa-solid fa-coins text-green-400"></i>'; bgGlow = 'border-l-2 border-l-green-500/50'; }
-        if (a.description.includes('AI') || a.description.includes('חפיפה')) { icon = '<i class="fa-solid fa-microchip text-purple-400"></i>'; bgGlow = 'border-l-2 border-l-purple-500/50'; }
-        if (a.description.includes('שגיאה') || a.description.includes('נמחק')) { icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>'; bgGlow = 'border-l-2 border-l-red-500/50'; }
-
+        if (a.description?.includes('AI') || a.description?.includes('חפיפה') || a.description?.includes('המלצה')) { icon = '<i class="fa-solid fa-microchip text-purple-400"></i>'; bgGlow = 'border-l-2 border-l-purple-500/50'; }
+        if (a.description?.includes('שגיאה') || a.description?.includes('תקלה') || a.description?.includes('נפל')) { icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>'; bgGlow = 'border-l-2 border-l-red-500/50'; }
         const amountHtml = a.is_financial ? `<span class="text-green-400 font-mono font-bold tracking-wider dir-ltr ml-3">+₪${a.amount}</span>` : '';
         const timeStr = new Date(a.date).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-
         return `
         <div class="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl transition ${bgGlow}">
             <div class="flex items-center gap-3">
@@ -333,12 +525,19 @@ function renderLivePulse(activityData, stats) {
                 <span class="text-slate-200 font-medium">${safeStr(a.description)}</span>
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-[10px] bg-white/10 text-slate-300 px-2 py-1 rounded-md border border-white/10 truncate max-w-[120px]"><i class="fa-solid fa-house-user mr-1 text-slate-500"></i> ${safeStr(a.group_name)}</span>
+                <span class="text-[10px] bg-white/10 text-slate-300 px-2 py-1 rounded-md border border-white/10 truncate max-w-[120px]">
+                    <i class="fa-solid fa-house-user mr-1 text-slate-500"></i> ${safeStr(a.group_name)}
+                </span>
                 ${amountHtml}
             </div>
         </div>`;
     }).join('');
+
+    if (getEl('pulse-fullscreen-overlay') && !getEl('pulse-fullscreen-overlay').classList.contains('hidden')) {
+        _syncFullscreenCards();
+    }
 }
+
 
 let saCurrentTicketId = null;
 
@@ -854,7 +1053,9 @@ async function loadSAData() {
             setTxt('sa-stat-biz-users', data.stats.businessUsers);
         }
 
-        if (data.activity && data.stats) renderLivePulse(data.activity, data.stats);
+        if (data.activity && data.stats) {
+            try { renderLivePulse(data.activity, data.stats); } catch(pulseErr) { console.error('renderLivePulse error:', pulseErr); }
+        }
         
         const actList = getEl('sa-activity-list');
         if (actList) {
@@ -889,7 +1090,7 @@ async function loadSAData() {
         // תיקון סנכרון: טוען צוותים ונציגים כבר בהתחלה עבור כל המודולים
         if(typeof loadSAHRData === 'function') loadSAHRData();
         
-    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+    } catch (e) { console.error('loadSAData error:', e); showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 window.saveAllBanners = async function() {
