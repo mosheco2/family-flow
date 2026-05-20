@@ -1892,108 +1892,167 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
 
 <!-- ══ FULLSCREEN WAR ROOM OVERLAY ══ -->
-<div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 flex flex-col" style="z-index:999999;padding:1.25rem;gap:1rem;">
+<div id="pulse-fullscreen-overlay" class="hidden fixed inset-0 bg-slate-950 flex flex-col" style="z-index:999999;padding:1.5rem;gap:1rem;">
     <div class="flex items-center justify-between flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <span class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
-                <i class="fa-solid fa-heart-pulse text-red-400 animate-pulse"></i>
+        <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
+                <i class="fa-solid fa-heart-pulse text-red-400 text-lg animate-pulse"></i>
             </span>
             <div>
-                <h1 class="text-lg font-black text-white leading-tight">דופק מערכת — Oneflow Life</h1>
-                <p class="text-slate-400 text-[10px]" id="pulse-fs-time">--</p>
+                <h1 class="text-2xl font-black text-white leading-tight">דופק מערכת &#x2014; Oneflow Life</h1>
+                <p class="text-slate-400 text-sm" id="pulse-fs-time">--</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <span class="text-xs text-slate-500 font-mono" id="pulse-fs-refresh-label">מתרענן בעוד --</span>
-            <button onclick="togglePulseFullscreen()" class="text-slate-300 hover:text-white text-xs flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl transition">
+            <span class="text-sm text-slate-500 font-mono" id="pulse-fs-refresh-label">מתרענן בעוד --</span>
+            <button onclick="togglePulseFullscreen()" class="text-slate-300 hover:text-white text-sm flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition">
                 <i class="fa-solid fa-compress"></i> יציאה
             </button>
         </div>
     </div>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 flex-1">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 flex-1">
 
-        <div class="bg-slate-900 rounded-xl border border-amber-500/20 p-3">
-            <p class="text-[9px] font-bold text-amber-400 uppercase mb-2">עסקים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-amber-400 mb-1">24ש'</p><span class="text-3xl font-black text-white" id="fs-active-biz">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">סה"כ</p><span class="text-3xl font-black text-slate-300" id="fs-biz-24h">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-amber-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-amber-400 mb-4">עסקים</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-amber-400">24ש'</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-active-biz">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-biz-24h">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-orange-500/20 p-3">
-            <p class="text-[9px] font-bold text-orange-400 uppercase mb-2">עסקים פעילים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-orange-400 mb-1">פעילים</p><span class="text-3xl font-black text-white" id="fs-kpi-active-biz">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">ממתינים</p><span class="text-3xl font-black text-slate-300" id="fs-pending-biz">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-orange-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-orange-400 mb-4">עסקים פעילים</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-orange-400">פעילים</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-kpi-active-biz">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">ממתינים</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-pending-biz">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-green-500/20 p-3">
-            <p class="text-[9px] font-bold text-green-400 uppercase mb-2">הכנסות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-green-400 mb-1">24ש'</p><span class="text-3xl font-black text-white" id="fs-gmv-today">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">סה"כ</p><span class="text-3xl font-black text-slate-300" id="fs-gmv-total">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-green-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-green-400 mb-4">הכנסות</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-green-400">24ש'</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-gmv-today">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-gmv-total">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-emerald-500/20 p-3">
-            <p class="text-[9px] font-bold text-emerald-400 uppercase mb-2">משפחות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-emerald-400 mb-1">24ש'</p><span class="text-3xl font-black text-white" id="fs-online-users">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">סה"כ</p><span class="text-3xl font-black text-slate-300" id="fs-active-families">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-emerald-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-emerald-400 mb-4">משפחות</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-emerald-400">24ש'</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-online-users">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-active-families">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-teal-500/20 p-3">
-            <p class="text-[9px] font-bold text-teal-400 uppercase mb-2">משתמשים</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-teal-400 mb-1">24ש'</p><span class="text-3xl font-black text-white" id="fs-users-24h">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">סה"כ</p><span class="text-3xl font-black text-slate-300" id="fs-total-kids">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-teal-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-teal-400 mb-4">משתמשים</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-teal-400">24ש'</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-users-24h">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">סה"כ</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-total-kids">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-cyan-500/20 p-3">
-            <p class="text-[9px] font-bold text-cyan-400 uppercase mb-2">קהילות</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-cyan-400 mb-1">חיבורים</p><span class="text-3xl font-black text-white" id="fs-connections">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">הנחות</p><span class="text-3xl font-black text-slate-300" id="fs-discounts">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-cyan-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-cyan-400 mb-4">קהילות</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-cyan-400">חיבורים</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-connections">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">הנחות</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-discounts">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-purple-500/20 p-3">
-            <p class="text-[9px] font-bold text-purple-400 uppercase mb-2">AI</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-purple-400 mb-1">24ש'</p><span class="text-3xl font-black text-white" id="fs-ai-today">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">טוקנים</p><span class="text-3xl font-black text-slate-300" id="fs-tokens">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-purple-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-purple-400 mb-4">AI</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-purple-400">24ש'</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-ai-today">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">טוקנים</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-tokens">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-slate-500/20 p-3">
-            <p class="text-[9px] font-bold text-slate-400 uppercase mb-2">תמיכה</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-red-400 mb-1">פתוחות</p><span class="text-3xl font-black text-white" id="fs-open-tickets">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">נסגרו</p><span class="text-3xl font-black text-slate-300" id="fs-resolved">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-slate-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-slate-300 mb-4">תמיכה</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-red-400">פתוחות</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-open-tickets">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">נסגרו</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-resolved">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-red-500/20 p-3">
-            <p class="text-[9px] font-bold text-red-400 uppercase mb-2">מערכת</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-red-400 mb-1">תקלות</p><span class="text-3xl font-black text-green-400" id="fs-errors">0</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">QA %</p><span class="text-3xl font-black text-slate-300" id="fs-qa">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-red-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-red-400 mb-4">מערכת</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-red-400">תקלות</p>
+                    <span class="text-6xl font-black text-green-400 leading-none" id="fs-errors">0</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">QA %</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-qa">--</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-slate-900 rounded-xl border border-indigo-500/20 p-3">
-            <p class="text-[9px] font-bold text-indigo-400 uppercase mb-2">פיתוח</p>
-            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700">
-                <div class="text-center px-2"><p class="text-[8px] text-indigo-400 mb-1">משימות</p><span class="text-3xl font-black text-white" id="fs-tasks">--</span></div>
-                <div class="text-center px-2"><p class="text-[8px] text-slate-400 mb-1">גרסאות</p><span class="text-3xl font-black text-slate-300" id="fs-releases">--</span></div>
+        <div class="bg-slate-900 rounded-2xl border border-indigo-500/20 p-5 flex flex-col">
+            <p class="text-xl font-black text-indigo-400 mb-4">פיתוח</p>
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-700 flex-1">
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-indigo-400">משימות</p>
+                    <span class="text-6xl font-black text-white leading-none" id="fs-tasks">--</span>
+                </div>
+                <div class="flex flex-col items-center justify-center px-3 gap-2">
+                    <p class="text-sm font-bold text-slate-400">גרסאות</p>
+                    <span class="text-6xl font-black text-slate-300 leading-none" id="fs-releases">--</span>
+                </div>
             </div>
         </div>
 
     </div>
 </div>
-
 </body>
 </html>
