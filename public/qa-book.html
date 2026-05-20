@@ -1682,10 +1682,10 @@ function renderManualStagingRow(rk) {
   const s = getStatus(testId, env);
   const n = getNote(testId, env);
   const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[env] || env;
-  let testName = testId, secTitle = '';
+  let testName = testId, secTitle = '', testDesc = '';
   SECTIONS.forEach(sec => {
     const t = sec.tests.find(tt => tt.id === testId);
-    if(t) { testName = t.name; secTitle = sec.title; }
+    if(t) { testName = t.name; secTitle = sec.title; testDesc = t.desc||''; }
   });
   const guide = GUIDE_BOOK[testId];
   const _savedSteps    = state[`guide_steps_${testId}`];
@@ -1694,22 +1694,31 @@ function renderManualStagingRow(rk) {
   const expectedVal = _savedExpected != null ? _savedExpected : (guide ? guide.expected : '');
   const pathLabel   = guide ? guide.path : testName;
   const guideId     = `mqa-guide-${rk.replace(':','-')}`;
+  const noteId      = `mqa-note-${rk.replace(':','-')}`;
+  const rowId       = `mqa-row-${rk.replace(':','-')}`;
   return `
-  <div class="qa-task-row" id="mqa-row-${rk.replace(':','-')}">
-    <div class="qa-task-info">
-      <div class="qa-task-title"><span style="color:#64748b;font-size:.7rem;margin-left:.4rem">${testId}</span>${testName}</div>
-      <div class="qa-task-meta">
+  <div class="qa-task-row" id="${rowId}" style="display:flex;align-items:flex-start;gap:.75rem;padding:.6rem .75rem;border-bottom:1px solid #f1f5f9">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.2rem">
+        <span class="test-id">${testId}</span>
         <span class="env-tag env-${env}">${envLabel}</span>
-        ${secTitle?`<span style="font-size:.68rem;color:#7c3aed;background:#faf5ff;padding:.1rem .4rem;border-radius:99px">${secTitle}</span>`:''}
+        ${secTitle?`<span style="font-size:.65rem;color:#7c3aed;background:#faf5ff;padding:.05rem .35rem;border-radius:99px">${secTitle}</span>`:''}
       </div>
+      <div class="test-name">${testName}</div>
+      ${testDesc?`<div class="test-desc">${testDesc}</div>`:''}
     </div>
-    <div class="qa-task-actions">
-      <button class="qa-pass-btn" style="${s==='ok'?'':'opacity:.55'}" onclick="setStatus('${testId}','ok','${env}');renderQAStaging()"><i class="fa-solid fa-check"></i> עבר</button>
-      <button class="qa-fail-btn" style="${s==='fail'?'':'opacity:.55'}" onclick="setStatus('${testId}','fail','${env}');renderQAStaging()"><i class="fa-solid fa-xmark"></i> נכשל</button>
-      <button class="qa-pass-btn" style="background:#d97706;${s==='warn'?'':'opacity:.55'}" onclick="setStatus('${testId}','warn','${env}');renderQAStaging()"><i class="fa-solid fa-triangle-exclamation"></i> אזהרה</button>
-      <button class="qa-guide-btn" onclick="toggleMQAGuide('${guideId}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
-      <button onclick="removeFromQueue('${rk}')" title="הסר מהרשימה" style="border:none;background:none;color:#94a3b8;cursor:pointer;padding:.2rem .3rem"><i class="fa-solid fa-trash-can" style="font-size:.75rem"></i></button>
+    <div class="status-btns">
+      <button class="s-btn${s==='ok'?' active-ok':''}" onclick="setStatus('${testId}','ok','${env}');renderQAStaging()" title="תקין"><i class="fa-solid fa-check"></i></button>
+      <button class="s-btn${s==='fail'?' active-fail':''}" onclick="setStatus('${testId}','fail','${env}');renderQAStaging()" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+      <button class="s-btn${s==='warn'?' active-warn':''}" onclick="setStatus('${testId}','warn','${env}');renderQAStaging()" title="אזהרה"><i class="fa-solid fa-triangle-exclamation"></i></button>
+      <button class="s-btn${s==='skip'?' active-skip':''}" onclick="setStatus('${testId}','skip','${env}');renderQAStaging()" title="דלג"><i class="fa-solid fa-minus"></i></button>
+      <button class="guide-btn active" onclick="toggleMQAGuide('${guideId}')" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
+      <button class="note-btn${n?' has-note':''}" onclick="toggleMQANote('${noteId}')" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
+      <button class="delete-test-btn" onclick="removeFromQueue('${rk}')" title="הסר מהרשימה"><i class="fa-solid fa-trash-can"></i></button>
     </div>
+  </div>
+  <div id="${noteId}" class="note-row" style="display:none;padding:.4rem .75rem">
+    <textarea class="note-input" rows="2" placeholder="הוסף הערה, צעדי שחזור, תיאור הבאג..." oninput="setNote('${testId}',this.value,'${env}')">${n}</textarea>
   </div>
   <div id="${guideId}" class="qa-guide-panel" style="display:none">
     <div class="qa-guide-path"><i class="fa-solid fa-route"></i> ${pathLabel}</div>
@@ -1733,6 +1742,11 @@ function renderManualStagingRow(rk) {
 function toggleMQAGuide(id) {
   const el = document.getElementById(id);
   if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleMQANote(id) {
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
 }
 
 function renderTests(filter) {
