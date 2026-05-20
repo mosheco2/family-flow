@@ -1958,7 +1958,7 @@ window.renderProductMatrix = function() {
     const listEl = document.getElementById('product-matrix-list');
     if (!listEl) return;
 
-    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול' };
+    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול', 'book': 'ספר QA' };
 
     let totalTests = 0, passedCount = 0, failedCount = 0, untestedCount = 0;
     productMatrixData.forEach(item => {
@@ -2020,7 +2020,7 @@ window.searchProductFeature = function(query) {
     if (!query.trim()) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
 
     const q = query.toLowerCase();
-    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול' };
+    const envNames = { 'family': 'משפחות', 'business': 'עסקים', 'community': 'קהילות', 'sa': 'ניהול', 'book': 'ספר QA' };
     const results = productMatrixData.filter(item =>
         (item.scenario_name || '').toLowerCase().includes(q) ||
         (item.module_name || '').toLowerCase().includes(q) ||
