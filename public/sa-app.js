@@ -3590,6 +3590,73 @@ window.toggleSAAIChat = function() {
     }
 };
 
+(function initSAAIWidgetDrag() {
+    const DRAG_THRESHOLD = 6;
+    let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0, moved = false;
+
+    function getWidget() { return document.getElementById('sa-ai-widget'); }
+
+    function snapToEdges(widget) {
+        const margin = 12;
+        const rect = widget.getBoundingClientRect();
+        const vw = window.innerWidth, vh = window.innerHeight;
+        let left = parseFloat(widget.style.left) || 0;
+        let top  = parseFloat(widget.style.top)  || 0;
+        if (left < margin) left = margin;
+        if (top  < margin) top  = margin;
+        if (left + rect.width  > vw - margin) left = vw - rect.width  - margin;
+        if (top  + rect.height > vh - margin) top  = vh - rect.height - margin;
+        widget.style.left = left + 'px';
+        widget.style.top  = top  + 'px';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('sa-ai-bubble-btn');
+        if (!btn) return;
+
+        btn.addEventListener('mousedown', function(e) {
+            const widget = getWidget();
+            if (!widget) return;
+            if (!widget.style.top) {
+                const rect = widget.getBoundingClientRect();
+                widget.style.top    = rect.top  + 'px';
+                widget.style.left   = rect.left + 'px';
+                widget.style.bottom = 'auto';
+                widget.style.right  = 'auto';
+            }
+            dragging = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            origLeft = parseFloat(widget.style.left) || 0;
+            origTop  = parseFloat(widget.style.top)  || 0;
+            widget.style.transition = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!dragging) return;
+            const dx = e.clientX - startX, dy = e.clientY - startY;
+            if (!moved && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) moved = true;
+            if (!moved) return;
+            const widget = getWidget();
+            widget.style.left = (origLeft + dx) + 'px';
+            widget.style.top  = (origTop  + dy) + 'px';
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (!dragging) return;
+            dragging = false;
+            const widget = getWidget();
+            if (widget) {
+                widget.style.transition = '';
+                snapToEdges(widget);
+            }
+            if (!moved) window.toggleSAAIChat();
+        });
+    });
+})();
+
 window.sendSAAIMessage = async function(e) {
     e.preventDefault();
     const input = getEl('sa-ai-input');
