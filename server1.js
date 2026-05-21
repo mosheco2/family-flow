@@ -452,18 +452,7 @@ app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
 app.get('/api/support/tickets/my/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM support_tickets WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
-        const tickets = result.rows.map(t => {
-            if (Array.isArray(t.log)) {
-                t.log = t.log.filter(entry => !entry.isInternal);
-            } else if (typeof t.log === 'string') {
-                try {
-                    const parsed = JSON.parse(t.log);
-                    t.log = JSON.stringify(parsed.filter(entry => !entry.isInternal));
-                } catch(_) {}
-            }
-            return t;
-        });
-        res.json({ success: true, tickets });
+        res.json({ success: true, tickets: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

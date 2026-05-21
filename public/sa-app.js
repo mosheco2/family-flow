@@ -1942,6 +1942,8 @@ window.impersonateGroup = function(groupId, userId) {
 // ==========================================
 
 let productMatrixData = [];
+let productMatrixPage = 1;
+const MATRIX_PAGE_SIZE = 15;
 
 window.loadProductMatrix = async function() {
     try {
@@ -1975,7 +1977,10 @@ window.renderProductMatrix = function() {
             <p class="text-slate-400 text-xs mt-1">הוסף פריטים דרך ספר ה-QA</p>
         </div>`;
     } else {
-        const last10 = [...productMatrixData].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 10);
+        const sorted = [...productMatrixData].sort((a, b) => (b.id || 0) - (a.id || 0));
+        const totalPages = Math.ceil(sorted.length / MATRIX_PAGE_SIZE);
+        productMatrixPage = Math.min(productMatrixPage, totalPages);
+        const pageItems = sorted.slice((productMatrixPage - 1) * MATRIX_PAGE_SIZE, productMatrixPage * MATRIX_PAGE_SIZE);
         listEl.innerHTML = `
             <table class="w-full text-sm text-right whitespace-nowrap">
                 <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
@@ -1988,7 +1993,7 @@ window.renderProductMatrix = function() {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    ${last10.map(item => {
+                    ${pageItems.map(item => {
                         let statusBg = 'bg-slate-100 text-slate-500', statusIcon = 'fa-circle-minus', statusLabel = 'טרם';
                         if (item.status === 'passed')  { statusBg = 'bg-green-100 text-green-700';  statusIcon = 'fa-check';          statusLabel = 'אושר'; }
                         if (item.status === 'failed')  { statusBg = 'bg-red-100 text-red-700';      statusIcon = 'fa-bug';            statusLabel = 'באג'; }
@@ -2003,7 +2008,12 @@ window.renderProductMatrix = function() {
                         </tr>`;
                     }).join('')}
                 </tbody>
-            </table>`;
+            </table>
+            ${totalPages > 1 ? `<div id="matrix-pagination" class="flex items-center justify-center gap-2 px-5 py-3 border-t border-slate-100">
+                <button onclick="matrixGoToPage(${productMatrixPage - 1})" ${productMatrixPage <= 1 ? 'disabled' : ''} class="px-3 py-1 rounded-lg text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition">&#8594; הקודם</button>
+                <span class="text-xs text-slate-500 font-bold">עמוד ${productMatrixPage} מתוך ${totalPages}</span>
+                <button onclick="matrixGoToPage(${productMatrixPage + 1})" ${productMatrixPage >= totalPages ? 'disabled' : ''} class="px-3 py-1 rounded-lg text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition">הבא &#8592;</button>
+            </div>` : ''}`;
     }
 
     const progressPct = totalTests === 0 ? 0 : Math.round((passedCount / totalTests) * 100);
@@ -2012,6 +2022,11 @@ window.renderProductMatrix = function() {
     if (getEl('matrix-count-passed')) getEl('matrix-count-passed').innerText = passedCount;
     if (getEl('matrix-count-failed')) getEl('matrix-count-failed').innerText = failedCount;
     if (getEl('matrix-count-untested')) getEl('matrix-count-untested').innerText = untestedCount;
+};
+
+window.matrixGoToPage = function(page) {
+    productMatrixPage = page;
+    renderProductMatrix();
 };
 
 window.searchProductFeature = function(query) {

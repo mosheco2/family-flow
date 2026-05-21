@@ -979,11 +979,11 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <div id="matrix-search-results" class="hidden mt-3 space-y-2 max-h-72 overflow-y-auto modal-scroll"></div>
                             </div>
 
-                            <!-- Last 10 items table -->
+                            <!-- Matrix table with pagination -->
                             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 class="font-black text-slate-700 text-sm flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> 10 הרשומות האחרונות בספר המוצר</h3>
-                                    <button onclick="loadProductMatrix()" class="text-xs text-slate-500 hover:text-indigo-600 transition font-bold flex items-center gap-1"><i class="fa-solid fa-rotate"></i> רענן</button>
+                                    <h3 class="font-black text-slate-700 text-sm flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> ספר המוצר <span class="text-[10px] font-normal text-slate-400">(15 פריטים לעמוד)</span></h3>
+                                    <button onclick="productMatrixPage=1; loadProductMatrix();" class="text-xs text-slate-500 hover:text-indigo-600 transition font-bold flex items-center gap-1"><i class="fa-solid fa-rotate"></i> רענן</button>
                                 </div>
                                 <div id="product-matrix-list" class="overflow-x-auto"></div>
                             </div>
