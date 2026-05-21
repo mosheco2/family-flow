@@ -3598,26 +3598,25 @@ window.toggleSAAIChat = function() {
 
     function snapToEdges(widget) {
         const margin = 12;
-        const rect = widget.getBoundingClientRect();
         const vw = window.innerWidth, vh = window.innerHeight;
         let left = parseFloat(widget.style.left) || 0;
         let top  = parseFloat(widget.style.top)  || 0;
         if (left < margin) left = margin;
         if (top  < margin) top  = margin;
-        if (left + rect.width  > vw - margin) left = vw - rect.width  - margin;
-        if (top  + rect.height > vh - margin) top  = vh - rect.height - margin;
+        if (left + 64 > vw - margin) left = vw - 64 - margin;
+        if (top  + 64 > vh - margin) top  = vh - 64 - margin;
         widget.style.left = left + 'px';
         widget.style.top  = top  + 'px';
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    function initDrag() {
         const btn = document.getElementById('sa-ai-bubble-btn');
-        if (!btn) return;
+        if (!btn) { setTimeout(initDrag, 200); return; }
 
         btn.addEventListener('mousedown', function(e) {
             const widget = getWidget();
             if (!widget) return;
-            if (!widget.style.top) {
+            if (!widget.style.left) {
                 const rect = widget.getBoundingClientRect();
                 widget.style.top    = rect.top  + 'px';
                 widget.style.left   = rect.left + 'px';
@@ -3650,11 +3649,13 @@ window.toggleSAAIChat = function() {
             const widget = getWidget();
             if (widget) {
                 widget.style.transition = '';
-                snapToEdges(widget);
+                if (widget.style.left) snapToEdges(widget);
             }
             if (!moved) window.toggleSAAIChat();
         });
-    });
+    }
+
+    initDrag();
 })();
 
 window.sendSAAIMessage = async function(e) {
