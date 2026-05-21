@@ -1483,7 +1483,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <button onclick="updateTicketClassification()" id="btn-sa-ticket-route" class="w-full bg-slate-800 text-white py-1.5 rounded-lg text-[10px] font-black hover:bg-slate-900 transition mt-2 shadow-sm">שמור סיווג</button>
                             
                             <button onclick="window.convertTicketToDevTask()" id="btn-sa-ticket-dev" class="w-full bg-indigo-50 text-indigo-700 border border-indigo-100 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-gear text-[10px]"></i> המר לבאג
+                                <i class="fa-solid fa-gear text-[10px]"></i> המרה לקריאת שירות
                             </button>
                         </div>
                     </div>
@@ -1548,7 +1548,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <input type="hidden" id="kanban-task-id">
                 <input type="hidden" id="kanban-task-owner-id">
                 <input type="hidden" id="kanban-task-ticket-id">
-                
+
+                <div id="kanban-ticket-link-row">
+                    <label class="text-xs font-bold text-slate-600 block mb-1"><i class="fa-solid fa-link text-indigo-400 mr-1"></i> קישור לקריאת שירות (אופציונלי):</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="kanban-ticket-search" oninput="window.searchKanbanTicket(this.value)" class="modern-input py-2 text-xs bg-slate-50 flex-1" placeholder="הקלד מספר קריאה או שם לקוח...">
+                        <button type="button" onclick="window.clearKanbanTicketLink()" class="text-slate-400 hover:text-red-400 px-2 transition text-xs font-bold" title="נקה קישור"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="kanban-ticket-search-results" class="hidden mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-36 overflow-y-auto z-10"></div>
+                    <div id="kanban-ticket-linked" class="hidden mt-1 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5"><i class="fa-solid fa-check-circle"></i> <span id="kanban-ticket-linked-label"></span></div>
+                </div>
+
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">כותרת המשימה:</label>
                     <input type="text" id="kanban-task-title" class="modern-input py-2.5 text-sm font-bold bg-slate-50" placeholder="למשל: הוספת כפתור ייצוא ל-PDF">
@@ -1587,24 +1597,32 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
     </div>
 
     <div id="sa-feedback-loop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99999] flex items-center justify-center p-4 fade-in">
-        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh] overflow-y-auto">
             <button onclick="document.getElementById('sa-feedback-loop-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
-            
+
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-solid fa-handshake"></i></div>
                 <div>
                     <h3 class="text-lg font-black text-slate-800 leading-tight">סגירת מעגל מול הלקוח</h3>
-                    <p class="text-[10px] text-slate-500 font-bold">שליחת עדכון ללקוח וסגירת קריאת השירות</p>
+                    <p class="text-[10px] text-slate-500 font-bold">סיכום שלבי הטיפול ושליחת עדכון ללקוח</p>
                 </div>
             </div>
-            
+
+            <!-- ציר זמן טיפול -->
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
-                <p class="text-xs text-slate-600 mb-2 font-bold">נוסח ההודעה (ניתן לעריכה):</p>
-                <textarea id="feedback-loop-text" class="modern-input text-sm h-32 resize-none border-emerald-200 focus:border-emerald-500"></textarea>
+                <p class="text-xs font-black text-slate-600 mb-3 flex items-center gap-1.5"><i class="fa-solid fa-timeline text-indigo-400"></i> שלבי הטיפול</p>
+                <div id="feedback-loop-timeline" class="space-y-2 max-h-40 overflow-y-auto modal-scroll"></div>
             </div>
-            
+
+            <!-- נוסח הודעה ללקוח -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                <p class="text-xs text-slate-600 mb-2 font-bold">נוסח ההודעה ללקוח (ניתן לעריכה):</p>
+                <textarea id="feedback-loop-text" class="modern-input text-sm h-28 resize-none border-emerald-200 focus:border-emerald-500"></textarea>
+            </div>
+
             <input type="hidden" id="feedback-loop-ticket-id">
-            <button onclick="executeFeedbackLoop()" class="w-full bg-emerald-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> סגור קריאה ושלח עדכון</button>
+            <input type="hidden" id="feedback-loop-task-id">
+            <button onclick="executeFeedbackLoop()" class="w-full bg-emerald-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> אשר ושלח ללקוח — סגור קריאה</button>
         </div>
     </div>
 

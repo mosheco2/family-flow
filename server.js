@@ -141,6 +141,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS assigned_developer VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS owner_id INT`); } catch(e) {}
       try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_dev_tasks ADD COLUMN IF NOT EXISTS group_id INT`); } catch(e) {}
       
       // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
@@ -4548,15 +4549,33 @@ app.get('/api/sa/dev/tasks', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+async function appendTicketAuditLog(ticketId, message, sender) {
+    if (!ticketId) return;
+    try {
+        const tRes = await pool.query('SELECT log FROM support_tickets WHERE id=$1', [ticketId]);
+        if (!tRes.rows.length) return;
+        const log = tRes.rows[0].log || [];
+        log.push({ date: new Date().toISOString(), sender: sender || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${message}` });
+        await pool.query('UPDATE support_tickets SET log=$1 WHERE id=$2', [JSON.stringify(log), ticketId]);
+    } catch(_) {}
+}
+
 app.post('/api/sa/dev/tasks', verifySA, async (req, res) => {
     try {
-        // Updated to catch owner_id and original_ticket_id
         const { title, type, priority, status, description, environment, moduleName, targetVersion, versionId, assignedDeveloper, owner_id, original_ticket_id } = req.body;
+        let groupId = null;
+        if (original_ticket_id) {
+            const tRow = await pool.query('SELECT group_id FROM support_tickets WHERE id=$1', [original_ticket_id]);
+            if (tRow.rows.length) groupId = tRow.rows[0].group_id;
+        }
         const result = await pool.query(
-            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, owner_id, target_version, version_id, assigned_developer) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', original_ticket_id || null, owner_id || null, targetVersion || '', versionId || null, assignedDeveloper || '']
+            `INSERT INTO sa_dev_tasks (title, type, priority, status, description, environment, module_name, original_ticket_id, owner_id, target_version, version_id, assigned_developer, group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+            [title, type || 'feature', priority || 'normal', status || 'backlog', description || '', environment || '', moduleName || '', original_ticket_id || null, owner_id || null, targetVersion || '', versionId || null, assignedDeveloper || '', groupId]
         );
+        if (original_ticket_id) {
+            await appendTicketAuditLog(original_ticket_id, `הקריאה הומרה למשימת טיפול (${title}) ונפתחה במסלול פיתוח`);
+        }
         res.json({ success: true, task: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -4589,19 +4608,24 @@ app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
 app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
     try {
         const { status, systemOverride } = req.body;
-        
-        // חסימת העברה ידנית ל-DONE - המשימה חייבת לעבור תהליך QA מסודר
+        const statusLabels = { backlog: 'בנק משימות', in_progress: 'בפיתוח פעיל', qa: 'בבדיקות QA בספר המוצר', done: 'פיתוח הושלם — שוחרר לאוויר' };
+
         if (status === 'done' && !systemOverride) {
             return res.status(403).json({ error: 'חסימת מערכת: לא ניתן להעביר משימה לסטטוס "בוצע" ידנית. המשימה תיסגר אוטומטית ברגע שכל תתי-המשימות יסתיימו וריצת ה-QA בספר המוצר תעבור בהצלחה.' });
         }
-        
+
         await pool.query('UPDATE sa_dev_tasks SET status=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [status, req.params.id]);
 
-        // כשמשימה מסיימת — נכנסת אוטומטית לספר המוצר
-        if (status === 'done') {
-            const taskRes = await pool.query('SELECT * FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
-            if (taskRes.rows.length > 0) {
-                const t = taskRes.rows[0];
+        const taskRes = await pool.query('SELECT * FROM sa_dev_tasks WHERE id=$1', [req.params.id]);
+        if (taskRes.rows.length > 0) {
+            const t = taskRes.rows[0];
+
+            if (t.original_ticket_id) {
+                const label = statusLabels[status] || status;
+                await appendTicketAuditLog(t.original_ticket_id, `סטטוס משימת הטיפול עודכן: ${label}`);
+            }
+
+            if (status === 'done') {
                 const bookId = `DEV-${t.id}`;
                 await pool.query(`
                     INSERT INTO sa_product_book (id, category, name, description, priority)

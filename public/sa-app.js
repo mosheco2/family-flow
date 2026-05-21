@@ -2494,7 +2494,11 @@ window.openKanbanTaskModal = function(id = null) {
     const modal = getEl('dev-kanban-task-modal');
     if (!modal) return;
     const delBtn = getEl('btn-kanban-delete');
-    
+
+    getEl('kanban-ticket-search').value = '';
+    getEl('kanban-ticket-search-results').classList.add('hidden');
+    getEl('kanban-ticket-linked').classList.add('hidden');
+
     if (id) {
         const task = devKanbanTasks.find(t => t.id === id);
         if(!task) return;
@@ -2506,6 +2510,12 @@ window.openKanbanTaskModal = function(id = null) {
         getEl('kanban-task-desc').value = task.desc || '';
         getEl('kanban-task-owner-id').value = task.owner_id || '';
         getEl('kanban-task-ticket-id').value = task.original_ticket_id || '';
+        if (task.original_ticket_id) {
+            const t = saTicketsCache.find(x => x.id === parseInt(task.original_ticket_id));
+            const label = t ? `קריאה #${t.id} — ${t.subject || ''}` : `קריאה #${task.original_ticket_id}`;
+            getEl('kanban-ticket-linked-label').textContent = label;
+            getEl('kanban-ticket-linked').classList.remove('hidden');
+        }
         delBtn.classList.remove('hidden');
     } else {
         getEl('kanban-modal-title').innerHTML = '<i class="fa-solid fa-plus text-indigo-500 mr-2"></i> משימה חדשה';
@@ -2519,6 +2529,42 @@ window.openKanbanTaskModal = function(id = null) {
         delBtn.classList.add('hidden');
     }
     modal.classList.remove('hidden');
+};
+
+window.searchKanbanTicket = function(query) {
+    const resultsEl = getEl('kanban-ticket-search-results');
+    if (!query.trim()) { resultsEl.classList.add('hidden'); return; }
+    const q = query.toLowerCase();
+    const matches = saTicketsCache.filter(t =>
+        String(t.id).includes(q) ||
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.user_name || '').toLowerCase().includes(q)
+    ).slice(0, 6);
+    if (!matches.length) { resultsEl.classList.add('hidden'); return; }
+    resultsEl.innerHTML = matches.map(t =>
+        `<div onclick="window.selectKanbanTicket(${t.id}, '${(t.subject||'').replace(/'/g,"\\'")}', '${(t.user_name||'').replace(/'/g,"\\'")}'); return false;"
+              class="px-3 py-2 text-xs cursor-pointer hover:bg-indigo-50 border-b border-slate-100 last:border-0">
+            <span class="font-bold text-indigo-600">#${t.id}</span>
+            <span class="text-slate-600 mr-1">${t.subject || ''}</span>
+            <span class="text-slate-400 text-[10px]">(${t.user_name || ''})</span>
+        </div>`
+    ).join('');
+    resultsEl.classList.remove('hidden');
+};
+
+window.selectKanbanTicket = function(id, subject, userName) {
+    getEl('kanban-task-ticket-id').value = id;
+    getEl('kanban-ticket-search').value = '';
+    getEl('kanban-ticket-search-results').classList.add('hidden');
+    getEl('kanban-ticket-linked-label').textContent = `קריאה #${id} — ${subject}`;
+    getEl('kanban-ticket-linked').classList.remove('hidden');
+};
+
+window.clearKanbanTicketLink = function() {
+    getEl('kanban-task-ticket-id').value = '';
+    getEl('kanban-ticket-search').value = '';
+    getEl('kanban-ticket-search-results').classList.add('hidden');
+    getEl('kanban-ticket-linked').classList.add('hidden');
 };
 
 window.saveKanbanTaskData = async function() {
@@ -2607,14 +2653,47 @@ window.convertTicketToDevTask = function() {
 window.openFeedbackLoopModal = function(taskId, ticketId) {
     getEl('feedback-loop-task-id').value = taskId;
     getEl('feedback-loop-ticket-id').value = ticketId;
-    
+
     const t = saTicketsCache.find(x => x.id === parseInt(ticketId));
-    const clientName = t ? t.user_name : 'לקוח יקר';
+    const clientName = t ? (t.user_name || 'לקוח יקר') : 'לקוח יקר';
     const taskObj = devKanbanTasks.find(task => task.id === taskId);
     let taskTitle = taskObj ? taskObj.title : 'בקשת השירות שלך';
-    taskTitle = taskTitle.replace(/^פנייה #[0-9]+:\s*/, '').replace(/^באג:\s*/, ''); // מנקה את הטקסט שייראה יפה ללקוח
+    taskTitle = taskTitle.replace(/^פנייה #[0-9]+:\s*/, '').replace(/^המרה לקריאת שירות:\s*/, '').replace(/^באג:\s*/, '');
 
-    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nשמחים לעדכן שהבקשה שלך בנושא "${taskTitle}" טופלה בהצלחה ועלתה לאוויר בגרסה האחרונה.\n\nתודה על הסבלנות,\nצוות התמיכה.`;
+    // בניית ציר זמן מה-log של הקריאה
+    const timelineEl = getEl('feedback-loop-timeline');
+    if (timelineEl) {
+        const statusIcons = { 'SYSTEM_AUDIT': '🔵', 'open': '📥', 'in_progress': '⚙️', 'resolved': '✅' };
+        let timelineHTML = '';
+        if (t && t.log) {
+            const logEntries = typeof t.log === 'string' ? JSON.parse(t.log) : t.log;
+            const auditEntries = logEntries.filter(e => e.message && e.message.includes('[SYSTEM_AUDIT]'));
+            if (auditEntries.length === 0) {
+                timelineHTML = '<p class="text-xs text-slate-400 text-center py-2">אין רשומות ביומן הטיפול</p>';
+            } else {
+                timelineHTML = auditEntries.map(e => {
+                    const d = new Date(e.date);
+                    const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+                    const msg = e.message.replace('[SYSTEM_AUDIT] ', '');
+                    return `<div class="flex items-start gap-2 text-[11px]">
+                        <span class="shrink-0 mt-0.5 text-indigo-400"><i class="fa-solid fa-circle-dot text-[8px]"></i></span>
+                        <div class="flex-1"><span class="font-bold text-slate-700">${msg}</span><br><span class="text-slate-400">${dateStr}</span></div>
+                    </div>`;
+                }).join('');
+            }
+        } else {
+            const created = t ? new Date(t.created_at) : new Date();
+            const dateStr = `${created.toLocaleDateString('he-IL')} ${created.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+            timelineHTML = `<div class="flex items-start gap-2 text-[11px]">
+                <span class="shrink-0 mt-0.5 text-indigo-400"><i class="fa-solid fa-circle-dot text-[8px]"></i></span>
+                <div><span class="font-bold text-slate-700">קריאה נפתחה</span><br><span class="text-slate-400">${dateStr}</span></div>
+            </div>`;
+        }
+        timelineEl.innerHTML = timelineHTML;
+    }
+
+    const now = new Date().toLocaleDateString('he-IL');
+    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nשמחים לעדכן כי הפנייה שלך בנושא "${taskTitle}" טופלה בהצלחה ועלתה לאוויר.\n\nהטיפול הושלם בתאריך ${now}. אנו עומדים לרשותך לכל שאלה נוספת.\n\nבברכה,\nצוות התמיכה של Oneflow Life`;
     getEl('sa-feedback-loop-modal').classList.remove('hidden');
 };
 
