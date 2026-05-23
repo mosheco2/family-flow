@@ -1698,13 +1698,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-headset text-indigo-500"></i> פתיחת קריאת שירות יזומה</h3>
             <div class="space-y-4">
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <label class="text-xs font-bold text-slate-600 block mb-1">🔍 סינון חכם ללקוח (שם/קוד)</label>
-                    <input type="text" id="new-ticket-group-search" onkeyup="filterNewTicketGroups()" class="modern-input py-1.5 px-3 text-xs bg-white mb-2" placeholder="הקלד לסינון מהיר...">
-                    
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">בחר מהרשימה:</label>
-                    <select id="new-ticket-group" class="modern-input py-2 px-3 text-sm font-bold bg-white text-indigo-700 border-indigo-200 cursor-pointer">
-                        <option value="">-- ללא שיוך לקוח (פנימי) --</option>
-                    </select>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">🔍 חיפוש לקוח לשיוך (שם משפחה / מייל / קוד)</label>
+                    <div class="relative">
+                        <input type="text" id="new-ticket-group-search" oninput="searchNewTicketGroup(this.value)" class="modern-input py-2 px-3 text-xs bg-white w-full" placeholder="הקלד שם, מייל או מספר לקוח...">
+                        <button type="button" onclick="clearNewTicketGroup()" class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-400 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="new-ticket-group-results" class="hidden mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-40 overflow-y-auto"></div>
+                    <div id="new-ticket-group-selected" class="hidden mt-1.5 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5"><i class="fa-solid fa-check-circle"></i> <span id="new-ticket-group-label"></span></div>
+                    <input type="hidden" id="new-ticket-group">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-1">נושא הקריאה</label>

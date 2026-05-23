@@ -2416,41 +2416,51 @@ window.dropKanbanTask = async function(ev, newStatus) {
 };
 
 // --- קריאה יזומה עם חיפוש חכם ---
-window.filterNewTicketGroups = function() {
-    const term = getEl('new-ticket-group-search').value.toLowerCase().trim();
-    const select = getEl('new-ticket-group');
-    if (!select) return;
-    const options = select.options;
-    
-    for (let i = 0; i < options.length; i++) {
-        if (options[i].value === "") continue; // דלג על "ללא שיוך"
-        const text = options[i].text.toLowerCase();
-        options[i].style.display = text.includes(term) ? '' : 'none';
-    }
-    
-    // בוחר אוטומטית את התוצאה הראשונה הגלויה אם יש סינון
-    if (term) {
-        for (let i = 1; i < options.length; i++) {
-            if (options[i].style.display !== 'none') {
-                select.selectedIndex = i;
-                break;
-            }
-        }
-    } else { select.selectedIndex = 0; }
+window.searchNewTicketGroup = function(query) {
+    const resultsEl = getEl('new-ticket-group-results');
+    if (!query.trim()) { resultsEl.classList.add('hidden'); return; }
+    const q = query.toLowerCase();
+    const matches = (saAllGroups || []).filter(g =>
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.admin_email || '').toLowerCase().includes(q) ||
+        (g.group_code || '').toLowerCase().includes(q) ||
+        String(g.id).includes(q)
+    ).slice(0, 8);
+    if (!matches.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו תוצאות</p>'; resultsEl.classList.remove('hidden'); return; }
+    resultsEl.innerHTML = matches.map(g =>
+        `<div onclick="selectNewTicketGroup(${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${(g.admin_email||'').replace(/'/g,"\\'")}', '${(g.group_code||'').replace(/'/g,"\\'")}'); return false;"
+              class="px-3 py-2 text-xs cursor-pointer hover:bg-indigo-50 border-b border-slate-100 last:border-0">
+            <span class="font-bold text-indigo-600">${safeStr(g.name)}</span>
+            <span class="text-slate-400 mr-1 text-[10px]">קוד: ${g.group_code || '—'} | ${g.admin_email || ''}</span>
+        </div>`
+    ).join('');
+    resultsEl.classList.remove('hidden');
 };
+
+window.selectNewTicketGroup = function(id, name, email, code) {
+    getEl('new-ticket-group').value = id;
+    getEl('new-ticket-group-search').value = '';
+    getEl('new-ticket-group-results').classList.add('hidden');
+    getEl('new-ticket-group-label').textContent = `${name} (${email || code})`;
+    getEl('new-ticket-group-selected').classList.remove('hidden');
+};
+
+window.clearNewTicketGroup = function() {
+    getEl('new-ticket-group').value = '';
+    getEl('new-ticket-group-search').value = '';
+    getEl('new-ticket-group-results').classList.add('hidden');
+    getEl('new-ticket-group-selected').classList.add('hidden');
+};
+
+window.filterNewTicketGroups = window.searchNewTicketGroup;
 
 window.openNewTicketModal = function() {
     getEl('new-ticket-subject').value = '';
     getEl('new-ticket-desc').value = '';
-    const searchEl = getEl('new-ticket-group-search');
-    if(searchEl) searchEl.value = '';
-    
-    const groupSelect = getEl('new-ticket-group');
-    if (groupSelect && typeof saAllGroups !== 'undefined') {
-        groupSelect.innerHTML = '<option value="">-- ללא שיוך לקוח (פנימי) --</option>' + 
-            saAllGroups.map(g => `<option value="${g.id}">${safeStr(g.name)} (קוד: ${safeStr(g.group_code)})</option>`).join('');
-    }
-    
+    getEl('new-ticket-group-search').value = '';
+    getEl('new-ticket-group').value = '';
+    getEl('new-ticket-group-results').classList.add('hidden');
+    getEl('new-ticket-group-selected').classList.add('hidden');
     const modal = getEl('sa-new-ticket-modal');
     if (modal) modal.classList.remove('hidden');
 };

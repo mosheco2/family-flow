@@ -420,16 +420,37 @@ initDB();
     }
 });
 // הוספת קריאת שירות יזומה על ידי מנהל המערכת (סופר אדמין)
+async function postToInternalChat(message, senderName) {
+    try {
+        await pool.query(
+            'INSERT INTO sa_internal_chat (room, sender_name, sender_id, message) VALUES ($1, $2, $3, $4)',
+            ['general', senderName || 'מערכת', null, message]
+        );
+    } catch(_) {}
+}
+
 app.post('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
         const { subject, description, group_id } = req.body;
-        const initialLog = [{ date: new Date().toISOString(), sender: 'צוות מערכת (יזום)', isStaff: true, isInternal: false, message: description }];
-        
-        await pool.query(
-            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, NULL, $2, $3, $4, $5)',
+        const staffSender = req.saUser ? req.saUser.name : 'צוות מערכת';
+        const initialLog = [{ date: new Date().toISOString(), sender: staffSender + ' (יזום)', isStaff: true, isInternal: false, message: description }];
+
+        if (group_id) {
+            initialLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: false, message: `📋 קריאת שירות נפתחה עבורך על ידי צוות התמיכה בנושא: "${subject}". נחזור אליך בהקדם.` });
+            initialLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] קריאה יזומה נפתחה ושויכה ללקוח (group_id: ${group_id})` });
+        }
+
+        const result = await pool.query(
+            'INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, NULL, $2, $3, $4, $5) RETURNING id',
             [group_id || null, subject, description, 'open', JSON.stringify(initialLog)]
         );
-        res.json({ success: true });
+        const ticketId = result.rows[0].id;
+
+        if (group_id) {
+            await postToInternalChat(`🎫 קריאה יזומה #${ticketId} נפתחה: "${subject}" — שויכה ללקוח. טיפול נדרש.`, staffSender);
+        }
+
+        res.json({ success: true, ticketId });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // שליפת הקריאות עבור פאנל ה-Super Admin (כולל צוותים משויכים וזמני SLA)
@@ -4623,6 +4644,7 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
             if (t.original_ticket_id) {
                 const label = statusLabels[status] || status;
                 await appendTicketAuditLog(t.original_ticket_id, `סטטוס משימת הטיפול עודכן: ${label}`);
+                await postToInternalChat(`🔄 קריאה #${t.original_ticket_id} — "${t.title}": ${label}`, 'מערכת');
             }
 
             if (status === 'done') {
