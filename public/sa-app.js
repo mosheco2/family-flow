@@ -33,7 +33,18 @@ window.onload = () => {
         getEl('sa-dashboard-container').classList.remove('hidden');
         applyUserPermissions();
         loadSAData();
-        window.switchSATab('pulse');
+
+        // פתיחה אוטומטית של טיקט מ-URL param (למשל מ-qa-book.html)
+        const urlTicket = new URLSearchParams(window.location.search).get('ticket');
+        if (urlTicket) {
+            window.switchSATab('support');
+            setTimeout(async () => {
+                if (!saTicketsCache.length && typeof loadSATickets === 'function') await loadSATickets();
+                openSATicketModal(parseInt(urlTicket));
+            }, 800);
+        } else {
+            window.switchSATab('pulse');
+        }
         
         // טעינה ורינדור ראשוני של תיבת ההתראות והמונה
         window.renderSANotifications();

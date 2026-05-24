@@ -725,7 +725,8 @@ async function loadTestsFromServer() {
                     name: t.name,
                     desc: t.description,
                     prio: t.priority,
-                    envs: (typeof ENV_MAP !== 'undefined' && ENV_MAP[t.id]) ? ENV_MAP[t.id] : ['family','biz']
+                    envs: (typeof ENV_MAP !== 'undefined' && ENV_MAP[t.id]) ? ENV_MAP[t.id] : ['family','biz'],
+                    ticket_id: t.original_ticket_id || null
                 });
             });
             
@@ -2061,6 +2062,7 @@ function renderRow(t, sec, env, showCb) {
     <td>
       <div class="test-name">${t.name}</div>
       <div class="test-desc">${t.desc}</div>
+      ${t.ticket_id ? `<div style="margin-top:4px"><a href="sa.html?ticket=${t.ticket_id}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 7px;text-decoration:none;" title="פתח קריאת שירות מקור"><i class="fa-solid fa-ticket" style="font-size:8px"></i> קריאה #${t.ticket_id}</a></div>` : ''}
     </td>
     <td><span class="prio ${prioClass}">${prioLabel}</span></td>
     <td>
