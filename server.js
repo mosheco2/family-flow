@@ -2111,23 +2111,69 @@ app.post('/api/admin/update-settings', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// הקצאת דמי כיס וצבירת ריביות (Payday)
 app.post('/api/admin/payday', async (req, res) => {
+    let dbClient;
     try {
-        const { groupId } = req.body;
-        const users = await pool.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`, [groupId]);
+        const { groupId, adminId } = req.body;
+
+        dbClient = await pool.connect();
+        
+        // Validation 1: אימות הרשאות - רק מנהל יכול להפעיל Payday
+        const adminCheck = await dbClient.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+            dbClient.release();
+            return res.status(403).json({ success: false, error: 'פעולה נדחתה: אין לך הרשאת מנהל לחלוקת דמי כיס.' });
+        }
+
+        // Validation 2: מניעת כפילויות (Race Condition Protection) - חלוקה אחת ליום
+        const lastPaydayCheck = await dbClient.query(
+            "SELECT id FROM transactions WHERE group_id = $1 AND category = 'allowance' AND date >= CURRENT_DATE", 
+            [groupId]
+        );
+        if (lastPaydayCheck.rows.length > 0) {
+            dbClient.release();
+            return res.status(409).json({ success: false, error: 'דמי כיס וריביות כבר חולקו היום. ניתן להפעיל פעם אחת ביום.' });
+        }
+
+        await dbClient.query('BEGIN'); // שימוש נכון בטרנזקציה עם client ייעודי
+
+        // משיכת המשתמשים עם נעילת שורות FOR UPDATE כדי למנוע שינוי מאזן תוך כדי
+        const users = await dbClient.query(
+            "SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN' FOR UPDATE", 
+            [groupId]
+        );
+        
         let totalDistributed = 0;
-        await pool.query('BEGIN');
+        
         for(let u of users.rows) {
-            let toAdd = parseFloat(u.allowance_amount) || 0; let bal = parseFloat(u.balance) || 0;
-            if(bal > 0 && parseFloat(u.interest_rate) > 0) { toAdd += bal * (parseFloat(u.interest_rate) / 100); }
+            let toAdd = parseFloat(u.allowance_amount) || 0;
+            let bal = parseFloat(u.balance) || 0;
+            
+            if(bal > 0 && parseFloat(u.interest_rate) > 0) {
+                toAdd += bal * (parseFloat(u.interest_rate) / 100);
+            }
+            
             if(toAdd > 0) {
-                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
-                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
+                await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
+                await dbClient.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'דמי כיס וריבית (Payday)', 'allowance', 'income')`, 
+                    [u.id, groupId, toAdd]
+                );
                 totalDistributed += toAdd;
             }
         }
-        await pool.query('COMMIT'); res.json({success:true, totalDistributed});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true, totalDistributed });
+        
+    } catch(e) {
+        if (dbClient) await dbClient.query('ROLLBACK');
+        console.error('Payday Error:', e.message);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
 });
 
 // ============================================================
