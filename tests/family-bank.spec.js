@@ -1,6 +1,5 @@
 const { test, expect } = require('@playwright/test');
 
-// מזהים מוגדרים מראש עבור סביבת הטסטים
 const TEST_ENV = {
   groupCode: 'TEST01',
   parentName: 'אבא',
@@ -9,32 +8,44 @@ const TEST_ENV = {
   kidPass: '123456'
 };
 
+// ============================================================
+// ה"מלשין": פונקציה שרצה אחרי כל טסט ומדווחת לשרת שלנו
+// ============================================================
+test.afterEach(async ({}, testInfo) => {
+  // חיפוש המזהה בסוגריים מרובעים (למשל: [FAM-05])
+  const match = testInfo.title.match(/\[(.*?)\]/);
+  if (match) {
+    const testId = match[1];
+    const status = testInfo.status === 'passed' ? 'ok' : 'fail';
+    
+    // שליחת התוצאה לשרת ה-Node.js המקומי שלנו
+    await fetch('http://localhost:3000/api/qa/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ testId, status })
+    }).catch(err => console.log('QA Report failed:', err));
+  }
+});
+
 test.describe('Oneflow Life - Family Bank Flow', () => {
 
-  test('Parent can distribute payday and Kid sees restricted view', async ({ browser }) => {
-    // 1. פתיחת חלון עבור ההורה
+  // שים לב לתיוג החדש בשם הטסט: [FAM-05]
+  test('[FAM-05] Parent can distribute payday and Kid sees restricted view', async ({ browser }) => {
     const parentContext = await browser.newContext();
     const parentPage = await parentContext.newPage();
     
-    // התחברות כהורה - ודא שהכתובת תואמת לשרת המקומי שלך
     await parentPage.goto('http://localhost:3000');
-    
-    // הערה: נצטרך לוודא שה-ID של השדות כאן תואמים בדיוק ל-HTML שלך. 
-    // אם המזהים שונים בקובץ app.js/index.html שלך, נתאים אותם בשלב הבא.
     await parentPage.fill('#login-group', TEST_ENV.groupCode);
     await parentPage.fill('#login-nickname', TEST_ENV.parentName);
     await parentPage.fill('#login-password', TEST_ENV.parentPass);
     await parentPage.click('#login-btn');
     
-    // ניווט לבנק וחלוקת דמי כיס
     await parentPage.click('[data-tab="bank"]');
     await parentPage.click('#distribute-allowance-btn');
     
-    // 2. פתיחת חלון מקביל עבור הילד
     const kidContext = await browser.newContext();
     const kidPage = await kidContext.newPage();
 
-    // התחברות כילד
     await kidPage.goto('http://localhost:3000');
     await kidPage.fill('#login-group', TEST_ENV.groupCode);
     await kidPage.fill('#login-nickname', TEST_ENV.kidName);
@@ -42,11 +53,8 @@ test.describe('Oneflow Life - Family Bank Flow', () => {
     await kidPage.click('#login-btn');
 
     await kidPage.click('[data-tab="bank"]');
-
-    // אכיפת הרשאות: מוודאים שכפתור חלוקת הכסף מוסתר לילד
     await expect(kidPage.locator('#distribute-allowance-btn')).toBeHidden();
     
-    // סיום הבדיקה וסגירת חלונות
     await parentContext.close();
     await kidContext.close();
   });

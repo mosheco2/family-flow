@@ -5471,3 +5471,29 @@ app.get('/api/superadmin/pulse', verifySA, async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+// ============================================================
+// QA AUTOMATION BRIDGE - קבלת דיווחים מהרובוט
+// ============================================================
+app.post('/api/qa/update', (req, res) => {
+    try {
+        const { testId, status } = req.body;
+        // מיקום שמירת התוצאות (בתיקייה הציבורית כדי שספר ה-QA ייגש לזה)
+        const filePath = path.join(__dirname, 'public', 'qa-results.json');
+        
+        let results = {};
+        if (fs.existsSync(filePath)) {
+            results = JSON.parse(fs.readFileSync(filePath));
+        }
+        
+        // עדכון סטטוס הבדיקה הספציפית
+        results[testId] = {
+            status: status, // 'ok' or 'fail'
+            lastRun: new Date().toISOString()
+        };
+        
+        fs.writeFileSync(filePath, JSON.stringify(results, null, 2));
+        res.json({ success: true, updated: testId });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});

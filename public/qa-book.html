@@ -3719,53 +3719,69 @@ function showToast(msg) {
 
 // טעינת תוצאות QA מהשרת (על גבי state קיים, לא מדרוס)
 async function loadResultsFromServer() {
-  if(!saToken) return;
+  // 1. חלק מקורי: טעינת נתונים ממערכת הסופר-אדמין
   try {
-    const res = await fetch(`${API}/sa/qa/results`, { headers: { 'Authorization': saToken } });
-    if(!res.ok) return;
-    const data = await res.json();
-    if(data.success && Array.isArray(data.results)) {
-      data.results.forEach(r => {
-        if(!r.test_id || !r.env) return;
+    if(saToken) {
+      const res = await fetch(`${API}/sa/qa/results`, { headers: { 'Authorization': saToken } });
+      if(res.ok) {
+        const data = await res.json();
+        data.forEach(r => {
+           if(r.env === 'qa-guide') {
+              const tid = r.test_id.replace(/^TASK-/, '');
+              if(!taskAssignments[tid]) taskAssignments[tid] = {};
+              taskAssignments[tid].qa_note = r.note || '';
+              return;
+           }
+           if(r.env === 'qa-steps') {
+              const tid = r.test_id.replace(/^TASK-/, '');
+              if(!taskAssignments[tid]) taskAssignments[tid] = {};
+              taskAssignments[tid].qa_guide_steps = r.note || '';
+              return;
+           }
+           if(r.env === 'dismissed') {
+              const tid = r.test_id.replace(/^TASK-/, '');
+              dismissedTaskIds.add(tid);
+              return;
+           }
 
-        // עריכות מדריך ספר המוצר
-        if(r.env === 'guide-steps') {
-          state[`guide_steps_${r.test_id}`] = r.note || '';
-          return;
-        }
-        if(r.env === 'guide-expected') {
-          state[`guide_expected_${r.test_id}`] = r.note || '';
-          return;
-        }
-        // הערות משימות QA Staging
-        if(r.env === 'qa-note') {
-          const tid = r.test_id.replace(/^TASK-/, '');
-          if(!taskAssignments[tid]) taskAssignments[tid] = {};
-          taskAssignments[tid].qa_note = r.note || '';
-          return;
-        }
-        if(r.env === 'qa-steps') {
-          const tid = r.test_id.replace(/^TASK-/, '');
-          if(!taskAssignments[tid]) taskAssignments[tid] = {};
-          taskAssignments[tid].qa_guide_steps = r.note || '';
-          return;
-        }
-        if(r.env === 'dismissed') {
-          const tid = r.test_id.replace(/^TASK-/, '');
-          dismissedTaskIds.add(tid);
-          return;
-        }
-        // תוצאת בדיקה רגילה
-        const k = sk(r.test_id, r.env);
-        // אל תדרוס מצב מקומי — אם קיים, המקומי סמכותי (למשל ניקוי סימון)
-        if(!(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
-      });
-      // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
-      applyGuideEdits();
-      localStorage.setItem('qa_state', JSON.stringify(state));
-      localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
+           const k = sk(r.test_id, r.env);
+           if(!(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
+        });
+        applyGuideEdits();
+        localStorage.setItem('qa_state', JSON.stringify(state));
+        localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
+      }
     }
-  } catch(e) { console.warn('loadResultsFromServer:', e.message); }
+  } catch(e) { console.warn('SuperAdmin loadResultsFromServer:', e.message); }
+
+  // 2. חלק חדש (אוטומציה): קריאת התוצאות שהרובוט שמר וצביעת הספר הידני
+  try {
+    const response = await fetch('/qa-results.json');
+    if (response.ok) {
+        const results = await response.json();
+        let stateChanged = false;
+        
+        for (const [testId, data] of Object.entries(results)) {
+             // שימוש באובייקט ENV_MAP מהקובץ שלך כדי לדעת לאיזו סביבה שייך הטסט
+             const envsToUpdate = ENV_MAP[testId] || ['family']; 
+             envsToUpdate.forEach(env => {
+                 const k = sk(testId, env);
+                 // מעדכן את האובייקט המקומי ישירות עם סטטוס והערה שהבדיקה אוטומטית
+                 state[k] = { 
+                    s: data.status === 'ok' ? 'ok' : 'fail', 
+                    n: `נבדק אוטומטית ע"י רובוט ב-${new Date(data.lastRun).toLocaleTimeString('he-IL')}` 
+                 };
+                 stateChanged = true;
+             });
+        }
+        
+        if (stateChanged) {
+            saveState(); // פונקציה מובנית שלך ששומרת הכל ומרפרשת את המסך
+        }
+    }
+  } catch (e) {
+      console.log("No automated QA results found yet, skipping.");
+  }
 }
 
 // שמירת תוצאות QA לשרת (batch, debounced)
