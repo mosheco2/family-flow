@@ -2804,28 +2804,31 @@ window.renderQAStaging = async function() {
 
 window.loadQATests = async function() {
     try {
-        const res = await fetch(`${API}/sa/product-book?limit=200`, { headers: { 'Authorization': saToken } });
+        const res = await fetch(`${API}/sa/qa/tests`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
-        const items = data.items || data.data || data.rows || [];
-        qaTestsCache = items.map(item => ({
-            id: item.id || '',
-            name: item.name || item.title || '',
-            category: item.category || item.module_name || '—',
-            priority: item.priority || 'medium',
-            status: item.qa_status || 'pending',
-            ticket_id: item.original_ticket_id || item.ticket_id || null,
-            description: item.description || ''
-        }));
+        const items = data.tests || [];
+        // merge with kanban tasks in qa/done status that may not yet be in the book
+        const taskItems = (typeof devKanbanTasks !== 'undefined' ? devKanbanTasks : [])
+            .filter(t => t.status === 'qa' || t.status === 'done')
+            .map(t => ({ id: `DEV-${t.id}`, name: t.title || '', category: t.module_name || t.environment || '—', priority: t.priority || 'normal', status: t.status === 'done' ? 'pass' : 'pending', ticket_id: t.original_ticket_id || null, description: t.description || '' }));
+        const bookIds = new Set(items.map(i => i.id));
+        const merged = [
+            ...items.map(item => ({
+                id: item.id || '',
+                name: item.name || item.title || '',
+                category: item.category || '—',
+                priority: item.priority || 'medium',
+                status: item.qa_status || 'pending',
+                ticket_id: item.original_ticket_id || null,
+                description: item.description || ''
+            })),
+            ...taskItems.filter(t => !bookIds.has(t.id))
+        ];
+        qaTestsCache = merged;
     } catch(_) {
-        qaTestsCache = (typeof devKanbanTasks !== 'undefined' ? devKanbanTasks : []).map(t => ({
-            id: `DEV-${t.id}`,
-            name: t.title || '',
-            category: t.module_name || t.environment || '—',
-            priority: t.priority || 'normal',
-            status: t.status === 'qa' ? 'pending' : t.status === 'done' ? 'pass' : 'pending',
-            ticket_id: t.original_ticket_id || null,
-            description: t.description || ''
-        }));
+        qaTestsCache = (typeof devKanbanTasks !== 'undefined' ? devKanbanTasks : [])
+            .filter(t => t.status === 'qa' || t.status === 'done')
+            .map(t => ({ id: `DEV-${t.id}`, name: t.title || '', category: t.module_name || t.environment || '—', priority: t.priority || 'normal', status: t.status === 'done' ? 'pass' : 'pending', ticket_id: t.original_ticket_id || null, description: t.description || '' }));
     }
 };
 

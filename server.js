@@ -145,7 +145,7 @@ pool.connect()
       
       // ניהול גרסאות, ספר מוצר ו-QA (ספרינט 4 - ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_versions (id SERIAL PRIMARY KEY, name VARCHAR(100), target_date DATE, status VARCHAR(20) DEFAULT 'planning', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_product_book (id VARCHAR(50) PRIMARY KEY, category VARCHAR(100), name VARCHAR(200), description TEXT, priority VARCHAR(20) DEFAULT 'medium', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sa_product_book ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
       // טבלת תתי-משימות פיתוח לרזולוציית ביצוע (ALM)
@@ -4664,10 +4664,10 @@ app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
             if (status === 'done') {
                 const bookId = `DEV-${t.id}`;
                 await pool.query(`
-                    INSERT INTO sa_product_book (id, category, name, description, priority)
-                    VALUES ($1, $2, $3, $4, $5)
-                    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description
-                `, [bookId, t.module_name || t.environment || 'general', t.title, t.description || '', t.priority || 'medium']);
+                    INSERT INTO sa_product_book (id, category, name, description, priority, original_ticket_id)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, original_ticket_id=EXCLUDED.original_ticket_id
+                `, [bookId, t.module_name || t.environment || 'general', t.title, t.description || '', t.priority || 'medium', t.original_ticket_id || null]);
             }
         }
 
@@ -4813,7 +4813,7 @@ app.post('/api/sa/versions', verifySA, async (req, res) => {
 // משיכת ספר המוצר (כל הבדיקות מהמסד)
 app.get('/api/sa/qa/tests', verifySA, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM sa_product_book ORDER BY category ASC, id ASC');
+        const result = await pool.query('SELECT *, original_ticket_id FROM sa_product_book ORDER BY category ASC, id ASC');
         res.json({ success: true, tests: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
