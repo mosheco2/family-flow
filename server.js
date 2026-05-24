@@ -1923,23 +1923,92 @@ app.get('/api/loans', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// ============================================================
+// --- SECURED LOANS ENDPOINTS (FAMILY BANK) ---
+// ============================================================
+
+// 1. בקשת הלוואה (עם חסימת סכומים שליליים וכפילויות)
 app.post('/api/loans/request', async (req, res) => {
     try {
         const { userId, amount, reason, groupId } = req.body;
-        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, parseFloat(amount)||0, parseFloat(amount)||0, reason]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        const numericAmount = parseFloat(amount) || 0;
+
+        // Validation 1: סכום חייב להיות חיובי
+        if (numericAmount <= 0) {
+            return res.status(400).json({ success: false, error: 'הסכום חייב להיות גדול מאפס' });
+        }
+
+        // Validation 2: מניעת הצפה (Race Condition) - בדיקה אם כבר יש בקשה פתוחה על אותו סכום ואותה סיבה
+        const existingPending = await pool.query(
+            "SELECT id FROM loans WHERE user_id = $1 AND status = 'pending' AND original_amount = $2", 
+            [userId, numericAmount]
+        );
+        if (existingPending.rows.length > 0) {
+            return res.status(409).json({ success: false, error: 'כבר קיימת בקשת הלוואה ממתינה בסכום זה.' });
+        }
+
+        await pool.query(
+            'INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', 
+            [userId, groupId, numericAmount, numericAmount, reason]
+        );
+        res.json({ success: true });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
+// 2. אישור הלוואה מוגן בטרנזקציה (ACID) ואימות הרשאות
 app.post('/api/loans/approve', async (req, res) => {
+    let dbClient;
     try {
-        const { loanId, userId, amount, adminId } = req.body;
-        const l = await pool.query('SELECT group_id FROM loans WHERE id=$1', [loanId]);
-        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
-        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
-        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, [userId, l.rows[0].group_id, parseFloat(amount)||0]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        const { loanId, userId, amount, adminId, groupId } = req.body;
+        const numericAmount = parseFloat(amount) || 0;
+
+        // Validation 1: הגנה מפני הזרקת סכום שלילי
+        if (numericAmount <= 0) return res.status(400).json({ success: false, error: 'סכום לא חוקי' });
+
+        dbClient = await pool.connect();
+        
+        // Validation 2: אימות הרשאות קשיח - האם מי שמאשר הוא באמת ADMIN של המשפחה?
+        const adminCheck = await dbClient.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+            dbClient.release();
+            return res.status(403).json({ success: false, error: 'פעולה נדחתה: אין לך הרשאות ניהול בנק משפחתי.' });
+        }
+
+        await dbClient.query('BEGIN'); // התחלת טרנזקציה מאובטחת
+
+        // Validation 3: נעילת השורה ובדיקה שהסטטוס עדיין ממתין (Race Condition Protection)
+        const loanCheck = await dbClient.query("SELECT status, group_id FROM loans WHERE id = $1 FOR UPDATE", [loanId]);
+        if (loanCheck.rows.length === 0) throw new Error("הלוואה לא נמצאה");
+        if (loanCheck.rows[0].status !== 'pending') {
+            throw new Error("הלוואה זו כבר טופלה (אושרה או נדחתה).");
+        }
+
+        const actualGroupId = loanCheck.rows[0].group_id;
+
+        // 1. עדכון סטטוס ההלוואה
+        await dbClient.query("UPDATE loans SET status = 'approved' WHERE id = $1", [loanId]);
+        
+        // 2. עדכון יתרת הילד
+        await dbClient.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [numericAmount, userId]);
+        
+        // 3. רישום תנועה פיננסית בבנק
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, 
+            [userId, actualGroupId, numericAmount]
+        );
+
+        await dbClient.query('COMMIT'); // סיום מוצלח של כל הפעולות
+        res.json({ success: true });
+
+    } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK'); // שחזור לאחור במקרה של שגיאה באמצע
+        console.error('Loan Approval Error:', e.message);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release(); // שחרור הפול
+    }
 });
 
 app.post('/api/loans/reject', async (req, res) => {
@@ -2043,23 +2112,69 @@ app.post('/api/admin/update-settings', async (req, res) => {
     catch(e) { res.status(500).json({error: e.message}); }
 });
 
+// הקצאת דמי כיס וצבירת ריביות (Payday)
 app.post('/api/admin/payday', async (req, res) => {
+    let dbClient;
     try {
-        const { groupId } = req.body;
-        const users = await pool.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`, [groupId]);
+        const { groupId, adminId } = req.body;
+
+        dbClient = await pool.connect();
+        
+        // Validation 1: אימות הרשאות - רק מנהל יכול להפעיל Payday
+        const adminCheck = await dbClient.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+            dbClient.release();
+            return res.status(403).json({ success: false, error: 'פעולה נדחתה: אין לך הרשאת מנהל לחלוקת דמי כיס.' });
+        }
+
+        // Validation 2: מניעת כפילויות (Race Condition Protection) - חלוקה אחת ליום
+        const lastPaydayCheck = await dbClient.query(
+            "SELECT id FROM transactions WHERE group_id = $1 AND category = 'allowance' AND date >= CURRENT_DATE", 
+            [groupId]
+        );
+        if (lastPaydayCheck.rows.length > 0) {
+            dbClient.release();
+            return res.status(409).json({ success: false, error: 'דמי כיס וריביות כבר חולקו היום. ניתן להפעיל פעם אחת ביום.' });
+        }
+
+        await dbClient.query('BEGIN'); // שימוש נכון בטרנזקציה עם client ייעודי
+
+        // משיכת המשתמשים עם נעילת שורות FOR UPDATE כדי למנוע שינוי מאזן תוך כדי
+        const users = await dbClient.query(
+            "SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN' FOR UPDATE", 
+            [groupId]
+        );
+        
         let totalDistributed = 0;
-        await pool.query('BEGIN');
+        
         for(let u of users.rows) {
-            let toAdd = parseFloat(u.allowance_amount) || 0; let bal = parseFloat(u.balance) || 0;
-            if(bal > 0 && parseFloat(u.interest_rate) > 0) { toAdd += bal * (parseFloat(u.interest_rate) / 100); }
+            let toAdd = parseFloat(u.allowance_amount) || 0;
+            let bal = parseFloat(u.balance) || 0;
+            
+            if(bal > 0 && parseFloat(u.interest_rate) > 0) {
+                toAdd += bal * (parseFloat(u.interest_rate) / 100);
+            }
+            
             if(toAdd > 0) {
-                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
-                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
+                await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
+                await dbClient.query(
+                    `INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'דמי כיס וריבית (Payday)', 'allowance', 'income')`, 
+                    [u.id, groupId, toAdd]
+                );
                 totalDistributed += toAdd;
             }
         }
-        await pool.query('COMMIT'); res.json({success:true, totalDistributed});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true, totalDistributed });
+        
+    } catch(e) {
+        if (dbClient) await dbClient.query('ROLLBACK');
+        console.error('Payday Error:', e.message);
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
 });
 
 // ============================================================
