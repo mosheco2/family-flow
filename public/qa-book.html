@@ -1720,11 +1720,29 @@ function getNote(id, env)  { return state[sk(id,env)]?.n || ''; }
 function setStatus(id, s, env) {
   const k = sk(id, env);
   if(!state[k]) state[k] = {};
-  state[k].s = state[k].s === s ? null : s;
+  const prev = state[k].s;
+  state[k].s = prev === s ? null : s;
+  const newStatus = state[k].s;
   updateRowUI(id, env);
   saveState();
   updateSidebarBadges();
   scheduleServerSave();
+  // לוג אבן דרך לטיקט המקושר כשסטטוס בדיקה משתנה
+  if (newStatus && newStatus !== prev && saToken) {
+    const test = SECTIONS.flatMap(sec => sec.tests || []).find(t => t.id === id);
+    const ticketId = test && test.ticket_id;
+    if (ticketId) {
+      const statusMsg = { ok: '✅ בדיקת QA עברה בהצלחה בספר המוצר', fail: '❌ בדיקת QA נכשלה בספר המוצר', warn: '⚠️ בדיקת QA עברה עם אזהרות בספר המוצר', skip: 'בדיקת QA דולגה' };
+      const msg = statusMsg[newStatus];
+      if (msg) {
+        fetch(`${API}/superadmin/tickets/${ticketId}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+          body: JSON.stringify({ message: '', status: '', isInternal: true, senderName: 'ספר QA', auditNote: msg })
+        }).catch(() => {});
+      }
+    }
+  }
 }
 
 function setNote(id, n, env) {

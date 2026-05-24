@@ -4643,7 +4643,12 @@ app.put('/api/sa/dev/tasks/:id', verifySA, async (req, res) => {
 app.put('/api/sa/dev/tasks/:id/status', verifySA, async (req, res) => {
     try {
         const { status, systemOverride } = req.body;
-        const statusLabels = { backlog: 'בנק משימות', in_progress: 'בפיתוח פעיל', qa: 'בבדיקות QA בספר המוצר', done: 'פיתוח הושלם — שוחרר לאוויר' };
+        const statusLabels = {
+            backlog:     'הועבר לבנק משימות',
+            in_progress: '🔧 הקריאה נכנסה לפיתוח פעיל',
+            qa:          '🔬 הקריאה הועברה לבדיקות QA',
+            done:        '✅ הפיתוח הושלם — שוחרר לאוויר'
+        };
 
         if (status === 'done' && !systemOverride) {
             return res.status(403).json({ error: 'חסימת מערכת: לא ניתן להעביר משימה לסטטוס "בוצע" ידנית. המשימה תיסגר אוטומטית ברגע שכל תתי-המשימות יסתיימו וריצת ה-QA בספר המוצר תעבור בהצלחה.' });
