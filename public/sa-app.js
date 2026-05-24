@@ -954,6 +954,13 @@ window.submitSATicketReply = async function() {
     const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
     
     if (!text && !status) return showToast('error', 'יש להזין תגובה ללקוח או לבחור שינוי סטטוס');
+
+    // סגירת קריאה — פתח חלונית סגירה מסודרת במקום לשלוח הודעה ריקה
+    if (status === 'resolved' && !text) {
+        const task = devKanbanTasks.find(t => t.original_ticket_id === saCurrentTicketId);
+        window.openFeedbackLoopModal(task ? task.id : null, saCurrentTicketId);
+        return;
+    }
     
     const btn = getEl('btn-sa-ticket-reply');
     const originalHtml = btn.innerHTML;
@@ -2330,11 +2337,14 @@ window.renderKanbanBoard = function() {
             <h5 class="font-black text-slate-800 text-xs leading-snug mb-1.5">${safeStr(task.title)}</h5>
             <p class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-2 mb-3 leading-normal font-medium">${safeStr(cleanDesc)}</p>
             
+            ${task.original_ticket_id ? `
+            <div class="mt-2 mb-1 flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5">
+                <i class="fa-solid fa-ticket text-indigo-400 text-[9px]"></i>
+                <span class="text-[10px] font-bold text-indigo-600 flex-1">קריאת שירות #${task.original_ticket_id}</span>
+                <button onclick="event.stopPropagation(); window.openTicketFromTask(${task.original_ticket_id})" class="text-[9px] text-indigo-500 hover:text-indigo-700 font-bold bg-white border border-indigo-200 px-1.5 py-0.5 rounded transition"><i class="fa-solid fa-arrow-up-right-from-square"></i> פתח</button>
+            </div>` : ''}
             <div class="flex justify-between items-end mt-auto">
                 <span class="text-[9px] text-slate-400 font-mono">#${task.id}</span>
-                <div class="flex flex-col items-end gap-1">
-                    ${task.original_ticket_id ? `<span class="text-[8px] font-bold text-slate-400 bg-slate-50 px-1 rounded border border-slate-100"><i class="fa-solid fa-ticket"></i> טיקט ${task.original_ticket_id}</span>` : ''}
-                </div>
             </div>
             ${feedbackBtn}
         </div>
@@ -2655,6 +2665,21 @@ window.convertTicketToDevTask = function() {
         
         showToast('info', 'הקריאה קושרה! השלם את יצירת המשימה.');
     }, 100);
+};
+
+// ==========================================
+// --- פתיחת קריאת שירות מתוך משימת קנבן ---
+// ==========================================
+window.openTicketFromTask = function(ticketId) {
+    const id = parseInt(ticketId);
+    if (!id) return;
+    // switch to support tab if needed, then open modal
+    if (typeof switchSATab === 'function') switchSATab('support');
+    setTimeout(function() {
+        if (typeof openSATicketModal === 'function') {
+            openSATicketModal(id);
+        }
+    }, 150);
 };
 
 // ==========================================
