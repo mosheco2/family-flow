@@ -1,10 +1,10 @@
 const { test, expect } = require('@playwright/test');
 
 const TEST_ENV = {
-  groupCode: 'TEST01',
+  groupCode: 'TYQPPY',
   parentName: 'אבא',
   parentPass: '123456',
-  kidName: 'דני',
+  kidName: 'זוהר',
   kidPass: '123456'
 };
 
