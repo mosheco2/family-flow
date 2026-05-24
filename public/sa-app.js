@@ -748,8 +748,8 @@ function openSATicketModal(id) {
     const contactRow = getEl('sa-ticket-contact-row');
     const emailRow = getEl('sa-ticket-contact-email-row');
     const phoneRow = getEl('sa-ticket-contact-phone-row');
-    const contactEmail = t.user_email || t.group_email || '';
-    const contactPhone = t.user_phone || '';
+    const contactEmail = t.group_email || '';
+    const contactPhone = '';
     if (contactEmail || contactPhone) {
         contactRow.classList.remove('hidden');
         if (contactEmail) {

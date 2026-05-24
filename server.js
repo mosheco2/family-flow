@@ -458,7 +458,7 @@ app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT t.*, f.name as group_name, f.admin_email as group_email, f.group_code,
-                   u.nickname as user_name, u.email as user_email, u.phone as user_phone,
+                   u.nickname as user_name,
                    sa_u.name as assigned_user_name, sa_t.name as assigned_team_name
             FROM support_tickets t
             LEFT JOIN family_groups f ON t.group_id = f.id
