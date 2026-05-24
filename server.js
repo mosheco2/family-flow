@@ -457,11 +457,12 @@ app.post('/api/superadmin/tickets', verifySA, async (req, res) => {
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT t.*, f.name as group_name, u.nickname as user_name, 
-                   sa_u.name as assigned_user_name, sa_t.name as assigned_team_name 
-            FROM support_tickets t 
-            LEFT JOIN family_groups f ON t.group_id = f.id 
-            LEFT JOIN users u ON t.user_id = u.id 
+            SELECT t.*, f.name as group_name, f.admin_email as group_email, f.group_code,
+                   u.nickname as user_name, u.email as user_email, u.phone as user_phone,
+                   sa_u.name as assigned_user_name, sa_t.name as assigned_team_name
+            FROM support_tickets t
+            LEFT JOIN family_groups f ON t.group_id = f.id
+            LEFT JOIN users u ON t.user_id = u.id
             LEFT JOIN sa_users sa_u ON t.assigned_to = sa_u.id
             LEFT JOIN sa_teams sa_t ON t.assigned_team = sa_t.id
             ORDER BY t.created_at DESC
@@ -650,7 +651,7 @@ app.post('/api/superadmin/tickets/:id/reply', verifySA, async (req, res) => {
     try {
         dbClient = await pool.connect();
         const ticketId = req.params.id;
-        const { message, status, isInternal, senderName } = req.body;
+        const { message, status, isInternal, senderName, auditNote } = req.body;
 
         // שליפת הטיקט הקיים מהמסד
         const tRes = await dbClient.query('SELECT status, log FROM support_tickets WHERE id = $1', [ticketId]);
@@ -660,14 +661,27 @@ app.post('/api/superadmin/tickets/:id/reply', verifySA, async (req, res) => {
         let currentLog = ticket.log || [];
         if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
 
-        // הוספת ההודעה החדשה ללוג
-        currentLog.push({
-            date: new Date().toISOString(),
-            sender: senderName || 'צוות מערכת',
-            isStaff: true,
-            isInternal: !!isInternal,
-            message: message
-        });
+        // הוספת ההודעה החדשה ללוג רק אם יש תוכן
+        if (message && message.trim()) {
+            currentLog.push({
+                date: new Date().toISOString(),
+                sender: senderName || 'צוות מערכת',
+                isStaff: true,
+                isInternal: !!isInternal,
+                message: message
+            });
+        }
+
+        // audit log בשינוי סטטוס
+        const statusLabelsTicket = { open: 'פתוחה', in_progress: 'בטיפול פעיל', resolved: 'נסגרה', closed: 'נסגרה' };
+        if (status && status !== ticket.status) {
+            const label = statusLabelsTicket[status] || status;
+            currentLog.push({ date: new Date().toISOString(), sender: 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] סטטוס הקריאה עודכן: ${label}` });
+        }
+        // audit note (e.g. sent to ALM/QA)
+        if (auditNote) {
+            currentLog.push({ date: new Date().toISOString(), sender: senderName || 'מערכת', isStaff: true, isInternal: true, message: `[SYSTEM_AUDIT] ${auditNote}` });
+        }
 
         // עדכון סטטוס אם הועבר סטטוס חדש, אחרת נשאר הסטטוס הקיים
         const newStatus = status || ticket.status;

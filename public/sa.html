@@ -938,10 +938,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-code-branch text-indigo-600"></i> מרכז פיתוח, QA ומוצר</h2>
                                 <p class="text-sm text-slate-500 mt-1">ניהול מחזור חיי האפליקציה: מספר המוצר, דרך תעדוף באגים, ועד לשחרור גרסאות ללקוחות.</p>
                             </div>
-                            <div class="flex bg-slate-100 p-1.5 rounded-xl w-full xl:w-auto overflow-x-auto whitespace-nowrap">
-                                <button id="btn-dev-tab-matrix" onclick="switchDevTab('matrix')" class="flex-1 px-5 py-2.5 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition"><i class="fa-solid fa-list-check mr-1"></i> ספר מוצר (Matrix)</button>
-                                <button id="btn-dev-tab-kanban" onclick="switchDevTab('kanban')" class="flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition"><i class="fa-solid fa-trello mr-1"></i> לוח משימות</button>
-                                <button id="btn-dev-tab-release" onclick="switchDevTab('release')" class="flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition"><i class="fa-solid fa-bullhorn mr-1"></i> שיווק והשקות</button>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl w-full xl:w-auto overflow-x-auto whitespace-nowrap gap-1">
+                                <button id="btn-dev-tab-matrix" onclick="switchDevTab('matrix')" class="flex-1 px-4 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-list-check mr-1"></i> ספר מוצר</button>
+                                <button id="btn-dev-tab-kanban" onclick="switchDevTab('kanban')" class="flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap"><i class="fa-solid fa-trello mr-1"></i> לוח משימות</button>
+                                <button id="btn-dev-tab-alm" onclick="switchDevTab('alm')" class="flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap"><i class="fa-solid fa-diagram-project mr-1"></i> ALM Hub</button>
+                                <button id="btn-dev-tab-qa" onclick="switchDevTab('qa')" class="flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap"><i class="fa-solid fa-vial-circle-check mr-1"></i> QA Staging</button>
+                                <button id="btn-dev-tab-release" onclick="switchDevTab('release')" class="flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap"><i class="fa-solid fa-bullhorn mr-1"></i> השקות</button>
                             </div>
                         </div>
 
@@ -1050,6 +1052,92 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                     <div id="col-done" class="flex-1 overflow-y-auto space-y-3 p-1 modal-scroll min-h-[50px]"></div>
                                 </div>
 
+                            </div>
+                        </div>
+
+                        <!-- ALM Hub -->
+                        <div id="dev-content-alm" class="hidden flex-col fade-in space-y-4">
+                            <div class="bg-gradient-to-l from-violet-600 to-indigo-600 rounded-[2rem] p-5 text-white shadow-lg relative overflow-hidden">
+                                <i class="fa-solid fa-diagram-project absolute -left-4 -top-4 text-9xl opacity-10 transform -rotate-12"></i>
+                                <div class="relative">
+                                    <h3 class="text-xl font-black mb-1">ALM Hub — מחזור חיי האפליקציה</h3>
+                                    <p class="text-xs opacity-80">מעקב מלא אחרי כל פיצ'ר מרגע הפנייה ועד לאוויר</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-5 gap-3 text-center">
+                                <div class="bg-slate-50 rounded-2xl p-3 border border-slate-200"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">בנק</p><span class="text-2xl font-black text-slate-600" id="alm-count-backlog">--</span></div>
+                                <div class="bg-blue-50 rounded-2xl p-3 border border-blue-100"><p class="text-[9px] font-bold text-blue-400 uppercase mb-1">פיתוח</p><span class="text-2xl font-black text-blue-600" id="alm-count-dev">--</span></div>
+                                <div class="bg-amber-50 rounded-2xl p-3 border border-amber-100"><p class="text-[9px] font-bold text-amber-400 uppercase mb-1">QA</p><span class="text-2xl font-black text-amber-600" id="alm-count-qa">--</span></div>
+                                <div class="bg-emerald-50 rounded-2xl p-3 border border-emerald-100"><p class="text-[9px] font-bold text-emerald-400 uppercase mb-1">הושלם</p><span class="text-2xl font-black text-emerald-600" id="alm-count-done">--</span></div>
+                                <div class="bg-indigo-50 rounded-2xl p-3 border border-indigo-100"><p class="text-[9px] font-bold text-indigo-400 uppercase mb-1">קריאות</p><span class="text-2xl font-black text-indigo-600" id="alm-count-tickets">--</span></div>
+                            </div>
+                            <!-- ALM Lifecycle Board -->
+                            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span><span class="text-xs font-black text-slate-600 uppercase tracking-wide">בנק משימות</span></div>
+                                    <div id="alm-lane-backlog" class="p-3 space-y-2 min-h-[120px] max-h-[400px] overflow-y-auto modal-scroll"></div>
+                                </div>
+                                <div class="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+                                    <div class="bg-blue-50 px-4 py-2 border-b border-blue-100 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="text-xs font-black text-blue-600 uppercase tracking-wide">בפיתוח</span></div>
+                                    <div id="alm-lane-dev" class="p-3 space-y-2 min-h-[120px] max-h-[400px] overflow-y-auto modal-scroll"></div>
+                                </div>
+                                <div class="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
+                                    <div class="bg-amber-50 px-4 py-2 border-b border-amber-100 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="text-xs font-black text-amber-600 uppercase tracking-wide">בדיקות QA</span></div>
+                                    <div id="alm-lane-qa" class="p-3 space-y-2 min-h-[120px] max-h-[400px] overflow-y-auto modal-scroll"></div>
+                                </div>
+                                <div class="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                                    <div class="bg-emerald-50 px-4 py-2 border-b border-emerald-100 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-xs font-black text-emerald-600 uppercase tracking-wide">הושלם / חי</span></div>
+                                    <div id="alm-lane-done" class="p-3 space-y-2 min-h-[120px] max-h-[400px] overflow-y-auto modal-scroll"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- QA Staging -->
+                        <div id="dev-content-qa" class="hidden flex-col fade-in space-y-4">
+                            <div class="bg-gradient-to-l from-amber-500 to-orange-500 rounded-[2rem] p-5 text-white shadow-lg relative overflow-hidden">
+                                <i class="fa-solid fa-vial-circle-check absolute -left-4 -top-4 text-9xl opacity-10 transform -rotate-12"></i>
+                                <div class="relative flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-xl font-black mb-1">QA Staging — רשימת בדיקות מלאה</h3>
+                                        <p class="text-xs opacity-80">ניהול בדיקות QA לפני שחרור לאוויר</p>
+                                    </div>
+                                    <button onclick="window.openQAAddModal()" class="bg-white/20 hover:bg-white/30 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> הוסף בדיקה</button>
+                                </div>
+                            </div>
+                            <!-- Filters + stats row -->
+                            <div class="flex flex-wrap gap-3 items-center">
+                                <div class="flex gap-2">
+                                    <button onclick="window.filterQATests('all')" id="qa-filter-all" class="qa-filter-btn active text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-800 text-white transition">הכל</button>
+                                    <button onclick="window.filterQATests('pending')" id="qa-filter-pending" class="qa-filter-btn text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition">⏳ ממתין</button>
+                                    <button onclick="window.filterQATests('pass')" id="qa-filter-pass" class="qa-filter-btn text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition">✅ עבר</button>
+                                    <button onclick="window.filterQATests('fail')" id="qa-filter-fail" class="qa-filter-btn text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition">❌ נכשל</button>
+                                </div>
+                                <div class="flex gap-3 mr-auto text-xs font-bold text-slate-400">
+                                    <span>✅ <span id="qa-stat-pass">0</span></span>
+                                    <span>❌ <span id="qa-stat-fail">0</span></span>
+                                    <span>⏳ <span id="qa-stat-pending">0</span></span>
+                                </div>
+                            </div>
+                            <!-- QA Table -->
+                            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-xs">
+                                        <thead class="bg-slate-50 border-b border-slate-200">
+                                            <tr class="text-[9px] font-black text-slate-400 uppercase">
+                                                <th class="px-4 py-3 text-right w-20">מזהה</th>
+                                                <th class="px-4 py-3 text-right">שם הבדיקה</th>
+                                                <th class="px-4 py-3 text-right w-24">קטגוריה</th>
+                                                <th class="px-4 py-3 text-right w-20">עדיפות</th>
+                                                <th class="px-4 py-3 text-right w-20">סטטוס</th>
+                                                <th class="px-4 py-3 text-right w-28">קריאת מקור</th>
+                                                <th class="px-4 py-3 text-center w-20">פעולות</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="qa-tests-tbody">
+                                            <tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">טוען בדיקות...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 
@@ -1493,6 +1581,29 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <div class="flex justify-between items-center"><span>לקוח:</span> <span id="sa-ticket-modal-user" class="text-slate-600"></span></div>
                         <div class="flex justify-between items-center"><span>ארגון:</span> <span id="sa-ticket-modal-group" class="text-slate-600"></span></div>
                         <div class="flex justify-between items-center"><span>בטיפול:</span> <span id="sa-ticket-current-team" class="text-indigo-600"></span></div>
+                        <div id="sa-ticket-contact-row" class="hidden pt-1 border-t border-slate-100 space-y-1.5">
+                            <div class="text-[8px] text-slate-400 uppercase tracking-widest">פרטי התקשרות</div>
+                            <div id="sa-ticket-contact-email-row" class="hidden flex items-center gap-1.5">
+                                <i class="fa-solid fa-envelope text-slate-400 text-[9px] shrink-0"></i>
+                                <span id="sa-ticket-contact-email" class="text-slate-600 truncate flex-1 text-[9px]"></span>
+                                <a id="sa-ticket-email-btn" href="#" onclick="return false;" class="text-blue-500 hover:text-blue-700 text-[9px] font-bold px-1.5 py-0.5 bg-blue-50 rounded border border-blue-100 transition">מייל</a>
+                            </div>
+                            <div id="sa-ticket-contact-phone-row" class="hidden flex items-center gap-1.5">
+                                <i class="fa-solid fa-phone text-slate-400 text-[9px] shrink-0"></i>
+                                <span id="sa-ticket-contact-phone" class="text-slate-600 flex-1 text-[9px]"></span>
+                                <a id="sa-ticket-phone-btn" href="#" onclick="return false;" class="text-green-600 hover:text-green-700 text-[9px] font-bold px-1.5 py-0.5 bg-green-50 rounded border border-green-100 transition"><i class="fa-solid fa-phone text-[8px]"></i></a>
+                                <a id="sa-ticket-wa-btn" href="#" onclick="return false;" class="text-green-600 hover:text-green-700 text-[9px] font-bold px-1.5 py-0.5 bg-green-50 rounded border border-green-100 transition"><i class="fa-brands fa-whatsapp text-[10px]"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Send to ALM / QA -->
+                    <div class="space-y-2">
+                        <button onclick="window.sendTicketToALM()" class="w-full bg-violet-50 text-violet-700 border border-violet-100 py-1.5 rounded-lg text-[10px] font-bold hover:bg-violet-100 transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-diagram-project text-[10px]"></i> שלח ל-ALM Hub
+                        </button>
+                        <button onclick="window.sendTicketToQA()" class="w-full bg-amber-50 text-amber-700 border border-amber-100 py-1.5 rounded-lg text-[10px] font-bold hover:bg-amber-100 transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-vial-circle-check text-[10px]"></i> שלח ל-QA Staging
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1556,7 +1667,11 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <button type="button" onclick="window.clearKanbanTicketLink()" class="text-slate-400 hover:text-red-400 px-2 transition text-xs font-bold" title="נקה קישור"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div id="kanban-ticket-search-results" class="hidden mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-36 overflow-y-auto z-10"></div>
-                    <div id="kanban-ticket-linked" class="hidden mt-1 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5"><i class="fa-solid fa-check-circle"></i> <span id="kanban-ticket-linked-label"></span></div>
+                    <div id="kanban-ticket-linked" class="hidden mt-1 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <span id="kanban-ticket-linked-label" class="flex-1"></span>
+                        <button type="button" onclick="event.stopPropagation(); window.openTicketFromTask(document.getElementById('kanban-task-ticket-id').value); document.getElementById('dev-kanban-task-modal').classList.add('hidden');" class="text-[9px] font-bold bg-white border border-emerald-200 text-emerald-600 hover:text-emerald-800 px-1.5 py-0.5 rounded transition"><i class="fa-solid fa-arrow-up-right-from-square"></i> פתח</button>
+                    </div>
                 </div>
 
                 <div>

@@ -268,18 +268,18 @@ window.updateSADashboard = async function() {
 };
 
 window.switchDevTab = function(tabId) {
-    ['matrix', 'kanban', 'release'].forEach(t => {
+    ['matrix', 'kanban', 'alm', 'qa', 'release'].forEach(t => {
         const view = document.getElementById(`dev-content-${t}`);
         const btn = document.getElementById(`btn-dev-tab-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex-1 px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition';
+        if (btn) btn.className = 'flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap';
     });
-    
     const activeView = document.getElementById(`dev-content-${tabId}`);
     const activeBtn = document.getElementById(`btn-dev-tab-${tabId}`);
-    
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex-1 px-5 py-2.5 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition';
+    if (activeBtn) activeBtn.className = 'flex-1 px-4 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition whitespace-nowrap';
+    if (tabId === 'alm') window.renderALMHub && window.renderALMHub();
+    if (tabId === 'qa') window.renderQAStaging && window.renderQAStaging();
 };
 
 // ── System Pulse globals ──────────────────────────────────────────────────────
@@ -732,6 +732,31 @@ function openSATicketModal(id) {
     getEl('sa-ticket-modal-group').innerText = t.group_name || 'לא ידוע';
     getEl('sa-ticket-modal-user').innerText = t.user_name || 'לא ידוע';
     getEl('sa-ticket-current-team').innerText = t.assigned_team_name || 'טרם שויך';
+
+    // פרטי התקשרות
+    const contactRow = getEl('sa-ticket-contact-row');
+    const emailRow = getEl('sa-ticket-contact-email-row');
+    const phoneRow = getEl('sa-ticket-contact-phone-row');
+    const contactEmail = t.user_email || t.group_email || '';
+    const contactPhone = t.user_phone || '';
+    if (contactEmail || contactPhone) {
+        contactRow.classList.remove('hidden');
+        if (contactEmail) {
+            emailRow.classList.remove('hidden');
+            getEl('sa-ticket-contact-email').textContent = contactEmail;
+            getEl('sa-ticket-email-btn').href = `mailto:${contactEmail}`;
+            getEl('sa-ticket-email-btn').onclick = null;
+        } else { emailRow.classList.add('hidden'); }
+        if (contactPhone) {
+            phoneRow.classList.remove('hidden');
+            getEl('sa-ticket-contact-phone').textContent = contactPhone;
+            getEl('sa-ticket-phone-btn').href = `tel:${contactPhone}`;
+            getEl('sa-ticket-phone-btn').onclick = null;
+            const cleanPhone = contactPhone.replace(/\D/g, '');
+            getEl('sa-ticket-wa-btn').href = `https://wa.me/972${cleanPhone.replace(/^0/, '')}`;
+            getEl('sa-ticket-wa-btn').onclick = null;
+        } else { phoneRow.classList.add('hidden'); }
+    } else { contactRow.classList.add('hidden'); }
     
     // איפוס טופס כתיבה וגובה תיבת טקסט
     const replyTextarea = getEl('sa-ticket-reply-text');
@@ -801,10 +826,12 @@ function openSATicketModal(id) {
             <div class="text-[10px] text-slate-700 font-bold">פתיחת קריאה</div>
         </div>`;
 
-    logArr.forEach(entry => {
+    logArr.forEach((entry, idx) => {
         const timeStr = new Date(entry.date).toLocaleString('he-IL', {timeStyle:'short'});
-        const isInternal = entry.isInternal || (entry.message && entry.message.startsWith('[INTERNAL_NOTE]')); 
+        const isInternal = entry.isInternal || (entry.message && entry.message.startsWith('[INTERNAL_NOTE]'));
         let cleanMessage = entry.message ? entry.message.replace('[INTERNAL_NOTE] ', '') : '';
+        // skip first log entry if it duplicates the description (added at ticket creation)
+        if (idx === 0 && !entry.isStaff && cleanMessage === t.description) return;
         
         if (entry.message && entry.message.startsWith('[SYSTEM_AUDIT]')) {
             milestoneHtml += `
@@ -862,7 +889,10 @@ window.updateTicketClassification = async function() {
         let notes = [];
         if (t.priority !== priority) notes.push(`שינה עדיפות ל-${priority}`);
         if (t.ticket_type !== type) notes.push(`שינה סוג ל-${type}`);
-        if (t.assigned_team != teamId) notes.push(`העביר צוות`);
+        if (t.assigned_team != teamId) {
+            const teamObj = saTeamsCache.find(x => x.id == teamId);
+            notes.push(teamId ? `שויך לצוות: ${teamObj ? teamObj.name : '#'+teamId}` : `הוסר שיוך צוות`);
+        }
         
         const auditNote = notes.length > 0 ? `סיווג קריאה: ${notes.join(', ')}` : null;
 
@@ -2683,6 +2713,180 @@ window.openTicketFromTask = function(ticketId) {
 };
 
 // ==========================================
+// --- שליחה ל-ALM Hub / QA Staging ---
+// ==========================================
+window.sendTicketToALM = async function() {
+    if (!saCurrentTicketId) return;
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    try {
+        await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: '', status: '', isInternal: true, senderName: senderName, auditNote: 'הקריאה הועברה ל-ALM Hub לניהול מחזור חיים מלא' })
+        });
+    } catch(_) {}
+    showToast('success', 'הקריאה הועברה ל-ALM Hub!');
+    document.getElementById('sa-ticket-modal').classList.add('hidden');
+    switchSATab('devops');
+    switchDevTab('alm');
+};
+
+window.sendTicketToQA = async function() {
+    if (!saCurrentTicketId) return;
+    const senderName = window.currentSAUser ? window.currentSAUser.name : 'צוות מערכת';
+    try {
+        await fetch(`${API}/superadmin/tickets/${saCurrentTicketId}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ message: '', status: '', isInternal: true, senderName: senderName, auditNote: 'הקריאה הועברה ל-QA Staging לבדיקות מלאות' })
+        });
+    } catch(_) {}
+    showToast('success', 'הקריאה הועברה ל-QA Staging!');
+    document.getElementById('sa-ticket-modal').classList.add('hidden');
+    switchSATab('devops');
+    switchDevTab('qa');
+};
+
+// ==========================================
+// --- ALM Hub ---
+// ==========================================
+window.renderALMHub = function() {
+    const tasks = typeof devKanbanTasks !== 'undefined' ? devKanbanTasks : [];
+    const byStatus = { backlog: [], in_progress: [], qa: [], done: [] };
+    tasks.forEach(t => {
+        if (byStatus[t.status]) byStatus[t.status].push(t);
+        else byStatus['backlog'].push(t);
+    });
+
+    const counts = { backlog: byStatus.backlog.length, dev: byStatus.in_progress.length, qa: byStatus.qa.length, done: byStatus.done.length };
+    const tickets = (typeof saTicketsCache !== 'undefined' ? saTicketsCache : []).filter(t => t.status !== 'resolved' && t.status !== 'closed');
+    ['backlog','dev','qa','done','tickets'].forEach(k => {
+        const el = document.getElementById(`alm-count-${k}`);
+        if (el) el.textContent = k === 'tickets' ? tickets.length : (counts[k] || 0);
+    });
+
+    const typeIcon = { feature: '✨', bug: '🐞', ui: '🎨', tech: '🔧' };
+    const prioColor = { critical: 'text-red-600', high: 'text-orange-500', normal: 'text-yellow-500', low: 'text-blue-400' };
+
+    const renderCard = (t) => {
+        const ticket = t.original_ticket_id ? (typeof saTicketsCache !== 'undefined' ? saTicketsCache.find(x => x.id === parseInt(t.original_ticket_id)) : null) : null;
+        const ticketBadge = t.original_ticket_id
+            ? `<button onclick="event.stopPropagation(); window.openTicketFromTask(${t.original_ticket_id})" class="mt-1.5 w-full text-left text-[9px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg flex items-center gap-1 hover:bg-indigo-100 transition"><i class="fa-solid fa-ticket text-[8px]"></i> קריאה #${t.original_ticket_id}${ticket ? ' — ' + safeStr(ticket.user_name || '') : ''}<i class="fa-solid fa-arrow-up-right-from-square mr-auto text-[7px]"></i></button>`
+            : '';
+        return `<div class="bg-white border border-slate-100 rounded-xl p-2.5 shadow-sm hover:shadow-md transition cursor-default">
+            <div class="flex items-start justify-between gap-1">
+                <span class="text-[10px] font-bold text-slate-700 leading-tight flex-1">${typeIcon[t.type] || '📌'} ${safeStr(t.title)}</span>
+                <span class="text-[9px] font-black ${prioColor[t.priority] || ''} shrink-0">${t.priority === 'critical' ? '🚨' : t.priority === 'high' ? '🔴' : t.priority === 'normal' ? '🟡' : '🔵'}</span>
+            </div>
+            ${ticketBadge}
+        </div>`;
+    };
+
+    const laneMap = { backlog: 'backlog', in_progress: 'dev', qa: 'qa', done: 'done' };
+    Object.entries(laneMap).forEach(([status, lane]) => {
+        const el = document.getElementById(`alm-lane-${lane}`);
+        if (!el) return;
+        const list = byStatus[status];
+        el.innerHTML = list.length ? list.map(renderCard).join('') : '<p class="text-[10px] text-slate-300 text-center py-4">ריק</p>';
+    });
+};
+
+// ==========================================
+// --- QA Staging ---
+// ==========================================
+let qaTestsCache = [];
+let qaFilterStatus = 'all';
+
+window.renderQAStaging = async function() {
+    if (!qaTestsCache.length) await window.loadQATests();
+    window._renderQATable();
+};
+
+window.loadQATests = async function() {
+    try {
+        const res = await fetch(`${API}/sa/product-book?limit=200`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        const items = data.items || data.data || data.rows || [];
+        qaTestsCache = items.map(item => ({
+            id: item.id || '',
+            name: item.name || item.title || '',
+            category: item.category || item.module_name || '—',
+            priority: item.priority || 'medium',
+            status: item.qa_status || 'pending',
+            ticket_id: item.original_ticket_id || item.ticket_id || null,
+            description: item.description || ''
+        }));
+    } catch(_) {
+        qaTestsCache = (typeof devKanbanTasks !== 'undefined' ? devKanbanTasks : []).map(t => ({
+            id: `DEV-${t.id}`,
+            name: t.title || '',
+            category: t.module_name || t.environment || '—',
+            priority: t.priority || 'normal',
+            status: t.status === 'qa' ? 'pending' : t.status === 'done' ? 'pass' : 'pending',
+            ticket_id: t.original_ticket_id || null,
+            description: t.description || ''
+        }));
+    }
+};
+
+window._renderQATable = function() {
+    const filtered = qaFilterStatus === 'all' ? qaTestsCache : qaTestsCache.filter(t => t.status === qaFilterStatus);
+    const pass = qaTestsCache.filter(t => t.status === 'pass').length;
+    const fail = qaTestsCache.filter(t => t.status === 'fail').length;
+    const pending = qaTestsCache.filter(t => t.status === 'pending').length;
+    const statEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    statEl('qa-stat-pass', pass); statEl('qa-stat-fail', fail); statEl('qa-stat-pending', pending);
+
+    const prioMap = { critical: '🚨', high: '🔴', medium: '🟡', normal: '🟡', low: '🔵' };
+    const statusMap = { pending: '<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[9px] font-bold">⏳ ממתין</span>', pass: '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-bold">✅ עבר</span>', fail: '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-[9px] font-bold">❌ נכשל</span>' };
+    const tbody = document.getElementById('qa-tests-tbody');
+    if (!tbody) return;
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">אין בדיקות</td></tr>';
+        return;
+    }
+    tbody.innerHTML = filtered.map(t => {
+        const ticketBtn = t.ticket_id
+            ? `<button onclick="window.openTicketFromTask(${t.ticket_id})" class="text-[9px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg hover:bg-indigo-100 transition">#${t.ticket_id} <i class="fa-solid fa-arrow-up-right-from-square text-[7px]"></i></button>`
+            : '<span class="text-slate-300">—</span>';
+        return `<tr class="border-b border-slate-50 hover:bg-slate-50/60 transition">
+            <td class="px-4 py-3 font-mono text-[9px] text-slate-500">${safeStr(t.id)}</td>
+            <td class="px-4 py-3 font-bold text-slate-700">${safeStr(t.name)}</td>
+            <td class="px-4 py-3 text-slate-500">${safeStr(t.category)}</td>
+            <td class="px-4 py-3">${prioMap[t.priority] || '🟡'}</td>
+            <td class="px-4 py-3">${statusMap[t.status] || statusMap.pending}</td>
+            <td class="px-4 py-3">${ticketBtn}</td>
+            <td class="px-4 py-3 text-center">
+                <select onchange="window.updateQATestStatus('${t.id}', this.value)" class="text-[9px] border border-slate-200 rounded-lg px-1.5 py-0.5 outline-none bg-white">
+                    <option value="pending" ${t.status==='pending'?'selected':''}>⏳</option>
+                    <option value="pass" ${t.status==='pass'?'selected':''}>✅</option>
+                    <option value="fail" ${t.status==='fail'?'selected':''}>❌</option>
+                </select>
+            </td>
+        </tr>`;
+    }).join('');
+};
+
+window.filterQATests = function(status) {
+    qaFilterStatus = status;
+    document.querySelectorAll('.qa-filter-btn').forEach(b => {
+        b.className = 'qa-filter-btn text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition';
+    });
+    const activeBtn = document.getElementById(`qa-filter-${status}`);
+    if (activeBtn) activeBtn.className = 'qa-filter-btn active text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-800 text-white transition';
+    window._renderQATable();
+};
+
+window.updateQATestStatus = function(id, status) {
+    const item = qaTestsCache.find(t => t.id == id);
+    if (item) { item.status = status; window._renderQATable(); }
+};
+
+window.openQAAddModal = function() {
+    document.getElementById('sa-qa-generator-modal') && document.getElementById('sa-qa-generator-modal').classList.remove('hidden');
+};
+
+// ==========================================
 // --- סגירת מעגל ללקוח (Feedback Loop) ---
 // ==========================================
 window.openFeedbackLoopModal = function(taskId, ticketId) {
@@ -2728,7 +2932,7 @@ window.openFeedbackLoopModal = function(taskId, ticketId) {
     }
 
     const now = new Date().toLocaleDateString('he-IL');
-    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nשמחים לעדכן כי הפנייה שלך בנושא "${taskTitle}" טופלה בהצלחה ועלתה לאוויר.\n\nהטיפול הושלם בתאריך ${now}. אנו עומדים לרשותך לכל שאלה נוספת.\n\nבברכה,\nצוות התמיכה של Oneflow Life`;
+    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nהפנייה שלך בנושא "${taskTitle}" טופלה.\nהטיפול הושלם בתאריך ${now}. אנו עומדים לרשותך לכל שאלה נוספת.\n\nבברכה,\nצוות התמיכה של Oneflow Life`;
     getEl('sa-feedback-loop-modal').classList.remove('hidden');
 };
 
@@ -2747,9 +2951,12 @@ window.executeFeedbackLoop = async function() {
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'המעגל נסגר! הלקוח עודכן והקריאה נסגרה. 🎉');
+            showToast('success', 'המעגל נסגר! הלקוח עודכן והקריאה נסגרה.');
             getEl('sa-feedback-loop-modal').classList.add('hidden');
-            if(typeof loadSATickets === 'function') loadSATickets(); // מרענן את רשימת הטיקטים
+            if (typeof loadSATickets === 'function') {
+                await loadSATickets();
+                if (ticketId) openSATicketModal(parseInt(ticketId));
+            }
         } else {
             showToast('error', data.error || 'שגיאה בסגירת מעגל');
         }
