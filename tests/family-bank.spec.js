@@ -29,8 +29,10 @@ test.afterEach(async ({}, testInfo) => {
 
 test.describe('Oneflow Life - Family Bank Flow', () => {
 
-  // שים לב לתיוג החדש בשם הטסט: [FAM-05]
   test('[FAM-05] Parent can distribute payday and Kid sees restricted view', async ({ browser }) => {
+    // הגדלת זמן ההמתנה לדקה כדי לאפשר לדפדפן להיפתח בפעם הראשונה מבלי לקרוס
+    test.setTimeout(60000);
+    
     const parentContext = await browser.newContext();
     const parentPage = await parentContext.newPage();
     
