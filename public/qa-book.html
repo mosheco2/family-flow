@@ -468,8 +468,8 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 
   <div class="stats-bar">
     <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ בדיקות</div></div>
-    <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
-    <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
+    <div class="stat-card" style="cursor:pointer" onclick="showFilteredBook('ok')" title="הצג בדיקות שעברו"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
+    <div class="stat-card" style="cursor:pointer" onclick="showFilteredBook('fail')" title="הצג בדיקות שנכשלו"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
     <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— דולגו</div></div>
     <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
   </div>
@@ -500,6 +500,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
       <button class="btn btn-purple" onclick="finalizeTestRun()"><i class="fa-solid fa-flag-checkered"></i> סיים ריצה ושמור להיסטוריה</button>
+      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח</button>
       <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
     </div>
   </div>
@@ -3714,6 +3715,49 @@ function filterFails() {
     if(gr && !show) gr.style.display='none';
   });
 }
+
+// פתח ספר המוצר מסונן לפי סטטוס — עם חלוקה לקטגוריות מקור
+function showFilteredBook(statusFilter) {
+  showView('book');
+  currentFilter = null;
+  renderTests(null);
+  // אחרי רינדור — הסתר שורות שלא מתאימות לסטטוס
+  setTimeout(() => {
+    const matchKeys = new Set();
+    SECTIONS.forEach(sec => {
+      (sec.tests || []).forEach(t => {
+        (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => {
+          const s = getStatus(t.id, env);
+          const match = statusFilter === 'ok' ? s === 'ok'
+                      : statusFilter === 'fail' ? (s === 'fail' || s === 'warn')
+                      : true;
+          if(match) matchKeys.add(`${t.id}:${env}`);
+        });
+      });
+    });
+    // הסתר שורות לא רלוונטיות
+    document.querySelectorAll('table tbody tr[id^="row-"]').forEach(row => {
+      const rowKey = row.id.replace('row-','');
+      const show = matchKeys.has(rowKey);
+      row.style.display = show ? '' : 'none';
+      ['note-row-','guide-row-'].forEach(pfx => {
+        const el = document.getElementById(pfx + rowKey);
+        if(el && !show) el.style.display = 'none';
+      });
+    });
+    // הסתר טבלאות קטגוריה שנשארו ריקות
+    document.querySelectorAll('#tests-container .section-block, #tests-container > div').forEach(block => {
+      const visibleRows = block.querySelectorAll('tr[id^="row-"]:not([style*="none"])');
+      if(visibleRows.length === 0) block.style.display = 'none';
+    });
+    // עדכן כותרת
+    const h2 = document.querySelector('#view-book .page-header h2');
+    if(h2) h2.innerHTML = statusFilter === 'ok'
+      ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
+      : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
+  }, 200);
+}
+
 
 function markAll(s) {
   if(!confirm(`לסמן את כל הבדיקות כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;

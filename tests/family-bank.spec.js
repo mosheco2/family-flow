@@ -29,7 +29,12 @@ test.afterEach(async ({}, testInfo) => {
   const testId = match[1];
   const status = testInfo.status === 'passed' ? 'ok' : 'fail';
   const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
-  const note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
+  let note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
+  if (status === 'fail' && testInfo.errors && testInfo.errors.length) {
+    const raw = testInfo.errors[0]?.message || testInfo.errors[0]?.toString() || '';
+    const reason = raw.split('\n')[0].replace(/\s+/g, ' ').trim();
+    if (reason) note += `\nסיבת כשלון: ${reason.substring(0, 200)}`;
+  }
 
   await fetch(`${QA_SERVER}/api/qa/update`, {
     method: 'POST',
