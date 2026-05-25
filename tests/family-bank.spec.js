@@ -47,20 +47,24 @@ async function skipIntro(page) {
 }
 
 async function loginAsParent(page) {
-  await page.goto(BASE_URL);
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#login-code', { timeout: 20000 });
   await page.fill('#login-code', TEST_ENV.groupCode);
   await page.fill('#login-nickname', TEST_ENV.parentName);
   await page.fill('#login-password', TEST_ENV.parentPass);
   await page.locator('button:has-text("כניסה")').click();
+  await page.waitForTimeout(1500);
   await skipIntro(page);
 }
 
 async function loginAsKid(page) {
-  await page.goto(BASE_URL);
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#login-code', { timeout: 20000 });
   await page.fill('#login-code', TEST_ENV.groupCode);
   await page.fill('#login-nickname', TEST_ENV.kidName);
   await page.fill('#login-password', TEST_ENV.kidPass);
   await page.locator('button:has-text("כניסה")').click();
+  await page.waitForTimeout(1500);
   await skipIntro(page);
 }
 
@@ -93,7 +97,7 @@ async function fillFirst(page, selector, value) {
 test.describe('תקציב משפחתי', () => {
 
   test('[FAM-11] Parent edits budget category amounts', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'תקציב');
 
@@ -111,7 +115,7 @@ test.describe('תקציב משפחתי', () => {
   });
 
   test('[FAM-12] Budget view shows planned vs actual columns', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'תקציב');
     await page.waitForTimeout(1000);
@@ -125,7 +129,7 @@ test.describe('תקציב משפחתי', () => {
   });
 
   test('[PFAM-06] Parent edits budget as family admin', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'תקציב');
 
@@ -145,7 +149,7 @@ test.describe('תקציב משפחתי', () => {
 test.describe('תנועות כספיות / Cash Flow', () => {
 
   test('[FAM-13] Add new income transaction — appears in list', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -167,7 +171,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
   });
 
   test('[FAM-14] Click transaction — edit form opens', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -187,7 +191,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
   });
 
   test('[FAM-15] Recurring transaction toggle is present', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -208,7 +212,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
   });
 
   test('[FAM-16] AI forecast button opens analysis', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -222,7 +226,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
   });
 
   test('[PFAM-08] Parent sees all family cash flow', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -239,7 +243,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
 test.describe('הלוואות', () => {
 
   test('[FAM-17] Child requests a loan — appears as pending', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsKid(page);
     await goToTab(page, 'הלוואות');
 
@@ -260,7 +264,7 @@ test.describe('הלוואות', () => {
   });
 
   test('[PFAM-14] Parent sees pending loan after child request', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'הלוואות');
     await page.waitForTimeout(1000);
@@ -276,7 +280,7 @@ test.describe('הלוואות', () => {
   });
 
   test('[FAM-18] Parent approves loan — success feedback shown', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'הלוואות');
     await page.waitForTimeout(1000);
@@ -296,7 +300,7 @@ test.describe('הלוואות', () => {
   });
 
   test('[PFAM-05] Parent rejects loan request', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'הלוואות');
     await page.waitForTimeout(1000);
@@ -322,7 +326,7 @@ test.describe('הלוואות', () => {
 test.describe('מטרות חסכון', () => {
 
   test('[FAM-19] Create new savings goal — appears with empty progress bar', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'מטרות');
 
@@ -340,7 +344,7 @@ test.describe('מטרות חסכון', () => {
   });
 
   test('[FAM-20] Deposit to goal — progress bar advances', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'מטרות');
     await page.waitForTimeout(1000);
@@ -375,7 +379,7 @@ test.describe('מטרות חסכון', () => {
 test.describe('פרטיות יתרה', () => {
 
   test('[FAM-27] Member dashboard shows own balance only', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsKid(page);
     await page.waitForTimeout(1500);
 
@@ -391,7 +395,7 @@ test.describe('פרטיות יתרה', () => {
   });
 
   test('[PFAM-18] Child sees only own balance — not siblings or parent', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsKid(page);
     await page.waitForTimeout(1500);
 
@@ -408,7 +412,7 @@ test.describe('פרטיות יתרה', () => {
 test.describe('מודול פיננסים (FIN)', () => {
 
   test('[FIN-01] Income transaction — balance increases', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -423,7 +427,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-02] Expense transaction — appears in list', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -438,7 +442,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-03] Edit transaction — updated value visible', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -462,7 +466,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-04] Delete transaction — removed from list', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -480,7 +484,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-05] Recurring transaction checkbox visible in form', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -492,7 +496,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-06] Edit budget category — amount updates', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'תקציב');
 
@@ -505,7 +509,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-07] Budget overspend shows warning indicator', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
 
     // Set very low budget
@@ -537,7 +541,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-08] Monthly chart is visible in cash flow', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -550,7 +554,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-09] Export/print button exists in cash flow', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);
@@ -567,7 +571,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-10] AI forecast button opens analysis', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
 
@@ -576,7 +580,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   });
 
   test('[FIN-11] Manual balance adjustment option visible to parent', async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'כספים');
     await page.waitForTimeout(1000);

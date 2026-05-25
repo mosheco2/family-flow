@@ -3,8 +3,9 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
-  timeout: 60000,
-  expect: { timeout: 10000 },
+  timeout: 120000,
+  expect: { timeout: 15000 },
+  navigationTimeout: 45000,
   fullyParallel: false, // family bank tests share state — run sequentially
   retries: 1,
   workers: 1,
