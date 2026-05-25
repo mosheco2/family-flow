@@ -1994,8 +1994,66 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { getEl('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { getEl('accessibility-modal').classList.add('hidden'); }
 
-async function fetchPendingUsers() { 
-    try { 
+async function fetchMembers() {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
+        membersCache = await res.json();
+        if (!Array.isArray(membersCache)) membersCache = [];
+
+        // עדכון רשימות בחירה להורה/מנהל
+        if (currentUser.role === 'ADMIN') {
+            try {
+                const bF = getEl('budget-filter');
+                const fF = getEl('feed-user-filter');
+                const gS = getEl('goal-target-user');
+                const cfF = getEl('cashflow-user-filter');
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) bF.value = cur; }
+                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) fF.value = cur; }
+                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`); if (cur) cfF.value = cur; }
+                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי ביעד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if (cur) gS.value = cur; }
+            } catch (err) {}
+        }
+
+        // רשימת בני המשפחה — גלויה לכולם
+        try {
+            const c = getEl('members-list');
+            if (c) {
+                c.innerHTML = '';
+                membersCache.forEach(m => {
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
+                    const roleLabel = m.role === 'ADMIN' ? 'הורה' : 'ילד';
+                    const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
+                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                });
+            }
+        } catch (err) {}
+
+        // חשבונות בנק של הילדים — גלוי להורה בלבד
+        try {
+            const a = getEl('bank-accounts-list');
+            if (a && currentUser.role === 'ADMIN') {
+                a.innerHTML = '';
+                const children = membersCache.filter(m => m.role !== 'ADMIN');
+                if (children.length === 0) {
+                    a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים כרגע במשפחה.</p>';
+                } else {
+                    children.forEach(m => {
+                        const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
+                        const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                        a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">דמי כיס: ₪${m.allowance_amount || 0} • ריבית: ${m.interest_rate || 0}%</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`;
+                    });
+                }
+            }
+        } catch (err) {}
+
+    } catch (e) {}
+}
+
+async function fetchPendingUsers() {
+    try {
         if(!currentGroup || !currentGroup.id) return; 
         const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
         if (users && users.length > 0) { 
