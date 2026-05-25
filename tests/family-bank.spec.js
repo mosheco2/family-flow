@@ -41,10 +41,19 @@ test.afterEach(async ({}, testInfo) => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function skipIntro(page) {
   try {
-    await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
+    await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 5000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForTimeout(500);
+    // Wait for overlay to fully disappear
+    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 5000 }).catch(() => {});
   } catch (_) {}
+  // Force-remove any lingering introjs elements via JS
+  await page.evaluate(() => {
+    document.querySelectorAll('.introjs-overlay, .introjs-helperLayer, .introjs-tooltipReferenceLayer, .introjs-tooltip, .introjs-fixParent').forEach(el => el.remove());
+    document.querySelectorAll('.introjs-showElement, .introjs-relativePosition').forEach(el => {
+      el.classList.remove('introjs-showElement', 'introjs-relativePosition');
+    });
+  }).catch(() => {});
+  await page.waitForTimeout(300);
 }
 
 async function loginAsParent(page) {
@@ -87,7 +96,15 @@ const TAB_ID = {
   'ניהול':   '#tab-members',
 };
 
+async function dismissOverlay(page) {
+  const overlay = page.locator('.introjs-overlay');
+  if (await overlay.isVisible({ timeout: 500 }).catch(() => false)) {
+    await skipIntro(page);
+  }
+}
+
 async function goToTab(page, tabText) {
+  await dismissOverlay(page);
   const id = TAB_ID[tabText];
   const sel = id || `[id^="tab-"]:has-text("${tabText}")`;
   await page.locator(sel).first().click();

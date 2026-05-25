@@ -517,6 +517,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="page-header">
     <h2><i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר</h2>
     <div class="page-actions">
+      <button id="live-mode-btn" class="btn" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac" onclick="toggleLiveMode()"><i class="fa-solid fa-robot"></i> מצב LIVE</button>
       <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
       <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
       <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
@@ -2621,6 +2622,27 @@ function startAutoRefresh(intervalSec = 30) {
   _autoRefreshTimer = setInterval(() => refreshSystem(true), intervalSec * 1000);
 }
 
+let _liveModeActive = false;
+let _liveTimer = null;
+function toggleLiveMode() {
+  _liveModeActive = !_liveModeActive;
+  const btn = document.getElementById('live-mode-btn');
+  if (_liveModeActive) {
+    if(btn) { btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#15803d'; btn.innerHTML='<i class="fa-solid fa-robot fa-beat"></i> LIVE פעיל'; }
+    _liveTimer = setInterval(async () => {
+      await loadResultsFromServer();
+      renderTests(currentFilter);
+      updateStats();
+      updateSidebarBadges();
+    }, 5000);
+    showToast('מצב LIVE פעיל — מרענן כל 5 שניות 🤖');
+  } else {
+    clearInterval(_liveTimer);
+    if(btn) { btn.style.background='#f0fdf4'; btn.style.color='#16a34a'; btn.style.borderColor='#86efac'; btn.innerHTML='<i class="fa-solid fa-robot"></i> מצב LIVE'; }
+    showToast('מצב LIVE כובה');
+  }
+}
+
 function renderALMHub() { renderSortingQueue(); renderVersionTracker(); }
 
 function renderSortingQueue() {
@@ -3763,10 +3785,19 @@ async function loadResultsFromServer() {
         const isPlaywright = (r.note || '').includes('🤖');
         // תוצאת Playwright תמיד גוברת; תוצאה ידנית גוברת רק אם אין local state
         if(isPlaywright || !(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
+        // Playwright ok → אישור אוטומטי לספר המוצר
+        if(isPlaywright && r.status === 'ok') {
+          approvedTests.add(r.test_id);
+        }
+        // Playwright fail → הסרה מספר המוצר (חזרה לרשימת QA בלבד)
+        if(isPlaywright && r.status === 'fail') {
+          approvedTests.delete(r.test_id);
+        }
       });
       // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
       applyGuideEdits();
       localStorage.setItem('qa_state', JSON.stringify(state));
+      localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
       localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
     }
   } catch(e) { console.warn('loadResultsFromServer:', e.message); }

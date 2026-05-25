@@ -4,36 +4,36 @@
     "lastRun": "2026-05-25T05:55:03.718Z"
   },
   "FAM-11": {
-    "status": "fail",
-    "lastRun": "2026-05-25T08:35:56.676Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:06:48.906Z"
   },
   "FAM-12": {
-    "status": "fail",
-    "lastRun": "2026-05-25T08:38:49.933Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:17:58.946Z"
   },
   "PFAM-06": {
-    "status": "fail",
-    "lastRun": "2026-05-25T08:41:22.323Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:19:14.373Z"
   },
   "FAM-13": {
     "status": "fail",
-    "lastRun": "2026-05-25T07:41:19.973Z"
+    "lastRun": "2026-05-25T09:33:04.350Z"
   },
   "FAM-14": {
     "status": "fail",
-    "lastRun": "2026-05-25T07:44:48.922Z"
+    "lastRun": "2026-05-25T09:35:12.701Z"
   },
   "FAM-15": {
     "status": "fail",
-    "lastRun": "2026-05-25T07:47:46.738Z"
+    "lastRun": "2026-05-25T09:37:29.208Z"
   },
   "FAM-16": {
-    "status": "fail",
-    "lastRun": "2026-05-25T07:50:03.693Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:40:11.353Z"
   },
   "PFAM-08": {
-    "status": "fail",
-    "lastRun": "2026-05-25T07:52:19.465Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:40:22.109Z"
   },
   "FAM-17": {
     "status": "fail",
