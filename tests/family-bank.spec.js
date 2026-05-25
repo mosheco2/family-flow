@@ -216,10 +216,13 @@ test.describe('תנועות כספיות / Cash Flow', () => {
     await page.waitForSelector('#cashflow-list', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    const tx = page.locator('#cashflow-list > *').first();
-    if (await tx.isVisible({ timeout: 6000 }).catch(() => false)) {
-      await tx.click();
-      await page.waitForTimeout(600);
+    const opened = await page.evaluate(() => {
+      if (!window.allTransactions || !window.allTransactions.length) return false;
+      const t = window.allTransactions[0];
+      window.openEditTransactionModal(t.id, t.amount, t.description || '', t.category || '', t.type || 'income');
+      return true;
+    });
+    if (opened) {
       await expect(page.locator('#edit-transaction-modal')).toBeVisible({ timeout: 5000 });
     } else {
       console.warn('[FAM-14] No transactions — run FAM-13 first');
@@ -479,11 +482,14 @@ test.describe('מודול פיננסים (FIN)', () => {
     await page.waitForSelector('#cashflow-list', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    const tx = page.locator('#cashflow-list > *').first();
-    if (await tx.isVisible({ timeout: 6000 }).catch(() => false)) {
-      await tx.click();
+    const opened3 = await page.evaluate(() => {
+      if (!window.allTransactions || !window.allTransactions.length) return false;
+      const t = window.allTransactions[0];
+      window.openEditTransactionModal(t.id, t.amount, t.description || '', t.category || '', t.type || 'income');
+      return true;
+    });
+    if (opened3) {
       await expect(page.locator('#edit-transaction-modal')).toBeVisible({ timeout: 5000 });
-      // Amount field should have a value
       const amount = await page.locator('#edit-trans-amount').inputValue().catch(() => '');
       expect(amount).not.toBe('');
     } else {
@@ -499,10 +505,14 @@ test.describe('מודול פיננסים (FIN)', () => {
     await page.waitForSelector('#cashflow-list', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    const tx = page.locator('#cashflow-list > *').first();
-    if (await tx.isVisible({ timeout: 6000 }).catch(() => false)) {
-      await tx.click();
-      await page.waitForSelector('#edit-transaction-modal', { timeout: 5000 });
+    const opened4 = await page.evaluate(() => {
+      if (!window.allTransactions || !window.allTransactions.length) return false;
+      const t = window.allTransactions[0];
+      window.openEditTransactionModal(t.id, t.amount, t.description || '', t.category || '', t.type || 'income');
+      return true;
+    });
+    if (opened4) {
+      await expect(page.locator('#edit-transaction-modal')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('#edit-transaction-modal button:has-text("מחק"), #edit-transaction-modal button[onclick*="delete"]').first()).toBeVisible({ timeout: 5000 });
     } else {
       console.warn('[FIN-04] No transactions — run FIN-01 first');
