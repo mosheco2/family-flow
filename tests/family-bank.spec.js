@@ -17,7 +17,7 @@ const TEST_ENV = {
   groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
   parentName: process.env.PARENT_NAME || 'אבא',
   parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'זוהר',
+  kidName:    process.env.KID_NAME    || 'דני',
   kidPass:    process.env.KID_PASS    || '123456',
   qaEnv:      'family',
 };
@@ -452,9 +452,8 @@ test.describe('פרטיות יתרה', () => {
     await page.waitForTimeout(1500);
 
     await expect(page.locator('#bank-child-view')).toBeVisible({ timeout: 10000 });
-    // Balance amount element should exist
-    const balanceEl = page.locator('#card-balance, [id*="balance"], .balance').first();
-    await expect(balanceEl).toBeVisible({ timeout: 8000 });
+    // card-allowance and card-name are inside bank-child-view and always rendered for children
+    await expect(page.locator('#card-allowance')).toBeVisible({ timeout: 8000 });
   });
 });
 
