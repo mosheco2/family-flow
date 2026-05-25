@@ -2150,9 +2150,69 @@ function toggleNote(rowKey) {
 function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
+
+  // ── Playwright results section ──
+  const playwrightEntries = [];
+  SECTIONS.forEach(sec => {
+    (sec.tests || []).forEach(t => {
+      ['family','biz','comm','sa'].forEach(env => {
+        const k = sk(t.id, env);
+        if(state[k] && (state[k].n || '').includes('🤖')) {
+          playwrightEntries.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: state[k].s, note: state[k].n });
+        }
+      });
+    });
+  });
+  const pwOk   = playwrightEntries.filter(e => e.status === 'ok').length;
+  const pwFail = playwrightEntries.filter(e => e.status === 'fail').length;
+  let pwHtml = '';
+  if(playwrightEntries.length) {
+    const rows = playwrightEntries.map(e => {
+      const badge = e.status === 'ok'
+        ? `<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700">✅ עבר</span>`
+        : `<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700">❌ נכשל</span>`;
+      const bookBadge = approvedTests.has(e.id)
+        ? `<span style="background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:99px;font-size:.65rem;margin-right:4px">📚 בספר המוצר</span>` : '';
+      const noteShort = (e.note || '').replace('🤖 Playwright: ','').substring(0,50);
+      return `<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:.5rem .75rem;font-size:.75rem;font-weight:700;color:#1e293b">${e.id}</td>
+        <td style="padding:.5rem .75rem;font-size:.72rem;color:#475569">${e.name}</td>
+        <td style="padding:.5rem .75rem;font-size:.7rem;color:#94a3b8">${e.section}</td>
+        <td style="padding:.5rem .75rem">${badge} ${bookBadge}</td>
+        <td style="padding:.5rem .75rem;font-size:.68rem;color:#64748b;direction:ltr">${noteShort}</td>
+      </tr>`;
+    }).join('');
+    pwHtml = `<div class="qa-version-block" style="margin-bottom:1.5rem">
+      <div class="qa-ver-head" onclick="toggleQABlock('qavb-playwright')" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe)">
+        <h3><i class="fa-solid fa-robot" style="color:#0ea5e9"></i> תוצאות Playwright אוטומטיות
+          <span style="font-size:.7rem;font-weight:500;color:#64748b">(${pwOk} עברו / ${pwFail} נכשלו)</span>
+        </h3>
+        <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem" id="chev-qavb-playwright"></i>
+      </div>
+      <div class="qa-ver-body" id="qavb-playwright">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f8fafc;font-size:.68rem;color:#94a3b8">
+            <th style="padding:.4rem .75rem;text-align:right">מזהה</th>
+            <th style="padding:.4rem .75rem;text-align:right">שם בדיקה</th>
+            <th style="padding:.4rem .75rem;text-align:right">קטגוריה</th>
+            <th style="padding:.4rem .75rem;text-align:right">סטטוס</th>
+            <th style="padding:.4rem .75rem;text-align:right">הערה</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${pwFail > 0 ? `<div style="margin:.75rem;padding:.5rem .75rem;background:#fff7ed;border-radius:.5rem;font-size:.72rem;color:#c2410c"><i class="fa-solid fa-triangle-exclamation"></i> ${pwFail} בדיקות נכשלו — לא הועברו לספר המוצר</div>` : ''}
+        ${pwOk > 0 ? `<div style="margin:.75rem;padding:.5rem .75rem;background:#f0fdf4;border-radius:.5rem;font-size:.72rem;color:#15803d"><i class="fa-solid fa-check-circle"></i> ${pwOk} בדיקות עברו — הועברו אוטומטית לספר המוצר</div>` : ''}
+      </div>
+    </div>`;
+  }
+
   const inqaTasks = kanbanTasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
-  if(!inqaTasks.length && testQueue.size === 0) {
+  if(!inqaTasks.length && testQueue.size === 0 && !playwrightEntries.length) {
     el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub, או לאחר בחירת בדיקות מקטגוריה</p></div>`;
+    return;
+  }
+  if(!inqaTasks.length && testQueue.size === 0 && playwrightEntries.length) {
+    el.innerHTML = pwHtml;
     return;
   }
   const standalones = inqaTasks.filter(t => taskAssignments[t.id]?.versionId === '__standalone__');
@@ -2212,7 +2272,7 @@ function renderQAStaging() {
       </div>
     </div>`;
   }
-  el.innerHTML = html;
+  el.innerHTML = pwHtml + html;
 }
 
 function renderQATaskRow(task) {
