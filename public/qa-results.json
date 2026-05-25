@@ -16,12 +16,12 @@
     "lastRun": "2026-05-25T09:19:14.373Z"
   },
   "FAM-13": {
-    "status": "fail",
-    "lastRun": "2026-05-25T09:33:04.350Z"
+    "status": "ok",
+    "lastRun": "2026-05-25T09:53:21.557Z"
   },
   "FAM-14": {
     "status": "fail",
-    "lastRun": "2026-05-25T09:35:12.701Z"
+    "lastRun": "2026-05-25T09:54:02.141Z"
   },
   "FAM-15": {
     "status": "fail",

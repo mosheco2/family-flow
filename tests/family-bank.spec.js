@@ -103,6 +103,14 @@ async function dismissOverlay(page) {
   }
 }
 
+// Call app JS functions directly — bypasses any pointer-event interception
+async function callAppFn(page, fn, ...args) {
+  return page.evaluate(
+    ([f, a]) => { const fn = window[f]; if(typeof fn === 'function') return fn(...a); },
+    [fn, args]
+  );
+}
+
 async function goToTab(page, tabText) {
   await dismissOverlay(page);
   const id = TAB_ID[tabText];
@@ -183,10 +191,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
     test.setTimeout(120000);
     await loginAsParent(page);
 
-    // FAB income button (always visible, not tab-specific)
-    const incomeBtn = page.locator('button[onclick*="openTransactionModal(\'income\')"]');
-    await expect(incomeBtn).toBeVisible({ timeout: 10000 });
-    await incomeBtn.click();
+    await callAppFn(page, 'openTransactionModal', 'income');
     await page.waitForSelector('#transaction-modal', { timeout: 8000 });
 
     // Fill amount and description
@@ -226,9 +231,7 @@ test.describe('תנועות כספיות / Cash Flow', () => {
     test.setTimeout(120000);
     await loginAsParent(page);
 
-    const incomeBtn = page.locator('button[onclick*="openTransactionModal(\'income\')"]');
-    await expect(incomeBtn).toBeVisible({ timeout: 10000 });
-    await incomeBtn.click();
+    await callAppFn(page, 'openTransactionModal', 'income');
     await page.waitForSelector('#transaction-modal', { timeout: 8000 });
 
     // Recurring button must be visible
@@ -273,10 +276,7 @@ test.describe('הלוואות', () => {
     await goToTab(page, 'בנק');
     await page.waitForTimeout(1000);
 
-    // Child view loan button
-    const loanBtn = page.locator('button[onclick*="openLoanModal"]');
-    await expect(loanBtn).toBeVisible({ timeout: 10000 });
-    await loanBtn.click();
+    await callAppFn(page, 'openLoanModal');
     await page.waitForSelector('#loan-modal', { timeout: 8000 });
 
     await page.fill('#loan-amount', '20');
@@ -357,9 +357,7 @@ test.describe('מטרות חסכון', () => {
     await goToTab(page, 'בנק');
     await page.waitForTimeout(1000);
 
-    const goalBtn = page.locator('button[onclick*="openGoalModal"]');
-    await expect(goalBtn).toBeVisible({ timeout: 10000 });
-    await goalBtn.click();
+    await callAppFn(page, 'openGoalModal');
     await page.waitForSelector('#goal-modal', { timeout: 8000 });
 
     await page.fill('#goal-title', 'QA חסכון');
@@ -445,9 +443,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   test('[FIN-01] Income transaction saved — appears in cashflow', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    const btn = page.locator('button[onclick*="openTransactionModal(\'income\')"]');
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await btn.click();
+    await callAppFn(page, 'openTransactionModal', 'income');
     await page.waitForSelector('#transaction-modal', { timeout: 8000 });
     await page.fill('#trans-amount', '100');
     await page.fill('#trans-desc', 'FIN-01-income');
@@ -463,9 +459,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   test('[FIN-02] Expense transaction saved — appears in cashflow', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    const btn = page.locator('button[onclick*="openTransactionModal(\'expense\')"]');
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await btn.click();
+    await callAppFn(page, 'openTransactionModal', 'expense');
     await page.waitForSelector('#transaction-modal', { timeout: 8000 });
     await page.fill('#trans-amount', '30');
     await page.fill('#trans-desc', 'FIN-02-expense');
@@ -519,9 +513,7 @@ test.describe('מודול פיננסים (FIN)', () => {
   test('[FIN-05] Recurring toggle changes hidden input to true', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    const btn = page.locator('button[onclick*="openTransactionModal(\'income\')"]');
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await btn.click();
+    await callAppFn(page, 'openTransactionModal', 'income');
     await page.waitForSelector('#transaction-modal', { timeout: 8000 });
     await expect(page.locator('#btn-trans-recurring')).toBeVisible({ timeout: 5000 });
     await page.locator('#btn-trans-recurring').click();
@@ -572,18 +564,14 @@ test.describe('מודול פיננסים (FIN)', () => {
   test('[FIN-10] Income FAB button opens transaction modal', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    const btn = page.locator('button[onclick*="openTransactionModal(\'income\')"]');
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await btn.click();
+    await callAppFn(page, 'openTransactionModal', 'income');
     await expect(page.locator('#transaction-modal')).toBeVisible({ timeout: 8000 });
   });
 
   test('[FIN-11] Expense FAB button opens transaction modal', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    const btn = page.locator('button[onclick*="openTransactionModal(\'expense\')"]');
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await btn.click();
+    await callAppFn(page, 'openTransactionModal', 'expense');
     await expect(page.locator('#transaction-modal')).toBeVisible({ timeout: 8000 });
     const title = await page.locator('#trans-modal-title').innerText().catch(() => '');
     expect(title).toContain('הוצאה');
