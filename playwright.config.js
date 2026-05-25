@@ -23,6 +23,6 @@ module.exports = defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'mobile-chrome', use: { ...devices['Pixel 5'] } },
+    { name: 'chromium', use: { ...devices['Pixel 5'] } },
   ],
 });
