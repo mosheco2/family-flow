@@ -1956,7 +1956,11 @@ function renderTests(filter) {
   if(currentView === 'book') {
     const h2 = document.querySelector('#view-book .page-header h2');
     if(h2) {
-      if(filter) {
+      if(_statusFilter) {
+        h2.innerHTML = _statusFilter === 'ok'
+          ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
+          : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
+      } else if(filter) {
         const activeSec = SECTIONS.find(s => s.id === filter);
         if(activeSec) h2.innerHTML = `<i class="fa-solid ${activeSec.icon}" style="color:${activeSec.color}"></i> ${activeSec.title}`;
       } else {
@@ -1967,11 +1971,26 @@ function renderTests(filter) {
 
   let html = '';
 
-  // בספר המוצר — סנן רק בדיקות שאושרו (אלא אם _forceShowAll פעיל)
+  // בספר המוצר — סנן לפי _statusFilter (אם פעיל), אחרת רק approved
   let rawSections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-  const sections = (currentView === 'book' && !filter && !_forceShowAll)
-    ? rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0)
-    : rawSections;
+  let sections;
+  if (_statusFilter) {
+    sections = rawSections.map(sec => ({
+      ...sec,
+      tests: (sec.tests || []).filter(t =>
+        (t.envs && t.envs.length ? t.envs : ['family']).some(env => {
+          const s = getStatus(t.id, env);
+          return _statusFilter === 'ok'   ? s === 'ok'
+               : _statusFilter === 'fail' ? (s === 'fail' || s === 'warn')
+               : false;
+        })
+      )
+    })).filter(sec => sec.tests.length > 0);
+  } else if (currentView === 'book' && !filter) {
+    sections = rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0);
+  } else {
+    sections = rawSections;
+  }
 
   // אם אין קטגוריות להציג — הצג הודעה מתאימה
   if(!sections.length) {
@@ -2576,9 +2595,8 @@ async function passVersionQA(verId) {
 }
 
 function showAllBook() {
+  _statusFilter = null;
   currentFilter = null;
-  const h2 = document.querySelector('#view-book .page-header h2');
-  if(h2) h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
   showView('book');
 }
 
@@ -3732,6 +3750,7 @@ function showView(v) {
       if(l.textContent.includes('כללי')) l.classList.add('active');
     });
   }
+  if(v !== 'book') _statusFilter = null; // איפוס מסנן הסטטוס בעת יציאה מספר המוצר
   if(v==='tests')    renderQAStaging();
   if(v==='book')     renderTests(currentFilter);
   if(v==='versions') renderVersions();
@@ -3833,54 +3852,12 @@ function filterFails() {
 }
 
 // פתח ספר המוצר מסונן לפי סטטוס — עם חלוקה לקטגוריות מקור
-let _forceShowAll = false;
+let _statusFilter = null; // 'ok' | 'fail' | null — מסנן בדיקות בספר המוצר
 
 function showFilteredBook(statusFilter) {
-  showView('book');
+  _statusFilter = statusFilter;
   currentFilter = null;
-
-  // רינדר את כל הבדיקות (לא רק approved) כדי שנוכל לסנן
-  _forceShowAll = true;
-  renderTests(null);
-  _forceShowAll = false;
-
-  // עדכן כותרת
-  const h2 = document.querySelector('#view-book .page-header h2');
-  if(h2) h2.innerHTML = statusFilter === 'ok'
-    ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
-    : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
-
-  // אחרי רינדור — הסתר שורות שלא מתאימות לסטטוס
-  setTimeout(() => {
-    const matchKeys = new Set();
-    SECTIONS.forEach(sec => {
-      (sec.tests || []).forEach(t => {
-        (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => {
-          const s = getStatus(t.id, env);
-          const match = statusFilter === 'ok' ? s === 'ok'
-                      : statusFilter === 'fail' ? (s === 'fail' || s === 'warn')
-                      : true;
-          if(match) matchKeys.add(`${t.id}:${env}`);
-        });
-      });
-    });
-
-    document.querySelectorAll('table tbody tr[id^="row-"]').forEach(row => {
-      const rowKey = row.id.replace('row-','');
-      const show = matchKeys.has(rowKey);
-      row.style.display = show ? '' : 'none';
-      ['note-row-','guide-row-'].forEach(pfx => {
-        const el = document.getElementById(pfx + rowKey);
-        if(el && !show) el.style.display = 'none';
-      });
-    });
-
-    // הסתר קטגוריות ריקות
-    document.querySelectorAll('#tests-container .section-block').forEach(block => {
-      const hasVisible = block.querySelector('tr[id^="row-"]:not([style*="display: none"]):not([style*="display:none"])');
-      block.style.display = hasVisible ? '' : 'none';
-    });
-  }, 100);
+  showView('book'); // showView calls renderTests which now uses _statusFilter
 }
 
 
