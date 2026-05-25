@@ -500,8 +500,18 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
       <button class="btn btn-purple" onclick="finalizeTestRun()"><i class="fa-solid fa-flag-checkered"></i> סיים ריצה ושמור להיסטוריה</button>
-      <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח</button>
+      <button class="btn btn-red" onclick="generateQAStagingReport()"><i class="fa-solid fa-file-lines"></i> הפק דוח</button>
       <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
+    </div>
+  </div>
+  <!-- QA Staging Report Modal -->
+  <div id="qa-staging-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;overflow-y:auto;padding:1.5rem 1rem">
+    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:1rem;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0">
+        <h3 style="margin:0;font-size:.95rem;font-weight:800;color:#0f172a"><i class="fa-solid fa-file-lines" style="color:#3b82f6;margin-left:.4rem"></i> דוח ריצת QA Staging</h3>
+        <button onclick="document.getElementById('qa-staging-report-modal').style.display='none'" style="border:none;background:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;line-height:1">✕</button>
+      </div>
+      <div id="qa-staging-report-body" style="padding:1.25rem"></div>
     </div>
   </div>
   <div id="qa-staging-container">
@@ -1957,9 +1967,9 @@ function renderTests(filter) {
 
   let html = '';
 
-  // בספר המוצר — סנן רק בדיקות שאושרו
+  // בספר המוצר — סנן רק בדיקות שאושרו (אלא אם _forceShowAll פעיל)
   let rawSections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-  const sections = (currentView === 'book' && !filter)
+  const sections = (currentView === 'book' && !filter && !_forceShowAll)
     ? rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0)
     : rawSections;
 
@@ -3070,6 +3080,112 @@ function updateSidebarBadges() {
 // ============================================================
 // REPORT
 // ============================================================
+function generateQAStagingReport() {
+  const modal = document.getElementById('qa-staging-report-modal');
+  const body  = document.getElementById('qa-staging-report-body');
+  if(!modal || !body) return;
+
+  // אסוף את כל הבדיקות שנמצאות בתור הסטייג'ינג
+  const queuedTests = [];
+  SECTIONS.forEach(sec => {
+    (sec.tests || []).forEach(t => {
+      (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => {
+        if(testQueue.has(`${t.id}:${env}`)) {
+          const s = getStatus(t.id, env);
+          const n = getNote(t.id, env) || '';
+          queuedTests.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: s, note: n });
+        }
+      });
+    });
+  });
+
+  // כלול גם בדיקות Playwright שלא בתור
+  SECTIONS.forEach(sec => {
+    (sec.tests || []).forEach(t => {
+      ['family','biz','comm','sa'].forEach(env => {
+        const k = sk(t.id, env);
+        if(state[k] && (state[k].n || '').includes('🤖') && !testQueue.has(`${t.id}:${env}`)) {
+          queuedTests.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: state[k].s, note: state[k].n });
+        }
+      });
+    });
+  });
+
+  if(!queuedTests.length) {
+    body.innerHTML = `<div style="text-align:center;padding:2.5rem;color:#94a3b8">
+      <i class="fa-solid fa-flask" style="font-size:2.5rem;display:block;margin-bottom:.8rem"></i>
+      <p style="font-weight:600">אין משימות בסטייג'ינג כרגע</p>
+    </div>`;
+    modal.style.display = 'block';
+    return;
+  }
+
+  const groups = {
+    ok:   queuedTests.filter(e => e.status === 'ok'),
+    fail: queuedTests.filter(e => e.status === 'fail'),
+    warn: queuedTests.filter(e => e.status === 'warn'),
+    skip: queuedTests.filter(e => e.status === 'skip'),
+    pending: queuedTests.filter(e => !e.status || e.status === 'pending'),
+  };
+  const total = queuedTests.length;
+  const pct = total ? Math.round(groups.ok.length / total * 100) : 0;
+  const now = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
+
+  const renderGroup = (label, color, icon, items) => {
+    if(!items.length) return '';
+    const rows = items.map(e => {
+      const noteShort = e.note ? `<div style="font-size:.65rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${e.note.replace('🤖 Playwright: ','')}</div>` : '';
+      return `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid #f1f5f9">
+        <div style="font-size:.72rem;font-weight:700;color:#1e293b;min-width:70px">${e.id}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.72rem;color:#334155">${e.name}</div>
+          <div style="font-size:.65rem;color:#94a3b8">${e.section}</div>
+          ${noteShort}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem">
+      <div style="font-size:.72rem;font-weight:700;color:${color};padding:.35rem .75rem;background:${color}15;border-radius:.4rem .4rem 0 0;border:1px solid ${color}30;border-bottom:none">
+        <i class="fa-solid fa-${icon}"></i> ${label} (${items.length})
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:0 0 .4rem .4rem">${rows}</div>
+    </div>`;
+  };
+
+  body.innerHTML = `
+    <div style="display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:80px;background:#f0fdf4;border-radius:.5rem;padding:.6rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#16a34a">${groups.ok.length}</div>
+        <div style="font-size:.65rem;color:#16a34a">עברו ✅</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:#fef2f2;border-radius:.5rem;padding:.6rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#dc2626">${groups.fail.length}</div>
+        <div style="font-size:.65rem;color:#dc2626">נכשלו ❌</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:#fff7ed;border-radius:.5rem;padding:.6rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#d97706">${groups.warn.length}</div>
+        <div style="font-size:.65rem;color:#d97706">אזהרות ⚠️</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:#f8fafc;border-radius:.5rem;padding:.6rem;text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:#64748b">${groups.pending.length + groups.skip.length}</div>
+        <div style="font-size:.65rem;color:#64748b">ממתין/דלג</div>
+      </div>
+    </div>
+    <div style="background:#f1f5f9;border-radius:.5rem;padding:.5rem .75rem;font-size:.72rem;color:#475569;margin-bottom:1.25rem;display:flex;justify-content:space-between">
+      <span>כיסוי: <strong>${pct}%</strong> (${groups.ok.length}/${total})</span>
+      <span>${now}</span>
+    </div>
+    ${renderGroup('עברו', '#16a34a', 'check-circle', groups.ok)}
+    ${renderGroup('נכשלו', '#dc2626', 'xmark-circle', groups.fail)}
+    ${renderGroup('אזהרות', '#d97706', 'triangle-exclamation', groups.warn)}
+    ${renderGroup('ממתין לבדיקה', '#64748b', 'clock', groups.pending)}
+    ${renderGroup('דולגו', '#94a3b8', 'minus', groups.skip)}
+    <div style="text-align:center;margin-top:.75rem">
+      <button onclick="document.getElementById('qa-staging-report-modal').style.display='none'" style="border:1px solid #e2e8f0;background:#f8fafc;color:#475569;border-radius:.5rem;padding:.5rem 1.5rem;cursor:pointer;font-family:inherit;font-size:.8rem">סגור</button>
+    </div>`;
+  modal.style.display = 'block';
+}
+
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
@@ -3717,10 +3833,23 @@ function filterFails() {
 }
 
 // פתח ספר המוצר מסונן לפי סטטוס — עם חלוקה לקטגוריות מקור
+let _forceShowAll = false;
+
 function showFilteredBook(statusFilter) {
   showView('book');
   currentFilter = null;
+
+  // רינדר את כל הבדיקות (לא רק approved) כדי שנוכל לסנן
+  _forceShowAll = true;
   renderTests(null);
+  _forceShowAll = false;
+
+  // עדכן כותרת
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = statusFilter === 'ok'
+    ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
+    : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
+
   // אחרי רינדור — הסתר שורות שלא מתאימות לסטטוס
   setTimeout(() => {
     const matchKeys = new Set();
@@ -3735,7 +3864,7 @@ function showFilteredBook(statusFilter) {
         });
       });
     });
-    // הסתר שורות לא רלוונטיות
+
     document.querySelectorAll('table tbody tr[id^="row-"]').forEach(row => {
       const rowKey = row.id.replace('row-','');
       const show = matchKeys.has(rowKey);
@@ -3745,17 +3874,13 @@ function showFilteredBook(statusFilter) {
         if(el && !show) el.style.display = 'none';
       });
     });
-    // הסתר טבלאות קטגוריה שנשארו ריקות
-    document.querySelectorAll('#tests-container .section-block, #tests-container > div').forEach(block => {
-      const visibleRows = block.querySelectorAll('tr[id^="row-"]:not([style*="none"])');
-      if(visibleRows.length === 0) block.style.display = 'none';
+
+    // הסתר קטגוריות ריקות
+    document.querySelectorAll('#tests-container .section-block').forEach(block => {
+      const hasVisible = block.querySelector('tr[id^="row-"]:not([style*="display: none"]):not([style*="display:none"])');
+      block.style.display = hasVisible ? '' : 'none';
     });
-    // עדכן כותרת
-    const h2 = document.querySelector('#view-book .page-header h2');
-    if(h2) h2.innerHTML = statusFilter === 'ok'
-      ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
-      : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
-  }, 200);
+  }, 100);
 }
 
 
