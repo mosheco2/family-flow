@@ -16,6 +16,7 @@ module.exports = defineConfig({
   use: {
     baseURL: process.env.BASE_URL || 'https://oneflowlife.co.il',
     headless: true,
+    channel: 'chrome', // use installed Chrome instead of bundled headless shell (avoids Windows Defender timeout)
     viewport: { width: 390, height: 844 }, // mobile — app is mobile-first
     locale: 'he-IL',
     timezoneId: 'Asia/Jerusalem',
@@ -26,4 +27,4 @@ module.exports = defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Pixel 5'] } },
   ],
-}); 
+});
