@@ -26,4 +26,4 @@ module.exports = defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Pixel 5'] } },
   ],
-});
+}); 
