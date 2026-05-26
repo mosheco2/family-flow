@@ -18,7 +18,7 @@ const TEST_ENV = {
   groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
   parentName: process.env.PARENT_NAME || 'אבא',
   parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'דני',
+  kidName:    process.env.KID_NAME    || 'זוהר',
   kidPass:    process.env.KID_PASS    || '123456',
   qaEnv:      'family',
 };
