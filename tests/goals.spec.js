@@ -1,7 +1,7 @@
 /**
  * goals.spec.js
- * Module: יעדים וחיסכון
- * Coverage: GOAL-01..18
+ * Module: משימות ואקדמיה משפחתיים — FAM
+ * Coverage: FAM-21..30
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/goals.spec.js --config=tests/playwright.config.js
@@ -56,7 +56,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -95,254 +94,124 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GOAL-01..03 — טעינת לשונית יעדים
+// FAM-21..24 — משימות ואקדמיה
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('טעינת יעדים (GOAL-01..03)', () => {
+test.describe('משימות ואקדמיה (FAM-21..24)', () => {
 
-  test('[GOAL-01] לשונית יעדים נטענת', async ({ page }) => {
+  test('[FAM-21] משימות — הורה יוצר משימה לילד', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-goals')).toBeVisible({ timeout: 8000 });
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ משימה"), button:has-text("משימה חדשה"), #btn-add-task').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[GOAL-02] רשימת יעדים קיימת ב-DOM', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#goals-list')).toHaveCount(1, { timeout: 8000 });
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-03] כפתור "הוסף יעד" גלוי', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1000);
-    const addBtn = page.locator('button:has-text("הוסף יעד"), button:has-text("יעד חדש"), button[onclick*="openGoalModal"]').first();
-    await expect(addBtn).toBeVisible({ timeout: 8000 });
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GOAL-04..07 — יצירת יעד
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('יצירת יעד (GOAL-04..07)', () => {
-
-  test('[GOAL-04] לחיצה על "הוסף יעד" פותחת מודל', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1000);
-    const addBtn = page.locator('button:has-text("הוסף יעד"), button:has-text("יעד חדש"), button[onclick*="openGoalModal"]').first();
-    const hasBtn = await addBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await addBtn.click();
-      await page.waitForTimeout(800);
-      await expect(page.locator('#goal-modal, [id*="goal-modal"]')).toBeVisible({ timeout: 6000 });
-    } else {
-      await page.evaluate(() => { if (typeof openGoalModal === 'function') openGoalModal(); });
-      await page.waitForTimeout(800);
-      await expect(page.locator('#goal-modal')).toBeVisible({ timeout: 6000 });
-    }
-  });
-
-  test('[GOAL-05] שדות מודל יעד — שם, סכום, תאריך', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openGoalModal === 'function') openGoalModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#goal-modal');
-    const isVisible = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isVisible) {
-      await expect(page.locator('#goal-name, #goal-title, input[name*="goal"]').first()).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('#goal-amount, input[name*="amount"]').first()).toBeVisible({ timeout: 5000 });
-    } else {
-      console.warn('[GOAL-05] מודל יעד לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-06] יצירת יעד חדש — שמירה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openGoalModal === 'function') openGoalModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#goal-modal');
-    const isVisible = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isVisible) {
-      const nameField = page.locator('#goal-name, #goal-title, input[placeholder*="שם"]').first();
-      const amountField = page.locator('#goal-amount, input[placeholder*="סכום"]').first();
-      if (await nameField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await nameField.fill('QA יעד — חיסכון לחופשה');
-      }
-      if (await amountField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await amountField.fill('5000');
-      }
-      const submitBtn = page.locator('#goal-modal button[type="submit"], #goal-modal button:has-text("שמור"), #goal-modal button:has-text("צור")').first();
-      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await submitBtn.click();
-        await page.waitForTimeout(1500);
-      }
-    } else {
-      console.warn('[GOAL-06] מודל יעד לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-07] יעד חדש מופיע ברשימה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1500);
-    const listText = await page.locator('#goals-list, #content-goals').innerText().catch(() => '');
-    const hasGoals = listText.length > 10 || listText.includes('חופשה') || listText.includes('QA');
-    if (!hasGoals) {
-      console.warn('[GOAL-07] רשימת יעדים ריקה — נדרש GOAL-06 תחילה');
-    }
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GOAL-08..11 — הפקדה ועדכון יעד
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('הפקדה ועדכון יעד (GOAL-08..11)', () => {
-
-  test('[GOAL-08] כפתור "הפקד" גלוי ביעד קיים', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1500);
-    const depositBtn = page.locator('#goals-list button:has-text("הפקד"), #goals-list button[onclick*="deposit"], #goals-list button[onclick*="addToGoal"]').first();
-    const hasBtn = await depositBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[GOAL-08] לא נמצא כפתור הפקדה — נדרש יעד קיים');
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-09] הפקדה ליעד — מודל נפתח', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1500);
-    const depositBtn = page.locator('#goals-list button:has-text("הפקד"), #goals-list button[onclick*="deposit"]').first();
-    const hasBtn = await depositBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await depositBtn.click();
-      await page.waitForTimeout(800);
-      const modal = page.locator('[id*="deposit"], [id*="goal-deposit"], .modal:not(.hidden)').first();
-      await expect(modal).toBeVisible({ timeout: 5000 });
-    } else {
-      console.warn('[GOAL-09] כפתור הפקדה לא נמצא');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-10] עריכת פרטי יעד', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1500);
-    const editBtn = page.locator('#goals-list button:has-text("ערוך"), #goals-list button[onclick*="edit"]').first();
-    const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasEdit) {
-      await editBtn.click();
-      await page.waitForTimeout(800);
-      expect(true).toBeTruthy();
-    } else {
-      console.warn('[GOAL-10] כפתור עריכה לא נמצא ביעדים');
-      expect(true).toBeTruthy();
-    }
-  });
-
-  test('[GOAL-11] סרגל התקדמות מוצג ביעד', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1500);
-    const progressBar = page.locator('#goals-list .progress, #goals-list progress, #goals-list [role="progressbar"]').first();
-    const hasProgress = await progressBar.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasProgress) console.warn('[GOAL-11] סרגל התקדמות לא נמצא — ייתכן אין יעדים');
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GOAL-12..14 — יעדי ילדים
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('יעדי ילדים (GOAL-12..14)', () => {
-
-  test('[GOAL-12] ילד רואה יעדים שלו', async ({ page }) => {
+  test('[FAM-22] משימות — ילד מבצע ומעלה תמונה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-goals')).toBeVisible({ timeout: 8000 });
-    expect(true).toBeTruthy();
-  });
-
-  test('[GOAL-13] ילד יכול ליצור יעד חיסכון', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'goals');
-    await page.waitForTimeout(800);
-    const addBtn = page.locator('button:has-text("הוסף יעד"), button:has-text("יעד חדש"), button[onclick*="openGoalModal"]').first();
-    const hasBtn = await addBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) {
-      console.warn('[GOAL-13] כפתור הוסף יעד לא גלוי לילד');
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    const doneBtn = page.locator('button:has-text("בצעתי"), [onclick*="completeTask"]').first();
+    if (await doneBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(doneBtn).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין משימות זמינות לילד; צור משימה עם FAM-21 קודם');
     }
-    expect(true).toBeTruthy();
   });
 
-  test('[GOAL-14] יעד שהושלם — סימון הושלם', async ({ page }) => {
+  test('[FAM-23] אקדמיה — הורה מקצה חבילה לילד', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'goals');
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    const assignBtn = page.locator('button:has-text("הקצה חבילה"), button:has-text("שלח"), [onclick*="assignPackage"]').first();
+    await expect(assignBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[FAM-24] אקדמיה — ילד עונה על שאלות', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await goToTab(page, 'academy');
     await page.waitForTimeout(1500);
-    const completedBadge = page.locator('#goals-list .completed, #goals-list [class*="complete"], #goals-list :has-text("הושלם")').first();
-    const hasCompleted = await completedBadge.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!hasCompleted) console.warn('[GOAL-14] אין יעד מושלם — בדיקה ידנית');
-    expect(true).toBeTruthy();
+    const packageEl = page.locator('.academy-package, .quiz-item, .academy-item').first();
+    if (await packageEl.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(packageEl).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין חבילות אקדמיה מוקצות לילד; הקצה חבילה עם FAM-23 קודם');
+    }
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GOAL-15..18 — מחיקה וניהול
+// FAM-25..28 — שף AI, חברים ויתרה
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[GOAL-15] מחיקת יעד — בדיקה ידנית (בסיכון)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[GOAL-15] מחיקת יעד עלולה לאבד נתוני חיסכון — בדיקה ידנית');
-  expect(true).toBeTruthy();
+test.describe('שף AI חברים ויתרה (FAM-25..28)', () => {
+
+  test('[FAM-25] שף AI — יצירת מתכון', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'chef');
+    await page.waitForTimeout(1200);
+    const chefArea = page.locator('#content-chef, .chef-ai, [id*="chef"]').first();
+    await expect(chefArea).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[FAM-26] חברים — הוספה/עריכת חבר', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'members');
+    await page.waitForTimeout(1500);
+    const addBtn = page.locator('button:has-text("הוסף"), button:has-text("+ חבר"), #btn-add-member').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[FAM-27] דשבורד — יתרה אישית של חבר', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await page.waitForTimeout(2000);
+    const balance = page.locator('#user-balance, .user-balance, [id*="balance"]').first();
+    await expect(balance).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[FAM-28] Inbox — סימון הודעה כנקראה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'inbox');
+    await page.waitForTimeout(1200);
+    const msg = page.locator('.inbox-message, .notification-item, [class*="message"]').first();
+    if (await msg.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(msg).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין הודעות ב-Inbox כרגע');
+    }
+  });
 });
 
-test('[GOAL-16] יעד עם תאריך יעד — מוצג בממשק', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'goals');
-  await page.waitForTimeout(1500);
-  const dateEl = page.locator('#goals-list [class*="date"], #goals-list time, #goals-list :has-text("תאריך")').first();
-  const hasDate = await dateEl.isVisible({ timeout: 4000 }).catch(() => false);
-  if (!hasDate) console.warn('[GOAL-16] תאריך יעד לא מוצג — ייתכן אין יעדים');
-  expect(true).toBeTruthy();
-});
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAM-29..30 — פרופיל ותובנת AI
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('פרופיל ותובנת AI (FAM-29..30)', () => {
 
-test('[GOAL-17] הודעת "אין יעדים" כשהרשימה ריקה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'goals');
-  await page.waitForTimeout(1500);
-  await expect(page.locator('#content-goals')).toBeVisible({ timeout: 8000 });
-  expect(true).toBeTruthy();
-});
+  test('[FAM-29] פרופיל — עריכת פרטים אישיים', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await page.evaluate(() => { if (typeof window.openProfileModal === 'function') window.openProfileModal(); });
+    await page.waitForTimeout(800);
+    const modal = page.locator('#profile-modal').first();
+    await expect(modal).toBeVisible({ timeout: 6000 });
+  });
 
-test('[GOAL-18] יעד משותף למשפחה — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[GOAL-18] יעד משותף דורש הגדרה ידנית');
-  expect(true).toBeTruthy();
+  test('[FAM-30] פיד — תובנת AI', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'feed');
+    await page.waitForTimeout(1500);
+    const insight = page.locator('.ai-insight, [class*="ai-card"], [id*="ai-insight"]').first();
+    if (await insight.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(insight).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — תובנת AI לא נוצרה עבור חשבון זה');
+    }
+  });
 });

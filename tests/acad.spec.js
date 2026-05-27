@@ -137,23 +137,12 @@ test.describe('הקצאת לומדה (ACAD-03..04)', () => {
     await expect(page.locator('#academy-admin-view')).toBeVisible({ timeout: 8000 });
     // לחץ כפתור הקצאה
     const assignBtn = page.locator('#academy-admin-view button:has-text("הקצאה"), #academy-admin-view button[onclick*="openAssignModal"]').first();
-    const hasBtn = await assignBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await assignBtn.click();
-      await page.waitForTimeout(800);
-      // מודל הקצאה אמור להיפתח
-      const modal = page.locator('#assign-quiz-modal, [id*="assign"], .modal:not(.hidden)').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (isOpen) {
-        await expect(modal).toBeVisible();
-      } else {
-        console.warn('[ACAD-03] מודל הקצאה לא נמצא — ייתכן שאין לומדות במערכת');
-        expect(true).toBeTruthy();
-      }
-    } else {
-      console.warn('[ACAD-03] כפתור הקצאה לא נמצא');
-      expect(true).toBeTruthy();
-    }
+    await expect(assignBtn).toBeVisible({ timeout: 5000 });
+    await assignBtn.click();
+    await page.waitForTimeout(800);
+    // מודל הקצאה אמור להיפתח
+    const modal = page.locator('#assign-quiz-modal, [id*="assign"], .modal:not(.hidden)').first();
+    await expect(modal).toBeVisible({ timeout: 5000 });
   });
 
   test('[ACAD-04] ממשק ילד — לשונית אקדמיה נטענת', async ({ page }) => {
@@ -180,7 +169,6 @@ test.describe('חידון ומעקב (ACAD-05..06)', () => {
     await expect(page.locator('#academy-user-view')).toBeVisible({ timeout: 8000 });
     // רשימת מטלות קיימת
     await expect(page.locator('#my-assignments-list')).toBeVisible({ timeout: 6000 });
-    expect(true).toBeTruthy();
   });
 
   test('[ACAD-06] ממשק ילד — ספריית מבחנים גלויה', async ({ page }) => {
@@ -202,9 +190,7 @@ test.describe('חידון ומעקב (ACAD-05..06)', () => {
 // ACAD-07 — גישה חסומה לחבילה שלא הוקצתה
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[ACAD-07] גישה חסומה לחבילה שלא הוקצתה — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[ACAD-07] בדיקה זו דורשת לומדה שלא הוקצתה — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -218,24 +204,19 @@ test('[ACAD-08] עריכת שאלה בלומדה', async ({ page }) => {
   await expect(page.locator('#academy-admin-view')).toBeVisible({ timeout: 8000 });
   // חפש פריט ברשימה עם כפתור עריכה
   const editBtn = page.locator('#admin-assignments-list button:has-text("ערוך"), #admin-assignments-list [onclick*="edit"]').first();
-  const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasEdit) {
-    await editBtn.click();
-    await page.waitForTimeout(800);
-    expect(true).toBeTruthy();
-  } else {
-    console.warn('[ACAD-08] לא נמצא לומד לעריכה — נדרש לומדה קיימת');
-    expect(true).toBeTruthy();
-  }
+  await expect(editBtn).toBeVisible({ timeout: 5000 });
+  await editBtn.click();
+  await page.waitForTimeout(800);
+  // מודל עריכה אמור להיפתח
+  const modal = page.locator('.modal:not(.hidden), [id*="edit-modal"], [id*="quiz-modal"]').first();
+  await expect(modal).toBeVisible({ timeout: 5000 });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ACAD-09 — מחיקת חבילה
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[ACAD-09] מחיקת חבילה — בדיקה ידנית (בסיכון)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[ACAD-09] בדיקה זו עלולה למחוק נתוני ייצור — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -253,11 +234,11 @@ test('[ACAD-10] לוח תוצאות / ניקוד', async ({ page }) => {
   if (hasLeader) {
     await leaderboard.click();
     await page.waitForTimeout(1000);
-    expect(true).toBeTruthy();
+    // לאחר לחיצה — תוכן לוח תוצאות אמור להיות גלוי
+    const leaderboardContent = page.locator('[id*="leaderboard"], [class*="leaderboard"]').first();
+    await expect(leaderboardContent).toBeVisible({ timeout: 6000 });
   } else {
-    // בדוק שהרשימה הראשית קיימת
+    // בדוק שהרשימה הראשית קיימת — ממשק אדמין נטען תקין
     await expect(page.locator('#admin-assignments-list')).toBeVisible({ timeout: 6000 });
-    console.warn('[ACAD-10] כפתור לוח תוצאות לא נמצא — ממשק אדמין נטען');
-    expect(true).toBeTruthy();
   }
 });

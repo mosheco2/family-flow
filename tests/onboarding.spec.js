@@ -1,7 +1,7 @@
 /**
  * onboarding.spec.js
- * Module: Onboarding — הצטרפות והכוונה ראשונה
- * Coverage: ONB-01..16
+ * Module: אשף הכניסה (Onboarding)
+ * Coverage: ONBD-01..08
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/onboarding.spec.js --config=tests/playwright.config.js
@@ -16,6 +16,8 @@ const TEST_ENV = {
   groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
   parentName: process.env.PARENT_NAME || 'אבא',
   parentPass: process.env.PARENT_PASS || '123456',
+  kidName:    process.env.KID_NAME    || 'זוהר',
+  kidPass:    process.env.KID_PASS    || '123456',
   qaEnv:      'family',
 };
 
@@ -49,12 +51,11 @@ test.afterEach(async ({}, testInfo) => {
   if (!posted) console.error(`[QA Report] ❌ Failed to post ${testId} — QA_SERVER=${QA_SERVER}`);
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -73,192 +74,119 @@ async function loginAsParent(page) {
   await page.fill('#login-password', TEST_ENV.parentPass);
   await page.locator('button:has-text("כניסה")').click();
   await page.waitForTimeout(2000);
+  await skipIntro(page);
+}
+
+async function loginAsKid(page) {
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#login-code', { timeout: 20000 });
+  await page.fill('#login-code', TEST_ENV.groupCode);
+  await page.fill('#login-nickname', TEST_ENV.kidName);
+  await page.fill('#login-password', TEST_ENV.kidPass);
+  await page.locator('button:has-text("כניסה")').click();
+  await page.waitForTimeout(2000);
+  await skipIntro(page);
+}
+
+async function goToTab(page, tabName) {
+  await page.evaluate((t) => { if (typeof window.switchTab === 'function') window.switchTab(t); }, tabName);
+  await page.waitForTimeout(800);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ONB-01..04 — מסך כניסה ורישום
+// ONBD-01..08 — אשף הכניסה
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('מסך כניסה ורישום (ONB-01..04)', () => {
 
-  test('[ONB-01] מסך כניסה נטען עם כל שדות הטופס', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    await expect(page.locator('#login-code')).toBeVisible();
-    await expect(page.locator('#login-nickname')).toBeVisible();
-    await expect(page.locator('#login-password')).toBeVisible();
-    await expect(page.locator('button:has-text("כניסה")')).toBeVisible();
-  });
-
-  test('[ONB-02] כפתור "קבוצה חדשה" / "הצטרף" מוצג', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    const newGroupBtn = page.locator('button:has-text("קבוצה חדשה"), button:has-text("יצירת קבוצה"), button:has-text("הצטרף"), a:has-text("הרשמה")').first();
-    const hasBtn = await newGroupBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[ONB-02] כפתור קבוצה חדשה לא נמצא');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-03] ניסיון כניסה עם קוד שגוי — הודעת שגיאה', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    await page.fill('#login-code', 'INVALID');
-    await page.fill('#login-nickname', 'תוקף');
-    await page.fill('#login-password', 'wrong');
-    await page.locator('button:has-text("כניסה")').click();
-    await page.waitForTimeout(2000);
-    const errorEl = page.locator('#toast-message, [id*="error"], :has-text("שגיאה"), :has-text("לא נמצא")').first();
-    const hasError = await errorEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasError) console.warn('[ONB-03] הודעת שגיאה לא מוצגת');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-04] שדות ריקים — ולידציה לפני שליחה', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    await page.locator('button:has-text("כניסה")').click();
-    await page.waitForTimeout(1000);
-    const errorEl = page.locator('#toast-message, [required]:invalid, :has-text("שגיאה")').first();
-    const hasError = await errorEl.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!hasError) console.warn('[ONB-04] ולידציה לא מוצגת עבור שדות ריקים');
-    expect(true).toBeTruthy();
-  });
+test('[ONBD-01] אשף Onboarding נפתח אוטומטית לאחר כניסה ראשונה', async ({ page }) => {
+  // הבדיקה תלויה במצב הסשן — האשף מוצג רק בכניסה ראשונה ואינו ניתן לאיפוס אוטומטי
+  test.skip(true, 'בדיקה ידנית — האשף מוצג רק בכניסה ראשונה, מצב הסשן אינו ניתן לאיפוס אוטומטי');
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ONB-05..08 — יצירת קבוצה חדשה
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('יצירת קבוצה חדשה (ONB-05..08)', () => {
-
-  test('[ONB-05] טופס יצירת קבוצה נטען', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    const newGroupBtn = page.locator('button:has-text("קבוצה חדשה"), button:has-text("יצירת קבוצה"), a:has-text("הרשמה")').first();
-    const hasBtn = await newGroupBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await newGroupBtn.click();
-      await page.waitForTimeout(1000);
-      const form = page.locator('#register-form, #create-group-form, [id*="register"]').first();
-      const hasForm = await form.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!hasForm) console.warn('[ONB-05] טופס יצירת קבוצה לא נפתח');
-    } else {
-      console.warn('[ONB-05] כפתור קבוצה חדשה לא נמצא');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-06] בחירת שם קבוצה ואמוג\'י', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[ONB-06] בדיקת יצירת קבוצה דורשת סביבת בדיקה נפרדת — בדיקה ידנית');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-07] הגדרת הורה ראשון', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[ONB-07] הגדרת הורה ראשון — בדיקה ידנית (יצירת קבוצה חדשה)');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-08] קוד קבוצה נוצר ומוצג', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[ONB-08] קוד קבוצה נוצר בהרשמה — בדיקה ידנית');
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ONB-09..12 — סיור הדרכה (Intro.js)
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('סיור הדרכה (ONB-09..12)', () => {
-
-  test('[ONB-09] סיור Intro.js מופעל בכניסה ראשונה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    // לא מדלגים על האינטרו כדי לבדוק אותו
-    const introOverlay = page.locator('.introjs-overlay');
-    const hasIntro = await introOverlay.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasIntro) console.warn('[ONB-09] סיור Intro.js לא הופעל — ייתכן כבר הוצג בעבר');
-    // נקה את האינטרו לאחר הבדיקה
-    await skipIntro(page);
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-10] כפתור "דלג" בסיור גלוי', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    const skipBtn = page.locator('.introjs-skipbutton');
-    const hasSkip = await skipBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasSkip) console.warn('[ONB-10] כפתור דלג לא נמצא בסיור');
-    await skipIntro(page);
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-11] כפתור "הבא" בסיור מקדם שלב', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    const nextBtn = page.locator('.introjs-nextbutton');
-    const hasNext = await nextBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasNext) {
-      await nextBtn.click();
-      await page.waitForTimeout(500);
-    } else {
-      console.warn('[ONB-11] כפתור הבא לא נמצא בסיור');
-    }
-    await skipIntro(page);
-    expect(true).toBeTruthy();
-  });
-
-  test('[ONB-12] סיום סיור — ממשק נגיש', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await skipIntro(page);
-    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 8000 });
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ONB-13..16 — קישור ושיתוף
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[ONB-13] שיתוף קוד קבוצה — כפתור שיתוף', async ({ page }) => {
+test('[ONBD-02] אשף שלב 1 — שם קבוצה ולוגו', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsParent(page);
-  const shareBtn = page.locator('button:has-text("שתף"), button[onclick*="share"], button[onclick*="copy"]').first();
-  const hasShare = await shareBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!hasShare) console.warn('[ONB-13] כפתור שיתוף לא נמצא');
-  expect(true).toBeTruthy();
+  // הפעל אשף onboarding
+  await page.evaluate(() => {
+    if (typeof window.startOnboarding === 'function') window.startOnboarding();
+    else if (typeof window.openOnboardingWizard === 'function') window.openOnboardingWizard();
+  });
+  await page.waitForTimeout(1000);
+  // שדה שם קבוצה חייב להיות גלוי בשלב 1
+  const groupNameField = page.locator('#group-name, input[placeholder*="שם קבוצה"], input[name*="groupName"]').first();
+  await expect(groupNameField).toBeVisible({ timeout: 6000 });
 });
 
-test('[ONB-14] העתקת קוד קבוצה — clipboard', async ({ page }) => {
+test('[ONBD-03] אשף שלב 2 משפחה — קטגוריות תקציב', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsParent(page);
-  const copyBtn = page.locator('button:has-text("העתק"), button[onclick*="copy"]').first();
-  const hasCopy = await copyBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCopy) {
-    await copyBtn.click();
-    await page.waitForTimeout(500);
-    const toast = page.locator('#toast-message, :has-text("הועתק")').first();
-    const hasToast = await toast.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!hasToast) console.warn('[ONB-14] אישור העתקה לא הוצג');
-  } else {
-    console.warn('[ONB-14] כפתור העתקה לא נמצא');
-  }
-  expect(true).toBeTruthy();
+  await page.evaluate(() => {
+    if (typeof window.startOnboarding === 'function') window.startOnboarding();
+    else if (typeof window.openOnboardingWizard === 'function') window.openOnboardingWizard();
+  });
+  await page.waitForTimeout(1000);
+  // לחץ "הבא" כדי להגיע לשלב 2
+  const nextBtn = page.locator('#onboarding-next, button:has-text("הבא"), button:has-text("המשך")').first();
+  await expect(nextBtn).toBeVisible({ timeout: 6000 });
+  await nextBtn.click();
+  await page.waitForTimeout(800);
+  // שלב 2 — קטגוריות תקציב חייבות להיות גלויות
+  const budgetStep = page.locator('[id*="budget-category"], [id*="onboard-step-2"], select[id*="category"]').first();
+  await expect(budgetStep).toBeVisible({ timeout: 6000 });
 });
 
-test('[ONB-15] הצטרפות כחבר קיים — כניסה עם קוד', async ({ page }) => {
+test('[ONBD-04] אשף שלב 2 עסק — שם חנות', async ({ page }) => {
+  test.skip(true, 'בדיקה ידנית — דורש חשבון עסקי נפרד, לא ניתן לאוטומציה עם חשבון משפחה');
+});
+
+test('[ONBD-05] אשף שלב 3 — קוד קבוצה והזמנה', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsParent(page);
-  // בדיקה שמשתמש קיים מצליח להיכנס (כבר נבדק ב-auth.spec.js)
-  await expect(page.locator('#content-feed')).toBeVisible({ timeout: 8000 });
-  expect(true).toBeTruthy();
+  await page.evaluate(() => {
+    if (typeof window.startOnboarding === 'function') window.startOnboarding();
+  });
+  await page.waitForTimeout(1000);
+  // קוד הקבוצה חייב להיות מוצג במסך (לא בהכרח בשלב מיוחד)
+  const groupCodeEl = page.locator('#group-code-display, [id*="group-code"], [id*="invite-code"]').first();
+  await expect(groupCodeEl).toBeVisible({ timeout: 8000 });
 });
 
-test('[ONB-16] הצטרפות משתמש חדש — בדיקה ידנית', async ({ page }) => {
+test('[ONBD-06] אשף — כפתור דלג', async ({ page }) => {
   test.setTimeout(120000);
-  console.warn('[ONB-16] הצטרפות משתמש חדש לקבוצה — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#login-code', { timeout: 20000 });
+  await page.fill('#login-code', TEST_ENV.groupCode);
+  await page.fill('#login-nickname', TEST_ENV.parentName);
+  await page.fill('#login-password', TEST_ENV.parentPass);
+  await page.locator('button:has-text("כניסה")').click();
+  await page.waitForTimeout(2500);
+  // כפתור דלג חייב להיות גלוי כאשר האשף פעיל
+  const skipBtn = page.locator('.introjs-skipbutton, button:has-text("דלג"), button:has-text("דלג על הסיור"), #onboarding-skip').first();
+  await expect(skipBtn).toBeVisible({ timeout: 8000 });
+  await skipBtn.click();
+  await page.waitForTimeout(800);
+  // לאחר לחיצת דלג — האשף חייב להיסגר
+  await expect(page.locator('#onboarding-wizard, .introjs-overlay').first()).not.toBeVisible({ timeout: 5000 });
+});
+
+test('[ONBD-07] אשף — סיום וניתוב לדשבורד', async ({ page }) => {
+  test.setTimeout(120000);
+  await loginAsParent(page);
+  // לאחר כניסה ודילוג על אשף — הדשבורד הראשי חייב להיות גלוי
+  const dashboard = page.locator('#main-content, #dashboard, #content-home, #content-feed, [id*="dashboard"]').first();
+  await expect(dashboard).toBeVisible({ timeout: 10000 });
+});
+
+test('[ONBD-08] הפעלת אשף מחדש מהפרופיל', async ({ page }) => {
+  test.setTimeout(120000);
+  await loginAsParent(page);
+  await goToTab(page, 'profile');
+  await page.waitForTimeout(1000);
+  // כפתור הפעלת אשף מחדש חייב להיות גלוי בפרופיל
+  const restartBtn = page.locator('button:has-text("הפעל אשף"), button:has-text("סיור מחדש"), button[onclick*="startOnboarding"], button[onclick*="onboarding"]').first();
+  await expect(restartBtn).toBeVisible({ timeout: 6000 });
+  await restartBtn.click();
+  await page.waitForTimeout(1000);
+  // לאחר לחיצה — האשף/אוברליי חייב להיפתח
+  const wizard = page.locator('#onboarding-wizard, .introjs-overlay, [id*="onboard"]').first();
+  await expect(wizard).toBeVisible({ timeout: 6000 });
 });

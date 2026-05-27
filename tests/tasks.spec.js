@@ -155,20 +155,16 @@ test.describe('עריכת משימה (TSK-02)', () => {
 
     // חפש כפתור עריכה במשימה הראשונה
     const editBtn = page.locator('#tasks-list button[onclick*="edit"], #tasks-list button[title*="ערוך"], #tasks-list .edit-task-btn').first();
-    const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasEdit) {
-      await editBtn.click();
-      await page.waitForTimeout(600);
-      await expect(page.locator('#task-modal')).toBeVisible({ timeout: 6000 });
-      // שנה את הכותרת
-      await page.fill('#task-title', TASK_TITLE + ' — עריכה');
-      await page.locator('#btn-submit-task').click();
-      await page.waitForTimeout(1000);
-      expect(true).toBeTruthy();
-    } else {
-      console.warn('[TSK-02] לא נמצאה משימה לעריכה — נדרש TSK-01 תחילה');
-      expect(true).toBeTruthy();
-    }
+    await expect(editBtn).toBeVisible({ timeout: 5000 });
+    await editBtn.click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('#task-modal')).toBeVisible({ timeout: 6000 });
+    // שנה את הכותרת
+    await page.fill('#task-title', TASK_TITLE + ' — עריכה');
+    await page.locator('#btn-submit-task').click();
+    await page.waitForTimeout(1000);
+    // המודל אמור להיסגר לאחר שמירה מוצלחת
+    await expect(page.locator('#task-modal')).toBeHidden({ timeout: 6000 });
   });
 });
 
@@ -186,17 +182,12 @@ test.describe('מחיקת משימה (TSK-03)', () => {
     const countBefore = await page.locator('#tasks-list > *').count();
 
     const delBtn = page.locator('#tasks-list button[onclick*="delete"], #tasks-list button[title*="מחק"], #tasks-list .delete-task-btn').first();
-    const hasDel = await delBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasDel) {
-      page.once('dialog', dialog => dialog.accept().catch(() => {}));
-      await delBtn.click();
-      await page.waitForTimeout(1200);
-      const countAfter = await page.locator('#tasks-list > *').count();
-      expect(countAfter).toBeLessThanOrEqual(countBefore);
-    } else {
-      console.warn('[TSK-03] לא נמצאה משימה למחיקה');
-      expect(true).toBeTruthy();
-    }
+    await expect(delBtn).toBeVisible({ timeout: 5000 });
+    page.once('dialog', dialog => dialog.accept().catch(() => {}));
+    await delBtn.click();
+    await page.waitForTimeout(1200);
+    const countAfter = await page.locator('#tasks-list > *').count();
+    expect(countAfter).toBeLessThan(countBefore);
   });
 });
 
@@ -213,32 +204,17 @@ test.describe('סיום משימה (TSK-04..05)', () => {
 
     // חפש כפתור "בצעתי" / "סיימתי" / "הושלם"
     const doneBtn = page.locator('#tasks-list button:has-text("בצעתי"), #tasks-list button:has-text("סיימתי"), #tasks-list button:has-text("הושלם"), #tasks-list button[onclick*="done"], #tasks-list button[onclick*="completed"]').first();
-    const hasDone = await doneBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasDone) {
-      await doneBtn.click();
-      await page.waitForTimeout(1500);
-      // בדוק toast הצלחה
-      await page.waitForSelector('#toast:not(.hidden)', { timeout: 4000 }).catch(() => {});
-      const toastMsg = await page.locator('#toast-message').innerText().catch(() => '');
-      expect(toastMsg).not.toContain('שגיאה');
-    } else {
-      console.warn('[TSK-04] אין משימות פתוחות לילד זה — נדרש TSK-01 תחילה');
-      expect(true).toBeTruthy();
-    }
+    await expect(doneBtn).toBeVisible({ timeout: 6000 });
+    await doneBtn.click();
+    await page.waitForTimeout(1500);
+    // בדוק toast הצלחה
+    await page.waitForSelector('#toast:not(.hidden)', { timeout: 4000 }).catch(() => {});
+    const toastMsg = await page.locator('#toast-message').innerText().catch(() => '');
+    expect(toastMsg).not.toContain('שגיאה');
   });
 
   test('[TSK-05] ילד יכול להעלות הוכחת ביצוע — שדה קיים', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'tasks');
-    await page.waitForTimeout(1500);
-    // חפש כפתור/שדה העלאת תמונה הוכחה
-    const proofInput = page.locator('input[type="file"][accept*="image"], button:has-text("תמונה"), button:has-text("הוכחה"), button:has-text("צלם")').first();
-    const hasProof = await proofInput.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasProof) {
-      console.warn('[TSK-05] לא נמצא שדה העלאת הוכחה — ייתכן שאין משימות פתוחות');
-    }
-    expect(true).toBeTruthy(); // UI element check only
+    test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
   });
 });
 
@@ -246,9 +222,7 @@ test.describe('סיום משימה (TSK-04..05)', () => {
 // TSK-06 — AI אישור חזותי (בדיקה ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[TSK-06] אישור AI חזותי — בדיקה ידנית (דורש תמונה ו-AI)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[TSK-06] בדיקה זו דורשת תמונת הוכחה וקריאת AI — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -264,35 +238,31 @@ test.describe('אישור ותגמול (TSK-07..08)', () => {
 
     // חפש כפתור "אשר ושלם" (מופיע על משימות ב-done status)
     const approveBtn = page.locator('#tasks-list button:has-text("אשר ושלם"), #tasks-list button[onclick*="openApproveTask"]').first();
-    const hasApprove = await approveBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasApprove) {
-      await approveBtn.click();
-      await page.waitForTimeout(600);
-      await expect(page.locator('#approve-task-modal')).toBeVisible({ timeout: 6000 });
-      // אשר עם סכום
-      await page.fill('#approve-task-reward', '15');
-      await page.locator('button:has-text("אשר ושלם")').last().click();
-      await page.waitForTimeout(1500);
-      await page.waitForSelector('#toast:not(.hidden)', { timeout: 4000 }).catch(() => {});
-      const toastMsg = await page.locator('#toast-message').innerText().catch(() => '');
-      expect(toastMsg).not.toContain('שגיאה');
-    } else {
-      console.warn('[TSK-07] אין משימות בסטטוס "ממתין לאישור" — נדרש TSK-04 תחילה');
-      expect(true).toBeTruthy();
-    }
+    await expect(approveBtn).toBeVisible({ timeout: 5000 });
+    await approveBtn.click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('#approve-task-modal')).toBeVisible({ timeout: 6000 });
+    // אשר עם סכום
+    await page.fill('#approve-task-reward', '15');
+    await page.locator('button:has-text("אשר ושלם")').last().click();
+    await page.waitForTimeout(1500);
+    // המודל אמור להיסגר לאחר אישור מוצלח
+    await expect(page.locator('#approve-task-modal')).toBeHidden({ timeout: 6000 });
   });
 
   test('[TSK-08] יתרת ילד עולה לאחר אישור משימה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
     // שמור יתרה לפני
-    const balanceBefore = await page.locator('#user-balance').innerText().catch(() => '0');
+    await expect(page.locator('#user-balance')).toBeVisible({ timeout: 10000 });
+    const balanceBefore = await page.locator('#user-balance').innerText();
     // ההורה אישר ב-TSK-07 — רענן נתונים
-    await page.waitForTimeout(2000);
-    const balanceAfter = await page.locator('#user-balance').innerText().catch(() => '0');
-    // נקרא מהשרת — הנתון אמור להתעדכן
-    console.log(`[TSK-08] יתרה לפני: ${balanceBefore}, יתרה אחרי: ${balanceAfter}`);
-    expect(true).toBeTruthy(); // תיעוד ידני — תלוי בסדר הרצת TSK-07
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+    await skipIntro(page);
+    await expect(page.locator('#user-balance')).toBeVisible({ timeout: 10000 });
+    const balanceAfter = await page.locator('#user-balance').innerText();
+    const parseBal = (s) => parseFloat(s.replace(/[^\d.-]/g, '')) || 0;
+    expect(parseBal(balanceAfter)).toBeGreaterThan(parseBal(balanceBefore));
   });
 });
 
@@ -329,10 +299,9 @@ test.describe('משימה חוזרת (TSK-10)', () => {
     await expect(page.locator('#task-title')).toBeVisible();
     // בדוק אם יש שדה "חוזר"
     const recurringField = page.locator('#task-modal [id*="recur"], #task-modal [name*="recur"], #task-modal select, #task-modal input[type="checkbox"]').first();
-    const hasRecurring = await recurringField.isVisible({ timeout: 3000 }).catch(() => false);
-    console.log(`[TSK-10] שדה משימה חוזרת קיים: ${hasRecurring}`);
+    await expect(recurringField).toBeVisible({ timeout: 3000 });
     // סגור מודל
     await page.evaluate(() => { if (typeof window.closeTaskModal === 'function') window.closeTaskModal(); });
-    expect(true).toBeTruthy();
+    await expect(page.locator('#task-modal')).toBeHidden({ timeout: 5000 });
   });
 });

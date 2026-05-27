@@ -1,10 +1,10 @@
 /**
- * biz-inventory.spec.js
- * Module: מלאי, מזווה וקטלוג — עסקים
- * Coverage: BIZ-17, BIZ-23, BIZ-24
+ * biz-tasks.spec.js
+ * Module: משימות — עסקים
+ * Coverage: TSK-01..10
  *
  * Run:
- *   npx playwright test tests/biz-inventory.spec.js --reporter=html
+ *   npx playwright test tests/biz-tasks.spec.js --reporter=html
  */
 
 const { test, expect } = require('@playwright/test');
@@ -29,7 +29,7 @@ test.afterEach(async ({}, testInfo) => {
   const status = testInfo.status === 'passed' ? 'ok' : 'fail';
   const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   let note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
-  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-inventory.spec.js';
+  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-tasks.spec.js';
   note += `\nדוח: ${specFile} | ${timestamp}`;
   if (status === 'fail' && testInfo.errors && testInfo.errors.length) {
     const raw = testInfo.errors[0]?.message || testInfo.errors[0]?.toString() || '';
@@ -56,6 +56,7 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
+    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -94,82 +95,127 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-17 — עלויות מוצר בקטלוג
+// TSK-01..04 — רשימת משימות
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-17] קטלוג — הגדרת עלויות ומצרכים למוצר', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsManager(page);
-  await goToTab(page, 'sales');
-  await page.waitForTimeout(1000);
-  const catalogView = page.locator('#sales-view-catalog, button:has-text("קטלוג"), button:has-text("מוצרים")').first();
-  const hasCatalog = await catalogView.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCatalog) {
-    await catalogView.click().catch(() => {});
-    await page.waitForTimeout(600);
-    const productCard = page.locator('.product-card, .store-product, .catalog-item').first();
-    const hasProduct = await productCard.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasProduct) {
-      await productCard.click().catch(() => {});
-      await page.waitForTimeout(500);
-      const costsSection = page.locator('[id*="cost"], .food-cost, button:has-text("עלויות")').first();
-      const hasCosts = await costsSection.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasCosts) console.warn('[BIZ-17] אזור עלויות מוצר לא נמצא');
-    } else {
-      console.warn('[BIZ-17] לא נמצאו מוצרים בקטלוג');
-    }
-  } else {
-    console.warn('[BIZ-17] תצוגת קטלוג לא נמצאה');
-  }
-  expect(true).toBeTruthy();
+test.describe('רשימת משימות עסקית (TSK-01..04)', () => {
+
+  test('[TSK-01] כרטיסיית משימות נטענת — מנהל', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    await expect(page.locator('#tasks-section, #tab-tasks')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('[TSK-02] כרטיסיית משימות נטענת — עובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    await expect(page.locator('#tasks-section, #tab-tasks')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('[TSK-03] מנהל רואה כפתור הוספת משימה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    await expect(
+      page.locator('#btn-add-task, button:has-text("הוסף משימה"), button:has-text("משימה חדשה")').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[TSK-04] עובד לא רואה ממשק ניהול משימות', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    await expect(
+      page.locator('#tasks-admin-view, #btn-add-task').first()
+    ).not.toBeVisible({ timeout: 5000 });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-23 — הוספת פריט למלאי
+// TSK-05..07 — יצירה ועריכת משימה
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-23] מלאי — הוספת פריט חדש למחסן/מזווה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsManager(page);
-  await goToTab(page, 'pantry');
-  await page.waitForTimeout(1200);
-  await expect(page.locator('#content-pantry')).toBeVisible({ timeout: 8000 });
-  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("פריט חדש"), button:has-text("הוסף מוצר")').first();
-  const hasBtn = await addBtn.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasBtn) {
+test.describe('יצירה ועריכת משימה (TSK-05..07)', () => {
+
+  test('[TSK-05] מנהל פותח מודל הוספת משימה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    const addBtn = page.locator('#btn-add-task, button:has-text("הוסף משימה"), button:has-text("משימה חדשה")').first();
+    await expect(addBtn).toBeVisible({ timeout: 8000 });
     await addBtn.click();
     await page.waitForTimeout(600);
-    const modal = page.locator('#new-product-modal, [id*="pantry"][id*="modal"], [id*="product"][id*="modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[BIZ-23] מודל הוספת פריט למלאי לא נפתח');
-  } else {
-    console.warn('[BIZ-23] כפתור הוספת פריט למלאי לא נמצא');
-  }
-  expect(true).toBeTruthy();
+    await expect(
+      page.locator('#task-modal, #add-task-modal, [id*="task"][id*="modal"]').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[TSK-06] שדות משימה קיימים בטופס', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    const addBtn = page.locator('#btn-add-task, button:has-text("הוסף משימה"), button:has-text("משימה חדשה")').first();
+    await expect(addBtn).toBeVisible({ timeout: 8000 });
+    await addBtn.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('#task-title, input[name="title"], input[placeholder*="שם משימה"]').first()
+    ).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[TSK-07] הקצאת משימה לעובד — שדה בחירת עובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1000);
+    const addBtn = page.locator('#btn-add-task, button:has-text("הוסף משימה"), button:has-text("משימה חדשה")').first();
+    await expect(addBtn).toBeVisible({ timeout: 8000 });
+    await addBtn.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('#task-assignee, select[name="assignee"], [id*="assign"]').first()
+    ).toBeVisible({ timeout: 6000 });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-24 — שימוש בפריט מהמלאי
+// TSK-08..10 — השלמה ומעקב
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-24] מלאי — רישום שימוש בפריט מהמחסן', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsEmployee(page);
-  await goToTab(page, 'pantry');
-  await page.waitForTimeout(1200);
-  const pantryItem = page.locator('.pantry-item, .inventory-item, #pantry-list li').first();
-  const hasItem = await pantryItem.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasItem) {
-    const useBtn = page.locator('button:has-text("השתמש"), button:has-text("הפחת"), .use-btn').first();
-    const hasUseBtn = await useBtn.isVisible({ timeout: 4000 }).catch(() => false);
-    if (hasUseBtn) {
-      await useBtn.click();
-      await page.waitForTimeout(600);
-      const modal = page.locator('#pantry-use-modal, [id*="use"][id*="modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[BIZ-24] מודל שימוש בפריט לא נפתח');
-    } else {
-      console.warn('[BIZ-24] כפתור שימוש בפריט לא נמצא');
-    }
-  } else {
-    console.warn('[BIZ-24] לא נמצאו פריטים במלאי');
-  }
-  expect(true).toBeTruthy();
+test.describe('השלמה ומעקב (TSK-08..10)', () => {
+
+  test('[TSK-08] עובד יכול לסמן משימה כהושלמה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('button[onclick*="completeTask"], button:has-text("בצעתי"), .task-complete-btn').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[TSK-09] מנהל רואה משימות שהושלמו', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('#tasks-completed, .tasks-done, [data-status="completed"]').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[TSK-10] פילטר משימות לפי עובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('#tasks-filter, select[id*="filter"], button:has-text("סנן")').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
 });

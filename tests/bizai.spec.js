@@ -94,28 +94,21 @@ async function loginAsEmployee(page) {
 test('[BIZ-25] BizChat — עוזר AI עסקי בעברית', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsManager(page);
+
+  // Try clicking a visible AI trigger button first
   const aiBtn = page.locator('button:has-text("BizChat"), button:has-text("עוזר"), button:has-text("AI"), #btn-ai, [id*="ai"][id*="btn"]').first();
   const hasBtn = await aiBtn.isVisible({ timeout: 6000 }).catch(() => false);
   if (hasBtn) {
     await aiBtn.click();
     await page.waitForTimeout(600);
-    const modal = page.locator('#ai-modal, [id*="ai"][id*="modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) {
-      await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
-      await page.waitForTimeout(600);
-    }
-    const aiModal = page.locator('#ai-modal');
-    const visible = await aiModal.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!visible) console.warn('[BIZ-25] מודל עוזר AI לא נפתח');
   } else {
     await page.evaluate(() => { if (typeof window.openGlobalAIAssistant === 'function') window.openGlobalAIAssistant(); }).catch(() => {});
     await page.waitForTimeout(600);
-    const aiModal = page.locator('#ai-modal');
-    const visible = await aiModal.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!visible) console.warn('[BIZ-25] כפתור / מודל BizChat לא נמצאו');
   }
-  expect(true).toBeTruthy();
+
+  // The AI modal must open
+  const aiModal = page.locator('#ai-modal');
+  await expect(aiModal).toBeVisible({ timeout: 8000 });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -127,9 +120,7 @@ test.describe('AI בסיסי (AI-01..05)', () => {
     test.setTimeout(120000);
     await loginAsManager(page);
     const aiTrigger = page.locator('[id*="ai"], button:has-text("AI"), button:has-text("עוזר"), .ai-btn').first();
-    const hasAI = await aiTrigger.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasAI) console.warn('[AI-01] כפתור AI לא נמצא בממשק');
-    expect(true).toBeTruthy();
+    await expect(aiTrigger).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-02] AI — מודל AI נפתח', async ({ page }) => {
@@ -137,10 +128,7 @@ test.describe('AI בסיסי (AI-01..05)', () => {
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
     await page.waitForTimeout(800);
-    const modal = page.locator('#ai-modal');
-    const isOpen = await modal.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!isOpen) console.warn('[AI-02] מודל AI לא נפתח דרך openAIModal()');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-03] AI — שדה קלט לשאלה קיים', async ({ page }) => {
@@ -148,10 +136,9 @@ test.describe('AI בסיסי (AI-01..05)', () => {
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
     await page.waitForTimeout(800);
+    await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
     const inputEl = page.locator('#ai-modal input, #ai-modal textarea, #ai-input').first();
-    const hasInput = await inputEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasInput) console.warn('[AI-03] שדה קלט AI לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(inputEl).toBeVisible({ timeout: 6000 });
   });
 
   test('[AI-04] AI — שאלה ותשובה בסיסית', async ({ page }) => {
@@ -159,26 +146,19 @@ test.describe('AI בסיסי (AI-01..05)', () => {
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
     await page.waitForTimeout(800);
+    await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
+
     const inputEl = page.locator('#ai-modal input, #ai-modal textarea, #ai-input').first();
-    const hasInput = await inputEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasInput) {
-      await inputEl.fill('מה המכירות שלי היום?');
-      await page.waitForTimeout(300);
-      const sendBtn = page.locator('#ai-modal button:has-text("שלח"), #ai-modal button[type="submit"], #btn-ai-send').first();
-      const hasSend = await sendBtn.isVisible({ timeout: 3000 }).catch(() => false);
-      if (hasSend) {
-        await sendBtn.click();
-        await page.waitForTimeout(3000);
-        const response = page.locator('#ai-modal .ai-response, #ai-modal .response, #ai-response').first();
-        const hasResponse = await response.isVisible({ timeout: 8000 }).catch(() => false);
-        if (!hasResponse) console.warn('[AI-04] תשובת AI לא הוצגה');
-      } else {
-        console.warn('[AI-04] כפתור שליחה לAI לא נמצא');
-      }
-    } else {
-      console.warn('[AI-04] שדה קלט AI לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(inputEl).toBeVisible({ timeout: 6000 });
+    await inputEl.fill('מה המכירות שלי היום?');
+    await page.waitForTimeout(300);
+
+    const sendBtn = page.locator('#ai-modal button:has-text("שלח"), #ai-modal button[type="submit"], #btn-ai-send').first();
+    await expect(sendBtn).toBeVisible({ timeout: 5000 });
+    await sendBtn.click();
+
+    const response = page.locator('#ai-modal .ai-response, #ai-modal .response, #ai-response').first();
+    await expect(response).toBeVisible({ timeout: 15000 });
   });
 
   test('[AI-05] AI — סגירת מודל AI', async ({ page }) => {
@@ -186,18 +166,14 @@ test.describe('AI בסיסי (AI-01..05)', () => {
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
     await page.waitForTimeout(800);
+    await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
+
     const closeBtn = page.locator('#ai-modal button:has-text("×"), #ai-modal .close-btn, #ai-modal [onclick*="close"]').first();
-    const hasClose = await closeBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasClose) {
-      await closeBtn.click();
-      await page.waitForTimeout(400);
-      const modal = page.locator('#ai-modal');
-      const isStillOpen = await modal.isVisible({ timeout: 2000 }).catch(() => false);
-      if (isStillOpen) console.warn('[AI-05] מודל AI לא נסגר');
-    } else {
-      console.warn('[AI-05] כפתור סגירת מודל AI לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(closeBtn).toBeVisible({ timeout: 5000 });
+    await closeBtn.click();
+    await page.waitForTimeout(400);
+
+    await expect(page.locator('#ai-modal')).toBeHidden({ timeout: 5000 });
   });
 });
 
@@ -210,9 +186,7 @@ test.describe('AI מתקדם (AI-06..10)', () => {
     test.setTimeout(120000);
     await loginAsManager(page);
     const aiTaskBtn = page.locator('button:has-text("AI משימות"), button:has-text("הצע משימות"), .ai-task-suggest').first();
-    const hasBtn = await aiTaskBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[AI-06] כפתור הצעות משימות AI לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(aiTaskBtn).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-07] AI — BizChat — צ\'אט עסקי מלא', async ({ page }) => {
@@ -221,18 +195,14 @@ test.describe('AI מתקדם (AI-06..10)', () => {
     await page.evaluate(() => { if (typeof window.openGlobalAIAssistant === 'function') window.openGlobalAIAssistant(); }).catch(() => {});
     await page.waitForTimeout(800);
     const aiEl = page.locator('#ai-modal, .ai-chat, [id*="bizchat"]').first();
-    const hasAI = await aiEl.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasAI) console.warn('[AI-07] BizChat לא נפתח');
-    expect(true).toBeTruthy();
+    await expect(aiEl).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-08] AI — ניתוח מכירות אוטומטי', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     const analyzeBtn = page.locator('button:has-text("נתח"), button:has-text("ניתוח AI"), .ai-analyze').first();
-    const hasBtn = await analyzeBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[AI-08] כפתור ניתוח AI לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(analyzeBtn).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-09] AI — תשובות בעברית', async ({ page }) => {
@@ -240,28 +210,26 @@ test.describe('AI מתקדם (AI-06..10)', () => {
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
     await page.waitForTimeout(800);
+    await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
+
     const inputEl = page.locator('#ai-modal input, #ai-modal textarea').first();
-    const hasInput = await inputEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasInput) {
-      await inputEl.fill('שלום, מה אתה יכול לעזור לי?');
-      const sendBtn = page.locator('#ai-modal button:has-text("שלח"), #ai-modal button[type="submit"]').first();
-      const hasSend = await sendBtn.isVisible({ timeout: 3000 }).catch(() => false);
-      if (hasSend) {
-        await sendBtn.click();
-        await page.waitForTimeout(4000);
-        console.info('[AI-09] ✓ בדיקה ויזואלית: ודא שהתשובה היא בעברית');
-      }
-    }
-    expect(true).toBeTruthy();
+    await expect(inputEl).toBeVisible({ timeout: 6000 });
+    await inputEl.fill('שלום, מה אתה יכול לעזור לי?');
+
+    const sendBtn = page.locator('#ai-modal button:has-text("שלח"), #ai-modal button[type="submit"]').first();
+    await expect(sendBtn).toBeVisible({ timeout: 5000 });
+    await sendBtn.click();
+
+    // A response element must appear; text content check is done visually
+    const response = page.locator('#ai-modal .ai-response, #ai-modal .response, #ai-response').first();
+    await expect(response).toBeVisible({ timeout: 15000 });
   });
 
   test('[AI-10] AI — מד קרדיט AI (Battery)', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     const batteryEl = page.locator('#ai-battery-modal, [id*="battery"], .ai-credits, [id*="credit"]').first();
-    const hasBattery = await batteryEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBattery) console.warn('[AI-10] מד קרדיט AI לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(batteryEl).toBeVisible({ timeout: 8000 });
   });
 });
 
@@ -274,9 +242,7 @@ test.describe('AI שדרוג ואינטגרציה (AI-11..15)', () => {
     test.setTimeout(120000);
     await loginAsManager(page);
     const upgradeBtn = page.locator('button:has-text("שדרג"), button:has-text("Premium"), button:has-text("פרמיום"), [onclick*="upgradeToPremium"]').first();
-    const hasBtn = await upgradeBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[AI-11] כפתור שדרוג Premium לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(upgradeBtn).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-12] AI — AI בלשונית משימות', async ({ page }) => {
@@ -285,36 +251,32 @@ test.describe('AI שדרוג ואינטגרציה (AI-11..15)', () => {
     await page.evaluate(() => { if (typeof window.switchTab === 'function') window.switchTab('tasks'); });
     await page.waitForTimeout(800);
     const aiTask = page.locator('button:has-text("AI"), [onclick*="selectAITask"], .ai-mode').first();
-    const hasAI = await aiTask.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasAI) console.warn('[AI-12] AI בלשונית משימות לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(aiTask).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-13] AI — הצגת אזהרת AI', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
+    // The warning modal appears only before first-use confirmation; if already confirmed this is expected to be hidden
     const warningModal = page.locator('#ai-warning-modal');
     const hasWarning = await warningModal.isVisible({ timeout: 3000 }).catch(() => false);
     if (hasWarning) {
-      console.info('[AI-13] ✓ אזהרת AI מוצגת');
+      await expect(warningModal).toBeVisible({ timeout: 3000 });
     } else {
-      console.warn('[AI-13] אזהרת AI לא מוצגת (ייתכן שכבר אושרה)');
+      // Already confirmed — verify the AI modal itself is accessible instead
+      await page.evaluate(() => { if (typeof window.openAIModal === 'function') window.openAIModal(); }).catch(() => {});
+      await expect(page.locator('#ai-modal')).toBeVisible({ timeout: 8000 });
     }
-    expect(true).toBeTruthy();
   });
 
   test('[AI-14] AI — AI לעובד', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsEmployee(page);
     const aiBtn = page.locator('[id*="ai"], button:has-text("AI"), button:has-text("עוזר")').first();
-    const hasAI = await aiBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasAI) console.warn('[AI-14] AI לא זמין לעובד');
-    expect(true).toBeTruthy();
+    await expect(aiBtn).toBeVisible({ timeout: 8000 });
   });
 
   test('[AI-15] AI — בדיקת תגובת AI ידנית', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[AI-15] בדיקת תגובת AI בזמן אמת דורשת ניתוח ויזואלי — בדיקה ידנית');
-    expect(true).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית');
   });
 });

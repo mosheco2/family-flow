@@ -111,10 +111,10 @@ test.describe('פתיחת קופה (POS-01..03)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const categories = page.locator('#pos-categories-tabs, .pos-category, .category-tab');
-    const hasCategories = await categories.first().isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasCategories) console.warn('[POS-02] קטגוריות קופה לא נמצאו');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('#pos-categories-tabs, .pos-category, .category-tab').first()
+    ).toBeVisible({ timeout: 6000 });
   });
 
   test('[POS-03] קופה — חיפוש מוצר לפי שם או ברקוד', async ({ page }) => {
@@ -122,10 +122,10 @@ test.describe('פתיחת קופה (POS-01..03)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const searchEl = page.locator('input[placeholder*="חיפוש"], input[placeholder*="מוצר"], #pos-search').first();
-    const hasSearch = await searchEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasSearch) console.warn('[POS-03] שדה חיפוש בקופה לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('input[placeholder*="חיפוש"], input[placeholder*="מוצר"], #pos-search').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -139,18 +139,14 @@ test.describe('עגלת קניות (POS-04..07)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const productBtn = page.locator('.pos-product, .product-btn, .pos-item').first();
-    const hasProduct = await productBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasProduct) {
-      await productBtn.click();
-      await page.waitForTimeout(500);
-      const cart = page.locator('#pos-cart-list, .cart-item, .cart-list');
-      const hasCartItem = await cart.first().isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasCartItem) console.warn('[POS-04] פריט לא הוסף לעגלה');
-    } else {
-      console.warn('[POS-04] לא נמצאו מוצרים בקופה');
-    }
-    expect(true).toBeTruthy();
+    await expect(productBtn).toBeVisible({ timeout: 6000 });
+    await productBtn.click();
+    await page.waitForTimeout(500);
+    await expect(
+      page.locator('#pos-cart-list, .cart-item, .cart-list').first()
+    ).toBeVisible({ timeout: 4000 });
   });
 
   test('[POS-05] קופה — שינוי כמות בעגלה', async ({ page }) => {
@@ -158,18 +154,14 @@ test.describe('עגלת קניות (POS-04..07)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const productBtn = page.locator('.pos-product, .product-btn, .pos-item').first();
-    const hasProduct = await productBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasProduct) {
-      await productBtn.click();
-      await page.waitForTimeout(400);
-      const qtyBtn = page.locator('button:has-text("+"), .qty-plus, .increase-qty').first();
-      const hasQty = await qtyBtn.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasQty) console.warn('[POS-05] כפתור שינוי כמות לא נמצא');
-    } else {
-      console.warn('[POS-05] לא נמצאו מוצרים בקופה');
-    }
-    expect(true).toBeTruthy();
+    await expect(productBtn).toBeVisible({ timeout: 6000 });
+    await productBtn.click();
+    await page.waitForTimeout(400);
+    await expect(
+      page.locator('button:has-text("+"), .qty-plus, .increase-qty').first()
+    ).toBeVisible({ timeout: 4000 });
   });
 
   test('[POS-06] קופה — הסרת מוצר מהעגלה', async ({ page }) => {
@@ -177,18 +169,14 @@ test.describe('עגלת קניות (POS-04..07)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const productBtn = page.locator('.pos-product, .product-btn, .pos-item').first();
-    const hasProduct = await productBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasProduct) {
-      await productBtn.click();
-      await page.waitForTimeout(400);
-      const removeBtn = page.locator('button:has-text("×"), button:has-text("הסר"), .remove-item, .cart-remove').first();
-      const hasRemove = await removeBtn.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasRemove) console.warn('[POS-06] כפתור הסרה מעגלה לא נמצא');
-    } else {
-      console.warn('[POS-06] לא נמצאו מוצרים בקופה');
-    }
-    expect(true).toBeTruthy();
+    await expect(productBtn).toBeVisible({ timeout: 6000 });
+    await productBtn.click();
+    await page.waitForTimeout(400);
+    await expect(
+      page.locator('button:has-text("×"), button:has-text("הסר"), .remove-item, .cart-remove').first()
+    ).toBeVisible({ timeout: 4000 });
   });
 
   test('[POS-07] קופה — הצגת סכום כולל ומע"מ', async ({ page }) => {
@@ -196,10 +184,10 @@ test.describe('עגלת קניות (POS-04..07)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const totalEl = page.locator('#pos-total, .cart-total, .total-amount, [id*="total"]').first();
-    const hasTotal = await totalEl.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasTotal) console.warn('[POS-07] תצוגת סכום כולל לא נמצאה');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('#pos-total, .cart-total, .total-amount, [id*="total"]').first()
+    ).toBeVisible({ timeout: 6000 });
   });
 });
 
@@ -213,18 +201,14 @@ test.describe('תשלום (POS-08..11)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const chargeBtn = page.locator('button:has-text("גבה"), button:has-text("תשלום"), button:has-text("שלם"), #btn-charge').first();
-    const hasBtn = await chargeBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasBtn) {
-      await chargeBtn.click();
-      await page.waitForTimeout(600);
-      const modal = page.locator('#pos-tender-modal, [id*="tender"][id*="modal"], [id*="payment"][id*="modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[POS-08] מודל תשלום לא נפתח');
-    } else {
-      console.warn('[POS-08] כפתור גביית תשלום לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(chargeBtn).toBeVisible({ timeout: 6000 });
+    await chargeBtn.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('#pos-tender-modal, [id*="tender"][id*="modal"], [id*="payment"][id*="modal"]').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('[POS-09] קופה — תשלום במזומן', async ({ page }) => {
@@ -232,18 +216,14 @@ test.describe('תשלום (POS-08..11)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const chargeBtn = page.locator('button:has-text("גבה"), button:has-text("תשלום"), #btn-charge').first();
-    const hasBtn = await chargeBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasBtn) {
-      await chargeBtn.click();
-      await page.waitForTimeout(600);
-      const cashBtn = page.locator('button:has-text("מזומן"), .payment-cash, [data-method="cash"]').first();
-      const hasCash = await cashBtn.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!hasCash) console.warn('[POS-09] כפתור תשלום במזומן לא נמצא');
-    } else {
-      console.warn('[POS-09] כפתור גביית תשלום לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(chargeBtn).toBeVisible({ timeout: 6000 });
+    await chargeBtn.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('button:has-text("מזומן"), .payment-cash, [data-method="cash"]').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('[POS-10] קופה — תשלום בכרטיס אשראי', async ({ page }) => {
@@ -251,18 +231,14 @@ test.describe('תשלום (POS-08..11)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
     const chargeBtn = page.locator('button:has-text("גבה"), button:has-text("תשלום"), #btn-charge').first();
-    const hasBtn = await chargeBtn.isVisible({ timeout: 6000 }).catch(() => false);
-    if (hasBtn) {
-      await chargeBtn.click();
-      await page.waitForTimeout(600);
-      const cardBtn = page.locator('button:has-text("אשראי"), button:has-text("כרטיס"), .payment-card, [data-method="card"]').first();
-      const hasCard = await cardBtn.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!hasCard) console.warn('[POS-10] כפתור תשלום בכרטיס לא נמצא');
-    } else {
-      console.warn('[POS-10] כפתור גביית תשלום לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(chargeBtn).toBeVisible({ timeout: 6000 });
+    await chargeBtn.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('button:has-text("אשראי"), button:has-text("כרטיס"), .payment-card, [data-method="card"]').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('[POS-11] קופה — קבלה / חשבונית לאחר תשלום', async ({ page }) => {
@@ -270,10 +246,10 @@ test.describe('תשלום (POS-08..11)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const receiptEl = page.locator('.receipt, #receipt-preview, button:has-text("קבלה"), button:has-text("חשבונית")').first();
-    const hasReceipt = await receiptEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasReceipt) console.warn('[POS-11] כפתור/תצוגת קבלה לא נמצאה');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('.receipt, #receipt-preview, button:has-text("קבלה"), button:has-text("חשבונית")').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -287,21 +263,14 @@ test.describe('החזרות ודוחות קופה (POS-12..15)', () => {
     await loginAsManager(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const refundBtn = page.locator('button:has-text("החזרה"), button:has-text("זיכוי"), button:has-text("ביטול"), #btn-refund').first();
-    const hasBtn = await refundBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[POS-12] כפתור החזרה/זיכוי לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('button:has-text("החזרה"), button:has-text("זיכוי"), button:has-text("ביטול"), #btn-refund').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('[POS-13] קופה — סריקת ברקוד', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsEmployee(page);
-    await goToTab(page, 'pos');
-    await page.waitForTimeout(1200);
-    const barcodeBtn = page.locator('button:has-text("ברקוד"), button:has-text("סרוק"), #btn-scan, [id*="barcode"]').first();
-    const hasBtn = await barcodeBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[POS-13] כפתור סריקת ברקוד לא נמצא');
-    expect(true).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית');
   });
 
   test('[POS-14] קופה — דוח יומי למנהל', async ({ page }) => {
@@ -309,20 +278,13 @@ test.describe('החזרות ודוחות קופה (POS-12..15)', () => {
     await loginAsManager(page);
     await goToTab(page, 'pos');
     await page.waitForTimeout(1200);
-    const reportBtn = page.locator('button:has-text("דוח"), button:has-text("סגירת קופה"), button:has-text("Z-Report"), #btn-daily-report').first();
-    const hasBtn = await reportBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[POS-14] כפתור דוח יומי/סגירת קופה לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#content-pos')).toBeVisible({ timeout: 8000 });
+    await expect(
+      page.locator('button:has-text("דוח"), button:has-text("סגירת קופה"), button:has-text("Z-Report"), #btn-daily-report').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('[POS-15] קופה — הדפסת קבלה / שליחה במייל', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsEmployee(page);
-    await goToTab(page, 'pos');
-    await page.waitForTimeout(1200);
-    const printBtn = page.locator('button:has-text("הדפס"), button:has-text("שלח מייל"), button:has-text("שתף קבלה")').first();
-    const hasBtn = await printBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[POS-15] כפתור הדפסת/שיתוף קבלה לא נמצא');
-    expect(true).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית');
   });
 });

@@ -1,7 +1,7 @@
 /**
  * budget.spec.js
- * Module: תקציב משפחתי
- * Coverage: BUDG-01..16
+ * Module: כספים ותקציב — FIN
+ * Coverage: FIN-01..12
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/budget.spec.js --config=tests/playwright.config.js
@@ -16,8 +16,6 @@ const TEST_ENV = {
   groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
   parentName: process.env.PARENT_NAME || 'אבא',
   parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'זוהר',
-  kidPass:    process.env.KID_PASS    || '123456',
   qaEnv:      'family',
 };
 
@@ -56,7 +54,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -84,221 +81,133 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BUDG-01..03 — טעינת לשונית תקציב
+// FIN-01..04 — תנועות כספיות
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('טעינת תקציב (BUDG-01..03)', () => {
+test.describe('תנועות כספיות (FIN-01..04)', () => {
 
-  test('[BUDG-01] לשונית תקציב נטענת', async ({ page }) => {
+  test('[FIN-01] כספים — הוספת הכנסה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-budget')).toBeVisible({ timeout: 8000 });
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ תנועה"), button:has-text("הוסף תנועה"), button:has-text("הכנסה")').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[BUDG-02] סיכום תקציב כולל מוצג', async ({ page }) => {
+  test('[FIN-02] כספים — הוספת הוצאה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-budget')).toBeVisible({ timeout: 8000 });
-    const summary = page.locator('#budget-summary, #budget-total, [id*="budget-overview"]').first();
-    const hasSummary = await summary.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasSummary) console.warn('[BUDG-02] סיכום תקציב לא נמצא');
-    expect(true).toBeTruthy();
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ תנועה"), button:has-text("הוצאה")').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[BUDG-03] כפתור "הגדר תקציב" גלוי', async ({ page }) => {
+  test('[FIN-03] כספים — עריכת תנועה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(1000);
-    const setBtn = page.locator('button:has-text("הגדר תקציב"), button:has-text("תקציב חדש"), button[onclick*="openBudgetModal"]').first();
-    const hasBtn = await setBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[BUDG-03] כפתור הגדרת תקציב לא נמצא');
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// BUDG-04..07 — הגדרת תקציב
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('הגדרת תקציב (BUDG-04..07)', () => {
-
-  test('[BUDG-04] לחיצה על "הגדר תקציב" פותחת מודל', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(800);
-    const setBtn = page.locator('button:has-text("הגדר תקציב"), button:has-text("תקציב חדש"), button[onclick*="openBudgetModal"]').first();
-    const hasBtn = await setBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await setBtn.click();
-    } else {
-      await page.evaluate(() => { if (typeof openBudgetModal === 'function') openBudgetModal(); });
-    }
-    await page.waitForTimeout(800);
-    const modal = page.locator('#budget-modal, [id*="budget-modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[BUDG-04] מודל תקציב לא נפתח');
-    expect(true).toBeTruthy();
-  });
-
-  test('[BUDG-05] שדות תקציב — קטגוריה וסכום', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openBudgetModal === 'function') openBudgetModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#budget-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const catField = page.locator('#budget-category, select[name*="category"], input[name*="category"]').first();
-      const amountField = page.locator('#budget-amount, input[name*="amount"]').first();
-      const hasCat = await catField.isVisible({ timeout: 3000 }).catch(() => false);
-      const hasAmount = await amountField.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!hasCat || !hasAmount) console.warn('[BUDG-05] שדות תקציב חסרים');
-    } else {
-      console.warn('[BUDG-05] מודל תקציב לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[BUDG-06] שמירת תקציב חדש', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openBudgetModal === 'function') openBudgetModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#budget-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const amountField = page.locator('#budget-amount, input[placeholder*="סכום"]').first();
-      if (await amountField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await amountField.fill('3000');
-      }
-      const submitBtn = page.locator('#budget-modal button[type="submit"], #budget-modal button:has-text("שמור")').first();
-      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await submitBtn.click();
-        await page.waitForTimeout(1500);
-      }
-    } else {
-      console.warn('[BUDG-06] מודל תקציב לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[BUDG-07] תקציב מוצג ברשימה לאחר שמירה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'budget');
+    await goToTab(page, 'cashflow');
     await page.waitForTimeout(1500);
-    await expect(page.locator('#content-budget')).toBeVisible({ timeout: 8000 });
-    expect(true).toBeTruthy();
+    const editBtn = page.locator('.cashflow-item button:has-text("ערוך"), .transaction-item [onclick*="edit"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 5000 });
   });
-});
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// BUDG-08..11 — מעקב תקציב
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('מעקב תקציב (BUDG-08..11)', () => {
-
-  test('[BUDG-08] גרף תקציב / ויזואליזציה מוצג', async ({ page }) => {
+  test('[FIN-04] כספים — מחיקת תנועה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'budget');
+    await goToTab(page, 'cashflow');
     await page.waitForTimeout(1500);
-    const chart = page.locator('#budget-chart, canvas, [id*="chart"], .chart-container').first();
-    const hasChart = await chart.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasChart) console.warn('[BUDG-08] גרף תקציב לא נמצא');
-    expect(true).toBeTruthy();
+    const delBtn = page.locator('.cashflow-item button:has-text("מחק"), .transaction-item [onclick*="delete"]').first();
+    await expect(delBtn).toBeVisible({ timeout: 5000 });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIN-05..08 — תקציב וגרפים
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('תקציב וגרפים (FIN-05..08)', () => {
+
+  test('[FIN-05] כספים — תנועה חוזרת', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const recurEl = page.locator('button:has-text("חוזרת"), input[name*="recur"], label:has-text("חוזרת")').first();
+    await expect(recurEl).toBeVisible({ timeout: 5000 });
   });
 
-  test('[BUDG-09] סרגל ניצול תקציב מוצג', async ({ page }) => {
+  test('[FIN-06] תקציב — עריכת תקציב קטגוריה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
     await goToTab(page, 'budget');
+    await page.waitForTimeout(1200);
+    const editBtn = page.locator('button:has-text("ערוך"), button:has-text("עדכן תקציב"), [onclick*="editBudget"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[FIN-07] תקציב — בדיקת חריגה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'budget');
+    await page.waitForTimeout(1200);
+    // Budget page must load; overage indicator is data-dependent — skip if absent
+    await expect(page.locator('#content-budget, #budget-list').first()).toBeVisible({ timeout: 8000 });
+    const warning = page.locator('.budget-warning, .over-budget, [class*="exceed"]').first();
+    if (await warning.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await expect(warning).toBeVisible();
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין חריגת תקציב בנתונים הנוכחיים');
+    }
+  });
+
+  test('[FIN-08] כספים — גרף חודשי', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
     await page.waitForTimeout(1500);
-    const progressBar = page.locator('#content-budget .progress, #content-budget progress, #content-budget [role="progressbar"]').first();
-    const hasProgress = await progressBar.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasProgress) console.warn('[BUDG-09] סרגל ניצול תקציב לא נמצא');
-    expect(true).toBeTruthy();
+    const chart = page.locator('canvas, .chart-container, [id*="chart"], svg').first();
+    await expect(chart).toBeVisible({ timeout: 6000 });
   });
+});
 
-  test('[BUDG-10] סינון תקציב לפי חודש', async ({ page }) => {
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIN-09..12 — ייצוא, AI ומשכורות
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('ייצוא AI ומשכורות (FIN-09..12)', () => {
+
+  test('[FIN-09] כספים — ייצוא PDF', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsParent(page);
-    await goToTab(page, 'budget');
-    await page.waitForTimeout(1000);
-    const monthFilter = page.locator('#budget-month-filter, select[name*="month"], input[type="month"]').first();
-    const hasFilter = await monthFilter.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasFilter) console.warn('[BUDG-10] פילטר חודשי לא נמצא');
-    expect(true).toBeTruthy();
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const exportBtn = page.locator('button:has-text("ייצא PDF"), button:has-text("הדפס"), button:has-text("ייצא")').first();
+    await expect(exportBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[BUDG-11] חריגה מתקציב — אינדיקציה ויזואלית', async ({ page }) => {
+  test('[FIN-10] כספים — תחזית AI', async ({ page }) => {
     test.setTimeout(120000);
-    console.warn('[BUDG-11] בדיקת חריגה דורשת נתוני ייצור — בדיקה ידנית');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const aiBtn = page.locator('button:has-text("תחזית AI"), button:has-text("ניתוח AI"), button[onclick*="ai"]').first();
+    await expect(aiBtn).toBeVisible({ timeout: 6000 });
   });
-});
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// BUDG-12..16 — עריכה ומחיקה
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[BUDG-12] עריכת תקציב קיים', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'budget');
-  await page.waitForTimeout(1500);
-  const editBtn = page.locator('#content-budget button:has-text("ערוך"), #content-budget button[onclick*="edit"]').first();
-  const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasEdit) {
-    await editBtn.click();
-    await page.waitForTimeout(800);
-    expect(true).toBeTruthy();
-  } else {
-    console.warn('[BUDG-12] כפתור עריכה לא נמצא — נדרש תקציב קיים');
-    expect(true).toBeTruthy();
-  }
-});
+  test('[FIN-11] כספים — התאמת מאזן ידנית', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const adjustBtn = page.locator('button:has-text("התאמה ידנית"), button:has-text("התאם מאזן"), [onclick*="adjust"]').first();
+    await expect(adjustBtn).toBeVisible({ timeout: 5000 });
+  });
 
-test('[BUDG-13] מחיקת תקציב — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[BUDG-13] מחיקת תקציב — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
-});
-
-test('[BUDG-14] תקציב לפי קטגוריות — כל הקטגוריות מוצגות', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'budget');
-  await page.waitForTimeout(1500);
-  await expect(page.locator('#content-budget')).toBeVisible({ timeout: 8000 });
-  expect(true).toBeTruthy();
-});
-
-test('[BUDG-15] ייצוא תקציב — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[BUDG-15] ייצוא תקציב דורש הורדת קובץ — בדיקה ידנית');
-  expect(true).toBeTruthy();
-});
-
-test('[BUDG-16] תקציב חודש קודם — ניווט והצגה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'budget');
-  await page.waitForTimeout(1000);
-  const prevBtn = page.locator('button:has-text("חודש קודם"), button[onclick*="prevMonth"], button[aria-label*="קודם"]').first();
-  const hasBtn = await prevBtn.isVisible({ timeout: 4000 }).catch(() => false);
-  if (hasBtn) {
-    await prevBtn.click();
-    await page.waitForTimeout(1000);
-    expect(true).toBeTruthy();
-  } else {
-    console.warn('[BUDG-16] כפתור חודש קודם לא נמצא');
-    expect(true).toBeTruthy();
-  }
+  test('[FIN-12] משכורות — עיבוד יום משכורת', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    const salaryBtn = page.locator('button:has-text("יום משכורת"), button:has-text("עבד יום משכורת"), [onclick*="salary"]').first();
+    await expect(salaryBtn).toBeVisible({ timeout: 5000 });
+  });
 });

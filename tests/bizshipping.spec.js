@@ -1,10 +1,10 @@
 /**
- * biz-inventory.spec.js
- * Module: מלאי, מזווה וקטלוג — עסקים
- * Coverage: BIZ-17, BIZ-23, BIZ-24
+ * biz-shipping.spec.js
+ * Module: שליחויות ומשלוחים — עסקים
+ * Coverage: BIZ-15, BIZ-16
  *
  * Run:
- *   npx playwright test tests/biz-inventory.spec.js --reporter=html
+ *   npx playwright test tests/biz-shipping.spec.js --reporter=html
  */
 
 const { test, expect } = require('@playwright/test');
@@ -29,7 +29,7 @@ test.afterEach(async ({}, testInfo) => {
   const status = testInfo.status === 'passed' ? 'ok' : 'fail';
   const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   let note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
-  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-inventory.spec.js';
+  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-shipping.spec.js';
   note += `\nדוח: ${specFile} | ${timestamp}`;
   if (status === 'fail' && testInfo.errors && testInfo.errors.length) {
     const raw = testInfo.errors[0]?.message || testInfo.errors[0]?.toString() || '';
@@ -94,82 +94,42 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-17 — עלויות מוצר בקטלוג
+// BIZ-15 — יצירת משלוח חדש
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-17] קטלוג — הגדרת עלויות ומצרכים למוצר', async ({ page }) => {
+test('[BIZ-15] שליחויות — יצירת משלוח חדש', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsManager(page);
-  await goToTab(page, 'sales');
-  await page.waitForTimeout(1000);
-  const catalogView = page.locator('#sales-view-catalog, button:has-text("קטלוג"), button:has-text("מוצרים")').first();
-  const hasCatalog = await catalogView.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCatalog) {
-    await catalogView.click().catch(() => {});
-    await page.waitForTimeout(600);
-    const productCard = page.locator('.product-card, .store-product, .catalog-item').first();
-    const hasProduct = await productCard.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasProduct) {
-      await productCard.click().catch(() => {});
-      await page.waitForTimeout(500);
-      const costsSection = page.locator('[id*="cost"], .food-cost, button:has-text("עלויות")').first();
-      const hasCosts = await costsSection.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasCosts) console.warn('[BIZ-17] אזור עלויות מוצר לא נמצא');
-    } else {
-      console.warn('[BIZ-17] לא נמצאו מוצרים בקטלוג');
-    }
-  } else {
-    console.warn('[BIZ-17] תצוגת קטלוג לא נמצאה');
-  }
-  expect(true).toBeTruthy();
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-23 — הוספת פריט למלאי
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-23] מלאי — הוספת פריט חדש למחסן/מזווה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsManager(page);
-  await goToTab(page, 'pantry');
+  await goToTab(page, 'deliveries');
   await page.waitForTimeout(1200);
-  await expect(page.locator('#content-pantry')).toBeVisible({ timeout: 8000 });
-  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("פריט חדש"), button:has-text("הוסף מוצר")').first();
-  const hasBtn = await addBtn.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasBtn) {
-    await addBtn.click();
-    await page.waitForTimeout(600);
-    const modal = page.locator('#new-product-modal, [id*="pantry"][id*="modal"], [id*="product"][id*="modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[BIZ-23] מודל הוספת פריט למלאי לא נפתח');
-  } else {
-    console.warn('[BIZ-23] כפתור הוספת פריט למלאי לא נמצא');
-  }
-  expect(true).toBeTruthy();
+
+  // The deliveries tab must render
+  await expect(page.locator('#content-deliveries')).toBeVisible({ timeout: 8000 });
+
+  // The add-delivery button must be present
+  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("משלוח חדש"), button:has-text("שליחות חדשה")').first();
+  await expect(addBtn).toBeVisible({ timeout: 6000 });
+
+  // Clicking it must open the delivery modal
+  await addBtn.click();
+  await page.waitForTimeout(600);
+  const modal = page.locator('[id*="delivery"][id*="modal"], [id*="del"][id*="modal"]').first();
+  await expect(modal).toBeVisible({ timeout: 6000 });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-24 — שימוש בפריט מהמלאי
+// BIZ-16 — עדכון סטטוס משלוח
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-24] מלאי — רישום שימוש בפריט מהמחסן', async ({ page }) => {
+test('[BIZ-16] שליחויות — עדכון סטטוס (ממתין → בדרך → נמסר)', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsEmployee(page);
-  await goToTab(page, 'pantry');
+  await goToTab(page, 'deliveries');
   await page.waitForTimeout(1200);
-  const pantryItem = page.locator('.pantry-item, .inventory-item, #pantry-list li').first();
-  const hasItem = await pantryItem.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasItem) {
-    const useBtn = page.locator('button:has-text("השתמש"), button:has-text("הפחת"), .use-btn').first();
-    const hasUseBtn = await useBtn.isVisible({ timeout: 4000 }).catch(() => false);
-    if (hasUseBtn) {
-      await useBtn.click();
-      await page.waitForTimeout(600);
-      const modal = page.locator('#pantry-use-modal, [id*="use"][id*="modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[BIZ-24] מודל שימוש בפריט לא נפתח');
-    } else {
-      console.warn('[BIZ-24] כפתור שימוש בפריט לא נמצא');
-    }
-  } else {
-    console.warn('[BIZ-24] לא נמצאו פריטים במלאי');
-  }
-  expect(true).toBeTruthy();
+
+  // The active deliveries list/view must be present
+  const activeView = page.locator('#del-view-active, .deliveries-list, .delivery-item').first();
+  await expect(activeView).toBeVisible({ timeout: 8000 });
+
+  // A status-update button must be visible on at least one delivery
+  const updateBtn = page.locator('button:has-text("עדכן סטטוס"), button:has-text("נמסר"), button:has-text("בדרך")').first();
+  await expect(updateBtn).toBeVisible({ timeout: 8000 });
 });

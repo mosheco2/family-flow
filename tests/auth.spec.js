@@ -165,16 +165,12 @@ test.describe('שחזור סיסמה (AUTH-05)', () => {
     await page.waitForSelector('#login-code', { timeout: 20000 });
     // חפש קישור/כפתור שחזור סיסמה
     const forgotLink = page.locator('text=שכחתי, text=שחזור סיסמה, text=איפוס').first();
-    const exists = await forgotLink.isVisible({ timeout: 4000 }).catch(() => false);
-    // אם קיים — נוודא שאפשר ללחוץ; אם לא — בדיקה ידנית
-    if (exists) {
-      await forgotLink.click();
-      await page.waitForTimeout(500);
-      expect(true).toBeTruthy();
-    } else {
-      console.warn('[AUTH-05] קישור שכחתי סיסמה לא נמצא — ייתכן שזה UI ידני');
-      expect(true).toBeTruthy(); // תיעוד בלבד
-    }
+    await expect(forgotLink).toBeVisible({ timeout: 6000 });
+    await forgotLink.click();
+    await page.waitForTimeout(500);
+    // אחרי לחיצה — ממשק שחזור אמור להיות גלוי (שדה מייל או הודעה)
+    const resetUI = page.locator('input[type="email"], input[placeholder*="מייל"], #forgot-form, #reset-form, [id*="forgot"], [id*="reset"]').first();
+    await expect(resetUI).toBeVisible({ timeout: 6000 });
   });
 });
 
@@ -238,15 +234,10 @@ test.describe('הרשאות משתמש (AUTH-09)', () => {
     await goToTab(page, 'members');
     await page.waitForTimeout(2000); // המתן לטעינת רשימת החברים
     const permBtn = page.locator('#members-list button[onclick*="openPermissionsModal"]').first();
-    const hasPerm = await permBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasPerm) {
-      await permBtn.click();
-      await page.waitForTimeout(600);
-      await expect(page.locator('#permissions-modal')).toBeVisible({ timeout: 6000 });
-    } else {
-      console.warn('[AUTH-09] אין כפתור הרשאות — ייתכן שאין חברים מאושרים');
-      expect(true).toBeTruthy();
-    }
+    await expect(permBtn).toBeVisible({ timeout: 8000 });
+    await permBtn.click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('#permissions-modal')).toBeVisible({ timeout: 6000 });
   });
 });
 
@@ -254,9 +245,7 @@ test.describe('הרשאות משתמש (AUTH-09)', () => {
 // AUTH-10 — מחיקת משתמש (בדיקה ידנית — מסוכן לבצע בייצור)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[AUTH-10] מחיקת משתמש — בדיקה ידנית בסביבת פיתוח', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[AUTH-10] בדיקה זו מדולגת באוטומציה — מחיקת משתמש אמיתי בייצור בלתי הפיכה');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — מחיקת משתמש אמיתי בייצור בלתי הפיכה, לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -271,11 +260,7 @@ test.describe('לוגו קבוצה (AUTH-11)', () => {
     await page.waitForTimeout(1000);
     // מחפש את אייקון המצלמה לעדכון לוגו (input[type=file] מוסתר בכוונה)
     const logoArea = page.locator('#mgmt-group-logo-icon, #mgmt-group-logo-preview, button:has-text("העלה תמונה"), #btn-save-family-photo').first();
-    const hasLogo = await logoArea.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasLogo) {
-      console.warn('[AUTH-11] אזור לוגו לא נמצא — ייתכן שה-UI שונה');
-    }
-    expect(true).toBeTruthy();
+    await expect(logoArea).toBeVisible({ timeout: 8000 });
   });
 });
 
@@ -314,13 +299,9 @@ test.describe('הזמנת חבר (AUTH-13)', () => {
 // AUTH-14..15 — סשן כפול / פקיעת סשן (תשתית — בדיקה ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[AUTH-14] מניעת סשן כפול — בדיקת תשתית ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[AUTH-14] דורש שני דפדפנים בו-זמנית — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — דורש שני דפדפנים בו-זמנית, לא ניתן לאוטומציה');
 });
 
 test('[AUTH-15] פקיעת סשן לאחר חוסר פעילות — בדיקת תשתית ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[AUTH-15] דורש המתנה של דקות — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — דורש המתנה של דקות רבות, לא ניתן לאוטומציה');
 });

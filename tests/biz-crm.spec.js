@@ -16,7 +16,7 @@ const TEST_ENV = {
   groupCode:    process.env.BIZ_GROUP_CODE    || 'J7RH0Y',
   managerName:  process.env.BIZ_MANAGER_NAME  || 'מושיק',
   managerPass:  process.env.BIZ_MANAGER_PASS  || '123456',
-  employeeName: process.env.BIZ_EMPLOYEE_NAME || 'רונן',
+  employeeName: process.env.BIZ_EMPLOYEE_NAME || 'אופק',
   employeePass: process.env.BIZ_EMPLOYEE_PASS || '123456',
   qaEnv:        'business',
 };

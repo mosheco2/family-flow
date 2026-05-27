@@ -1,7 +1,7 @@
 /**
  * rewards.spec.js
- * Module: פרסים ותגמולים
- * Coverage: REW-01..16
+ * Module: SuperAdmin — שיווק וניוזלטר
+ * Coverage: SMK-01..20
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/rewards.spec.js --config=tests/playwright.config.js
@@ -13,12 +13,8 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
-  parentName: process.env.PARENT_NAME || 'אבא',
-  parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'זוהר',
-  kidPass:    process.env.KID_PASS    || '123456',
-  qaEnv:      'family',
+  saPassword: process.env.SA_PASS || 'admin',
+  qaEnv: 'family',
 };
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
@@ -51,12 +47,11 @@ test.afterEach(async ({}, testInfo) => {
   if (!posted) console.error(`[QA Report] ❌ Failed to post ${testId} — QA_SERVER=${QA_SERVER}`);
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -67,26 +62,14 @@ async function skipIntro(page) {
   await page.waitForTimeout(300);
 }
 
-async function loginAsParent(page) {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#login-code', { timeout: 20000 });
-  await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.parentName);
-  await page.fill('#login-password', TEST_ENV.parentPass);
-  await page.locator('button:has-text("כניסה")').click();
+async function loginAsSA(page) {
+  await page.goto(`${BASE_URL}/sa.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#sa-password, input[type="password"]', { timeout: 20000 });
+  const pwdInput = page.locator('#sa-password, input[type="password"]').first();
+  await pwdInput.fill(TEST_ENV.saPassword);
+  const loginBtn = page.locator('button:has-text("כנס"), button:has-text("כניסה"), button[type="submit"]').first();
+  await loginBtn.click();
   await page.waitForTimeout(2000);
-  await skipIntro(page);
-}
-
-async function loginAsKid(page) {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#login-code', { timeout: 20000 });
-  await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.kidName);
-  await page.fill('#login-password', TEST_ENV.kidPass);
-  await page.locator('button:has-text("כניסה")').click();
-  await page.waitForTimeout(2000);
-  await skipIntro(page);
 }
 
 async function goToTab(page, tabName) {
@@ -94,240 +77,215 @@ async function goToTab(page, tabName) {
   await page.waitForTimeout(800);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// REW-01..04 — טעינת פרסים
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('טעינת פרסים (REW-01..04)', () => {
-
-  test('[REW-01] לשונית פרסים/תגמולים נטענת', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
+async function goToMarketingTab(page) {
+  const marketingTab = page.locator('button:has-text("שיווק"), a:has-text("שיווק"), button:has-text("Marketing")').first();
+  const hasTab = await marketingTab.isVisible({ timeout: 5000 }).catch(() => false);
+  if (hasTab) {
+    await marketingTab.click();
     await page.waitForTimeout(1000);
-    await expect(page.locator('#content-rewards, #content-store')).toBeVisible({ timeout: 8000 });
-  });
-
-  test('[REW-02] רשימת פרסים קיימת', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1000);
-    const list = page.locator('#rewards-list, #store-list, [id*="rewards"]').first();
-    const hasList = await list.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasList) console.warn('[REW-02] רשימת פרסים לא נמצאה');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-03] כפתור "הוסף פרס" גלוי להורה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1000);
-    const addBtn = page.locator('button:has-text("הוסף פרס"), button:has-text("פרס חדש"), button[onclick*="openRewardModal"]').first();
-    const hasBtn = await addBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[REW-03] כפתור הוסף פרס לא נמצא');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-04] ילד רואה פרסים זמינים', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-rewards, #content-store')).toBeVisible({ timeout: 8000 });
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// REW-05..09 — יצירת פרס
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('יצירת פרס (REW-05..09)', () => {
-
-  test('[REW-05] לחיצה על "הוסף פרס" פותחת מודל', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(800);
-    const addBtn = page.locator('button:has-text("הוסף פרס"), button:has-text("פרס חדש")').first();
-    const hasBtn = await addBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await addBtn.click();
-    } else {
-      await page.evaluate(() => { if (typeof openRewardModal === 'function') openRewardModal(); });
-    }
-    await page.waitForTimeout(800);
-    const modal = page.locator('#reward-modal, [id*="reward-modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[REW-05] מודל פרס לא נפתח');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-06] שדות מודל פרס — שם, מחיר/נקודות, תיאור', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openRewardModal === 'function') openRewardModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#reward-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const nameField = page.locator('#reward-name, input[name*="reward"]').first();
-      const priceField = page.locator('#reward-price, #reward-cost, input[name*="price"]').first();
-      const hasName = await nameField.isVisible({ timeout: 3000 }).catch(() => false);
-      const hasPrice = await priceField.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!hasName || !hasPrice) console.warn('[REW-06] שדות פרס חסרים');
-    } else {
-      console.warn('[REW-06] מודל פרס לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-07] יצירת פרס חדש — שמירה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openRewardModal === 'function') openRewardModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#reward-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const nameField = page.locator('#reward-name, input[placeholder*="שם"]').first();
-      if (await nameField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await nameField.fill('QA פרס — פינוק שישי');
-      }
-      const priceField = page.locator('#reward-price, #reward-cost, input[placeholder*="מחיר"]').first();
-      if (await priceField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await priceField.fill('50');
-      }
-      const submitBtn = page.locator('#reward-modal button[type="submit"], #reward-modal button:has-text("שמור")').first();
-      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await submitBtn.click();
-        await page.waitForTimeout(1500);
-      }
-    } else {
-      console.warn('[REW-07] מודל פרס לא נפתח');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-08] פרס מופיע ברשימה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    const listText = await page.locator('#rewards-list, #content-rewards').innerText().catch(() => '');
-    if (!listText || listText.length < 5) console.warn('[REW-08] רשימת פרסים ריקה');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-09] ילד רואה פרס שנוצר', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    await expect(page.locator('#content-rewards, #content-store')).toBeVisible({ timeout: 8000 });
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// REW-10..13 — מימוש פרס
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('מימוש פרס (REW-10..13)', () => {
-
-  test('[REW-10] ילד — כפתור "מימוש" / "קנה" גלוי', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    const redeemBtn = page.locator('#rewards-list button:has-text("מימוש"), #rewards-list button:has-text("קנה"), #rewards-list button[onclick*="redeem"]').first();
-    const hasBtn = await redeemBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[REW-10] כפתור מימוש לא נמצא לילד');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-11] מימוש פרס — אישור הורה נדרש', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    const redeemBtn = page.locator('#rewards-list button:has-text("מימוש"), #rewards-list button:has-text("קנה")').first();
-    const hasBtn = await redeemBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await redeemBtn.click();
-      await page.waitForTimeout(1000);
-      const pendingMsg = page.locator(':has-text("ממתין לאישור"), :has-text("pending"), [class*="pending"]').first();
-      const hasPending = await pendingMsg.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!hasPending) console.warn('[REW-11] הודעת "ממתין לאישור" לא נמצאה');
-    } else {
-      console.warn('[REW-11] כפתור מימוש לא נמצא');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-12] הורה רואה בקשת מימוש ממתינה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    const pendingEl = page.locator('[id*="pending"], :has-text("ממתין"), :has-text("בקשה")').first();
-    const hasPending = await pendingEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasPending) console.warn('[REW-12] בקשות ממתינות לא נמצאו — נדרש REW-11');
-    expect(true).toBeTruthy();
-  });
-
-  test('[REW-13] אישור מימוש ע"י הורה', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'rewards');
-    await page.waitForTimeout(1500);
-    const approveBtn = page.locator('button:has-text("אשר"), button:has-text("אישור"), button[onclick*="approve"]').first();
-    const hasApprove = await approveBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasApprove) {
-      await approveBtn.click();
-      await page.waitForTimeout(1000);
-    } else {
-      console.warn('[REW-13] כפתור אישור לא נמצא — נדרש REW-11');
-    }
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// REW-14..16 — ניהול
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[REW-14] עריכת פרס קיים', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'rewards');
-  await page.waitForTimeout(1500);
-  const editBtn = page.locator('#rewards-list button:has-text("ערוך"), #rewards-list button[onclick*="edit"]').first();
-  const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasEdit) {
-    await editBtn.click();
-    await page.waitForTimeout(800);
-  } else {
-    console.warn('[REW-14] כפתור עריכה לא נמצא');
   }
-  expect(true).toBeTruthy();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMK-01..08 — ניוזלטר — יסודות
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('ניוזלטר — יסודות (SMK-01..08)', () => {
+
+  test('[SMK-01] SA שיווק — לשונית "שיווק" נטענת', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const marketingSection = page.locator('[id*="marketing"], [id*="newsletter"], [class*="marketing"]').first();
+    await expect(marketingSection).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[SMK-02] SA שיווק — ניוזלטר: בחירת שפה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const langSelect = page.locator('#newsletter-lang, select[name*="lang"], select[name*="language"]').first();
+    await expect(langSelect).toBeVisible({ timeout: 5000 });
+    await langSelect.selectOption({ label: 'עברית' }).catch(async () => {
+      await langSelect.selectOption({ index: 0 });
+    });
+    await page.waitForTimeout(500);
+  });
+
+  test('[SMK-03] SA שיווק — ניוזלטר: שדות כותרת', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const subjectField = page.locator('#newsletter-subject, input[name*="subject"], input[placeholder*="נושא"]').first();
+    await expect(subjectField).toBeVisible({ timeout: 5000 });
+    await subjectField.fill('QA — ניוזלטר בדיקה');
+    await expect(subjectField).toHaveValue('QA — ניוזלטר בדיקה');
+  });
+
+  test('[SMK-04] SA שיווק — ניוזלטר: עורך תוכן', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const editor = page.locator('#newsletter-content, textarea[name*="content"], .newsletter-editor').first();
+    await expect(editor).toBeVisible({ timeout: 5000 });
+    await editor.fill('QA — תוכן ניוזלטר בדיקה');
+    await expect(editor).toHaveValue('QA — תוכן ניוזלטר בדיקה');
+  });
+
+  test('[SMK-05] SA שיווק — ניוזלטר: יצירת תוכן עם AI', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const aiBtn = page.locator('button:has-text("✨"), button:has-text("AI"), button[onclick*="generateNewsletter"]').first();
+    await expect(aiBtn).toBeVisible({ timeout: 5000 });
+    await aiBtn.click();
+    await page.waitForTimeout(1500);
+  });
+
+  test('[SMK-06] SA שיווק — ניוזלטר: תצוגה מקדימה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const previewBtn = page.locator('button:has-text("תצוגה מקדימה"), button:has-text("Preview"), button[onclick*="previewNewsletter"]').first();
+    await expect(previewBtn).toBeVisible({ timeout: 5000 });
+    await previewBtn.click();
+    await page.waitForTimeout(1000);
+    const preview = page.locator('[id*="newsletter-preview"], [class*="preview"]').first();
+    await expect(preview).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-07] SA שיווק — ניוזלטר: ייצוא PDF', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const pdfBtn = page.locator('button:has-text("ייצוא PDF"), button:has-text("PDF"), button[onclick*="exportPDF"]').first();
+    await expect(pdfBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-08] SA שיווק — ניוזלטר: בדיקת ריווח RTL ב-PDF', async ({ page }) => {
+    test.skip(true, 'בדיקה ידנית');
+  });
 });
 
-test('[REW-15] מחיקת פרס — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[REW-15] מחיקת פרס — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMK-09..16 — ניוזלטר — שידורים ומסרים
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('ניוזלטר — שידורים ומסרים (SMK-09..16)', () => {
+
+  test('[SMK-09] SA שיווק — ניוזלטר: בדיקת פיסוק RTL', async ({ page }) => {
+    test.skip(true, 'בדיקה ידנית');
+  });
+
+  test('[SMK-10] SA שיווק — ניוזלטר: header/footer', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const headerSection = page.locator('[id*="newsletter-header"], [id*="header-template"], input[name*="header"]').first();
+    await expect(headerSection).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-11] SA שיווק — ניוזלטר: העתקת תוכן', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const copyBtn = page.locator('button:has-text("העתק"), button:has-text("Copy"), button[onclick*="copyNewsletter"]').first();
+    await expect(copyBtn).toBeVisible({ timeout: 5000 });
+    await copyBtn.click();
+    await page.waitForTimeout(500);
+  });
+
+  test('[SMK-12] SA שיווק — ניוזלטר: שידור לכולם', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const sendAllBtn = page.locator('button:has-text("שלח לכולם"), button:has-text("שדר לכולם"), button[onclick*="sendAll"]').first();
+    await expect(sendAllBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-13] SA שיווק — ניוזלטר: שידור לסגמנט', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const segmentSelect = page.locator('#newsletter-segment, select[name*="segment"], [id*="segment-select"]').first();
+    await expect(segmentSelect).toBeVisible({ timeout: 5000 });
+    await segmentSelect.selectOption({ index: 1 });
+    await page.waitForTimeout(500);
+  });
+
+  test('[SMK-14] SA שיווק — ניוזלטר: הוספת שפה נוספת', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const addLangBtn = page.locator('button:has-text("הוסף שפה"), button[onclick*="addLanguage"]').first();
+    await expect(addLangBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-15] SA שיווק — מסרים: יצירת מסר חדש', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const messagesTab = page.locator('button:has-text("מסרים"), a:has-text("מסרים"), [onclick*="messages"]').first();
+    await expect(messagesTab).toBeVisible({ timeout: 5000 });
+    await messagesTab.click();
+    await page.waitForTimeout(800);
+    const addMsgBtn = page.locator('button:has-text("מסר חדש"), button:has-text("+ מסר"), button[onclick*="newMessage"]').first();
+    await expect(addMsgBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-16] SA שיווק — קמפיינים: תזמון קמפיין', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const campaignsTab = page.locator('button:has-text("קמפיינים"), a:has-text("קמפיינים"), [onclick*="campaigns"]').first();
+    await expect(campaignsTab).toBeVisible({ timeout: 5000 });
+    await campaignsTab.click();
+    await page.waitForTimeout(800);
+    const scheduleBtn = page.locator('button:has-text("תזמן"), button:has-text("Schedule"), button[onclick*="schedule"]').first();
+    await expect(scheduleBtn).toBeVisible({ timeout: 5000 });
+  });
 });
 
-test('[REW-16] פרס לא זמין כשאין יתרה מספקת', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'rewards');
-  await page.waitForTimeout(1500);
-  const disabledBtn = page.locator('#rewards-list button:disabled, #rewards-list button[disabled], #rewards-list .disabled').first();
-  const hasDisabled = await disabledBtn.isVisible({ timeout: 4000 }).catch(() => false);
-  if (!hasDisabled) console.warn('[REW-16] לא נמצא פרס מנוטרל — ייתכן יש יתרה מספקת');
-  expect(true).toBeTruthy();
+// ═══════════════════════════════════════════════════════════════════════════════
+// SMK-17..20 — טמפלטים, לוג ועורך
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('טמפלטים ולוג (SMK-17..20)', () => {
+
+  test('[SMK-17] SA שיווק — שמירת טמפלט ניוזלטר', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const saveTemplateBtn = page.locator('button:has-text("שמור טמפלט"), button:has-text("שמור תבנית"), button[onclick*="saveTemplate"]').first();
+    await expect(saveTemplateBtn).toBeVisible({ timeout: 5000 });
+    await saveTemplateBtn.click();
+    await page.waitForTimeout(1000);
+  });
+
+  test('[SMK-18] SA שיווק — לוג השקות ניוזלטר', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const logTab = page.locator('button:has-text("לוג"), button:has-text("היסטוריה"), a:has-text("לוג"), [onclick*="showLog"]').first();
+    await expect(logTab).toBeVisible({ timeout: 5000 });
+    await logTab.click();
+    await page.waitForTimeout(800);
+    const logSection = page.locator('[id*="newsletter-log"], [id*="send-log"], [class*="log"]').first();
+    await expect(logSection).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[SMK-19] SA שיווק — ניקוי עורך ניוזלטר', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsSA(page);
+    await goToMarketingTab(page);
+    const clearBtn = page.locator('button:has-text("נקה"), button:has-text("אפס"), button[onclick*="clearEditor"], button[onclick*="resetNewsletter"]').first();
+    await expect(clearBtn).toBeVisible({ timeout: 5000 });
+    const editor = page.locator('#newsletter-content, textarea[name*="content"]').first();
+    await expect(editor).toBeVisible({ timeout: 3000 });
+    await editor.fill('תוכן לניקוי');
+    await clearBtn.click();
+    await page.waitForTimeout(500);
+    await expect(editor).toHaveValue('');
+  });
+
+  test('[SMK-20] SA שיווק — גופן עברי ב-PDF', async ({ page }) => {
+    test.skip(true, 'בדיקה ידנית');
+  });
 });

@@ -1,7 +1,7 @@
 /**
  * loans.spec.js
- * Module: הלוואות ואשראי משפחתי
- * Coverage: LOAN-01..16
+ * Module: משמרות — SHF
+ * Coverage: SHF-01..10
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/loans.spec.js --config=tests/playwright.config.js
@@ -13,12 +13,12 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
-  parentName: process.env.PARENT_NAME || 'אבא',
-  parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'זוהר',
-  kidPass:    process.env.KID_PASS    || '123456',
-  qaEnv:      'family',
+  groupCode:    process.env.BIZ_GROUP_CODE    || 'J7RH0Y',
+  managerName:  process.env.BIZ_MANAGER_NAME  || 'מושיק',
+  managerPass:  process.env.BIZ_MANAGER_PASS  || '123456',
+  employeeName: process.env.BIZ_EMPLOYEE_NAME || 'אופק',
+  employeePass: process.env.BIZ_EMPLOYEE_PASS || '123456',
+  qaEnv:        'business',
 };
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
@@ -56,7 +56,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -67,23 +66,23 @@ async function skipIntro(page) {
   await page.waitForTimeout(300);
 }
 
-async function loginAsParent(page) {
+async function loginAsManager(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForSelector('#login-code', { timeout: 20000 });
   await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.parentName);
-  await page.fill('#login-password', TEST_ENV.parentPass);
+  await page.fill('#login-nickname', TEST_ENV.managerName);
+  await page.fill('#login-password', TEST_ENV.managerPass);
   await page.locator('button:has-text("כניסה")').click();
   await page.waitForTimeout(2000);
   await skipIntro(page);
 }
 
-async function loginAsKid(page) {
+async function loginAsEmployee(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForSelector('#login-code', { timeout: 20000 });
   await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.kidName);
-  await page.fill('#login-password', TEST_ENV.kidPass);
+  await page.fill('#login-nickname', TEST_ENV.employeeName);
+  await page.fill('#login-password', TEST_ENV.employeePass);
   await page.locator('button:has-text("כניסה")').click();
   await page.waitForTimeout(2000);
   await skipIntro(page);
@@ -95,230 +94,103 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOAN-01..04 — טעינת הלוואות
+// SHF-01..05 — יצירה ושיבוץ משמרות
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('טעינת הלוואות (LOAN-01..04)', () => {
+test.describe('יצירה ושיבוץ משמרות (SHF-01..05)', () => {
 
-  test('[LOAN-01] לשונית הלוואות / חוב נטענת', async ({ page }) => {
+  test('[SHF-01] משמרות — יצירת משמרת חדשה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-loans, #content-bank')).toBeVisible({ timeout: 8000 });
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ משמרת"), button:has-text("משמרת חדשה"), #btn-add-shift').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-02] רשימת הלוואות קיימת ב-DOM', async ({ page }) => {
+  test('[SHF-02] משמרות — שיבוץ עובד למשמרת', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1000);
-    const list = page.locator('#loans-list, #bank-loans-list, [id*="loan"]').first();
-    const hasList = await list.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasList) console.warn('[LOAN-02] רשימת הלוואות לא נמצאה');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1500);
+    const assignBtn = page.locator('button:has-text("שבץ עובד"), [onclick*="assignShift"]').first();
+    await expect(assignBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-03] כפתור "הלוואה חדשה" גלוי', async ({ page }) => {
+  test('[SHF-03] משמרות — עובד מבקש משמרת', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1000);
-    const newBtn = page.locator('button:has-text("הלוואה חדשה"), button:has-text("הלוואה"), button[onclick*="openLoan"]').first();
-    const hasBtn = await newBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[LOAN-03] כפתור הלוואה חדשה לא נמצא');
-    expect(true).toBeTruthy();
+    await loginAsEmployee(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const reqBtn = page.locator('button:has-text("בקש משמרת"), [onclick*="requestShift"]').first();
+    await expect(reqBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-04] לחיצה על "הלוואה חדשה" פותחת מודל', async ({ page }) => {
+  test('[SHF-04] משמרות — מנהל מאשר/דוחה בקשה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(800);
-    const newBtn = page.locator('button:has-text("הלוואה חדשה"), button:has-text("הלוואה"), button[onclick*="openLoanModal"]').first();
-    const hasBtn = await newBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await newBtn.click();
-    } else {
-      await page.evaluate(() => { if (typeof openLoanModal === 'function') openLoanModal(); });
-    }
-    await page.waitForTimeout(800);
-    const modal = page.locator('#loan-modal, [id*="loan-modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[LOAN-04] מודל הלוואה לא נפתח');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1500);
+    const pendingBtn = page.locator('button:has-text("בקשות ממתינות"), [onclick*="pendingShifts"], #shift-requests').first();
+    await expect(pendingBtn).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[SHF-05] משמרות — ביטול שיבוץ עובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1500);
+    const removeBtn = page.locator('button:has-text("הסר עובד"), [onclick*="removeShift"]').first();
+    await expect(removeBtn).toBeVisible({ timeout: 6000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOAN-05..09 — יצירת הלוואה
+// SHF-06..10 — חילוף, תצוגה וייצוא
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('יצירת הלוואה (LOAN-05..09)', () => {
+test.describe('חילוף תצוגה וייצוא (SHF-06..10)', () => {
 
-  test('[LOAN-05] שדות הלוואה — שם לווה, סכום, תאריך', async ({ page }) => {
+  test('[SHF-06] משמרות — בקשת חילוף עובד', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openLoanModal === 'function') openLoanModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#loan-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const borrowerField = page.locator('#loan-borrower, #loan-name, select[name*="member"]').first();
-      const amountField = page.locator('#loan-amount, input[name*="amount"]').first();
-      const hasBorrower = await borrowerField.isVisible({ timeout: 3000 }).catch(() => false);
-      const hasAmount = await amountField.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!hasBorrower || !hasAmount) console.warn('[LOAN-05] שדות הלוואה חסרים');
-    } else {
-      console.warn('[LOAN-05] מודל הלוואה לא נפתח');
-    }
-    expect(true).toBeTruthy();
+    await loginAsEmployee(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const swapBtn = page.locator('button:has-text("בקש חילוף"), [onclick*="swapShift"]').first();
+    await expect(swapBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-06] יצירת הלוואה ל-ילד — שמירה', async ({ page }) => {
+  test('[SHF-07] משמרות — תצוגה שבועית', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(800);
-    await page.evaluate(() => { if (typeof openLoanModal === 'function') openLoanModal(); });
-    await page.waitForTimeout(800);
-    const modal = page.locator('#loan-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const amountField = page.locator('#loan-amount, input[placeholder*="סכום"]').first();
-      if (await amountField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await amountField.fill('200');
-      }
-      const reasonField = page.locator('#loan-reason, #loan-description, textarea').first();
-      if (await reasonField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await reasonField.fill('QA בדיקה — הלוואה לרכישה');
-      }
-      const submitBtn = page.locator('#loan-modal button[type="submit"], #loan-modal button:has-text("שמור"), #loan-modal button:has-text("צור")').first();
-      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await submitBtn.click();
-        await page.waitForTimeout(1500);
-      }
-    } else {
-      console.warn('[LOAN-06] מודל הלוואה לא נפתח');
-    }
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const weekView = page.locator('button:has-text("שבועי"), [onclick*="weekView"], .shifts-weekly-view').first();
+    await expect(weekView).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-07] הלוואה מופיעה ברשימה', async ({ page }) => {
+  test('[SHF-08] משמרות — סיכום חודשי', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1500);
-    const listText = await page.locator('#loans-list, #content-loans, #content-bank').innerText().catch(() => '');
-    if (!listText || listText.length < 5) {
-      console.warn('[LOAN-07] רשימת הלוואות ריקה — נדרש LOAN-06');
-    }
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const summaryBtn = page.locator('button:has-text("סיכום חודשי"), [onclick*="monthlySummary"]').first();
+    await expect(summaryBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-08] ילד רואה חוב שלו', async ({ page }) => {
+  test('[SHF-09] משמרות — בדיקת חפיפה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1000);
-    const content = page.locator('#content-loans, #content-bank').first();
-    const hasContent = await content.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasContent) console.warn('[LOAN-08] תוכן הלוואות לא גלוי לילד');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const shiftView = page.locator('#content-shifts, .shifts-container, #shifts-board').first();
+    await expect(shiftView).toBeVisible({ timeout: 6000 });
   });
 
-  test('[LOAN-09] סכום חוב מוצג לילד', async ({ page }) => {
+  test('[SHF-10] משמרות — ייצוא PDF/CSV', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1500);
-    const debtAmount = page.locator('[id*="debt"], [id*="loan-amount"], :has-text("₪")').first();
-    const hasDebt = await debtAmount.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasDebt) console.warn('[LOAN-09] סכום חוב לא מוצג — ייתכן אין הלוואות');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'shifts');
+    await page.waitForTimeout(1200);
+    const exportBtn = page.locator('button:has-text("ייצא"), button:has-text("PDF"), button:has-text("CSV")').first();
+    await expect(exportBtn).toBeVisible({ timeout: 6000 });
   });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// LOAN-10..13 — פירעון הלוואה
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('פירעון הלוואה (LOAN-10..13)', () => {
-
-  test('[LOAN-10] כפתור "פרע" / "שלם" גלוי', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1500);
-    const repayBtn = page.locator('#loans-list button:has-text("פרע"), #loans-list button:has-text("שלם"), #loans-list button[onclick*="repay"]').first();
-    const hasBtn = await repayBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[LOAN-10] כפתור פירעון לא נמצא — נדרשת הלוואה קיימת');
-    expect(true).toBeTruthy();
-  });
-
-  test('[LOAN-11] פירעון חלקי — מודל נפתח', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1500);
-    const repayBtn = page.locator('#loans-list button:has-text("פרע"), #loans-list button:has-text("שלם")').first();
-    const hasBtn = await repayBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await repayBtn.click();
-      await page.waitForTimeout(800);
-      const modal = page.locator('[id*="repay"], [id*="pay-loan"], .modal:not(.hidden)').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[LOAN-11] מודל פירעון לא נפתח');
-    } else {
-      console.warn('[LOAN-11] כפתור פירעון לא נמצא');
-    }
-    expect(true).toBeTruthy();
-  });
-
-  test('[LOAN-12] הלוואה ששולמה — מסומנת כ"נסגרה"', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[LOAN-12] בדיקת הלוואה סגורה דורשת פירעון מלא — בדיקה ידנית');
-    expect(true).toBeTruthy();
-  });
-
-  test('[LOAN-13] היסטוריית תשלומים מוצגת', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'loans');
-    await page.waitForTimeout(1500);
-    const historyEl = page.locator('[id*="loan-history"], [id*="repayment"], :has-text("תשלום")').first();
-    const hasHistory = await historyEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasHistory) console.warn('[LOAN-13] היסטוריית תשלומים לא נמצאה');
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// LOAN-14..16 — ניהול
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[LOAN-14] עריכת פרטי הלוואה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'loans');
-  await page.waitForTimeout(1500);
-  const editBtn = page.locator('#loans-list button:has-text("ערוך"), #loans-list button[onclick*="edit"]').first();
-  const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasEdit) {
-    await editBtn.click();
-    await page.waitForTimeout(800);
-  } else {
-    console.warn('[LOAN-14] כפתור עריכה לא נמצא');
-  }
-  expect(true).toBeTruthy();
-});
-
-test('[LOAN-15] מחיקת הלוואה — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[LOAN-15] מחיקת הלוואה — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
-});
-
-test('[LOAN-16] הלוואה בריבית — חישוב מוצג', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[LOAN-16] הלוואה בריבית דורשת הגדרה מיוחדת — בדיקה ידנית');
-  expect(true).toBeTruthy();
 });

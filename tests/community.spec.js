@@ -97,7 +97,7 @@ test.describe('טעינת לשונית קהילה (COM-01..02)', () => {
     const bizSection  = page.locator('#community-businesses-section');
     const joinVisible = await joinSection.isVisible({ timeout: 4000 }).catch(() => false);
     const bizVisible  = await bizSection.isVisible({ timeout: 4000 }).catch(() => false);
-    expect(joinVisible || bizVisible).toBeTruthy();
+    expect(joinVisible || bizVisible, 'אף אחד מהאזורים #community-join-section / #community-businesses-section אינו גלוי').toBeTruthy();
   });
 
   test('[COM-02] שדה קוד קהילה גלוי (אם לא מחובר)', async ({ page }) => {
@@ -106,16 +106,14 @@ test.describe('טעינת לשונית קהילה (COM-01..02)', () => {
     await goToTab(page, 'community');
     await page.waitForTimeout(1000);
     await expect(page.locator('#content-community')).toBeVisible({ timeout: 8000 });
-    const joinSection = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (joinSection) {
+    const joinSectionVisible = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (joinSectionVisible) {
       await expect(page.locator('#community-code-input')).toBeVisible({ timeout: 5000 });
       await expect(page.locator('#btn-join-community')).toBeVisible({ timeout: 5000 });
     } else {
-      // כבר מחובר לקהילה
-      console.warn('[COM-02] קבוצה כבר מחוברת לקהילה — בדיקת ניתוק');
+      // כבר מחובר לקהילה — בדיקת אזור עסקים
       await expect(page.locator('#community-businesses-section')).toBeVisible({ timeout: 5000 });
     }
-    expect(true).toBeTruthy();
   });
 });
 
@@ -129,22 +127,21 @@ test.describe('חיבור/ניתוק קהילה (COM-03..04)', () => {
     await loginAsParent(page);
     await goToTab(page, 'community');
     await page.waitForTimeout(1000);
-    const joinSection = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (joinSection) {
+    const joinSectionVisible = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (joinSectionVisible) {
       await page.fill('#community-code-input', 'INVALID_CODE_XYZ');
       await page.locator('#btn-join-community').click();
       await page.waitForTimeout(2000);
       // toast שגיאה אמור להופיע
-      await page.waitForSelector('#toast:not(.hidden)', { timeout: 5000 }).catch(() => {});
-      const toastMsg = await page.locator('#toast-message').innerText().catch(() => '');
-      const hasError = toastMsg.includes('שגיאה') || toastMsg.includes('לא נמצאה') || toastMsg.includes('לא קיים');
-      if (!hasError) {
-        console.warn(`[COM-03] toast: "${toastMsg}" — ייתכן שהקוד לא נדחה`);
-      }
-      expect(true).toBeTruthy();
+      await expect(page.locator('#toast:not(.hidden)')).toBeVisible({ timeout: 5000 });
+      const toastMsg = await page.locator('#toast-message').innerText();
+      expect(
+        toastMsg.includes('שגיאה') || toastMsg.includes('לא נמצאה') || toastMsg.includes('לא קיים'),
+        `toast לא מכיל הודעת שגיאה צפויה: "${toastMsg}"`
+      ).toBeTruthy();
     } else {
-      console.warn('[COM-03] קבוצה כבר מחוברת לקהילה — מדלג');
-      expect(true).toBeTruthy();
+      // קבוצה כבר מחוברת לקהילה — בודקים שאזור עסקים גלוי
+      await expect(page.locator('#community-businesses-section')).toBeVisible({ timeout: 5000 });
     }
   });
 
@@ -153,14 +150,14 @@ test.describe('חיבור/ניתוק קהילה (COM-03..04)', () => {
     await loginAsParent(page);
     await goToTab(page, 'community');
     await page.waitForTimeout(1000);
-    const bizSection = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (bizSection) {
+    const bizSectionVisible = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (bizSectionVisible) {
       const leaveBtn = page.locator('button:has-text("עזוב"), button:has-text("התנתק"), button[onclick*="leaveCommunity"]').first();
       await expect(leaveBtn).toBeVisible({ timeout: 5000 });
     } else {
-      console.warn('[COM-04] קבוצה לא מחוברת לקהילה — מדלג');
+      // קבוצה לא מחוברת לקהילה — בודקים שאזור ההצטרפות גלוי
+      await expect(page.locator('#community-join-section')).toBeVisible({ timeout: 5000 });
     }
-    expect(true).toBeTruthy();
   });
 });
 
@@ -174,13 +171,11 @@ test.describe('עסקים בקהילה (COM-05..06)', () => {
     await loginAsParent(page);
     await goToTab(page, 'community');
     await page.waitForTimeout(1500);
-    const bizSection = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (bizSection) {
-      await expect(page.locator('#community-businesses-list')).toBeVisible({ timeout: 6000 });
-    } else {
-      console.warn('[COM-05] לא מחובר לקהילה — לא ניתן לבדוק רשימת עסקים');
+    const bizSectionVisible = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (!bizSectionVisible) {
+      test.skip(true, 'לא מחובר לקהילה — לא ניתן לבדוק רשימת עסקים');
     }
-    expect(true).toBeTruthy();
+    await expect(page.locator('#community-businesses-list')).toBeVisible({ timeout: 6000 });
   });
 
   test('[COM-06] שם הקהילה מוצג כשמחובר', async ({ page }) => {
@@ -188,16 +183,14 @@ test.describe('עסקים בקהילה (COM-05..06)', () => {
     await loginAsParent(page);
     await goToTab(page, 'community');
     await page.waitForTimeout(1500);
-    const bizSection = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (bizSection) {
-      const nameDisplay = page.locator('#community-name-display');
-      await expect(nameDisplay).toBeVisible({ timeout: 5000 });
-      const nameText = await nameDisplay.innerText().catch(() => '');
-      expect(nameText.length).toBeGreaterThan(0);
-    } else {
-      console.warn('[COM-06] לא מחובר לקהילה — מדלג');
+    const bizSectionVisible = await page.locator('#community-businesses-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (!bizSectionVisible) {
+      test.skip(true, 'לא מחובר לקהילה — לא ניתן לבדוק שם קהילה');
     }
-    expect(true).toBeTruthy();
+    const nameDisplay = page.locator('#community-name-display');
+    await expect(nameDisplay).toBeVisible({ timeout: 5000 });
+    const nameText = await nameDisplay.innerText();
+    expect(nameText.trim().length, 'שם הקהילה ריק').toBeGreaterThan(0);
   });
 });
 
@@ -206,14 +199,12 @@ test.describe('עסקים בקהילה (COM-05..06)', () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[COM-07] עזיבת קהילה — בדיקה ידנית (בסיכון)', async ({ page }) => {
   test.setTimeout(120000);
-  console.warn('[COM-07] בדיקה זו מנתקת את הקהילה — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — עזיבת קהילה מנתקת את החשבון');
 });
 
 test('[COM-08] יוזמות קהילה — בדיקה ידנית', async ({ page }) => {
   test.setTimeout(120000);
-  console.warn('[COM-08] בדיקה זו דורשת יוזמות פעילות — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — דורש יוזמות פעילות בקהילה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -237,15 +228,13 @@ test.describe('פיד וחיפוש קהילה (COM-09..10)', () => {
     await loginAsParent(page);
     await goToTab(page, 'community');
     await page.waitForTimeout(1000);
-    const joinSection = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
-    if (joinSection) {
+    const joinSectionVisible = await page.locator('#community-join-section').isVisible({ timeout: 4000 }).catch(() => false);
+    if (joinSectionVisible) {
       // שדה קוד לחיפוש / חיבור קהילה
       await expect(page.locator('#community-code-input')).toBeVisible({ timeout: 5000 });
     } else {
       // מחובר — עסקים מוצגים (גישת חיפוש לא רלוונטית)
       await expect(page.locator('#community-businesses-section')).toBeVisible({ timeout: 5000 });
-      console.warn('[COM-10] קבוצה כבר מחוברת — אין שדה חיפוש');
     }
-    expect(true).toBeTruthy();
   });
 });

@@ -133,9 +133,10 @@ test.describe('רשימת קניות (FAM-03..06)', () => {
     await page.fill('#shop-item', 'QA בדיקה — חלב');
     await page.locator('#btn-submit-shop').click();
     await page.waitForTimeout(1500);
+    // המודל נסגר לאחר שמירה
+    await expect(page.locator('#shop-modal')).not.toBeVisible({ timeout: 5000 });
     // הפריט אמור להופיע ברשימה
-    const listText = await page.locator('#content-shop').innerText().catch(() => '');
-    expect(listText).toContain('חלב');
+    await expect(page.locator('#content-shop')).toContainText('חלב', { timeout: 6000 });
   });
 
   test('[FAM-04] עריכת פריט ברשימת קניות', async ({ page }) => {
@@ -143,19 +144,14 @@ test.describe('רשימת קניות (FAM-03..06)', () => {
     await loginAsParent(page);
     await goToTab(page, 'shop');
     await page.waitForTimeout(1500);
-    // חפש כפתור עריכה בפריט הראשון
+    // חפש כפתור עריכה בפריט הראשון — חייב להיות קיים (FAM-03 מוסיף פריט)
     const editBtn = page.locator('#content-shop button[onclick*="edit"], #content-shop button[title*="ערוך"], #content-shop .edit-btn').first();
-    const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasEdit) {
-      await editBtn.click();
-      await page.waitForTimeout(600);
-      // וודא שמשהו נפתח (מודל / שדה עריכה)
-      const modal = page.locator('#shop-modal, [id*="edit"], input:focus').first();
-      expect(await modal.isVisible({ timeout: 5000 }).catch(() => false) || true).toBeTruthy();
-    } else {
-      console.warn('[FAM-04] לא נמצא פריט לעריכה ברשימה — נדרש FAM-03 תחילה');
-      expect(true).toBeTruthy();
-    }
+    await expect(editBtn).toBeVisible({ timeout: 8000 });
+    await editBtn.click();
+    await page.waitForTimeout(600);
+    // וודא שמשהו נפתח — מודל עריכה או שדה עריכה inline
+    const modal = page.locator('#shop-modal, [id*="edit-shop"], input:focus').first();
+    await expect(modal).toBeVisible({ timeout: 5000 });
   });
 
   test('[FAM-05] מחיקת פריטים מרשימת הקניות', async ({ page }) => {
@@ -163,25 +159,26 @@ test.describe('רשימת קניות (FAM-03..06)', () => {
     await loginAsParent(page);
     await goToTab(page, 'shop');
     await page.waitForTimeout(1500);
-    // חפש כפתור מחיקה / ניקוי כל הרשימה
+    // נסה כפתור "נקה הכל" תחילה
     const clearBtn = page.locator('button:has-text("נקה"), button:has-text("מחק הכל"), button[onclick*="deleteAll"], button[onclick*="clearAll"]').first();
     const hasClear = await clearBtn.isVisible({ timeout: 4000 }).catch(() => false);
     if (hasClear) {
-      // אשר אם נדרש
       page.once('dialog', dialog => dialog.accept());
       await clearBtn.click();
       await page.waitForTimeout(1000);
-      expect(true).toBeTruthy();
+      // הרשימה אמורה להתרוקן
+      const items = page.locator('#content-shop li, #content-shop [data-item]');
+      await expect(items).toHaveCount(0, { timeout: 6000 });
     } else {
-      // נסה למחוק פריט בודד
+      // מחק פריט בודד
       const delBtn = page.locator('#content-shop button[onclick*="delete"], #content-shop button[title*="מחק"]').first();
-      const hasDel = await delBtn.isVisible({ timeout: 4000 }).catch(() => false);
-      if (hasDel) {
-        page.once('dialog', dialog => dialog.accept());
-        await delBtn.click();
-        await page.waitForTimeout(800);
-      }
-      expect(true).toBeTruthy();
+      await expect(delBtn).toBeVisible({ timeout: 6000 });
+      const countBefore = await page.locator('#content-shop li, #content-shop [data-item]').count();
+      page.once('dialog', dialog => dialog.accept());
+      await delBtn.click();
+      await page.waitForTimeout(800);
+      const countAfter = await page.locator('#content-shop li, #content-shop [data-item]').count();
+      expect(countAfter).toBeLessThan(countBefore);
     }
   });
 
@@ -199,17 +196,16 @@ test.describe('רשימת קניות (FAM-03..06)', () => {
       await page.locator('#btn-submit-shop').click();
       await page.waitForTimeout(1000);
     }
-    // חפש כפתור "סיים קניות" / checkmark
+    // כפתור "סיים קניות" חייב להיות גלוי
     const doneBtn = page.locator('button:has-text("סיים קניות"), button:has-text("השלם"), button:has-text("קנינו")').first();
-    const hasDone = await doneBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasDone) {
-      page.once('dialog', dialog => dialog.accept().catch(() => {}));
-      await doneBtn.click();
-      await page.waitForTimeout(1500);
-    }
-    // בדיקת toast הצלחה
-    await page.waitForSelector('#toast:not(.hidden)', { timeout: 4000 }).catch(() => {});
-    expect(true).toBeTruthy();
+    await expect(doneBtn).toBeVisible({ timeout: 6000 });
+    page.once('dialog', dialog => dialog.accept().catch(() => {}));
+    await doneBtn.click();
+    await page.waitForTimeout(1500);
+    // toast הצלחה חייב להופיע, או שהרשימה מתרוקנת
+    const toastVisible = await page.locator('#toast:not(.hidden)').isVisible({ timeout: 4000 }).catch(() => false);
+    const listEmpty = (await page.locator('#content-shop li, #content-shop [data-item]').count()) === 0;
+    expect(toastVisible || listEmpty).toBe(true);
   });
 });
 
@@ -217,9 +213,7 @@ test.describe('רשימת קניות (FAM-03..06)', () => {
 // FAM-07 — סריקת קבלה עם AI (בדיקה ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[FAM-07] סריקת קבלה עם AI — בדיקה ידנית (דורש מצלמה ו-AI)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[FAM-07] בדיקה זו דורשת מצלמה + קריאת AI — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — דורש מצלמה ו-AI לניתוח קבלה, לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -240,9 +234,10 @@ test.describe('מזווה (FAM-08..09)', () => {
     await page.fill('#pantry-quantity', '12');
     await page.locator('#btn-submit-pantry').click();
     await page.waitForTimeout(1500);
-    // בדוק שהפריט הופיע
-    const listText = await page.locator('#pantry-list').innerText().catch(() => '');
-    expect(listText).toContain('ביצים');
+    // המודל נסגר לאחר שמירה
+    await expect(page.locator('#pantry-modal')).not.toBeVisible({ timeout: 5000 });
+    // בדוק שהפריט הופיע ברשימה
+    await expect(page.locator('#pantry-list')).toContainText('ביצים', { timeout: 6000 });
   });
 
   test('[FAM-09] שימוש/הפחתת כמות מפריט במזווה', async ({ page }) => {
@@ -250,20 +245,18 @@ test.describe('מזווה (FAM-08..09)', () => {
     await loginAsParent(page);
     await goToTab(page, 'pantry');
     await page.waitForTimeout(1500);
-    // חפש כפתור "השתמש" / "הפחת" בפריט ראשון
+    // כפתור "השתמש" חייב להיות קיים (FAM-08 הוסיף פריט)
     const useBtn = page.locator('#pantry-list button[onclick*="openUse"], #pantry-list button[onclick*="use"], #pantry-list button:has-text("השתמשתי")').first();
-    const hasUse = await useBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasUse) {
-      await useBtn.click();
-      await page.waitForTimeout(600);
-      await expect(page.locator('#pantry-use-modal')).toBeVisible({ timeout: 6000 });
-      await page.fill('#use-pantry-qty', '1');
-      await page.locator('#pantry-use-modal button:has-text("אשר"), #pantry-use-modal button:has-text("השתמש")').first().click();
-      await page.waitForTimeout(800);
-    } else {
-      console.warn('[FAM-09] לא נמצא פריט במזווה — נדרש FAM-08 תחילה');
-    }
-    expect(true).toBeTruthy();
+    await expect(useBtn).toBeVisible({ timeout: 8000 });
+    await useBtn.click();
+    await page.waitForTimeout(600);
+    // מודל שימוש חייב להיפתח
+    await expect(page.locator('#pantry-use-modal')).toBeVisible({ timeout: 6000 });
+    await page.fill('#use-pantry-qty', '1');
+    await page.locator('#pantry-use-modal button:has-text("אשר"), #pantry-use-modal button:has-text("השתמש")').first().click();
+    await page.waitForTimeout(800);
+    // המודל נסגר לאחר אישור
+    await expect(page.locator('#pantry-use-modal')).not.toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -271,7 +264,5 @@ test.describe('מזווה (FAM-08..09)', () => {
 // FAM-10 — תובנות AI מזווה (בדיקה ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[FAM-10] תובנות AI מזווה — בדיקה ידנית (דורש AI)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[FAM-10] בדיקה זו דורשת ניתוח AI — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — דורש ניתוח AI, לא ניתן לאוטומציה');
 });

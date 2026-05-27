@@ -117,7 +117,6 @@ test.describe('Inbox נטען (NOT-01..02)', () => {
     await loginAsParent(page);
     // תג ה-badge קיים ב-DOM (גם אם hidden כשאין הודעות)
     await expect(page.locator('#unread-inbox-badge')).toHaveCount(1, { timeout: 10000 });
-    expect(true).toBeTruthy();
   });
 });
 
@@ -135,7 +134,6 @@ test.describe('סימון כנקרא ומחיקה (NOT-03..04)', () => {
     await expect(page.locator('#inbox-modal')).toBeVisible({ timeout: 6000 });
     // רשימת הודעות קיימת
     await expect(page.locator('#inbox-messages-list')).toBeVisible({ timeout: 5000 });
-    expect(true).toBeTruthy();
   });
 
   test('[NOT-04] לחיצה על הודעה — נפתחת / מסומנת כנקראה', async ({ page }) => {
@@ -147,15 +145,16 @@ test.describe('סימון כנקרא ומחיקה (NOT-03..04)', () => {
     await expect(page.locator('#inbox-modal')).toBeVisible({ timeout: 6000 });
     // חפש הודעה ברשימה
     const msg = page.locator('#inbox-messages-list [onclick*="openInboxMessage"], #inbox-messages-list .cursor-pointer').first();
-    const hasMsg = await msg.isVisible({ timeout: 4000 }).catch(() => false);
-    if (hasMsg) {
-      await msg.click();
-      await page.waitForTimeout(1000);
-      expect(true).toBeTruthy();
-    } else {
-      console.warn('[NOT-04] אין הודעות ב-Inbox — מדלג');
-      expect(true).toBeTruthy();
-    }
+    await expect(msg).toBeVisible({ timeout: 4000 });
+    await msg.click();
+    await page.waitForTimeout(1000);
+    // לאחר לחיצה — תוכן ההודעה אמור להיפתח, או ההודעה מסומנת כנקראה (מאבדת סימון unread)
+    const messageContent = page.locator('#inbox-message-detail, [id*="message-content"], .message-detail').first();
+    const unreadClass = await msg.getAttribute('class').catch(() => '');
+    // מספיק שאחד מהשניים נכון: תוכן נפתח או הסימון שונה
+    const contentVisible = await messageContent.isVisible({ timeout: 3000 }).catch(() => false);
+    const isNowRead = !unreadClass.includes('unread');
+    expect(contentVisible || isNowRead).toBe(true);
   });
 });
 
@@ -163,36 +162,28 @@ test.describe('סימון כנקרא ומחיקה (NOT-03..04)', () => {
 // NOT-05 — Push notification (ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[NOT-05] Push notification — בדיקה ידנית (נייד בלבד)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[NOT-05] Push notifications דורשים מכשיר נייד — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOT-06 — התראת חריגה תקציבית
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[NOT-06] התראת חריגה תקציבית — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[NOT-06] בדיקה זו דורשת הגדרת תקציב וחריגה בפועל — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOT-07 — התראת מלאי נמוך (ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[NOT-07] התראת מלאי נמוך — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[NOT-07] בדיקה זו דורשת פריט מלאי מתחת לסף — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOT-08 — תזכורת משימה (ידנית)
 // ═══════════════════════════════════════════════════════════════════════════════
 test('[NOT-08] תזכורת מועד משימה — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[NOT-08] בדיקה זו דורשת המתנה לתזכורת — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

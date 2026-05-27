@@ -1,7 +1,7 @@
 /**
  * accessibility.spec.js
- * Module: נגישות ו-UX מובייל
- * Coverage: ACC-01..16
+ * Module: PWA ונגישות — PWA
+ * Coverage: PWA-01..12
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/accessibility.spec.js --config=tests/playwright.config.js
@@ -54,7 +54,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -77,196 +76,120 @@ async function loginAsParent(page) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ACC-01..04 — RTL ועברית
+// PWA-01..04 — התקנה ו-RTL
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('RTL ועברית (ACC-01..04)', () => {
+test.describe('התקנה ו-RTL (PWA-01..04)', () => {
 
-  test('[ACC-01] כיוון טקסט RTL מוגדר', async ({ page }) => {
+  test('[PWA-01] PWA — התקנה Android Chrome (ידנית)', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    const htmlDir = await page.locator('html').getAttribute('dir').catch(() => '');
-    const bodyDir = await page.locator('body').getAttribute('dir').catch(() => '');
-    const hasRTL = htmlDir === 'rtl' || bodyDir === 'rtl';
-    if (!hasRTL) console.warn(`[ACC-01] RTL לא מוגדר: html dir="${htmlDir}", body dir="${bodyDir}"`);
-    expect(true).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית — דורש מכשיר פיזי');
   });
 
-  test('[ACC-02] טקסט עברי מוצג נכון', async ({ page }) => {
+  test('[PWA-02] PWA — התקנה iPhone Safari (ידנית)', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    const hebrewText = await page.locator('body').innerText().catch(() => '');
-    const hasHebrew = /[֐-׿]/.test(hebrewText);
-    expect(hasHebrew).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית — דורש מכשיר פיזי');
   });
 
-  test('[ACC-03] תפריט ניווט בצד ימין (RTL)', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    const nav = page.locator('#bottom-nav, nav, #nav-bar').first();
-    const hasNav = await nav.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasNav) console.warn('[ACC-03] תפריט ניווט לא נמצא');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ACC-04] מספרים — הצגת ₪ בעברית', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    const bodyText = await page.locator('body').innerText().catch(() => '');
-    const hasCurrency = bodyText.includes('₪') || bodyText.includes('שקל');
-    if (!hasCurrency) console.warn('[ACC-04] סמל מטבע ₪ לא נמצא בממשק');
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ACC-05..08 — מובייל ו-Viewport
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('מובייל ו-Viewport (ACC-05..08)', () => {
-
-  test('[ACC-05] ממשק מתאים ל-390x844 (iPhone 14)', async ({ page }) => {
-    test.setTimeout(120000);
-    // הגדרת viewport מובייל
-    await page.setViewportSize({ width: 390, height: 844 });
-    await loginAsParent(page);
-    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
-    // וודא שאין overflow אופקי
-    const overflow = await page.evaluate(() => document.body.scrollWidth > window.innerWidth);
-    if (overflow) console.warn('[ACC-05] overflow אופקי בממשק מובייל');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ACC-06] כפתורים בגודל מינימלי 44x44px', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    const smallBtns = await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      return buttons.filter(b => {
-        const rect = b.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && (rect.width < 44 || rect.height < 44);
-      }).length;
-    });
-    if (smallBtns > 5) console.warn(`[ACC-06] נמצאו ${smallBtns} כפתורים קטנים מ-44px`);
-    expect(true).toBeTruthy();
-  });
-
-  test('[ACC-07] touch targets לא חופפים', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await loginAsParent(page);
-    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
-    expect(true).toBeTruthy();
-  });
-
-  test('[ACC-08] גלילה חלקה — אין קפיצות layout', async ({ page }) => {
-    test.setTimeout(120000);
-    await loginAsParent(page);
-    await page.evaluate(() => window.scrollTo(0, 500));
-    await page.waitForTimeout(500);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(300);
-    expect(true).toBeTruthy();
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ACC-09..12 — ביצועים
-// ═══════════════════════════════════════════════════════════════════════════════
-test.describe('ביצועים (ACC-09..12)', () => {
-
-  test('[ACC-09] זמן טעינה ראשוני < 5 שניות', async ({ page }) => {
-    test.setTimeout(120000);
-    const start = Date.now();
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    const loadTime = Date.now() - start;
-    console.log(`[ACC-09] זמן טעינה: ${loadTime}ms`);
-    if (loadTime > 5000) console.warn(`[ACC-09] טעינה איטית: ${loadTime}ms`);
-    expect(loadTime).toBeLessThan(15000);
-  });
-
-  test('[ACC-10] זמן כניסה < 8 שניות', async ({ page }) => {
-    test.setTimeout(120000);
-    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForSelector('#login-code', { timeout: 20000 });
-    const start = Date.now();
-    await page.fill('#login-code', TEST_ENV.groupCode);
-    await page.fill('#login-nickname', TEST_ENV.parentName);
-    await page.fill('#login-password', TEST_ENV.parentPass);
-    await page.locator('button:has-text("כניסה")').click();
-    await page.waitForSelector('#content-feed', { timeout: 30000 });
-    const loginTime = Date.now() - start;
-    console.log(`[ACC-10] זמן כניסה: ${loginTime}ms`);
-    if (loginTime > 8000) console.warn(`[ACC-10] כניסה איטית: ${loginTime}ms`);
-    expect(loginTime).toBeLessThan(30000);
-  });
-
-  test('[ACC-11] PWA — manifest.json קיים', async ({ page }) => {
-    test.setTimeout(120000);
-    const res = await page.request.get(`${BASE_URL}/manifest.json`).catch(() => null);
-    const hasManifest = res && res.ok();
-    if (!hasManifest) console.warn('[ACC-11] manifest.json לא נמצא — PWA לא מוגדר');
-    expect(true).toBeTruthy();
-  });
-
-  test('[ACC-12] Service Worker — רשום', async ({ page }) => {
+  test('[PWA-03] PWA — Service Worker פעיל', async ({ page }) => {
     test.setTimeout(120000);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(2000);
-    const hasSW = await page.evaluate(async () => {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        return regs.length > 0;
-      }
-      return false;
-    }).catch(() => false);
-    if (!hasSW) console.warn('[ACC-12] Service Worker לא רשום');
-    expect(true).toBeTruthy();
+    const swRegistered = await page.evaluate(async () => {
+      if (!('serviceWorker' in navigator)) return false;
+      const reg = await navigator.serviceWorker.getRegistration();
+      return !!reg;
+    });
+    expect(swRegistered, 'Service Worker לא רשום').toBe(true);
+  });
+
+  test('[PWA-04] RTL — כיוון טקסט עברית', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(1000);
+    const dir = await page.evaluate(() => document.body.getAttribute('dir') || document.documentElement.getAttribute('dir') || getComputedStyle(document.body).direction);
+    expect(dir, `כיוון RTL לא מוגדר — ערך בפועל: "${dir}"`).toBe('rtl');
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ACC-13..16 — Toasts וסיוע
+// PWA-05..08 — Responsive ומהירות
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[ACC-13] Toast הצלחה — מוצג ונעלם', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await page.evaluate(() => {
-    if (typeof showToast === 'function') showToast('בדיקת toast', 'success');
+test.describe('Responsive ומהירות (PWA-05..08)', () => {
+
+  test('[PWA-05] Responsive — מובייל 375px', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(1000);
+    const hasOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > window.innerWidth;
+    });
+    expect(hasOverflow, 'overflow אופקי גלוי ב-375px — הדף גולש מחוץ לגבולות המסך').toBe(false);
   });
-  await page.waitForTimeout(500);
-  const toast = page.locator('#toast:not(.hidden), #toast-message').first();
-  const hasToast = await toast.isVisible({ timeout: 3000 }).catch(() => false);
-  if (!hasToast) console.warn('[ACC-13] Toast לא מוצג');
-  expect(true).toBeTruthy();
-});
 
-test('[ACC-14] Toast שגיאה — צבע אדום/אזהרה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await page.evaluate(() => {
-    if (typeof showToast === 'function') showToast('שגיאה', 'error');
+  test('[PWA-06] Responsive — Desktop 1200px+', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(1000);
+    await expect(page.locator('#login-code')).toBeVisible({ timeout: 6000 });
   });
-  await page.waitForTimeout(500);
-  expect(true).toBeTruthy();
+
+  test('[PWA-07] מהירות — זמן טעינה ראשונית', async ({ page }) => {
+    test.setTimeout(120000);
+    const start = Date.now();
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    const loadTime = Date.now() - start;
+    expect(loadTime, `זמן טעינה ראשונית: ${loadTime}ms — מעל הסף של 5000ms`).toBeLessThanOrEqual(5000);
+  });
+
+  test('[PWA-08] שגיאת DB — הודעה ידידותית', async ({ page }) => {
+    test.setTimeout(120000);
+    test.skip(true, 'בדיקה ידנית — דורש סימולציית נפילת DB');
+  });
 });
 
-test('[ACC-15] Loading spinner — מוצג בזמן טעינה', async ({ page }) => {
-  test.setTimeout(120000);
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  const spinner = page.locator('#loading-overlay, .spinner, [id*="loading"]').first();
-  const hasSpinner = await spinner.isVisible({ timeout: 3000 }).catch(() => false);
-  if (!hasSpinner) console.warn('[ACC-15] Spinner לא נמצא בטעינה');
-  expect(true).toBeTruthy();
-});
+// ═══════════════════════════════════════════════════════════════════════════════
+// PWA-09..12 — CORS, אבטחה ומגבלות
+// ═══════════════════════════════════════════════════════════════════════════════
+test.describe('CORS אבטחה ומגבלות (PWA-09..12)', () => {
 
-test('[ACC-16] כפתורים מנוטרלים — נראות ברורה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  const disabledBtns = page.locator('button:disabled').first();
-  const hasDisabled = await disabledBtns.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasDisabled) {
-    const opacity = await disabledBtns.evaluate(el => getComputedStyle(el).opacity).catch(() => '1');
-    if (opacity === '1') console.warn('[ACC-16] כפתור מנוטרל לא נראה שונה');
-  }
-  expect(true).toBeTruthy();
+  test('[PWA-09] CORS — Storefront ממקור חיצוני', async ({ page }) => {
+    test.setTimeout(120000);
+    const storefrontUrl = BASE_URL + '/storefront';
+    await page.goto(storefrontUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1000);
+    const errors = await page.evaluate(() => {
+      return window.__corsErrors || [];
+    }).catch(() => []);
+    expect(errors.length, `נמצאו ${errors.length} שגיאות CORS: ${JSON.stringify(errors)}`).toBe(0);
+  });
+
+  test('[PWA-10] XSS — הזנת קוד זדוני בשדות', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForSelector('#login-code', { timeout: 20000 });
+    await page.fill('#login-nickname', '<script>alert(1)</script>');
+    await page.waitForTimeout(500);
+    const alertFired = await page.evaluate(() => window.__xssAlert || false).catch(() => false);
+    expect(alertFired, 'XSS נפתח — חולשת אבטחה! window.__xssAlert הוא true').toBe(false);
+  });
+
+  test('[PWA-11] SQL Injection — חיפוש', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await page.waitForTimeout(1500);
+    const searchInput = page.locator('input[type="search"], input[placeholder*="חיפוש"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 6000 });
+    await searchInput.fill("' OR 1=1 --");
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+    // הדף אמור להישאר תקין — ללא קריסה או חשיפת נתונים
+    await expect(page.locator('body')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[PWA-12] מגבלת 50 מוצרים בחשבון חינמי', async ({ page }) => {
+    test.setTimeout(120000);
+    test.skip(true, 'בדיקה ידנית — דורש חשבון עם בדיוק 50 מוצרים');
+  });
 });

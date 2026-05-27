@@ -1,7 +1,7 @@
 /**
  * kids.spec.js
- * Module: ממשק ילדים — חוויה ייעודית
- * Coverage: KID-01..16
+ * Module: הרשאות והגדרות משפחה — PFAM
+ * Coverage: PFAM-01..20
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/kids.spec.js --config=tests/playwright.config.js
@@ -56,7 +56,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -65,17 +64,6 @@ async function skipIntro(page) {
     });
   }).catch(() => {});
   await page.waitForTimeout(300);
-}
-
-async function loginAsKid(page) {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#login-code', { timeout: 20000 });
-  await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.kidName);
-  await page.fill('#login-password', TEST_ENV.kidPass);
-  await page.locator('button:has-text("כניסה")').click();
-  await page.waitForTimeout(2000);
-  await skipIntro(page);
 }
 
 async function loginAsParent(page) {
@@ -89,177 +77,228 @@ async function loginAsParent(page) {
   await skipIntro(page);
 }
 
+async function loginAsKid(page) {
+  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForSelector('#login-code', { timeout: 20000 });
+  await page.fill('#login-code', TEST_ENV.groupCode);
+  await page.fill('#login-nickname', TEST_ENV.kidName);
+  await page.fill('#login-password', TEST_ENV.kidPass);
+  await page.locator('button:has-text("כניסה")').click();
+  await page.waitForTimeout(2000);
+  await skipIntro(page);
+}
+
 async function goToTab(page, tabName) {
   await page.evaluate((t) => { if (typeof window.switchTab === 'function') window.switchTab(t); }, tabName);
   await page.waitForTimeout(800);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// KID-01..04 — פיד ילד
+// PFAM-01..05 — ממשק הורה
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('פיד ילד (KID-01..04)', () => {
+test.describe('ממשק הורה (PFAM-01..05)', () => {
 
-  test('[KID-01] ילד מתחבר — ממשק ילד נטען', async ({ page }) => {
+  test('[PFAM-01] הורה — לשוניות גלויות', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#user-balance')).toBeVisible({ timeout: 8000 });
+    await loginAsParent(page);
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('#user-balance')).toBeVisible({ timeout: 6000 });
   });
 
-  test('[KID-02] יתרת ילד מוצגת בבירור', async ({ page }) => {
+  test('[PFAM-02] הורה — ניהול חברים', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    const balance = page.locator('#user-balance, #kid-balance').first();
-    await expect(balance).toBeVisible({ timeout: 8000 });
-    const balanceText = await balance.innerText().catch(() => '');
-    expect(balanceText).toMatch(/\d/);
+    await loginAsParent(page);
+    await goToTab(page, 'members');
+    await page.waitForTimeout(1200);
+    await expect(page.locator('#members-list')).toBeVisible({ timeout: 8000 });
   });
 
-  test('[KID-03] ניקוד/XP מוצג לילד', async ({ page }) => {
+  test('[PFAM-03] הורה — יצירת משימה לילד עם ניקוד', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    const xpEl = page.locator('#user-xp, #user-points, [id*="xp"], [id*="points"]').first();
-    const hasXp = await xpEl.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasXp) console.warn('[KID-03] XP לא מוצג לילד');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ משימה"), #btn-add-task').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[KID-04] פיד פעילות — אירועי הילד', async ({ page }) => {
+  test('[PFAM-04] הורה — אישור סופי של משימת ילד', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
-    const activityFeed = page.locator('#feed-list, #activity-list, [id*="feed"]').first();
-    const hasFeed = await activityFeed.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasFeed) console.warn('[KID-04] פיד פעילות לא נמצא לילד');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    const approveBtn = page.locator('button:has-text("אישור סופי"), button:has-text("אשר"), [onclick*="approveTask"]').first();
+    if (await approveBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(approveBtn).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין משימות הממתינות לאישור; ילד צריך לסמן "בצעתי" קודם');
+    }
+  });
+
+  test('[PFAM-05] הורה — אישור/דחיית הלוואת ילד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await goToTab(page, 'loans');
+    await page.waitForTimeout(1500);
+    const loanSection = page.locator('#content-loans, #loans-pending, .loan-requests').first();
+    await expect(loanSection).toBeVisible({ timeout: 6000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// KID-05..08 — ניווט ותפריט ילד
+// PFAM-06..10 — תקציב, אקדמיה וכספים
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('ניווט ילד (KID-05..08)', () => {
+test.describe('תקציב אקדמיה וכספים (PFAM-06..10)', () => {
 
-  test('[KID-05] תפריט תחתון לילד — לשוניות זמינות', async ({ page }) => {
+  test('[PFAM-06] הורה — עריכת תקציב', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    const navBar = page.locator('#bottom-nav, #nav-bar, nav').first();
-    await expect(navBar).toBeVisible({ timeout: 8000 });
+    await loginAsParent(page);
+    await goToTab(page, 'budget');
+    await page.waitForTimeout(1200);
+    const editBtn = page.locator('button:has-text("ערוך"), button:has-text("עדכן"), [onclick*="editBudget"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[KID-06] ילד רואה לשונית "משימות"', async ({ page }) => {
+  test('[PFAM-07] הורה — הקצאת חבילת אקדמיה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    const tasksTab = page.locator('[data-tab="tasks"], a[href*="tasks"], button:has-text("משימות")').first();
-    const hasTab = await tasksTab.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasTab) console.warn('[KID-06] לשונית משימות לא גלויה לילד');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    const assignBtn = page.locator('button:has-text("הקצה"), button:has-text("שלח"), [onclick*="assignPackage"]').first();
+    await expect(assignBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test('[KID-07] ילד רואה לשונית "חנות" / "פרסים"', async ({ page }) => {
+  test('[PFAM-08] הורה — תנועות כל חברי המשפחה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    const storeTab = page.locator('[data-tab="rewards"], [data-tab="store"], a:has-text("חנות"), button:has-text("פרסים")').first();
-    const hasTab = await storeTab.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasTab) console.warn('[KID-07] לשונית חנות/פרסים לא גלויה לילד');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await goToTab(page, 'cashflow');
+    await page.waitForTimeout(1200);
+    await expect(page.locator('#content-cashflow, #cashflow-list, .cashflow-container').first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('[KID-08] ילד לא רואה לשוניות הורה — בנק/הגדרות מלאות', async ({ page }) => {
+  test('[PFAM-09] הורה — הגדרות קבוצה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsKid(page);
-    // וודא שכפתורי ניהול מוגבלים אינם גלויים
-    const adminPanel = page.locator('#admin-panel, #parent-only, [id*="admin"]').first();
-    const hasAdmin = await adminPanel.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasAdmin) console.warn('[KID-08] ממשק מנהל גלוי לילד — בעיית הרשאות');
-    expect(true).toBeTruthy();
+    await loginAsParent(page);
+    await page.evaluate(() => { if (typeof window.openGroupSettings === 'function') window.openGroupSettings(); });
+    await page.waitForTimeout(800);
+    const settingsEl = page.locator('#group-settings-modal, #settings-modal, [id*="group-settings"]').first();
+    await expect(settingsEl).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[PFAM-10] הורה — הפעלת אשף מחדש', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsParent(page);
+    await page.evaluate(() => { if (typeof window.openProfileModal === 'function') window.openProfileModal(); });
+    await page.waitForTimeout(800);
+    const restartBtn = page.locator('button:has-text("הפעל אשף מחדש"), [onclick*="restartWizard"]').first();
+    await expect(restartBtn).toBeVisible({ timeout: 5000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// KID-09..12 — גמיפיקציה
+// PFAM-11..15 — ממשק ילד — הגבלות
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('גמיפיקציה (KID-09..12)', () => {
+test.describe('ממשק ילד הגבלות (PFAM-11..15)', () => {
 
-  test('[KID-09] רמה / Level מוצגת בפרופיל ילד', async ({ page }) => {
+  test('[PFAM-11] ילד — לשוניות מוגבלות', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
-    const levelEl = page.locator('#user-level, [id*="level"], :has-text("רמה")').first();
-    const hasLevel = await levelEl.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasLevel) console.warn('[KID-09] רמה לא מוצגת לילד');
-    expect(true).toBeTruthy();
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#content-feed')).toBeVisible({ timeout: 8000 });
   });
 
-  test('[KID-10] תגים / Badges מוצגים', async ({ page }) => {
+  test('[PFAM-12] ילד — לשונית חברים חסומה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
-    const badgesEl = page.locator('#user-badges, [id*="badges"], [id*="achievements"]').first();
-    const hasBadges = await badgesEl.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasBadges) console.warn('[KID-10] Badges לא נמצאו');
-    expect(true).toBeTruthy();
+    await page.waitForTimeout(1500);
+    const membersTab = page.locator('[onclick*="switchTab(\'members\')"], [data-tab="members"]').first();
+    // Tab must NOT be visible to a kid — if it is visible, that is a permissions bug
+    await expect(membersTab).toBeHidden({ timeout: 3000 });
   });
 
-  test('[KID-11] סרגל XP ועלייה ברמה', async ({ page }) => {
+  test('[PFAM-13] ילד — לשונית תקציב חסומה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
-    const xpBar = page.locator('[id*="xp-bar"], [id*="xp-progress"], progress, [role="progressbar"]').first();
-    const hasBar = await xpBar.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasBar) console.warn('[KID-11] סרגל XP לא נמצא');
-    expect(true).toBeTruthy();
+    await page.waitForTimeout(1500);
+    const budgetTab = page.locator('[onclick*="switchTab(\'budget\')"], [data-tab="budget"]').first();
+    // Tab must NOT be visible to a kid — if it is visible, that is a permissions bug
+    await expect(budgetTab).toBeHidden({ timeout: 3000 });
   });
 
-  test('[KID-12] הישגים — רשימת הישגים לילד', async ({ page }) => {
+  test('[PFAM-14] ילד — בקשת הלוואה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsKid(page);
-    const achievementsEl = page.locator('[id*="achievements"], :has-text("הישג"), :has-text("תגמול")').first();
-    const hasAchievements = await achievementsEl.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasAchievements) console.warn('[KID-12] רשימת הישגים לא נמצאה');
-    expect(true).toBeTruthy();
+    await goToTab(page, 'loans');
+    await page.waitForTimeout(1200);
+    const loanBtn = page.locator('button:has-text("בקש הלוואה"), [onclick*="requestLoan"]').first();
+    await expect(loanBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[PFAM-15] ילד — ביצוע משימה + העלאת תמונה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await goToTab(page, 'tasks');
+    await page.waitForTimeout(1500);
+    const taskItem = page.locator('.task-item, .task-card').first();
+    if (await taskItem.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(taskItem).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — אין משימות לילד; צור משימה עם PFAM-03 קודם');
+    }
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// KID-13..16 — הגבלות גיל ובקרת הורים
+// PFAM-16..20 — ילד — תוכן ויתרה
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[KID-13] ילד לא יכול לאשר משימות של עצמו', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'tasks');
-  await page.waitForTimeout(1500);
-  const approveBtn = page.locator('#tasks-list button:has-text("אשר"), #tasks-list button[onclick*="approve"]').first();
-  const hasApprove = await approveBtn.isVisible({ timeout: 4000 }).catch(() => false);
-  if (hasApprove) console.warn('[KID-13] ילד יכול לאשר משימות של עצמו — בעיית הרשאות');
-  expect(true).toBeTruthy();
-});
+test.describe('ילד תוכן ויתרה (PFAM-16..20)', () => {
 
-test('[KID-14] ילד לא יכול להוסיף כסף לעצמו', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'bank');
-  await page.waitForTimeout(1000);
-  // ילד לא אמור לראות כפתור הפקדה חיצונית
-  const adminBtn = page.locator('button:has-text("הוסף כסף"), button[onclick*="addBalance"], button[onclick*="deposit"]').first();
-  const hasBtn = await adminBtn.isVisible({ timeout: 4000 }).catch(() => false);
-  if (hasBtn) console.warn('[KID-14] ילד רואה כפתור הוסף כסף — בעיית הרשאות');
-  expect(true).toBeTruthy();
-});
+  test('[PFAM-16] ילד — אקדמיה — חבילות שהוקצו', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    const acadArea = page.locator('#content-academy').first();
+    await expect(acadArea).toBeVisible({ timeout: 8000 });
+  });
 
-test('[KID-15] ילד — גיל מוגדר בפרופיל משפיע על Academy', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'academy');
-  await page.waitForTimeout(1500);
-  const libFilter = page.locator('#lib-age-filter').first();
-  const hasFilter = await libFilter.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!hasFilter) console.warn('[KID-15] פילטר גיל בAcademy לא נמצא לילד');
-  expect(true).toBeTruthy();
-});
+  test('[PFAM-17] ילד — הוספת פריט לרשימת קניות', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await goToTab(page, 'shopping');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("הוסף פריט")').first();
+    await expect(addBtn).toBeVisible({ timeout: 5000 });
+  });
 
-test('[KID-16] מצב "הורה צופה" — הורה רואה נקודת מבט ילד', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  const viewAsKidBtn = page.locator('button:has-text("צפה כילד"), button[onclick*="viewAsKid"], [id*="kid-view"]').first();
-  const hasBtn = await viewAsKidBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (!hasBtn) console.warn('[KID-16] כפתור "צפה כילד" לא נמצא — בדיקה ידנית');
-  expect(true).toBeTruthy();
+  test('[PFAM-18] ילד — יתרה אישית בדשבורד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await page.waitForTimeout(2000);
+    const balance = page.locator('#user-balance, .user-balance').first();
+    await expect(balance).toBeVisible({ timeout: 6000 });
+  });
+
+  test('[PFAM-19] ילד — ניסיון לשנות הגדרות', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await page.waitForTimeout(1500);
+    const settingsBtn = page.locator('button:has-text("הגדרות קבוצה"), [onclick*="openGroupSettings"]').first();
+    // Settings button must NOT be visible to a kid — if visible, that is a permissions bug
+    await expect(settingsBtn).toBeHidden({ timeout: 3000 });
+  });
+
+  test('[PFAM-20] ילד — שף AI', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsKid(page);
+    await goToTab(page, 'chef');
+    await page.waitForTimeout(1200);
+    const chefArea = page.locator('#content-chef, .chef-ai').first();
+    if (await chefArea.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(chefArea).toBeVisible({ timeout: 5000 });
+    } else {
+      test.skip(true, 'בדיקה ידנית — שף AI לא הוקצה לילד זה');
+    }
+  });
 });

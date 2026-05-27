@@ -1,10 +1,10 @@
 /**
- * biz-inventory.spec.js
- * Module: מלאי, מזווה וקטלוג — עסקים
- * Coverage: BIZ-17, BIZ-23, BIZ-24
+ * biz-academy.spec.js
+ * Module: הכשרות ואקדמיה — עסקים
+ * Coverage: ACAD-01..10
  *
  * Run:
- *   npx playwright test tests/biz-inventory.spec.js --reporter=html
+ *   npx playwright test tests/biz-academy.spec.js --reporter=html
  */
 
 const { test, expect } = require('@playwright/test');
@@ -29,7 +29,7 @@ test.afterEach(async ({}, testInfo) => {
   const status = testInfo.status === 'passed' ? 'ok' : 'fail';
   const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   let note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
-  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-inventory.spec.js';
+  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-academy.spec.js';
   note += `\nדוח: ${specFile} | ${timestamp}`;
   if (status === 'fail' && testInfo.errors && testInfo.errors.length) {
     const raw = testInfo.errors[0]?.message || testInfo.errors[0]?.toString() || '';
@@ -94,82 +94,124 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-17 — עלויות מוצר בקטלוג
+// ACAD-01..04 — תצוגות אקדמיה
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-17] קטלוג — הגדרת עלויות ומצרכים למוצר', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsManager(page);
-  await goToTab(page, 'sales');
-  await page.waitForTimeout(1000);
-  const catalogView = page.locator('#sales-view-catalog, button:has-text("קטלוג"), button:has-text("מוצרים")').first();
-  const hasCatalog = await catalogView.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCatalog) {
-    await catalogView.click().catch(() => {});
-    await page.waitForTimeout(600);
-    const productCard = page.locator('.product-card, .store-product, .catalog-item').first();
-    const hasProduct = await productCard.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasProduct) {
-      await productCard.click().catch(() => {});
-      await page.waitForTimeout(500);
-      const costsSection = page.locator('[id*="cost"], .food-cost, button:has-text("עלויות")').first();
-      const hasCosts = await costsSection.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasCosts) console.warn('[BIZ-17] אזור עלויות מוצר לא נמצא');
-    } else {
-      console.warn('[BIZ-17] לא נמצאו מוצרים בקטלוג');
-    }
-  } else {
-    console.warn('[BIZ-17] תצוגת קטלוג לא נמצאה');
-  }
-  expect(true).toBeTruthy();
+test.describe('תצוגות אקדמיה (ACAD-01..04)', () => {
+
+  test('[ACAD-01] אקדמיה — לשונית הכשרות נטענת למנהל', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    await expect(page.locator('#content-academy')).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-02] אקדמיה — ממשק ניהול גלוי למנהל', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    await expect(
+      page.locator('#academy-admin-view, .academy-admin').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-03] אקדמיה — ממשק עובד נטען לעובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    const userView = page.locator('#academy-user-view, #content-academy');
+    await expect(userView).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-04] אקדמיה — ממשק ניהול לא גלוי לעובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    await expect(
+      page.locator('#academy-admin-view').first()
+    ).not.toBeVisible({ timeout: 5000 });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-23 — הוספת פריט למלאי
+// ACAD-05..07 — ניהול תכנים
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-23] מלאי — הוספת פריט חדש למחסן/מזווה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsManager(page);
-  await goToTab(page, 'pantry');
-  await page.waitForTimeout(1200);
-  await expect(page.locator('#content-pantry')).toBeVisible({ timeout: 8000 });
-  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("פריט חדש"), button:has-text("הוסף מוצר")').first();
-  const hasBtn = await addBtn.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasBtn) {
+test.describe('ניהול תכנים (ACAD-05..07)', () => {
+
+  test('[ACAD-05] אקדמיה — הוספת הכשרה חדשה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ הכשרה"), button:has-text("הכשרה חדשה"), button:has-text("הוסף תוכן")').first();
+    await expect(addBtn).toBeVisible({ timeout: 8000 });
     await addBtn.click();
     await page.waitForTimeout(600);
-    const modal = page.locator('#new-product-modal, [id*="pantry"][id*="modal"], [id*="product"][id*="modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[BIZ-23] מודל הוספת פריט למלאי לא נפתח');
-  } else {
-    console.warn('[BIZ-23] כפתור הוספת פריט למלאי לא נמצא');
-  }
-  expect(true).toBeTruthy();
+    await expect(
+      page.locator('[id*="academy"][id*="modal"], [id*="course"][id*="modal"], [id*="training"][id*="modal"]').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-06] אקדמיה — הקצאת הכשרה לעובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('button:has-text("הקצה"), button:has-text("שלח הכשרה"), .assign-btn').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-07] אקדמיה — מעקב התקדמות עובד', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('.progress-bar, [id*="progress"], .employee-progress').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-24 — שימוש בפריט מהמלאי
+// ACAD-08..10 — צריכת תוכן
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-24] מלאי — רישום שימוש בפריט מהמחסן', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsEmployee(page);
-  await goToTab(page, 'pantry');
-  await page.waitForTimeout(1200);
-  const pantryItem = page.locator('.pantry-item, .inventory-item, #pantry-list li').first();
-  const hasItem = await pantryItem.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasItem) {
-    const useBtn = page.locator('button:has-text("השתמש"), button:has-text("הפחת"), .use-btn').first();
-    const hasUseBtn = await useBtn.isVisible({ timeout: 4000 }).catch(() => false);
-    if (hasUseBtn) {
-      await useBtn.click();
-      await page.waitForTimeout(600);
-      const modal = page.locator('#pantry-use-modal, [id*="use"][id*="modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[BIZ-24] מודל שימוש בפריט לא נפתח');
-    } else {
-      console.warn('[BIZ-24] כפתור שימוש בפריט לא נמצא');
-    }
-  } else {
-    console.warn('[BIZ-24] לא נמצאו פריטים במלאי');
-  }
-  expect(true).toBeTruthy();
+test.describe('צריכת תוכן (ACAD-08..10)', () => {
+
+  test('[ACAD-08] אקדמיה — עובד צופה בהכשרה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    const trainingItem = page.locator('.academy-item, .course-card, .training-item').first();
+    await expect(trainingItem).toBeVisible({ timeout: 8000 });
+    await trainingItem.click();
+    await page.waitForTimeout(600);
+    await expect(
+      page.locator('[id*="modal"], [id*="content"], [id*="viewer"], .training-content').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-09] אקדמיה — סימון הכשרה כהושלמה', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('button:has-text("סיימתי"), button:has-text("הושלם"), .complete-training-btn').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
+
+  test('[ACAD-10] אקדמיה — תוכן וידאו / קובץ', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsEmployee(page);
+    await goToTab(page, 'academy');
+    await page.waitForTimeout(1500);
+    await expect(
+      page.locator('video, iframe[src*="youtube"], .pdf-viewer, a[href*=".pdf"]').first()
+    ).toBeVisible({ timeout: 8000 });
+  });
 });

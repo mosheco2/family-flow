@@ -1,7 +1,7 @@
 /**
  * settings.spec.js
- * Module: הגדרות מערכת
- * Coverage: SET-01..16
+ * Module: חנות וסטורפרונט — STR
+ * Coverage: STR-01..16
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/settings.spec.js --config=tests/playwright.config.js
@@ -13,12 +13,10 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
-  parentName: process.env.PARENT_NAME || 'אבא',
-  parentPass: process.env.PARENT_PASS || '123456',
-  kidName:    process.env.KID_NAME    || 'זוהר',
-  kidPass:    process.env.KID_PASS    || '123456',
-  qaEnv:      'family',
+  groupCode:    process.env.BIZ_GROUP_CODE    || 'J7RH0Y',
+  managerName:  process.env.BIZ_MANAGER_NAME  || 'מושיק',
+  managerPass:  process.env.BIZ_MANAGER_PASS  || '123456',
+  qaEnv:        'business',
 };
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
@@ -56,7 +54,6 @@ async function skipIntro(page) {
   try {
     await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
     await page.click('.introjs-skipbutton');
-    await page.waitForSelector('.introjs-overlay', { state: 'hidden', timeout: 4000 }).catch(() => {});
   } catch (_) {}
   await page.evaluate(() => {
     document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
@@ -67,23 +64,12 @@ async function skipIntro(page) {
   await page.waitForTimeout(300);
 }
 
-async function loginAsParent(page) {
+async function loginAsManager(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForSelector('#login-code', { timeout: 20000 });
   await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.parentName);
-  await page.fill('#login-password', TEST_ENV.parentPass);
-  await page.locator('button:has-text("כניסה")').click();
-  await page.waitForTimeout(2000);
-  await skipIntro(page);
-}
-
-async function loginAsKid(page) {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#login-code', { timeout: 20000 });
-  await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.kidName);
-  await page.fill('#login-password', TEST_ENV.kidPass);
+  await page.fill('#login-nickname', TEST_ENV.managerName);
+  await page.fill('#login-password', TEST_ENV.managerPass);
   await page.locator('button:has-text("כניסה")').click();
   await page.waitForTimeout(2000);
   await skipIntro(page);
@@ -95,219 +81,164 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SET-01..04 — טעינת הגדרות
+// STR-01..04 — הגדרות חנות
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('טעינת הגדרות (SET-01..04)', () => {
+test.describe('הגדרות חנות (STR-01..04)', () => {
 
-  test('[SET-01] לשונית הגדרות נטענת', async ({ page }) => {
+  test('[STR-01] הגדרות חנות — toggle פתוח/סגור', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-settings')).toBeVisible({ timeout: 8000 });
+    await loginAsManager(page);
+    await goToTab(page, 'store');
+    await page.waitForTimeout(1200);
+    const toggle = page.locator('input[type="checkbox"][id*="store"], button[onclick*="toggleStore"], .store-toggle').first();
+    await expect(toggle).toBeVisible({ timeout: 6000 });
   });
 
-  test('[SET-02] פרטי קבוצה מוצגים בהגדרות', async ({ page }) => {
+  test('[STR-02] הגדרות חנות — פרטים, לוגו ובאנר', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(1000);
-    await expect(page.locator('#content-settings')).toBeVisible({ timeout: 8000 });
-    const groupInfo = page.locator('#settings-group-name, #group-name, [id*="group"]').first();
-    const hasGroup = await groupInfo.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasGroup) console.warn('[SET-02] פרטי קבוצה לא נמצאו');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'store');
+    await page.waitForTimeout(1200);
+    const storeSettings = page.locator('button:has-text("הגדרות חנות"), [onclick*="storeSettings"], #store-settings').first();
+    await expect(storeSettings).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-03] קוד קבוצה מוצג', async ({ page }) => {
+  test('[STR-03] הגדרות חנות — שעות פתיחה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(1000);
-    const codeEl = page.locator('#settings-group-code, [id*="group-code"], :has-text("TYQPPY")').first();
-    const hasCode = await codeEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasCode) console.warn('[SET-03] קוד קבוצה לא נמצא');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'store');
+    await page.waitForTimeout(1200);
+    const hoursEl = page.locator('button:has-text("שעות פתיחה"), [id*="hours"], [onclick*="hours"]').first();
+    await expect(hoursEl).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-04] רשימת חברי הקבוצה מוצגת', async ({ page }) => {
+  test('[STR-04] הגדרות חנות — כינוי URL', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(1000);
-    const membersList = page.locator('#members-list, #settings-members, [id*="member"]').first();
-    const hasList = await membersList.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasList) console.warn('[SET-04] רשימת חברים לא נמצאה');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'store');
+    await page.waitForTimeout(1200);
+    const aliasEl = page.locator('input[id*="alias"], input[name*="alias"], input[placeholder*="alias"]').first();
+    await expect(aliasEl).toBeVisible({ timeout: 5000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SET-05..08 — ניהול חברים
+// STR-05..09 — קטלוג מוצרים
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('ניהול חברים (SET-05..08)', () => {
+test.describe('קטלוג מוצרים (STR-05..09)', () => {
 
-  test('[SET-05] הוספת חבר קבוצה חדש', async ({ page }) => {
+  test('[STR-05] קטלוג — הוספת מוצר חדש', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const addMemberBtn = page.locator('button:has-text("הוסף חבר"), button:has-text("הוסף ילד"), button[onclick*="addMember"]').first();
-    const hasBtn = await addMemberBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasBtn) {
-      await addMemberBtn.click();
-      await page.waitForTimeout(800);
-      const modal = page.locator('[id*="add-member"], [id*="member-modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[SET-05] מודל הוספת חבר לא נפתח');
-    } else {
-      console.warn('[SET-05] כפתור הוספת חבר לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ מוצר"), button:has-text("מוצר חדש"), #btn-add-product').first();
+    await expect(addBtn).toBeVisible({ timeout: 6000 });
   });
 
-  test('[SET-06] עריכת פרטי חבר קיים', async ({ page }) => {
+  test('[STR-06] קטלוג — עריכת מוצר', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const editMemberBtn = page.locator('#members-list button:has-text("ערוך"), #members-list button[onclick*="edit"]').first();
-    const hasEdit = await editMemberBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasEdit) {
-      await editMemberBtn.click();
-      await page.waitForTimeout(800);
-    } else {
-      console.warn('[SET-06] כפתור עריכת חבר לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1500);
+    const editBtn = page.locator('.product-item button:has-text("ערוך"), .catalog-item [onclick*="editProduct"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-07] הסרת חבר מקבוצה — בדיקה ידנית', async ({ page }) => {
+  test('[STR-07] קטלוג — toggle זמינות מוצר', async ({ page }) => {
     test.setTimeout(120000);
-    console.warn('[SET-07] הסרת חבר קבוצה — בדיקה ידנית בלבד');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1500);
+    const toggle = page.locator('.product-item input[type="checkbox"], .catalog-item [onclick*="toggleProduct"]').first();
+    await expect(toggle).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-08] שינוי תפקיד חבר (הורה/ילד)', async ({ page }) => {
+  test('[STR-08] קטלוג — מחיקת מוצר', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const roleSelect = page.locator('#members-list select[name*="role"], #members-list [id*="role"]').first();
-    const hasRole = await roleSelect.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasRole) console.warn('[SET-08] בחירת תפקיד לא נמצאה ברשימת חברים');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1500);
+    const delBtn = page.locator('.product-item button:has-text("מחק"), .catalog-item [onclick*="deleteProduct"]').first();
+    await expect(delBtn).toBeVisible({ timeout: 5000 });
+  });
+
+  test('[STR-09] קטלוג — מוצר complex_builder', async ({ page }) => {
+    test.setTimeout(120000);
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1200);
+    const addBtn = page.locator('button:has-text("+ מוצר"), #btn-add-product').first();
+    await expect(addBtn).toBeVisible({ timeout: 5000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SET-09..12 — הגדרות קבוצה
+// STR-10..13 — AI וחנות ציבורית
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('הגדרות קבוצה (SET-09..12)', () => {
+test.describe('AI וחנות ציבורית (STR-10..13)', () => {
 
-  test('[SET-09] שינוי שם קבוצה', async ({ page }) => {
+  test('[STR-10] קטלוג — AI תיאור מוצר', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const nameField = page.locator('#settings-group-name input, #group-name-input, input[name*="group"]').first();
-    const hasField = await nameField.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasField) {
-      const currentName = await nameField.inputValue().catch(() => '');
-      await nameField.fill(`QA בדיקה - ${currentName || 'משפחה'}`);
-      const saveBtn = page.locator('button:has-text("שמור"), button[type="submit"]').first();
-      if (await saveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await saveBtn.click();
-        await page.waitForTimeout(1000);
-        await nameField.fill(currentName || 'משפחה'); // restore
-        await saveBtn.click();
-        await page.waitForTimeout(1000);
-      }
-    } else {
-      console.warn('[SET-09] שדה שם קבוצה לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1200);
+    const aiBtn = page.locator('button:has-text("AI תיאור"), button:has-text("צור תיאור AI")').first();
+    await expect(aiBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-10] שינוי סמל/אמוג\'י קבוצה', async ({ page }) => {
+  test('[STR-11] קטלוג — AI קטלוג שלם', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const emojiEl = page.locator('[id*="emoji"], [id*="avatar"], [onclick*="emoji"]').first();
-    const hasEmoji = await emojiEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasEmoji) console.warn('[SET-10] בחירת אמוג\'י לא נמצאה');
-    expect(true).toBeTruthy();
+    await loginAsManager(page);
+    await goToTab(page, 'catalog');
+    await page.waitForTimeout(1200);
+    const aiBtn = page.locator('button:has-text("AI קטלוג"), button:has-text("צור קטלוג עם AI")').first();
+    await expect(aiBtn).toBeVisible({ timeout: 5000 });
   });
 
-  test('[SET-11] הגדרות התראות — toggle שלח/לא', async ({ page }) => {
+  test('[STR-12] ספר מוצרים — catalog.html', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const notifToggle = page.locator('[id*="notif-toggle"], input[type="checkbox"][name*="notif"], [id*="push"]').first();
-    const hasToggle = await notifToggle.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasToggle) console.warn('[SET-11] toggle התראות לא נמצא');
-    expect(true).toBeTruthy();
+    const catalogUrl = BASE_URL + '/catalog.html';
+    await page.goto(catalogUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const productList = page.locator('.product-list, #products-container, [id*="catalog"]').first();
+    await expect(productList).toBeVisible({ timeout: 6000 });
   });
 
-  test('[SET-12] שפת ממשק — הגדרה', async ({ page }) => {
+  test('[STR-13] Storefront — גישה דרך קוד קבוצה', async ({ page }) => {
     test.setTimeout(120000);
-    await loginAsParent(page);
-    await goToTab(page, 'settings');
-    await page.waitForTimeout(800);
-    const langSelect = page.locator('[id*="language"], select[name*="lang"]').first();
-    const hasLang = await langSelect.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasLang) console.warn('[SET-12] בחירת שפה לא נמצאה');
-    expect(true).toBeTruthy();
+    const storefrontUrl = BASE_URL + '/storefront?store=' + TEST_ENV.groupCode;
+    await page.goto(storefrontUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const storefront = page.locator('.storefront, #storefront-content, .store-container').first();
+    await expect(storefront).toBeVisible({ timeout: 6000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SET-13..16 — אבטחה ופרטיות
+// STR-14..16 — alias, סל ו-variants
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[SET-13] שינוי סיסמת הורה', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'settings');
-  await page.waitForTimeout(800);
-  const changePassBtn = page.locator('button:has-text("שנה סיסמה"), button[onclick*="changePassword"]').first();
-  const hasBtn = await changePassBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasBtn) {
-    await changePassBtn.click();
-    await page.waitForTimeout(800);
-    const modal = page.locator('[id*="password-modal"], [id*="change-pass"]').first();
-    await expect(modal).toBeVisible({ timeout: 5000 });
-  } else {
-    console.warn('[SET-13] כפתור שינוי סיסמה לא נמצא');
-  }
-  expect(true).toBeTruthy();
-});
+test.describe('alias סל ו-variants (STR-14..16)', () => {
 
-test('[SET-14] הגדרת קוד PIN לילד', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[SET-14] קוד PIN לילד — בדיקה ידנית');
-  expect(true).toBeTruthy();
-});
+  test('[STR-14] Storefront — גישה דרך alias', async ({ page }) => {
+    test.skip(true, 'בדיקה ידנית');
+  });
 
-test('[SET-15] ילד — הגדרות מוגבלות', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'settings');
-  await page.waitForTimeout(1000);
-  const content = page.locator('#content-settings').first();
-  const hasContent = await content.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasContent) {
-    // ילד לא אמור לראות ניהול חברים
-    const addMemberBtn = page.locator('button:has-text("הוסף חבר"), button[onclick*="addMember"]');
-    const count = await addMemberBtn.count();
-    if (count > 0) console.warn('[SET-15] ילד רואה כפתור הוסף חבר — בעיית הרשאות');
-  }
-  expect(true).toBeTruthy();
-});
+  test('[STR-15] Storefront — הוספת מוצר לסל', async ({ page }) => {
+    test.setTimeout(120000);
+    const storefrontUrl = BASE_URL + '/storefront?store=' + TEST_ENV.groupCode;
+    await page.goto(storefrontUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const addToCart = page.locator('button:has-text("הוסף לסל"), button:has-text("+ לסל"), [onclick*="addToCart"]').first();
+    await expect(addToCart).toBeVisible({ timeout: 6000 });
+  });
 
-test('[SET-16] מחיקת קבוצה — בדיקה ידנית (בסיכון גבוה)', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[SET-16] מחיקת קבוצה מוחקת את כל הנתונים — בדיקה ידנית בלבד');
-  expect(true).toBeTruthy();
+  test('[STR-16] Storefront — בחירת variant', async ({ page }) => {
+    test.setTimeout(120000);
+    const storefrontUrl = BASE_URL + '/storefront?store=' + TEST_ENV.groupCode;
+    await page.goto(storefrontUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const variantEl = page.locator('.variant-option, select[name*="variant"], [class*="variant"]').first();
+    await expect(variantEl).toBeVisible({ timeout: 5000 });
+  });
 });

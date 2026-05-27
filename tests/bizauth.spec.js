@@ -1,7 +1,7 @@
 /**
  * biz-auth.spec.js
  * Module: אימות וניהול משתמשים — עסקים
- * Coverage: BIZ-AUTH-01..15
+ * Coverage: AUTH-01..15
  *
  * Run:
  *   npx playwright test tests/biz-auth.spec.js --reporter=html
@@ -95,11 +95,11 @@ async function goToTab(page, tabName) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-01..02 — מסך כניסה
+// AUTH-01..02 — מסך כניסה
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('מסך כניסה עסקי (BIZ-AUTH-01..02)', () => {
+test.describe('מסך כניסה עסקי (AUTH-01..02)', () => {
 
-  test('[BIZ-AUTH-01] מסך כניסה נטען עם שדות קוד, שם, סיסמה', async ({ page }) => {
+  test('[AUTH-01] מסך כניסה נטען עם שדות קוד, שם, סיסמה', async ({ page }) => {
     test.setTimeout(120000);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForSelector('#login-code', { timeout: 20000 });
@@ -109,7 +109,7 @@ test.describe('מסך כניסה עסקי (BIZ-AUTH-01..02)', () => {
     await expect(page.locator('button:has-text("כניסה")')).toBeVisible();
   });
 
-  test('[BIZ-AUTH-02] כניסה עם קוד שגוי — הודעת שגיאה', async ({ page }) => {
+  test('[AUTH-02] כניסה עם קוד שגוי — הודעת שגיאה', async ({ page }) => {
     test.setTimeout(120000);
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForSelector('#login-code', { timeout: 20000 });
@@ -117,27 +117,25 @@ test.describe('מסך כניסה עסקי (BIZ-AUTH-01..02)', () => {
     await page.fill('#login-nickname', 'בדיקה');
     await page.fill('#login-password', 'wrong');
     await page.locator('button:has-text("כניסה")').click();
-    await page.waitForTimeout(2000);
-    const errorEl = page.locator('#toast-message, :has-text("שגיאה"), :has-text("לא נמצא")').first();
-    const hasError = await errorEl.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasError) console.warn('[BIZ-AUTH-02] הודעת שגיאה לא מוצגת');
-    expect(true).toBeTruthy();
+    await expect(
+      page.locator('#toast-message, :has-text("שגיאה"), :has-text("לא נמצא")').first()
+    ).toBeVisible({ timeout: 8000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-03..04 — כניסת מנהל ועובד
+// AUTH-03..04 — כניסת מנהל ועובד
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('כניסת מנהל ועובד (BIZ-AUTH-03..04)', () => {
+test.describe('כניסת מנהל ועובד (AUTH-03..04)', () => {
 
-  test('[BIZ-AUTH-03] כניסת מנהל — דשבורד מנהל נטען', async ({ page }) => {
+  test('[AUTH-03] כניסת מנהל — דשבורד מנהל נטען', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('#user-balance')).toBeVisible({ timeout: 8000 });
   });
 
-  test('[BIZ-AUTH-04] כניסת עובד — דשבורד עובד נטען', async ({ page }) => {
+  test('[AUTH-04] כניסת עובד — דשבורד עובד נטען', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsEmployee(page);
     await expect(page.locator('#content-feed')).toBeVisible({ timeout: 10000 });
@@ -146,39 +144,35 @@ test.describe('כניסת מנהל ועובד (BIZ-AUTH-03..04)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-05..06 — הרשאות
+// AUTH-05..06 — הרשאות
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('הרשאות (BIZ-AUTH-05..06)', () => {
+test.describe('הרשאות (AUTH-05..06)', () => {
 
-  test('[BIZ-AUTH-05] מנהל רואה כפתורי ניהול — עובד לא רואה', async ({ page }) => {
+  test('[AUTH-05] מנהל רואה כפתורי ניהול — עובד לא רואה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await goToTab(page, 'tasks');
     await page.waitForTimeout(1000);
-    const adminBtn = page.locator('#btn-add-task').first();
-    const hasBtn = await adminBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasBtn) console.warn('[BIZ-AUTH-05] כפתור הוספת משימה לא נמצא למנהל');
-    expect(true).toBeTruthy();
+    await expect(page.locator('#btn-add-task').first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('[BIZ-AUTH-06] עובד — ממשק ניהול מוגבל', async ({ page }) => {
+  test('[AUTH-06] עובד — ממשק ניהול מוגבל', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsEmployee(page);
     await goToTab(page, 'tasks');
     await page.waitForTimeout(1000);
-    const adminView = page.locator('#tasks-admin-view, #academy-admin-view').first();
-    const hasAdmin = await adminView.isVisible({ timeout: 3000 }).catch(() => false);
-    if (hasAdmin) console.warn('[BIZ-AUTH-06] ממשק מנהל גלוי לעובד — בעיית הרשאות');
-    expect(true).toBeTruthy();
+    await expect(
+      page.locator('#tasks-admin-view, #academy-admin-view').first()
+    ).not.toBeVisible({ timeout: 5000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-07..09 — ניהול עובדים
+// AUTH-07..09 — ניהול עובדים
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('ניהול עובדים (BIZ-AUTH-07..09)', () => {
+test.describe('ניהול עובדים (AUTH-07..09)', () => {
 
-  test('[BIZ-AUTH-07] מנהל רואה רשימת עובדים', async ({ page }) => {
+  test('[AUTH-07] מנהל רואה רשימת עובדים', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await goToTab(page, 'members');
@@ -186,41 +180,35 @@ test.describe('ניהול עובדים (BIZ-AUTH-07..09)', () => {
     await expect(page.locator('#members-list')).toBeVisible({ timeout: 8000 });
   });
 
-  test('[BIZ-AUTH-08] הזמנת עובד חדש — כפתור WhatsApp', async ({ page }) => {
+  test('[AUTH-08] הזמנת עובד חדש — כפתור WhatsApp', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await goToTab(page, 'members');
     await page.waitForTimeout(1000);
-    const waBtn = page.locator('#admin-members-tools button:has-text("וואטסאפ"), button:has-text("הזמן")').first();
-    const hasBtn = await waBtn.isVisible({ timeout: 8000 }).catch(() => false);
-    if (!hasBtn) console.warn('[BIZ-AUTH-08] כפתור הזמנת עובד לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(
+      page.locator('#admin-members-tools button:has-text("וואטסאפ"), button:has-text("הזמן")').first()
+    ).toBeVisible({ timeout: 8000 });
   });
 
-  test('[BIZ-AUTH-09] עריכת הרשאות עובד', async ({ page }) => {
+  test('[AUTH-09] עריכת הרשאות עובד', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await goToTab(page, 'members');
     await page.waitForTimeout(2000);
     const permBtn = page.locator('#members-list button[onclick*="openPermissionsModal"]').first();
-    const hasPerm = await permBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasPerm) {
-      await permBtn.click();
-      await page.waitForTimeout(600);
-      await expect(page.locator('#permissions-modal')).toBeVisible({ timeout: 6000 });
-    } else {
-      console.warn('[BIZ-AUTH-09] כפתור הרשאות לא נמצא');
-    }
-    expect(true).toBeTruthy();
+    await expect(permBtn).toBeVisible({ timeout: 8000 });
+    await permBtn.click();
+    await page.waitForTimeout(600);
+    await expect(page.locator('#permissions-modal')).toBeVisible({ timeout: 6000 });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-10..12 — פרופיל ויציאה
+// AUTH-10..12 — פרופיל ויציאה
 // ═══════════════════════════════════════════════════════════════════════════════
-test.describe('פרופיל ויציאה (BIZ-AUTH-10..12)', () => {
+test.describe('פרופיל ויציאה (AUTH-10..12)', () => {
 
-  test('[BIZ-AUTH-10] מודל פרופיל מנהל נפתח', async ({ page }) => {
+  test('[AUTH-10] מודל פרופיל מנהל נפתח', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openProfileModal === 'function') window.openProfileModal(); });
@@ -228,23 +216,17 @@ test.describe('פרופיל ויציאה (BIZ-AUTH-10..12)', () => {
     await expect(page.locator('#profile-modal')).toBeVisible({ timeout: 6000 });
   });
 
-  test('[BIZ-AUTH-11] שינוי סיסמה — שדות קיימים', async ({ page }) => {
+  test('[AUTH-11] שינוי סיסמה — שדות קיימים', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.openProfileModal === 'function') window.openProfileModal(); });
     await page.waitForTimeout(600);
-    const modal = page.locator('#profile-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      await expect(page.locator('#old-password')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('#new-password')).toBeVisible({ timeout: 5000 });
-    } else {
-      console.warn('[BIZ-AUTH-11] מודל פרופיל לא נפתח');
-    }
-    expect(true).toBeTruthy();
+    await expect(page.locator('#profile-modal')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#old-password')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#new-password')).toBeVisible({ timeout: 5000 });
   });
 
-  test('[BIZ-AUTH-12] התנתקות — חזרה למסך כניסה', async ({ page }) => {
+  test('[AUTH-12] התנתקות — חזרה למסך כניסה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsManager(page);
     await page.evaluate(() => { if (typeof window.logout === 'function') window.logout(); });
@@ -254,22 +236,18 @@ test.describe('פרופיל ויציאה (BIZ-AUTH-10..12)', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-AUTH-13..15 — אבטחה
+// AUTH-13..15 — אבטחה
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-AUTH-13] HTTPS — חיבור מאובטח', async ({ page }) => {
+test('[AUTH-13] HTTPS — חיבור מאובטח', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   expect(page.url().startsWith('https://')).toBeTruthy();
 });
 
-test('[BIZ-AUTH-14] סשן כפול — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[BIZ-AUTH-14] סשן כפול דורש שני דפדפנים — בדיקה ידנית');
-  expect(true).toBeTruthy();
+test('[AUTH-14] סשן כפול — בדיקה ידנית', async ({ page }) => {
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });
 
-test('[BIZ-AUTH-15] פקיעת סשן — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[BIZ-AUTH-15] פקיעת סשן דורשת המתנה — בדיקה ידנית');
-  expect(true).toBeTruthy();
+test('[AUTH-15] פקיעת סשן — בדיקה ידנית', async ({ page }) => {
+  test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
 });

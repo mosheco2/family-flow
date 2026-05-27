@@ -1,7 +1,7 @@
 /**
  * calendar.spec.js
  * Module: לוח שנה ואירועים משפחתיים
- * Coverage: CAL-01..16
+ * Coverage: CAL-01..12
  *
  * Run:
  *   QA_SERVER=https://oneflowlife.co.il npx playwright test tests/calendar.spec.js --config=tests/playwright.config.js
@@ -113,9 +113,7 @@ test.describe('טעינת לוח שנה (CAL-01..04)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1000);
     const calGrid = page.locator('#calendar-grid, .calendar-grid, [id*="cal-grid"]').first();
-    const hasGrid = await calGrid.isVisible({ timeout: 6000 }).catch(() => false);
-    if (!hasGrid) console.warn('[CAL-02] גריד לוח שנה לא נמצא');
-    expect(true).toBeTruthy();
+    await expect(calGrid).toBeVisible({ timeout: 6000 });
   });
 
   test('[CAL-03] ניווט לחודש הקודם/הבא', async ({ page }) => {
@@ -124,17 +122,15 @@ test.describe('טעינת לוח שנה (CAL-01..04)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1000);
     const nextBtn = page.locator('button:has-text("הבא"), button[aria-label*="הבא"], button[onclick*="nextMonth"]').first();
-    const hasNext = await nextBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasNext) {
-      await nextBtn.click();
-      await page.waitForTimeout(800);
-      const prevBtn = page.locator('button:has-text("קודם"), button[aria-label*="קודם"], button[onclick*="prevMonth"]').first();
-      const hasPrev = await prevBtn.isVisible({ timeout: 3000 }).catch(() => false);
-      if (hasPrev) await prevBtn.click();
-    } else {
-      console.warn('[CAL-03] כפתורי ניווט לוח שנה לא נמצאו');
-    }
-    expect(true).toBeTruthy();
+    await expect(nextBtn).toBeVisible({ timeout: 5000 });
+    await nextBtn.click();
+    await page.waitForTimeout(800);
+    const prevBtn = page.locator('button:has-text("קודם"), button[aria-label*="קודם"], button[onclick*="prevMonth"]').first();
+    await expect(prevBtn).toBeVisible({ timeout: 3000 });
+    await prevBtn.click();
+    await page.waitForTimeout(500);
+    // לאחר חזרה — הגריד עדיין מוצג
+    await expect(page.locator('#calendar-grid, .calendar-grid, [id*="cal-grid"]').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('[CAL-04] אירועים מוצגים על לוח השנה', async ({ page }) => {
@@ -143,9 +139,7 @@ test.describe('טעינת לוח שנה (CAL-01..04)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1500);
     const events = page.locator('.calendar-event, [class*="event"], [id*="event"]').first();
-    const hasEvents = await events.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!hasEvents) console.warn('[CAL-04] אירועים לא מוצגים בלוח — ייתכן אין אירועים');
-    expect(true).toBeTruthy();
+    await expect(events).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -168,9 +162,7 @@ test.describe('יצירת אירוע (CAL-05..08)', () => {
     }
     await page.waitForTimeout(800);
     const modal = page.locator('#event-modal, [id*="event-modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[CAL-05] מודל אירוע לא נפתח');
-    expect(true).toBeTruthy();
+    await expect(modal).toBeVisible({ timeout: 5000 });
   });
 
   test('[CAL-06] שדות אירוע — כותרת, תאריך, שעה', async ({ page }) => {
@@ -181,16 +173,9 @@ test.describe('יצירת אירוע (CAL-05..08)', () => {
     await page.evaluate(() => { if (typeof openEventModal === 'function') openEventModal(); });
     await page.waitForTimeout(800);
     const modal = page.locator('#event-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const titleField = page.locator('#event-title, input[name*="title"]').first();
-      const dateField = page.locator('#event-date, input[type="date"]').first();
-      if (!await titleField.isVisible({ timeout: 3000 }).catch(() => false)) console.warn('[CAL-06] שדה כותרת אירוע חסר');
-      if (!await dateField.isVisible({ timeout: 3000 }).catch(() => false)) console.warn('[CAL-06] שדה תאריך אירוע חסר');
-    } else {
-      console.warn('[CAL-06] מודל אירוע לא נפתח');
-    }
-    expect(true).toBeTruthy();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#event-title, input[name*="title"]').first()).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#event-date, input[type="date"]').first()).toBeVisible({ timeout: 3000 });
   });
 
   test('[CAL-07] שמירת אירוע חדש', async ({ page }) => {
@@ -201,21 +186,16 @@ test.describe('יצירת אירוע (CAL-05..08)', () => {
     await page.evaluate(() => { if (typeof openEventModal === 'function') openEventModal(); });
     await page.waitForTimeout(800);
     const modal = page.locator('#event-modal');
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (isOpen) {
-      const titleField = page.locator('#event-title, input[placeholder*="כותרת"]').first();
-      if (await titleField.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await titleField.fill('QA בדיקה — אירוע משפחתי');
-      }
-      const submitBtn = page.locator('#event-modal button[type="submit"], #event-modal button:has-text("שמור")').first();
-      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await submitBtn.click();
-        await page.waitForTimeout(1500);
-      }
-    } else {
-      console.warn('[CAL-07] מודל אירוע לא נפתח');
-    }
-    expect(true).toBeTruthy();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    const titleField = page.locator('#event-title, input[placeholder*="כותרת"]').first();
+    await expect(titleField).toBeVisible({ timeout: 3000 });
+    await titleField.fill('QA בדיקה — אירוע משפחתי');
+    const submitBtn = page.locator('#event-modal button[type="submit"], #event-modal button:has-text("שמור")').first();
+    await expect(submitBtn).toBeVisible({ timeout: 3000 });
+    await submitBtn.click();
+    await page.waitForTimeout(1500);
+    // המודל אמור להיסגר לאחר שמירה מוצלחת
+    await expect(modal).toBeHidden({ timeout: 6000 });
   });
 
   test('[CAL-08] אירוע מופיע על לוח השנה', async ({ page }) => {
@@ -223,11 +203,10 @@ test.describe('יצירת אירוע (CAL-05..08)', () => {
     await loginAsParent(page);
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1500);
-    const calText = await page.locator('#content-calendar').innerText().catch(() => '');
-    if (!calText.includes('QA') && !calText.includes('אירוע')) {
-      console.warn('[CAL-08] אירוע QA לא נמצא — נדרש CAL-07');
-    }
-    expect(true).toBeTruthy();
+    // האירוע שנשמר ב-CAL-07 אמור להופיע בלוח
+    const calendarContent = page.locator('#content-calendar');
+    await expect(calendarContent).toBeVisible({ timeout: 8000 });
+    await expect(calendarContent).toContainText('QA', { timeout: 6000 });
   });
 });
 
@@ -242,9 +221,7 @@ test.describe('אירועים פיננסיים (CAL-09..12)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1500);
     const loanEvent = page.locator('.calendar-event:has-text("הלוואה"), [class*="loan-event"]').first();
-    const hasLoan = await loanEvent.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!hasLoan) console.warn('[CAL-09] אירועי הלוואה לא מוצגים בלוח');
-    expect(true).toBeTruthy();
+    await expect(loanEvent).toBeVisible({ timeout: 4000 });
   });
 
   test('[CAL-10] תאריכי תשלום דמי כיס בלוח', async ({ page }) => {
@@ -253,9 +230,7 @@ test.describe('אירועים פיננסיים (CAL-09..12)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1500);
     const allowEvent = page.locator('.calendar-event:has-text("דמי כיס"), [class*="allowance-event"]').first();
-    const hasEvent = await allowEvent.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!hasEvent) console.warn('[CAL-10] אירועי דמי כיס לא מוצגים בלוח');
-    expect(true).toBeTruthy();
+    await expect(allowEvent).toBeVisible({ timeout: 4000 });
   });
 
   test('[CAL-11] תאריכי יעדים בלוח השנה', async ({ page }) => {
@@ -264,56 +239,10 @@ test.describe('אירועים פיננסיים (CAL-09..12)', () => {
     await goToTab(page, 'calendar');
     await page.waitForTimeout(1500);
     const goalEvent = page.locator('.calendar-event:has-text("יעד"), [class*="goal-event"]').first();
-    const hasEvent = await goalEvent.isVisible({ timeout: 4000 }).catch(() => false);
-    if (!hasEvent) console.warn('[CAL-11] אירועי יעדים לא מוצגים בלוח');
-    expect(true).toBeTruthy();
+    await expect(goalEvent).toBeVisible({ timeout: 4000 });
   });
 
   test('[CAL-12] ייצוא לוח שנה — בדיקה ידנית', async ({ page }) => {
-    test.setTimeout(120000);
-    console.warn('[CAL-12] ייצוא לוח שנה (iCal/Google) — בדיקה ידנית');
-    expect(true).toBeTruthy();
+    test.skip(true, 'בדיקה ידנית — לא ניתן לאוטומציה');
   });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CAL-13..16 — עריכה ומחיקה
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[CAL-13] עריכת אירוע קיים', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsParent(page);
-  await goToTab(page, 'calendar');
-  await page.waitForTimeout(1500);
-  const editBtn = page.locator('.calendar-event button:has-text("ערוך"), .calendar-event [onclick*="edit"]').first();
-  const hasEdit = await editBtn.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasEdit) {
-    await editBtn.click();
-    await page.waitForTimeout(800);
-  } else {
-    console.warn('[CAL-13] כפתור עריכת אירוע לא נמצא');
-  }
-  expect(true).toBeTruthy();
-});
-
-test('[CAL-14] מחיקת אירוע — בדיקה ידנית', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[CAL-14] מחיקת אירוע — בדיקה ידנית');
-  expect(true).toBeTruthy();
-});
-
-test('[CAL-15] תזכורת לאירוע — הגדרת זמן', async ({ page }) => {
-  test.setTimeout(120000);
-  console.warn('[CAL-15] תזכורת לאירוע — בדיקה ידנית');
-  expect(true).toBeTruthy();
-});
-
-test('[CAL-16] ילד רואה אירועים משפחתיים', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsKid(page);
-  await goToTab(page, 'calendar');
-  await page.waitForTimeout(1500);
-  const content = page.locator('#content-calendar').first();
-  const hasContent = await content.isVisible({ timeout: 6000 }).catch(() => false);
-  if (!hasContent) console.warn('[CAL-16] לוח שנה לא גלוי לילד');
-  expect(true).toBeTruthy();
 });

@@ -1,10 +1,10 @@
 /**
- * biz-inventory.spec.js
- * Module: מלאי, מזווה וקטלוג — עסקים
- * Coverage: BIZ-17, BIZ-23, BIZ-24
+ * biz-crm.spec.js
+ * Module: לקוחות (CRM) — עסקים
+ * Coverage: BIZ-11, BIZ-12
  *
  * Run:
- *   npx playwright test tests/biz-inventory.spec.js --reporter=html
+ *   npx playwright test tests/biz-crm.spec.js --reporter=html
  */
 
 const { test, expect } = require('@playwright/test');
@@ -29,7 +29,7 @@ test.afterEach(async ({}, testInfo) => {
   const status = testInfo.status === 'passed' ? 'ok' : 'fail';
   const timestamp = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
   let note = `🤖 Playwright: ${status === 'ok' ? '✅ עבר' : '❌ נכשל'} — ${timestamp}`;
-  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-inventory.spec.js';
+  const specFile = testInfo.file ? testInfo.file.split(/[\\/]/).pop() : 'biz-crm.spec.js';
   note += `\nדוח: ${specFile} | ${timestamp}`;
   if (status === 'fail' && testInfo.errors && testInfo.errors.length) {
     const raw = testInfo.errors[0]?.message || testInfo.errors[0]?.toString() || '';
@@ -77,99 +77,50 @@ async function loginAsManager(page) {
   await skipIntro(page);
 }
 
-async function loginAsEmployee(page) {
-  await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#login-code', { timeout: 20000 });
-  await page.fill('#login-code', TEST_ENV.groupCode);
-  await page.fill('#login-nickname', TEST_ENV.employeeName);
-  await page.fill('#login-password', TEST_ENV.employeePass);
-  await page.locator('button:has-text("כניסה")').click();
-  await page.waitForTimeout(2000);
-  await skipIntro(page);
-}
-
 async function goToTab(page, tabName) {
   await page.evaluate((t) => { if (typeof window.switchTab === 'function') window.switchTab(t); }, tabName);
   await page.waitForTimeout(800);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-17 — עלויות מוצר בקטלוג
+// BIZ-11 — הוספת לקוח חדש
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-17] קטלוג — הגדרת עלויות ומצרכים למוצר', async ({ page }) => {
+test('[BIZ-11] לקוחות — הוספת לקוח חדש למערכת CRM', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsManager(page);
-  await goToTab(page, 'sales');
-  await page.waitForTimeout(1000);
-  const catalogView = page.locator('#sales-view-catalog, button:has-text("קטלוג"), button:has-text("מוצרים")').first();
-  const hasCatalog = await catalogView.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasCatalog) {
-    await catalogView.click().catch(() => {});
-    await page.waitForTimeout(600);
-    const productCard = page.locator('.product-card, .store-product, .catalog-item').first();
-    const hasProduct = await productCard.isVisible({ timeout: 5000 }).catch(() => false);
-    if (hasProduct) {
-      await productCard.click().catch(() => {});
-      await page.waitForTimeout(500);
-      const costsSection = page.locator('[id*="cost"], .food-cost, button:has-text("עלויות")').first();
-      const hasCosts = await costsSection.isVisible({ timeout: 4000 }).catch(() => false);
-      if (!hasCosts) console.warn('[BIZ-17] אזור עלויות מוצר לא נמצא');
-    } else {
-      console.warn('[BIZ-17] לא נמצאו מוצרים בקטלוג');
-    }
-  } else {
-    console.warn('[BIZ-17] תצוגת קטלוג לא נמצאה');
-  }
-  expect(true).toBeTruthy();
+  await goToTab(page, 'customers');
+  await page.waitForTimeout(1200);
+
+  // The customers tab must render
+  await expect(page.locator('#content-customers')).toBeVisible({ timeout: 8000 });
+
+  // The add-customer button must be present
+  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("לקוח חדש"), #btn-add-customer').first();
+  await expect(addBtn).toBeVisible({ timeout: 6000 });
+
+  // Clicking it must open the modal
+  await addBtn.click();
+  await page.waitForTimeout(600);
+  const modal = page.locator('[id*="customer"][id*="modal"], #customer-modal').first();
+  await expect(modal).toBeVisible({ timeout: 6000 });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-23 — הוספת פריט למלאי
+// BIZ-12 — היסטוריית רכישות לקוח
 // ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-23] מלאי — הוספת פריט חדש למחסן/מזווה', async ({ page }) => {
+test('[BIZ-12] לקוחות — צפייה בהיסטוריית רכישות לקוח', async ({ page }) => {
   test.setTimeout(120000);
   await loginAsManager(page);
-  await goToTab(page, 'pantry');
+  await goToTab(page, 'customers');
   await page.waitForTimeout(1200);
-  await expect(page.locator('#content-pantry')).toBeVisible({ timeout: 8000 });
-  const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("פריט חדש"), button:has-text("הוסף מוצר")').first();
-  const hasBtn = await addBtn.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasBtn) {
-    await addBtn.click();
-    await page.waitForTimeout(600);
-    const modal = page.locator('#new-product-modal, [id*="pantry"][id*="modal"], [id*="product"][id*="modal"]').first();
-    const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!isOpen) console.warn('[BIZ-23] מודל הוספת פריט למלאי לא נפתח');
-  } else {
-    console.warn('[BIZ-23] כפתור הוספת פריט למלאי לא נמצא');
-  }
-  expect(true).toBeTruthy();
-});
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// BIZ-24 — שימוש בפריט מהמלאי
-// ═══════════════════════════════════════════════════════════════════════════════
-test('[BIZ-24] מלאי — רישום שימוש בפריט מהמחסן', async ({ page }) => {
-  test.setTimeout(120000);
-  await loginAsEmployee(page);
-  await goToTab(page, 'pantry');
-  await page.waitForTimeout(1200);
-  const pantryItem = page.locator('.pantry-item, .inventory-item, #pantry-list li').first();
-  const hasItem = await pantryItem.isVisible({ timeout: 6000 }).catch(() => false);
-  if (hasItem) {
-    const useBtn = page.locator('button:has-text("השתמש"), button:has-text("הפחת"), .use-btn').first();
-    const hasUseBtn = await useBtn.isVisible({ timeout: 4000 }).catch(() => false);
-    if (hasUseBtn) {
-      await useBtn.click();
-      await page.waitForTimeout(600);
-      const modal = page.locator('#pantry-use-modal, [id*="use"][id*="modal"]').first();
-      const isOpen = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-      if (!isOpen) console.warn('[BIZ-24] מודל שימוש בפריט לא נפתח');
-    } else {
-      console.warn('[BIZ-24] כפתור שימוש בפריט לא נמצא');
-    }
-  } else {
-    console.warn('[BIZ-24] לא נמצאו פריטים במלאי');
-  }
-  expect(true).toBeTruthy();
+  // At least one customer must exist in the list
+  const customerItem = page.locator('.customer-item, .customer-row, #customers-list li, #customers-list .card').first();
+  await expect(customerItem).toBeVisible({ timeout: 8000 });
+
+  // Clicking the customer must reveal the history section
+  await customerItem.click();
+  await page.waitForTimeout(600);
+  const historyView = page.locator('#cust-view-history, .customer-history, [id*="history"]').first();
+  await expect(historyView).toBeVisible({ timeout: 6000 });
 });
