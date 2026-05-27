@@ -13,7 +13,7 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  groupCode:    process.env.BIZ_GROUP_CODE    || 'J7RH0Y',
+  groupCode:    process.env.BIZ_GROUP_CODE    || 'GA1HLF',
   managerName:  process.env.BIZ_MANAGER_NAME  || 'מושיק',
   managerPass:  process.env.BIZ_MANAGER_PASS  || '123456',
   employeeName: process.env.BIZ_EMPLOYEE_NAME || 'אופק',
