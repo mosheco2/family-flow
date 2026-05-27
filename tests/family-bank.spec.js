@@ -14,7 +14,7 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  groupCode:  process.env.GROUP_CODE  || 'TYQPPY',
+  groupCode:  process.env.GROUP_CODE  || '3FXR4Y',
   parentName: process.env.PARENT_NAME || 'אבא',
   parentPass: process.env.PARENT_PASS || '123456',
   kidName:    process.env.KID_NAME    || 'זוהר',
