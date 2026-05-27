@@ -468,8 +468,8 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
 
   <div class="stats-bar">
     <div class="stat-card"><div class="num num-total" id="s-total">0</div><div class="lbl">סה"כ בדיקות</div></div>
-    <div class="stat-card" style="cursor:pointer" onclick="showFilteredBook('ok')" title="הצג בדיקות שעברו"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
-    <div class="stat-card" style="cursor:pointer" onclick="showFilteredBook('fail')" title="הצג בדיקות שנכשלו"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
+    <div class="stat-card"><div class="num num-ok" id="s-ok">0</div><div class="lbl">✓ עברו</div></div>
+    <div class="stat-card"><div class="num num-fail" id="s-fail">0</div><div class="lbl">✗ נכשלו</div></div>
     <div class="stat-card"><div class="num num-skip" id="s-skip">0</div><div class="lbl">— דולגו</div></div>
     <div class="stat-card"><div class="num num-pct" id="s-pct">0%</div><div class="lbl">אחוז כיסוי</div></div>
   </div>
@@ -500,18 +500,7 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
     <h2><i class="fa-solid fa-flask" style="color:#3b82f6"></i> רשימת בדיקות מלאה — QA Staging</h2>
     <div class="page-actions">
       <button class="btn btn-purple" onclick="finalizeTestRun()"><i class="fa-solid fa-flag-checkered"></i> סיים ריצה ושמור להיסטוריה</button>
-      <button class="btn btn-red" onclick="generateQAStagingReport()"><i class="fa-solid fa-file-lines"></i> הפק דוח</button>
       <button id="refresh-btn" class="btn-refresh" onclick="refreshSystem()"><i class="fa-solid fa-rotate"></i> רענן מערכת</button><span id="last-refresh-label" class="refresh-indicator"><i class="fa-solid fa-clock"></i> ממתין לרענון</span>
-    </div>
-  </div>
-  <!-- QA Staging Report Modal -->
-  <div id="qa-staging-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:800;overflow-y:auto;padding:1.5rem 1rem">
-    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:1rem;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0">
-        <h3 style="margin:0;font-size:.95rem;font-weight:800;color:#0f172a"><i class="fa-solid fa-file-lines" style="color:#3b82f6;margin-left:.4rem"></i> דוח ריצת QA Staging</h3>
-        <button onclick="document.getElementById('qa-staging-report-modal').style.display='none'" style="border:none;background:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;line-height:1">✕</button>
-      </div>
-      <div id="qa-staging-report-body" style="padding:1.25rem"></div>
     </div>
   </div>
   <div id="qa-staging-container">
@@ -528,7 +517,6 @@ tr.row-done td{background:#f0fdf4;opacity:.85}
   <div class="page-header">
     <h2><i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר</h2>
     <div class="page-actions">
-      <button id="live-mode-btn" class="btn" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac" onclick="toggleLiveMode()"><i class="fa-solid fa-robot"></i> מצב LIVE</button>
       <button class="btn btn-green" onclick="markAll('ok')"><i class="fa-solid fa-check"></i> סמן הכל כ-OK</button>
       <button class="btn btn-red" onclick="generateReport()"><i class="fa-solid fa-triangle-exclamation"></i> הפק דוח תקלות</button>
       <button class="btn btn-outline" onclick="filterFails()"><i class="fa-solid fa-filter"></i> הצג רק כשלונות</button>
@@ -737,8 +725,7 @@ async function loadTestsFromServer() {
                     name: t.name,
                     desc: t.description,
                     prio: t.priority,
-                    envs: (typeof ENV_MAP !== 'undefined' && ENV_MAP[t.id]) ? ENV_MAP[t.id] : ['family','biz'],
-                    ticket_id: t.original_ticket_id || null
+                    envs: (typeof ENV_MAP !== 'undefined' && ENV_MAP[t.id]) ? ENV_MAP[t.id] : ['family','biz']
                 });
             });
             
@@ -1732,29 +1719,11 @@ function getNote(id, env)  { return state[sk(id,env)]?.n || ''; }
 function setStatus(id, s, env) {
   const k = sk(id, env);
   if(!state[k]) state[k] = {};
-  const prev = state[k].s;
-  state[k].s = prev === s ? null : s;
-  const newStatus = state[k].s;
+  state[k].s = state[k].s === s ? null : s;
   updateRowUI(id, env);
   saveState();
   updateSidebarBadges();
   scheduleServerSave();
-  // לוג אבן דרך לטיקט המקושר כשסטטוס בדיקה משתנה
-  if (newStatus && newStatus !== prev && saToken) {
-    const test = SECTIONS.flatMap(sec => sec.tests || []).find(t => t.id === id);
-    const ticketId = test && test.ticket_id;
-    if (ticketId) {
-      const statusMsg = { ok: '✅ בדיקת QA עברה בהצלחה בספר המוצר', fail: '❌ בדיקת QA נכשלה בספר המוצר', warn: '⚠️ בדיקת QA עברה עם אזהרות בספר המוצר', skip: 'בדיקת QA דולגה' };
-      const msg = statusMsg[newStatus];
-      if (msg) {
-        fetch(`${API}/superadmin/tickets/${ticketId}/reply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-          body: JSON.stringify({ message: '', status: '', isInternal: true, senderName: 'ספר QA', auditNote: msg })
-        }).catch(() => {});
-      }
-    }
-  }
 }
 
 function setNote(id, n, env) {
@@ -1956,11 +1925,7 @@ function renderTests(filter) {
   if(currentView === 'book') {
     const h2 = document.querySelector('#view-book .page-header h2');
     if(h2) {
-      if(_statusFilter) {
-        h2.innerHTML = _statusFilter === 'ok'
-          ? `<i class="fa-solid fa-check-circle" style="color:#16a34a"></i> בדיקות שעברו — לפי קטגוריה`
-          : `<i class="fa-solid fa-circle-xmark" style="color:#dc2626"></i> בדיקות שנכשלו — לפי קטגוריה`;
-      } else if(filter) {
+      if(filter) {
         const activeSec = SECTIONS.find(s => s.id === filter);
         if(activeSec) h2.innerHTML = `<i class="fa-solid ${activeSec.icon}" style="color:${activeSec.color}"></i> ${activeSec.title}`;
       } else {
@@ -1971,26 +1936,11 @@ function renderTests(filter) {
 
   let html = '';
 
-  // בספר המוצר — סנן לפי _statusFilter (אם פעיל), אחרת רק approved
+  // בספר המוצר — סנן רק בדיקות שאושרו
   let rawSections = filter ? SECTIONS.filter(s=>s.id===filter) : SECTIONS;
-  let sections;
-  if (_statusFilter) {
-    sections = rawSections.map(sec => ({
-      ...sec,
-      tests: (sec.tests || []).filter(t =>
-        (t.envs && t.envs.length ? t.envs : ['family']).some(env => {
-          const s = getStatus(t.id, env);
-          return _statusFilter === 'ok'   ? s === 'ok'
-               : _statusFilter === 'fail' ? (s === 'fail' || s === 'warn')
-               : false;
-        })
-      )
-    })).filter(sec => sec.tests.length > 0);
-  } else if (currentView === 'book' && !filter) {
-    sections = rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0);
-  } else {
-    sections = rawSections;
-  }
+  const sections = (currentView === 'book' && !filter)
+    ? rawSections.map(sec => ({...sec, tests: sec.tests.filter(t => approvedTests.has(t.id))})).filter(sec => sec.tests.length > 0)
+    : rawSections;
 
   // אם אין קטגוריות להציג — הצג הודעה מתאימה
   if(!sections.length) {
@@ -2111,7 +2061,6 @@ function renderRow(t, sec, env, showCb) {
     <td>
       <div class="test-name">${t.name}</div>
       <div class="test-desc">${t.desc}</div>
-      ${t.ticket_id ? `<div style="margin-top:4px"><a href="sa.html?ticket=${t.ticket_id}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:#6366f1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 7px;text-decoration:none;" title="פתח קריאת שירות מקור"><i class="fa-solid fa-ticket" style="font-size:8px"></i> קריאה #${t.ticket_id}</a></div>` : ''}
     </td>
     <td><span class="prio ${prioClass}">${prioLabel}</span></td>
     <td>
@@ -2180,69 +2129,9 @@ function toggleNote(rowKey) {
 function renderQAStaging() {
   const el = document.getElementById('qa-staging-container');
   if(!el) return;
-
-  // ── Playwright results section ──
-  const playwrightEntries = [];
-  SECTIONS.forEach(sec => {
-    (sec.tests || []).forEach(t => {
-      ['family','biz','comm','sa'].forEach(env => {
-        const k = sk(t.id, env);
-        if(state[k] && (state[k].n || '').includes('🤖')) {
-          playwrightEntries.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: state[k].s, note: state[k].n });
-        }
-      });
-    });
-  });
-  const pwOk   = playwrightEntries.filter(e => e.status === 'ok').length;
-  const pwFail = playwrightEntries.filter(e => e.status === 'fail').length;
-  let pwHtml = '';
-  if(playwrightEntries.length) {
-    const rows = playwrightEntries.map(e => {
-      const badge = e.status === 'ok'
-        ? `<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700">✅ עבר</span>`
-        : `<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700">❌ נכשל</span>`;
-      const bookBadge = approvedTests.has(e.id)
-        ? `<span style="background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:99px;font-size:.65rem;margin-right:4px">📚 בספר המוצר</span>` : '';
-      const noteShort = (e.note || '').replace('🤖 Playwright: ','').substring(0,50);
-      return `<tr style="border-bottom:1px solid #f1f5f9">
-        <td style="padding:.5rem .75rem;font-size:.75rem;font-weight:700;color:#1e293b">${e.id}</td>
-        <td style="padding:.5rem .75rem;font-size:.72rem;color:#475569">${e.name}</td>
-        <td style="padding:.5rem .75rem;font-size:.7rem;color:#94a3b8">${e.section}</td>
-        <td style="padding:.5rem .75rem">${badge} ${bookBadge}</td>
-        <td style="padding:.5rem .75rem;font-size:.68rem;color:#64748b;direction:ltr">${noteShort}</td>
-      </tr>`;
-    }).join('');
-    pwHtml = `<div class="qa-version-block" style="margin-bottom:1.5rem">
-      <div class="qa-ver-head" onclick="toggleQABlock('qavb-playwright')" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe)">
-        <h3><i class="fa-solid fa-robot" style="color:#0ea5e9"></i> תוצאות Playwright אוטומטיות
-          <span style="font-size:.7rem;font-weight:500;color:#64748b">(${pwOk} עברו / ${pwFail} נכשלו)</span>
-        </h3>
-        <i class="fa-solid fa-chevron-down" style="color:#94a3b8;font-size:.75rem" id="chev-qavb-playwright"></i>
-      </div>
-      <div class="qa-ver-body" id="qavb-playwright">
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr style="background:#f8fafc;font-size:.68rem;color:#94a3b8">
-            <th style="padding:.4rem .75rem;text-align:right">מזהה</th>
-            <th style="padding:.4rem .75rem;text-align:right">שם בדיקה</th>
-            <th style="padding:.4rem .75rem;text-align:right">קטגוריה</th>
-            <th style="padding:.4rem .75rem;text-align:right">סטטוס</th>
-            <th style="padding:.4rem .75rem;text-align:right">הערה</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        ${pwFail > 0 ? `<div style="margin:.75rem;padding:.5rem .75rem;background:#fff7ed;border-radius:.5rem;font-size:.72rem;color:#c2410c"><i class="fa-solid fa-triangle-exclamation"></i> ${pwFail} בדיקות נכשלו — לא הועברו לספר המוצר</div>` : ''}
-        ${pwOk > 0 ? `<div style="margin:.75rem;padding:.5rem .75rem;background:#f0fdf4;border-radius:.5rem;font-size:.72rem;color:#15803d"><i class="fa-solid fa-check-circle"></i> ${pwOk} בדיקות עברו — הועברו אוטומטית לספר המוצר</div>` : ''}
-      </div>
-    </div>`;
-  }
-
   const inqaTasks = kanbanTasks.filter(t => ['inqa','done'].includes(taskAssignments[t.id]?.status));
-  if(!inqaTasks.length && testQueue.size === 0 && !playwrightEntries.length) {
+  if(!inqaTasks.length && testQueue.size === 0) {
     el.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8"><i class="fa-solid fa-flask" style="font-size:3rem;margin-bottom:1rem;display:block"></i><p style="font-weight:600;font-size:.9rem">אין משימות הממתינות לבדיקת QA</p><p style="font-size:.78rem;margin-top:.5rem">משימות יופיעו כאן לאחר שהמפתח ילחץ "פיתוח הסתיים" ב-ALM Hub, או לאחר בחירת בדיקות מקטגוריה</p></div>`;
-    return;
-  }
-  if(!inqaTasks.length && testQueue.size === 0 && playwrightEntries.length) {
-    el.innerHTML = pwHtml;
     return;
   }
   const standalones = inqaTasks.filter(t => taskAssignments[t.id]?.versionId === '__standalone__');
@@ -2302,39 +2191,38 @@ function renderQAStaging() {
       </div>
     </div>`;
   }
-  el.innerHTML = pwHtml + html;
+  el.innerHTML = html;
 }
 
 function renderQATaskRow(task) {
   const a = taskAssignments[task.id] || {};
   const passed = a.qa_passed;
-  const modLabel = SECTIONS.find(s=>s.id===a.module)?.title || a.module || '—';
+  const failed = a.qa_failed;
+  const s = passed ? 'ok' : (failed ? 'fail' : '');
+  const modLabel = SECTIONS.find(sec=>sec.id===a.module)?.title || a.module || '—';
   const envLabel = {family:'🏠 משפחה',biz:'💼 עסק',comm:'🤝 קהילה',sa:'🛡️ SA'}[a.env] || a.env || '';
   const prioClass = {critical:'prio-critical',high:'prio-high',medium:'prio-medium',low:'prio-low'}[task.priority]||'prio-medium';
   const prioLabel = {critical:'קריטי',high:'גבוה',medium:'בינוני',low:'נמוך'}[task.priority]||task.priority||'';
-  if(passed) return `
-  <div class="qa-task-row" style="opacity:.6;background:#f0fdf4">
-    <div class="qa-task-info">
-      <div class="qa-task-title"><i class="fa-solid fa-circle-check" style="color:#16a34a;margin-left:.4rem"></i>${task.title}</div>
-      <div class="qa-task-meta"><span class="task-badge tbadge-done">✅ עבר QA</span><span style="font-size:.68rem;color:#64748b">${modLabel}${envLabel?' · '+envLabel:''}</span></div>
-    </div>
-  </div>`;
+  const rowStyle = passed ? 'opacity:.6;background:#f0fdf4' : '';
   return `
-  <div class="qa-task-row" id="qa-row-${task.id}">
+  <div class="qa-task-row" id="qa-row-${task.id}"${rowStyle ? ` style="${rowStyle}"` : ''}>
     <div class="qa-task-info">
-      <div class="qa-task-title">${task.title}</div>
+      <div class="qa-task-title">${passed ? `<i class="fa-solid fa-circle-check" style="color:#16a34a;margin-left:.4rem"></i>` : ''}${task.title}</div>
       <div class="qa-task-meta">
-        ${prioLabel?`<span class="prio ${prioClass}">${prioLabel}</span>`:''}
+        ${passed ? `<span class="task-badge tbadge-done">✅ עבר QA</span>` : ''}
+        ${prioLabel ? `<span class="prio ${prioClass}">${prioLabel}</span>` : ''}
         <span class="env-tag env-${a.env||'family'}">${envLabel}</span>
         <span style="font-size:.68rem;color:#7c3aed;background:#faf5ff;padding:.1rem .4rem;border-radius:99px">${modLabel}</span>
       </div>
-      ${task.description?`<div class="qa-task-desc">${task.description}</div>`:''}
+      ${task.description ? `<div class="qa-task-desc">${task.description}</div>` : ''}
     </div>
     <div class="qa-task-actions">
-      <button class="qa-pass-btn" onclick="passQATest(${task.id})"><i class="fa-solid fa-check"></i> בדיקה עברה</button>
-      <button class="qa-fail-btn" onclick="failQATest(${task.id})"><i class="fa-solid fa-xmark"></i> נכשל</button>
-      <button class="qa-guide-btn${a.qa_guide_open?' active':''}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה — קיים מול מצוי"><i class="fa-solid fa-map"></i></button>
-      <button onclick="toggleQANote(${task.id})" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:.72rem;padding:.2rem"><i class="fa-solid fa-pen-to-square"></i> הערה</button>
+      <div class="status-btns">
+        <button class="s-btn ${s==='ok'?'active-ok':''}" onclick="passQATest(${task.id})" title="תקין"><i class="fa-solid fa-check"></i></button>
+        <button class="s-btn ${s==='fail'?'active-fail':''}" onclick="failQATest(${task.id})" title="נכשל"><i class="fa-solid fa-xmark"></i></button>
+        <button class="qa-guide-btn${a.qa_guide_open?' active':''}" onclick="toggleQAGuide(${task.id})" title="מדריך בדיקה"><i class="fa-solid fa-map"></i></button>
+        <button class="note-btn${a.qa_note?' has-note':''}" onclick="toggleQANote(${task.id})" title="הערה"><i class="fa-solid fa-pen-to-square"></i></button>
+      </div>
     </div>
   </div>
   <div class="qa-task-note-wrap" id="qa-note-${task.id}">
@@ -2595,8 +2483,9 @@ async function passVersionQA(verId) {
 }
 
 function showAllBook() {
-  _statusFilter = null;
   currentFilter = null;
+  const h2 = document.querySelector('#view-book .page-header h2');
+  if(h2) h2.innerHTML = `<i class="fa-solid fa-book-open" style="color:#3b82f6"></i> ספר המוצר`;
   showView('book');
 }
 
@@ -2690,9 +2579,6 @@ async function refreshSystem(silent = false) {
     await loadKanbanTasks();
     await loadResultsFromServer();
     await loadVersionsFromServer();
-    renderTests(currentFilter);
-    updateStats();
-    updateSidebarBadges();
     _lastRefresh = new Date();
     _updateRefreshLabel();
     if(!silent) showToast('המערכת עודכנה ✓');
@@ -2709,27 +2595,6 @@ function _updateRefreshLabel() {
 function startAutoRefresh(intervalSec = 30) {
   if(_autoRefreshTimer) clearInterval(_autoRefreshTimer);
   _autoRefreshTimer = setInterval(() => refreshSystem(true), intervalSec * 1000);
-}
-
-let _liveModeActive = false;
-let _liveTimer = null;
-function toggleLiveMode() {
-  _liveModeActive = !_liveModeActive;
-  const btn = document.getElementById('live-mode-btn');
-  if (_liveModeActive) {
-    if(btn) { btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#15803d'; btn.innerHTML='<i class="fa-solid fa-robot fa-beat"></i> LIVE פעיל'; }
-    _liveTimer = setInterval(async () => {
-      await loadResultsFromServer();
-      renderTests(currentFilter);
-      updateStats();
-      updateSidebarBadges();
-    }, 5000);
-    showToast('מצב LIVE פעיל — מרענן כל 5 שניות 🤖');
-  } else {
-    clearInterval(_liveTimer);
-    if(btn) { btn.style.background='#f0fdf4'; btn.style.color='#16a34a'; btn.style.borderColor='#86efac'; btn.innerHTML='<i class="fa-solid fa-robot"></i> מצב LIVE'; }
-    showToast('מצב LIVE כובה');
-  }
 }
 
 function renderALMHub() { renderSortingQueue(); renderVersionTracker(); }
@@ -3098,112 +2963,6 @@ function updateSidebarBadges() {
 // ============================================================
 // REPORT
 // ============================================================
-function generateQAStagingReport() {
-  const modal = document.getElementById('qa-staging-report-modal');
-  const body  = document.getElementById('qa-staging-report-body');
-  if(!modal || !body) return;
-
-  // אסוף את כל הבדיקות שנמצאות בתור הסטייג'ינג
-  const queuedTests = [];
-  SECTIONS.forEach(sec => {
-    (sec.tests || []).forEach(t => {
-      (t.envs && t.envs.length ? t.envs : ['family']).forEach(env => {
-        if(testQueue.has(`${t.id}:${env}`)) {
-          const s = getStatus(t.id, env);
-          const n = getNote(t.id, env) || '';
-          queuedTests.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: s, note: n });
-        }
-      });
-    });
-  });
-
-  // כלול גם בדיקות Playwright שלא בתור
-  SECTIONS.forEach(sec => {
-    (sec.tests || []).forEach(t => {
-      ['family','biz','comm','sa'].forEach(env => {
-        const k = sk(t.id, env);
-        if(state[k] && (state[k].n || '').includes('🤖') && !testQueue.has(`${t.id}:${env}`)) {
-          queuedTests.push({ id: t.id, name: t.name || t.id, section: sec.title, env, status: state[k].s, note: state[k].n });
-        }
-      });
-    });
-  });
-
-  if(!queuedTests.length) {
-    body.innerHTML = `<div style="text-align:center;padding:2.5rem;color:#94a3b8">
-      <i class="fa-solid fa-flask" style="font-size:2.5rem;display:block;margin-bottom:.8rem"></i>
-      <p style="font-weight:600">אין משימות בסטייג'ינג כרגע</p>
-    </div>`;
-    modal.style.display = 'block';
-    return;
-  }
-
-  const groups = {
-    ok:   queuedTests.filter(e => e.status === 'ok'),
-    fail: queuedTests.filter(e => e.status === 'fail'),
-    warn: queuedTests.filter(e => e.status === 'warn'),
-    skip: queuedTests.filter(e => e.status === 'skip'),
-    pending: queuedTests.filter(e => !e.status || e.status === 'pending'),
-  };
-  const total = queuedTests.length;
-  const pct = total ? Math.round(groups.ok.length / total * 100) : 0;
-  const now = new Date().toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
-
-  const renderGroup = (label, color, icon, items) => {
-    if(!items.length) return '';
-    const rows = items.map(e => {
-      const noteShort = e.note ? `<div style="font-size:.65rem;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${e.note.replace('🤖 Playwright: ','')}</div>` : '';
-      return `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid #f1f5f9">
-        <div style="font-size:.72rem;font-weight:700;color:#1e293b;min-width:70px">${e.id}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.72rem;color:#334155">${e.name}</div>
-          <div style="font-size:.65rem;color:#94a3b8">${e.section}</div>
-          ${noteShort}
-        </div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:1rem">
-      <div style="font-size:.72rem;font-weight:700;color:${color};padding:.35rem .75rem;background:${color}15;border-radius:.4rem .4rem 0 0;border:1px solid ${color}30;border-bottom:none">
-        <i class="fa-solid fa-${icon}"></i> ${label} (${items.length})
-      </div>
-      <div style="border:1px solid #e2e8f0;border-radius:0 0 .4rem .4rem">${rows}</div>
-    </div>`;
-  };
-
-  body.innerHTML = `
-    <div style="display:flex;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap">
-      <div style="flex:1;min-width:80px;background:#f0fdf4;border-radius:.5rem;padding:.6rem;text-align:center">
-        <div style="font-size:1.4rem;font-weight:800;color:#16a34a">${groups.ok.length}</div>
-        <div style="font-size:.65rem;color:#16a34a">עברו ✅</div>
-      </div>
-      <div style="flex:1;min-width:80px;background:#fef2f2;border-radius:.5rem;padding:.6rem;text-align:center">
-        <div style="font-size:1.4rem;font-weight:800;color:#dc2626">${groups.fail.length}</div>
-        <div style="font-size:.65rem;color:#dc2626">נכשלו ❌</div>
-      </div>
-      <div style="flex:1;min-width:80px;background:#fff7ed;border-radius:.5rem;padding:.6rem;text-align:center">
-        <div style="font-size:1.4rem;font-weight:800;color:#d97706">${groups.warn.length}</div>
-        <div style="font-size:.65rem;color:#d97706">אזהרות ⚠️</div>
-      </div>
-      <div style="flex:1;min-width:80px;background:#f8fafc;border-radius:.5rem;padding:.6rem;text-align:center">
-        <div style="font-size:1.4rem;font-weight:800;color:#64748b">${groups.pending.length + groups.skip.length}</div>
-        <div style="font-size:.65rem;color:#64748b">ממתין/דלג</div>
-      </div>
-    </div>
-    <div style="background:#f1f5f9;border-radius:.5rem;padding:.5rem .75rem;font-size:.72rem;color:#475569;margin-bottom:1.25rem;display:flex;justify-content:space-between">
-      <span>כיסוי: <strong>${pct}%</strong> (${groups.ok.length}/${total})</span>
-      <span>${now}</span>
-    </div>
-    ${renderGroup('עברו', '#16a34a', 'check-circle', groups.ok)}
-    ${renderGroup('נכשלו', '#dc2626', 'xmark-circle', groups.fail)}
-    ${renderGroup('אזהרות', '#d97706', 'triangle-exclamation', groups.warn)}
-    ${renderGroup('ממתין לבדיקה', '#64748b', 'clock', groups.pending)}
-    ${renderGroup('דולגו', '#94a3b8', 'minus', groups.skip)}
-    <div style="text-align:center;margin-top:.75rem">
-      <button onclick="document.getElementById('qa-staging-report-modal').style.display='none'" style="border:1px solid #e2e8f0;background:#f8fafc;color:#475569;border-radius:.5rem;padding:.5rem 1.5rem;cursor:pointer;font-family:inherit;font-size:.8rem">סגור</button>
-    </div>`;
-  modal.style.display = 'block';
-}
-
 function generateReport() {
   showView('report');
   const container = document.getElementById('report-container');
@@ -3750,7 +3509,6 @@ function showView(v) {
       if(l.textContent.includes('כללי')) l.classList.add('active');
     });
   }
-  if(v !== 'book') _statusFilter = null; // איפוס מסנן הסטטוס בעת יציאה מספר המוצר
   if(v==='tests')    renderQAStaging();
   if(v==='book')     renderTests(currentFilter);
   if(v==='versions') renderVersions();
@@ -3850,16 +3608,6 @@ function filterFails() {
     if(gr && !show) gr.style.display='none';
   });
 }
-
-// פתח ספר המוצר מסונן לפי סטטוס — עם חלוקה לקטגוריות מקור
-let _statusFilter = null; // 'ok' | 'fail' | null — מסנן בדיקות בספר המוצר
-
-function showFilteredBook(statusFilter) {
-  _statusFilter = statusFilter;
-  currentFilter = null;
-  showView('book'); // showView calls renderTests which now uses _statusFilter
-}
-
 
 function markAll(s) {
   if(!confirm(`לסמן את כל הבדיקות כ-"${s==='ok'?'תקין':'דלג'}"?`)) return;
@@ -3988,22 +3736,12 @@ async function loadResultsFromServer() {
         }
         // תוצאת בדיקה רגילה
         const k = sk(r.test_id, r.env);
-        const isPlaywright = (r.note || '').includes('🤖');
-        // תוצאת Playwright תמיד גוברת; תוצאה ידנית גוברת רק אם אין local state
-        if(isPlaywright || !(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
-        // Playwright ok → אישור אוטומטי לספר המוצר
-        if(isPlaywright && r.status === 'ok') {
-          approvedTests.add(r.test_id);
-        }
-        // Playwright fail → הסרה מספר המוצר (חזרה לרשימת QA בלבד)
-        if(isPlaywright && r.status === 'fail') {
-          approvedTests.delete(r.test_id);
-        }
+        // אל תדרוס מצב מקומי — אם קיים, המקומי סמכותי (למשל ניקוי סימון)
+        if(!(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
       });
       // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
       applyGuideEdits();
       localStorage.setItem('qa_state', JSON.stringify(state));
-      localStorage.setItem('approved_tests', JSON.stringify([...approvedTests]));
       localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
     }
   } catch(e) { console.warn('loadResultsFromServer:', e.message); }
