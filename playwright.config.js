@@ -6,18 +6,18 @@ module.exports = defineConfig({
   timeout: 120000,
   expect: { timeout: 15000 },
   navigationTimeout: 45000,
-  fullyParallel: false,
+  fullyParallel: false, // family bank tests share state — run sequentially
   retries: 1,
   workers: 1,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }]
+    ['html', { outputFolder: 'tests/playwright-report', open: 'never' }]
   ],
   use: {
     baseURL: process.env.BASE_URL || 'https://oneflowlife.co.il',
     headless: true,
-    channel: 'chrome',
-    viewport: { width: 390, height: 844 },
+    channel: 'chrome', // use installed Chrome instead of bundled headless shell (avoids Windows Defender timeout)
+    viewport: { width: 390, height: 844 }, // mobile — app is mobile-first
     locale: 'he-IL',
     timezoneId: 'Asia/Jerusalem',
     screenshot: 'only-on-failure',
