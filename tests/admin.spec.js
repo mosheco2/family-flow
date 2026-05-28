@@ -14,7 +14,8 @@ const SA_URL   = BASE_URL + '/sa.html';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  saPassword: process.env.SA_PASSWORD || 'admin123',
+  saUsername: process.env.SA_USER     || 'admin',
+  saPassword: process.env.SA_PASSWORD || '123456',
   qaEnv:      'family',
 };
 
@@ -52,13 +53,16 @@ test.afterEach(async ({}, testInfo) => {
 async function loginAsSA(page) {
   await page.goto(SA_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(1000);
-  const passInput = page.locator('#sa-password, input[type="password"]').first();
-  const hasInput = await passInput.isVisible({ timeout: 10000 }).catch(() => false);
-  if (hasInput) {
-    await passInput.fill(TEST_ENV.saPassword);
-    await page.locator('button:has-text("כנס"), button[type="submit"]').first().click();
-    await page.waitForTimeout(2000);
+  // Switch from SMS login to staff/password login form if needed
+  const smsVisible = await page.locator('#sa-login-master-step1').isVisible({ timeout: 5000 }).catch(() => false);
+  if (smsVisible) {
+    await page.locator('button:has-text("התחברות איש צוות")').click();
+    await page.waitForTimeout(500);
   }
+  await page.locator('#sa-code').fill(TEST_ENV.saUsername);
+  await page.locator('#sa-password').fill(TEST_ENV.saPassword);
+  await page.locator('#sa-login-staff button[type="submit"]').click();
+  await page.waitForTimeout(2000);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
