@@ -955,9 +955,12 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { getEl('task-modal').classList.add('hidden'); }
 
-function openTaskModal(isSelf = false) { 
-    getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf; 
+function openTaskModal(isSelf = false) {
+    getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf;
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
+    const aiCheckEl = getEl('task-require-ai-check'); if (aiCheckEl) aiCheckEl.value = 'true';
+    const knob = getEl('ai-check-knob');
+    if (knob) { knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6'); }
     setTaskMode('manual'); const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
 
     if(isSelf) { 
@@ -998,13 +1001,30 @@ async function generateAITasks() {
 
 function selectAITask(title, reward) { getEl('task-title').value = title; getEl('task-reward').value = reward; setTaskMode('manual'); }
 
-async function submitTask() { 
+function toggleAiCheck() {
+    const current = getEl('task-require-ai-check').value === 'true';
+    const newVal = !current;
+    getEl('task-require-ai-check').value = newVal ? 'true' : 'false';
+    const toggle = getEl('ai-check-toggle');
+    const knob = getEl('ai-check-knob');
+    const activeColor = toggle.classList.contains('bg-slate-800') ? 'bg-slate-800' : 'bg-purple-500';
+    if (newVal) {
+        toggle.classList.add(activeColor); toggle.classList.remove('bg-slate-300');
+        knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6');
+    } else {
+        toggle.classList.remove('bg-purple-500', 'bg-slate-800'); toggle.classList.add('bg-slate-300');
+        knob.classList.remove('translate-x-6'); knob.classList.add('translate-x-1');
+    }
+}
+
+async function submitTask() {
     const isSelf = val('task-is-self') === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
+    const requireAiCheck = getEl('task-require-ai-check') ? getEl('task-require-ai-check').value === 'true' : true;
     if(!isSelf && !assignee) return showToast('error', 'יש לבחור ילד למשימה'); if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
     const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     const statusToSend = isSelf ? 'done' : 'pending';
     try {
-        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: reward || 0, assignedTo: assignee, days: days, status: statusToSend, groupId: currentGroup.id }) }); 
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: reward || 0, assignedTo: assignee, days: days, status: statusToSend, groupId: currentGroup.id, requireAiCheck }) });
         const data = await res.json();
         if(data.success) { if(isSelf) triggerConfetti(); closeTaskModal(); showToast('success', isSelf ? 'נשלח לאישור ההורה!' : 'משימה נוצרה בהצלחה!'); fetchData(); } else showToast('error', data.error || 'שגיאה ביצירת משימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'צור משימה'; } }
@@ -1586,10 +1606,10 @@ async function submitShopItem() {
     try { 
         const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
         const data = await res.json(); 
-        if (data.success) { 
-            getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden'); 
-            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
-            showToast('success', 'נוסף לרשימה'); fetchData(); 
+        if (data.success) {
+            getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden');
+            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg;
+            showToast('success', data.status === 'requested' ? 'הבקשה נשלחה להורה לאישור ⏳' : 'נוסף לרשימה'); fetchData();
         } else { showToast('error', data.error || 'שגיאת שרת בהוספת פריט לרכש'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } } 
 }
@@ -1703,7 +1723,16 @@ async function submitFinalCheckout() {
     });
     const res = await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
     const data = await res.json();
-    if(data.success) { getEl('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הקניה בוצעה ואושרה למזווה!'); fetchData(); } else showToast('error', data.error);
+    if(data.success) {
+        getEl('confirm-checkout-modal').classList.add('hidden');
+        showToast('success', 'הקניה בוצעה ואושרה למזווה!');
+        if (missingItems.length > 0) {
+            window._pendingMissingItems = missingItems.map(mi => { const item = shoppingListCache.find(i => i.id == mi.id); return item ? { item_name: item.item_name, quantity: item.quantity, unit: item.unit, estimated_price: item.estimated_price, units_per_package: item.units_per_package } : null; }).filter(Boolean);
+            getEl('missing-count-text').innerText = missingItems.length;
+            getEl('missing-draft-modal').classList.remove('hidden');
+        }
+        fetchData();
+    } else showToast('error', data.error);
 }
 
 async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
@@ -1716,6 +1745,167 @@ function sendWhatsAppInvite(role) {
 }
 
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
+
+// ============================================================
+// --- SUPERMARKET MODE (Feature 2) ---
+// ============================================================
+
+function openSupermarketMode() {
+    const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
+    if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה להתחיל קניה'); return; }
+    renderSupermarketList();
+    getEl('supermarket-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSupermarketMode() {
+    getEl('supermarket-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function renderSupermarketList() {
+    const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
+    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
+    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    let currentCat = ''; let html = '';
+    activeItems.forEach(i => {
+        const cat = getCatScore(i.item_name);
+        if(cat !== currentCat) {
+            html += `<div class="text-emerald-400 text-xs font-black uppercase tracking-wider px-2 pt-3 pb-1">${cat}</div>`;
+            currentCat = cat;
+        }
+        const isChecked = i.status === 'in_cart';
+        const isMissing = i._smMissing;
+        html += `<div id="sm-row-${i.id}" class="flex items-center gap-3 p-4 rounded-2xl transition ${isChecked ? 'bg-emerald-800/60' : isMissing ? 'bg-red-900/40 opacity-60' : 'bg-emerald-900/60'} border ${isChecked ? 'border-emerald-500' : isMissing ? 'border-red-700' : 'border-emerald-800'}">
+            <button onclick="smToggleItem(${i.id})" class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition ${isChecked ? 'bg-emerald-400 border-emerald-400 text-emerald-900' : 'border-emerald-600 text-transparent'}">${isChecked ? '<i class="fa-solid fa-check font-bold"></i>' : ''}</button>
+            <div class="flex-1 min-w-0">
+                <p class="text-white font-bold text-base truncate">${safeStr(i.item_name)}</p>
+                <p class="text-emerald-400 text-xs">${i.quantity} ${safeStr(i.unit || "יח'")}</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <input type="number" id="sm-price-${i.id}" value="${i.estimated_price > 0 ? i.estimated_price : ''}" placeholder="₪מחיר" oninput="smUpdatePrice(${i.id}, this.value)" class="w-20 bg-emerald-950 border border-emerald-700 text-white text-sm text-center rounded-xl px-2 py-1.5 outline-none focus:border-emerald-400 placeholder-emerald-700">
+                <button onclick="smToggleMissing(${i.id})" class="text-[10px] font-bold px-2 py-1 rounded-lg transition ${isMissing ? 'bg-red-700 text-white' : 'text-red-400 hover:bg-red-900/40'}">${isMissing ? 'מבוטל ✕' : 'חסר'}</button>
+            </div>
+        </div>`;
+    });
+    getEl('sm-list').innerHTML = html;
+    smCalcTotal();
+}
+
+function smToggleItem(id) {
+    const row = getEl(`sm-row-${id}`);
+    const item = shoppingListCache.find(i => i.id == id);
+    if (!item) return;
+    const isChecked = item.status === 'in_cart';
+    const newStatus = isChecked ? 'pending' : 'in_cart';
+    item.status = newStatus;
+    item._smMissing = false;
+    fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: newStatus})});
+    renderSupermarketList();
+}
+
+function smToggleMissing(id) {
+    const item = shoppingListCache.find(i => i.id == id);
+    if (!item) return;
+    item._smMissing = !item._smMissing;
+    if (item._smMissing) { item.status = 'pending'; fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: 'pending'})}); }
+    renderSupermarketList();
+}
+
+function smUpdatePrice(id, value) {
+    const item = shoppingListCache.find(i => i.id == id);
+    if (item) { item.estimated_price = parseFloat(value) || 0; }
+    smCalcTotal();
+    clearTimeout(window._smPriceTimer);
+    window._smPriceTimer = setTimeout(() => {
+        fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, estimatedPrice: parseFloat(value) || 0})});
+    }, 800);
+}
+
+function smCalcTotal() {
+    let total = 0; let found = 0; let all = shoppingListCache.filter(i => i.status !== 'requested').length;
+    shoppingListCache.filter(i => i.status !== 'requested').forEach(i => {
+        if (i.status === 'in_cart') { total += (parseFloat(i.estimated_price) || 0) * (parseFloat(i.quantity) || 1); found++; }
+    });
+    const smTotalEl = getEl('sm-total'); if (smTotalEl) smTotalEl.innerText = `₪${total.toFixed(2)}`;
+    const smProgressEl = getEl('sm-progress-text'); if (smProgressEl) smProgressEl.innerText = `${found} מתוך ${all} פריטים נמצאו`;
+}
+
+// ============================================================
+// --- SAVED SHOPPING LISTS (Feature 5) ---
+// ============================================================
+
+async function openSavedListsModal() {
+    getEl('saved-lists-modal').classList.remove('hidden');
+    await loadSavedLists();
+}
+
+async function loadSavedLists() {
+    try {
+        const res = await fetch(`${API}/shopping/saved?groupId=${currentGroup.id}`);
+        const data = await res.json();
+        const container = getEl('saved-lists-content');
+        if (!data || data.length === 0) { container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">אין רשימות שמורות עדיין</p>'; return; }
+        container.innerHTML = data.map(list => `
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-slate-700 text-sm truncate">${safeStr(list.name)}</p>
+                    <p class="text-xs text-slate-400">${(list.items || []).length} פריטים · ${new Date(list.created_at).toLocaleDateString('he-IL')}</p>
+                </div>
+                <button onclick="loadSavedList(${list.id})" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition">טען</button>
+                <button onclick="deleteSavedList(${list.id})" class="bg-red-50 text-red-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-100 transition"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+        `).join('');
+    } catch(e) { showToast('error', 'שגיאה בטעינת הרשימות'); }
+}
+
+async function saveCurrentList() {
+    const name = (getEl('save-list-name').value || '').trim();
+    if (!name) { showToast('error', 'יש לתת שם לרשימה'); return; }
+    const activeItems = shoppingListCache.filter(i => i.status !== 'requested' && i.status !== 'in_cart');
+    if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה לשמירה'); return; }
+    const itemsToSave = activeItems.map(i => ({ item_name: i.item_name, quantity: i.quantity, unit: i.unit, estimated_price: i.estimated_price, units_per_package: i.units_per_package }));
+    try {
+        const res = await fetch(`${API}/shopping/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupId: currentGroup.id, name, items: itemsToSave }) });
+        const data = await res.json();
+        if (data.success) { getEl('save-list-name').value = ''; showToast('success', 'הרשימה נשמרה!'); await loadSavedLists(); } else showToast('error', 'שגיאה בשמירת הרשימה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function loadSavedList(listId) {
+    if (!confirm('לטעון את הרשימה השמורה לרשימת הקניות הנוכחית?')) return;
+    try {
+        const res = await fetch(`${API}/shopping/load-saved`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ listId, userId: currentUser.id }) });
+        const data = await res.json();
+        if (data.success) { getEl('saved-lists-modal').classList.add('hidden'); showToast('success', `${data.count} פריטים נטענו לרשימה!`); fetchData(); } else showToast('error', data.error || 'שגיאה בטעינת הרשימה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function deleteSavedList(listId) {
+    if (!confirm('למחוק רשימה שמורה זו?')) return;
+    try {
+        await fetch(`${API}/shopping/saved/${listId}`, { method:'DELETE' });
+        await loadSavedLists();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+// ============================================================
+// --- DRAFT FROM MISSING ITEMS (Feature 4) ---
+// ============================================================
+
+async function createDraftFromMissing() {
+    const items = window._pendingMissingItems || [];
+    if (items.length === 0) { getEl('missing-draft-modal').classList.add('hidden'); return; }
+    try {
+        for (const item of items) {
+            await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ itemName: item.item_name, quantity: item.quantity, unit: item.unit, estimatedPrice: item.estimated_price, unitsPerPackage: item.units_per_package, userId: currentUser.id, groupId: currentGroup.id }) });
+        }
+        getEl('missing-draft-modal').classList.add('hidden');
+        showToast('success', `${items.length} פריטים חסרים נוספו לרשימה חדשה!`);
+        window._pendingMissingItems = [];
+        fetchData();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 
 async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
 function openBankSettings(id, name, allowance, interest) { getEl('bank-user-id').value = id; getEl('bank-user-name').innerText = `תקציב דמי כיס: ${name}`; getEl('bank-allowance').value = allowance; getEl('bank-interest').value = interest; getEl('bank-settings-modal').classList.remove('hidden'); }
