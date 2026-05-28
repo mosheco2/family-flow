@@ -3189,14 +3189,24 @@ app.get('/api/storefront/:code', async (req, res) => {
         let communityData = null;
         if (req.query.communityId) {
             const commRes = await pool.query(`
-                SELECT c.name, cb.discount_pct 
-                FROM community_businesses cb 
-                JOIN communities c ON cb.community_id = c.id 
+                SELECT c.name, cb.discount_pct, c.min_families,
+                       (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
+                FROM community_businesses cb
+                JOIN communities c ON cb.community_id = c.id
                 WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'
             `, [groupId, req.query.communityId]);
-            
+
             if (commRes.rows.length > 0) {
-                communityData = commRes.rows[0];
+                const row = commRes.rows[0];
+                const minFamilies = parseInt(row.min_families) || 30;
+                const familyCount = parseInt(row.family_count) || 0;
+                communityData = {
+                    name: row.name,
+                    discount_pct: row.discount_pct,
+                    min_families: minFamilies,
+                    family_count: familyCount,
+                    discount_active: familyCount >= minFamilies
+                };
             }
         }
 
@@ -3265,7 +3275,8 @@ async function initCommunityTables() {
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS image_url TEXT`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
-        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by_group_id INT`
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by_group_id INT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS min_families INT DEFAULT 30`
     ];
     
     for (let q of queries) {
@@ -3282,6 +3293,12 @@ app.post('/api/community/user-create', async (req, res) => {
         const result = await pool.query(
             `INSERT INTO communities (name, city, code, created_by_group_id, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
             [name, city, code, groupId]
+        );
+        const commId = result.rows[0].id;
+        // Auto-join creator to their own community so they can see businesses in it
+        await pool.query(
+            'INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [groupId, commId]
         );
         res.json({ success: true, community: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4034,23 +4051,25 @@ pool.query(`
 app.get('/api/community/info/:groupId', async (req, res) => {
     try {
         const commsRes = await pool.query(`
-            SELECT c.id, c.name, c.city, c.image_url, c.code
+            SELECT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
+                   (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
             FROM family_communities fc
             JOIN communities c ON fc.community_id = c.id
-            WHERE fc.group_id = $1 AND c.status = 'active'
+            WHERE fc.group_id = $1
         `, [req.params.groupId]);
-        
+
         if(commsRes.rows.length === 0) return res.json({ success: true, communities: [], businesses: [] });
-        
+
         const commIds = commsRes.rows.map(c => c.id);
         const bizRes = await pool.query(`
-            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code, c.name as comm_name
+            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code, c.name as comm_name,
+                   c.min_families, (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
             FROM community_businesses cb
             JOIN family_groups b ON cb.business_id = b.id
             JOIN communities c ON cb.community_id = c.id
             WHERE cb.community_id = ANY($1) AND cb.status = 'approved'
         `, [commIds]);
-        
+
         res.json({ success: true, communities: commsRes.rows, businesses: bizRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
