@@ -409,7 +409,26 @@ window.injectBusinessUI = function() {
 
     const contentFeed = document.getElementById('content-feed');
     if(contentFeed) {
-        contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
+        contentFeed.insertAdjacentHTML('afterend', `<div id="content-shifts" class="hidden">
+  <div class="flex justify-between items-center mb-3 px-2 mt-2">
+    <h3 class="font-bold text-slate-700 text-lg">משמרות 🗓️</h3>
+    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> + משמרת</button>
+  </div>
+  <div class="flex items-center gap-2 px-2 mb-3 overflow-x-auto">
+    <div class="flex bg-slate-100 rounded-full p-1 gap-1 shrink-0">
+      <button id="sv-list" onclick="setShiftView('list')" class="shift-sv-btn active-sv px-3 py-1 rounded-full text-xs font-bold transition">רשימה</button>
+      <button id="sv-day"  onclick="setShiftView('day')"  class="shift-sv-btn px-3 py-1 rounded-full text-xs font-bold transition">יומי</button>
+      <button id="sv-week" onclick="setShiftView('week')" class="shift-sv-btn px-3 py-1 rounded-full text-xs font-bold transition">שבועי</button>
+    </div>
+    <div id="shift-nav" class="hidden flex items-center gap-1 shrink-0">
+      <button onclick="navShiftDate(-1)" class="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 text-xs hover:bg-slate-50 flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+      <span id="shift-date-label" class="text-xs font-bold text-slate-600 min-w-[90px] text-center"></span>
+      <button onclick="navShiftDate(1)"  class="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 text-xs hover:bg-slate-50 flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+    </div>
+  </div>
+  <div id="shift-templates-mgr" class="hidden px-2 mb-3"></div>
+  <div id="shifts-list" class="pb-20"></div>
+</div>`);
     }
 
     const custContainer = document.getElementById('content-customers');
@@ -1118,18 +1137,22 @@ if (!window.originalFinalizePOSOrderOverridden) {
             <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
                 <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
                     <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">בקשת משמרת</h3>
                 </div>
                 <div class="p-6 space-y-4">
                     <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="modern-input py-3 text-sm bg-white"></select></div>
                     <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="modern-input py-3 text-sm"></div>
-                    <div class="flex gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-2">סוג משמרת:</label>
+                        <div id="shift-tpl-buttons" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div id="shift-hours-row" class="flex gap-2">
                         <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="modern-input py-3 text-sm"></div>
                         <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="modern-input py-3 text-sm"></div>
                     </div>
                     <div class="flex gap-3 mt-4">
                         <button onclick="getEl('shift-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
+                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור</button>
                     </div>
                 </div>
             </div>
@@ -1345,7 +1368,7 @@ function switchTab(t) {
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
-    if (t === 'shifts') try { renderShifts(); } catch(e) {}
+    if (t === 'shifts') try { shiftNavDate = new Date(); setShiftView(shiftView || 'list'); renderShifts(); } catch(e) {}
     if (t === 'sales') try { switchSalesTab('orders'); } catch(e) {}
     if (t === 'customers') try { if(typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
     if (t === 'deliveries') try { switchDeliveryTab('active'); } catch(e) {}
@@ -2904,44 +2927,287 @@ window.renderTasks = function(tasks) {
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין פרויקטים ומשימות פעילים כרגע</div>'; else list.innerHTML = htmlStr;
 };
 
-function renderShifts() {
-    // הוספת ההגנה t.title &&
-    const shiftTasks = allTasks.filter(t => t.title && t.title.startsWith('SHIFT|'));
-    const list = getEl('shifts-list'); if(!list) return;
-    let html = '';
-    shiftTasks.forEach(t => {
-        const parts = t.title.split('|'); const date = parts[1]; const start = parts[2]; const end = parts[3];
-        const isMyShift = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN';
-        if (!isMyShift && !isAdmin) return;
-        
-        let statusBadge = t.status === 'pending' ? '<span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded font-bold">ממתין לאישור</span>' : '<span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded font-bold">משובץ</span>';
-        let actions = '';
-        if (isAdmin && t.status === 'pending') { actions = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700">אשר</button> <button onclick="deleteTask(${t.id})" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-slate-200">סרב</button>`; }
-        if (isAdmin || isMyShift) { actions += ` <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 mr-2"><i class="fa-solid fa-trash text-xs"></i></button>`; }
-
-        html += `<div class="bg-white p-4 rounded-2xl border ${t.status === 'pending' ? 'border-orange-200' : 'border-slate-100'} shadow-sm flex justify-between items-center mb-2"><div><p class="font-bold text-slate-800 text-lg">${date}</p><p class="text-sm font-bold text-indigo-600">${start} - ${end} | <span class="text-slate-500 font-normal">${safeStr(t.assignee_name)}</span></p></div><div class="flex flex-col items-end gap-2">${statusBadge}<div class="flex gap-1 items-center">${actions}</div></div></div>`;
-    });
-    list.innerHTML = html || '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין משמרות משובצות במערכת</p>';
+// ── Shift Templates (stored per group in localStorage) ───────────────────────
+function getShiftTemplates() {
+    const key = `biz_shift_tpl_${currentGroup?.id}`;
+    try { const s = localStorage.getItem(key); if(s) return JSON.parse(s); } catch(e) {}
+    return [
+        { id: 1, name: 'בוקר', start: '08:00', end: '16:00' },
+        { id: 2, name: 'ערב', start: '16:00', end: '23:00' }
+    ];
+}
+function saveShiftTemplates(tpls) {
+    localStorage.setItem(`biz_shift_tpl_${currentGroup?.id}`, JSON.stringify(tpls));
 }
 
-function openShiftModal() {
-    getEl('shift-modal').classList.remove('hidden'); const userSel = getEl('shift-user');
-    if(userSel) {
-        userSel.innerHTML = '';
-        if(currentUser.role === 'ADMIN') { membersCache.forEach(m => { if(m.role !== 'ADMIN') userSel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); } 
-        else { userSel.innerHTML = `<option value="${currentUser.id}">${currentUser.nickname}</option>`; }
+// ── View state ────────────────────────────────────────────────────────────────
+let shiftView = 'list';
+let shiftNavDate = new Date();
+
+function setShiftView(v) {
+    shiftView = v;
+    ['list','day','week'].forEach(k => {
+        const b = getEl(`sv-${k}`);
+        if(b) b.className = `shift-sv-btn px-3 py-1 rounded-full text-xs font-bold transition ${k===v ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-700'}`;
+    });
+    const nav = getEl('shift-nav');
+    if(nav) nav.className = (v === 'list') ? 'hidden flex items-center gap-1 shrink-0' : 'flex items-center gap-1 shrink-0';
+    updateShiftDateLabel();
+    renderShifts();
+}
+
+function navShiftDate(delta) {
+    if(shiftView === 'day') { shiftNavDate.setDate(shiftNavDate.getDate() + delta); }
+    else { shiftNavDate.setDate(shiftNavDate.getDate() + delta * 7); }
+    updateShiftDateLabel();
+    renderShifts();
+}
+
+function updateShiftDateLabel() {
+    const el = getEl('shift-date-label'); if(!el) return;
+    if(shiftView === 'day') {
+        el.textContent = shiftNavDate.toLocaleDateString('he-IL', { weekday:'short', day:'numeric', month:'short' });
+    } else {
+        const sun = new Date(shiftNavDate); sun.setDate(shiftNavDate.getDate() - shiftNavDate.getDay());
+        const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
+        el.textContent = `${sun.getDate()}/${sun.getMonth()+1} – ${sat.getDate()}/${sat.getMonth()+1}`;
     }
 }
 
+// ── Template manager (admin) ──────────────────────────────────────────────────
+function renderShiftTemplatesMgr() {
+    const el = getEl('shift-templates-mgr'); if(!el) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    if(!isAdmin) { el.className = 'hidden'; return; }
+    el.className = 'px-2 mb-3';
+    const tpls = getShiftTemplates();
+    el.innerHTML = `<div class="bg-indigo-50 rounded-2xl p-3 border border-indigo-100">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-indigo-700"><i class="fa-solid fa-sliders mr-1"></i> תבניות משמרת</span>
+        <button onclick="openAddTemplateModal()" class="text-xs text-indigo-600 font-bold hover:underline">+ הוסף תבנית</button>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${tpls.map(t => `<div class="flex items-center gap-1 bg-white border border-indigo-200 rounded-full px-3 py-1 text-xs font-bold text-slate-700">
+          <span>${safeStr(t.name)}</span><span class="text-slate-400">${t.start}–${t.end}</span>
+          <button onclick="deleteShiftTemplate(${t.id})" class="text-slate-300 hover:text-red-500 ml-1"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+        </div>`).join('')}
+        ${tpls.length === 0 ? '<span class="text-xs text-slate-400">אין תבניות מוגדרות</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function openAddTemplateModal() {
+    const name  = prompt('שם המשמרת (למשל: בוקר, ערב, לילה):'); if(!name) return;
+    const start = prompt('שעת התחלה (HH:MM):'); if(!start) return;
+    const end   = prompt('שעת סיום (HH:MM):');   if(!end) return;
+    const tpls  = getShiftTemplates();
+    tpls.push({ id: Date.now(), name: name.trim(), start, end });
+    saveShiftTemplates(tpls);
+    renderShiftTemplatesMgr();
+    // refresh template buttons in modal if open
+    const wrap = getEl('shift-tpl-buttons'); if(wrap) renderTemplateBtns(wrap);
+}
+
+function deleteShiftTemplate(id) {
+    if(!confirm('למחוק תבנית זו?')) return;
+    const tpls = getShiftTemplates().filter(t => t.id !== id);
+    saveShiftTemplates(tpls);
+    renderShiftTemplatesMgr();
+}
+
+function renderTemplateBtns(container) {
+    const tpls = getShiftTemplates();
+    container.innerHTML = tpls.map(t => `<button type="button" onclick="selectShiftTemplate(${t.id})"
+      class="shift-tpl-pick flex-1 border rounded-xl py-2 px-3 text-xs font-bold transition border-slate-200 text-slate-600 hover:border-indigo-400 hover:bg-indigo-50" data-id="${t.id}">
+      <div>${safeStr(t.name)}</div><div class="text-[10px] text-slate-400 font-normal mt-0.5">${t.start}–${t.end}</div>
+    </button>`).join('') + `<button type="button" onclick="selectShiftTemplate('custom')"
+      class="shift-tpl-pick flex-1 border rounded-xl py-2 px-3 text-xs font-bold transition border-slate-200 text-slate-600 hover:border-indigo-400 hover:bg-indigo-50" data-id="custom">
+      <div>שעות חופשיות</div><div class="text-[10px] text-slate-400 font-normal mt-0.5">בחר שעות</div>
+    </button>`;
+}
+
+function selectShiftTemplate(id) {
+    document.querySelectorAll('.shift-tpl-pick').forEach(b => {
+        b.classList.toggle('border-indigo-500', String(b.dataset.id) === String(id));
+        b.classList.toggle('bg-indigo-50',      String(b.dataset.id) === String(id));
+        b.classList.toggle('text-indigo-700',   String(b.dataset.id) === String(id));
+    });
+    const customRow = getEl('shift-hours-row');
+    if(id === 'custom') {
+        if(customRow) customRow.classList.remove('hidden');
+    } else {
+        if(customRow) customRow.classList.add('hidden');
+        const tpl = getShiftTemplates().find(t => String(t.id) === String(id));
+        if(tpl) { const si = getEl('shift-start'); const ei = getEl('shift-end'); if(si) si.value = tpl.start; if(ei) ei.value = tpl.end; }
+    }
+    window._selectedShiftTplId = id;
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function renderShifts() {
+    renderShiftTemplatesMgr();
+    const isAdmin = currentUser.role === 'ADMIN';
+    const shiftTasks = allTasks.filter(t => t.title && t.title.startsWith('SHIFT|'));
+    const visible = shiftTasks.filter(t => isAdmin || String(t.assigned_to) === String(currentUser.id));
+    const list = getEl('shifts-list'); if(!list) return;
+
+    if(shiftView === 'week') { renderShiftWeekly(visible); return; }
+    if(shiftView === 'day')  { renderShiftDaily(visible);  return; }
+
+    // List view
+    let html = '';
+    visible.sort((a,b) => (a.title > b.title ? 1 : -1));
+    visible.forEach(t => {
+        const parts = t.title.split('|'); const date = parts[1]; const start = parts[2]; const end = parts[3];
+        const name  = parts[4] || ''; // optional template name
+        const isPending = t.status === 'pending';
+        const statusBadge = isPending
+            ? '<span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-bold">ממתין לאישור</span>'
+            : '<span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-bold">משובץ ✓</span>';
+        let actions = '';
+        if(isAdmin && isPending) {
+            actions += `<button onclick="updateTask(${t.id},'approved')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700">✓ אשר</button>
+                        <button onclick="deleteTask(${t.id})" class="bg-red-50 text-red-500 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-100">✗ סרב</button>`;
+        }
+        if(isAdmin || String(t.assigned_to) === String(currentUser.id)) {
+            actions += ` <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>`;
+        }
+        html += `<div class="bg-white p-4 rounded-2xl border ${isPending ? 'border-orange-200' : 'border-slate-100'} shadow-sm flex justify-between items-center mb-2">
+          <div>
+            <p class="font-bold text-slate-800 text-base">${date}${name ? ` · <span class="text-indigo-600 font-normal text-sm">${safeStr(name)}</span>` : ''}</p>
+            <p class="text-sm text-indigo-600 font-bold mt-0.5">${start} – ${end}
+              ${isAdmin ? `<span class="text-slate-400 font-normal"> | ${safeStr(t.assignee_name)}</span>` : ''}
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2">${statusBadge}<div class="flex gap-1 items-center">${actions}</div></div>
+        </div>`;
+    });
+    list.innerHTML = html || '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין משמרות</p>';
+}
+
+function renderShiftDaily(shifts) {
+    const list = getEl('shifts-list'); if(!list) return;
+    const dayStr = shiftNavDate.toISOString().slice(0,10);
+    const isAdmin = currentUser.role === 'ADMIN';
+    const dayShifts = shifts.filter(t => t.title.split('|')[1] === dayStr);
+    dayShifts.sort((a,b) => (a.title.split('|')[2] > b.title.split('|')[2] ? 1 : -1));
+    let html = `<div class="text-xs font-bold text-slate-500 px-2 mb-2">${shiftNavDate.toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'})}</div>`;
+    if(!dayShifts.length) {
+        list.innerHTML = html + '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין משמרות ביום זה</p>';
+        return;
+    }
+    dayShifts.forEach(t => {
+        const parts = t.title.split('|'); const start = parts[2]; const end = parts[3]; const name = parts[4]||'';
+        const isPending = t.status === 'pending';
+        let actions = '';
+        if(isAdmin && isPending) actions = `<button onclick="updateTask(${t.id},'approved')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold">✓ אשר</button> <button onclick="deleteTask(${t.id})" class="bg-red-50 text-red-500 px-3 py-1 rounded-lg text-xs font-bold">✗ סרב</button>`;
+        if(isAdmin) actions += ` <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 mr-1"><i class="fa-solid fa-trash text-xs"></i></button>`;
+        html += `<div class="bg-white p-3 rounded-2xl border ${isPending ? 'border-orange-200' : 'border-slate-100'} shadow-sm flex justify-between items-center mb-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black">${start.slice(0,5)}</div>
+            <div>
+              <p class="font-bold text-sm text-slate-800">${safeStr(t.assignee_name)}${name ? ` · <span class="text-indigo-600 font-normal">${safeStr(name)}</span>` : ''}</p>
+              <p class="text-xs text-slate-500">${start}–${end}</p>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            ${isPending ? '<span class="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">ממתין</span>' : '<span class="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold">אושר</span>'}
+            <div class="flex gap-1">${actions}</div>
+          </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function renderShiftWeekly(shifts) {
+    const list = getEl('shifts-list'); if(!list) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    // find Sunday of current week
+    const sun = new Date(shiftNavDate); sun.setDate(shiftNavDate.getDate() - shiftNavDate.getDay());
+    const days = Array.from({length:7}, (_,i) => { const d = new Date(sun); d.setDate(sun.getDate()+i); return d; });
+    const heDay = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+    let html = '<div class="overflow-x-auto pb-2">';
+    days.forEach((d, i) => {
+        const dayStr = d.toISOString().slice(0,10);
+        const dayShifts = shifts.filter(t => t.title.split('|')[1] === dayStr);
+        const isToday = dayStr === new Date().toISOString().slice(0,10);
+        html += `<div class="bg-white rounded-2xl border ${isToday ? 'border-indigo-300 shadow-md' : 'border-slate-100 shadow-sm'} p-3 mb-2">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-black ${isToday ? 'text-indigo-700' : 'text-slate-600'}">${heDay[i]} ${d.getDate()}/${d.getMonth()+1}${isToday ? ' 📍' : ''}</span>
+            ${dayShifts.some(t => t.status === 'pending') && isAdmin
+                ? `<span class="text-[10px] bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full font-bold">${dayShifts.filter(t=>t.status==='pending').length} ממתינים</span>` : ''}
+          </div>
+          ${dayShifts.length === 0
+            ? '<p class="text-xs text-slate-300 text-center py-1">ללא משמרות</p>'
+            : dayShifts.map(t => {
+                const parts = t.title.split('|'); const start=parts[2]; const end=parts[3]; const name=parts[4]||'';
+                const isPending = t.status==='pending';
+                return `<div class="flex justify-between items-center py-1.5 border-t border-slate-50 first:border-0">
+                  <div>
+                    <span class="text-xs font-bold text-slate-700">${safeStr(t.assignee_name)}</span>
+                    <span class="text-[10px] text-slate-400 mr-1">${start}–${end}${name?' · '+safeStr(name):''}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    ${isPending && isAdmin ? `<button onclick="updateTask(${t.id},'approved')" class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold">אשר</button><button onclick="deleteTask(${t.id})" class="text-[10px] text-red-400 hover:text-red-600">✗</button>` : ''}
+                    ${!isPending ? '<span class="text-[10px] text-green-500">✓</span>' : ''}
+                  </div>
+                </div>`;
+              }).join('')
+          }
+        </div>`;
+    });
+    html += '</div>';
+    list.innerHTML = html;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openShiftModal() {
+    if(!getEl('shift-modal')) return;
+    getEl('shift-modal').classList.remove('hidden');
+    window._selectedShiftTplId = null;
+    // populate employee selector
+    const userSel = getEl('shift-user');
+    if(userSel) {
+        userSel.innerHTML = '';
+        if(currentUser.role === 'ADMIN') { membersCache.forEach(m => { if(m.role !== 'ADMIN') userSel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+        else { userSel.innerHTML = `<option value="${currentUser.id}">${safeStr(currentUser.nickname)}</option>`; }
+    }
+    // render template buttons
+    const wrap = getEl('shift-tpl-buttons');
+    if(wrap) renderTemplateBtns(wrap);
+    // reset
+    const hr = getEl('shift-hours-row'); if(hr) hr.classList.remove('hidden');
+    document.querySelectorAll('.shift-tpl-pick').forEach(b => {
+        b.classList.remove('border-indigo-500','bg-indigo-50','text-indigo-700');
+    });
+}
+
 async function submitShift() {
-    const date = val('shift-date'); const start = val('shift-start'); const end = val('shift-end'); const userId = val('shift-user');
-    if(!date || !start || !end || !userId) return showToast('error', 'נא למלא את כל השדות');
-    const title = `SHIFT|${date}|${start}|${end}`; const status = currentUser.role === 'ADMIN' ? 'approved' : 'pending';
+    const date   = val('shift-date');
+    const userId = val('shift-user');
+    let start = val('shift-start');
+    let end   = val('shift-end');
+    let tplName = '';
+
+    // if a template is selected (not custom), use its hours
+    const tplId = window._selectedShiftTplId;
+    if(tplId && tplId !== 'custom') {
+        const tpl = getShiftTemplates().find(t => String(t.id) === String(tplId));
+        if(tpl) { start = tpl.start; end = tpl.end; tplName = tpl.name; }
+    }
+
+    if(!date || !start || !end || !userId) return showToast('error', 'נא למלא תאריך ושעות');
+    const title  = `SHIFT|${date}|${start}|${end}${tplName ? '|'+tplName : ''}`;
+    const status = currentUser.role === 'ADMIN' ? 'approved' : 'pending';
     const btn = getEl('btn-submit-shift'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: 0, assignedTo: userId, days: null, status: status, groupId: currentGroup.id }) });
-        getEl('shift-modal').classList.add('hidden'); showToast('success', status === 'approved' ? 'המשמרת שובצה!' : 'בקשתך נשלחה למנהל!'); fetchData();
-    } catch(e) { showToast('error', 'שגיאה בשמירת המשמרת'); } finally { btn.disabled = false; btn.innerText = 'שמור משמרת'; }
+        await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status, groupId:currentGroup.id }) });
+        getEl('shift-modal').classList.add('hidden');
+        showToast('success', status === 'approved' ? 'המשמרת שובצה!' : 'הבקשה נשלחה למנהל!');
+        fetchData();
+    } catch(e) { showToast('error', 'שגיאה בשמירת המשמרת'); }
+    finally { btn.disabled = false; btn.innerText = 'שמור'; }
 }
 
 async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
