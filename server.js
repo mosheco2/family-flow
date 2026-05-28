@@ -71,6 +71,8 @@ pool.connect()
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_number VARCHAR(20)'); } catch(e) {}
+      try { await client.query(`UPDATE store_orders SET quote_number = 'QT-' || LPAD(id::text, 6, '0') WHERE status = 'quote' AND quote_number IS NULL`); } catch(e) {}
       
       await client.query(`CREATE TABLE IF NOT EXISTS store_customers (
           id SERIAL PRIMARY KEY,
@@ -1654,7 +1656,7 @@ app.get('/api/data/:userId', async (req, res) => {
         }
 
         const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
-        const allBundles = await pool.query('SELECT * FROM quiz_bundles ORDER BY created_at DESC');
+        const allBundles = await pool.query(`SELECT * FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY created_at DESC`, [String(user.group_id)]);
         const userBundles = await pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]);
 
         for (let b of userBundles.rows) { const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]); b.questions = qRes.rows; }
@@ -2885,11 +2887,14 @@ app.post('/api/store/quotes', async (req, res) => {
     try {
         const { groupId, customerName, customerPhone, items, totalAmount, notes } = req.body;
         const result = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, created_at) 
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, created_at)
              VALUES ($1, $2, $3, $4, 'quote', $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
             [groupId, customerName, customerPhone, totalAmount, notes, JSON.stringify(items)]
         );
-        res.json({ success: true, quoteId: result.rows[0].id });
+        const quoteId = result.rows[0].id;
+        const quoteNumber = `QT-${String(quoteId).padStart(6, '0')}`;
+        await pool.query('UPDATE store_orders SET quote_number=$1 WHERE id=$2', [quoteNumber, quoteId]);
+        res.json({ success: true, quoteId, quoteNumber });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
