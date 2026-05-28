@@ -1079,6 +1079,9 @@ async function loadSAData() {
         setVal('sa-new-email', data.saEmail);
         setVal('sa-welcome-msg', data.welcomeMsg);
         setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        // עדכון toggle מצב SMS
+        window._smsLoginEnabled = data.smsLoginEnabled !== false;
+        updateSmsLoginToggleUI();
         
         setVal('sa-banner-top-text', data.adBannerTextTop);
         setVal('sa-banner-top-link', data.adBannerLinkTop);
@@ -3753,6 +3756,32 @@ setInterval(() => {
 // ============================================================
 // --- SMS OTP LOGIN LOGIC ---
 // ============================================================
+
+window.updateSmsLoginToggleUI = function() {
+    const btn = document.getElementById('sms-login-toggle');
+    const dot = document.getElementById('sms-login-toggle-dot');
+    if (!btn || !dot) return;
+    const on = window._smsLoginEnabled !== false;
+    btn.className = `relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${on ? 'bg-indigo-600' : 'bg-slate-300'}`;
+    dot.className = `inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-6' : 'translate-x-1'}`;
+};
+
+window.toggleSmsLogin = async function() {
+    window._smsLoginEnabled = !window._smsLoginEnabled;
+    updateSmsLoginToggleUI();
+    try {
+        await fetch(`${API}/superadmin/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ smsLoginEnabled: window._smsLoginEnabled })
+        });
+        showToast('success', window._smsLoginEnabled ? 'התחברות SMS הופעלה' : 'התחברות SMS בוטלה — יוצג מסך אימייל+סיסמה');
+    } catch(e) {
+        window._smsLoginEnabled = !window._smsLoginEnabled; // rollback
+        updateSmsLoginToggleUI();
+        showToast('error', 'שגיאה בשמירה');
+    }
+};
 
 window.toggleLoginMode = function() {
     const masterStep1 = document.getElementById('sa-login-master-step1');
