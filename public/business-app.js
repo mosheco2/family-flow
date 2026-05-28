@@ -2695,9 +2695,11 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { getEl('task-modal').classList.add('hidden'); }
 
-function openTaskModal(isSelf = false) { 
-    getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf; 
+function openTaskModal(isSelf = false) {
+    getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf;
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
+    const aiCheckEl = getEl('task-require-ai-check'); if (aiCheckEl) aiCheckEl.value = 'true';
+    const knob = getEl('ai-check-knob'); if (knob) { knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6'); }
     setTaskMode('manual'); const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
 
     if(isSelf) { 
