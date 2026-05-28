@@ -3760,10 +3760,9 @@ async function loadResultsFromServer() {
           dismissedTaskIds.add(tid);
           return;
         }
-        // תוצאת בדיקה רגילה
+        // תוצאת בדיקה רגילה — השרת גובר (מקור אמת משותף לכל המחשבים)
         const k = sk(r.test_id, r.env);
-        // אל תדרוס מצב מקומי — אם קיים, המקומי סמכותי (למשל ניקוי סימון)
-        if(!(k in state)) state[k] = { s: r.status || null, n: r.note || '' };
+        state[k] = { s: r.status || null, n: r.note || '' };
       });
       // החל עריכות מדריך על GUIDE_BOOK לאחר טעינה
       applyGuideEdits();
@@ -3828,11 +3827,28 @@ async function loadAssignmentsFromServer() {
     }
 
     // מיזוג: השרת גובר על שדות משותפים
+    const serverTaskIds = new Set(assignments.map(a => String(a.task_id)));
     assignments.forEach(({ task_id, data }) => {
       if (!task_id || !data) return;
       if (!taskAssignments[task_id]) taskAssignments[task_id] = {};
       SYNC_FIELDS.forEach(f => { if (data[f] !== undefined) taskAssignments[task_id][f] = data[f]; });
     });
+    // דחיפת assignments מקומיים שאינם בשרת (מחשבים שהוסיפו נתונים לפני הסנכרון)
+    const localOnly = Object.entries(taskAssignments)
+      .filter(([tid]) => !serverTaskIds.has(String(tid)))
+      .map(([taskId, a]) => {
+        const data = {};
+        SYNC_FIELDS.forEach(f => { if (a[f] !== undefined) data[f] = a[f]; });
+        return { taskId, data };
+      })
+      .filter(x => Object.keys(x.data).length > 0);
+    if (localOnly.length > 0) {
+      fetch(`${API}/qa/assignments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignments: localOnly })
+      }).catch(() => {});
+    }
     localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
     updateStats();
     renderQAStaging();
