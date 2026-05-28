@@ -2896,7 +2896,7 @@ app.put('/api/store/quotes/:id', async (req, res) => {
     try {
         const { customerName, customerPhone, items, totalAmount, notes } = req.body;
         await pool.query(
-            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6 AND status='quote'`,
+            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6`,
             [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), req.params.id]
         );
         res.json({ success: true });
