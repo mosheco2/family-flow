@@ -1665,9 +1665,12 @@ async function openSACommunityModal(id) {
     const comm = saCommunitiesCache.find(c => c.id == id); if(!comm) return;
     getEl('sa-edit-comm-id').value = comm.id; getEl('sa-edit-comm-title').innerText = comm.name; getEl('sa-edit-comm-name').value = comm.name; getEl('sa-edit-comm-code').value = comm.code; getEl('sa-edit-comm-email').value = comm.manager_email; getEl('sa-edit-comm-pass').value = comm.manager_password;
     editCityTags = comm.city ? comm.city.split(',').map(c => c.trim()).filter(c => c) : []; updateCityTagsDisplay('edit');
-    getEl('sa-edit-comm-image-base64').value = ''; const imgPreview = getEl('sa-edit-comm-img-preview'); const placeholder = getEl('sa-edit-comm-img-placeholder');
-    if (comm.image_url) { imgPreview.src = comm.image_url; imgPreview.classList.remove('hidden'); if(placeholder) placeholder.classList.add('hidden'); } 
-    else { imgPreview.src = ''; imgPreview.classList.add('hidden'); if(placeholder) placeholder.classList.remove('hidden'); }
+    const imgEl = getEl('sa-edit-comm-image-base64'); if(imgEl) imgEl.value = '';
+    const imgPreview = getEl('sa-edit-comm-img-preview'); const placeholder = getEl('sa-edit-comm-img-placeholder');
+    if(imgPreview) {
+        if (comm.image_url) { imgPreview.src = comm.image_url; imgPreview.classList.remove('hidden'); if(placeholder) placeholder.classList.add('hidden'); }
+        else { imgPreview.src = ''; imgPreview.classList.add('hidden'); if(placeholder) placeholder.classList.remove('hidden'); }
+    }
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0; getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
     const searchInput = getEl('sa-search-comm-fam'); if (searchInput) searchInput.value = '';
     const famList = getEl('sa-edit-comm-families'); const bizList = getEl('sa-edit-comm-businesses');
