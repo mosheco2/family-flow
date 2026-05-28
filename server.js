@@ -3278,10 +3278,20 @@ async function initCommunityTables() {
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by_group_id INT`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS min_families INT DEFAULT 30`
     ];
-    
+
     for (let q of queries) {
         try { await pool.query(q); } catch(e) { console.error("DB Init Warning on query:", q, e.message); }
     }
+
+    // Migration: add existing community founders to family_communities if not already there
+    try {
+        await pool.query(`
+            INSERT INTO family_communities (group_id, community_id)
+            SELECT created_by_group_id, id FROM communities
+            WHERE created_by_group_id IS NOT NULL
+            ON CONFLICT DO NOTHING
+        `);
+    } catch(e) { console.error("Community founder migration warning:", e.message); }
 }
 initCommunityTables();
 
@@ -4051,11 +4061,14 @@ pool.query(`
 app.get('/api/community/info/:groupId', async (req, res) => {
     try {
         const commsRes = await pool.query(`
-            SELECT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
+            SELECT DISTINCT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
                    (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
-            FROM family_communities fc
-            JOIN communities c ON fc.community_id = c.id
-            WHERE fc.group_id = $1
+            FROM communities c
+            WHERE c.id IN (
+                SELECT community_id FROM family_communities WHERE group_id = $1
+                UNION
+                SELECT id FROM communities WHERE created_by_group_id = $1
+            )
         `, [req.params.groupId]);
 
         if(commsRes.rows.length === 0) return res.json({ success: true, communities: [], businesses: [] });
