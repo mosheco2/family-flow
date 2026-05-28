@@ -750,7 +750,21 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                         </div>
 
         <div id="sa-view-content" class="hidden space-y-8 fade-in">
-                    
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-xl font-black mb-1 text-slate-800"><i class="fa-solid fa-sliders text-indigo-500 mr-2"></i> הגדרות כניסה למערכת</h2>
+                        <p class="text-xs text-slate-400 mb-5">שליטה על אמצעי ההתחברות שמוצגים בדף הכניסה של הסופר-אדמין</p>
+                        <div class="flex items-center justify-between bg-slate-50 rounded-xl px-5 py-4 border border-slate-200">
+                            <div>
+                                <div class="font-bold text-slate-800 text-sm">התחברות SMS (OTP)</div>
+                                <div class="text-xs text-slate-500 mt-0.5">כאשר מופעל — מסך הכניסה מציג שדה טלפון ושליחת קוד SMS.<br>כאשר מבוטל — מסך הכניסה מציג ישירות שם משתמש וסיסמה.</div>
+                            </div>
+                            <button id="sms-login-toggle" onclick="toggleSmsLogin()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
+                                <span id="sms-login-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
                         <h2 class="text-xl font-black mb-4 text-indigo-900"><i class="fa-solid fa-paint-roller text-indigo-500 mr-2"></i> מיתוג גלובלי מערכתי (White-Label)</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2199,5 +2213,24 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
     </div>
 </div>
+<script>
+// בדיקת מצב SMS בטעינת דף הכניסה
+(async function initLoginMode() {
+    try {
+        const res = await fetch('/api/settings/login-mode');
+        const data = await res.json();
+        if (!data.smsEnabled) {
+            // SMS מבוטל — הסתר SMS ועבור ישירות לאימייל+סיסמה
+            const smsStep1 = document.getElementById('sa-login-master-step1');
+            const staffLogin = document.getElementById('sa-login-staff');
+            if (smsStep1) smsStep1.classList.add('hidden');
+            if (staffLogin) staffLogin.classList.remove('hidden');
+            // הסתר כפתור "חזור ל-SMS"
+            const backBtn = staffLogin ? staffLogin.querySelector('button[onclick="toggleLoginMode()"]') : null;
+            if (backBtn) backBtn.classList.add('hidden');
+        }
+    } catch(e) {}
+})();
+</script>
 </body>
 </html>
