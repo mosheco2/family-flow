@@ -1284,6 +1284,7 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     try {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
         if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
+        if (req.body.smsLoginEnabled !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('sms_login_enabled', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(req.body.smsLoginEnabled)]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -1333,7 +1334,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
@@ -1368,7 +1369,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
             saEmail: getSet('sa_email'), saUsername: getSet('sa_username') || 'admin',
             welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
-            globalAiLogo: getSet('global_ai_logo'), loginSlides: loginSlides,
+            globalAiLogo: getSet('global_ai_logo'), loginSlides: loginSlides, smsLoginEnabled: getSet('sms_login_enabled') !== 'false',
             adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
             adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
             bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
@@ -1395,6 +1396,16 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
         await pool.query('COMMIT');
         res.json({ success: true });
     } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת נתוני המערכת' }); }
+});
+
+app.get('/api/settings/login-mode', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT value FROM system_settings WHERE key = 'sms_login_enabled'");
+        const raw = result.rows[0]?.value;
+        // ברירת מחדל: true (פעיל) אם הערך לא קיים
+        const smsEnabled = raw === null || raw === undefined ? true : raw !== 'false';
+        res.json({ success: true, smsEnabled });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/system/public-config', async (req, res) => {
