@@ -1031,8 +1031,12 @@ window.renderCatalog = function() {
             currentModifierBasePrice = parseFloat(item.price) || 0;
             currentModalQty = 1;
             
-            getEl('prod-modal-name').innerText = item.name; 
-            getEl('prod-modal-price').innerText = `₪${item.price}`;
+            getEl('prod-modal-name').innerText = item.name;
+            if (item.original_price && item.original_price > parseFloat(item.price)) {
+                getEl('prod-modal-price').innerHTML = `<div class="flex flex-col items-end gap-0.5"><span class="text-[10px] text-slate-400 line-through font-normal leading-none">₪${item.original_price}</span><span>₪${item.price} ✨</span></div>`;
+            } else {
+                getEl('prod-modal-price').innerText = `₪${item.price}`;
+            }
             getEl('prod-modal-desc').innerText = item.description || '';
             getEl('prod-modal-qty').value = currentModalQty;
 
@@ -1454,6 +1458,25 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             } else {
                 getEl('checkout-total').innerText = `₪${totalWithDelivery.toFixed(2)}`;
                 const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
+            }
+
+            // Community discount savings line
+            const oldCommMsg = getEl('checkout-community-msg'); if(oldCommMsg) oldCommMsg.remove();
+            if (storeData.communityData && storeData.communityData.discount_active) {
+                let commSaving = 0;
+                Object.values(cart).forEach(cartItem => {
+                    const catalogItem = storeData.catalog.find(c => String(c.id) === String(cartItem.catalogId));
+                    if (catalogItem && catalogItem.original_price) {
+                        commSaving += (catalogItem.original_price - parseFloat(catalogItem.price)) * cartItem.qty;
+                    }
+                });
+                if (commSaving > 0) {
+                    getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `
+                        <div id="checkout-community-msg" class="flex items-center justify-between text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1 mb-3">
+                            <span><i class="fa-solid fa-house-flag mr-1"></i> הנחת קהילה ${storeData.communityData.discount_pct}%</span>
+                            <span>חסכת ₪${commSaving.toFixed(2)}</span>
+                        </div>`);
+                }
             }
             
             const modalTitle = getEl('checkout-modal-title');
