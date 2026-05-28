@@ -2486,6 +2486,12 @@ function renderFamilyCommunities() {
         `;
         myCommunityBusinessesCache.forEach(biz => {
             const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
+            const minFam = parseInt(biz.min_families) || 30;
+            const famCount = parseInt(biz.family_count) || 0;
+            const discountActive = famCount >= minFam;
+            const discountBadge = discountActive
+                ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
+                : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
             html += `
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
                 <div class="flex items-center gap-3 min-w-0">
@@ -2495,9 +2501,7 @@ function renderFamilyCommunities() {
                     <div class="min-w-0">
                         <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
                         <div class="flex flex-wrap gap-1 mt-1">
-                            <span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
-                                ${biz.discount_pct}% הנחה
-                            </span>
+                            ${discountBadge}
                             <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
                                 מקהילת ${safeStr(biz.comm_name)}
                             </span>
