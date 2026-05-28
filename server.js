@@ -149,6 +149,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE sa_product_book ADD COLUMN IF NOT EXISTS original_ticket_id INT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_runs (id SERIAL PRIMARY KEY, version_id INT REFERENCES sa_versions(id) ON DELETE SET NULL, tester_name VARCHAR(100), results JSONB, status VARCHAR(20) DEFAULT 'completed', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS qa_task_assignments (task_id VARCHAR(50) PRIMARY KEY, data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       // טבלת תתי-משימות פיתוח לרזולוציית ביצוע (ALM)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_dev_sub_tasks (id SERIAL PRIMARY KEY, task_id INT REFERENCES sa_dev_tasks(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, is_done BOOLEAN DEFAULT FALSE, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}  
     // טבלת צ'אט צוות פנימי
@@ -5365,6 +5366,48 @@ app.post('/api/qa/update', async (req, res) => {
             [testId, env, status, autoNote]
         );
         res.json({ success: true, testId, status });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// QA Task Assignments — shared state across all QA computers
+// ============================================================
+app.get('/api/qa/assignments', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT task_id, data, updated_at FROM qa_task_assignments ORDER BY updated_at DESC');
+        res.json({ success: true, assignments: rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/qa/assignments/:taskId', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        const { data } = req.body;
+        if (!data) return res.status(400).json({ error: 'data required' });
+        await pool.query(
+            `INSERT INTO qa_task_assignments (task_id, data, updated_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)
+             ON CONFLICT (task_id) DO UPDATE SET data = $2, updated_at = CURRENT_TIMESTAMP`,
+            [taskId, JSON.stringify(data)]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/qa/assignments', async (req, res) => {
+    try {
+        const { assignments } = req.body;
+        if (!Array.isArray(assignments) || assignments.length === 0) return res.json({ success: true, count: 0 });
+        for (const { taskId, data } of assignments) {
+            if (!taskId || !data) continue;
+            await pool.query(
+                `INSERT INTO qa_task_assignments (task_id, data, updated_at)
+                 VALUES ($1, $2, CURRENT_TIMESTAMP)
+                 ON CONFLICT (task_id) DO UPDATE SET data = $2, updated_at = CURRENT_TIMESTAMP`,
+                [taskId, JSON.stringify(data)]
+            );
+        }
+        res.json({ success: true, count: assignments.length });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
