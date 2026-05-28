@@ -3198,7 +3198,7 @@ app.get('/api/storefront/:code', async (req, res) => {
 
             if (commRes.rows.length > 0) {
                 const row = commRes.rows[0];
-                const minFamilies = parseInt(row.min_families) || 30;
+                const minFamilies = parseInt(row.min_families) || 0;
                 const familyCount = parseInt(row.family_count) || 0;
                 communityData = {
                     name: row.name,
@@ -3292,6 +3292,11 @@ async function initCommunityTables() {
             ON CONFLICT DO NOTHING
         `);
     } catch(e) { console.error("Community founder migration warning:", e.message); }
+
+    // Migration: SA-created communities (no created_by_group_id) have no family threshold
+    try {
+        await pool.query(`UPDATE communities SET min_families = 0 WHERE created_by_group_id IS NULL`);
+    } catch(e) { console.error("Community min_families migration warning:", e.message); }
 }
 initCommunityTables();
 
@@ -3301,7 +3306,7 @@ app.post('/api/community/user-create', async (req, res) => {
         const { name, city, groupId } = req.body;
         const code = 'C-' + generateGroupCode();
         const result = await pool.query(
-            `INSERT INTO communities (name, city, code, created_by_group_id, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+            `INSERT INTO communities (name, city, code, created_by_group_id, status, min_families) VALUES ($1, $2, $3, $4, 'pending', 30) RETURNING *`,
             [name, city, code, groupId]
         );
         const commId = result.rows[0].id;
