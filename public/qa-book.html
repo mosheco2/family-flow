@@ -2288,6 +2288,7 @@ function saveQANote(taskId, note) {
   if(!taskAssignments[taskId]) taskAssignments[taskId] = {};
   taskAssignments[taskId].qa_note = note;
   saveState();
+  syncAssignmentToServer(taskId);
   scheduleServerSave();
 }
 
@@ -2437,6 +2438,7 @@ async function passQATest(taskId) {
   a.qa_passed = true;
   a.status = 'done';
   saveState();
+  syncAssignmentToServer(taskId);
   // הוסף לספר המוצר
   const task = kanbanTasks.find(t=>t.id==taskId);
   if(task && saToken) {
@@ -2494,6 +2496,7 @@ async function failQATest(taskId) {
   a.status = 'assigned'; // החזר לשיוך, לא inqa
   delete a.qa_failed;
   saveState();
+  syncAssignmentToServer(taskId);
   renderQAStaging();
   showToast('❌ משימה הוחזרה לפיתוח');
 }
@@ -3778,6 +3781,64 @@ async function loadResultsFromServer() {
   } catch(e) { console.warn('loadResultsFromServer:', e.message); }
 }
 
+// ============================================================
+// סנכרון taskAssignments לשרת — שיתוף בין כל המחשבים
+// ============================================================
+const SYNC_FIELDS = ['qa_passed','status','versionId','module','env','qa_note','qa_guide_steps'];
+
+async function syncAssignmentToServer(taskId) {
+  const a = taskAssignments[taskId];
+  if (!a) return;
+  const data = {};
+  SYNC_FIELDS.forEach(f => { if (a[f] !== undefined) data[f] = a[f]; });
+  try {
+    await fetch(`${API}/qa/assignments/${encodeURIComponent(taskId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data })
+    });
+  } catch(e) { /* אופטימיסטי — UI כבר עודכן */ }
+}
+
+async function loadAssignmentsFromServer() {
+  try {
+    const res = await fetch(`${API}/qa/assignments`);
+    if (!res.ok) return;
+    const { assignments } = await res.json();
+
+    if (!assignments || assignments.length === 0) {
+      // migration: השרת ריק — העלה נתוני localStorage לשרת
+      const localKeys = Object.keys(taskAssignments);
+      if (localKeys.length > 0) {
+        const bulk = localKeys.map(taskId => {
+          const a = taskAssignments[taskId];
+          const data = {};
+          SYNC_FIELDS.forEach(f => { if (a[f] !== undefined) data[f] = a[f]; });
+          return { taskId, data };
+        }).filter(x => Object.keys(x.data).length > 0);
+        if (bulk.length > 0) {
+          fetch(`${API}/qa/assignments`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assignments: bulk })
+          }).catch(() => {});
+        }
+      }
+      return;
+    }
+
+    // מיזוג: השרת גובר על שדות משותפים
+    assignments.forEach(({ task_id, data }) => {
+      if (!task_id || !data) return;
+      if (!taskAssignments[task_id]) taskAssignments[task_id] = {};
+      SYNC_FIELDS.forEach(f => { if (data[f] !== undefined) taskAssignments[task_id][f] = data[f]; });
+    });
+    localStorage.setItem('qa_task_assignments', JSON.stringify(taskAssignments));
+    updateStats();
+    renderQAStaging();
+  } catch(e) { console.warn('loadAssignmentsFromServer:', e.message); }
+}
+
 // שמירת תוצאות QA לשרת (batch, debounced)
 let _saveTimer = null;
 function scheduleServerSave() {
@@ -3866,6 +3927,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQAStaging();
       // טעינת נתוני שרת ברקע
       await loadResultsFromServer();   // תוצאות QA שמורות
+      await loadAssignmentsFromServer(); // סנכרון assignments בין מחשבים
       startAutoRefresh(30);
       await loadVersionsFromServer();  // גרסאות מהשרת
       updateStats();
