@@ -5083,7 +5083,7 @@ window.renderStoreQuotes = function() {
     const statusFilter = document.getElementById('quote-status-filter')?.value || 'all';
 
     let filteredQuotes = window.storeQuotesCache.filter(q => {
-        const matchSearch = String(q.id).includes(searchQuery) || (q.customer_name && q.customer_name.toLowerCase().includes(searchQuery)) || (q.customer_phone && q.customer_phone.includes(searchQuery));
+        const matchSearch = String(q.id).includes(searchQuery) || (q.quote_number && q.quote_number.toLowerCase().includes(searchQuery)) || (q.customer_name && q.customer_name.toLowerCase().includes(searchQuery)) || (q.customer_phone && q.customer_phone.includes(searchQuery));
         
         let qStatusRaw = q.quote_status || q.status;
         if (qStatusRaw === 'new' || qStatusRaw === 'quote') qStatusRaw = 'draft';
@@ -5174,7 +5174,7 @@ window.renderStoreQuotes = function() {
             <div class="p-4 rounded-2xl border ${cardStyle} flex flex-col mb-3 transition-all">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${q.quote_number || `הצעה #${q.id}`} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
                         ${displayNote}
@@ -6151,7 +6151,8 @@ window.submitNewQuote = async function() {
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', window.editingQuoteId ? 'ההצעה עודכנה!' : 'הצעת המחיר הופקה בהצלחה!');
+            const msg = window.editingQuoteId ? 'ההצעה עודכנה!' : `הצעת המחיר הופקה! ${data.quoteNumber || ''}`;
+            showToast('success', msg);
             document.getElementById('quote-modal').classList.add('hidden');
             if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
         } else {
@@ -6261,7 +6262,8 @@ window.openQuotePreview = function(quoteId) {
         `;
     }
     
-    const printDocTitle = `${safeStr(q.customer_name || 'לקוח')} - ${safeStr(currentGroup.name)} - הצעת מחיר ${q.id} - ${dateStr.replace(/\./g, '-')}`;
+    const quoteLabel = q.quote_number || `#${q.id}`;
+    const printDocTitle = `${safeStr(q.customer_name || 'לקוח')} - ${safeStr(currentGroup.name)} - הצעת מחיר ${quoteLabel} - ${dateStr.replace(/\./g, '-')}`;
     
     const receiptHtml = `
         <!DOCTYPE html>
@@ -6283,7 +6285,7 @@ window.openQuotePreview = function(quoteId) {
                     ${slogan ? `<div style="font-size:12px; color:#64748b; margin-top:5px;">${safeStr(slogan)}</div>` : ''}
                 </div>
                 <div style="text-align:left; font-size:13px; line-height:1.6; color:#475569;">
-                    <div style="font-size:20px; font-weight:900; color:#4f46e5; margin-bottom:5px;">הצעת מחיר #${q.id}</div>
+                    <div style="font-size:20px; font-weight:900; color:#4f46e5; margin-bottom:5px;">הצעת מחיר ${quoteLabel}</div>
                     <div><b>תאריך:</b> ${dateStr}</div>
                     ${myCompanyId ? `<div><b>ח.פ/ע.מ העסק:</b> ${safeStr(myCompanyId)}</div>` : ''}
                     ${phone ? `<div><b>טלפון עסק:</b> <span dir="ltr">${safeStr(phone)}</span></div>` : ''}
