@@ -3694,5 +3694,20 @@
             }, 1000);
         });
     </script>
+
+    <!-- Community Join Modal -->
+    <div id="biz-join-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <h3 class="font-bold text-slate-800 text-lg mb-1">בקשת הצטרפות לקהילה</h3>
+            <p class="text-slate-500 text-sm mb-4" id="biz-join-comm-name"></p>
+            <input type="hidden" id="biz-join-comm-id">
+            <label class="text-xs font-bold text-slate-500 block mb-1">אחוז הנחה ללקוחות הקהילה:</label>
+            <input type="number" id="biz-join-discount" min="0" max="100" placeholder="לדוגמה: 10" class="modern-input mb-4">
+            <div class="flex gap-3">
+                <button onclick="submitBizCommunityJoin()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold text-sm">שלח בקשה</button>
+                <button onclick="getEl('biz-join-community-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm">ביטול</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
