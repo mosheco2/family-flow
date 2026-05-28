@@ -11,7 +11,8 @@ module.exports = defineConfig({
   workers: 1,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'tests/playwright-report', open: 'never' }]
+    ['html', { outputFolder: 'tests/playwright-report', open: 'never' }],
+    ['json', { outputFile: 'tests/playwright-report/results.json' }]
   ],
   use: {
     baseURL: process.env.BASE_URL || 'https://oneflowlife.co.il',
