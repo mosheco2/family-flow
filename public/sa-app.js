@@ -1717,6 +1717,10 @@ async function deleteSACommunity() {
 }
 
 async function createSACommunity() {
+    // Auto-add any typed city that wasn't explicitly clicked "הוסף"
+    const cityInput = getEl('sa-comm-city-input');
+    if (cityInput && cityInput.value.trim()) { addCityTag('create'); }
+
     const name = val('sa-comm-name'); const code = val('sa-comm-code'); const email = val('sa-comm-email'); const pass = val('sa-comm-pass'); const cityData = val('sa-comm-city-data'); const imageUrl = val('sa-comm-image-base64');
     if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
     const btn = document.querySelector('button[onclick="createSACommunity()"]'); if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
