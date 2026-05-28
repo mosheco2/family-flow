@@ -73,6 +73,15 @@ pool.connect()
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_number VARCHAR(20)'); } catch(e) {}
       try { await client.query(`UPDATE store_orders SET quote_number = 'QT-' || LPAD(id::text, 6, '0') WHERE status = 'quote' AND quote_number IS NULL`); } catch(e) {}
+      try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS require_ai_check BOOLEAN DEFAULT TRUE'); } catch(e) {}
+
+      await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
+          id SERIAL PRIMARY KEY,
+          group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          items JSONB NOT NULL DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
       
       await client.query(`CREATE TABLE IF NOT EXISTS store_customers (
           id SERIAL PRIMARY KEY,
@@ -1717,11 +1726,15 @@ app.post('/api/shopping/add', async (req, res) => {
     try {
         const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
         let actualGroupId = parseInt(groupId);
-        if (isNaN(actualGroupId) && userId) { const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]); if (uRes.rows.length > 0) actualGroupId = uRes.rows[0].group_id; }
+        let userRole = 'ADMIN';
+        if (userId) {
+            const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [userId]);
+            if (uRes.rows.length > 0) { if (isNaN(actualGroupId)) actualGroupId = uRes.rows[0].group_id; userRole = uRes.rows[0].role; }
+        }
         if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
-        
-        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]);
-        res.json({ success: true });
+        const itemStatus = userRole === 'ADMIN' ? 'pending' : 'requested';
+        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1, itemStatus]);
+        res.json({ success: true, status: itemStatus });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -1795,6 +1808,46 @@ app.post('/api/shopping/copy', async (req, res) => {
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- SAVED SHOPPING LISTS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/shopping/saved', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM saved_shopping_lists WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/save', async (req, res) => {
+    try {
+        const { groupId, name, items } = req.body;
+        if (!name || !items || items.length === 0) return res.status(400).json({ error: 'Missing name or items' });
+        const result = await pool.query('INSERT INTO saved_shopping_lists (group_id, name, items) VALUES ($1, $2, $3) RETURNING id', [groupId, name, JSON.stringify(items)]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/load-saved', async (req, res) => {
+    try {
+        const { listId, userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        const listRes = await pool.query('SELECT * FROM saved_shopping_lists WHERE id=$1 AND group_id=$2', [listId, groupId]);
+        if (listRes.rows.length === 0) return res.status(404).json({ error: 'List not found' });
+        const items = listRes.rows[0].items;
+        for (let item of items) {
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`, [groupId, userId, item.item_name, item.quantity || 1, item.unit || "יח'", item.estimated_price || 0, item.units_per_package || 1]);
+        }
+        res.json({ success: true, count: items.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/saved/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM saved_shopping_lists WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -2082,9 +2135,10 @@ app.post('/api/admin/payday', async (req, res) => {
 
 app.post('/api/tasks', async (req, res) => {
     try {
-        const { title, reward, assignedTo, days, status, groupId } = req.body;
+        const { title, reward, assignedTo, days, status, groupId, requireAiCheck } = req.body;
         const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
-        await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status]);
+        const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
+        await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
