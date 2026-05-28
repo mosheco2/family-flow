@@ -13,7 +13,8 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  saPassword: process.env.SA_PASS || 'admin',
+  saUsername: process.env.SA_USER || 'admin',
+  saPassword: process.env.SA_PASS || '123456',
   qaEnv: 'family',
 };
 
@@ -64,11 +65,15 @@ async function skipIntro(page) {
 
 async function loginAsSA(page) {
   await page.goto(`${BASE_URL}/sa.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForSelector('#sa-password, input[type="password"]', { timeout: 20000 });
-  const pwdInput = page.locator('#sa-password, input[type="password"]').first();
-  await pwdInput.fill(TEST_ENV.saPassword);
-  const loginBtn = page.locator('button:has-text("כנס"), button:has-text("כניסה"), button[type="submit"]').first();
-  await loginBtn.click();
+  await page.waitForTimeout(1000);
+  const smsVisible = await page.locator('#sa-login-master-step1').isVisible({ timeout: 5000 }).catch(() => false);
+  if (smsVisible) {
+    await page.locator('button:has-text("התחברות איש צוות")').click();
+    await page.waitForTimeout(500);
+  }
+  await page.locator('#sa-code').fill(TEST_ENV.saUsername);
+  await page.locator('#sa-password').fill(TEST_ENV.saPassword);
+  await page.locator('#sa-login-staff button[type="submit"]').click();
   await page.waitForTimeout(2000);
 }
 
