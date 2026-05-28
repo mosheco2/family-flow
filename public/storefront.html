@@ -475,8 +475,13 @@
                 } catch(e) { console.warn('Calendar module not active'); }
 
                 if (data.communityData) {
-                    const discount = parseFloat(data.communityData.discount_pct) || 0;
-                    if (data.catalog && discount > 0) {
+                    const comm = data.communityData;
+                    const discount = parseFloat(comm.discount_pct) || 0;
+                    const discountActive = comm.discount_active !== false;
+                    const famCount = parseInt(comm.family_count) || 0;
+                    const minFam = parseInt(comm.min_families) || 30;
+
+                    if (data.catalog && discount > 0 && discountActive) {
                         data.catalog.forEach(item => {
                             if (item.product_type === 'complex_builder') return;
                             item.original_price = parseFloat(item.price);
@@ -485,20 +490,37 @@
                             item.is_community_discount = true;
                         });
                     }
-                    
+
                     const heroHeader = document.querySelector('header');
                     if (heroHeader) {
-                        heroHeader.insertAdjacentHTML('afterbegin', `
-                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
-                                    <div class="flex flex-col justify-center text-right">
-                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                        if (discountActive) {
+                            heroHeader.insertAdjacentHTML('afterbegin', `
+                                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
+                                        <div class="flex flex-col justify-center text-right">
+                                            <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(comm.name)}</p>
+                                            <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `);
+                            `);
+                        } else {
+                            heroHeader.insertAdjacentHTML('afterbegin', `
+                                <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
+                                        <div class="flex flex-col justify-center text-right">
+                                            <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(comm.name)}</p>
+                                            <div class="text-[10px] opacity-90 font-medium bg-orange-600/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                                <span>הנחת ${discount}% תופעל ב-${famCount}/${minFam} משפחות</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                        }
                     }
                 }
                 
