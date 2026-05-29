@@ -14,9 +14,9 @@ const SA_URL   = BASE_URL + '/sa.html';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  saUsername: process.env.SA_USER     || 'admin',
+  saEmail:    process.env.SA_EMAIL    || 'mosheco2@gmail.com',
   saPassword: process.env.SA_PASSWORD || '123456',
-  qaEnv:      'family',
+  qaEnv:      'sa',
 };
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
@@ -52,16 +52,19 @@ test.afterEach(async ({}, testInfo) => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 async function loginAsSA(page) {
   await page.goto(SA_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForTimeout(1000);
-  const smsVisible = await page.locator('#sa-login-master-step1').isVisible({ timeout: 5000 }).catch(() => false);
-  if (smsVisible) {
-    await page.locator('button:has-text("התחברות איש צוות")').click();
-    await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
+  const staffVisible = await page.locator('#sa-login-staff').isVisible({ timeout: 3000 }).catch(() => false);
+  if (!staffVisible) {
+    const toggleBtn = page.locator('button:has-text("התחברות איש צוות")').first();
+    if (await toggleBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+      await toggleBtn.click();
+      await page.locator('#sa-login-staff').waitFor({ state: 'visible', timeout: 5000 });
+    }
   }
-  await page.locator('#sa-code').fill(TEST_ENV.saUsername);
+  await page.locator('#sa-code').fill(TEST_ENV.saEmail);
   await page.locator('#sa-password').fill(TEST_ENV.saPassword);
   await page.locator('#sa-login-staff button[type="submit"]').click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2500);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
