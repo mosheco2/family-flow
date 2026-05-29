@@ -13,9 +13,9 @@ const BASE_URL = process.env.BASE_URL || 'https://oneflowlife.co.il';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  saUsername: process.env.SA_USER || 'admin',
-  saPassword: process.env.SA_PASS || '123456',
-  qaEnv: 'family',
+  saEmail:    process.env.SA_EMAIL || 'mosheco2@gmail.com',
+  saPassword: process.env.SA_PASS  || '123456',
+  qaEnv:      'sa',
 };
 
 // ── Reporter ──────────────────────────────────────────────────────────────────
@@ -65,16 +65,19 @@ async function skipIntro(page) {
 
 async function loginAsSA(page) {
   await page.goto(`${BASE_URL}/sa.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await page.waitForTimeout(1000);
-  const smsVisible = await page.locator('#sa-login-master-step1').isVisible({ timeout: 5000 }).catch(() => false);
-  if (smsVisible) {
-    await page.locator('button:has-text("התחברות איש צוות")').click();
-    await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
+  const staffVisible = await page.locator('#sa-login-staff').isVisible({ timeout: 3000 }).catch(() => false);
+  if (!staffVisible) {
+    const toggleBtn = page.locator('button:has-text("התחברות איש צוות")').first();
+    if (await toggleBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+      await toggleBtn.click();
+      await page.locator('#sa-login-staff').waitFor({ state: 'visible', timeout: 5000 });
+    }
   }
-  await page.locator('#sa-code').fill(TEST_ENV.saUsername);
+  await page.locator('#sa-code').fill(TEST_ENV.saEmail);
   await page.locator('#sa-password').fill(TEST_ENV.saPassword);
   await page.locator('#sa-login-staff button[type="submit"]').click();
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2500);
 }
 
 async function goToTab(page, tabName) {
