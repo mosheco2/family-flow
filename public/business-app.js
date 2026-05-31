@@ -493,7 +493,12 @@ window.injectBusinessUI = function() {
                     <div class="w-full md:w-[35%] bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl text-right">
                         <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow-md z-10">
                             <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-receipt"></i> החשבון</h3>
-                            <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openKioskMode()" class="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-md hover:opacity-90 transition">
+                                    <i class="fa-solid fa-tablet-screen-button"></i> קיוסק
+                                </button>
+                                <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                            </div>
                         </div>
                         <div class="p-4 border-b border-slate-100 bg-slate-50">
                             <div class="relative">
