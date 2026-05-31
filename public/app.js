@@ -5821,18 +5821,22 @@ function renderQuickTiles() {
   const pantryCount = (pantryCache || []).length;
   const taskCount = (allTasks || []).filter(t => t.status === 'pending').length;
   const tiles = [
-    { icon:'🛒', label:'קניות', badge: shopCount, tab:'shop', color:'from-emerald-400 to-teal-500' },
-    { icon:'📦', label:'מזווה', badge: pantryCount, tab:'pantry', color:'from-amber-400 to-orange-500' },
-    { icon:'💰', label:'תקציב', badge: null, tab:'cashflow', color:'from-blue-400 to-indigo-500' },
-    { icon:'🏘️', label:'הקהילה שלי', badge: null, tab:'community', color:'from-purple-400 to-pink-500' },
-    { icon:'✅', label:'משימות', badge: taskCount, tab:'tasks', color:'from-green-400 to-emerald-600' },
-    { icon:'📋', label:'הזמנות שלי', badge: null, tab:'myorders', color:'from-rose-400 to-red-500' },
+    { fa:'fa-cart-shopping',  label:'קניות',        badge: shopCount,   tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0d9488)', badge_bg:'#059669' },
+    { fa:'fa-box-open',       label:'מזווה',         badge: pantryCount, tab:'pantry',    bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
+    { fa:'fa-chart-pie',      label:'תקציב',         badge: null,        tab:'cashflow',  bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4f46e5)', badge_bg:'#2563eb' },
+    { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community', bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
+    { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',     bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
+    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',  bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c' },
   ];
   container.innerHTML = tiles.map(t => `
-    <button onclick="switchTab('${t.tab}')" class="relative bg-gradient-to-br ${t.color} text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg hover:scale-105 transition aspect-square">
-      <span class="text-2xl">${t.icon}</span>
-      <span class="text-[11px] font-bold text-center leading-tight">${t.label}</span>
-      ${t.badge !== null && t.badge > 0 ? `<span class="absolute -top-1 -right-1 bg-white text-slate-800 text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow">${t.badge}</span>` : ''}
+    <button onclick="switchTab('${t.tab}')"
+      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
+      class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
+      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+        <i class="fa-solid ${t.fa} text-white text-lg"></i>
+      </div>
+      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
+      ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
     </button>
   `).join('');
 }
