@@ -869,6 +869,10 @@
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                                     <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
                                 </div>
+                                <button onclick="openKioskMode()" class="flex-shrink-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition">
+                                    <i class="fa-solid fa-tablet-screen-button"></i>
+                                    <span class="hidden sm:inline">קיוסק</span>
+                                </button>
                             </div>
                             <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
                             <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
@@ -1306,6 +1310,20 @@
                                 </div>
 
                                 <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
+
+                                <!-- Kiosk password setting -->
+                                <div class="mt-6 bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                                    <label class="text-sm font-bold text-amber-800 block mb-1.5 flex items-center gap-2">
+                                        <i class="fa-solid fa-tablet-screen-button text-amber-600"></i> סיסמת קיוסק
+                                    </label>
+                                    <p class="text-xs text-amber-600 mb-3">הסיסמה הנדרשת לצאת ממצב קיוסק</p>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="kiosk-password-input" placeholder="סיסמה (ברירת מחדל: 1234)"
+                                               class="flex-1 bg-white border border-amber-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-amber-400 transition">
+                                        <button onclick="saveKioskPassword()"
+                                                class="bg-amber-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-amber-600 transition">שמור</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3745,6 +3763,163 @@
             }, 1000);
         });
     </script>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         KIOSK SELF-ORDER OVERLAY
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="kiosk-overlay" class="fixed inset-0 hidden z-[99990] flex flex-col" style="background:#111827;">
+        <style>
+            #kiosk-overlay { font-family:'Rubik',sans-serif; }
+            .kiosk-product-btn { transition:transform 0.15s,box-shadow 0.15s; -webkit-user-select:none; user-select:none; }
+            .kiosk-product-btn:active { transform:scale(0.94); }
+            .kiosk-cat-tab.active { background:#fff; color:#111827; font-weight:800; }
+            .kiosk-cart-item { border-bottom:1px solid rgba(255,255,255,0.08); }
+            @keyframes kiosk-success-pop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+            .kiosk-success-icon { animation:kiosk-success-pop 0.5s ease-out forwards; }
+        </style>
+
+        <!-- KIOSK HEADER -->
+        <div id="kiosk-header" class="flex items-center justify-between px-6 py-4 shrink-0" style="background:rgba(0,0,0,0.4);">
+            <!-- Logo — long-press 3s to exit -->
+            <div id="kiosk-logo-hold" class="flex items-center gap-3 cursor-pointer select-none"
+                 onmousedown="startKioskHold()" onmouseup="cancelKioskHold()" onmouseleave="cancelKioskHold()"
+                 ontouchstart="startKioskHold(event)" ontouchend="cancelKioskHold()" ontouchcancel="cancelKioskHold()">
+                <img id="kiosk-logo-img" src="/logo.png" class="w-10 h-10 rounded-xl object-contain bg-white p-1" onerror="this.style.display='none'">
+                <div>
+                    <p id="kiosk-store-name" class="text-white font-black text-lg leading-none"></p>
+                    <p class="text-white/50 text-xs">לחץ והחזק לצאת</p>
+                </div>
+                <!-- hold progress ring -->
+                <svg id="kiosk-hold-ring" class="hidden absolute -top-1 -right-1" width="52" height="52" viewBox="0 0 52 52">
+                    <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+                    <circle id="kiosk-hold-arc" cx="26" cy="26" r="23" fill="none" stroke="#f59e0b" stroke-width="3"
+                            stroke-dasharray="144.5" stroke-dashoffset="144.5" stroke-linecap="round"
+                            transform="rotate(-90 26 26)" style="transition:stroke-dashoffset 0.1s linear"/>
+                </svg>
+            </div>
+            <!-- Step indicator -->
+            <div class="flex items-center gap-2">
+                <span id="kiosk-step-label" class="text-white/70 text-sm font-bold"></span>
+                <div class="flex gap-1.5">
+                    <div class="kiosk-dot w-2 h-2 rounded-full" data-step="1"></div>
+                    <div class="kiosk-dot w-2 h-2 rounded-full" data-step="2"></div>
+                    <div class="kiosk-dot w-2 h-2 rounded-full" data-step="3"></div>
+                    <div class="kiosk-dot w-2 h-2 rounded-full" data-step="4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── STEP 1: Welcome / Name+Phone ─────────────────── -->
+        <div id="kiosk-step-1" class="flex-1 flex flex-col items-center justify-center p-8 gap-8">
+            <div class="text-center">
+                <div class="text-6xl mb-4">👋</div>
+                <h1 class="text-white text-4xl font-black mb-2">ברוכים הבאים!</h1>
+                <p class="text-white/60 text-lg">הזינו פרטים כדי להתחיל להזמין</p>
+            </div>
+            <div class="w-full max-w-md space-y-4">
+                <input id="kiosk-name" type="text" placeholder="שם פרטי" inputmode="text"
+                       class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-6 py-5 text-xl font-bold outline-none focus:border-amber-400 transition text-right">
+                <input id="kiosk-phone" type="tel" placeholder="מספר טלפון" inputmode="numeric"
+                       class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-6 py-5 text-xl font-bold outline-none focus:border-amber-400 transition dir-ltr text-left">
+                <button onclick="kioskNext1()"
+                        class="w-full py-5 rounded-2xl font-black text-xl text-white shadow-xl transition"
+                        style="background:linear-gradient(135deg,#f59e0b,#ea580c)">
+                    המשך להזמנה <i class="fa-solid fa-arrow-left mr-2"></i>
+                </button>
+                <button onclick="kioskSkipIdentify()"
+                        class="w-full py-3 rounded-2xl font-bold text-base text-white/50 hover:text-white/80 transition">
+                    המשך ללא זיהוי
+                </button>
+            </div>
+        </div>
+
+        <!-- ─── STEP 2: Catalog ───────────────────────────────── -->
+        <div id="kiosk-step-2" class="hidden flex-1 flex flex-col overflow-hidden">
+            <!-- Category tabs -->
+            <div id="kiosk-cats" class="flex gap-2 px-4 py-3 overflow-x-auto shrink-0" style="background:rgba(0,0,0,0.3);">
+                <!-- filled by JS -->
+            </div>
+            <!-- Products grid -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="kiosk-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            </div>
+            <!-- Bottom bar: cart summary + next -->
+            <div class="shrink-0 px-4 pb-4 pt-2 flex gap-3 items-center" style="background:rgba(0,0,0,0.4);">
+                <div class="flex-1">
+                    <p class="text-white/60 text-sm">סל קניות</p>
+                    <p class="text-white font-black text-lg"><span id="kiosk-cart-count">0</span> פריטים · ₪<span id="kiosk-cart-total">0</span></p>
+                </div>
+                <button onclick="kioskGoStep3()"
+                        class="px-8 py-4 rounded-2xl font-black text-white text-lg shadow-xl"
+                        style="background:linear-gradient(135deg,#10b981,#0d9488)">
+                    לסיכום <i class="fa-solid fa-arrow-left mr-1"></i>
+                </button>
+                <button onclick="kioskBack(2)" class="px-5 py-4 rounded-2xl font-bold text-white/60 hover:text-white text-sm" style="background:rgba(255,255,255,0.08)">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ─── STEP 3: Cart review ───────────────────────────── -->
+        <div id="kiosk-step-3" class="hidden flex-1 flex flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="kiosk-cart-list"></div>
+            <div class="shrink-0 p-4" style="background:rgba(0,0,0,0.4);">
+                <textarea id="kiosk-notes" placeholder="הערות להזמנה (אופציונלי)..."
+                          class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-5 py-4 text-base outline-none focus:border-amber-400 transition resize-none mb-3 text-right" rows="2"></textarea>
+                <div class="flex gap-3">
+                    <button onclick="kioskBack(3)" class="px-5 py-4 rounded-2xl font-bold text-white/60 hover:text-white text-sm" style="background:rgba(255,255,255,0.08)">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <button onclick="kioskSubmitOrder()"
+                            class="flex-1 py-4 rounded-2xl font-black text-white text-xl shadow-xl"
+                            style="background:linear-gradient(135deg,#10b981,#0d9488)">
+                        אישור הזמנה ₪<span id="kiosk-total-confirm">0</span>
+                        <i class="fa-solid fa-check mr-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── STEP 4: Success ───────────────────────────────── -->
+        <div id="kiosk-step-4" class="hidden flex-1 flex flex-col items-center justify-center p-8 gap-6 text-center">
+            <div class="kiosk-success-icon w-32 h-32 rounded-full flex items-center justify-center shadow-2xl"
+                 style="background:linear-gradient(135deg,#10b981,#0d9488)">
+                <i class="fa-solid fa-check text-white text-6xl"></i>
+            </div>
+            <h1 class="text-white text-4xl font-black">ההזמנה התקבלה!</h1>
+            <p class="text-white/60 text-xl">אנא גשו לקופה לתשלום</p>
+            <div id="kiosk-order-id-display" class="bg-white/10 border border-white/20 rounded-2xl px-8 py-4 text-white/80 text-lg font-bold"></div>
+            <div class="mt-4">
+                <p class="text-white/40 text-base mb-2">מאפס אוטומטית בעוד</p>
+                <p id="kiosk-countdown" class="text-white font-black text-5xl">10</p>
+            </div>
+            <button onclick="kioskReset()"
+                    class="mt-4 px-10 py-4 rounded-2xl font-black text-white text-xl"
+                    style="background:linear-gradient(135deg,#f59e0b,#ea580c)">
+                הזמנה חדשה <i class="fa-solid fa-rotate mr-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Kiosk Exit Password Modal -->
+    <div id="kiosk-exit-modal" class="fixed inset-0 hidden z-[99999] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.8);">
+        <div class="bg-slate-800 rounded-[2rem] p-8 w-full max-w-sm text-center shadow-2xl border border-slate-700">
+            <i class="fa-solid fa-lock text-amber-400 text-4xl mb-4"></i>
+            <h3 class="text-white font-black text-2xl mb-2">יציאה מהקיוסק</h3>
+            <p class="text-white/50 text-sm mb-6">הזן סיסמת קיוסק לצאת</p>
+            <input id="kiosk-exit-password" type="password" placeholder="סיסמה"
+                   class="w-full bg-white/10 border border-white/20 text-white rounded-2xl px-5 py-4 text-xl font-bold outline-none focus:border-amber-400 transition text-center mb-4"
+                   onkeydown="if(event.key==='Enter') confirmKioskExit()">
+            <p id="kiosk-exit-error" class="text-red-400 text-sm mb-4 hidden">סיסמה שגויה</p>
+            <div class="flex gap-3">
+                <button onclick="confirmKioskExit()"
+                        class="flex-1 py-4 rounded-2xl font-black text-white"
+                        style="background:linear-gradient(135deg,#f59e0b,#ea580c)">אישור</button>
+                <button onclick="getEl('kiosk-exit-modal').classList.add('hidden')"
+                        class="flex-1 py-4 rounded-2xl font-bold text-white/60" style="background:rgba(255,255,255,0.1)">ביטול</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Community Join Modal -->
     <div id="biz-join-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
