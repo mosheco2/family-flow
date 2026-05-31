@@ -2,9 +2,7 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "REPLACE_WITH_ANDROID_PACKAGE_NAME",
-    "sha256_cert_fingerprints": [
-      "REPLACE_WITH_SHA256_FINGERPRINT"
-    ]
+    "package_name": "il.co.oneflowlife.twa",
+    "sha256_cert_fingerprints": ["CE:8D:D6:5F:32:E0:A1:13:11:B9:23:79:45:88:31:92:A5:FC:FE:11:BA:B0:EE:24:A5:0F:14:EA:DD:BF:B2:63"]
   }
 }]
