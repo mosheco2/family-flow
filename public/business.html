@@ -869,10 +869,6 @@
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                                     <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
                                 </div>
-                                <button onclick="openKioskMode()" class="flex-shrink-0 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition">
-                                    <i class="fa-solid fa-tablet-screen-button"></i>
-                                    <span class="hidden sm:inline">קיוסק</span>
-                                </button>
                             </div>
                             <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
                             <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
@@ -883,7 +879,12 @@
                         <div class="w-full md:w-[35%] bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl text-right">
                             <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow-md z-10">
                                 <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-receipt"></i> החשבון</h3>
-                                <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="openKioskMode()" class="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-md hover:opacity-90 transition">
+                                        <i class="fa-solid fa-tablet-screen-button"></i> קיוסק
+                                    </button>
+                                    <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                                </div>
                             </div>
                             <div class="p-4 border-b border-slate-100 bg-slate-50">
                                 <div class="relative">
