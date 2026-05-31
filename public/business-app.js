@@ -17701,18 +17701,22 @@ function renderQuickTiles() {
   if (!container) return;
   const storeOrderCount = (storeOrdersCache || []).filter(o => o.status === 'pending' || o.status === 'new').length;
   const tiles = [
-    { icon:'🕐', label:'נוכחות', badge: null, tab:'timeclock', color:'from-slate-500 to-slate-700' },
-    { icon:'📅', label:'משמרות', badge: null, tab:'shifts', color:'from-blue-500 to-indigo-600' },
-    { icon:'📆', label:'יומן ותורים', badge: null, tab:'calendar', color:'from-violet-500 to-purple-600' },
-    { icon:'🛍️', label:'מכירות וחנות', badge: storeOrderCount, tab:'sales', color:'from-amber-500 to-orange-600' },
-    { icon:'👥', label:'לקוחות', badge: null, tab:'customers', color:'from-emerald-500 to-teal-600' },
-    { icon:'💼', label:'כספים', badge: null, tab:'bank', color:'from-rose-500 to-red-600' },
+    { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
+    { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-calendar-check',    label:'יומן ותורים',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-bag-shopping',      label:'מכירות וחנות',   badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-users',             label:'לקוחות',         badge: null,            tab:'customers', bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
+    { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ];
   container.innerHTML = tiles.map(t => `
-    <button onclick="switchTab('${t.tab}')" class="relative bg-gradient-to-br ${t.color} text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg hover:scale-105 transition aspect-square">
-      <span class="text-2xl">${t.icon}</span>
-      <span class="text-[11px] font-bold text-center leading-tight">${t.label}</span>
-      ${t.badge !== null && t.badge > 0 ? `<span class="absolute -top-1 -right-1 bg-white text-slate-800 text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow">${t.badge}</span>` : ''}
+    <button onclick="switchTab('${t.tab}')"
+      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
+      class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
+      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+        <i class="fa-solid ${t.fa} text-white text-lg"></i>
+      </div>
+      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
+      ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
     </button>
   `).join('');
 }
