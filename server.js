@@ -238,10 +238,33 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       } catch(e) { console.error('Error creating inbox_messages table:', e.message); }
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_qa_test_results (id SERIAL PRIMARY KEY, test_id VARCHAR(50) NOT NULL, env VARCHAR(20) NOT NULL, status VARCHAR(10), note TEXT DEFAULT '', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(test_id, env))`); } catch(e) {}
-      
+
+      // טבלת לוג פעילות (Bell Activity Feed)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS activity_log (
+        id SERIAL PRIMARY KEY,
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(100),
+        action_type VARCHAR(50),
+        action_key VARCHAR(100),
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_activity_log_group ON activity_log(group_id, created_at DESC)`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
+
+// ── ACTIVITY LOG HELPER ─────────────────────────────────────────
+async function logActivity(groupId, userId, userName, actionType, actionKey, description) {
+  try {
+    await pool.query(
+      'INSERT INTO activity_log (group_id, user_id, user_name, action_type, action_key, description) VALUES ($1,$2,$3,$4,$5,$6)',
+      [groupId, userId || null, userName || 'מערכת', actionType, actionKey, description]
+    );
+  } catch(e) { /* non-blocking */ }
+}
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
@@ -1734,6 +1757,7 @@ app.post('/api/shopping/add', async (req, res) => {
         if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
         const itemStatus = userRole === 'ADMIN' ? 'pending' : 'requested';
         await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1, itemStatus]);
+        await logActivity(actualGroupId, userId || null, null, 'shopping', 'item_added', `${itemName} נוסף לרשימת הקניות`);
         res.json({ success: true, status: itemStatus });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -1784,7 +1808,9 @@ app.post('/api/shopping/checkout', async (req, res) => {
         }
         
         for (let item of missingItems) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
-        await pool.query('COMMIT'); res.json({ success: true });
+        await pool.query('COMMIT');
+        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${totalAmount}`);
+        res.json({ success: true });
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
@@ -1866,6 +1892,7 @@ app.post('/api/pantry/add', async (req, res) => {
         } else {
             await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
         }
+        await logActivity(actualGroupId, null, null, 'pantry', 'pantry_add', `${itemName} נוסף למזווה`);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -1948,6 +1975,7 @@ app.post('/api/transaction', async (req, res) => {
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
         if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
         else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        await logActivity(groupId, userId || null, null, 'finance', 'transaction', `${type === 'income' ? 'הכנסה' : 'הוצאה'}: ₪${amount} — ${description}`);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2101,6 +2129,7 @@ app.post('/api/admin/adjust-balance', async (req, res) => {
         const actAmount = type === 'deduct' ? -(parseFloat(amount)||0) : (parseFloat(amount)||0);
         await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [actAmount, childId]);
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'other', $5)`, [childId, groupId, parseFloat(amount)||0, reason, type === 'deduct' ? 'expense' : 'income']);
+        await logActivity(groupId, childId || null, null, 'finance', 'balance_adjust', `הפרשת דמי כיס: ₪${amount} — ${reason || ''}`);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2139,6 +2168,7 @@ app.post('/api/tasks', async (req, res) => {
         const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
         await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck]);
+        await logActivity(groupId, assignedTo || null, null, 'task', 'task_created', `משימה חדשה: ${title}`);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2154,7 +2184,10 @@ app.post('/api/tasks/update', async (req, res) => {
             await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
         }
-        await pool.query('COMMIT'); res.json({success:true});
+        await pool.query('COMMIT');
+        if (status === 'done') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה: ${t.title}`);
+        if (status === 'approved') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_approved', `משימה אושרה: ${t.title}`);
+        res.json({success:true});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -5516,6 +5549,43 @@ app.put('/api/qa/assignments', async (req, res) => {
         }
         res.json({ success: true, count: assignments.length });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ACTIVITY FEED ENDPOINT ─────────────────────────────────────
+app.get('/api/activity', async (req, res) => {
+  try {
+    const { userId, groupId, actionType, days = 30, limit = 50 } = req.query;
+    const uRes = await pool.query('SELECT role, group_id FROM users WHERE id=$1', [userId]);
+    if (!uRes.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+    const user = uRes.rows[0];
+    const gId = user.group_id;
+    const since = new Date(Date.now() - parseInt(days) * 86400000);
+
+    let query = 'SELECT al.*, u.nickname FROM activity_log al LEFT JOIN users u ON al.user_id = u.id WHERE al.group_id=$1 AND al.created_at >= $2';
+    const params = [gId, since];
+
+    // Non-admins see only their own
+    if (user.role !== 'ADMIN') {
+      query += ' AND al.user_id=$3';
+      params.push(userId);
+    }
+    if (actionType && actionType !== 'all') {
+      query += ` AND al.action_type=$${params.length+1}`;
+      params.push(actionType);
+    }
+    query += ' ORDER BY al.created_at DESC LIMIT $' + (params.length+1);
+    params.push(parseInt(limit));
+
+    const result = await pool.query(query, params);
+
+    // Count unread (last 24h)
+    const unreadRes = await pool.query(
+      'SELECT COUNT(*) FROM activity_log WHERE group_id=$1 AND created_at > NOW() - INTERVAL \'1 day\'' + (user.role !== 'ADMIN' ? ' AND user_id=$2' : ''),
+      user.role !== 'ADMIN' ? [gId, userId] : [gId]
+    );
+
+    res.json({ success: true, activities: result.rows, unreadCount: parseInt(unreadRes.rows[0].count) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // הפעלת השרת
