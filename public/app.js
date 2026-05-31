@@ -733,6 +733,7 @@ async function loadDashboard() {
     
     try {
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
+        setInterval(refreshBellBadge, 30000); refreshBellBadge();
         try { fetchBanners(); } catch(e){}
         try { await fetchMembers(); } catch(e){}
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
@@ -819,6 +820,7 @@ async function fetchData() {
         } catch(e) { allTransactions = []; }
 
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
+        try { renderQuickTiles(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -5735,3 +5737,102 @@ setInterval(() => {
         }
     }
 }, 500);
+
+// ── ACTIVITY FEED ──────────────────────────────────────────────
+const ACTION_ICONS = { finance:'💰', task:'✅', shopping:'🛒', pantry:'📦', business:'🏪', user:'👤' };
+
+async function openActivityPanel() {
+  getEl('activity-panel').classList.remove('hidden');
+  if (currentUser?.role === 'ADMIN') {
+    getEl('activity-filters').classList.remove('hidden');
+    const sel = getEl('filter-user');
+    sel.innerHTML = '<option value="">כל המשתמשים</option>';
+    if (membersCache) membersCache.forEach(m => sel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`);
+  }
+  ['filter-days','filter-type','filter-user'].forEach(id => {
+    const el = getEl(id);
+    if (el) el.addEventListener('change', loadActivityFeed);
+  });
+  await loadActivityFeed();
+}
+
+function closeActivityPanel() {
+  getEl('activity-panel').classList.add('hidden');
+  const badge = getEl('bell-badge');
+  if (badge) badge.classList.add('hidden');
+}
+
+async function loadActivityFeed() {
+  const days = getEl('filter-days')?.value || 30;
+  const type = getEl('filter-type')?.value || 'all';
+  const filterUser = getEl('filter-user')?.value || '';
+  const list = getEl('activity-list');
+  list.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">טוען...</div>';
+  try {
+    let url = `${API}/activity?userId=${currentUser.id}&days=${days}`;
+    if (type !== 'all') url += `&actionType=${type}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.success || !data.activities.length) {
+      list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פעולות להצגה</div>';
+      return;
+    }
+    let acts = data.activities;
+    if (filterUser) acts = acts.filter(a => String(a.user_id) === String(filterUser));
+    list.innerHTML = acts.map(a => {
+      const icon = ACTION_ICONS[a.action_type] || '•';
+      const time = new Date(a.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const who = a.nickname || a.user_name || 'מערכת';
+      return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex items-start gap-2">
+          <span class="text-lg flex-shrink-0">${icon}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-700 leading-snug">${safeStr(a.description)}</p>
+            <p class="text-xs text-slate-400 mt-1">${safeStr(who)} · ${time}</p>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { list.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינה</div>'; }
+}
+
+async function refreshBellBadge() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API}/activity?userId=${currentUser.id}&days=1&limit=1`);
+    const data = await res.json();
+    const badge = getEl('bell-badge');
+    if (!badge) return;
+    const count = data.unreadCount || 0;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch(e) {}
+}
+
+// ── QUICK ACCESS TILES ─────────────────────────────────────────
+function renderQuickTiles() {
+  const container = getEl('quick-tiles');
+  if (!container) return;
+  const shopCount = (shoppingListCache || []).filter(i => i.status === 'pending' || i.status === 'in_cart').length;
+  const pantryCount = (pantryCache || []).length;
+  const taskCount = (allTasks || []).filter(t => t.status === 'pending').length;
+  const tiles = [
+    { icon:'🛒', label:'קניות', badge: shopCount, tab:'shop', color:'from-emerald-400 to-teal-500' },
+    { icon:'📦', label:'מזווה', badge: pantryCount, tab:'pantry', color:'from-amber-400 to-orange-500' },
+    { icon:'💰', label:'תקציב', badge: null, tab:'cashflow', color:'from-blue-400 to-indigo-500' },
+    { icon:'🏘️', label:'הקהילה שלי', badge: null, tab:'community', color:'from-purple-400 to-pink-500' },
+    { icon:'✅', label:'משימות', badge: taskCount, tab:'tasks', color:'from-green-400 to-emerald-600' },
+    { icon:'📋', label:'הזמנות שלי', badge: null, tab:'myorders', color:'from-rose-400 to-red-500' },
+  ];
+  container.innerHTML = tiles.map(t => `
+    <button onclick="switchTab('${t.tab}')" class="relative bg-gradient-to-br ${t.color} text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg hover:scale-105 transition aspect-square">
+      <span class="text-2xl">${t.icon}</span>
+      <span class="text-[11px] font-bold text-center leading-tight">${t.label}</span>
+      ${t.badge !== null && t.badge > 0 ? `<span class="absolute -top-1 -right-1 bg-white text-slate-800 text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow">${t.badge}</span>` : ''}
+    </button>
+  `).join('');
+}
