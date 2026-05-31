@@ -101,6 +101,8 @@ pool.connect()
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
       try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
+      try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)'); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS kiosk_password VARCHAR(100) DEFAULT '1234'`); } catch(e) {}
       
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -3139,22 +3141,23 @@ app.patch('/api/store/quotes/:id/status', async (req, res) => {
 // --- שליפת הזמנות ללקוח קצה (משפחה) ---
 app.get('/api/store/orders/my/:userId', async (req, res) => {
     try {
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.params.userId]);
+        const uRes = await pool.query('SELECT group_id, phone FROM users WHERE id=$1', [req.params.userId]);
         if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
-        const familyGroupId = uRes.rows[0].group_id;
+        const { group_id: familyGroupId, phone: userPhone } = uRes.rows[0];
 
-        // שולפים את כל ההזמנות של המשפחה - כולל הצעות מחיר, איסוף עצמי ומשלוחים
+        // שולפים הזמנות לפי family_group_id או לפי phone של המשתמש (קיוסק)
         const orders = await pool.query(`
-            SELECT so.*, fg.name as store_name 
-            FROM store_orders so 
-            JOIN family_groups fg ON so.group_id = fg.id 
+            SELECT so.*, fg.name as store_name
+            FROM store_orders so
+            JOIN family_groups fg ON so.group_id = fg.id
             WHERE so.family_group_id = $1
+               OR ($2 IS NOT NULL AND $2 <> '' AND so.customer_phone = $2)
             ORDER BY so.created_at DESC
-        `, [familyGroupId]);
+        `, [familyGroupId, userPhone || '']);
 
         res.json({ success: true, orders: orders.rows });
-    } catch(e) { 
-        res.status(500).json({ error: e.message }); 
+    } catch(e) {
+        res.status(500).json({ error: e.message });
     }
 });
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
@@ -5586,6 +5589,98 @@ app.get('/api/activity', async (req, res) => {
 
     res.json({ success: true, activities: result.rows, unreadCount: parseInt(unreadRes.rows[0].count) });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── KIOSK ENDPOINTS ──────────────────────────────────────────────
+
+// GET store settings + catalog for kiosk (public, by groupId)
+app.get('/api/store/kiosk-settings/:groupId', async (req, res) => {
+    try {
+        const gId = req.params.groupId;
+        const [settingsRes, catalogRes, groupRes] = await Promise.all([
+            pool.query('SELECT * FROM store_settings WHERE group_id=$1', [gId]),
+            pool.query(`SELECT id,name,description,price,category,image_url,is_available,badge_text,badge_color
+                        FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [gId]),
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [gId])
+        ]);
+        res.json({
+            success: true,
+            settings: settingsRes.rows[0] || {},
+            catalog: catalogRes.rows,
+            storeName: groupRes.rows[0]?.name || ''
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST lookup/create customer by phone for kiosk
+app.post('/api/store/kiosk-lookup', async (req, res) => {
+    try {
+        const { groupId, phone, name } = req.body;
+        if (!groupId || !phone) return res.status(400).json({ error: 'חסר groupId או phone' });
+        const existing = await pool.query(
+            'SELECT * FROM store_customers WHERE group_id=$1 AND phone=$2 LIMIT 1', [groupId, phone]);
+        if (existing.rows.length > 0) {
+            return res.json({ success: true, customer: existing.rows[0], isNew: false });
+        }
+        const created = await pool.query(
+            'INSERT INTO store_customers (group_id, name, phone) VALUES ($1,$2,$3) RETURNING *',
+            [groupId, name || 'לקוח קיוסק', phone]);
+        res.json({ success: true, customer: created.rows[0], isNew: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST submit kiosk order
+app.post('/api/store/kiosk-order', async (req, res) => {
+    try {
+        const { groupId, customerName, customerPhone, items, notes, total } = req.body;
+        if (!groupId || !items?.length) return res.status(400).json({ error: 'נתונים חסרים' });
+        const orderRes = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, items, notes, created_at)
+             VALUES ($1,$2,$3,$4,'new',$5,$6,CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, customerName || 'לקוח קיוסק', customerPhone || '', total || 0,
+             JSON.stringify(items), notes || '']
+        );
+        const orderId = orderRes.rows[0].id;
+        await logActivity(groupId, null, customerName || 'לקוח קיוסק', 'sale', 'kiosk_order', `הזמנת קיוסק #${orderId} — ₪${total}`);
+        res.json({ success: true, orderId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET kiosk password for a group
+app.get('/api/store/kiosk-password/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT kiosk_password FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        res.json({ success: true, password: r.rows[0]?.kiosk_password || '1234' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT set kiosk password (admin)
+app.put('/api/store/kiosk-password', async (req, res) => {
+    try {
+        const { groupId, password } = req.body;
+        if (!groupId || !password) return res.status(400).json({ error: 'נתונים חסרים' });
+        await pool.query(
+            `INSERT INTO store_settings (group_id, kiosk_password) VALUES ($1,$2)
+             ON CONFLICT (group_id) DO UPDATE SET kiosk_password=$2`,
+            [groupId, password]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET/PUT user phone
+app.get('/api/users/:userId/phone', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT phone FROM users WHERE id=$1', [req.params.userId]);
+        res.json({ success: true, phone: r.rows[0]?.phone || '' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/users/:userId/phone', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, req.params.userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // הפעלת השרת
