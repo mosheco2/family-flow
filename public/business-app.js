@@ -18051,20 +18051,40 @@ function kioskRenderGrid() {
 }
 
 function kioskAddItem(id, name, price) {
-    // Fix 3: handle complex/modifier products
     const p = kioskCatalog.find(c => c.id === id);
-    if (p && p.options_text && p.options_text.length > 10) {
-        try {
-            const parsed = JSON.parse(p.options_text);
-            if (parsed && (parsed.isBundle || parsed.isComplex || parsed.isPizza || Array.isArray(parsed))) {
-                window.kioskModeCapture = true;
-                window.currentPOSProduct = p;
-                if (parsed.isBundle || parsed.isComplex) { window.openPOSBundleModal(p, parsed); }
-                else if (parsed.isPizza) { window.openPOSPizzaModal(p, parsed); }
-                else if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); }
-                return;
-            }
-        } catch(e) {}
+    if (p) {
+        // Try parsing options_text first
+        if (p.options_text && p.options_text.length > 10) {
+            try {
+                const parsed = JSON.parse(p.options_text);
+                if (parsed && (parsed.isBundle || parsed.isComplex || parsed.isPizza || Array.isArray(parsed))) {
+                    window.kioskModeCapture = true;
+                    window.currentPOSProduct = p;
+                    if (parsed.isPizza) { window.openPOSPizzaModal(p, parsed); }
+                    else if (parsed.isBundle || parsed.isComplex) { window.openPOSBundleModal(p, parsed); }
+                    else if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); }
+                    return;
+                }
+            } catch(e) {}
+        }
+        // Fallback: product_type based detection
+        const pt = p.product_type || '';
+        if (pt === 'pizza_builder') {
+            window.kioskModeCapture = true;
+            window.currentPOSProduct = p;
+            let pd = { isPizza: true, toppings: [] };
+            try { pd = JSON.parse(p.options_text) || pd; } catch(e) {}
+            window.openPOSPizzaModal(p, pd);
+            return;
+        }
+        if (pt === 'bundle') {
+            window.kioskModeCapture = true;
+            window.currentPOSProduct = p;
+            let bd = { isBundle: true, steps: [] };
+            try { bd = JSON.parse(p.options_text) || bd; } catch(e) {}
+            window.openPOSBundleModal(p, bd);
+            return;
+        }
     }
     const existing = kioskCart.find(c => c.id === id && !c.modifiers);
     if (existing) {
@@ -18141,7 +18161,7 @@ async function kioskSubmitOrder() {
                 groupId: kioskGroupId,
                 customerName: kioskCustomer.name,
                 customerPhone: kioskCustomer.phone,
-                items: kioskCart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty })),
+                items: kioskCart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty, modifiers: i.modifiers || [] })),
                 notes,
                 total
             })
@@ -18149,6 +18169,8 @@ async function kioskSubmitOrder() {
         const data = await res.json();
         if (data.success) {
             document.getElementById('kiosk-order-id-display').textContent = `הזמנה מספר #${data.orderId}`;
+            // Refresh orders management so it appears immediately
+            setTimeout(() => { try { if(typeof window.fetchStoreOrders==='function') window.fetchStoreOrders(); } catch(e){} }, 1000);
             kioskShowStep(4);
             let countdown = 10;
             document.getElementById('kiosk-countdown').textContent = countdown;
