@@ -5651,10 +5651,10 @@ app.post('/api/store/kiosk-order', async (req, res) => {
         const altPhone = digits.startsWith('0') ? digits.substring(1) : '0' + digits;
 
         const orderRes = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, items, notes, created_at)
-             VALUES ($1,$2,$3,$4,'new',$5,$6,CURRENT_TIMESTAMP) RETURNING id`,
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, items, notes, quote_status, created_at)
+             VALUES ($1,$2,$3,$4,'new',$5,$6,NULL,CURRENT_TIMESTAMP) RETURNING id`,
             [groupId, customerName || 'לקוח קיוסק', digits || '', total || 0,
-             JSON.stringify(items), notes || '']
+             JSON.stringify(items), notes ? `[קיוסק] ${notes}` : '[קיוסק]']
         );
         const orderId = orderRes.rows[0].id;
 
