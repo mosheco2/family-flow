@@ -1330,6 +1330,14 @@
                 <button id="btn-profile-upgrade" type="button" onclick="openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!')" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">שדרגו כעת</button>
             </div>
 
+            <div class="bg-blue-50 rounded-2xl p-4 mb-4 text-right border border-blue-100">
+                <p class="text-xs font-bold text-blue-700 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> מספר טלפון (לקישור הזמנות)</p>
+                <div class="flex gap-2">
+                    <input type="tel" id="user-phone-input" placeholder="050-0000000" inputmode="numeric" dir="ltr"
+                           class="flex-1 bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-blue-400 transition text-left">
+                    <button onclick="saveUserPhone()" class="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition">שמור</button>
+                </div>
+            </div>
             <form onsubmit="submitChangePassword(event)" class="space-y-3">
                 <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
                 <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">
