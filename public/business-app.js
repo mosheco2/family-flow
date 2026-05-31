@@ -17705,7 +17705,7 @@ function renderQuickTiles() {
     { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',    label:'יומן ותורים',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-bag-shopping',      label:'מכירות וחנות',   badge: storeOrderCount, tab:'sales',     bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
-    { fa:'fa-users',             label:'לקוחות',         badge: null,            tab:'customers', bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
+    { fa:'fa-cart-arrow-down',   label:'רכש',           badge: null,            tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
     { fa:'fa-chart-line',        label:'כספים',          badge: null,            tab:'bank',      bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ];
   container.innerHTML = tiles.map(t => `
