@@ -16423,6 +16423,11 @@ window.submitPOSModifiers = function() {
 window.openPOSPizzaModal = function(p, pizzaData) {
     window.currentPOSProduct = p;
     const toppings = pizzaData.toppings || [];
+    window.posPizzaState = {};
+    window.posActivePizzaTopping = toppings.length > 0 ? toppings[0].name : null;
+    window.posPizzaToppings = toppings;
+    toppings.forEach(t => window.posPizzaState[t.name] = [0, 0, 0, 0]);
+
     let modal = document.getElementById('pos-pizza-modal');
     if (modal) modal.remove();
     let html = `
@@ -16432,34 +16437,8 @@ window.openPOSPizzaModal = function(p, pizzaData) {
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-pizza-slice text-orange-500 mr-2"></i> הרכבת ${safeStr(p.name)}</h3>
                 <button onclick="document.getElementById('pos-pizza-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4">
-                <p class="text-xs text-slate-500 font-bold mb-2">בחרו תוספות והיכן למקם אותן על המגש:</p>
-                ${toppings.map((top, idx) => `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-slate-700 text-sm">${safeStr(top.name)}</span>
-                            <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded dir-ltr border border-orange-100">+₪${top.price} למגש</span>
-                        </div>
-                        <div class="flex gap-1 mt-1">
-                            <label class="flex-1 cursor-pointer relative">
-                                <input type="radio" name="pizza_top_${idx}" value="0" class="peer hidden" checked>
-                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-400 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">ללא</div>
-                            </label>
-                            <label class="flex-1 cursor-pointer relative">
-                                <input type="radio" name="pizza_top_${idx}" value="1" class="peer hidden">
-                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">שלם</div>
-                            </label>
-                            <label class="flex-1 cursor-pointer relative">
-                                <input type="radio" name="pizza_top_${idx}" value="0.5" class="peer hidden">
-                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">חצי</div>
-                            </label>
-                            <label class="flex-1 cursor-pointer relative">
-                                <input type="radio" name="pizza_top_${idx}" value="0.25" class="peer hidden">
-                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">רבע</div>
-                            </label>
-                        </div>
-                    </div>
-                `).join('')}
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4">
+                <div id="pos-pizza-builder-wrapper"></div>
             </div>
             <div class="pt-3 border-t border-slate-100 shrink-0">
                 <button onclick="window.submitPOSPizza()" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition">הוסף פיצה להזמנה</button>
@@ -16468,28 +16447,138 @@ window.openPOSPizzaModal = function(p, pizzaData) {
     </div>`;
     const targetNode = document.fullscreenElement || document.body;
     targetNode.insertAdjacentHTML('beforeend', html);
+    window.renderPosPizzaBuilderUI();
+};
+
+window.renderPosPizzaBuilderUI = function() {
+    const wrapper = document.getElementById('pos-pizza-builder-wrapper');
+    if (!wrapper) return;
+    const toppings = window.posPizzaToppings || [];
+    const pizzaState = window.posPizzaState || {};
+    const active = window.posActivePizzaTopping;
+
+    const getFill = (q) => {
+        if (!active || !pizzaState[active]) return 'transparent';
+        const v = pizzaState[active][q];
+        return v === 2 ? '#ef4444' : v === 1 ? '#fca5a5' : 'transparent';
+    };
+    const getX2 = (q, x, y) => {
+        if (!active || !pizzaState[active] || pizzaState[active][q] !== 2) return '';
+        return `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#ffffff" class="pointer-events-none" text-anchor="middle">X2</text>`;
+    };
+
+    const toppingsHtml = toppings.map(t => `
+        <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition border ${t.name === active ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50'}" onclick="window.selectPosPizzaTopping('${safeStr(t.name).replace(/'/g,"\\'")}')">
+            ${safeStr(t.name)} (+₪${t.price})
+        </button>
+    `).join('');
+
+    let summaryArr = [];
+    toppings.forEach(t => {
+        const total = (pizzaState[t.name] || [0,0,0,0]).reduce((s,v) => s + Number(v||0), 0);
+        if (total > 0) {
+            let q1=[], q2=[];
+            pizzaState[t.name].forEach((v,i) => { if(v===1) q1.push(i+1); if(v===2) q2.push(i+1); });
+            let parts = [];
+            if (q1.length) parts.push(q1.length===4 ? 'מגש שלם' : `רבעים ${q1.join(', ')}`);
+            if (q2.length) parts.push(q2.length===4 ? 'כפול על הכל' : `כפול רבעים ${q2.join(', ')}`);
+            summaryArr.push(`<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold m-1 inline-block">${safeStr(t.name)} - ${parts.join(' | ')}</span>`);
+        }
+    });
+    const summaryHtml = summaryArr.length > 0 ? summaryArr.join('') : '<p class="text-[10px] text-slate-400">פיצה חלקה (ללא תוספות)</p>';
+
+    wrapper.innerHTML = `
+    <div class="bg-red-50/50 rounded-2xl p-4 border border-red-100 shadow-sm fade-in">
+        <h4 class="font-bold text-red-900 text-center mb-1 text-sm"><i class="fa-solid fa-pizza-slice text-red-500 mr-1"></i> הרכבת מגש פיצה</h4>
+        <p class="text-[10px] text-red-600 text-center mb-4">בחרו תוספת מהסרגל, ולחצו על חלקי הפיצה.<br><span class="font-bold">לחיצה כפולה = כמות כפולה (X2).</span></p>
+        <div class="flex overflow-x-auto gap-2 mb-5 pb-2" style="scrollbar-width:none;">${toppingsHtml}</div>
+        <div class="relative w-52 h-52 mx-auto mb-5">
+            <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
+                <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+                <path d="M 50 50 L 50 2 A 48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="cursor-pointer transition" style="transition:fill .15s" onclick="window.togglePosPizzaSlice(0)" />
+                <path d="M 50 50 L 98 50 A 48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="cursor-pointer transition" style="transition:fill .15s" onclick="window.togglePosPizzaSlice(1)" />
+                <path d="M 50 50 L 50 98 A 48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="cursor-pointer transition" style="transition:fill .15s" onclick="window.togglePosPizzaSlice(2)" />
+                <path d="M 50 50 L 2 50 A 48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="cursor-pointer transition" style="transition:fill .15s" onclick="window.togglePosPizzaSlice(3)" />
+                <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" class="pointer-events-none"/>
+                <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" class="pointer-events-none"/>
+                <text x="75" y="25" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none" text-anchor="middle" dominant-baseline="middle">1</text>
+                <text x="75" y="75" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none" text-anchor="middle" dominant-baseline="middle">2</text>
+                <text x="25" y="75" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none" text-anchor="middle" dominant-baseline="middle">3</text>
+                <text x="25" y="25" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none" text-anchor="middle" dominant-baseline="middle">4</text>
+                ${getX2(0,75,40)}${getX2(1,75,90)}${getX2(2,25,90)}${getX2(3,25,40)}
+            </svg>
+            <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div class="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-red-900 text-[11px] font-black shadow-md border border-red-200">
+                    ${active ? 'פעיל: ' + safeStr(active) : 'בחרו תוספת'}
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-2 justify-center mb-4 flex-wrap">
+            <button type="button" onclick="window.fillPosPizza('whole')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">מגש שלם</button>
+            <button type="button" onclick="window.fillPosPizza('right')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי ימין (1+2)</button>
+            <button type="button" onclick="window.fillPosPizza('left')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי שמאל (3+4)</button>
+            <button type="button" onclick="window.fillPosPizza('clear')" class="bg-white border border-slate-200 text-slate-500 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition">נקה הכל</button>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-red-100 min-h-[44px]">
+            <p class="text-[9px] font-bold text-slate-400 mb-1">סיכום למטבח:</p>
+            ${summaryHtml}
+        </div>
+    </div>`;
+};
+
+window.selectPosPizzaTopping = function(name) {
+    window.posActivePizzaTopping = name;
+    window.renderPosPizzaBuilderUI();
+};
+
+window.togglePosPizzaSlice = function(qIdx) {
+    if (!window.posActivePizzaTopping) return;
+    const s = window.posPizzaState[window.posActivePizzaTopping];
+    const v = Number(s[qIdx] || 0);
+    s[qIdx] = v === 0 ? 1 : v === 1 ? 2 : 0;
+    window.renderPosPizzaBuilderUI();
+};
+
+window.fillPosPizza = function(action) {
+    const a = window.posActivePizzaTopping;
+    const s = window.posPizzaState;
+    if (action === 'clear') {
+        (window.posPizzaToppings || []).forEach(t => s[t.name] = [0,0,0,0]);
+    } else if (!a) {
+        return;
+    } else if (action === 'whole') {
+        s[a] = [1,1,1,1];
+    } else if (action === 'right') {
+        s[a][0] = 1; s[a][1] = 1;
+    } else if (action === 'left') {
+        s[a][2] = 1; s[a][3] = 1;
+    }
+    window.renderPosPizzaBuilderUI();
 };
 
 window.submitPOSPizza = function() {
     let finalPrice = parseFloat(window.currentPOSProduct.price);
     let selected = [];
-    const parsed = JSON.parse(window.currentPOSProduct.options_text);
-    parsed.toppings.forEach((top, idx) => {
-        const checkedEl = document.querySelector(`input[name="pizza_top_${idx}"]:checked`);
-        if (checkedEl) {
-            const val = parseFloat(checkedEl.value);
-            if (val > 0) {
-                const addPrice = parseFloat(top.price) * val;
-                finalPrice += addPrice;
-                let portion = val === 1 ? 'מגש שלם' : (val === 0.5 ? 'חצי' : 'רבע');
-                selected.push({ name: `${top.name} (${portion})`, price: addPrice });
-            }
+    const toppings = window.posPizzaToppings || [];
+    const pizzaState = window.posPizzaState || {};
+
+    toppings.forEach(t => {
+        const quarters = (pizzaState[t.name] || [0,0,0,0]).reduce((s,v) => s + Number(v||0), 0);
+        if (quarters > 0) {
+            const addPrice = (parseFloat(t.price) / 4) * quarters;
+            finalPrice += addPrice;
+            let q1=[], q2=[];
+            pizzaState[t.name].forEach((v,i) => { if(v===1) q1.push(i+1); if(v===2) q2.push(i+1); });
+            let parts = [];
+            if (q1.length) parts.push(q1.length===4 ? 'מגש שלם' : `רבעים ${q1.join(', ')}`);
+            if (q2.length) parts.push(q2.length===4 ? 'כפול על הכל' : `כפול רבעים ${q2.join(', ')}`);
+            selected.push({ name: `${t.name} (${parts.join(' | ')})`, price: addPrice });
         }
     });
     const modal = document.getElementById('pos-pizza-modal');
     if (window.kioskModeCapture) {
         window.kioskModeCapture = false;
-        if(modal) modal.remove();
+        if (modal) modal.remove();
         const p = window.currentPOSProduct;
         kioskCart.push({ id: p.id + '_' + Date.now(), name: p.name, price: finalPrice, qty: 1, modifiers: selected });
         kioskUpdateCartBar(); kioskRenderGrid(); return;
