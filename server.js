@@ -13,7 +13,28 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
-app.use(express.static('public'));
+// Serve WebP automatically when browser supports it and WebP version exists
+app.use((req, res, next) => {
+    if (/\.(png|jpe?g)$/i.test(req.path) && (req.headers.accept || '').includes('image/webp')) {
+        const webpPath = path.join(__dirname, 'public', req.path.replace(/\.(png|jpe?g)$/i, '.webp'));
+        if (fs.existsSync(webpPath)) {
+            res.set('Content-Type', 'image/webp');
+            return res.sendFile(webpPath);
+        }
+    }
+    next();
+});
+
+app.use(express.static('public', {
+    maxAge: '7d',
+    setHeaders: (res, filePath) => {
+        if (/\.(webp|png|jpe?g|gif|svg|ico)$/i.test(filePath)) {
+            res.set('Cache-Control', 'public, max-age=604800, immutable');
+        } else if (/\.(js|css)$/i.test(filePath)) {
+            res.set('Cache-Control', 'public, max-age=86400');
+        }
+    }
+}));
 
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
