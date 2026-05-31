@@ -3821,7 +3821,9 @@
                 <input id="kiosk-name" type="text" placeholder="שם פרטי" inputmode="text"
                        class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-6 py-5 text-xl font-bold outline-none focus:border-amber-400 transition text-right">
                 <input id="kiosk-phone" type="tel" placeholder="מספר טלפון" inputmode="numeric"
+                       oninput="kioskPhoneLookup()"
                        class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-6 py-5 text-xl font-bold outline-none focus:border-amber-400 transition dir-ltr text-left">
+                <div id="kiosk-lookup-status" class="mt-1 text-center min-h-[2rem]"></div>
                 <button onclick="kioskNext1()"
                         class="w-full py-5 rounded-2xl font-black text-xl text-white shadow-xl transition"
                         style="background:linear-gradient(135deg,#f59e0b,#ea580c)">
