@@ -16407,9 +16407,16 @@ window.submitPOSModifiers = function() {
         const checked = document.querySelectorAll(`input[name="mod_g_${gi}"]:checked`);
         checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
     });
-    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
     const modal = document.getElementById('pos-modifiers-modal');
-    if(modal) modal.remove(); 
+    if (window.kioskModeCapture) {
+        window.kioskModeCapture = false;
+        if(modal) modal.remove();
+        const p = window.currentPOSProduct;
+        kioskCart.push({ id: p.id + '_' + Date.now(), name: p.name, price: finalPrice, qty: 1, modifiers: selected });
+        kioskUpdateCartBar(); kioskRenderGrid(); return;
+    }
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    if(modal) modal.remove();
     window.renderPOSCart();
 };
 
@@ -16479,9 +16486,16 @@ window.submitPOSPizza = function() {
             }
         }
     });
-    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
     const modal = document.getElementById('pos-pizza-modal');
-    if (modal) modal.remove(); 
+    if (window.kioskModeCapture) {
+        window.kioskModeCapture = false;
+        if(modal) modal.remove();
+        const p = window.currentPOSProduct;
+        kioskCart.push({ id: p.id + '_' + Date.now(), name: p.name, price: finalPrice, qty: 1, modifiers: selected });
+        kioskUpdateCartBar(); kioskRenderGrid(); return;
+    }
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    if (modal) modal.remove();
     window.renderPOSCart();
 };
 
@@ -16573,9 +16587,16 @@ window.submitPOSBundle = function() {
     });
     
     if (!isValid) return;
-    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
     const modal = document.getElementById('pos-bundle-modal');
-    if (modal) modal.remove(); 
+    if (window.kioskModeCapture) {
+        window.kioskModeCapture = false;
+        if(modal) modal.remove();
+        const p = window.currentPOSProduct;
+        kioskCart.push({ id: p.id + '_' + Date.now(), name: p.name, price: finalPrice, qty: 1, modifiers: selected });
+        kioskUpdateCartBar(); kioskRenderGrid(); return;
+    }
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    if (modal) modal.remove();
     window.renderPOSCart();
 };
 
@@ -17754,8 +17775,23 @@ let kioskCurrentCat = 'all';
 async function openKioskMode() {
     if (!currentGroup) return showToast('יש להתחבר קודם', 'warning');
     kioskGroupId = currentGroup.id;
+
+    // Fix 1: Exit POS fullscreen before opening kiosk
+    const posContainer = document.getElementById('content-pos');
+    if (posContainer && posContainer.classList.contains('pos-is-fullscreen')) {
+        try { window.togglePOSFullscreen(false); } catch(e) {}
+    }
+
     kioskReset(true);
-    document.getElementById('kiosk-overlay').classList.remove('hidden');
+    const overlay = document.getElementById('kiosk-overlay');
+    overlay.classList.remove('hidden');
+
+    // Fix 2: Request browser fullscreen for kiosk
+    try {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    } catch(e) {}
 
     // Load catalog & settings
     try {
@@ -17779,6 +17815,14 @@ async function openKioskMode() {
 }
 
 function closeKioskMode() {
+    // Fix 2: Exit browser fullscreen on kiosk close
+    try {
+        if (document.fullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    } catch(e) {}
+    window.kioskModeCapture = false;
     document.getElementById('kiosk-overlay').classList.add('hidden');
     document.getElementById('kiosk-exit-modal').classList.add('hidden');
     if (kioskCountdownTimer) clearInterval(kioskCountdownTimer);
@@ -17881,11 +17925,26 @@ function kioskRenderGrid() {
 }
 
 function kioskAddItem(id, name, price) {
-    const existing = kioskCart.find(c => c.id === id);
+    // Fix 3: handle complex/modifier products
+    const p = kioskCatalog.find(c => c.id === id);
+    if (p && p.options_text && p.options_text.length > 10) {
+        try {
+            const parsed = JSON.parse(p.options_text);
+            if (parsed && (parsed.isBundle || parsed.isComplex || parsed.isPizza || Array.isArray(parsed))) {
+                window.kioskModeCapture = true;
+                window.currentPOSProduct = p;
+                if (parsed.isBundle || parsed.isComplex) { window.openPOSBundleModal(p, parsed); }
+                else if (parsed.isPizza) { window.openPOSPizzaModal(p, parsed); }
+                else if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); }
+                return;
+            }
+        } catch(e) {}
+    }
+    const existing = kioskCart.find(c => c.id === id && !c.modifiers);
     if (existing) {
         existing.qty++;
     } else {
-        kioskCart.push({ id, name, price: parseFloat(price), qty: 1 });
+        kioskCart.push({ id, name, price: parseFloat(price), qty: 1, modifiers: null });
     }
     kioskUpdateCartBar();
     kioskRenderGrid();
@@ -17904,20 +17963,25 @@ function kioskGoStep3() {
     document.getElementById('kiosk-total-confirm').textContent = total.toFixed(2);
 
     const listEl = document.getElementById('kiosk-cart-list');
-    listEl.innerHTML = kioskCart.map((item, idx) => `
+    listEl.innerHTML = kioskCart.map((item, idx) => {
+        const modTxt = item.modifiers && item.modifiers.length
+            ? `<div class="flex flex-wrap gap-1 mt-1">${item.modifiers.map(m=>`<span class="text-[11px] bg-white/10 text-white/70 px-2 py-0.5 rounded-full">${m.name||m}</span>`).join('')}</div>`
+            : '';
+        return `
         <div class="kiosk-cart-item flex items-center gap-4 py-3 px-2">
-            <div class="flex-1">
-                <p class="text-white font-bold">${item.name}</p>
-                <p class="text-white/50 text-sm">₪${item.price.toFixed(2)} × ${item.qty}</p>
+            <div class="flex-1 min-w-0">
+                <p class="text-white font-bold leading-tight">${item.name}</p>
+                ${modTxt}
+                <p class="text-white/50 text-sm mt-0.5">₪${item.price.toFixed(2)} × ${item.qty}</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 shrink-0">
                 <button onclick="kioskCartQty(${idx},-1)" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xl" style="background:rgba(255,255,255,0.1)">−</button>
                 <span class="text-white font-black text-lg w-6 text-center">${item.qty}</span>
                 <button onclick="kioskCartQty(${idx},1)"  class="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xl" style="background:rgba(255,255,255,0.1)">+</button>
             </div>
-            <p class="text-amber-400 font-black text-lg min-w-[70px] text-left">₪${(item.price*item.qty).toFixed(2)}</p>
-        </div>
-    `).join('') + `
+            <p class="text-amber-400 font-black text-lg min-w-[70px] text-left shrink-0">₪${(item.price*item.qty).toFixed(2)}</p>
+        </div>`;
+    }).join('') + `
         <div class="flex justify-between items-center pt-4 px-2 mt-2 border-t border-white/10">
             <span class="text-white/60 font-bold text-base">סה"כ</span>
             <span class="text-white font-black text-2xl">₪${total.toFixed(2)}</span>
