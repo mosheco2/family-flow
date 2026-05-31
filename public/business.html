@@ -3768,7 +3768,7 @@
     <!-- ═══════════════════════════════════════════════════════════
          KIOSK SELF-ORDER OVERLAY
          ═══════════════════════════════════════════════════════════ -->
-    <div id="kiosk-overlay" class="fixed inset-0 hidden z-[99990] flex flex-col" style="background:#111827;">
+    <div id="kiosk-overlay" class="fixed inset-0 hidden flex flex-col" style="background:#111827;z-index:9999990;">
         <style>
             #kiosk-overlay { font-family:'Rubik',sans-serif; }
             .kiosk-product-btn { transition:transform 0.15s,box-shadow 0.15s; -webkit-user-select:none; user-select:none; }
@@ -3903,7 +3903,7 @@
     </div>
 
     <!-- Kiosk Exit Password Modal -->
-    <div id="kiosk-exit-modal" class="fixed inset-0 hidden z-[99999] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.8);">
+    <div id="kiosk-exit-modal" class="fixed inset-0 hidden flex items-center justify-center p-4" style="background:rgba(0,0,0,0.8);z-index:9999999;">
         <div class="bg-slate-800 rounded-[2rem] p-8 w-full max-w-sm text-center shadow-2xl border border-slate-700">
             <i class="fa-solid fa-lock text-amber-400 text-4xl mb-4"></i>
             <h3 class="text-white font-black text-2xl mb-2">יציאה מהקיוסק</h3>
