@@ -1563,6 +1563,7 @@ async function loadDashboard() {
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+        setInterval(refreshBellBadge, 30000); refreshBellBadge();
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
@@ -2616,8 +2617,8 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
             if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
         } catch(e) {}
         
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
-        
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {}
+
         // טעינת נתוני רכש מראש כדי למנוע טאבים ריקים בפתיחה ראשונה
         try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
         try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
@@ -2626,6 +2627,8 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
         // טעינת לקוחות והצעות מחיר מראש כדי שלא יהיו ריקים
         try { if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
         try { if (typeof fetchStoreQuotes === 'function') fetchStoreQuotes(); } catch(e) {}
+
+        try { renderQuickTiles(); } catch(e) {}
 
     } catch(e) {
         console.error("Fetch data error:", e);
@@ -17609,6 +17612,110 @@ window.updateLoginDots = function(total) {
         }
     }
 };
+
+// ── ACTIVITY FEED ──────────────────────────────────────────────
+const ACTION_ICONS_BIZ = { finance:'💰', task:'✅', shopping:'🛒', pantry:'📦', business:'🏪', user:'👤' };
+
+async function openActivityPanel() {
+  const panel = document.getElementById('activity-panel');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  if (currentUser?.role === 'ADMIN') {
+    const filters = document.getElementById('activity-filters');
+    if (filters) filters.classList.remove('hidden');
+    const sel = document.getElementById('filter-user');
+    if (sel) {
+      sel.innerHTML = '<option value="">כל המשתמשים</option>';
+      if (membersCache) membersCache.forEach(m => sel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`);
+    }
+  }
+  ['filter-days','filter-type','filter-user'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', loadActivityFeed);
+  });
+  await loadActivityFeed();
+}
+
+function closeActivityPanel() {
+  const panel = document.getElementById('activity-panel');
+  if (panel) panel.classList.add('hidden');
+  const badge = document.getElementById('bell-badge');
+  if (badge) badge.classList.add('hidden');
+}
+
+async function loadActivityFeed() {
+  const days = document.getElementById('filter-days')?.value || 30;
+  const type = document.getElementById('filter-type')?.value || 'all';
+  const filterUser = document.getElementById('filter-user')?.value || '';
+  const list = document.getElementById('activity-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">טוען...</div>';
+  try {
+    let url = `${API}/activity?userId=${currentUser.id}&days=${days}`;
+    if (type !== 'all') url += `&actionType=${type}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.success || !data.activities.length) {
+      list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פעולות להצגה</div>';
+      return;
+    }
+    let acts = data.activities;
+    if (filterUser) acts = acts.filter(a => String(a.user_id) === String(filterUser));
+    list.innerHTML = acts.map(a => {
+      const icon = ACTION_ICONS_BIZ[a.action_type] || '•';
+      const time = new Date(a.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const who = a.nickname || a.user_name || 'מערכת';
+      return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex items-start gap-2">
+          <span class="text-lg flex-shrink-0">${icon}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-700 leading-snug">${safeStr(a.description)}</p>
+            <p class="text-xs text-slate-400 mt-1">${safeStr(who)} · ${time}</p>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { list.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינה</div>'; }
+}
+
+async function refreshBellBadge() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`${API}/activity?userId=${currentUser.id}&days=1&limit=1`);
+    const data = await res.json();
+    const badge = document.getElementById('bell-badge');
+    if (!badge) return;
+    const count = data.unreadCount || 0;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch(e) {}
+}
+
+// ── QUICK ACCESS TILES (BUSINESS) ─────────────────────────────
+function renderQuickTiles() {
+  const container = document.getElementById('quick-tiles');
+  if (!container) return;
+  const storeOrderCount = (storeOrdersCache || []).filter(o => o.status === 'pending' || o.status === 'new').length;
+  const tiles = [
+    { icon:'🕐', label:'נוכחות', badge: null, tab:'timeclock', color:'from-slate-500 to-slate-700' },
+    { icon:'📅', label:'משמרות', badge: null, tab:'shifts', color:'from-blue-500 to-indigo-600' },
+    { icon:'📆', label:'יומן ותורים', badge: null, tab:'calendar', color:'from-violet-500 to-purple-600' },
+    { icon:'🛍️', label:'מכירות וחנות', badge: storeOrderCount, tab:'sales', color:'from-amber-500 to-orange-600' },
+    { icon:'👥', label:'לקוחות', badge: null, tab:'customers', color:'from-emerald-500 to-teal-600' },
+    { icon:'💼', label:'כספים', badge: null, tab:'bank', color:'from-rose-500 to-red-600' },
+  ];
+  container.innerHTML = tiles.map(t => `
+    <button onclick="switchTab('${t.tab}')" class="relative bg-gradient-to-br ${t.color} text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-1 shadow-lg hover:scale-105 transition aspect-square">
+      <span class="text-2xl">${t.icon}</span>
+      <span class="text-[11px] font-bold text-center leading-tight">${t.label}</span>
+      ${t.badge !== null && t.badge > 0 ? `<span class="absolute -top-1 -right-1 bg-white text-slate-800 text-[10px] font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow">${t.badge}</span>` : ''}
+    </button>
+  `).join('');
+}
 
 // במקום DOMContentLoaded אנו ממתינים שכל ה-HTML כולל ההזרקות הדינמיות יסיים, ורק אז שולפים את נתוני המיתוג
 window.addEventListener('load', () => {
