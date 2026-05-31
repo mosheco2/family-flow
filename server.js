@@ -5599,7 +5599,8 @@ app.get('/api/store/kiosk-settings/:groupId', async (req, res) => {
         const gId = req.params.groupId;
         const [settingsRes, catalogRes, groupRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [gId]),
-            pool.query(`SELECT id,name,description,price,category,image_url,is_available,badge_text,badge_color
+            pool.query(`SELECT id,name,description,price,category,image_url,is_available,
+                               badge_text,badge_color,options_text,product_type
                         FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [gId]),
             pool.query('SELECT name FROM family_groups WHERE id=$1', [gId])
         ]);
@@ -5617,15 +5618,27 @@ app.post('/api/store/kiosk-lookup', async (req, res) => {
     try {
         const { groupId, phone, name } = req.body;
         if (!groupId || !phone) return res.status(400).json({ error: 'חסר groupId או phone' });
+        // normalize: digits only, try both with and without leading 0
+        const digits = phone.replace(/\D/g,'');
+        const altPhone = digits.startsWith('0') ? digits.substring(1) : '0' + digits;
         const existing = await pool.query(
-            'SELECT * FROM store_customers WHERE group_id=$1 AND phone=$2 LIMIT 1', [groupId, phone]);
+            `SELECT * FROM store_customers WHERE group_id=$1 AND (phone=$2 OR phone=$3 OR REPLACE(phone,'-','')=$2 OR REPLACE(phone,'-','')=$3) LIMIT 1`,
+            [groupId, digits, altPhone]);
         if (existing.rows.length > 0) {
-            return res.json({ success: true, customer: existing.rows[0], isNew: false });
+            const cust = existing.rows[0];
+            // count previous orders
+            const ordersRes = await pool.query(
+                `SELECT COUNT(*) FROM store_orders WHERE group_id=$1 AND customer_phone IN ($2,$3)`,
+                [groupId, digits, altPhone]);
+            const orderCount = parseInt(ordersRes.rows[0].count) || 0;
+            return res.json({ success: true, customer: cust, isNew: false, orderCount });
         }
+        // create only if name provided
+        if (!name || name === 'לקוח') return res.json({ success: true, customer: null, isNew: true });
         const created = await pool.query(
             'INSERT INTO store_customers (group_id, name, phone) VALUES ($1,$2,$3) RETURNING *',
-            [groupId, name || 'לקוח קיוסק', phone]);
-        res.json({ success: true, customer: created.rows[0], isNew: true });
+            [groupId, name, digits]);
+        res.json({ success: true, customer: created.rows[0], isNew: true, orderCount: 0 });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5634,13 +5647,35 @@ app.post('/api/store/kiosk-order', async (req, res) => {
     try {
         const { groupId, customerName, customerPhone, items, notes, total } = req.body;
         if (!groupId || !items?.length) return res.status(400).json({ error: 'נתונים חסרים' });
+        const digits = (customerPhone || '').replace(/\D/g,'');
+        const altPhone = digits.startsWith('0') ? digits.substring(1) : '0' + digits;
+
         const orderRes = await pool.query(
             `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, items, notes, created_at)
              VALUES ($1,$2,$3,$4,'new',$5,$6,CURRENT_TIMESTAMP) RETURNING id`,
-            [groupId, customerName || 'לקוח קיוסק', customerPhone || '', total || 0,
+            [groupId, customerName || 'לקוח קיוסק', digits || '', total || 0,
              JSON.stringify(items), notes || '']
         );
         const orderId = orderRes.rows[0].id;
+
+        // Update/create customer record so purchase is tracked in CRM
+        if (digits) {
+            const custRes = await pool.query(
+                `SELECT id FROM store_customers WHERE group_id=$1 AND (phone=$2 OR phone=$3 OR REPLACE(phone,'-','')=$2) LIMIT 1`,
+                [groupId, digits, altPhone]);
+            if (custRes.rows.length > 0) {
+                // update existing customer notes with last visit
+                await pool.query(
+                    `UPDATE store_customers SET notes = COALESCE(notes,'') || $1 WHERE id=$2`,
+                    [`\nקנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`, custRes.rows[0].id]
+                );
+            } else if (customerName && customerName !== 'לקוח') {
+                await pool.query(
+                    `INSERT INTO store_customers (group_id, name, phone, notes) VALUES ($1,$2,$3,$4)`,
+                    [groupId, customerName, digits, `קנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`]);
+            }
+        }
+
         await logActivity(groupId, null, customerName || 'לקוח קיוסק', 'sale', 'kiosk_order', `הזמנת קיוסק #${orderId} — ₪${total}`);
         res.json({ success: true, orderId });
     } catch(e) { res.status(500).json({ error: e.message }); }
