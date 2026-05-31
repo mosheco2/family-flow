@@ -17866,14 +17866,51 @@ async function kioskNext1() {
 
     if (phone) {
         try {
-            await fetch(`${API}/store/kiosk-lookup`, {
+            const res = await fetch(`${API}/store/kiosk-lookup`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ groupId: kioskGroupId, phone, name })
             });
+            const data = await res.json();
+            if (data.success && data.customer && !data.isNew) {
+                // Returning customer — update name from CRM record
+                kioskCustomer.name = data.customer.name || name;
+            }
         } catch(e) {}
     }
     kioskBuildCatalog();
     kioskShowStep(2);
+}
+
+// Auto-lookup when phone field has enough digits
+async function kioskPhoneLookup() {
+    const phone = (document.getElementById('kiosk-phone')?.value || '').replace(/\D/g,'');
+    const statusEl = document.getElementById('kiosk-lookup-status');
+    if (!statusEl) return;
+    if (phone.length < 9) { statusEl.innerHTML = ''; return; }
+    statusEl.innerHTML = `<span class="text-white/50 text-sm animate-pulse">מחפש...</span>`;
+    try {
+        const res = await fetch(`${API}/store/kiosk-lookup`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: kioskGroupId, phone, name: 'לקוח' })
+        });
+        const data = await res.json();
+        if (data.success && data.customer && !data.isNew) {
+            const c = data.customer;
+            const visits = data.orderCount || 0;
+            // Pre-fill name
+            document.getElementById('kiosk-name').value = c.name || '';
+            statusEl.innerHTML = `
+                <div class="flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl px-5 py-3 text-right">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-2xl shrink-0" style="background:linear-gradient(135deg,#10b981,#0d9488)">😊</div>
+                    <div>
+                        <p class="text-white font-bold text-base">שלום ${c.name}! טוב שחזרת</p>
+                        <p class="text-white/50 text-xs">${visits > 0 ? `${visits} ביקורים קודמים` : 'ביקור ראשון שלך בקיוסק'}</p>
+                    </div>
+                </div>`;
+        } else {
+            statusEl.innerHTML = `<p class="text-white/40 text-sm text-center">לקוח חדש — נשמח להכיר 👋</p>`;
+        }
+    } catch(e) { statusEl.innerHTML = ''; }
 }
 
 function kioskSkipIdentify() {
