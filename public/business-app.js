@@ -7126,6 +7126,9 @@ window.fetchStoreSettings = async function() {
                 try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 if(typeof renderPresetSelector === 'function') renderPresetSelector();
             }
+            // Load kiosk password into settings UI
+            const kioskPassInput = document.getElementById('kiosk-password-input');
+            if (kioskPassInput && s.kiosk_password) kioskPassInput.value = s.kiosk_password;
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
@@ -17727,3 +17730,319 @@ window.addEventListener('load', () => {
         window.initPublicConfig();
     }, 200);
 });
+
+// ═══════════════════════════════════════════════════════════════
+// KIOSK SELF-ORDER SYSTEM
+// ═══════════════════════════════════════════════════════════════
+
+let kioskCart = [];           // [{id,name,price,qty}]
+let kioskCustomer = {};       // {name,phone}
+let kioskCurrentStep = 1;
+let kioskCatalog = [];
+let kioskGroupId = null;
+let kioskPasswordCache = null;
+let kioskHoldTimer = null;
+let kioskHoldInterval = null;
+let kioskCountdownTimer = null;
+let kioskCurrentCat = 'all';
+
+async function openKioskMode() {
+    if (!currentGroup) return showToast('יש להתחבר קודם', 'warning');
+    kioskGroupId = currentGroup.id;
+    kioskReset(true);
+    document.getElementById('kiosk-overlay').classList.remove('hidden');
+
+    // Load catalog & settings
+    try {
+        const res = await fetch(`${API}/store/kiosk-settings/${kioskGroupId}`);
+        const data = await res.json();
+        if (data.success) {
+            kioskCatalog = data.catalog || [];
+            const storeName = data.settings?.store_name || data.storeName || currentGroup.name || 'הקיוסק שלנו';
+            document.getElementById('kiosk-store-name').textContent = storeName;
+            if (data.settings?.logo_url) {
+                document.getElementById('kiosk-logo-img').src = data.settings.logo_url;
+                document.getElementById('kiosk-logo-img').style.display = '';
+            }
+            kioskPasswordCache = data.settings?.kiosk_password || '1234';
+        }
+    } catch(e) {
+        kioskCatalog = (storeCatalogCache || []).filter(i => i.is_available);
+        kioskPasswordCache = '1234';
+    }
+    kioskShowStep(1);
+}
+
+function closeKioskMode() {
+    document.getElementById('kiosk-overlay').classList.add('hidden');
+    document.getElementById('kiosk-exit-modal').classList.add('hidden');
+    if (kioskCountdownTimer) clearInterval(kioskCountdownTimer);
+    kioskCart = [];
+    kioskCustomer = {};
+}
+
+function kioskReset(skipStepShow) {
+    kioskCart = [];
+    kioskCustomer = {};
+    kioskCurrentCat = 'all';
+    document.getElementById('kiosk-name').value = '';
+    document.getElementById('kiosk-phone').value = '';
+    document.getElementById('kiosk-notes').value = '';
+    if (kioskCountdownTimer) { clearInterval(kioskCountdownTimer); kioskCountdownTimer = null; }
+    if (!skipStepShow) kioskShowStep(1);
+}
+
+function kioskShowStep(n) {
+    kioskCurrentStep = n;
+    [1,2,3,4].forEach(i => {
+        const el = document.getElementById(`kiosk-step-${i}`);
+        if (!el) return;
+        if (i === n) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+    });
+    // step dots
+    document.querySelectorAll('.kiosk-dot').forEach(d => {
+        const s = parseInt(d.dataset.step);
+        d.style.background = s === n ? '#f59e0b' : s < n ? '#10b981' : 'rgba(255,255,255,0.2)';
+    });
+    const labels = ['זיהוי', 'בחירת מוצרים', 'סיכום הזמנה', 'בוצע!'];
+    document.getElementById('kiosk-step-label').textContent = labels[n-1] || '';
+}
+
+async function kioskNext1() {
+    const name = document.getElementById('kiosk-name').value.trim();
+    const phone = document.getElementById('kiosk-phone').value.trim().replace(/\D/g,'');
+    if (!name) { document.getElementById('kiosk-name').focus(); return; }
+    kioskCustomer = { name, phone };
+
+    if (phone) {
+        try {
+            await fetch(`${API}/store/kiosk-lookup`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ groupId: kioskGroupId, phone, name })
+            });
+        } catch(e) {}
+    }
+    kioskBuildCatalog();
+    kioskShowStep(2);
+}
+
+function kioskSkipIdentify() {
+    kioskCustomer = { name: 'לקוח', phone: '' };
+    kioskBuildCatalog();
+    kioskShowStep(2);
+}
+
+function kioskBuildCatalog() {
+    // Build category tabs
+    const cats = ['all', ...new Set((kioskCatalog).map(p => p.category || 'כללי').filter(Boolean))];
+    const catsEl = document.getElementById('kiosk-cats');
+    catsEl.innerHTML = cats.map(c => `
+        <button class="kiosk-cat-tab flex-shrink-0 px-5 py-2.5 rounded-full text-white/70 text-sm font-bold hover:text-white transition ${c === kioskCurrentCat ? 'active' : ''}"
+                style="background:rgba(255,255,255,0.08)"
+                onclick="kioskSetCat('${c}')">
+            ${c === 'all' ? 'הכל' : c}
+        </button>`).join('');
+    kioskRenderGrid();
+}
+
+function kioskSetCat(cat) {
+    kioskCurrentCat = cat;
+    document.querySelectorAll('.kiosk-cat-tab').forEach(b => {
+        b.classList.toggle('active', b.textContent.trim() === (cat === 'all' ? 'הכל' : cat));
+    });
+    kioskRenderGrid();
+}
+
+function kioskRenderGrid() {
+    const filtered = kioskCurrentCat === 'all'
+        ? kioskCatalog
+        : kioskCatalog.filter(p => (p.category || 'כללי') === kioskCurrentCat);
+
+    document.getElementById('kiosk-catalog-grid').innerHTML = filtered.map(p => {
+        const inCart = kioskCart.find(c => c.id === p.id);
+        const qty = inCart ? inCart.qty : 0;
+        return `
+        <button class="kiosk-product-btn relative bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-amber-400/50 hover:bg-white/15 transition"
+                onclick="kioskAddItem(${p.id},'${(p.name||'').replace(/'/g,"\\'")}',${p.price})">
+            ${p.image_url ? `<img src="${p.image_url}" class="w-20 h-20 object-cover rounded-xl mb-1">` :
+              `<div class="w-20 h-20 rounded-xl flex items-center justify-center text-4xl mb-1" style="background:rgba(255,255,255,0.08)">🍽️</div>`}
+            ${p.badge_text ? `<span class="absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background:#ef4444">${p.badge_text}</span>` : ''}
+            <p class="text-white font-bold text-sm text-center leading-tight">${p.name}</p>
+            <p class="text-amber-400 font-black text-lg">₪${parseFloat(p.price).toFixed(2)}</p>
+            ${qty > 0 ? `<span class="absolute -top-2 -left-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-slate-900" style="background:#f59e0b">${qty}</span>` : ''}
+        </button>`;
+    }).join('');
+}
+
+function kioskAddItem(id, name, price) {
+    const existing = kioskCart.find(c => c.id === id);
+    if (existing) {
+        existing.qty++;
+    } else {
+        kioskCart.push({ id, name, price: parseFloat(price), qty: 1 });
+    }
+    kioskUpdateCartBar();
+    kioskRenderGrid();
+}
+
+function kioskUpdateCartBar() {
+    const total = kioskCart.reduce((s,i) => s + i.price * i.qty, 0);
+    const count = kioskCart.reduce((s,i) => s + i.qty, 0);
+    document.getElementById('kiosk-cart-count').textContent = count;
+    document.getElementById('kiosk-cart-total').textContent = total.toFixed(2);
+}
+
+function kioskGoStep3() {
+    if (!kioskCart.length) { showToast('הוסיפו לפחות מוצר אחד', 'warning'); return; }
+    const total = kioskCart.reduce((s,i) => s + i.price * i.qty, 0);
+    document.getElementById('kiosk-total-confirm').textContent = total.toFixed(2);
+
+    const listEl = document.getElementById('kiosk-cart-list');
+    listEl.innerHTML = kioskCart.map((item, idx) => `
+        <div class="kiosk-cart-item flex items-center gap-4 py-3 px-2">
+            <div class="flex-1">
+                <p class="text-white font-bold">${item.name}</p>
+                <p class="text-white/50 text-sm">₪${item.price.toFixed(2)} × ${item.qty}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="kioskCartQty(${idx},-1)" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xl" style="background:rgba(255,255,255,0.1)">−</button>
+                <span class="text-white font-black text-lg w-6 text-center">${item.qty}</span>
+                <button onclick="kioskCartQty(${idx},1)"  class="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xl" style="background:rgba(255,255,255,0.1)">+</button>
+            </div>
+            <p class="text-amber-400 font-black text-lg min-w-[70px] text-left">₪${(item.price*item.qty).toFixed(2)}</p>
+        </div>
+    `).join('') + `
+        <div class="flex justify-between items-center pt-4 px-2 mt-2 border-t border-white/10">
+            <span class="text-white/60 font-bold text-base">סה"כ</span>
+            <span class="text-white font-black text-2xl">₪${total.toFixed(2)}</span>
+        </div>`;
+    kioskShowStep(3);
+}
+
+function kioskCartQty(idx, delta) {
+    kioskCart[idx].qty += delta;
+    if (kioskCart[idx].qty <= 0) kioskCart.splice(idx, 1);
+    if (!kioskCart.length) { kioskShowStep(2); return; }
+    kioskUpdateCartBar();
+    kioskGoStep3();
+}
+
+function kioskBack(fromStep) {
+    kioskShowStep(fromStep - 1);
+    if (fromStep - 1 === 2) kioskRenderGrid();
+}
+
+async function kioskSubmitOrder() {
+    const total = kioskCart.reduce((s,i) => s + i.price * i.qty, 0);
+    const notes = document.getElementById('kiosk-notes').value;
+    const btn = document.querySelector('#kiosk-step-3 button[onclick="kioskSubmitOrder()"]');
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/store/kiosk-order`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                groupId: kioskGroupId,
+                customerName: kioskCustomer.name,
+                customerPhone: kioskCustomer.phone,
+                items: kioskCart.map(i => ({ id:i.id, name:i.name, price:i.price, qty:i.qty })),
+                notes,
+                total
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('kiosk-order-id-display').textContent = `הזמנה מספר #${data.orderId}`;
+            kioskShowStep(4);
+            let countdown = 10;
+            document.getElementById('kiosk-countdown').textContent = countdown;
+            kioskCountdownTimer = setInterval(() => {
+                countdown--;
+                document.getElementById('kiosk-countdown').textContent = countdown;
+                if (countdown <= 0) { clearInterval(kioskCountdownTimer); kioskReset(); }
+            }, 1000);
+        } else {
+            showToast(data.error || 'שגיאה בשליחת ההזמנה', 'error');
+            if (btn) btn.disabled = false;
+        }
+    } catch(e) {
+        showToast('שגיאת תקשורת', 'error');
+        if (btn) btn.disabled = false;
+    }
+}
+
+// ── EXIT HOLD (long-press logo 3 seconds) ─────────────────────
+const KIOSK_HOLD_MS = 3000;
+
+function startKioskHold(e) {
+    if (e) e.preventDefault();
+    const arc = document.getElementById('kiosk-hold-arc');
+    const ring = document.getElementById('kiosk-hold-ring');
+    if (ring) ring.classList.remove('hidden');
+    let elapsed = 0;
+    const TOTAL = KIOSK_HOLD_MS;
+    const INTERVAL = 80;
+    const CIRC = 144.5;
+    kioskHoldInterval = setInterval(() => {
+        elapsed += INTERVAL;
+        const pct = Math.min(elapsed / TOTAL, 1);
+        if (arc) arc.style.strokeDashoffset = CIRC * (1 - pct);
+        if (pct >= 1) {
+            cancelKioskHold();
+            showKioskExitModal();
+        }
+    }, INTERVAL);
+}
+
+function cancelKioskHold() {
+    if (kioskHoldInterval) { clearInterval(kioskHoldInterval); kioskHoldInterval = null; }
+    const arc = document.getElementById('kiosk-hold-arc');
+    const ring = document.getElementById('kiosk-hold-ring');
+    if (arc) arc.style.strokeDashoffset = '144.5';
+    if (ring) ring.classList.add('hidden');
+}
+
+function showKioskExitModal() {
+    document.getElementById('kiosk-exit-password').value = '';
+    document.getElementById('kiosk-exit-error').classList.add('hidden');
+    document.getElementById('kiosk-exit-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('kiosk-exit-password').focus(), 100);
+}
+
+async function confirmKioskExit() {
+    const entered = document.getElementById('kiosk-exit-password').value;
+    // Fetch password if not cached
+    if (!kioskPasswordCache) {
+        try {
+            const r = await fetch(`${API}/store/kiosk-password/${kioskGroupId}`);
+            const d = await r.json();
+            kioskPasswordCache = d.password || '1234';
+        } catch(e) { kioskPasswordCache = '1234'; }
+    }
+    if (entered === kioskPasswordCache) {
+        closeKioskMode();
+    } else {
+        document.getElementById('kiosk-exit-error').classList.remove('hidden');
+        document.getElementById('kiosk-exit-password').value = '';
+        document.getElementById('kiosk-exit-password').focus();
+    }
+}
+
+async function saveKioskPassword() {
+    const password = (document.getElementById('kiosk-password-input')?.value || '').trim();
+    if (!password) return showToast('יש להזין סיסמה', 'warning');
+    try {
+        const res = await fetch(`${API}/store/kiosk-password`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            kioskPasswordCache = password;
+            showToast('success', 'סיסמת קיוסק נשמרה!');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
