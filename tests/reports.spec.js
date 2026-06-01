@@ -14,7 +14,7 @@ const SA_URL   = BASE_URL + '/sa.html';
 const QA_SERVER = process.env.QA_SERVER || 'http://localhost:3000';
 
 const TEST_ENV = {
-  saEmail:    process.env.SA_EMAIL    || 'mosheco2@gmail.com',
+  saCode:     process.env.SA_CODE     || process.env.SA_EMAIL || 'admin',
   saPassword: process.env.SA_PASSWORD || '123456',
   qaEnv:      'sa',
 };
@@ -61,7 +61,7 @@ async function loginAsSA(page) {
       await page.locator('#sa-login-staff').waitFor({ state: 'visible', timeout: 5000 });
     }
   }
-  await page.locator('#sa-code').fill(TEST_ENV.saEmail);
+  await page.locator('#sa-code').fill(TEST_ENV.saCode);
   await page.locator('#sa-password').fill(TEST_ENV.saPassword);
   await page.locator('#sa-login-staff button[type="submit"]').click();
   await page.waitForTimeout(2500);
