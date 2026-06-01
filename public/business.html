@@ -1793,7 +1793,6 @@
                     </div>
 
                 </div>
-                </div>
 
                 <!-- Survey Builder Modal -->
                 <div id="survey-builder-modal" class="fixed inset-0 z-[200] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -4490,12 +4489,24 @@
     body.innerHTML = html;
   }
 
-  // Hook into switchTab
-  const _origSwitch = window.switchTab;
-  window.switchTab = function(tab) {
-    if (_origSwitch) _origSwitch(tab);
-    if (tab === 'surveys') loadSurveys();
-  };
+  // Expose internals needed by inline HTML event handlers
+  window._svQuestions = _svQuestions;
+  window._answers = _answers;
+
+  // Hook into switchTab after deferred scripts load
+  document.addEventListener('DOMContentLoaded', function() {
+    const timer = setInterval(function() {
+      if (typeof window.switchTab === 'function' && window.switchTab._svHooked !== true) {
+        const orig = window.switchTab;
+        window.switchTab = function(tab) {
+          orig(tab);
+          if (tab === 'surveys') loadSurveys();
+        };
+        window.switchTab._svHooked = true;
+        clearInterval(timer);
+      }
+    }, 50);
+  });
 })();
 </script>
 </body>
