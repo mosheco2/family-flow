@@ -90,7 +90,7 @@ test('[BIZ-10] מכירות — גרפי הכנסות ומוצרים מוביל�
   await loginAsManager(page);
   await goToTab(page, 'sales');
   await page.waitForTimeout(1200);
-  const salesContent = page.locator('#content-sales, #sales-view-analytics');
+  const salesContent = page.locator('#content-sales');
   await expect(salesContent).toBeVisible({ timeout: 8000 });
   const analyticsView = page.locator('#sales-view-analytics, .sales-analytics, [id*="analytics"]').first();
   const hasAnalytics = await analyticsView.isVisible({ timeout: 5000 }).catch(() => false);
