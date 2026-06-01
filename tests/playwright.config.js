@@ -17,7 +17,8 @@ module.exports = defineConfig({
   reporter: [
     ['list'],
     ['html', { outputFolder: 'tests/playwright-report', open: 'never' }],
-    ['json', { outputFile: 'tests/playwright-report/results.json' }]
+    ['json', { outputFile: 'tests/playwright-report/results.json' }],
+    ['./qa-reporter.js'],
   ],
   use: {
     baseURL: process.env.BASE_URL || 'https://oneflowlife.co.il',
