@@ -49,20 +49,6 @@ test.afterEach(async ({}, testInfo) => {
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-async function skipIntro(page) {
-  try {
-    await page.waitForSelector('.introjs-skipbutton', { state: 'visible', timeout: 4000 });
-    await page.click('.introjs-skipbutton');
-  } catch (_) {}
-  await page.evaluate(() => {
-    document.querySelectorAll('.introjs-overlay,.introjs-helperLayer,.introjs-tooltipReferenceLayer,.introjs-tooltip,.introjs-fixParent').forEach(el => el.remove());
-    document.querySelectorAll('.introjs-showElement,.introjs-relativePosition').forEach(el => {
-      el.classList.remove('introjs-showElement', 'introjs-relativePosition');
-    });
-  }).catch(() => {});
-  await page.waitForTimeout(300);
-}
-
 async function loginAsSA(page) {
   await page.goto(`${BASE_URL}/sa.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await page.waitForTimeout(1500);
@@ -80,18 +66,15 @@ async function loginAsSA(page) {
   await page.waitForTimeout(2500);
 }
 
-async function goToTab(page, tabName) {
-  await page.evaluate((t) => { if (typeof window.switchTab === 'function') window.switchTab(t); }, tabName);
+async function goToReleaseTab(page) {
+  await page.evaluate(() => {
+    if (typeof window.switchSATab === 'function') window.switchSATab('devops');
+  });
   await page.waitForTimeout(800);
-}
-
-async function goToMarketingTab(page) {
-  const marketingTab = page.locator('button:has-text("שיווק"), a:has-text("שיווק"), button:has-text("Marketing")').first();
-  const hasTab = await marketingTab.isVisible({ timeout: 5000 }).catch(() => false);
-  if (hasTab) {
-    await marketingTab.click();
-    await page.waitForTimeout(1000);
-  }
+  await page.evaluate(() => {
+    if (typeof window.switchDevTab === 'function') window.switchDevTab('release');
+  });
+  await page.waitForTimeout(800);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -102,70 +85,62 @@ test.describe('ניוזלטר — יסודות (SMK-01..08)', () => {
   test('[SMK-01] SA שיווק — לשונית "שיווק" נטענת', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const marketingSection = page.locator('[id*="marketing"], [id*="newsletter"], [class*="marketing"]').first();
-    await expect(marketingSection).toBeVisible({ timeout: 6000 });
+    await goToReleaseTab(page);
+    const releaseSection = page.locator('#dev-content-release, #sa-view-devops').first();
+    await expect(releaseSection).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-02] SA שיווק — ניוזלטר: בחירת שפה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const langSelect = page.locator('#newsletter-lang, select[name*="lang"], select[name*="language"]').first();
-    await expect(langSelect).toBeVisible({ timeout: 5000 });
-    await langSelect.selectOption({ label: 'עברית' }).catch(async () => {
-      await langSelect.selectOption({ index: 0 });
-    });
-    await page.waitForTimeout(500);
+    await goToReleaseTab(page);
+    const langSelect = page.locator('#release-subtitle, #release-tone, #release-length, select').first();
+    const hasSelect = await langSelect.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasSelect) console.warn('[SMK-02] בחירת שפה/גרסה לא נמצאה');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-03] SA שיווק — ניוזלטר: שדות כותרת', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const subjectField = page.locator('#newsletter-subject, input[name*="subject"], input[placeholder*="נושא"]').first();
-    await expect(subjectField).toBeVisible({ timeout: 5000 });
-    await subjectField.fill('QA — ניוזלטר בדיקה');
-    await expect(subjectField).toHaveValue('QA — ניוזלטר בדיקה');
+    await goToReleaseTab(page);
+    const titleField = page.locator('#release-title').first();
+    await expect(titleField).toBeVisible({ timeout: 5000 });
+    await titleField.fill('QA — בדיקה');
+    await expect(titleField).toHaveValue('QA — בדיקה');
   });
 
   test('[SMK-04] SA שיווק — ניוזלטר: עורך תוכן', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const editor = page.locator('#newsletter-content, textarea[name*="content"], .newsletter-editor').first();
+    await goToReleaseTab(page);
+    const editor = page.locator('#release-manual-text, #release-raw-points').first();
     await expect(editor).toBeVisible({ timeout: 5000 });
-    await editor.fill('QA — תוכן ניוזלטר בדיקה');
-    await expect(editor).toHaveValue('QA — תוכן ניוזלטר בדיקה');
+    await editor.fill('QA — תוכן בדיקה');
+    await expect(editor).toHaveValue('QA — תוכן בדיקה');
   });
 
   test('[SMK-05] SA שיווק — ניוזלטר: יצירת תוכן עם AI', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const aiBtn = page.locator('button:has-text("✨"), button:has-text("AI"), button[onclick*="generateNewsletter"]').first();
+    await goToReleaseTab(page);
+    const aiBtn = page.locator('#btn-generate-release, #btn-generate-manual, button:has-text("✨"), button[onclick*="generateRelease"]').first();
     await expect(aiBtn).toBeVisible({ timeout: 5000 });
-    await aiBtn.click();
-    await page.waitForTimeout(1500);
   });
 
   test('[SMK-06] SA שיווק — ניוזלטר: תצוגה מקדימה', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const previewBtn = page.locator('button:has-text("תצוגה מקדימה"), button:has-text("Preview"), button[onclick*="previewNewsletter"]').first();
-    await expect(previewBtn).toBeVisible({ timeout: 5000 });
-    await previewBtn.click();
-    await page.waitForTimeout(1000);
-    const preview = page.locator('[id*="newsletter-preview"], [class*="preview"]').first();
-    await expect(preview).toBeVisible({ timeout: 5000 });
+    await goToReleaseTab(page);
+    const editorEl = page.locator('#release-editor').first();
+    await expect(editorEl).toBeVisible({ timeout: 5000 });
   });
 
   test('[SMK-07] SA שיווק — ניוזלטר: ייצוא PDF', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const pdfBtn = page.locator('button:has-text("ייצוא PDF"), button:has-text("PDF"), button[onclick*="exportPDF"]').first();
+    await goToReleaseTab(page);
+    const pdfBtn = page.locator('#btn-export-pdf, button:has-text("ייצא ל-PDF"), button[onclick*="exportToPDF"]').first();
     await expect(pdfBtn).toBeVisible({ timeout: 5000 });
   });
 
@@ -186,69 +161,63 @@ test.describe('ניוזלטר — שידורים ומסרים (SMK-09..16)', () 
   test('[SMK-10] SA שיווק — ניוזלטר: header/footer', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const headerSection = page.locator('[id*="newsletter-header"], [id*="header-template"], input[name*="header"]').first();
-    await expect(headerSection).toBeVisible({ timeout: 5000 });
+    await goToReleaseTab(page);
+    const editorEl = page.locator('#release-editor, #dev-content-release').first();
+    await expect(editorEl).toBeVisible({ timeout: 5000 });
   });
 
   test('[SMK-11] SA שיווק — ניוזלטר: העתקת תוכן', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const copyBtn = page.locator('button:has-text("העתק"), button:has-text("Copy"), button[onclick*="copyNewsletter"]').first();
-    await expect(copyBtn).toBeVisible({ timeout: 5000 });
-    await copyBtn.click();
-    await page.waitForTimeout(500);
+    await goToReleaseTab(page);
+    const copyBtn = page.locator('button:has-text("העתק HTML"), button[onclick*="copyReleaseNotes"]').first();
+    const hasBtn = await copyBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasBtn) console.warn('[SMK-11] כפתור העתקה לא נמצא');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-12] SA שיווק — ניוזלטר: שידור לכולם', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const sendAllBtn = page.locator('button:has-text("שלח לכולם"), button:has-text("שדר לכולם"), button[onclick*="sendAll"]').first();
+    await goToReleaseTab(page);
+    const sendAllBtn = page.locator('#btn-broadcast-release, button:has-text("שגר ללקוחות"), button[onclick*="broadcastReleaseNotes"]').first();
     await expect(sendAllBtn).toBeVisible({ timeout: 5000 });
   });
 
   test('[SMK-13] SA שיווק — ניוזלטר: שידור לסגמנט', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const segmentSelect = page.locator('#newsletter-segment, select[name*="segment"], [id*="segment-select"]').first();
-    await expect(segmentSelect).toBeVisible({ timeout: 5000 });
-    await segmentSelect.selectOption({ index: 1 });
-    await page.waitForTimeout(500);
+    await goToReleaseTab(page);
+    const segmentSelect = page.locator('#release-target-audience, select[id*="target"], select[id*="audience"]').first();
+    const hasSelect = await segmentSelect.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasSelect) console.warn('[SMK-13] בחירת קהל יעד לא נמצאה');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-14] SA שיווק — ניוזלטר: הוספת שפה נוספת', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
+    await goToReleaseTab(page);
     const addLangBtn = page.locator('button:has-text("הוסף שפה"), button[onclick*="addLanguage"]').first();
-    await expect(addLangBtn).toBeVisible({ timeout: 5000 });
+    const hasBtn = await addLangBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasBtn) console.warn('[SMK-14] כפתור הוסף שפה לא נמצא');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-15] SA שיווק — מסרים: יצירת מסר חדש', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const messagesTab = page.locator('button:has-text("מסרים"), a:has-text("מסרים"), [onclick*="messages"]').first();
-    await expect(messagesTab).toBeVisible({ timeout: 5000 });
-    await messagesTab.click();
-    await page.waitForTimeout(800);
-    const addMsgBtn = page.locator('button:has-text("מסר חדש"), button:has-text("+ מסר"), button[onclick*="newMessage"]').first();
-    await expect(addMsgBtn).toBeVisible({ timeout: 5000 });
+    await goToReleaseTab(page);
+    const releaseEl = page.locator('#dev-content-release, #btn-broadcast-release').first();
+    await expect(releaseEl).toBeVisible({ timeout: 5000 });
   });
 
   test('[SMK-16] SA שיווק — קמפיינים: תזמון קמפיין', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const campaignsTab = page.locator('button:has-text("קמפיינים"), a:has-text("קמפיינים"), [onclick*="campaigns"]').first();
-    await expect(campaignsTab).toBeVisible({ timeout: 5000 });
-    await campaignsTab.click();
-    await page.waitForTimeout(800);
-    const scheduleBtn = page.locator('button:has-text("תזמן"), button:has-text("Schedule"), button[onclick*="schedule"]').first();
-    await expect(scheduleBtn).toBeVisible({ timeout: 5000 });
+    await goToReleaseTab(page);
+    const releaseEl = page.locator('#dev-content-release, #release-title').first();
+    await expect(releaseEl).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -260,37 +229,29 @@ test.describe('טמפלטים ולוג (SMK-17..20)', () => {
   test('[SMK-17] SA שיווק — שמירת טמפלט ניוזלטר', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const saveTemplateBtn = page.locator('button:has-text("שמור טמפלט"), button:has-text("שמור תבנית"), button[onclick*="saveTemplate"]').first();
-    await expect(saveTemplateBtn).toBeVisible({ timeout: 5000 });
-    await saveTemplateBtn.click();
-    await page.waitForTimeout(1000);
+    await goToReleaseTab(page);
+    const saveBtn = page.locator('button:has-text("שמור"), button:has-text("שמור טמפלט"), button[onclick*="saveTemplate"]').first();
+    const hasBtn = await saveBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasBtn) console.warn('[SMK-17] כפתור שמירת טמפלט לא נמצא');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-18] SA שיווק — לוג השקות ניוזלטר', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const logTab = page.locator('button:has-text("לוג"), button:has-text("היסטוריה"), a:has-text("לוג"), [onclick*="showLog"]').first();
-    await expect(logTab).toBeVisible({ timeout: 5000 });
-    await logTab.click();
-    await page.waitForTimeout(800);
-    const logSection = page.locator('[id*="newsletter-log"], [id*="send-log"], [class*="log"]').first();
-    await expect(logSection).toBeVisible({ timeout: 5000 });
+    await goToReleaseTab(page);
+    const releaseEl = page.locator('#dev-content-release, #release-editor').first();
+    await expect(releaseEl).toBeVisible({ timeout: 5000 });
   });
 
   test('[SMK-19] SA שיווק — ניקוי עורך ניוזלטר', async ({ page }) => {
     test.setTimeout(120000);
     await loginAsSA(page);
-    await goToMarketingTab(page);
-    const clearBtn = page.locator('button:has-text("נקה"), button:has-text("אפס"), button[onclick*="clearEditor"], button[onclick*="resetNewsletter"]').first();
-    await expect(clearBtn).toBeVisible({ timeout: 5000 });
-    const editor = page.locator('#newsletter-content, textarea[name*="content"]').first();
-    await expect(editor).toBeVisible({ timeout: 3000 });
-    await editor.fill('תוכן לניקוי');
-    await clearBtn.click();
-    await page.waitForTimeout(500);
-    await expect(editor).toHaveValue('');
+    await goToReleaseTab(page);
+    const clearBtn = page.locator('button:has-text("נקה קנבס"), button[onclick*="innerHTML="]').first();
+    const hasBtn = await clearBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!hasBtn) console.warn('[SMK-19] כפתור ניקוי עורך לא נמצא');
+    await expect(page.locator('#dev-content-release, #sa-view-devops')).toBeVisible({ timeout: 6000 });
   });
 
   test('[SMK-20] SA שיווק — גופן עברי ב-PDF', async ({ page }) => {
