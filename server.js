@@ -5919,14 +5919,17 @@ app.get('/api/public/survey/:code', async (req, res) => {
         if (!sv.rows.length) return res.status(404).json({ error: 'סקר לא נמצא' });
         const s = sv.rows[0];
         if (s.status !== 'active') return res.status(403).json({ error: 'הסקר אינו פעיל כרגע' });
-        const [qs, grp] = await Promise.all([
+        const [qs, grp, stg] = await Promise.all([
             pool.query('SELECT * FROM survey_questions WHERE survey_id=$1 ORDER BY order_index', [s.id]),
-            pool.query('SELECT name FROM family_groups WHERE id=$1', [s.group_id])
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [s.group_id]),
+            pool.query('SELECT logo_url, slogan FROM store_settings WHERE group_id=$1', [s.group_id])
         ]);
         res.json({ success: true,
             survey: { id: s.id, title: s.title, description: s.description,
                       required_fields: s.required_fields, anonymous: s.anonymous,
-                      business_name: grp.rows[0]?.name || '' },
+                      business_name: grp.rows[0]?.name || '',
+                      logo_url: stg.rows[0]?.logo_url || null,
+                      slogan: stg.rows[0]?.slogan || '' },
             questions: qs.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
