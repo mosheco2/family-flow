@@ -104,7 +104,7 @@ test.describe('רשימת משימות עסקית (BIZ-TSK-01..04)', () => {
     await loginAsManager(page);
     await goToTab(page, 'tasks');
     await page.waitForTimeout(1000);
-    await expect(page.locator('#tasks-section, #tab-tasks')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#content-tasks').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('[BIZ-TSK-02] כרטיסיית משימות נטענת — עובד', async ({ page }) => {
@@ -112,7 +112,7 @@ test.describe('רשימת משימות עסקית (BIZ-TSK-01..04)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'tasks');
     await page.waitForTimeout(1000);
-    await expect(page.locator('#tasks-section, #tab-tasks')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#content-tasks').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('[BIZ-TSK-03] מנהל רואה כפתור הוספת משימה', async ({ page }) => {
