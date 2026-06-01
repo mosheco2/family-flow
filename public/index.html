@@ -271,13 +271,25 @@
         <div class="flex-1 pb-28 relative flex flex-col w-full">
             <div class="sticky top-0 z-[100] w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
 
-                <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
-                    <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden"></a>
-                    <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
-                        <div class="flex flex-col items-center">
-                            <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
-                            <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
+                <div class="relative px-2 py-1 group w-full border-b border-slate-100">
+                    <div class="slider-container">
+                        <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="slider-scroll" id="slider-scroll">
+                            <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active shrink-0">ראשי 🏠</button>
+                            <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn shrink-0">קניות 🛒</button>
+                            <button onclick="switchTab('myorders')" id="tab-myorders" class="tab-btn shrink-0">הזמנות שלי 🛍️</button>
+                            <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn shrink-0">מזווה 📦</button>
+                            <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn shrink-0">בנק 🏦</button>
+                            <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn shrink-0">תזרים 💸</button>
+                            <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn shrink-0">אקדמיה 🎓</button>
+                            <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn shrink-0">תקציב 📊</button>
+                            <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn shrink-0">תשקיף 📅</button>
+                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn shrink-0">משימות ✅</button>
+                            <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn shrink-0">שף AI 👨‍🍳</button>
+                            <button onclick="switchTab('community')" id="tab-community" class="tab-btn shrink-0">הקהילה שלי 🏘️</button>
+                            <button onclick="switchTab('members')" id="tab-members" class="tab-btn shrink-0">ניהול 👥</button>
                         </div>
+                        <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
                 </div>
 
@@ -321,7 +333,7 @@
                                         <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">0</span>
                                     </button>
                                 </div>
-                                
+
                                 <div class="flex items-center gap-2">
                                     <p class="text-[10px] text-slate-400 font-medium">היי, <span id="dash-nickname" class="font-bold text-slate-600"></span></p>
                                     <button onclick="logout()" class="text-red-400 hover:text-red-500 transition p-1" title="התנתק">
@@ -332,26 +344,14 @@
                         </div>
                     </header>
                 </div>
-                
-                <div class="relative px-2 mb-3 group w-full">
-                    <div class="slider-container">
-                        <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
-                        <div class="slider-scroll" id="slider-scroll">
-                            <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active shrink-0">ראשי 🏠</button>
-                            <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn shrink-0">קניות 🛒</button>
-                            <button onclick="switchTab('myorders')" id="tab-myorders" class="tab-btn shrink-0">הזמנות שלי 🛍️</button>
-                            <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn shrink-0">מזווה 📦</button>
-                            <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn shrink-0">בנק 🏦</button>
-                            <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn shrink-0">תזרים 💸</button>
-                            <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn shrink-0">אקדמיה 🎓</button>
-                            <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn shrink-0">תקציב 📊</button>
-                            <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn shrink-0">תשקיף 📅</button>
-                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn shrink-0">משימות ✅</button>
-                            <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn shrink-0">שף AI 👨‍🍳</button>
-                            <button onclick="switchTab('community')" id="tab-community" class="tab-btn shrink-0">הקהילה שלי 🏘️</button>
-                            <button onclick="switchTab('members')" id="tab-members" class="tab-btn shrink-0">ניהול 👥</button>
+
+                <div class="w-full h-24 sm:h-28 border-b border-slate-100 bg-slate-50 relative overflow-hidden">
+                    <a id="app-banner-top" class="hidden w-full h-full hover:opacity-95 transition-opacity flex items-center justify-center overflow-hidden"></a>
+                    <div id="app-banner-placeholder" class="absolute inset-0 flex items-center justify-center text-slate-300 pointer-events-none">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-rectangle-ad text-lg mb-1 opacity-20"></i>
+                            <span class="text-[9px] font-black uppercase tracking-widest opacity-40">מרכז ההטבות</span>
                         </div>
-                        <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
                 </div>
 
