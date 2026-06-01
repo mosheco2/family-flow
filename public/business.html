@@ -4221,7 +4221,21 @@
     document.getElementById('survey-builder-modal').classList.add('hidden');
   };
 
+  // שמירת ערכי DOM לתוך _svQuestions לפני כל רנדור מחדש
+  function captureFromDOM() {
+    document.querySelectorAll('#sv-questions-list [data-qi]').forEach(el => {
+      const i = parseInt(el.dataset.qi);
+      if (!_svQuestions[i]) return;
+      const txt = el.querySelector('.q-text');
+      if (txt) _svQuestions[i].text = txt.value;
+      el.querySelectorAll('.q-opt').forEach((optEl, oi) => {
+        if (_svQuestions[i].options) _svQuestions[i].options[oi] = optEl.value;
+      });
+    });
+  }
+
   window.addSurveyQuestion = function(type) {
+    captureFromDOM();
     document.getElementById('sv-no-questions')?.remove();
     _svQuestions.push({ type, text: '', options: type === 'multiple_choice' ? ['אפשרות 1','אפשרות 2'] : [], required: true });
     renderQList();
@@ -4236,13 +4250,13 @@
     }
     el.innerHTML = _svQuestions.map((q, i) => {
       const col = Q_COLORS[q.type];
-      return `<div class="border border-${col}-100 bg-${col}-50/30 rounded-xl p-3 space-y-2">
+      return `<div class="border border-${col}-100 bg-${col}-50/30 rounded-xl p-3 space-y-2" data-qi="${i}">
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-bold bg-${col}-100 text-${col}-700 px-2 py-0.5 rounded-full">${Q_LABELS[q.type]}</span>
           <button onclick="removeQuestion(${i})" class="mr-auto text-slate-300 hover:text-red-400 text-xs"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <input type="text" value="${q.text}" placeholder="טקסט השאלה..." onchange="_svQuestions[${i}].text=this.value"
-          class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-${col}-400 bg-white">
+        <input type="text" value="${q.text.replace(/"/g,'&quot;')}" placeholder="טקסט השאלה..."
+          class="q-text w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-${col}-400 bg-white">
         ${q.type === 'multiple_choice' ? renderOptionsEditor(i, q.options) : ''}
         ${q.type === 'rating' ? '<p class="text-[10px] text-slate-400">דירוג 1–5 כוכבים יוצג אוטומטית</p>' : ''}
         ${q.type === 'yes_no' ? '<p class="text-[10px] text-slate-400">כפתורי "כן" / "לא" יוצגו אוטומטית</p>' : ''}
@@ -4254,20 +4268,20 @@
   function renderOptionsEditor(qi, opts) {
     return `<div class="space-y-1">
       ${opts.map((o, oi) => `<div class="flex gap-1">
-        <input type="text" value="${o}" placeholder="אפשרות ${oi+1}" onchange="updateOption(${qi},${oi},this.value)"
-          class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none bg-white">
+        <input type="text" value="${o.replace(/"/g,'&quot;')}" placeholder="אפשרות ${oi+1}"
+          class="q-opt flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none bg-white">
         <button onclick="removeOption(${qi},${oi})" class="text-slate-300 hover:text-red-400 text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
       </div>`).join('')}
       <button onclick="addOption(${qi})" class="text-[10px] text-blue-600 font-bold hover:underline">+ הוסף אפשרות</button>
     </div>`;
   }
 
-  window.removeQuestion = function(i) { _svQuestions.splice(i,1); renderQList(); };
-  window.updateOption = function(qi, oi, v) { _svQuestions[qi].options[oi] = v; };
-  window.removeOption = function(qi, oi) { _svQuestions[qi].options.splice(oi,1); renderQList(); };
-  window.addOption = function(qi) { _svQuestions[qi].options.push(''); renderQList(); };
+  window.removeQuestion = function(i) { captureFromDOM(); _svQuestions.splice(i,1); renderQList(); };
+  window.removeOption = function(qi, oi) { captureFromDOM(); _svQuestions[qi].options.splice(oi,1); renderQList(); };
+  window.addOption = function(qi) { captureFromDOM(); _svQuestions[qi].options.push(''); renderQList(); };
 
   function collectSurveyForm(activate) {
+    captureFromDOM();
     const title = document.getElementById('sv-title').value.trim();
     if (!title) { alert('חסרה כותרת'); return null; }
     if (!_svQuestions.length) { alert('הוסף לפחות שאלה אחת'); return null; }
@@ -4488,10 +4502,6 @@
 
     body.innerHTML = html;
   }
-
-  // Expose internals needed by inline HTML event handlers
-  window._svQuestions = _svQuestions;
-  window._answers = _answers;
 
   // Hook into switchTab after deferred scripts load
   document.addEventListener('DOMContentLoaded', function() {
