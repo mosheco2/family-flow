@@ -1514,8 +1514,8 @@ async function loadDashboard() {
         fetchBanners(); 
         try { if(typeof fetchStoreSettings === 'function') fetchStoreSettings(); } catch(e){}
         
-        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest whitespace-nowrap">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
+        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.textContent = safeStr(currentGroup.name);
+        const headerOrgCode = document.getElementById('header-org-code'); if(headerOrgCode) headerOrgCode.textContent = currentGroup.group_code ? `קוד ארגון: ${currentGroup.group_code}` : '';
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
         // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
