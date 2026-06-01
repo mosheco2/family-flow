@@ -512,63 +512,59 @@
        
 <div class="flex-1 pb-28 relative flex flex-col w-full">
                 
-<div class="bg-white shadow-sm border border-slate-100 mb-0 relative fade-in z-30 p-4 sm:p-5">
-                        <div class="flex flex-col gap-4">
-                            <div class="flex items-center gap-3 sm:gap-4 w-full">
-                                <button onclick="openSidebar()" class="text-slate-600 hover:text-indigo-600 transition text-2xl pr-1 outline-none shrink-0" title="תפריט ניווט">
-                                    <i class="fa-solid fa-bars"></i>
-                                </button>
-                                <div class="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl p-1 shadow-sm border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
-                                    <img id="dash-logo-preview" src="" class="w-full h-full object-cover rounded-xl hidden">
-                                    <div id="dash-logo-placeholder" class="w-full h-full text-slate-300 flex items-center justify-center text-2xl">
-                                        <i class="fa-solid fa-store"></i>
-                                    </div>
-                                </div>
-
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <h1 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-none truncate" id="dash-group-name">טוען...</h1>
-                                    </div>
-                                    <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wider truncate" id="main-header-slogan">Business Control Center</p>
-                                </div>
-                            </div>
-
-                           <div class="flex flex-wrap justify-end gap-2 sm:gap-3 items-center w-full shrink-0 border-t border-slate-100 pt-4">
-                                <button onclick="toggleDesktopView();" class="flex bg-indigo-50 hover:bg-indigo-100 text-indigo-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full items-center justify-center font-bold shadow-sm border border-indigo-100 transition shrink-0" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
-                                    <i class="fa-solid fa-desktop text-sm"></i>
-                                </button>
-                                <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative bg-emerald-50 hover:bg-emerald-100 text-emerald-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-emerald-100 transition shrink-0" title="תיבת הודעות נכנסות">
-                                    <i class="fa-regular fa-envelope text-sm"></i>
-                                    <span id="inbox-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
-                                </button>
-                                <button onclick="openSupportTicketModal();" class="bg-blue-50 hover:bg-blue-100 text-blue-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-blue-100 transition shrink-0" title="מרכז שירות ותמיכה">
-                                    <i class="fa-solid fa-headset text-sm"></i>
-                                </button>
-                                <button onclick="openProfileModal();" class="bg-slate-50 hover:bg-slate-100 text-slate-600 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-slate-200 transition shrink-0" title="הגדרות פרופיל">
-                                    <i class="fa-solid fa-gear text-sm"></i>
-                                </button>
-                                <button onclick="logout();" class="bg-red-50 hover:bg-red-100 text-red-500 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold shadow-sm border border-red-100 transition shrink-0" title="התנתקות">
-                                    <i class="fa-solid fa-power-off text-sm"></i>
-                                </button>
-                                <button onclick="openActivityPanel()" id="btn-bell" class="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition shrink-0" title="פעמון פעילות">
-                                    <i class="fa-solid fa-bell text-sm"></i>
-                                    <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">0</span>
-                                </button>
+<!-- ROW 1: compact header -->
+                <div class="bg-white border-b border-slate-100 mb-0 relative z-30 px-3 py-2.5">
+                    <div class="flex items-center gap-2 w-full">
+                        <button onclick="openSidebar()" class="text-slate-500 hover:text-indigo-600 transition text-xl outline-none shrink-0" title="תפריט ניווט">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <div class="w-10 h-10 bg-slate-50 rounded-xl p-0.5 shadow-sm border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
+                            <img id="dash-logo-preview" src="" class="w-full h-full object-cover rounded-lg hidden">
+                            <div id="dash-logo-placeholder" class="w-full h-full text-slate-300 flex items-center justify-center text-base">
+                                <i class="fa-solid fa-store"></i>
                             </div>
                         </div>
+                        <div class="flex-1 min-w-0">
+                            <h1 class="text-base font-black text-slate-800 tracking-tight leading-tight truncate" id="dash-group-name">טוען...</h1>
+                            <p class="text-[9px] font-medium text-slate-400 uppercase tracking-wider truncate" id="main-header-slogan">Business Control Center</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="openActivityPanel()" id="btn-bell" class="relative w-8 h-8 flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition" title="פעמון פעילות">
+                                <i class="fa-solid fa-bell text-xs"></i>
+                                <span id="bell-badge" class="hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">0</span>
+                            </button>
+                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative w-8 h-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
+                                <i class="fa-regular fa-envelope text-xs"></i>
+                                <span id="inbox-unread-badge" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
+                            </button>
+                            <button onclick="openSupportTicketModal();" class="w-8 h-8 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
+                                <i class="fa-solid fa-headset text-xs"></i>
+                            </button>
+                            <button onclick="openProfileModal();" class="w-8 h-8 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
+                                <i class="fa-solid fa-gear text-xs"></i>
+                            </button>
+                            <button onclick="logout();" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center shadow-sm border border-red-100 transition" title="התנתקות">
+                                <i class="fa-solid fa-power-off text-xs"></i>
+                            </button>
+                            <button onclick="toggleDesktopView();" class="w-8 h-8 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-sm border border-indigo-100 transition" id="btn-toggle-desktop" title="הרחב תצוגה">
+                                <i class="fa-solid fa-desktop text-xs"></i>
+                            </button>
+                        </div>
                     </div>
+                </div>
 
-                <div class="flex items-center justify-between w-full px-4 py-2 bg-white border-b border-slate-100 gap-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"><i class="fa-solid fa-user"></i></div>
-                        <span class="text-[11px] font-bold text-slate-600">שלום, <span id="dash-nickname" class="text-indigo-700"></span></span>
+                <!-- ROW 2: info strip — greeting + balance + oneflow badge -->
+                <div class="flex items-center gap-2.5 w-full px-3 py-2 bg-gradient-to-l from-indigo-50/70 to-white border-b border-slate-100">
+                    <div class="w-5 h-5 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"><i class="fa-solid fa-user"></i></div>
+                    <span class="text-[11px] font-bold text-slate-700 shrink-0">שלום, <span id="dash-nickname" class="text-indigo-700"></span></span>
+                    <div class="w-px h-4 bg-slate-200 shrink-0"></div>
+                    <i class="fa-solid fa-wallet text-[9px] text-blue-400 shrink-0"></i>
+                    <span class="text-[11px] font-black text-blue-700 shrink-0" id="header-balance-strip">₪0</span>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center gap-1 text-[9px] font-black text-indigo-800 bg-indigo-100/60 px-2 py-1 rounded-lg border border-indigo-200/50 whitespace-nowrap shrink-0">
+                        <img src="logo.png" alt="" class="h-3 w-auto object-contain"> ONEFLOW LIFE
                     </div>
-                    <div class="flex items-center gap-1.5 text-[10px] font-black text-indigo-800 bg-indigo-100/60 px-2.5 py-1 rounded-lg border border-indigo-200/50 whitespace-nowrap shrink-0 ml-auto">
-                        <img src="logo.png" alt="Oneflow Logo" class="h-3.5 w-auto object-contain"> ONEFLOW LIFE
-                    </div>
-                    <div class="flex gap-2 items-center shrink-0">
-                        <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
-                    </div>
+                    <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
                 </div>
 
                 <div class="w-full overflow-hidden bg-white flex flex-col z-40 relative">
@@ -4017,5 +4013,19 @@
             </div>
         </div>
     </div>
+<script>
+(function() {
+    function syncBalance() {
+        var src = document.getElementById('user-balance');
+        var dst = document.getElementById('header-balance-strip');
+        if (!src || !dst) return;
+        dst.textContent = src.textContent;
+        new MutationObserver(function() { dst.textContent = src.textContent; })
+            .observe(src, { childList: true, characterData: true, subtree: true });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncBalance);
+    else syncBalance();
+})();
+</script>
 </body>
 </html>
