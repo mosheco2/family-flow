@@ -4141,11 +4141,18 @@
   const Q_LABELS = { multiple_choice:'בחירה מרובה', rating:'דירוג', yes_no:'כן/לא', open_text:'פתוחה' };
   const Q_COLORS = { multiple_choice:'blue', rating:'purple', yes_no:'green', open_text:'orange' };
 
+  function getGroupId() {
+    if (window.currentGroup?.id) return window.currentGroup.id;
+    try { return JSON.parse(localStorage.getItem('ofl_session') || '{}').group?.id || null; }
+    catch(e) { return null; }
+  }
+
   // ── Load surveys ──────────────────────────────────────────────
   window.loadSurveys = async function() {
-    if (!window.currentGroup) return;
+    const gid = getGroupId();
+    if (!gid) return;
     try {
-      const r = await fetch(`${API}/surveys?groupId=${currentGroup.id}`);
+      const r = await fetch(`${API}/surveys?groupId=${gid}`);
       const d = await r.json();
       if (!d.success) return;
       _surveys = d.surveys || [];
@@ -4293,7 +4300,7 @@
     const requiredFields = isAnon ? [] : [...document.querySelectorAll('.sv-field-cb:checked')]
       .map(c => c.value).filter(v => v !== '_anon');
     return {
-      groupId: currentGroup.id,
+      groupId: getGroupId(),
       title,
       description: document.getElementById('sv-desc').value.trim(),
       requiredFields,
@@ -4347,7 +4354,7 @@
     try {
       const r = await fetch(`${API}/surveys/${id}/activate`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ groupId: currentGroup.id })
+        body: JSON.stringify({ groupId: getGroupId() })
       });
       const d = await r.json();
       if (!d.success) { alert(d.error); return; }
