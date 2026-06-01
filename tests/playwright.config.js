@@ -7,7 +7,7 @@ if (!process.env.QA_SERVER) {
 }
 
 module.exports = defineConfig({
-  testDir: './tests',
+  testDir: '.',
   timeout: 120000,
   expect: { timeout: 15000 },
   navigationTimeout: 45000,
