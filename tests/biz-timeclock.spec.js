@@ -101,7 +101,7 @@ test('[BIZ-02] עובד — כניסה לעבודה (Clock-In)', async ({ page }
   await loginAsEmployee(page);
   await goToTab(page, 'timeclock');
   await page.waitForTimeout(1000);
-  const userView = page.locator('#timeclock-user-view, #content-timeclock');
+  const userView = page.locator('#content-timeclock');
   await expect(userView).toBeVisible({ timeout: 8000 });
   const clockInBtn = page.locator('button:has-text("כניסה לעבודה"), button:has-text("התחל משמרת"), #btn-clock-in').first();
   const hasBtn = await clockInBtn.isVisible({ timeout: 5000 }).catch(() => false);
@@ -131,7 +131,7 @@ test('[BIZ-04] מנהל — דוח נוכחות לפי תקופה ועובד', a
   await loginAsManager(page);
   await goToTab(page, 'timeclock');
   await page.waitForTimeout(1000);
-  const adminView = page.locator('#timeclock-admin-view, #content-timeclock');
+  const adminView = page.locator('#content-timeclock');
   await expect(adminView).toBeVisible({ timeout: 8000 });
   const reportEl = page.locator('#attendance-report, .timeclock-report, [id*="attendance"]').first();
   const hasReport = await reportEl.isVisible({ timeout: 5000 }).catch(() => false);
