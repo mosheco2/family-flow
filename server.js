@@ -275,6 +275,37 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_activity_log_group ON activity_log(group_id, created_at DESC)`); } catch(e) {}
 
+      // טבלאות מחולל סקרים
+      try { await client.query(`CREATE TABLE IF NOT EXISTS surveys (
+        id SERIAL PRIMARY KEY,
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT DEFAULT '',
+        status VARCHAR(20) DEFAULT 'draft',
+        unique_code VARCHAR(12) UNIQUE NOT NULL,
+        required_fields JSONB DEFAULT '[]',
+        anonymous BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        closed_at TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS survey_questions (
+        id SERIAL PRIMARY KEY,
+        survey_id INT REFERENCES surveys(id) ON DELETE CASCADE,
+        order_index INT DEFAULT 0,
+        type VARCHAR(30) NOT NULL,
+        question_text TEXT NOT NULL,
+        options JSONB DEFAULT '[]',
+        required BOOLEAN DEFAULT TRUE
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS survey_responses (
+        id SERIAL PRIMARY KEY,
+        survey_id INT REFERENCES surveys(id) ON DELETE CASCADE,
+        respondent_data JSONB DEFAULT '{}',
+        answers JSONB DEFAULT '[]',
+        comment TEXT DEFAULT '',
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -5762,6 +5793,155 @@ app.put('/api/users/:userId/phone', async (req, res) => {
     try {
         const { phone } = req.body;
         await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, req.params.userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SURVEYS API ────────────────────────────────────────────────
+
+const _surveyCode = () => {
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let s = '';
+    for (let i = 0; i < 8; i++) s += c[Math.floor(Math.random() * c.length)];
+    return s;
+};
+
+// רשימת סקרים לעסק
+app.get('/api/surveys', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const r = await pool.query(
+            `SELECT s.*,
+             (SELECT COUNT(*) FROM survey_responses WHERE survey_id=s.id)::int AS response_count,
+             (SELECT COUNT(*) FROM survey_questions WHERE survey_id=s.id)::int AS question_count
+             FROM surveys s WHERE s.group_id=$1 ORDER BY s.created_at DESC`,
+            [groupId]);
+        res.json({ success: true, surveys: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יצירת סקר חדש
+app.post('/api/surveys', async (req, res) => {
+    try {
+        const { groupId, title, description, requiredFields, anonymous, questions } = req.body;
+        if (!groupId || !title) return res.status(400).json({ error: 'חסרים נתונים' });
+        const code = _surveyCode();
+        const sv = await pool.query(
+            `INSERT INTO surveys (group_id,title,description,required_fields,anonymous,unique_code)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [groupId, title, description||'', JSON.stringify(requiredFields||[]), !!anonymous, code]);
+        const id = sv.rows[0].id;
+        if (questions?.length) {
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                await pool.query(
+                    `INSERT INTO survey_questions (survey_id,order_index,type,question_text,options,required)
+                     VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [id, i, q.type, q.text, JSON.stringify(q.options||[]), q.required!==false]);
+            }
+        }
+        res.json({ success: true, survey: sv.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סקר (טיוטה בלבד)
+app.put('/api/surveys/:id', async (req, res) => {
+    try {
+        const { title, description, requiredFields, anonymous, questions } = req.body;
+        const ex = await pool.query('SELECT status FROM surveys WHERE id=$1', [req.params.id]);
+        if (!ex.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (ex.rows[0].status !== 'draft') return res.status(400).json({ error: 'ניתן לערוך רק טיוטות' });
+        await pool.query(
+            `UPDATE surveys SET title=$1,description=$2,required_fields=$3,anonymous=$4 WHERE id=$5`,
+            [title, description||'', JSON.stringify(requiredFields||[]), !!anonymous, req.params.id]);
+        if (questions) {
+            await pool.query('DELETE FROM survey_questions WHERE survey_id=$1', [req.params.id]);
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                await pool.query(
+                    `INSERT INTO survey_questions (survey_id,order_index,type,question_text,options,required)
+                     VALUES ($1,$2,$3,$4,$5,$6)`,
+                    [req.params.id, i, q.type, q.text, JSON.stringify(q.options||[]), q.required!==false]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הפעלת סקר
+app.post('/api/surveys/:id/activate', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const cnt = await pool.query(
+            `SELECT COUNT(*) FROM surveys WHERE group_id=$1 AND status='active'`, [groupId]);
+        if (parseInt(cnt.rows[0].count) >= 3)
+            return res.status(400).json({ error: 'הגעת למקסימום 3 סקרים פעילים' });
+        const r = await pool.query(
+            `UPDATE surveys SET status='active' WHERE id=$1 RETURNING *`, [req.params.id]);
+        res.json({ success: true, survey: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סגירת סקר
+app.post('/api/surveys/:id/close', async (req, res) => {
+    try {
+        await pool.query(`UPDATE surveys SET status='closed',closed_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת סקר
+app.delete('/api/surveys/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM surveys WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תוצאות סקר (למנהל)
+app.get('/api/surveys/:id/results', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const [sv, qs, rs] = await Promise.all([
+            pool.query('SELECT * FROM surveys WHERE id=$1', [id]),
+            pool.query('SELECT * FROM survey_questions WHERE survey_id=$1 ORDER BY order_index', [id]),
+            pool.query('SELECT * FROM survey_responses WHERE survey_id=$1 ORDER BY submitted_at DESC', [id])
+        ]);
+        res.json({ success: true, survey: sv.rows[0], questions: qs.rows, responses: rs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ציבורי: קבלת מידע סקר (ללא אוטנטיקציה)
+app.get('/api/public/survey/:code', async (req, res) => {
+    try {
+        const sv = await pool.query('SELECT * FROM surveys WHERE unique_code=$1', [req.params.code]);
+        if (!sv.rows.length) return res.status(404).json({ error: 'סקר לא נמצא' });
+        const s = sv.rows[0];
+        if (s.status !== 'active') return res.status(403).json({ error: 'הסקר אינו פעיל כרגע' });
+        const [qs, grp] = await Promise.all([
+            pool.query('SELECT * FROM survey_questions WHERE survey_id=$1 ORDER BY order_index', [s.id]),
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [s.group_id])
+        ]);
+        res.json({ success: true,
+            survey: { id: s.id, title: s.title, description: s.description,
+                      required_fields: s.required_fields, anonymous: s.anonymous,
+                      business_name: grp.rows[0]?.name || '' },
+            questions: qs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ציבורי: שליחת תשובה
+app.post('/api/public/survey/:code/submit', async (req, res) => {
+    try {
+        const { respondentData, answers, comment } = req.body;
+        const sv = await pool.query(
+            `SELECT id FROM surveys WHERE unique_code=$1 AND status='active'`, [req.params.code]);
+        if (!sv.rows.length) return res.status(403).json({ error: 'הסקר אינו פעיל' });
+        await pool.query(
+            `INSERT INTO survey_responses (survey_id,respondent_data,answers,comment)
+             VALUES ($1,$2,$3,$4)`,
+            [sv.rows[0].id, JSON.stringify(respondentData||{}), JSON.stringify(answers||[]), comment||'']);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
