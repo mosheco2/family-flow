@@ -1158,23 +1158,50 @@ app.post('/api/superadmin/login', async (req, res) => {
             });
         }
 
-        // 2. אם לא מצאנו משתמש צוות, נבדוק את סיסמת המאסטר הישנה (Fallback - רק מנהלי העל)
-        const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
-        const saPassRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'");
-        const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
+        // 2. אם לא מצאנו משתמש צוות, נבדוק פרטי מנהל-על מ-system_settings
+        const [saUserRes, saPassRes, saEmailRes] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'sa_email'"),
+        ]);
+        const currentUsername = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
         const currentPass = saPassRes.rows.length > 0 ? saPassRes.rows[0].value : '123456';
-        
-        if (code === currentCode && password === currentPass) { 
-            // מנהל העל (Master) תמיד מקבל הרשאת "all" שפותחת הכל
-            res.json({ 
-                success: true, 
+        const currentEmail = saEmailRes.rows.length > 0 ? saEmailRes.rows[0].value : '';
+
+        // מאפשר כניסה עם שם משתמש או מייל ארגוני
+        const codeMatchesMaster = (code === currentUsername) || (currentEmail && code === currentEmail);
+        if (codeMatchesMaster && password === currentPass) {
+            res.json({
+                success: true,
                 token: 'SA_SECRET_TOKEN_2026',
-                user: { id: 0, name: 'מנהל על (Master)', email: currentCode, team: 'Management', permissions: ['all'] }
-            }); 
-        } else { 
-            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' }); 
+                user: { id: 0, name: 'מנהל על (Master)', email: currentEmail || currentUsername, team: 'Management', permissions: ['all'] }
+            });
+        } else {
+            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
         }
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// עדכון פרטי כניסה של מנהל-על ראשי (username, password, org email)
+app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
+    try {
+        const { newUsername, newPassword, newEmail } = req.body;
+        if (!newUsername && !newPassword && !newEmail) {
+            return res.status(400).json({ error: 'יש לספק לפחות שדה אחד לעדכון' });
+        }
+        const updates = [];
+        if (newUsername) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]
+        ));
+        if (newPassword) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]
+        ));
+        if (newEmail !== undefined) updates.push(pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('sa_email', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newEmail]
+        ));
+        await Promise.all(updates);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==========================================
