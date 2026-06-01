@@ -90,7 +90,7 @@ test('[BIZ-18] עובדים — הוספת עובד חדש למערכת', async 
   await loginAsManager(page);
   await goToTab(page, 'members');
   await page.waitForTimeout(1200);
-  await expect(page.locator('#members-list, #content-members')).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('#content-members')).toBeVisible({ timeout: 8000 });
   const addBtn = page.locator('button:has-text("+ הוסף"), button:has-text("עובד חדש"), button:has-text("הזמן עובד"), #btn-invite-member').first();
   const hasBtn = await addBtn.isVisible({ timeout: 6000 }).catch(() => false);
   if (hasBtn) {
