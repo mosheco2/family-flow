@@ -585,20 +585,21 @@
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
-                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-transparent shadow-md">יומן ותורים 📅</button>
+                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ותורים 📅</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
-                            <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shrink-0 shadow-md">פוד קוסט 🍽️</button>
-                            <button onclick="switchTab('pos')" id="tab-pos" class="tab-btn bg-gradient-to-r from-emerald-500 to-green-600 text-white border-transparent font-black shadow-md">קופה 💰</button>
-                            <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>                            <button onclick="switchTab('customers')" id="tab-customers" class="tab-btn">לקוחות 🤝</button>
+                            <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn">פוד קוסט 🍽️</button>
+                            <button onclick="switchTab('pos')" id="tab-pos" class="tab-btn">קופה 💰</button>
+                            <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn">מכירות וחנות 🛍️</button>
+                            <button onclick="switchTab('customers')" id="tab-customers" class="tab-btn">לקוחות 🤝</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">כספים 💳</button>
                             <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים 💸</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
                             <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
-                            <button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-transparent shadow-md">שליחויות 🛵</button>
+                            <button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn">שליחויות 🛵</button>
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
-                            <button onclick="switchTab('community')" id="tab-community" class="tab-btn bg-gradient-to-r from-orange-400 to-pink-500 text-white border-transparent shadow-md">קהילות 🏘️</button>
+                            <button onclick="switchTab('community')" id="tab-community" class="tab-btn">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
@@ -1799,14 +1800,8 @@
             <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
         
-<button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-24 right-6 w-12 h-12 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 hover:bg-indigo-700 transition z-40 hidden group">
-            <i class="fa-solid fa-comments"></i>
-            <span id="team-chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
-        </button>
+    <!-- Speed Dial placeholder — הדיאל המלא מוגדר בהמשך הקובץ -->
 
-        <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-slate-800 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-slate-100 transition z-40 border border-slate-200">
-            <i class="fa-solid fa-universal-access"></i>
-        </button>
 
         <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
@@ -2916,7 +2911,32 @@
         }
     </script>
 
-    <script src="business-app.js?v=36" defer></script>
+    <script src="business-app.js?v=37" defer></script>
+    <script>
+    function toggleQuickDial() {
+        const items = document.getElementById('quick-dial-items');
+        const trigger = document.getElementById('quick-dial-trigger');
+        const icon = document.getElementById('quick-dial-icon');
+        if (!items || !trigger) return;
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+            items.classList.add('opacity-0','pointer-events-none','translate-y-3');
+            items.setAttribute('aria-hidden','true');
+            trigger.setAttribute('aria-expanded','false');
+            if (icon) icon.className = 'fa-solid fa-ellipsis-vertical text-base';
+        } else {
+            items.classList.remove('opacity-0','pointer-events-none','translate-y-3');
+            items.setAttribute('aria-hidden','false');
+            trigger.setAttribute('aria-expanded','true');
+            if (icon) icon.className = 'fa-solid fa-xmark text-base';
+        }
+    }
+    document.addEventListener('click', function(e) {
+        const dial = document.getElementById('quick-access-dial');
+        const trigger = document.getElementById('quick-dial-trigger');
+        if (dial && !dial.contains(e.target) && trigger && trigger.getAttribute('aria-expanded') === 'true') toggleQuickDial();
+    });
+    </script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -3702,17 +3722,39 @@
                 <button id="tour-fab-btn" onclick="document.getElementById('fab-container').classList.toggle('fab-open')" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
             </div>
 
-<div id="ai-assistant-wrapper" class="fixed bottom-40 right-6 z-[90] flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer hidden" onclick="if(typeof openGlobalAIAssistant === 'function') openGlobalAIAssistant(); else document.getElementById('global-ai-modal').classList.remove('hidden');">
-                <div class="w-14 h-14 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border border-slate-100 p-2 overflow-hidden">
-                    <img src="logo.png" id="ai-assistant-logo-img" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">
+    <!-- Speed Dial: גישה מהירה — עוזרת / צ'אט / נגישות -->
+    <div id="quick-access-dial" class="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-2">
+        <div id="quick-dial-items" class="flex flex-col items-end gap-2 transition-all duration-200 opacity-0 pointer-events-none translate-y-3" aria-hidden="true">
+            <!-- עוזרת עסקית -->
+            <div id="ai-assistant-wrapper" class="hidden flex items-center gap-2 cursor-pointer" role="button" tabindex="0" aria-label="פתח עוזרת עסקית"
+                 onclick="toggleQuickDial();if(typeof openGlobalAIAssistant==='function')openGlobalAIAssistant();else document.getElementById('global-ai-modal').classList.remove('hidden');">
+                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">העוזרת העסקית</span>
+                <div class="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center border border-slate-100 p-1.5 overflow-hidden shrink-0">
+                    <img src="logo.png" id="ai-assistant-logo-img" alt="FamliAI" class="w-full h-full object-contain" onerror="this.style.display='none'">
                 </div>
-                <p class="text-[9px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm border border-slate-200">העוזרת העסקית</p>
             </div>
-            
-<button id="team-chat-btn-wrapper" onclick="if(typeof openTeamChatModal === 'function') openTeamChatModal()" class="fixed bottom-24 right-6 w-12 h-12 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl hover:scale-110 hover:bg-indigo-700 transition z-[90] hidden group">
-            <i class="fa-solid fa-comments"></i>
-            <span id="team-chat-unread-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
+            <!-- צ'אט -->
+            <button id="team-chat-btn-wrapper" onclick="toggleQuickDial();if(typeof openTeamChatModal==='function')openTeamChatModal()" aria-label="פתח צ'אט" class="hidden flex items-center gap-2 bg-transparent border-none p-0 relative">
+                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">צ'אט</span>
+                <div class="w-11 h-11 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-700 transition shrink-0">
+                    <i class="fa-solid fa-comments text-base"></i>
+                </div>
+                <span id="team-chat-unread-badge" class="absolute -top-1 right-0 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
+            </button>
+            <!-- נגישות -->
+            <button onclick="toggleQuickDial();openAccessibilityModal()" aria-label="הגדרות נגישות" class="flex items-center gap-2 bg-transparent border-none p-0">
+                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">נגישות</span>
+                <div class="w-11 h-11 bg-white text-blue-600 rounded-full shadow-lg flex items-center justify-center border border-blue-100 hover:bg-blue-50 transition shrink-0">
+                    <i class="fa-solid fa-universal-access text-base"></i>
+                </div>
+            </button>
+        </div>
+        <!-- כפתור הפעלה -->
+        <button id="quick-dial-trigger" onclick="toggleQuickDial()" aria-label="תפריט גישה מהירה" aria-expanded="false" aria-haspopup="true"
+                class="w-11 h-11 bg-white text-slate-500 rounded-full shadow-xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 transition-all duration-200">
+            <i class="fa-solid fa-ellipsis-vertical text-base" id="quick-dial-icon"></i>
         </button>
+    </div>
 
             <div id="inbox-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
                 <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
