@@ -116,7 +116,7 @@ test.describe('הרשאות ADMIN (PBIZ-01..10)', () => {
     await loginAsManager(page);
     await goToTab(page, 'members');
     await page.waitForTimeout(1000);
-    await expect(page.locator('#members-list, #content-members')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('#content-members')).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
 
@@ -136,7 +136,7 @@ test.describe('הרשאות ADMIN (PBIZ-01..10)', () => {
     await loginAsManager(page);
     await goToTab(page, 'bank');
     await page.waitForTimeout(1000);
-    const adminView = page.locator('#bank-admin-view, #content-bank');
+    const adminView = page.locator('#content-bank');
     await expect(adminView).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
@@ -157,7 +157,7 @@ test.describe('הרשאות ADMIN (PBIZ-01..10)', () => {
     await loginAsManager(page);
     await goToTab(page, 'timeclock');
     await page.waitForTimeout(1000);
-    const adminView = page.locator('#timeclock-admin-view, #content-timeclock');
+    const adminView = page.locator('#content-timeclock');
     await expect(adminView).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
@@ -325,7 +325,7 @@ test.describe('הרשאות SENIOR (PBIZ-19..23)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'academy');
     await page.waitForTimeout(1000);
-    const userView = page.locator('#academy-user-view, #content-academy');
+    const userView = page.locator('#content-academy');
     await expect(userView).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
@@ -352,7 +352,7 @@ test.describe('הרשאות MEMBER (PBIZ-24..30)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'timeclock');
     await page.waitForTimeout(1000);
-    const userView = page.locator('#timeclock-user-view, #content-timeclock');
+    const userView = page.locator('#content-timeclock');
     await expect(userView).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
@@ -371,7 +371,7 @@ test.describe('הרשאות MEMBER (PBIZ-24..30)', () => {
     await loginAsEmployee(page);
     await goToTab(page, 'academy');
     await page.waitForTimeout(1000);
-    const userView = page.locator('#academy-user-view, #content-academy');
+    const userView = page.locator('#content-academy');
     await expect(userView).toBeVisible({ timeout: 8000 });
     expect(true).toBeTruthy();
   });
