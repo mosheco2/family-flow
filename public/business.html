@@ -592,6 +592,7 @@
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
+                            <button onclick="switchTab('surveys')" id="tab-surveys" class="tab-btn">סקרים 📋</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
@@ -1767,6 +1768,108 @@
                                 <div id="pending-list" class="space-y-2 p-2"></div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- ═══ SURVEYS TAB ═══ -->
+                    <div id="content-surveys" class="hidden space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-list text-indigo-500"></i> סקרים ללקוחות
+                            </h2>
+                            <button onclick="openSurveyBuilder()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-md hover:bg-indigo-700 transition">
+                                <i class="fa-solid fa-plus"></i> סקר חדש
+                            </button>
+                        </div>
+                        <div id="survey-limit-warn" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-sm font-medium flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            מקסימום 3 סקרים פעילים. סגור סקר כדי להפעיל חדש.
+                        </div>
+                        <div id="surveys-list" class="space-y-3"></div>
+                        <div id="surveys-empty" class="hidden text-center py-14">
+                            <i class="fa-solid fa-clipboard-list text-5xl text-slate-200 mb-3 block"></i>
+                            <p class="text-slate-400 font-semibold">אין סקרים עדיין</p>
+                            <p class="text-slate-300 text-sm mt-1">לחץ "סקר חדש" כדי להתחיל</p>
+                        </div>
+                    </div>
+
+                </div>
+                </div>
+
+                <!-- Survey Builder Modal -->
+                <div id="survey-builder-modal" class="fixed inset-0 z-[200] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col">
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                            <h3 id="survey-builder-title" class="font-bold text-slate-800 text-base">סקר חדש</h3>
+                            <button onclick="closeSurveyBuilder()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="overflow-y-auto flex-1 p-5 space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">כותרת הסקר *</label>
+                                <input id="sv-title" type="text" placeholder="לדוגמה: שביעות רצון לקוחות" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">תיאור / הקדמה (אופציונלי)</label>
+                                <textarea id="sv-desc" rows="2" placeholder="כמה מילים לפני הסקר..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-2">פרטי ממלא הסקר הנדרשים</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="name" class="sv-field-cb accent-indigo-600"> שם פרטי</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="family_name" class="sv-field-cb accent-indigo-600"> שם משפחה</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="id_number" class="sv-field-cb accent-indigo-600"> ת.ז</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="email" class="sv-field-cb accent-indigo-600"> מייל</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="phone" class="sv-field-cb accent-indigo-600"> טלפון</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="address" class="sv-field-cb accent-indigo-600"> כתובת</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="business_id" class="sv-field-cb accent-indigo-600"> ח.פ</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" value="_anon" id="sv-anon-cb" class="sv-field-cb accent-indigo-600"> אנונימי לחלוטין</label>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="text-xs font-semibold text-slate-600">שאלות</label>
+                                    <div class="flex gap-1">
+                                        <button onclick="addSurveyQuestion('multiple_choice')" class="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-bold hover:bg-blue-100">+ בחירה</button>
+                                        <button onclick="addSurveyQuestion('rating')" class="text-[10px] bg-purple-50 text-purple-700 px-2 py-1 rounded-lg font-bold hover:bg-purple-100">+ דירוג</button>
+                                        <button onclick="addSurveyQuestion('yes_no')" class="text-[10px] bg-green-50 text-green-700 px-2 py-1 rounded-lg font-bold hover:bg-green-100">+ כן/לא</button>
+                                        <button onclick="addSurveyQuestion('open_text')" class="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded-lg font-bold hover:bg-orange-100">+ פתוחה</button>
+                                    </div>
+                                </div>
+                                <div id="sv-questions-list" class="space-y-3">
+                                    <p id="sv-no-questions" class="text-slate-400 text-sm text-center py-4 border-2 border-dashed border-slate-200 rounded-xl">לחץ על סוג שאלה כדי להוסיף</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 border-t border-slate-100 flex gap-2">
+                            <button onclick="saveSurveyDraft()" class="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition">שמור טיוטה</button>
+                            <button onclick="saveSurveyAndActivate()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">הפעל וקבל לינק</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Survey Results Modal -->
+                <div id="survey-results-modal" class="fixed inset-0 z-[200] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col">
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                            <h3 id="results-modal-title" class="font-bold text-slate-800 text-base">תוצאות</h3>
+                            <button onclick="document.getElementById('survey-results-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="survey-results-body" class="overflow-y-auto flex-1 p-5"></div>
+                    </div>
+                </div>
+
+                <!-- Share Link Modal -->
+                <div id="survey-share-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+                    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 text-center">
+                        <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-link text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-base mb-1">הסקר פעיל! 🎉</h3>
+                        <p class="text-slate-500 text-sm mb-4">שלח את הלינק ללקוחותיך</p>
+                        <div class="bg-slate-50 rounded-xl p-3 mb-4 flex items-center gap-2">
+                            <span id="survey-share-url" class="flex-1 text-xs text-slate-600 break-all text-right font-mono"></span>
+                            <button onclick="copySurveyLink()" class="shrink-0 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-200 transition">העתק</button>
+                        </div>
+                        <button onclick="document.getElementById('survey-share-modal').classList.add('hidden')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm">סגור</button>
                     </div>
                 </div>
 
@@ -4020,6 +4123,379 @@
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncBalance);
     else syncBalance();
+})();
+</script>
+
+<!-- ═══ SURVEYS MODULE ═══ -->
+<script>
+(function() {
+  const API = '/api';
+  let _surveys = [];
+  let _editingId = null;
+  let _svQuestions = [];
+  let _svCharts = [];
+
+  const FIELD_LABELS = {
+    name:'שם פרטי', family_name:'שם משפחה', id_number:'ת.ז',
+    email:'מייל', phone:'טלפון', address:'כתובת', business_id:'ח.פ'
+  };
+  const Q_LABELS = { multiple_choice:'בחירה מרובה', rating:'דירוג', yes_no:'כן/לא', open_text:'פתוחה' };
+  const Q_COLORS = { multiple_choice:'blue', rating:'purple', yes_no:'green', open_text:'orange' };
+
+  // ── Load surveys ──────────────────────────────────────────────
+  window.loadSurveys = async function() {
+    if (!window.currentGroup) return;
+    try {
+      const r = await fetch(`${API}/surveys?groupId=${currentGroup.id}`);
+      const d = await r.json();
+      if (!d.success) return;
+      _surveys = d.surveys || [];
+      renderSurveyList();
+    } catch(e) {}
+  };
+
+  function renderSurveyList() {
+    const list = document.getElementById('surveys-list');
+    const empty = document.getElementById('surveys-empty');
+    const warn = document.getElementById('survey-limit-warn');
+    if (!list) return;
+    const active = _surveys.filter(s => s.status === 'active').length;
+    warn && warn.classList.toggle('hidden', active < 3);
+    if (!_surveys.length) {
+      list.innerHTML = '';
+      empty && empty.classList.remove('hidden');
+      return;
+    }
+    empty && empty.classList.add('hidden');
+    const statusBadge = s => {
+      if (s.status === 'active')  return '<span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">פעיל</span>';
+      if (s.status === 'closed')  return '<span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">סגור</span>';
+      return '<span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">טיוטה</span>';
+    };
+    list.innerHTML = _surveys.map(s => `
+      <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">${statusBadge(s)}
+              <span class="text-[10px] text-slate-400">${s.question_count} שאלות · ${s.response_count} תגובות</span>
+            </div>
+            <p class="font-bold text-slate-800 text-sm truncate">${s.title}</p>
+            ${s.description ? `<p class="text-xs text-slate-400 mt-0.5 truncate">${s.description}</p>` : ''}
+          </div>
+          <div class="flex gap-1.5 shrink-0">
+            ${s.status === 'draft' ? `<button onclick="editSurvey(${s.id})" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-slate-200">ערוך</button>` : ''}
+            ${s.status === 'active' ? `
+              <button onclick="showSurveyLink('${s.unique_code}')" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-indigo-100">לינק</button>
+              <button onclick="closeSurvey(${s.id})" class="text-xs bg-red-50 text-red-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-red-100">סגור</button>
+            ` : ''}
+            ${s.status === 'draft' ? `<button onclick="activateSurvey(${s.id})" class="text-xs bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-green-100">הפעל</button>` : ''}
+            ${s.response_count > 0 ? `<button onclick="viewSurveyResults(${s.id})" class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-blue-100"><i class="fa-solid fa-chart-pie"></i></button>` : ''}
+            <button onclick="deleteSurvey(${s.id})" class="text-xs bg-slate-50 text-slate-400 px-2 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>
+        ${s.status === 'active' ? `
+          <div class="mt-2 bg-slate-50 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span class="text-[10px] text-slate-500 flex-1 truncate font-mono">${location.origin}/survey.html?c=${s.unique_code}</span>
+            <button onclick="showSurveyLink('${s.unique_code}')" class="text-[10px] text-indigo-600 font-bold shrink-0">העתק</button>
+          </div>` : ''}
+      </div>`).join('');
+  }
+
+  // ── Builder ───────────────────────────────────────────────────
+  window.openSurveyBuilder = function(data) {
+    _editingId = data?.id || null;
+    _svQuestions = data?.questions ? data.questions.map(q => ({
+      type: q.type, text: q.question_text,
+      options: q.options || [], required: q.required
+    })) : [];
+    document.getElementById('survey-builder-title').textContent = _editingId ? 'ערוך סקר' : 'סקר חדש';
+    document.getElementById('sv-title').value = data?.title || '';
+    document.getElementById('sv-desc').value = data?.description || '';
+    document.querySelectorAll('.sv-field-cb').forEach(cb => {
+      cb.checked = data?.required_fields?.includes(cb.value) || false;
+    });
+    renderQList();
+    document.getElementById('survey-builder-modal').classList.remove('hidden');
+  };
+
+  window.closeSurveyBuilder = function() {
+    document.getElementById('survey-builder-modal').classList.add('hidden');
+  };
+
+  window.addSurveyQuestion = function(type) {
+    document.getElementById('sv-no-questions')?.remove();
+    _svQuestions.push({ type, text: '', options: type === 'multiple_choice' ? ['אפשרות 1','אפשרות 2'] : [], required: true });
+    renderQList();
+  };
+
+  function renderQList() {
+    const el = document.getElementById('sv-questions-list');
+    if (!el) return;
+    if (!_svQuestions.length) {
+      el.innerHTML = '<p id="sv-no-questions" class="text-slate-400 text-sm text-center py-4 border-2 border-dashed border-slate-200 rounded-xl">לחץ על סוג שאלה כדי להוסיף</p>';
+      return;
+    }
+    el.innerHTML = _svQuestions.map((q, i) => {
+      const col = Q_COLORS[q.type];
+      return `<div class="border border-${col}-100 bg-${col}-50/30 rounded-xl p-3 space-y-2">
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-bold bg-${col}-100 text-${col}-700 px-2 py-0.5 rounded-full">${Q_LABELS[q.type]}</span>
+          <button onclick="removeQuestion(${i})" class="mr-auto text-slate-300 hover:text-red-400 text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" value="${q.text}" placeholder="טקסט השאלה..." onchange="_svQuestions[${i}].text=this.value"
+          class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-${col}-400 bg-white">
+        ${q.type === 'multiple_choice' ? renderOptionsEditor(i, q.options) : ''}
+        ${q.type === 'rating' ? '<p class="text-[10px] text-slate-400">דירוג 1–5 כוכבים יוצג אוטומטית</p>' : ''}
+        ${q.type === 'yes_no' ? '<p class="text-[10px] text-slate-400">כפתורי "כן" / "לא" יוצגו אוטומטית</p>' : ''}
+        ${q.type === 'open_text' ? '<p class="text-[10px] text-slate-400">שדה טקסט חופשי</p>' : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function renderOptionsEditor(qi, opts) {
+    return `<div class="space-y-1">
+      ${opts.map((o, oi) => `<div class="flex gap-1">
+        <input type="text" value="${o}" placeholder="אפשרות ${oi+1}" onchange="updateOption(${qi},${oi},this.value)"
+          class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none bg-white">
+        <button onclick="removeOption(${qi},${oi})" class="text-slate-300 hover:text-red-400 text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>`).join('')}
+      <button onclick="addOption(${qi})" class="text-[10px] text-blue-600 font-bold hover:underline">+ הוסף אפשרות</button>
+    </div>`;
+  }
+
+  window.removeQuestion = function(i) { _svQuestions.splice(i,1); renderQList(); };
+  window.updateOption = function(qi, oi, v) { _svQuestions[qi].options[oi] = v; };
+  window.removeOption = function(qi, oi) { _svQuestions[qi].options.splice(oi,1); renderQList(); };
+  window.addOption = function(qi) { _svQuestions[qi].options.push(''); renderQList(); };
+
+  function collectSurveyForm(activate) {
+    const title = document.getElementById('sv-title').value.trim();
+    if (!title) { alert('חסרה כותרת'); return null; }
+    if (!_svQuestions.length) { alert('הוסף לפחות שאלה אחת'); return null; }
+    for (const q of _svQuestions) {
+      if (!q.text.trim()) { alert('מלא טקסט לכל השאלות'); return null; }
+      if (q.type === 'multiple_choice' && q.options.length < 2) { alert('שאלת בחירה צריכה לפחות 2 אפשרויות'); return null; }
+    }
+    const isAnon = document.getElementById('sv-anon-cb')?.checked;
+    const requiredFields = isAnon ? [] : [...document.querySelectorAll('.sv-field-cb:checked')]
+      .map(c => c.value).filter(v => v !== '_anon');
+    return {
+      groupId: currentGroup.id,
+      title,
+      description: document.getElementById('sv-desc').value.trim(),
+      requiredFields,
+      anonymous: isAnon,
+      questions: _svQuestions.map(q => ({ ...q })),
+      _activate: activate
+    };
+  }
+
+  window.saveSurveyDraft = async function() {
+    const data = collectSurveyForm(false);
+    if (!data) return;
+    try {
+      const url = _editingId ? `${API}/surveys/${_editingId}` : `${API}/surveys`;
+      const method = _editingId ? 'PUT' : 'POST';
+      const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const d = await r.json();
+      if (!d.success) { alert(d.error); return; }
+      closeSurveyBuilder();
+      loadSurveys();
+    } catch(e) { alert('שגיאת תקשורת'); }
+  };
+
+  window.saveSurveyAndActivate = async function() {
+    const data = collectSurveyForm(true);
+    if (!data) return;
+    try {
+      const url = _editingId ? `${API}/surveys/${_editingId}` : `${API}/surveys`;
+      const method = _editingId ? 'PUT' : 'POST';
+      const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const d = await r.json();
+      if (!d.success) { alert(d.error); return; }
+      const svId = _editingId || d.survey?.id;
+      closeSurveyBuilder();
+      await activateSurvey(svId, true);
+    } catch(e) { alert('שגיאת תקשורת'); }
+  };
+
+  window.editSurvey = async function(id) {
+    const sv = _surveys.find(s => s.id === id);
+    if (!sv) return;
+    try {
+      const r = await fetch(`${API}/surveys/${id}/results`);
+      const d = await r.json();
+      if (!d.success) return;
+      openSurveyBuilder({ ...sv, questions: d.questions });
+    } catch(e) {}
+  };
+
+  window.activateSurvey = async function(id, skipReload) {
+    try {
+      const r = await fetch(`${API}/surveys/${id}/activate`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ groupId: currentGroup.id })
+      });
+      const d = await r.json();
+      if (!d.success) { alert(d.error); return; }
+      const sv = d.survey || _surveys.find(s => s.id === id);
+      await loadSurveys();
+      showSurveyLink(sv?.unique_code || _surveys.find(s=>s.id===id)?.unique_code);
+    } catch(e) { alert('שגיאת תקשורת'); }
+  };
+
+  window.closeSurvey = async function(id) {
+    if (!confirm('לסגור את הסקר? לא ניתן יהיה לקבל תשובות חדשות.')) return;
+    try {
+      await fetch(`${API}/surveys/${id}/close`, { method:'POST' });
+      loadSurveys();
+    } catch(e) {}
+  };
+
+  window.deleteSurvey = async function(id) {
+    if (!confirm('למחוק את הסקר? הפעולה בלתי הפיכה.')) return;
+    try {
+      await fetch(`${API}/surveys/${id}`, { method:'DELETE' });
+      loadSurveys();
+    } catch(e) {}
+  };
+
+  // ── Link ──────────────────────────────────────────────────────
+  window.showSurveyLink = function(code) {
+    const url = `${location.origin}/survey.html?c=${code}`;
+    document.getElementById('survey-share-url').textContent = url;
+    document.getElementById('survey-share-modal').classList.remove('hidden');
+  };
+
+  window.copySurveyLink = function() {
+    const url = document.getElementById('survey-share-url').textContent;
+    navigator.clipboard?.writeText(url).then(() => {
+      const btn = document.querySelector('#survey-share-modal button.bg-indigo-100');
+      if (btn) { btn.textContent = 'הועתק!'; setTimeout(()=>btn.textContent='העתק',2000); }
+    });
+  };
+
+  // ── Results ───────────────────────────────────────────────────
+  window.viewSurveyResults = async function(id) {
+    try {
+      const r = await fetch(`${API}/surveys/${id}/results`);
+      const d = await r.json();
+      if (!d.success) return;
+      renderResults(d);
+      document.getElementById('results-modal-title').textContent = `תוצאות — ${d.survey.title}`;
+      document.getElementById('survey-results-modal').classList.remove('hidden');
+    } catch(e) {}
+  };
+
+  function renderResults({ survey, questions, responses }) {
+    _svCharts.forEach(c => c.destroy());
+    _svCharts = [];
+    const body = document.getElementById('survey-results-body');
+    if (!body) return;
+    if (!responses.length) { body.innerHTML = '<p class="text-slate-400 text-center py-10">אין תגובות עדיין</p>'; return; }
+
+    let html = `<p class="text-xs text-slate-400 mb-4 font-medium">${responses.length} תגובות סה"כ</p>`;
+
+    // Per-question breakdown
+    questions.forEach((q, qi) => {
+      const answers = responses.map(r => {
+        const a = (r.answers||[]).find(a => a.qi === qi);
+        return a?.value ?? null;
+      }).filter(v => v !== null);
+
+      html += `<div class="mb-6">
+        <p class="text-sm font-bold text-slate-700 mb-2">${qi+1}. ${q.question_text}</p>`;
+
+      if (q.type === 'multiple_choice' || q.type === 'yes_no') {
+        const opts = q.type === 'yes_no' ? ['כן','לא'] : (q.options||[]);
+        const counts = {};
+        opts.forEach(o => counts[o] = 0);
+        answers.forEach(a => { if (counts[a] !== undefined) counts[a]++; });
+        const total = answers.length || 1;
+        html += `<canvas id="chart-${qi}" class="mb-2" style="max-height:160px"></canvas>`;
+        html += `<div class="space-y-1">` + opts.map(o =>
+          `<div class="flex items-center gap-2 text-xs">
+            <span class="w-20 truncate text-slate-600 shrink-0">${o}</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" style="width:${Math.round(counts[o]/total*100)}%"></div>
+            </div>
+            <span class="text-slate-400 shrink-0">${counts[o]}</span>
+          </div>`).join('') + '</div>';
+        setTimeout(() => {
+          const ctx = document.getElementById(`chart-${qi}`)?.getContext('2d');
+          if (!ctx) return;
+          _svCharts.push(new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: opts, datasets:[{ data: opts.map(o=>counts[o]),
+              backgroundColor:['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6'] }] },
+            options: { plugins:{ legend:{ position:'bottom', labels:{font:{size:10},boxWidth:10}}}, cutout:'65%' }
+          }));
+        }, 50);
+      } else if (q.type === 'rating') {
+        const avg = answers.length ? (answers.reduce((a,b)=>a+(+b),0)/answers.length).toFixed(1) : '—';
+        const dist = [1,2,3,4,5].map(n => answers.filter(a=>+a===n).length);
+        html += `<div class="flex items-center gap-3 mb-2">
+          <span class="text-3xl font-black text-indigo-600">${avg}</span>
+          <div class="text-yellow-400 text-lg">${'★'.repeat(Math.round(+avg))}${'☆'.repeat(5-Math.round(+avg))}</div>
+          <span class="text-xs text-slate-400">${answers.length} מדרגים</span>
+        </div>`;
+        html += `<div class="space-y-1">` + [5,4,3,2,1].map(n =>
+          `<div class="flex items-center gap-2 text-xs">
+            <span class="text-slate-500 shrink-0 w-8">${n} ★</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-yellow-400 h-full rounded-full" style="width:${answers.length?Math.round(dist[n-1]/answers.length*100):0}%"></div>
+            </div>
+            <span class="text-slate-400 shrink-0">${dist[n-1]}</span>
+          </div>`).join('') + '</div>';
+      } else if (q.type === 'open_text') {
+        html += `<div class="space-y-1.5 max-h-40 overflow-y-auto">` +
+          answers.slice(0,20).map(a => `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs text-slate-600">"${a}"</div>`).join('') +
+          (answers.length>20 ? `<p class="text-[10px] text-slate-400">ועוד ${answers.length-20} תשובות...</p>` : '') + '</div>';
+      }
+      html += '</div>';
+    });
+
+    // Comments section
+    const comments = responses.filter(r => r.comment).map(r => r.comment);
+    if (comments.length) {
+      html += `<div class="border-t border-slate-100 pt-4 mt-2">
+        <p class="text-sm font-bold text-slate-700 mb-2">הערות חופשיות (${comments.length})</p>
+        <div class="space-y-1.5 max-h-48 overflow-y-auto">
+          ${comments.map(c=>`<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-slate-600">"${c}"</div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Respondents table
+    if (!survey.anonymous) {
+      html += `<div class="border-t border-slate-100 pt-4 mt-2">
+        <p class="text-sm font-bold text-slate-700 mb-2">פרטי ממלאי הסקר</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead><tr class="text-slate-400 border-b border-slate-100">
+              ${Object.keys(responses[0]?.respondent_data||{}).map(k=>`<th class="py-1.5 px-2 text-right font-semibold">${FIELD_LABELS[k]||k}</th>`).join('')}
+              <th class="py-1.5 px-2 text-right font-semibold">תאריך</th>
+            </tr></thead>
+            <tbody>
+              ${responses.map(r=>`<tr class="border-b border-slate-50">
+                ${Object.values(r.respondent_data||{}).map(v=>`<td class="py-1.5 px-2 text-slate-600">${v||'—'}</td>`).join('')}
+                <td class="py-1.5 px-2 text-slate-400">${new Date(r.submitted_at).toLocaleDateString('he-IL')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
+    body.innerHTML = html;
+  }
+
+  // Hook into switchTab
+  const _origSwitch = window.switchTab;
+  window.switchTab = function(tab) {
+    if (_origSwitch) _origSwitch(tab);
+    if (tab === 'surveys') loadSurveys();
+  };
 })();
 </script>
 </body>
