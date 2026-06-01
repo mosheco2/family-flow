@@ -806,37 +806,73 @@
         </div>
         <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
     </div>
-    <!-- Speed Dial: גישה מהירה — מאחד עוזרת / צ'אט / נגישות בכפתור אחד קומפקטי -->
-    <div id="quick-access-dial" class="fixed bottom-6 right-6 z-[80] flex flex-col items-end gap-2">
-        <div id="quick-dial-items" class="flex flex-col items-end gap-2 transition-all duration-200 opacity-0 pointer-events-none translate-y-3" aria-hidden="true">
-            <!-- עוזרת אישית -->
-            <div id="ai-assistant-wrapper" class="hidden flex items-center gap-2 cursor-pointer" role="button" tabindex="0" aria-label="פתח עוזרת משפחתית"
-                 onclick="toggleQuickDial();if(typeof openFamilaiChatModal==='function')openFamilaiChatModal();else{const m=document.getElementById('familai-chat-modal');if(m)m.classList.remove('hidden');}">
-                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">העוזרת המשפחתית</span>
-                <div class="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-indigo-100 p-1.5 overflow-hidden shrink-0">
-                    <img src="logo.png" id="ai-assistant-logo-img" alt="FamliAI" class="w-full h-full object-contain" onerror="this.style.display='none'">
-                </div>
+    <!-- Floating Glass Pill — גישה מהירה -->
+    <div id="floating-pill"
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80]
+                flex items-center gap-0.5 p-1.5
+                bg-white/85 backdrop-blur-xl rounded-full
+                shadow-[0_4px_24px_rgba(0,0,0,0.10),0_0_0_1px_rgba(255,255,255,0.9)]
+                transition-all duration-300">
+
+        <!-- עוזרת אישית -->
+        <div id="ai-assistant-wrapper"
+             role="button" tabindex="0" aria-label="עוזרת אישית"
+             class="hidden relative group cursor-pointer"
+             onclick="if(typeof openFamilaiChatModal==='function')openFamilaiChatModal();else{const m=document.getElementById('familai-chat-modal');if(m)m.classList.remove('hidden');}">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center p-2
+                        hover:bg-indigo-50 active:scale-95 transition-all duration-150 relative overflow-hidden">
+                <img src="logo.png" id="ai-assistant-logo-img" alt="עוזרת אישית"
+                     class="w-full h-full object-contain" onerror="this.style.display='none'">
+                <span class="absolute bottom-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-white"></span>
             </div>
-            <!-- צ'אט -->
-            <button id="team-chat-btn-wrapper" onclick="toggleQuickDial();if(typeof openTeamChatModal==='function')openTeamChatModal()" aria-label="פתח צ'אט" class="hidden flex items-center gap-2 bg-transparent border-none p-0 relative">
-                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">צ'אט</span>
-                <div class="w-11 h-11 bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-600 transition shrink-0">
-                    <i class="fa-regular fa-comments text-base"></i>
-                </div>
-                <span id="team-chat-unread-badge" class="absolute -top-1 right-0 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
-            </button>
-            <!-- נגישות -->
-            <button onclick="toggleQuickDial();openAccessibilityModal()" aria-label="הגדרות נגישות" class="flex items-center gap-2 bg-transparent border-none p-0">
-                <span class="text-[11px] font-bold text-slate-700 bg-white/95 px-3 py-1.5 rounded-full shadow-sm border border-slate-200 whitespace-nowrap">נגישות</span>
-                <div class="w-11 h-11 bg-white text-blue-600 rounded-full shadow-lg flex items-center justify-center border border-blue-100 hover:bg-blue-50 transition shrink-0">
-                    <i class="fa-solid fa-universal-access text-base"></i>
-                </div>
-            </button>
+            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
+                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
+                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+                         transition-all duration-150 origin-bottom pointer-events-none">
+                עוזרת אישית
+            </span>
         </div>
-        <!-- כפתור הפעלה -->
-        <button id="quick-dial-trigger" onclick="toggleQuickDial()" aria-label="תפריט גישה מהירה" aria-expanded="false" aria-haspopup="true"
-                class="w-11 h-11 bg-white text-slate-500 rounded-full shadow-xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 transition-all duration-200">
-            <i class="fa-solid fa-ellipsis-vertical text-base" id="quick-dial-icon"></i>
+
+        <!-- מפריד (נראה רק כשיש שכן) -->
+        <div id="pill-sep-ai" class="hidden w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
+
+        <!-- צ'אט -->
+        <button id="team-chat-btn-wrapper"
+                onclick="if(typeof openTeamChatModal==='function')openTeamChatModal()"
+                aria-label="צ'אט"
+                class="hidden relative group">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center
+                        hover:bg-emerald-50 active:scale-95 transition-all duration-150">
+                <i class="fa-regular fa-comments text-emerald-600 text-[20px]"></i>
+            </div>
+            <span id="team-chat-unread-badge"
+                  class="absolute top-1.5 right-1.5 bg-red-500 text-white text-[8px] font-black
+                         w-4 h-4 rounded-full flex items-center justify-center hidden ring-2 ring-white">0</span>
+            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
+                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
+                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+                         transition-all duration-150 origin-bottom pointer-events-none">
+                צ'אט
+            </span>
+        </button>
+
+        <!-- מפריד לפני נגישות -->
+        <div id="pill-sep-access" class="w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
+
+        <!-- נגישות (תמיד גלוי) -->
+        <button onclick="openAccessibilityModal()"
+                aria-label="הגדרות נגישות"
+                class="relative group">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center
+                        hover:bg-blue-50 active:scale-95 transition-all duration-150">
+                <i class="fa-solid fa-universal-access text-blue-500 text-[20px]"></i>
+            </div>
+            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
+                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
+                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+                         transition-all duration-150 origin-bottom pointer-events-none">
+                נגישות
+            </span>
         </button>
     </div>
 
@@ -1550,31 +1586,6 @@
     </script>
     <script src="app.js" defer></script>
     <script>
-    function toggleQuickDial() {
-        const items = document.getElementById('quick-dial-items');
-        const trigger = document.getElementById('quick-dial-trigger');
-        const icon = document.getElementById('quick-dial-icon');
-        if (!items || !trigger) return;
-        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
-        if (isOpen) {
-            items.classList.add('opacity-0','pointer-events-none','translate-y-3');
-            items.setAttribute('aria-hidden','true');
-            trigger.setAttribute('aria-expanded','false');
-            if (icon) icon.className = 'fa-solid fa-ellipsis-vertical text-base';
-        } else {
-            items.classList.remove('opacity-0','pointer-events-none','translate-y-3');
-            items.setAttribute('aria-hidden','false');
-            trigger.setAttribute('aria-expanded','true');
-            if (icon) icon.className = 'fa-solid fa-xmark text-base';
-        }
-    }
-    document.addEventListener('click', function(e) {
-        const dial = document.getElementById('quick-access-dial');
-        const trigger = document.getElementById('quick-dial-trigger');
-        if (dial && !dial.contains(e.target) && trigger && trigger.getAttribute('aria-expanded') === 'true') toggleQuickDial();
-    });
-    </script>
-    <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js');
@@ -2204,14 +2215,11 @@
                 const dash = document.getElementById('dashboard-container');
                 const isDashVisible = dash && !dash.classList.contains('hidden');
                 
-                ['fab-container', 'ai-assistant-wrapper', 'team-chat-btn-wrapper'].forEach(id => {
+                ['fab-container', 'ai-assistant-wrapper', 'team-chat-btn-wrapper', 'pill-sep-ai', 'pill-sep-access'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
-                        if (isDashVisible) {
-                            el.classList.remove('hidden');
-                       } else {
-                            el.classList.add('hidden');
-                        }
+                        if (isDashVisible) el.classList.remove('hidden');
+                        else el.classList.add('hidden');
                     }
                 });
             }, 1000);
