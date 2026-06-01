@@ -44,9 +44,23 @@
 
   function renderSurvey() {
     document.title = _survey.title + ' — סקר';
-    document.getElementById('biz-name').textContent = _survey.business_name || '';
+    const bizName = _survey.business_name || '';
+    document.getElementById('biz-name').textContent = bizName;
+    document.getElementById('biz-slogan').textContent = _survey.slogan || '';
     document.getElementById('survey-title').textContent = _survey.title;
     document.getElementById('survey-desc').textContent = _survey.description || '';
+
+    // Logo or initials
+    if (_survey.logo_url) {
+      const img = document.getElementById('biz-logo');
+      img.src = _survey.logo_url;
+      document.getElementById('logo-wrap').classList.remove('hidden');
+    } else if (bizName) {
+      const init = document.getElementById('biz-initials');
+      init.textContent = bizName.charAt(0);
+      init.classList.remove('hidden');
+      init.classList.add('flex');
+    }
 
     renderRespondentFields();
     renderQuestions();
@@ -145,9 +159,17 @@
       }
     }
 
+    // Sync open_text answers from DOM (inline oninput can't reach IIFE scope)
+    for (let i = 0; i < _questions.length; i++) {
+      if (_questions[i].type === 'open_text') {
+        const val = document.getElementById(`ot-${i}`)?.value || '';
+        if (val) _answers[i] = val;
+      }
+    }
+
     // Validate required questions
     for (let i = 0; i < _questions.length; i++) {
-      if (_questions[i].required && _answers[i] === undefined) {
+      if (_questions[i].required && (_answers[i] === undefined || _answers[i] === null || _answers[i] === '')) {
         showSubmitError(`יש לענות על שאלה ${i + 1}`); return;
       }
     }
