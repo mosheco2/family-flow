@@ -1,370 +1,1651 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oneflow Life BIZ | מדריך למשתמש עסקי</title>
-    
-    <link rel="icon" href="/logo.png" type="image/png">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        html { scroll-behavior: smooth; scroll-padding-top: 100px; }
-        body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; }
-        
-        .guide-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; transition: transform 0.2s; }
-        @media (max-width: 640px) { .guide-card { padding: 1.5rem; } }
-        .guide-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
-        
-        .guide-icon { width: 4rem; height: 4rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 1rem; }
-        .guide-section-title { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
-        .guide-text { color: #475569; line-height: 1.8; margin-bottom: 1rem; font-size: 0.95rem; }
-        
-        .guide-list { list-style-type: none; padding: 0; margin: 0 0 1rem 0; }
-        .guide-list li { position: relative; padding-right: 1.5rem; margin-bottom: 0.75rem; color: #334155; font-size: 0.95rem; }
-        .guide-list li::before { content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; right: 0; color: #4f46e5; font-size: 0.85rem; top: 0.25rem; }
-        
-        .highlight-box { background: #e0e7ff; border-left: 4px solid #4f46e5; border-right: none; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; font-weight: 500; color: #312e81; font-size: 0.9rem; }
-        
-        .modern-input { width: 100%; padding: 0.75rem 1rem; border-radius: 9999px; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
-        .modern-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
-        
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* עיצוב ניווט מהיר */
-        .nav-chip { 
-            flex: 0 0 auto; white-space: nowrap; padding: 0.6rem 1.25rem; 
-            background: white; border: 1px solid #e2e8f0; border-radius: 9999px; 
-            font-size: 0.875rem; font-weight: 600; color: #475569; 
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            cursor: pointer;
-        }
-        .nav-chip:hover { 
-            transform: translateY(-1px); 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
-            color: #4f46e5; border-color: #cbd5e1; 
-        }
-        .nav-chip.active-chip { 
-            background: #4f46e5; color: white; border-color: #4f46e5; 
-            transform: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); 
-        }
-        
-        /* עיצוב תמונות מדריך (נצמד לתמונה עצמה ללא חללים ריקים) */
-        .guide-img {
-            max-width: 100%;
-            width: auto;
-            height: auto;
-            max-height: 400px; /* תמונה תהיה גדולה וברורה אך לא מוגזמת */
-            border-radius: 0.75rem;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-            margin: 1.5rem auto 0 auto;
-            display: block;
-        }
-        
-        /* תמונה חסרה */
-        .guide-img-fallback {
-            margin: 1.5rem auto 0 auto;
-            height: 180px;
-            max-width: 400px;
-            background: #f8fafc;
-            border: 2px dashed #cbd5e1;
-            border-radius: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #94a3b8;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך עסקי | Oneflow Life BIZ</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Heebo', sans-serif; background: #f0f4ff; color: #1e293b; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 260px; background: #fff;
+  border-left: 1px solid #e2e8f0;
+  overflow-y: auto; z-index: 50;
+  padding: 0 0 2rem 0;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+.sidebar-logo {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.sidebar-logo img { width: 36px; height: 36px; border-radius: 8px; }
+.sidebar-logo span { font-weight: 900; font-size: 1rem; color: #4f46e5; }
+
+.sidebar-section-label {
+  font-size: 0.7rem; font-weight: 700; color: #94a3b8;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 1.25rem 1.5rem 0.4rem;
+}
+
+.nav-link {
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.55rem 1.5rem; font-size: 0.875rem; font-weight: 500;
+  color: #475569; cursor: pointer; border-right: 3px solid transparent;
+  transition: all 0.15s; text-decoration: none; white-space: nowrap;
+}
+.nav-link:hover { background: #f8fafc; color: #4f46e5; }
+.nav-link.active {
+  background: #eef2ff; color: #4f46e5; font-weight: 700;
+  border-right-color: #4f46e5;
+}
+.nav-link .nav-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; flex-shrink: 0;
+  background: #f1f5f9; color: #64748b;
+}
+.nav-link.active .nav-icon { background: #e0e7ff; color: #4f46e5; }
+
+/* ===== MAIN CONTENT ===== */
+#main { margin-right: 260px; min-height: 100vh; }
+
+/* ===== HERO ===== */
+#hero {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
+  padding: 3rem 2.5rem 4rem;
+  position: relative; overflow: hidden;
+}
+#hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 9999px; padding: 0.375rem 1rem;
+  font-size: 0.8rem; font-weight: 600; color: white;
+  margin-bottom: 1.25rem;
+}
+.hero-title {
+  font-size: 2.5rem; font-weight: 900; color: white;
+  line-height: 1.15; margin-bottom: 0.75rem;
+}
+.hero-sub {
+  color: rgba(255,255,255,0.8); font-size: 1.05rem;
+  line-height: 1.7; max-width: 540px; margin-bottom: 2rem;
+}
+.hero-search { display: flex; gap: 0.75rem; max-width: 480px; }
+.hero-search input {
+  flex: 1; padding: 0.875rem 1.25rem;
+  border-radius: 9999px; border: none; outline: none;
+  font-size: 0.9rem; font-family: 'Heebo', sans-serif;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.hero-search button {
+  padding: 0.875rem 1.5rem; border-radius: 9999px;
+  background: white; color: #4f46e5; font-weight: 700;
+  border: none; cursor: pointer; font-size: 0.875rem;
+  font-family: 'Heebo', sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  transition: transform 0.15s;
+}
+.hero-search button:hover { transform: scale(1.03); }
+.hero-stats { display: flex; gap: 2rem; margin-top: 2.5rem; flex-wrap: wrap; }
+.hero-stat .num { font-size: 1.75rem; font-weight: 900; color: white; }
+.hero-stat .lbl { font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+/* ===== MOBILE NAV ===== */
+#mobile-nav {
+  display: none;
+  position: sticky; top: 0; z-index: 40;
+  background: white; border-bottom: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.mobile-nav-inner { display: flex; gap: 0.5rem; overflow-x: auto; }
+.mobile-nav-inner::-webkit-scrollbar { display: none; }
+.chip {
+  flex-shrink: 0; padding: 0.45rem 0.875rem;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 9999px; font-size: 0.78rem; font-weight: 600;
+  color: #475569; cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.chip:hover, .chip.active { background: #eef2ff; border-color: #818cf8; color: #4f46e5; }
+
+/* ===== CONTENT AREA ===== */
+#content { padding: 2rem 2.5rem 4rem; max-width: 860px; }
+
+/* ===== SECTION CARD ===== */
+.section-card {
+  background: white; border-radius: 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 2rem; overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.section-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.card-header {
+  padding: 1.75rem 2rem 1.25rem;
+  display: flex; align-items: flex-start; gap: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.card-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.card-title { font-size: 1.35rem; font-weight: 800; color: #1e293b; margin-bottom: 0.25rem; }
+.card-subtitle { font-size: 0.875rem; color: #64748b; line-height: 1.5; }
+.card-body { padding: 1.75rem 2rem; }
+
+/* ===== STEPS ===== */
+.steps { display: flex; flex-direction: column; gap: 1rem; }
+.step {
+  display: flex; gap: 1rem; align-items: flex-start;
+  padding: 1rem 1.25rem; background: #f8fafc;
+  border-radius: 0.875rem; border: 1px solid #f1f5f9;
+  transition: border-color 0.15s;
+}
+.step:hover { border-color: #c7d2fe; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #4f46e5; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+}
+.step-title { font-size: 0.925rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+.step-desc { font-size: 0.85rem; color: #64748b; line-height: 1.6; }
+
+/* ===== CALLOUTS ===== */
+.callout {
+  display: flex; gap: 0.875rem; align-items: flex-start;
+  padding: 1rem 1.25rem; border-radius: 0.875rem;
+  margin-top: 1.25rem; font-size: 0.875rem; line-height: 1.6;
+}
+.callout-tip { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.callout-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.callout-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ===== MOCKUP ===== */
+.mockup {
+  border-radius: 1rem; overflow: hidden;
+  border: 1px solid #e2e8f0; margin: 1.5rem 0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.mockup-bar {
+  background: #1e293b; padding: 0.625rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-screen {
+  padding: 2rem 1.5rem;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 180px; gap: 0.75rem; text-align: center;
+}
+.screen-icon { font-size: 3rem; }
+.screen-title { font-size: 1rem; font-weight: 700; }
+.screen-desc { font-size: 0.8rem; opacity: 0.75; }
+.mockup-caption {
+  background: #f8fafc; padding: 0.625rem 1rem;
+  font-size: 0.78rem; color: #64748b; font-weight: 500;
+  border-top: 1px solid #e2e8f0; text-align: center;
+}
+
+/* ===== ACCORDION ===== */
+.accordion-item { border-bottom: 1px solid #f1f5f9; }
+.accordion-item:last-child { border-bottom: none; }
+.accordion-trigger {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 0; cursor: pointer; font-weight: 600; color: #334155;
+  font-size: 0.9rem; background: none; border: none; text-align: right;
+  font-family: 'Heebo', sans-serif;
+}
+.accordion-trigger:hover { color: #4f46e5; }
+.accordion-trigger .chevron { transition: transform 0.2s; color: #94a3b8; }
+.accordion-trigger.open .chevron { transform: rotate(180deg); }
+.accordion-body { display: none; padding: 0 0 1rem; color: #475569; font-size: 0.875rem; line-height: 1.75; }
+.accordion-body.open { display: block; }
+
+/* ===== SEARCH ===== */
+.search-hidden { display: none !important; }
+mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-right: 0; }
+  #mobile-nav { display: block; }
+  #hero { padding: 2rem 1.25rem 3rem; }
+  .hero-title { font-size: 1.75rem; }
+  #content { padding: 1.25rem 1rem 4rem; }
+  .card-header { padding: 1.25rem 1.25rem 1rem; }
+  .card-body { padding: 1.25rem; }
+  .hero-search { flex-direction: column; }
+}
+
+/* ===== BACK TO TOP ===== */
+#back-to-top {
+  position: fixed; bottom: 1.5rem; left: 1.5rem;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: #4f46e5; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; cursor: pointer; z-index: 100;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.4);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s; border: none;
+}
+#back-to-top.visible { opacity: 1; pointer-events: auto; }
+#back-to-top:hover { transform: translateY(-2px); }
+
+#progress-bar {
+  position: fixed; top: 0; right: 0; left: 0; height: 3px;
+  background: linear-gradient(to left, #a855f7, #4f46e5);
+  transform-origin: right; transform: scaleX(0);
+  z-index: 999; transition: transform 0.1s;
+}
+</style>
 </head>
-<body class="text-slate-800 antialiased pb-20">
+<body>
 
-    <header class="bg-indigo-900 text-white pt-16 pb-20 px-6 relative overflow-hidden text-center shadow-xl">
-        <a href="/business.html" class="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/10 hover:bg-white/20 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold backdrop-blur-sm transition flex items-center gap-2 border border-white/20 z-20 shadow-sm cursor-pointer">
-            <i class="fa-solid fa-arrow-right"></i> חזרה למערכת
-        </a>
-        <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl"></div>
-        <div class="absolute -left-20 -bottom-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
-        <div class="relative z-10 max-w-3xl mx-auto">
-            <img src="/logo.png" alt="Oneflow Logo" class="h-16 w-auto mx-auto mb-6 drop-shadow-lg" onerror="this.style.display='none'">
-            <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight leading-tight">Oneflow Life BIZ</h1>
-            <p class="text-indigo-200 text-lg md:text-xl font-medium max-w-xl mx-auto leading-relaxed">המדריך השלם לניהול העסק, העובדים והלקוחות מתוך פלטפורמה אחת חכמה.</p>
-        </div>
-    </header>
+<div id="progress-bar"></div>
 
-    <div class="sticky top-0 z-40 bg-slate-50/90 backdrop-blur-md border-b border-slate-200 py-3 shadow-sm mb-6">
-        <div class="max-w-4xl mx-auto px-4 flex gap-3 overflow-x-auto hide-scrollbar pt-1 pb-2">
-            <a href="#intro" class="nav-chip active-chip">מבוא</a>
-            <a href="#dashboard" class="nav-chip">לוח בקרה</a>
-            <a href="#pos" class="nav-chip">קופה וחנות</a>
-            <a href="#procurement" class="nav-chip">רכש ספקים</a>
-            <a href="#inventory" class="nav-chip">מלאי ורווחיות</a>
-            <a href="#hr" class="nav-chip">צוות עובדים</a>
-            <a href="#marketing" class="nav-chip">שיווק וקהילות</a>
-            <a href="#academy" class="nav-chip">אקדמיה</a>
-            <a href="#storefront" class="nav-chip">חנות ציבורית</a>
-        </div>
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
+    <span>OneFlow BIZ</span>
+  </div>
+  <div class="sidebar-section-label">התחלה</div>
+  <a class="nav-link active" href="#quick-start" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-rocket"></i></span> התחלה מהירה</a>
+  <a class="nav-link" href="#dashboard" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-gauge"></i></span> לוח בקרה</a>
+  <div class="sidebar-section-label">מכירות</div>
+  <a class="nav-link" href="#pos" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-cash-register"></i></span> קופה וקטלוג</a>
+  <a class="nav-link" href="#orders" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-bag-shopping"></i></span> הזמנות</a>
+  <a class="nav-link" href="#quotes" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-file-invoice"></i></span> הצעות מחיר</a>
+  <a class="nav-link" href="#storefront" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-store"></i></span> חנות ציבורית</a>
+  <div class="sidebar-section-label">רכש ומלאי</div>
+  <a class="nav-link" href="#suppliers" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-truck"></i></span> ספקים</a>
+  <a class="nav-link" href="#inventory" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span> מלאי ועלויות</a>
+  <div class="sidebar-section-label">עובדים</div>
+  <a class="nav-link" href="#hr" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> עובדים ונוכחות</a>
+  <a class="nav-link" href="#tasks" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-list-check"></i></span> משימות ובונוסים</a>
+  <a class="nav-link" href="#academy" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-graduation-cap"></i></span> אקדמיה</a>
+  <a class="nav-link" href="#calendar" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span> יומן ומשמרות</a>
+  <div class="sidebar-section-label">לקוחות ושיווק</div>
+  <a class="nav-link" href="#crm" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-address-book"></i></span> ניהול לקוחות</a>
+  <a class="nav-link" href="#surveys" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-clipboard-question"></i></span> סקרים</a>
+  <a class="nav-link" href="#community" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-people-group"></i></span> קהילות ושיווק</a>
+  <div class="sidebar-section-label">פיננסים</div>
+  <a class="nav-link" href="#cashflow" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span> תזרים מזומנים</a>
+  <a class="nav-link" href="#b2b" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-handshake"></i></span> B2B חשבונות</a>
+  <div class="sidebar-section-label">כלים</div>
+  <a class="nav-link" href="#ai" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-robot"></i></span> כלי AI</a>
+  <a class="nav-link" href="#settings" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-gear"></i></span> הגדרות</a>
+  <a class="nav-link" href="#faq" onclick="setActive(this)"><span class="nav-icon"><i class="fa-solid fa-circle-question"></i></span> שאלות נפוצות</a>
+</nav>
+
+<!-- MOBILE NAV -->
+<div id="mobile-nav">
+  <div class="mobile-nav-inner">
+    <span class="chip" onclick="goTo('quick-start')">🚀 התחלה</span>
+    <span class="chip" onclick="goTo('dashboard')">📊 לוח בקרה</span>
+    <span class="chip" onclick="goTo('pos')">🏪 קופה</span>
+    <span class="chip" onclick="goTo('orders')">📦 הזמנות</span>
+    <span class="chip" onclick="goTo('quotes')">📄 הצעות</span>
+    <span class="chip" onclick="goTo('storefront')">🛍️ חנות</span>
+    <span class="chip" onclick="goTo('suppliers')">🚚 ספקים</span>
+    <span class="chip" onclick="goTo('inventory')">📋 מלאי</span>
+    <span class="chip" onclick="goTo('hr')">👥 עובדים</span>
+    <span class="chip" onclick="goTo('tasks')">✅ משימות</span>
+    <span class="chip" onclick="goTo('academy')">🎓 אקדמיה</span>
+    <span class="chip" onclick="goTo('calendar')">📅 יומן</span>
+    <span class="chip" onclick="goTo('crm')">📇 לקוחות</span>
+    <span class="chip" onclick="goTo('surveys')">📝 סקרים</span>
+    <span class="chip" onclick="goTo('community')">🌐 קהילה</span>
+    <span class="chip" onclick="goTo('cashflow')">💹 תזרים</span>
+    <span class="chip" onclick="goTo('ai')">🤖 AI</span>
+    <span class="chip" onclick="goTo('faq')">❓ FAQ</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- HERO -->
+  <section id="hero">
+    <div style="position:relative;z-index:1">
+      <div class="hero-badge"><i class="fa-solid fa-briefcase"></i> מדריך מלא לעסקים</div>
+      <h1 class="hero-title">OneFlow BIZ<br>המדריך המלא</h1>
+      <p class="hero-sub">כל מה שצריך לדעת כדי לנהל את העסק שלך בצורה חכמה — קופה, מלאי, עובדים, לקוחות ועוד.</p>
+      <div class="hero-search">
+        <input type="search" id="search-input" placeholder="חפש נושא... (קופה, חשבונית, עובד)" oninput="handleSearch(this.value)">
+        <button onclick="handleSearch(document.getElementById('search-input').value)"><i class="fa-solid fa-magnifying-glass"></i> חפש</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num">18</div><div class="lbl">מודולים</div></div>
+        <div class="hero-stat"><div class="num">120+</div><div class="lbl">צעדי הדרכה</div></div>
+        <div class="hero-stat"><div class="num">40+</div><div class="lbl">טיפים מקצועיים</div></div>
+      </div>
     </div>
+  </section>
 
-    <main class="max-w-4xl mx-auto px-4 relative z-20">
-        
-        <div id="intro" class="guide-card">
-            <div class="guide-icon bg-indigo-50 text-indigo-600"><i class="fa-solid fa-rocket"></i></div>
-            <h2 class="guide-section-title">ברוכים הבאים למערכת BIZ</h2>
-            <p class="guide-text">Oneflow Life BIZ תוכננה לרכז את כל הכלים שהעסק שלך צריך במקום אחד: מקופה וירטואלית, דרך ניהול ספקים ומלאי, ועד שעון נוכחות מבוסס GPS לעובדים. המערכת מבוססת על מנוע AI שעוזר לך לקבל החלטות בזמן אמת ולהוזיל עלויות.</p>
-            
-            <img src="/guide-biz-intro.png" class="guide-img" alt="סקירת מערכת BIZ" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת סקירת מערכת - תתווסף בקרוב</span></div>'">
+  <!-- CONTENT SECTIONS -->
+  <div id="content">
 
-            <div class="highlight-box mt-6">
-                <i class="fa-solid fa-lightbulb mr-2"></i> טיפ: השתמשו בתפריט הצד (אייקון 3 השורות העליון) כדי לנווט במהירות בין מודולי המערכת השונים.
+    <!-- ===== 1. QUICK START ===== -->
+    <section id="quick-start">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eef2ff;color:#4f46e5"><i class="fa-solid fa-rocket"></i></div>
+        <div>
+          <div class="card-title">התחלה מהירה</div>
+          <div class="card-subtitle">5 צעדים והעסק שלך פועל במלואו — תוך פחות מ-10 דקות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">פתח חשבון עסקי</div>
+              <div class="step-desc">עבור ל-oneflowlife.co.il, לחץ "הצטרף כעסק" והזן שם עסק, אימייל וסיסמה. תקבל אימות בדוא"ל תוך דקה.</div>
             </div>
-        </div>
-
-        <div id="dashboard" class="guide-card">
-            <div class="guide-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-chart-pie"></i></div>
-            <h2 class="guide-section-title">1. לוח בקרה ואנליטיקה (Dashboard)</h2>
-            <p class="guide-text">המסך הראשי ממנו מנהלים את העסק במבט-על. מרכז את כל הנתונים החיים:</p>
-            <ul class="guide-list">
-                <li><strong>סקירה פיננסית:</strong> מחזור הכנסות יומי/חודשי, הוצאות (ספקים/שכר) והרווח הנקי.</li>
-                <li><strong>דופק חי (Live Pulse):</strong> פיד המתעדכן בזמן אמת על כל פעולה שמתבצעת.</li>
-                <li><strong>אנליסט AI:</strong> לחיצה על כפתור התובנות מפיקה דוח חכם שמנתח את המכירות והמלאי.</li>
-            </ul>
-            
-            <img src="/guide-biz-dashboard.png" class="guide-img" alt="לוח בקרה עסקי" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת לוח בקרה (Dashboard) - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="pos" class="guide-card">
-            <div class="guide-icon bg-emerald-50 text-emerald-600"><i class="fa-solid fa-cash-register"></i></div>
-            <h2 class="guide-section-title">2. קופה וירטואלית והצעות מחיר (Store & POS)</h2>
-            <p class="guide-text">הלב הפועם של המכירות בעסק - קופה מהירה, קטלוג חכם וניהול עגלות.</p>
-            <ul class="guide-list">
-                <li><strong>ניהול קטלוג (Menu/Products):</strong> הוספת מוצרים, סיווג לקטגוריות, תמונות, והגדרת "מפרט מורכב".</li>
-                <li><strong>ביצוע הזמנה (Checkout):</strong> הוספת פריטים לעגלה, פרטי לקוח, ובחירה בין איסוף למשלוח.</li>
-                <li><strong>הצעות מחיר (Quotes):</strong> בניית הצעה לאירוע או לקוח B2B ושמירתה כ"הצעה" לאישור עתידי.</li>
-            </ul>
-            
-            <img src="/guide-biz-pos.png" class="guide-img" alt="ממשק קופה וחנות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת הקופה - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="procurement" class="guide-card">
-            <div class="guide-icon bg-amber-50 text-amber-600"><i class="fa-solid fa-truck-fast"></i></div>
-            <h2 class="guide-section-title">3. רכש ספקים (B2B Procurement)</h2>
-            <p class="guide-text">מודול המייעל את רכש חומרי הגלם ומונע טעויות מול ספקים.</p>
-            <ul class="guide-list">
-                <li><strong>ניהול ספקים:</strong> הגדרת פרטי הספק, מינימום הזמנה, ימי חלוקה ושעות קאט-אוף.</li>
-                <li><strong>הזמנות רכש (PO):</strong> יצירת עגלת רכש ושליחת מייל אוטומטי עם PDF לספק.</li>
-                <li><strong>קבלת סחורה:</strong> סימון פריטים שהגיעו לעדכון מלאי אוטומטי ויצירת השלמות לחוסרים.</li>
-            </ul>
-            
-            <img src="/guide-biz-procurement.png" class="guide-img" alt="ניהול רכש וספקים" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת רכש וספקים - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="inventory" class="guide-card">
-            <div class="guide-icon bg-rose-50 text-rose-600"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <h2 class="guide-section-title">4. מלאי ועץ מוצר (Inventory & Food Cost)</h2>
-            <p class="guide-text">שליטה הדוקה בחומרי הגלם וניתוח רווחיות של כל מנה או מוצר בעסק.</p>
-            <ul class="guide-list">
-                <li><strong>פוד-קוסט (Bill of Materials):</strong> קישור מרכיבים למוצר לחישוב רווחיות מדויקת.</li>
-                <li><strong>תחזית מלאי:</strong> עוזרת ה-AI מתריעה על מוצרים שעומדים להיגמר על סמך קצב המכירה.</li>
-            </ul>
-            
-            <img src="/guide-biz-inventory.png" class="guide-img" alt="ניהול מלאי ועלויות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת ניהול מלאי - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="hr" class="guide-card">
-            <div class="guide-icon bg-purple-50 text-purple-600"><i class="fa-solid fa-users-gear"></i></div>
-            <h2 class="guide-section-title">5. צוות עובדים ושעון נוכחות (HR)</h2>
-            <p class="guide-text">ניהול מלא של כוח האדם בעסק - משעות עבודה ועד משימות ובונוסים.</p>
-            <ul class="guide-list">
-                <li><strong>שעון נוכחות GPS:</strong> דיווח כניסה ויציאה מאובטח רק בתוך שטח העסק.</li>
-                <li><strong>אישור משימות ב-AI:</strong> העובד מעלה תמונה של סיום המשימה והמערכת מאשרת לו בונוס.</li>
-            </ul>
-            
-            <img src="/guide-biz-hr.png" class="guide-img" alt="ניהול עובדים ונוכחות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שעון נוכחות וצוות - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="marketing" class="guide-card">
-            <div class="guide-icon bg-teal-50 text-teal-600"><i class="fa-solid fa-bullhorn"></i></div>
-            <h2 class="guide-section-title">6. קהילות, שיווק ומועדון לקוחות</h2>
-            <p class="guide-text">חיבור העסק למעגלי קנייה קהילתיים וניהול מועדון לקוחות נאמנים.</p>
-            <ul class="guide-list">
-                <li><strong>חיבור לקהילות:</strong> הצגת החנות שלך למאות משפחות באזור מגוריך בתמורה להטבה.</li>
-                <li><strong>מבצעים ובאנרים:</strong> יצירת מבצעי 1+1 או הנחות שקופצות כבאנר ללקוחות החנות.</li>
-            </ul>
-            
-            <img src="/guide-biz-marketing.png" class="guide-img" alt="קהילות ושיווק" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת שיווק וקהילות - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="academy" class="guide-card">
-            <div class="guide-icon bg-orange-50 text-orange-600"><i class="fa-solid fa-graduation-cap"></i></div>
-            <h2 class="guide-section-title">7. אקדמיה ונהלים (Academy)</h2>
-            <p class="guide-text">הדרך החכמה להכשיר עובדים חדשים ולשמור על סטנדרט מקצועי גבוה.</p>
-            <ul class="guide-list">
-                <li><strong>מבחני AI אוטומטיים:</strong> יצירת מבחני הסמכה בשניות לפי נושאים מקצועיים.</li>
-                <li><strong>בונוס למידה:</strong> תגמול כספי אוטומטי לעובד שעובר את המבחן בהצלחה.</li>
-            </ul>
-            
-            <img src="/guide-biz-academy.png" class="guide-img" alt="אקדמיה והכשרות" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת מערכת האקדמיה - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div id="storefront" class="guide-card">
-            <div class="guide-icon bg-cyan-50 text-cyan-600"><i class="fa-solid fa-globe"></i></div>
-            <h2 class="guide-section-title">8. חנות ציבורית ומכירות אונליין (Public Storefront)</h2>
-            <p class="guide-text">כל עסק ב-Oneflow BIZ מקבל דף חנות ציבורי מעוצב המאפשר ללקוחות קצה להזמין ישירות מהסמארטפון ללא צורך באפליקציה.</p>
-            <ul class="guide-list">
-                <li><strong>כתובת ייחודית (Alias):</strong> הגדרת כינוי אישי לחנות (למשל: oneflow.life/pizzatuvia) לשיתוף קל ברשתות חברתיות.</li>
-                <li><strong>קטלוג לקוח:</strong> הצגת מוצרים נבחרים מהקטלוג עם תמונות, תיאורי AI ומחירים עדכניים.</li>
-                <li><strong>חיבור לוואטסאפ:</strong> הזמנות שמתבצעות בחנות הציבורית יכולות להישלח ישירות לוואטסאפ של העסק או להיכנס למערכת ניהול ההזמנות ב-POS.</li>
-                <li><strong>מיתוג אישי:</strong> אפשרות להעלות לוגו ובאנר עליון ייעודי לחנות הציבורית דרך הגדרות החנות.</li>
-            </ul>
-            
-            <img src="/guide-biz-storefront.png" class="guide-img" alt="חנות ציבורית" onerror="this.outerHTML='<div class=\'guide-img-fallback\'><i class=\'fa-regular fa-image text-3xl mb-2 text-slate-300\'></i><span>תמונת החנות הציבורית - תתווסף בקרוב</span></div>'">
-        </div>
-
-        <div class="text-center py-6 mb-8">
-            <p class="text-slate-500 text-sm font-medium">יש לכם שאלה שלא נענתה כאן? לחצו על סמל העוזרת הווירטואלית בפינה התחתונה!</p>
-        </div>
-
-    </main>
-
-    <div id="guide-chat-window" class="fixed bottom-28 right-4 sm:right-6 z-[9999] hidden w-[90vw] sm:w-[380px] max-h-[70vh] bg-slate-50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 flex flex-col transition-all duration-300 origin-bottom-right transform scale-95 opacity-0 overflow-hidden">
-        
-        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0 shadow-md relative z-10">
-            <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-inner border border-indigo-400 overflow-hidden relative shrink-0 bg-white/20 backdrop-blur-md">
-                    <i class="fa-solid fa-robot text-white z-10 absolute" id="chat-robot-icon"></i>
-                    <img src="/logo.png" id="ai-chat-avatar" class="w-full h-full object-contain relative z-20 bg-white" 
-                         onload="document.getElementById('chat-robot-icon').style.display='none';" 
-                         onerror="this.style.display='none'; document.getElementById('chat-robot-icon').style.display='block';">
-                </div>
-                <div>
-                    <h3 class="font-bold text-lg leading-none tracking-wide">FamliAI BIZ</h3>
-                    <p class="text-indigo-200 text-[10px] mt-1 uppercase tracking-wider font-bold">העוזרת הווירטואלית שלך</p>
-                </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הגדר פרופיל עסק</div>
+              <div class="step-desc">בהגדרות ← עסק: הוסף לוגו, כתובת, מספר טלפון וקטגוריה. הפרטים יופיעו בחשבוניות ובחנות הציבורית שלך.</div>
             </div>
-            <button onclick="toggleGuideChat()" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        
-        <div id="guide-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col hide-scrollbar relative z-0">
-            <div class="bg-white p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-700 self-start max-w-[85%] leading-relaxed text-sm">
-                שלום! 👋 אני עוזרת ה-AI של המערכת. אני מכירה את המדריך לעסקים בעל פה. מוזמנים לשאול אותי כל שאלה על איך לתפעל מודול מסוים (למשל: "איך עובד שעון הנוכחות?").
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הוסף מוצרים לקטלוג</div>
+              <div class="step-desc">לחץ על "קטלוג" ← "+ מוצר חדש". הזן שם, מחיר, קטגוריה ותמונה (אופציונלי). המוצר מופיע מיד בקופה ובחנות.</div>
             </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">הזמן עובד ראשון</div>
+              <div class="step-desc">לחץ "עובדים" ← "הזמן עובד" ← הזן אימייל. העובד יקבל הזמנה ויוכל להתחבר עם הרשאות שתגדיר.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">בצע מכירה ראשונה</div>
+              <div class="step-desc">לחץ על "קופה" בתחתית המסך. בחר מוצרים, הוסף ללקוח (אופציונלי) ולחץ "גבה". המכירה נרשמת ומתעדכנת בתזרים.</div>
+            </div>
+          </div>
         </div>
-        
-        <div class="p-3 bg-white border-t border-slate-200 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
-            <form id="guide-chat-form" onsubmit="sendGuideMessage(event)" class="flex gap-2 relative items-center">
-                <input type="text" id="guide-chat-input" class="w-full bg-slate-100 border border-transparent focus:border-indigo-300 focus:bg-white transition-all duration-200 rounded-full py-3 pr-4 pl-14 text-sm outline-none text-slate-700" placeholder="הקלידו שאלה כאן..." autocomplete="off">
-                <button type="submit" class="absolute left-1.5 w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-md hover:scale-105 active:scale-95">
-                    <i class="fa-solid fa-paper-plane text-sm -translate-x-0.5"></i>
-                </button>
-            </form>
+
+        <div class="mockup" style="margin-top:1.5rem">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">oneflowlife.co.il/business</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff)">
+            <div class="screen-icon">🚀</div>
+            <div class="screen-title" style="color:#4f46e5">ברוך הבא לOneFlow BIZ</div>
+            <div class="screen-desc" style="color:#6366f1">5 צעדים להפעלת העסק שלך</div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.5rem">
+              <span style="background:#4f46e5;color:white;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700">① פרופיל</span>
+              <span style="background:#7c3aed;color:white;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700">② מוצרים</span>
+              <span style="background:#a855f7;color:white;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700">③ עובדים</span>
+              <span style="background:#6366f1;color:white;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700">④ קופה</span>
+              <span style="background:#8b5cf6;color:white;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700">⑤ מכירה</span>
+            </div>
+          </div>
+          <div class="mockup-caption">מסך הקדמה בכניסה ראשונה לחשבון עסקי חדש</div>
         </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>טיפ:</strong> ניתן לייבא קטלוג קיים מ-Excel באמצעות "ייבא מוצרים" בתפריט הקטלוג. חוסך הרבה זמן בהקמה ראשונית.</div>
+        </div>
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>חשוב לדעת:</strong> OneFlow BIZ עובד מצוין גם ממובייל. כל הפעולות זמינות מהטלפון — אפשר לנהל את העסק מכל מקום.</div>
+        </div>
+      </div>
     </div>
+    </section>
 
-    <div class="fixed bottom-6 right-4 sm:right-6 z-[9999] group cursor-pointer" onclick="toggleGuideChat()">
-        <div class="relative w-16 h-16">
-            <button id="guide-fab" class="w-full h-full bg-white rounded-full shadow-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300 border-4 border-white overflow-hidden relative outline-none p-1">
-                <i class="fa-solid fa-robot text-slate-700 z-10 absolute" id="fab-robot-icon"></i>
-                <img src="/logo.png" id="ai-fab-avatar" class="w-full h-full object-contain relative z-20 bg-white" 
-                     onload="document.getElementById('fab-robot-icon').style.display='none';" 
-                     onerror="this.style.display='none'; document.getElementById('fab-robot-icon').style.display='block';">
+    <!-- ===== 2. DASHBOARD ===== -->
+    <section id="dashboard">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4;color:#16a34a"><i class="fa-solid fa-gauge"></i></div>
+        <div>
+          <div class="card-title">לוח בקרה</div>
+          <div class="card-subtitle">המבט הכולל על העסק — מכירות, תזרים, עובדים ומשימות פתוחות במקום אחד</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <p style="color:#475569;font-size:0.9rem;line-height:1.75;margin-bottom:1.25rem">
+          לוח הבקרה הוא ה"בית" של המנהל. בכל כניסה תראה את המצב הנוכחי של העסק: כמה מכרת היום, כמה הזמנות פתוחות, מי נכח היום ואיזה משימות מחכות לטיפול.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">כרטיסי סיכום עליון</div>
+              <div class="step-desc">4 כרטיסים: מכירות היום, הכנסה חודשית, הזמנות פתוחות ועובדים פעילים. לחיצה על כל כרטיס פותחת את הפירוט המלא.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">גרף מכירות שבועי</div>
+              <div class="step-desc">גרף עמודות שמציג את המכירות היומיות בשבוע האחרון. ריחוף על עמודה מראה את הפירוט לאותו יום.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הזמנות אחרונות</div>
+              <div class="step-desc">רשימת 5 ההזמנות האחרונות עם סטטוס. לחיצה על הזמנה פותחת את הפרטים המלאים ואפשרות לעדכן סטטוס.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">משימות פתוחות</div>
+              <div class="step-desc">רשימת המשימות שלא הושלמו — עם דד-ליין ואחראי. ניתן לסמן כהושלם ישירות מלוח הבקרה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">התראות חכמות</div>
+              <div class="step-desc">OneFlow מזהה אוטומטית מלאי נמוך, חשבוניות שלא שולמו ועובדים שלא שקלו/פרשו. ההתראות מוצגות בצבע אדום/כתום.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mockup">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">לוח בקרה — OneFlow BIZ</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);padding:1.5rem">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;width:100%;margin-bottom:1rem">
+              <div style="background:white;border-radius:0.75rem;padding:0.875rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+                <div style="font-size:1.4rem;font-weight:900;color:#16a34a">₪2,450</div>
+                <div style="font-size:0.7rem;color:#64748b">מכירות היום</div>
+              </div>
+              <div style="background:white;border-radius:0.75rem;padding:0.875rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+                <div style="font-size:1.4rem;font-weight:900;color:#4f46e5">7</div>
+                <div style="font-size:0.7rem;color:#64748b">הזמנות פתוחות</div>
+              </div>
+              <div style="background:white;border-radius:0.75rem;padding:0.875rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+                <div style="font-size:1.4rem;font-weight:900;color:#f59e0b">5</div>
+                <div style="font-size:0.7rem;color:#64748b">עובדים פעילים</div>
+              </div>
+              <div style="background:white;border-radius:0.75rem;padding:0.875rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+                <div style="font-size:1.4rem;font-weight:900;color:#ef4444">3</div>
+                <div style="font-size:0.7rem;color:#64748b">התראות</div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">לוח בקרה עסקי — 4 כרטיסי KPI עיקריים</div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>טיפ:</strong> לחץ על הכרטיסייה "AI תובנות" בלוח הבקרה — OneFlow ינתח את הנתונים ויציע המלצות אוטומטיות לשיפור.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 3. POS ===== -->
+    <section id="pos">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fff7ed;color:#ea580c"><i class="fa-solid fa-cash-register"></i></div>
+        <div>
+          <div class="card-title">קופה וקטלוג</div>
+          <div class="card-subtitle">מכירה מהירה, ניהול מוצרים, הנחות וקופון — הכל בממשק אחד</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <p style="color:#475569;font-size:0.9rem;line-height:1.75;margin-bottom:1.25rem">
+          מודול הקופה תוכנן לעבודה מהירה — בחר מוצר, הוסף כמות, גבה. הקטלוג מסונכרן בזמן אמת עם המלאי ועם החנות הציבורית.
+        </p>
+        <div style="font-weight:700;color:#1e293b;margin-bottom:0.75rem;font-size:0.95rem">ביצוע מכירה:</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">פתח קופה</div>
+              <div class="step-desc">לחץ על כרטיסיית "קופה" בתחתית המסך. הקטלוג נטען עם כל המוצרים הפעילים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">בחר מוצרים</div>
+              <div class="step-desc">חפש לפי שם/ברקוד, או עיין בקטגוריות. לחיצה על מוצר מוסיפה אותו לסל. לחץ שוב להוסיף עוד יחידה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הוסף לקוח (אופציונלי)</div>
+              <div class="step-desc">חפש לקוח קיים או הוסף חדש. שיוך לקוח מאפשר היסטוריית קניות, נקודות נאמנות ותזכורות עתידיות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">הוסף הנחה / קופון</div>
+              <div class="step-desc">לחץ "הנחה" להזין % או סכום קבוע. הזן קוד קופון בשדה המיוחד — המערכת מאמתת ומחשבת אוטומטית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">בחר אמצעי תשלום וגבה</div>
+              <div class="step-desc">מזומן, כרטיס, ביט, העברה בנקאית או קרדיט ללקוח. לחץ "גבה" — חשבונית נוצרת אוטומטית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">6</div>
+            <div>
+              <div class="step-title">שלח חשבונית</div>
+              <div class="step-desc">לאחר הגבייה — שלח ב-WhatsApp, אימייל או SMS. ניתן גם להדפיס ישירות למדפסת קופה.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">ניהול קטלוג:</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הוסף מוצר חדש</div>
+              <div class="step-desc">קטלוג ← "+ מוצר". שדות: שם, תיאור, מחיר, עלות (לחישוב רווח), קטגוריה, ברקוד, תמונה וסטטוס מלאי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">קטגוריות ותגיות</div>
+              <div class="step-desc">ארגן מוצרים בקטגוריות (משקאות, מזון, ביגוד...) ותגיות (מבצע, חדש, ויגן). מסנן קל בקופה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">מחירונים מרובים</div>
+              <div class="step-desc">הגדר מחיר מחירון לכל לקוח/קבוצה. לדוגמה: לקוח VIP משלם 15% פחות אוטומטית.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>קיצור דרך:</strong> סרוק ברקוד עם מצלמת הטלפון — המוצר מתווסף לסל מיידית, אפילו בלי לחפש.</div>
+        </div>
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>שים לב:</strong> מוצר עם "עלות 0" ישפיע על חישובי הרווחיות בדוחות. הזן תמיד את עלות הרכישה האמיתית.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 4. ORDERS ===== -->
+    <section id="orders">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fef3c7;color:#d97706"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div>
+          <div class="card-title">ניהול הזמנות</div>
+          <div class="card-subtitle">עקוב אחר כל הזמנה — מרגע הכנסת הפרטים ועד מסירה ותשלום</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור הזמנה חדשה</div>
+              <div class="step-desc">הזמנות ← "+ הזמנה חדשה". בחר לקוח, הוסף פריטים מהקטלוג, הגדר תאריך אספקה ועדיפות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">סטטוסים חכמים</div>
+              <div class="step-desc">כל הזמנה עוברת שלבים: ממתינה → אושרה → בביצוע → מוכנה → נמסרה. לחץ על הסטטוס לעדכון מיידי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">שלח עדכון ללקוח</div>
+              <div class="step-desc">לאחר כל שינוי סטטוס — לחץ "הודע ללקוח". ההודעה נשלחת ב-WhatsApp או SMS אוטומטית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">הזמנות מהחנות הציבורית</div>
+              <div class="step-desc">הזמנות שהלקוח ביצע ב-storefront מגיעות אוטומטית לרשימה — עם פרטי תשלום ומשלוח.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">הפק חשבונית</div>
+              <div class="step-desc">בסיום — לחץ "הפק חשבונית" ישירות מדף ההזמנה. ניתן לשלוח מיידית ללקוח.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>סינון וחיפוש:</strong> ניתן לסנן הזמנות לפי סטטוס, לקוח, טווח תאריכים ועדיפות. השתמש בשדה החיפוש למעלה.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 5. QUOTES ===== -->
+    <section id="quotes">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4;color:#15803d"><i class="fa-solid fa-file-invoice"></i></div>
+        <div>
+          <div class="card-title">הצעות מחיר</div>
+          <div class="card-subtitle">שלח הצעות מחיר מקצועיות בדקות — עם מעקב ואישור אונליין</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור הצעה חדשה</div>
+              <div class="step-desc">הצעות מחיר ← "+ הצעה חדשה". בחר לקוח, הוסף פריטים מהקטלוג או פריטים חופשיים, כתוב הערות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הגדר תוקף ותנאים</div>
+              <div class="step-desc">קבע תאריך תפוגה להצעה. הוסף תנאי תשלום (30 ימים, מראש, 50% מקדמה) ותנאי ביטול.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">שלח ללקוח</div>
+              <div class="step-desc">OneFlow מייצר קישור ייחודי לכל הצעה. הלקוח יכול לצפות, להוריד PDF ולאשר — הכל בדפדפן, בלי אפליקציה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">מעקב ותזכורות</div>
+              <div class="step-desc">ראה מתי הלקוח פתח את ההצעה. קבל תזכורת אם לא נענה תוך 48 שעות. ניתן לשלוח תזכורת ידנית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">המר להזמנה</div>
+              <div class="step-desc">לאחר אישור הלקוח — לחץ "המר להזמנה". כל הפרטים עוברים אוטומטית, בלי להזין שוב.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>תבניות:</strong> שמור הצעות קיימות כתבניות לשימוש חוזר — מועיל לעסקים עם שירותים חוזרים.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 6. STOREFRONT ===== -->
+    <section id="storefront">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fdf4ff;color:#9333ea"><i class="fa-solid fa-store"></i></div>
+        <div>
+          <div class="card-title">חנות ציבורית</div>
+          <div class="card-subtitle">חנות אונליין מוכנה לעסק שלך — ללא קידוד, ללא דמי הקמה</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הפעל את החנות</div>
+              <div class="step-desc">הגדרות ← חנות ציבורית ← "הפעל". החנות נוצרת מיד בכתובת: oneflowlife.co.il/store/[שם-העסק]</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">ערוך עיצוב</div>
+              <div class="step-desc">העלה תמונת banner, בחר צבע ראשי, הוסף תיאור קצר ושעות פעילות. עיצוב חכם ומובייל-פרסט.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הגדר אפשרויות משלוח</div>
+              <div class="step-desc">בחר בין: איסוף עצמי, משלוח קבוע (מחיר ותנאים), משלוח חינם מעל סכום מסוים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">שתף את הקישור</div>
+              <div class="step-desc">שלח ב-WhatsApp, הוסף לאינסטגרם/ביו, הדפס QR code לחלון הרות. הלקוחות מזמינים ישירות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">קבל הזמנות</div>
+              <div class="step-desc">כל הזמנה מהחנות מגיעה אוטומטית למודול ההזמנות. קבל התראה בזמן אמת ב-WhatsApp.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mockup">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">oneflowlife.co.il/store/my-biz</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#fdf4ff,#fae8ff)">
+            <div class="screen-icon">🛍️</div>
+            <div class="screen-title" style="color:#9333ea">חנות הדוגמה שלי</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;width:100%;margin-top:0.5rem">
+              <div style="background:white;border-radius:0.5rem;padding:0.5rem;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.06)">
+                <div style="font-size:1.5rem">☕</div>
+                <div style="font-size:0.65rem;font-weight:700;color:#1e293b">קפה שחור</div>
+                <div style="font-size:0.65rem;color:#9333ea;font-weight:700">₪12</div>
+              </div>
+              <div style="background:white;border-radius:0.5rem;padding:0.5rem;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.06)">
+                <div style="font-size:1.5rem">🥐</div>
+                <div style="font-size:0.65rem;font-weight:700;color:#1e293b">קרואסון</div>
+                <div style="font-size:0.65rem;color:#9333ea;font-weight:700">₪18</div>
+              </div>
+              <div style="background:white;border-radius:0.5rem;padding:0.5rem;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.06)">
+                <div style="font-size:1.5rem">🍰</div>
+                <div style="font-size:0.65rem;font-weight:700;color:#1e293b">עוגת גבינה</div>
+                <div style="font-size:0.65rem;color:#9333ea;font-weight:700">₪35</div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">חנות ציבורית — מוצגת ללקוחות בדפדפן, ללא התחברות נדרשת</div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>QR Code:</strong> לחץ "הורד QR" בהגדרות החנות לקבלת קוד QR מוכן להדפסה — שים על דלפק, פלייר ותפריט.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 7. SUPPLIERS ===== -->
+    <section id="suppliers">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fff1f2;color:#e11d48"><i class="fa-solid fa-truck"></i></div>
+        <div>
+          <div class="card-title">ספקים וחשבוניות רכש</div>
+          <div class="card-subtitle">נהל את כל הספקים, הזמנות הרכש וחשבוניות הקנייה במקום אחד</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הוסף ספק</div>
+              <div class="step-desc">ספקים ← "+ ספק חדש". מלא שם, איש קשר, טלפון, אימייל ותנאי תשלום (30/60/90 ימים). הספק נשמר לשימוש עתידי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הזמנת רכש</div>
+              <div class="step-desc">ספקים ← בחר ספק ← "הזמנת רכש חדשה". בחר מוצרים מהקטלוג, כמויות ומחיר רכישה. המערכת שולחת PDF לספק.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">קבלת סחורה</div>
+              <div class="step-desc">עם הגעת הסחורה — לחץ "קבלה" על ההזמנה, הזן כמויות שהתקבלו. המלאי מתעדכן אוטומטית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">חשבונית ספק</div>
+              <div class="step-desc">העלה את חשבונית הספק (תמונה/PDF). המערכת מתאמת אוטומטית מול הזמנת הרכש ומדווחת על פערים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">ניהול תשלומים לספקים</div>
+              <div class="step-desc">ראה חשבוניות פתוחות לכל ספק, תאריך פירעון ויתרת חוב. סמן "שולם" עם פרטי תשלום.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>תזרים רכש:</strong> כל חשבונית ספק שנרשמה מעדכנת אוטומטית את תזרים המזומנים כהוצאה עתידית.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 8. INVENTORY ===== -->
+    <section id="inventory">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0f9ff;color:#0284c7"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div>
+          <div class="card-title">מלאי ועלויות</div>
+          <div class="card-subtitle">מעקב מלאי בזמן אמת, התראות מלאי נמוך וחישוב רווחיות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הגדר מלאי התחלתי</div>
+              <div class="step-desc">קטלוג ← בחר מוצר ← "עדכן מלאי". הזן כמות נוכחית ורמת מינימום (סף להתראה).</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">מעקב אוטומטי</div>
+              <div class="step-desc">כל מכירה מקופה / הזמנה שנסגרת מפחיתה אוטומטית מהמלאי. רכש שנתקבל מגדיל אוטומטית.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">התראות מלאי נמוך</div>
+              <div class="step-desc">כשמלאי מוצר מגיע לרמת המינימום — מופיעה התראה בלוח הבקרה ובהתראות הטלפון.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">ספירת מלאי ידנית</div>
+              <div class="step-desc">מלאי ← "ספירת מלאי חדשה". סרוק או הזן כמויות בפועל — המערכת מציגה פערים ומאפשרת תיקון.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">דוח רווחיות</div>
+              <div class="step-desc">מלאי ← "דוח רווחיות". רואים מחיר מכירה, עלות, מרווח ברוטו לכל מוצר — ממוין לפי ריווחיות.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>עלות מוצר:</strong> הקפד להזין עלות עדכנית לכל מוצר. הדוחות מבוססים על העלות שהגדרת.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 9. HR ===== -->
+    <section id="hr">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f5f3ff;color:#7c3aed"><i class="fa-solid fa-users"></i></div>
+        <div>
+          <div class="card-title">עובדים ונוכחות</div>
+          <div class="card-subtitle">הזמן עובדים, נהל שעות, שכר ותלושי משכורת — הכל דיגיטלי</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הזמן עובד</div>
+              <div class="step-desc">עובדים ← "הזמן עובד". הזן אימייל, תפקיד ורמת הרשאות. העובד מקבל מייל הזמנה ומתחבר עם פרופיל נפרד.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הגדר פרטי שכר</div>
+              <div class="step-desc">לכל עובד: שכר שעתי/חודשי, בונוסים, ניכויים, ימי חופשה. הנתונים משמשים לחישוב המשכורת.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">שעון נוכחות</div>
+              <div class="step-desc">העובד לוחץ "כניסה" / "יציאה" מהאפליקציה. מנהל יכול לראות נוכחות בזמן אמת ולערוך שעות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">דוח שעות חודשי</div>
+              <div class="step-desc">עובדים ← בחר עובד ← "דוח שעות". רואים סיכום שעות לפי יום, שבוע וחודש עם חישוב שכר אוטומטי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-title">הפק תלוש שכר</div>
+              <div class="step-desc">עובד ← "הפק תלוש" בסוף החודש. OneFlow מחשב ומייצר PDF מוכן לשליחה ולחתימה דיגיטלית.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>הרשאות:</strong> ניתן לתת לעובד הרשאת "קופאי" (קופה בלבד), "מנהל מלאי", "מנהל צוות" ועוד — שליטה מדויקת.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 10. TASKS ===== -->
+    <section id="tasks">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4;color:#16a34a"><i class="fa-solid fa-list-check"></i></div>
+        <div>
+          <div class="card-title">משימות ובונוסים</div>
+          <div class="card-subtitle">הגדר יעדים לעובדים, עקוב אחר ביצוע ותגמל אוטומטית</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור משימה</div>
+              <div class="step-desc">משימות ← "+ משימה חדשה". כותרת, תיאור, אחראי, עדיפות (גבוה/בינוני/נמוך), דד-ליין ונקודות בונוס.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">בונוסים אוטומטיים</div>
+              <div class="step-desc">הגדר שמשימה שהושלמה לפני הדד-ליין מזכה ב-X נקודות. העובד רואה את הנקודות ומוטיבציה עולה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">מעקב מנהל</div>
+              <div class="step-desc">לוח בקרה ← "משימות" — רואים כל המשימות, מי מאחר, מה הושלם. ניתן לשלוח תזכורת בלחיצה.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>תבניות חוזרות:</strong> ניתן להגדיר משימות חוזרות (ניקוי יומי, דוח שבועי) — ייוצרו אוטומטית בתאריך הנכון.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 11. ACADEMY ===== -->
+    <section id="academy">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fffbeb;color:#d97706"><i class="fa-solid fa-graduation-cap"></i></div>
+        <div>
+          <div class="card-title">אקדמיה פנים-עסקית</div>
+          <div class="card-subtitle">הכשר עובדים עם קורסים, חידונים ומעקב למידה — מבלי לצאת מהמערכת</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור קורס</div>
+              <div class="step-desc">אקדמיה ← "+ קורס חדש". כותרת, תיאור, תמונה ועד כמה שיעורים תרצה. כל שיעור = תוכן טקסט/וידאו + חידון.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">שייך לעובדים</div>
+              <div class="step-desc">לחץ "שייך קורס" ← בחר עובדים או תפקיד. כל עובד מקבל הודעה ורואה את הקורס בפרופיל שלו.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">עקוב אחר התקדמות</div>
+              <div class="step-desc">אקדמיה ← "דוח התקדמות". רואים לכל עובד: אחוז השלמה, ציון חידון ותאריך סיום.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>שימוש נפוץ:</strong> הכשרת עובד חדש, נהלי בטיחות, עדכוני תפריט/מוצרים, עמידה בתקנות.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 12. CALENDAR ===== -->
+    <section id="calendar">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eff6ff;color:#2563eb"><i class="fa-solid fa-calendar-days"></i></div>
+        <div>
+          <div class="card-title">יומן ומשמרות</div>
+          <div class="card-subtitle">ניהול לוח זמנים, פגישות, משמרות ואירועים לכל הצוות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הוסף אירוע</div>
+              <div class="step-desc">יומן ← "+ אירוע". כותרת, תיאור, תאריך ושעה, משתתפים מהצוות. כולם מקבלים התראה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">ניהול משמרות</div>
+              <div class="step-desc">יומן ← "תצוגת משמרות". הגדר משמרת (בוקר/ערב/לילה), שייך עובדים ואשר. העובד רואה את המשמרת באפליקציה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">תזכורות אוטומטיות</div>
+              <div class="step-desc">OneFlow שולח תזכורת לכל עובד 2 שעות לפני תחילת משמרת — WhatsApp או push notification.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>חיבור Google Calendar:</strong> ניתן לסנכרן עם Google Calendar כדי שאירועי OneFlow יופיעו ביומן האישי.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 13. CRM ===== -->
+    <section id="crm">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fff7ed;color:#c2410c"><i class="fa-solid fa-address-book"></i></div>
+        <div>
+          <div class="card-title">ניהול לקוחות (CRM)</div>
+          <div class="card-subtitle">ספר הלקוחות, היסטוריית קניות, תגיות ותקשורת — במקום אחד</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הוסף לקוח</div>
+              <div class="step-desc">לקוחות ← "+ לקוח חדש". שם, טלפון, אימייל, תאריך לידה, תגיות (VIP, ב2ב, בעייתי) ופרטים נוספים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">היסטוריית לקוח</div>
+              <div class="step-desc">לחץ על לקוח ← תראה: כל הקניות, הזמנות, חשבוניות, סקרים שמילא ותקשורת. תמונה מלאה של הלקוח.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">שלח הודעה</div>
+              <div class="step-desc">מדף הלקוח — לחץ "שלח הודעה" לשליחת WhatsApp/SMS ישירות. ניתן לשמור תבניות הודעות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">סגמנטציה</div>
+              <div class="step-desc">סנן לקוחות לפי תגית, היקף קנייה, תאריך קנייה אחרונה. ניתן לשלוח מסר מותאם לסגמנט.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>יום הולדת:</strong> OneFlow שולח אוטומטית ברכת יום הולדת + קופון ללקוחות שהזנת להם תאריך לידה.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 14. SURVEYS ===== -->
+    <section id="surveys">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fdf2f8;color:#be185d"><i class="fa-solid fa-clipboard-question"></i></div>
+        <div>
+          <div class="card-title">סקרים ומשוב לקוחות</div>
+          <div class="card-subtitle">צור סקרים מותאמים אישית, שלח ב-WhatsApp ועקוב אחר תוצאות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור סקר חדש</div>
+              <div class="step-desc">סקרים ← "+ סקר חדש". הוסף כותרת ושאלות: דירוג (1-5), בחירה מרובה, טקסט חופשי או NPS.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הפעל את הסקר</div>
+              <div class="step-desc">לחץ "הפעל" — הסקר מקבל קישור ייחודי. קובץ QR זמין להורדה להדפסה על שולחן / תפריט.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">שלח ב-WhatsApp</div>
+              <div class="step-desc">לחץ על כפתור ה-WhatsApp לצד הסקר הפעיל — נפתח חלון שיתוף עם טקסט מוכן הכולל שם הסקר ושם העסק.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">צפה בתוצאות</div>
+              <div class="step-desc">לחץ "תוצאות" על סקר שהופעל — ראה תרשימים, ציון ממוצע, תשובות חופשיות ומספר מילויים.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>מומלץ:</strong> שלח סקר שביעות רצון קצר (3 שאלות) לאחר כל שירות. שיפור ה-NPS מביא לצמיחה אורגנית.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 15. COMMUNITY ===== -->
+    <section id="community">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4;color:#15803d"><i class="fa-solid fa-people-group"></i></div>
+        <div>
+          <div class="card-title">קהילות ושיווק</div>
+          <div class="card-subtitle">הצטרף לקהילות עסקיות, פרסם מבצעים והגדל את קהל הלקוחות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">הצטרף לקהילה</div>
+              <div class="step-desc">קהילות ← "חפש קהילות". מצא קהילות לפי עיר / תחום / תעשייה ולחץ "הצטרף". פרופיל העסק שלך גלוי לחברים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">צור קהילה עצמאית</div>
+              <div class="step-desc">קהילות ← "צור קהילה חדשה". קבע שם, תיאור, תמונה ומדיניות הצטרפות (פתוחה / בקשה / קוד גישה).</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">פרסם מבצע</div>
+              <div class="step-desc">בקהילה — לחץ "+ פרסם". בחר "מבצע" ← הוסף כותרת, תיאור, תמונה ותוקף. חברי הקהילה רואים ומגיבים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">B2B — צור קשר עסקי</div>
+              <div class="step-desc">מפרופיל עסק בקהילה — לחץ "צור קשר עסקי". אפשרות לתמחר שירותים מיוחדים לעסקים אחרים בקהילה.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>שיווק אורגני:</strong> עסקים בקהילות OneFlow מדווחים על 20-30% יותר לקוחות חדשים מהמלצות בין-עסקיות.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 16. CASHFLOW ===== -->
+    <section id="cashflow">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eff6ff;color:#1d4ed8"><i class="fa-solid fa-chart-line"></i></div>
+        <div>
+          <div class="card-title">תזרים מזומנים</div>
+          <div class="card-subtitle">ניהול הכנסות, הוצאות, תחזית תזרים והתראות גרעון</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">לשונית "תזרים"</div>
+              <div class="step-desc">לחץ על "תזרים" בניווט. רואים גרף הכנסות מול הוצאות חודשיות ויתרה מצטברת.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הוסף הכנסה / הוצאה ידנית</div>
+              <div class="step-desc">תזרים ← "+ עסקה". בחר סוג (הכנסה/הוצאה), קטגוריה, סכום ותיאור. עסקות ידניות משלימות את הנתונים האוטומטיים.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">תחזית 30 ימים</div>
+              <div class="step-desc">OneFlow מחשב תחזית תזרים לחודש הבא בהתבסס על דפוסי עסקות חוזרות. אפשר לראות "יום אדום" צפוי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">ייצוא לחשבי</div>
+              <div class="step-desc">תזרים ← "ייצוא" ← בחר תקופה ופורמט (Excel/PDF). ניתן לשלוח לרואה חשבון בלחיצה.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>חשוב:</strong> מכירה שנגבה במזומן ולא הוזנה בקופה לא תופיע בתזרים. הקפד לרשום כל עסקה.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 17. B2B ===== -->
+    <section id="b2b">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4;color:#166534"><i class="fa-solid fa-handshake"></i></div>
+        <div>
+          <div class="card-title">B2B — חשבונות עסקיים</div>
+          <div class="card-subtitle">נהל חשבונות שוטפים עם עסקים אחרים, חיובים חודשיים ויתרות</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">צור חשבון B2B</div>
+              <div class="step-desc">B2B ← "+ חשבון חדש". הזמן עסק שותף (לפי אימייל). לאחר אישור — חשבון משותף נפתח.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">רשום עסקאות</div>
+              <div class="step-desc">כל מכירה / שירות לעסק שותף נרשמת בחשבון ומצטברת ליתרה חודשית. שני הצדדים רואים בזמן אמת.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">חיוב חודשי</div>
+              <div class="step-desc">בסוף החודש — לחץ "הפק חשבונית חודשית". מרכז כל העסקאות לחשבונית אחת. שלח ב-PDF.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-icon">ℹ️</span>
+          <div><strong>חיסכון בזמן:</strong> B2B מייתר שליחת חשבוניות נפרדות לכל עסקה — חשבונית אחת בחודש לכל לקוח עסקי.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 18. AI ===== -->
+    <section id="ai">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fdf4ff;color:#9333ea"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <div class="card-title">כלי AI</div>
+          <div class="card-subtitle">עוזר AI חכם לניתוח נתונים, כתיבת תוכן, המלצות עסקיות ועוד</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">AI תובנות</div>
+              <div class="step-desc">בלוח הבקרה ← "AI תובנות". קבל ניתוח שבועי: מה עבד, מה לא, איזה מוצר כדאי לדחוף, מה עלות החוסר במלאי.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">כתיבת תוכן שיווקי</div>
+              <div class="step-desc">AI ← "כתוב לי". בחר: פוסט לרשתות חברתיות, תיאור מוצר, מסר ל-WhatsApp או מייל שיווקי. תוך שניות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">ניתוח שאלות חופשיות</div>
+              <div class="step-desc">AI ← "שאל אותי". שאל בעברית: "מה המוצר הכי רווחי שלי?", "כמה הרווחתי מלקוח X?", "מה המגמה בחודש האחרון?"</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">תחזית מכירות</div>
+              <div class="step-desc">AI מנתח דפוסי מכירה היסטוריים ומחשב תחזית לחודש הבא — לפי מוצר, יום בשבוע ועונה.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mockup">
+          <div class="mockup-bar">
+            <div class="mockup-dots">
+              <div class="mockup-dot" style="background:#ef4444"></div>
+              <div class="mockup-dot" style="background:#f59e0b"></div>
+              <div class="mockup-dot" style="background:#22c55e"></div>
+            </div>
+            <div style="flex:1;text-align:center;font-size:0.7rem;color:#64748b">OneFlow AI Assistant</div>
+          </div>
+          <div class="mockup-screen" style="background:linear-gradient(135deg,#fdf4ff,#fae8ff);padding:1.5rem;align-items:stretch">
+            <div style="background:white;border-radius:0.75rem;padding:0.875rem;font-size:0.8rem;color:#1e293b;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:0.75rem">
+              <div style="color:#64748b;font-size:0.7rem;margin-bottom:0.25rem">👤 אתה</div>
+              מה המוצר הכי רווחי שלי החודש?
+            </div>
+            <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:0.75rem;padding:0.875rem;font-size:0.8rem;color:#6b21a8">
+              <div style="color:#9333ea;font-size:0.7rem;font-weight:700;margin-bottom:0.25rem">🤖 OneFlow AI</div>
+              המוצר הכי רווחי הוא <strong>"קפה לאטה"</strong> עם מרווח 78%. נמכרו 145 יחידות החודש — רווח נקי ₪1,131. מומלץ לדחוף בחנות!
+            </div>
+          </div>
+          <div class="mockup-caption">שיחה עם AI — שאל בעברית וקבל תשובות מבוססות נתוני העסק שלך</div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div><strong>AI + סקרים:</strong> בקש מה-AI לנתח את תשובות הסקר האחרון — הוא יסכם את הנושאים החוזרים ויציע שיפורים.</div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 19. SETTINGS ===== -->
+    <section id="settings">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f8fafc;color:#475569"><i class="fa-solid fa-gear"></i></div>
+        <div>
+          <div class="card-title">הגדרות המערכת</div>
+          <div class="card-subtitle">פרופיל עסק, התראות, אבטחה, חיבורים ותוכנית מנוי</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:0.75rem">
+          <div class="step">
+            <div class="step-num" style="background:#475569">🏢</div>
+            <div>
+              <div class="step-title">פרטי עסק</div>
+              <div class="step-desc">שם, לוגו, כתובת, מע"מ, שעות פעילות. משפיע על חשבוניות, חנות ציבורית ופרופיל קהילה.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#475569">🔔</div>
+            <div>
+              <div class="step-title">התראות</div>
+              <div class="step-desc">קבע אילו התראות לקבל: הזמנה חדשה, מלאי נמוך, תשלום שהתקבל, עובד נכנס/יוצא.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#475569">🔒</div>
+            <div>
+              <div class="step-title">אבטחה</div>
+              <div class="step-desc">שנה סיסמה, הפעל 2FA, ראה יומן כניסות (IP, תאריך, מכשיר). ניתן לבטל גישה ממכשיר.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#475569">🔗</div>
+            <div>
+              <div class="step-title">חיבורים חיצוניים</div>
+              <div class="step-desc">חבר: Google Calendar, WhatsApp Business API, מדפסת קופה (ESC/POS), מערכת הנהלת חשבונות.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#475569">💳</div>
+            <div>
+              <div class="step-title">מנוי ותוכנית</div>
+              <div class="step-desc">ראה פרטי מנוי, תאריך חידוש, שנה תוכנית. תוכנית Pro פותחת AI מורחב, B2B ועוד.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <!-- ===== 20. FAQ ===== -->
+    <section id="faq">
+    <div class="section-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eff6ff;color:#2563eb"><i class="fa-solid fa-circle-question"></i></div>
+        <div>
+          <div class="card-title">שאלות נפוצות</div>
+          <div class="card-subtitle">תשובות לשאלות הכי נפוצות מעסקים</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>איך מוסיפים מוצר לקופה?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
             </button>
-            <span class="absolute top-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full z-30 pointer-events-none shadow-sm"></span>
+            <div class="accordion-body">קטלוג ← "+ מוצר חדש" ← מלא שם, מחיר וקטגוריה ← שמור. המוצר יופיע מיד בקופה ובחנות הציבורית.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם ניתן לייבא מוצרים מ-Excel?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">כן! קטלוג ← "ייבא מ-Excel". הורד את תבנית ה-CSV, מלא את הנתונים והעלה. המערכת מייבאת את כל המוצרים בבת אחת.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>איך עובד שולח WhatsApp כשהוא מגיע לעבודה?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">העובד פותח את OneFlow ← לוחץ "כניסה לעבודה" בפרופיל שלו. שעת הכניסה נרשמת אוטומטית. אין צורך ב-WhatsApp לנוכחות.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם ניתן לנהל כמה עסקים מחשבון אחד?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">כן, בתוכנית Pro+. מאפשר החלפה בין עסקים מתפריט עליון בלי להתנתק — כל עסק עם נתונים נפרדים לגמרי.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם ניתן להדפיס חשבונית ישירות?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">כן — OneFlow תומך במדפסות קופה ESC/POS ובהדפסה רגילה. קבע מדפסת ברירת מחדל בהגדרות ← חיבורים.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם המלאי מתעדכן אוטומטית?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">כן — כל מכירה מקופה, הזמנה שנסגרת ורכש שנתקבל מעדכנים את המלאי בזמן אמת. ניתן גם לעדכן ידנית.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם ניתן לשלוח חשבוניות אוטומטית?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">כן — בהגדרות ← חשבוניות, ניתן להפעיל "שלח אוטומטית לאחר גבייה". החשבונית נשלחת ב-WhatsApp/אימייל מיד.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>כיצד לבטל עסקה שגויה?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">תזרים ← מצא את העסקה ← "בטל עסקה". ניתן לבטל תוך 24 שעות ישירות. לאחר מכן — פנה לתמיכה.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>האם יש אפליקציה למובייל?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">OneFlow BIZ עובד מצוין מדפדפן מובייל. ניתן גם להתקין כ-PWA (אפליקציית ווב) — לחץ "הוסף למסך הבית" בדפדפן.</div>
+          </div>
+          <div class="accordion-item">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+              <span>איך יוצרים קשר עם התמיכה?</span>
+              <i class="fa-solid fa-chevron-down chevron"></i>
+            </button>
+            <div class="accordion-body">לחץ על אייקון הצ'אט בפינה השמאלית התחתונה בכל מסך. צוות התמיכה זמין א'-ה' 09:00-18:00. ניתן גם לשלוח מייל ל-support@oneflowlife.co.il</div>
+          </div>
         </div>
-        <p class="text-[10px] font-bold text-slate-600 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm border border-slate-200 mt-2 text-center absolute left-1/2 transform -translate-x-1/2 w-max transition-opacity duration-300">עוזרת הדרכה</p>
+      </div>
+    </div>
+    </section>
+
+    <!-- No results -->
+    <div id="no-results" class="search-hidden" style="text-align:center;padding:3rem 1rem;color:#64748b">
+      <div style="font-size:3rem;margin-bottom:1rem">🔍</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">לא נמצאו תוצאות</div>
+      <div style="font-size:0.875rem">נסה מילה אחרת</div>
     </div>
 
-    <script>
-        const chatWindow = document.getElementById('guide-chat-window');
-        const msgs = document.getElementById('guide-chat-messages');
-        const input = document.getElementById('guide-chat-input');
+  </div><!-- /content -->
+</div><!-- /main -->
 
-        // מנגנון זיהוי גלילה להדגשת הנושא הנכון בתפריט ללא קפיצות מסך
-        window.addEventListener('scroll', () => {
-            let current = '';
-            const cards = document.querySelectorAll('.guide-card');
-            cards.forEach(card => {
-                const cardTop = card.offsetTop;
-                if (scrollY >= cardTop - 150) {
-                    current = card.getAttribute('id');
-                }
-            });
-            document.querySelectorAll('.nav-chip').forEach(chip => {
-                chip.classList.remove('active-chip');
-                if (chip.getAttribute('href') === `#${current}`) {
-                    chip.classList.add('active-chip');
-                }
-            });
-        });
-        
-        // פתיחה וסגירה של חלונית הצ'אט (כולל אנימציות חזותיות מתקדמות)
-        function toggleGuideChat() {
-            if (chatWindow.classList.contains('hidden')) {
-                chatWindow.classList.remove('hidden');
-                chatWindow.style.display = 'flex';
-                setTimeout(() => {
-                    chatWindow.classList.remove('scale-95', 'opacity-0');
-                    chatWindow.classList.add('scale-100', 'opacity-100');
-                    input.focus();
-                }, 10);
-            } else {
-                chatWindow.classList.remove('scale-100', 'opacity-100');
-                chatWindow.classList.add('scale-95', 'opacity-0');
-                setTimeout(() => {
-                    chatWindow.classList.add('hidden');
-                    chatWindow.style.display = '';
-                }, 300);
-            }
-        }
+<!-- Back to top -->
+<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <i class="fa-solid fa-chevron-up"></i>
+</button>
 
-        // שליחת הודעה בצ'אט (כולל עיצוב בועות עם זנב)
-        async function sendGuideMessage(e) {
-            e.preventDefault();
-            const text = input.value.trim();
-            if(!text) return;
-            
-            // הוספת שאלת המשתמש (בועה בצבע כחול אינדיגו עם פינה ימנית עליונה חדה)
-            msgs.innerHTML += `<div class="bg-indigo-600 text-white p-3.5 rounded-2xl rounded-tl-none shadow-sm self-end max-w-[85%] text-sm leading-relaxed">${text}</div>`;
-            input.value = '';
-            msgs.scrollTop = msgs.scrollHeight;
-            
-            // הוספת הודעת טעינה
-            const loadingId = 'load-' + Date.now();
-            msgs.innerHTML += `<div id="${loadingId}" class="bg-white p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-400 self-start text-xs flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i> מקלידה תשובה...</div>`;
-            msgs.scrollTop = msgs.scrollHeight;
-            
-            try {
-                // קריאה לשרת ל-Endpoint של המדריך העסקי
-                const res = await fetch('/api/guide/chat', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ question: text, guideType: 'BIZ' })
-                });
-                const data = await res.json();
-                
-                document.getElementById(loadingId).remove();
-                
-                if(data.success) {
-                    let formatted = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-                    // תשובת הרובוט (בועה לבנה עם פינה שמאלית עליונה חדה)
-                    msgs.innerHTML += `<div class="bg-white p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-slate-200 text-slate-700 self-start max-w-[95%] leading-relaxed text-sm">${formatted}</div>`;
-                } else {
-                    msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">אופס, שגיאה: ${data.error}</div>`;
-                }
-            } catch(e) {
-                document.getElementById(loadingId).remove();
-                msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3.5 rounded-2xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed text-sm">תקלת תקשורת. ודאו שאתם מחוברים לאינטרנט ונסו שוב.</div>`;
-            }
-            msgs.scrollTop = msgs.scrollHeight;
-        }
-    </script>
+<script>
+function setActive(el) {
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  el.classList.add('active');
+}
+function goTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function toggleAccordion(trigger) {
+  const body = trigger.nextElementSibling;
+  const isOpen = trigger.classList.contains('open');
+  trigger.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+function handleSearch(q) {
+  q = (q || '').trim().toLowerCase();
+  const cards = document.querySelectorAll('.section-card');
+  let visible = 0;
+  cards.forEach(card => {
+    const match = !q || card.textContent.toLowerCase().includes(q);
+    card.classList.toggle('search-hidden', !match);
+    if (match) visible++;
+  });
+  document.getElementById('no-results').classList.toggle('search-hidden', visible > 0 || !q);
+}
+
+// Scroll spy
+const sections = document.querySelectorAll('section[id]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      document.querySelectorAll('.nav-link').forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+
+// Progress bar + back to top
+window.addEventListener('scroll', () => {
+  const scrolled = window.scrollY;
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('progress-bar').style.transform = `scaleX(${max > 0 ? scrolled / max : 0})`;
+  document.getElementById('back-to-top').classList.toggle('visible', scrolled > 400);
+});
+</script>
 </body>
 </html>
