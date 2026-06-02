@@ -210,6 +210,24 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
   border-top: 1px solid #e2e8f0; text-align: center;
 }
 
+/* ===== SCREENSHOTS ===== */
+.screenshot-wrap {
+  margin: 1.5rem 0 0.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+}
+.screenshot-img {
+  display: block; width: 100%; height: auto;
+  max-height: 520px; object-fit: cover; object-position: top;
+}
+.screenshot-caption {
+  background: #f8fafc; padding: 0.6rem 1rem;
+  font-size: 0.78rem; color: #64748b; font-weight: 500;
+  border-top: 1px solid #e2e8f0; text-align: center;
+}
+
 /* ===== ACCORDION ===== */
 .accordion-item { border-bottom: 1px solid #f1f5f9; }
 .accordion-item:last-child { border-bottom: none; }
@@ -530,6 +548,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>טיפ:</strong> לחץ על הכרטיסייה "AI תובנות" בלוח הבקרה — OneFlow ינתח את הנתונים ויציע המלצות אוטומטיות לשיפור.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/dashboard.png" alt="צילום מסך — לוח בקרה" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — לוח בקרה</div>
+        </div>
       </div>
     </div>
     </section>
@@ -627,6 +649,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">⚠️</span>
           <div><strong>שים לב:</strong> מוצר עם "עלות 0" ישפיע על חישובי הרווחיות בדוחות. הזן תמיד את עלות הרכישה האמיתית.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/pos.png" alt="צילום מסך — קופה" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — קופה</div>
+        </div>
       </div>
     </div>
     </section>
@@ -723,6 +749,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>פרויקטים מורכבים:</strong> לעסקים כמו קייטרינג ואירועים — כרטיסייה "פרויקטים מורכבים" מאפשרת יצירת תפריטי קייטרינג מלאים עם כמויות וחישוב עלות.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/sales.png" alt="צילום מסך — מכירות וחנות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — מכירות וחנות</div>
+        </div>
       </div>
     </div>
     </section>
@@ -764,6 +794,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div><strong>חיפוש:</strong> בכל כרטיסייה ניתן לחפש לפי שם לקוח, מספר טלפון או מספר הזמנה.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/deliveries.png" alt="צילום מסך — שליחויות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — שליחויות</div>
         </div>
       </div>
     </div>
@@ -813,6 +847,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div><strong>מה ההבדל מ"מלאי"?</strong> רכש = קנייה מספקים. מלאי = מה שיש אצלך עכשיו. רכש שנמסר מעדכן את המלאי אוטומטית.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/procurement.png" alt="צילום מסך — רכש" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — רכש</div>
         </div>
       </div>
     </div>
@@ -870,6 +908,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-warn">
           <span class="callout-icon">⚠️</span>
           <div><strong>מלאי vs. קטלוג:</strong> מלאי = חומרי גלם ומוצרים שיש פיזית. קטלוג = מה שמוכרים ללקוחות. שניהם חיוניים ועצמאיים.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/inventory.png" alt="צילום מסך — מלאי" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — מלאי</div>
         </div>
       </div>
     </div>
@@ -931,6 +973,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>GPS:</strong> מנהל יכול להגדיר GPS — המערכת תתריע אם עובד מנסה לדגום נוכחות מחוץ לאזור העסק.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/timeclock.png" alt="צילום מסך — נוכחות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — נוכחות</div>
+        </div>
       </div>
     </div>
     </section>
@@ -972,6 +1018,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div><strong>כספים לעובד:</strong> בטאב "כספים 💳" מנהל קובע שכר, בונוס ומקסימום משיכה לכל עובד — העובד רואה את יתרתו בזמן אמת.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/members.png" alt="צילום מסך — צוות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — צוות</div>
         </div>
       </div>
     </div>
@@ -1016,6 +1066,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>תבניות חוזרות:</strong> ניתן להגדיר משימות חוזרות (ניקוי יומי, דוח שבועי) — ייוצרו אוטומטית בתאריך הנכון.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/tasks.png" alt="צילום מסך — משימות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — משימות</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1058,6 +1112,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div><strong>שימוש נפוץ:</strong> הכשרת עובד חדש, נהלי בטיחות, עדכוני תפריט/מוצרים, עמידה בתקנות.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/academy.png" alt="צילום מסך — הכשרות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — הכשרות</div>
         </div>
       </div>
     </div>
@@ -1102,6 +1160,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>חיבור Google Calendar:</strong> ניתן לסנכרן עם Google Calendar כדי שאירועי OneFlow יופיעו ביומן האישי.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/calendar.png" alt="צילום מסך — יומן" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — יומן</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1143,6 +1205,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-tip">
           <span class="callout-icon">💡</span>
           <div><strong>חשוב:</strong> פוד קוסט מחושב לפי העלות שהזנת לכל מוצר בקטלוג. הקפד לעדכן עלויות בעת שינוי מחירי ספקים.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/foodcost.png" alt="צילום מסך — פוד קוסט" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — פוד קוסט</div>
         </div>
       </div>
     </div>
@@ -1194,6 +1260,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">💡</span>
           <div><strong>יום הולדת:</strong> OneFlow שולח אוטומטית ברכת יום הולדת + קופון ללקוחות שהזנת להם תאריך לידה.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/crm.png" alt="צילום מסך — לקוחות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — לקוחות</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1243,6 +1313,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-tip">
           <span class="callout-icon">💡</span>
           <div><strong>מומלץ:</strong> שלח סקר שביעות רצון קצר (3 שאלות) לאחר כל שירות. שיפור ה-NPS מביא לצמיחה אורגנית.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/surveys.png" alt="צילום מסך — סקרים" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — סקרים</div>
         </div>
       </div>
     </div>
@@ -1294,6 +1368,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">ℹ️</span>
           <div><strong>שיווק אורגני:</strong> עסקים בקהילות OneFlow מדווחים על 20-30% יותר לקוחות חדשים מהמלצות בין-עסקיות.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/community.png" alt="צילום מסך — קהילות" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — קהילות</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1344,6 +1422,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">⚠️</span>
           <div><strong>חשוב:</strong> מכירה שנגבה במזומן ולא הוזנה בקופה לא תופיע בתזרים. הקפד לרשום כל עסקה.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/cashflow.png" alt="צילום מסך — תזרים מזומנים" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — תזרים מזומנים</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1386,6 +1468,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <span class="callout-icon">ℹ️</span>
           <div><strong>סינון:</strong> ניתן לסנן תצוגת תקציב לפי קטגוריה ספציפית לפירוט מלא של ההוצאות.</div>
         </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/budget.png" alt="צילום מסך — תקציב" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — תקציב</div>
+        </div>
       </div>
     </div>
     </section>
@@ -1427,6 +1513,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-tip">
           <span class="callout-icon">💡</span>
           <div><strong>תכנון:</strong> השתמש בתשקיף לפני קבלת החלטות גדולות (קנייה, השקעה, גיוס) — ראה אם התזרים יתמוך בכך.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/forecast.png" alt="צילום מסך — תשקיף" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — תשקיף</div>
         </div>
       </div>
     </div>
@@ -1487,6 +1577,10 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div><strong>יעדים אישיים:</strong> עובד יכול להגדיר יעד חיסכון אישי (לדוגמה: חיסכון לנסיעה) ולעקוב אחר ההתקדמות.</div>
+        </div>
+        <div class="screenshot-wrap">
+          <img src="guide-screens/bank.png" alt="צילום מסך — כספים" class="screenshot-img" loading="lazy">
+          <div class="screenshot-caption">📱 צילום מסך מהמערכת — כספים</div>
         </div>
       </div>
     </div>
