@@ -2621,12 +2621,6 @@ function renderFamilyCommunities() {
     const tabContent = getEl('content-community');
     if (!tabContent) return;
 
-    // מנקה אלמנטים ישנים של הממשק הקודם מה-DOM במידה וקיימים
-    const oldJoin = getEl('community-join-section');
-    const oldBiz = getEl('community-businesses-section');
-    if (oldJoin) oldJoin.style.display = 'none';
-    if (oldBiz) oldBiz.style.display = 'none';
-
     let container = getEl('multi-comm-dynamic-container');
     if (!container) {
         container = document.createElement('div');
@@ -2682,7 +2676,7 @@ function renderFamilyCommunities() {
     // 2. טופס הצטרפות קבוע ויפה
     const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
     html += `
-    <div id="dynamic-join-section" class="${hideJoin} mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+    <div id="community-join-section" class="${hideJoin} mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
         <h3 class="font-bold text-slate-800 text-sm mb-1"><i class="fa-solid fa-plug text-slate-400 mr-1"></i> התחברות לקהילה קיימת</h3>
         <p class="text-[11px] text-slate-500 mb-4">הזינו את קוד הקהילה שקיבלתם מחבר כדי להצטרף אליה.</p>
         <div class="flex gap-2">
@@ -2694,7 +2688,7 @@ function renderFamilyCommunities() {
     // 3. עסקים בקהילות שלנו
     if (myCommunityBusinessesCache.length > 0) {
         html += `
-        <div class="mb-6 fade-in">
+        <div id="community-businesses-section" class="mb-6 fade-in">
             <div class="flex items-center justify-between mb-4 px-1">
                 <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-shop text-emerald-500"></i>
