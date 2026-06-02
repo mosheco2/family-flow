@@ -1873,6 +1873,7 @@
                             <span id="survey-share-url" class="flex-1 text-xs text-slate-600 break-all text-right font-mono"></span>
                             <button onclick="copySurveyLink()" class="shrink-0 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-200 transition">העתק</button>
                         </div>
+                        <button onclick="copySurveyLinkAndWhatsApp()" class="w-full bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm mb-2 flex items-center justify-center gap-2 hover:bg-green-600 transition"><i class="fa-brands fa-whatsapp text-base"></i> שלח בווצאפ</button>
                         <button onclick="document.getElementById('survey-share-modal').classList.add('hidden')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm">סגור</button>
                     </div>
                 </div>
@@ -4197,7 +4198,8 @@
           <div class="flex gap-1.5 shrink-0">
             ${s.status === 'draft' ? `<button onclick="editSurvey(${s.id})" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-slate-200">ערוך</button>` : ''}
             ${s.status === 'active' ? `
-              <button onclick="showSurveyLink('${s.unique_code}')" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-indigo-100">לינק</button>
+              <button onclick="shareSurveyWhatsApp('${s.unique_code}','${s.title.replace(/'/g,"\\'")}')" class="text-xs bg-green-500 text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-green-600 flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> שלח</button>
+              <button onclick="showSurveyLink('${s.unique_code}','${s.title.replace(/'/g,"\\'")}')" class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-indigo-100">לינק</button>
               <button onclick="closeSurvey(${s.id})" class="text-xs bg-red-50 text-red-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-red-100">סגור</button>
             ` : ''}
             ${s.status === 'draft' ? `<button onclick="activateSurvey(${s.id})" class="text-xs bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg font-medium hover:bg-green-100">הפעל</button>` : ''}
@@ -4208,7 +4210,8 @@
         ${s.status === 'active' ? `
           <div class="mt-2 bg-slate-50 rounded-xl px-3 py-2 flex items-center gap-2">
             <span class="text-[10px] text-slate-500 flex-1 truncate font-mono">${location.origin}/survey.html?c=${s.unique_code}</span>
-            <button onclick="showSurveyLink('${s.unique_code}')" class="text-[10px] text-indigo-600 font-bold shrink-0">העתק</button>
+            <button onclick="shareSurveyWhatsApp('${s.unique_code}','${s.title.replace(/'/g,"\\'")}')" class="text-[10px] text-green-600 font-bold shrink-0 flex items-center gap-1"><i class="fa-brands fa-whatsapp"></i> ווצאפ</button>
+            <button onclick="showSurveyLink('${s.unique_code}','${s.title.replace(/'/g,"\\'")}')" class="text-[10px] text-indigo-600 font-bold shrink-0">העתק</button>
           </div>` : ''}
       </div>`).join('');
   }
@@ -4387,9 +4390,10 @@
   };
 
   // ── Link ──────────────────────────────────────────────────────
-  window.showSurveyLink = function(code) {
+  window.showSurveyLink = function(code, title) {
     const url = `${location.origin}/survey.html?c=${code}`;
     document.getElementById('survey-share-url').textContent = url;
+    document.getElementById('survey-share-modal').dataset.title = title || '';
     document.getElementById('survey-share-modal').classList.remove('hidden');
   };
 
@@ -4399,6 +4403,21 @@
       const btn = document.querySelector('#survey-share-modal button.bg-indigo-100');
       if (btn) { btn.textContent = 'הועתק!'; setTimeout(()=>btn.textContent='העתק',2000); }
     });
+  };
+
+  window.shareSurveyWhatsApp = function(code, title) {
+    const url = `${location.origin}/survey.html?c=${code}`;
+    const bizName = currentGroup?.name || window.currentGroup?.name || '';
+    const text = `שלום 😊\n${bizName ? `*${bizName}* שולח/ת לך סקר קצר:\n` : ''}*${title}*\n\nנשמח לשמוע את דעתך — לוקח רק דקה:\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  window.copySurveyLinkAndWhatsApp = function() {
+    const url = document.getElementById('survey-share-url').textContent;
+    const title = document.getElementById('survey-share-modal').dataset.title || 'סקר';
+    const bizName = currentGroup?.name || window.currentGroup?.name || '';
+    const text = `שלום 😊\n${bizName ? `*${bizName}* שולח/ת לך סקר קצר:\n` : ''}*${title}*\n\nנשמח לשמוע את דעתך — לוקח רק דקה:\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   // ── Results ───────────────────────────────────────────────────
