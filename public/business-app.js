@@ -1367,7 +1367,7 @@ function switchTab(t) {
     }
     
     // הפעלת לוגיקה ספציפית לכל טאב
-    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} 
+    if (t === 'feed') try { renderDashboard(); } catch(e) {}
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -3229,6 +3229,122 @@ window.changeFeedPage = function(direction) {
     window.currentFeedPage += direction;
     if (window.currentFeedPage < 1) window.currentFeedPage = 1;
     renderUnifiedFeed();
+};
+
+// ============================================================
+// --- Dashboard (Home Tab) ---
+// ============================================================
+window.renderDashboard = async function(forceRefresh = false) {
+    try {
+        // Header
+        const greetEl = document.getElementById('dash-greeting');
+        const dateEl  = document.getElementById('dash-date');
+        if (greetEl && currentUser) greetEl.textContent = `שלום, ${currentUser.nickname || currentUser.name} 👋`;
+        if (dateEl) {
+            const now = new Date();
+            dateEl.textContent = now.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+        }
+
+        // Load store orders if not yet loaded
+        if (forceRefresh || !storeOrdersCache || storeOrdersCache.length === 0) {
+            try { await window.fetchStoreOrders(); } catch(e) {}
+        }
+
+        // KPI calculations
+        const now = new Date();
+        let salesToday = 0, ordersToday = 0, revenueMonth = 0, ordersMonth = 0, openOrders = 0;
+        (storeOrdersCache || []).forEach(o => {
+            if (o.status === 'cancelled') return;
+            const d = new Date(o.created_at);
+            const amt = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
+            const done = o.status === 'completed' || o.status === 'shipped';
+            const isToday = d.getDate()===now.getDate() && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+            const isMonth = d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+            if (isToday) { ordersToday++; if (done) salesToday += amt; }
+            if (isMonth) { ordersMonth++; if (done) revenueMonth += amt; }
+            if (!done) openOrders++;
+        });
+        const openTasks = (allTasks || []).filter(t => t.status === 'pending').length;
+
+        const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        s('kpi-sales-today',    `₪${salesToday.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
+        s('kpi-orders-today',   `${ordersToday} הזמנות`);
+        s('kpi-revenue-month',  `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
+        s('kpi-orders-month',   `${ordersMonth} הזמנות`);
+        s('kpi-open-orders',    openOrders);
+        s('kpi-open-tasks',     openTasks);
+
+        // Alerts: low stock (qty ≤ 2)
+        const lowStock = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 2);
+        const alertsBox  = document.getElementById('dashboard-alerts');
+        const alertsList = document.getElementById('dashboard-alerts-list');
+        if (alertsBox && alertsList) {
+            if (lowStock.length > 0) {
+                alertsList.innerHTML = lowStock.slice(0,5).map(p =>
+                    `<div class="flex items-center gap-2 text-xs text-amber-900">
+                       <i class="fa-solid fa-box-open text-amber-400 w-4 text-center"></i>
+                       <span><strong>${p.item_name}</strong> — נותרו ${parseFloat(p.quantity)} ${p.unit||'יח׳'}</span>
+                     </div>`
+                ).join('');
+                alertsBox.classList.remove('hidden');
+            } else {
+                alertsBox.classList.add('hidden');
+            }
+        }
+
+        // Recent orders (last 5)
+        const recentEl = document.getElementById('dashboard-recent-orders');
+        if (recentEl) {
+            const recent = [...(storeOrdersCache||[])].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5);
+            if (recent.length === 0) {
+                recentEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">אין הזמנות עדיין</div>';
+            } else {
+                const statusLabel = { processing:'בטיפול', ready:'מוכן', shipped:'נשלח', completed:'הושלם', pending:'ממתין' };
+                const statusColor = { processing:'text-amber-600 bg-amber-50', ready:'text-emerald-600 bg-emerald-50', shipped:'text-blue-600 bg-blue-50', completed:'text-slate-500 bg-slate-50', pending:'text-rose-600 bg-rose-50' };
+                recentEl.innerHTML = recent.map(o => {
+                    const st = o.status || 'pending';
+                    const lbl = statusLabel[st] || st;
+                    const col = statusColor[st] || 'text-slate-500 bg-slate-50';
+                    const amt = parseFloat(o.total_amount)||parseFloat(o.total)||0;
+                    const name = o.customer_name || 'לקוח';
+                    return `<div class="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-slate-100 shadow-sm">
+                        <div class="flex items-center gap-2.5">
+                          <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 text-xs font-bold">#${String(o.id).slice(-3)}</div>
+                          <div>
+                            <div class="text-xs font-bold text-slate-700">${name}</div>
+                            <div class="text-[10px] text-slate-400">${new Date(o.created_at).toLocaleDateString('he-IL')}</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-black text-slate-700">₪${amt.toFixed(0)}</span>
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${col}">${lbl}</span>
+                        </div>
+                      </div>`;
+                }).join('');
+            }
+        }
+
+        // Open tasks (up to 5)
+        const tasksEl = document.getElementById('dashboard-open-tasks');
+        if (tasksEl) {
+            const open = (allTasks||[]).filter(t => t.status==='pending').slice(0,5);
+            if (open.length === 0) {
+                tasksEl.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">אין משימות פתוחות 🎉</div>';
+            } else {
+                tasksEl.innerHTML = open.map(t =>
+                    `<div class="flex items-center gap-2.5 bg-white rounded-xl px-3 py-2.5 border border-slate-100 shadow-sm">
+                       <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-400 flex-shrink-0">
+                         <i class="fa-regular fa-circle text-xs"></i>
+                       </div>
+                       <div class="flex-1 min-w-0">
+                         <div class="text-xs font-bold text-slate-700 truncate">${t.title||''}</div>
+                         ${t.due_date ? `<div class="text-[10px] text-slate-400">דד-ליין: ${new Date(t.due_date).toLocaleDateString('he-IL')}</div>` : ''}
+                       </div>
+                     </div>`
+                ).join('');
+            }
+        }
+    } catch(err) { console.error('renderDashboard:', err); }
 };
 
 function buildAndRenderFeed() {
