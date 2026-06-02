@@ -1,4 +1,11 @@
 
+# Secrets & local config
+.env
+android-signing/
+
+# Screenshots (managed directly on main via local machine)
+public/guide-screens/
+
 # Playwright
 node_modules/
 /test-results/
