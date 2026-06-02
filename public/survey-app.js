@@ -70,11 +70,22 @@
     show('state-form');
   }
 
+  // Exposed so inline oninput handlers can reach IIFE-scoped _answers
+  window._svSetOpenText = function(qi, val) {
+    _answers[qi] = val;
+    updateProgress();
+  };
+
   function updateProgress() {
     const required = _questions.filter(q => q.required);
     if (!required.length) return;
-    const answeredCount = required.filter((q, i) => {
+    // For open_text, read current DOM value directly so progress is accurate while typing
+    const answeredCount = required.filter(q => {
       const qi = _questions.indexOf(q);
+      if (q.type === 'open_text') {
+        const domVal = document.getElementById(`ot-${qi}`)?.value || '';
+        return domVal.trim() !== '';
+      }
       return _answers[qi] !== undefined && _answers[qi] !== null && _answers[qi] !== '';
     }).length;
     const pct = Math.round(answeredCount / required.length * 100);
@@ -134,6 +145,7 @@
         <p id="rating-label-${i}" class="text-center text-xs text-slate-400 mt-1 h-4"></p>`;
       } else if (q.type === 'open_text') {
         input = `<textarea id="ot-${i}" rows="3" placeholder="כתוב כאן..."
+          oninput="_svSetOpenText(${i},this.value)"
           class="survey-input resize-none mt-3"></textarea>`;
       }
 
@@ -198,17 +210,17 @@
       }
     }
 
-    // Sync open_text answers from DOM (inline handlers can't access IIFE scope)
+    // Final sync for open_text in case user pasted without triggering oninput
     for (let i = 0; i < _questions.length; i++) {
       if (_questions[i].type === 'open_text') {
-        const val = document.getElementById(`ot-${i}`)?.value || '';
-        if (val) _answers[i] = val;
+        const val = (document.getElementById(`ot-${i}`)?.value || '').trim();
+        _answers[i] = val;
       }
     }
 
     // Validate required questions
     for (let i = 0; i < _questions.length; i++) {
-      if (_questions[i].required && (_answers[i] === undefined || _answers[i] === null || _answers[i] === '')) {
+      if (_questions[i].required && (_answers[i] === undefined || _answers[i] === null || String(_answers[i]).trim() === '')) {
         // Scroll to the question card
         const cards = document.querySelectorAll('#questions-section > div');
         if (cards[i]) cards[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
