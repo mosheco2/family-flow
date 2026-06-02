@@ -168,21 +168,18 @@ test('[ONBD-06] אשף — כפתור דלג', async ({ page }) => {
   await page.fill('#login-nickname', TEST_ENV.parentName);
   await page.fill('#login-password', TEST_ENV.parentPass);
   await page.locator('button:has-text("כניסה")').click();
-  await page.waitForTimeout(2500);
+  // חכה לטעינת הדף והתחברות
+  await page.waitForSelector('#content-feed', { timeout: 12000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   // כפתור דלג — soft assertion (מוצג רק בכניסה ראשונה)
   const skipBtn = page.locator('.introjs-skipbutton, button:has-text("דלג"), button:has-text("דלג על הסיור"), #onboarding-skip').first();
-  const hasSkip = await skipBtn.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasSkip = await skipBtn.isVisible({ timeout: 3000 }).catch(() => false);
   if (hasSkip) {
     await skipBtn.click();
     await page.waitForTimeout(800);
-    // לאחר לחיצת דלג — האשף חייב להיסגר
-    const wizardGone = await page.locator('#onboarding-wizard, .introjs-overlay').first().isVisible({ timeout: 3000 }).catch(() => false);
-    if (wizardGone) console.warn('[ONBD-06] האשף עדיין גלוי לאחר לחיצת דלג');
-  } else {
-    console.warn('[ONBD-06] כפתור דלג לא נמצא — ייתכן שהאשף לא מופעל לחשבון זה');
   }
   // ודא שאנחנו מחוברים
-  await expect(page.locator('#content-feed, #login-code').first()).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('#content-feed')).toBeVisible({ timeout: 8000 });
 });
 
 test('[ONBD-07] אשף — סיום וניתוב לדשבורד', async ({ page }) => {
