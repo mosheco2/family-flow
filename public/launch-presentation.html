@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneFlow Life BIZ — ערב השקה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Heebo',sans-serif;background:#0a0a14;color:#fff}
+
+/* ===== SLIDE ENGINE ===== */
+.slide{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .6s ease, transform .6s ease;
+  transform:translateX(-40px);
+  padding:4vw;
+}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.out{opacity:0;transform:translateX(40px)}
+
+/* ===== NAV ===== */
+#nav{
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:1rem;
+  background:rgba(255,255,255,0.08);backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:9999px;padding:.6rem 1.5rem;
+  z-index:100;
+}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:all .3s}
+.nav-dot.active{background:#22d3ee;transform:scale(1.4)}
+.nav-btn{
+  background:none;border:none;color:rgba(255,255,255,0.6);
+  font-size:1.1rem;cursor:pointer;padding:.2rem .5rem;
+  transition:color .2s;
+}
+.nav-btn:hover{color:#fff}
+#slide-num{font-size:.75rem;color:rgba(255,255,255,0.4);min-width:40px;text-align:center}
+
+/* ===== KEYBOARD HINT ===== */
+#key-hint{
+  position:fixed;bottom:5.5rem;left:50%;transform:translateX(-50%);
+  font-size:.72rem;color:rgba(255,255,255,0.25);
+  animation:fadeout 4s forwards 3s;
+}
+@keyframes fadeout{to{opacity:0}}
+
+/* ===== PROGRESS BAR ===== */
+#progress{
+  position:fixed;top:0;left:0;height:3px;
+  background:linear-gradient(90deg,#6366f1,#22d3ee);
+  transition:width .4s ease;z-index:200;
+}
+
+/* ===== COMMON UTILITIES ===== */
+.tag{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);
+  border-radius:9999px;padding:.3rem .9rem;
+  font-size:.8rem;font-weight:700;color:#a5b4fc;
+  margin-bottom:1.5rem;
+}
+.big-title{font-size:clamp(2.2rem,5vw,4rem);font-weight:900;line-height:1.1;margin-bottom:1rem}
+.sub-title{font-size:clamp(1rem,2vw,1.4rem);font-weight:400;color:rgba(255,255,255,0.65);line-height:1.6;max-width:640px}
+.gradient-text{background:linear-gradient(135deg,#6366f1,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.cyan-text{color:#22d3ee}
+.pill{
+  display:inline-block;background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.12);border-radius:9999px;
+  padding:.35rem 1rem;font-size:.85rem;font-weight:600;
+}
+
+/* ===== SLIDE BACKGROUNDS ===== */
+.bg-dark{background:#0a0a14}
+.bg-gradient-1{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
+.bg-gradient-2{background:linear-gradient(135deg,#0a0a14 0%,#0d1b2a 100%)}
+.bg-problem{background:linear-gradient(135deg,#1a0a0a,#2a0f1f)}
+.bg-solution{background:linear-gradient(135deg,#071520,#0a2a1a)}
+.bg-cta{background:linear-gradient(135deg,#1a0533,#0f1f3d)}
+
+/* noise overlay */
+.slide::before{
+  content:'';position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;opacity:.4;
+}
+
+/* ===== SLIDE 1 — OPENER ===== */
+#s1 .center{text-align:center;position:relative;z-index:1}
+#s1 .logo-wrap{
+  width:80px;height:80px;border-radius:20px;
+  background:linear-gradient(135deg,#6366f1,#22d3ee);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 2rem;
+  box-shadow:0 0 60px rgba(99,102,241,.5);
+  animation:pulse-glow 3s ease-in-out infinite;
+}
+@keyframes pulse-glow{
+  0%,100%{box-shadow:0 0 40px rgba(99,102,241,.4)}
+  50%{box-shadow:0 0 80px rgba(34,211,238,.6)}
+}
+#s1 .logo-wrap img{width:52px;height:52px;object-fit:contain;border-radius:12px}
+#s1 .opener-sub{
+  margin-top:1.5rem;color:rgba(255,255,255,.5);font-size:1rem;
+  display:flex;align-items:center;justify-content:center;gap:1.5rem;
+}
+#s1 .opener-sub span{display:flex;align-items:center;gap:.4rem}
+.orb{
+  position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;
+}
+.orb-1{width:500px;height:500px;background:rgba(99,102,241,.15);top:-20%;right:-15%}
+.orb-2{width:400px;height:400px;background:rgba(34,211,238,.1);bottom:-20%;left:-10%}
+
+/* ===== SLIDE 2 — PROBLEM ===== */
+.problem-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;
+  width:100%;max-width:800px;margin-top:2rem;
+}
+.problem-card{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,100,100,.2);
+  border-radius:1rem;padding:1.2rem;text-align:center;
+}
+.problem-card .num{font-size:2.2rem;font-weight:900;color:#f87171;line-height:1}
+.problem-card .lbl{font-size:.78rem;color:rgba(255,255,255,.55);margin-top:.3rem}
+.pain-list{margin-top:1.5rem;space-y:1rem;max-width:560px;width:100%}
+.pain-item{
+  display:flex;align-items:center;gap:.9rem;
+  background:rgba(255,255,255,.05);border-radius:.75rem;
+  padding:.85rem 1.1rem;margin-bottom:.7rem;
+  border:1px solid rgba(255,255,255,.06);
+}
+.pain-item .icon{width:36px;height:36px;border-radius:10px;background:rgba(248,113,113,.15);
+  display:flex;align-items:center;justify-content:center;color:#f87171;flex-shrink:0}
+
+/* ===== SLIDE 3 — SOLUTION ===== */
+.solution-cols{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;max-width:900px;width:100%}
+.module-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.module-card{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  border-radius:.9rem;padding:.9rem;text-align:center;
+  transition:transform .2s,background .2s;cursor:default;
+}
+.module-card:hover{background:rgba(99,102,241,.15);transform:translateY(-3px)}
+.module-card .icon{font-size:1.4rem;margin-bottom:.4rem}
+.module-card .name{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.8)}
+
+/* ===== SLIDE 4 — FEATURES ===== */
+.features-layout{display:grid;grid-template-columns:1fr 1.4fr;gap:2.5rem;align-items:center;max-width:960px;width:100%}
+.feature-tabs{display:flex;flex-direction:column;gap:.6rem}
+.ftab{
+  display:flex;align-items:center;gap:.8rem;
+  padding:.85rem 1rem;border-radius:.8rem;cursor:pointer;
+  border:1px solid transparent;transition:all .2s;
+}
+.ftab.active{background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.4)}
+.ftab:hover:not(.active){background:rgba(255,255,255,.05)}
+.ftab .ficon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.ftab .fname{font-size:.85rem;font-weight:700}
+.ftab .fdesc{font-size:.72rem;color:rgba(255,255,255,.5);margin-top:.1rem}
+.screen-frame{
+  background:#111827;border-radius:1.2rem;overflow:hidden;
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.screen-bar{
+  background:#1f2937;padding:.6rem 1rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.screen-dot{width:10px;height:10px;border-radius:50%}
+.screen-img{width:100%;height:340px;object-fit:cover;object-position:top;display:block}
+.screen-placeholder{
+  width:100%;height:340px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#1e293b,#0f172a);
+  font-size:.85rem;color:rgba(255,255,255,.3);
+}
+
+/* ===== SLIDE 5 — LIVE DEMO ===== */
+.demo-center{text-align:center;position:relative;z-index:1}
+.demo-phone{
+  width:220px;margin:2rem auto 1.5rem;
+  background:#111827;border-radius:2rem;overflow:hidden;
+  border:2px solid rgba(255,255,255,.15);
+  box-shadow:0 0 80px rgba(34,211,238,.2);
+}
+.demo-phone img{width:100%;display:block}
+.demo-btn{
+  display:inline-flex;align-items:center;gap:.7rem;
+  background:linear-gradient(135deg,#6366f1,#22d3ee);
+  color:white;font-weight:800;font-size:1rem;
+  padding:.9rem 2.5rem;border-radius:9999px;border:none;cursor:pointer;
+  text-decoration:none;
+  box-shadow:0 8px 30px rgba(99,102,241,.4);
+  transition:transform .2s,box-shadow .2s;
+}
+.demo-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(99,102,241,.5)}
+
+/* ===== SLIDE 6 — VISION ===== */
+.vision-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:860px;width:100%;margin-top:2rem}
+.vision-card{
+  border-radius:1.2rem;padding:1.8rem 1.4rem;text-align:center;position:relative;overflow:hidden;
+}
+.vision-card.biz{background:linear-gradient(135deg,rgba(99,102,241,.2),rgba(99,102,241,.05));border:1px solid rgba(99,102,241,.3)}
+.vision-card.fam{background:linear-gradient(135deg,rgba(34,211,238,.15),rgba(34,211,238,.03));border:1px solid rgba(34,211,238,.2)}
+.vision-card.com{background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(168,85,247,.03));border:1px solid rgba(168,85,247,.2)}
+.vision-card.active-card{transform:scale(1.05);box-shadow:0 0 40px rgba(99,102,241,.3)}
+.vision-icon{font-size:2.5rem;margin-bottom:.8rem}
+.vision-title{font-size:1rem;font-weight:800;margin-bottom:.4rem}
+.vision-desc{font-size:.78rem;color:rgba(255,255,255,.6);line-height:1.6}
+.focus-badge{
+  position:absolute;top:.7rem;left:.7rem;
+  background:linear-gradient(135deg,#6366f1,#22d3ee);
+  color:white;font-size:.65rem;font-weight:800;
+  padding:.2rem .6rem;border-radius:9999px;
+}
+
+/* ===== SLIDE 7 — CTA ===== */
+.cta-center{text-align:center;position:relative;z-index:1;max-width:700px}
+.price-box{
+  display:inline-flex;flex-direction:column;align-items:center;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:1.5rem;padding:2rem 3rem;margin:2rem 0;position:relative;
+}
+.price-launch{
+  position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#f59e0b,#ef4444);
+  color:white;font-size:.72rem;font-weight:800;
+  padding:.3rem 1.2rem;border-radius:9999px;white-space:nowrap;
+}
+.price-main{font-size:3rem;font-weight:900;line-height:1}
+.price-period{font-size:.9rem;color:rgba(255,255,255,.5);margin-top:.3rem}
+.price-note{font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.5rem}
+.cta-perks{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.cta-perk{display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:rgba(255,255,255,.7)}
+.cta-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:.6rem;
+  background:linear-gradient(135deg,#6366f1,#22d3ee);
+  color:white;font-weight:800;font-size:1rem;
+  padding:.9rem 2.2rem;border-radius:9999px;
+  text-decoration:none;border:none;cursor:pointer;
+  box-shadow:0 8px 30px rgba(99,102,241,.4);
+  transition:transform .2s;
+}
+.btn-primary:hover{transform:translateY(-2px)}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:.6rem;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);
+  color:white;font-weight:700;font-size:1rem;
+  padding:.9rem 2.2rem;border-radius:9999px;
+  text-decoration:none;cursor:pointer;transition:background .2s;
+}
+.btn-secondary:hover{background:rgba(255,255,255,.14)}
+
+/* ===== ANIMATE IN ===== */
+.slide.active .anim{animation:fadeUp .5s ease both}
+.slide.active .anim-1{animation-delay:.1s}
+.slide.active .anim-2{animation-delay:.2s}
+.slide.active .anim-3{animation-delay:.35s}
+.slide.active .anim-4{animation-delay:.5s}
+.slide.active .anim-5{animation-delay:.65s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<p id="key-hint">← → לניווט | Space להמשך</p>
+
+<!-- ============================
+     SLIDE 1 — OPENER
+     ============================ -->
+<div class="slide bg-gradient-1 active" id="s1">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="center">
+    <div class="logo-wrap anim anim-1">
+      <img src="/logo.png" alt="OneFlow Life" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=font-size:2rem>⚡</span>'">
+    </div>
+    <div class="tag anim anim-2"><i class="fa-solid fa-bolt"></i> ערב השקה — OneFlow Life BIZ</div>
+    <div class="big-title anim anim-3">
+      הגיע הזמן<br>
+      <span class="gradient-text">לנהל עסק חכם.</span>
+    </div>
+    <div class="sub-title anim anim-4" style="margin:0 auto">
+      כל הכלים שעסק צריך — קופה, מלאי, עובדים, לקוחות, כספים — במקום אחד, מהטלפון.
+    </div>
+    <div class="opener-sub anim anim-5">
+      <span><i class="fa-solid fa-store" style="color:#6366f1"></i> לעסקים</span>
+      <span style="color:rgba(255,255,255,.2)">•</span>
+      <span><i class="fa-solid fa-users" style="color:#22d3ee"></i> למשפחות</span>
+      <span style="color:rgba(255,255,255,.2)">•</span>
+      <span><i class="fa-solid fa-people-group" style="color:#a855f7"></i> לקהילות</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 2 — THE PAIN
+     ============================ -->
+<div class="slide bg-problem" id="s2">
+  <div class="orb" style="width:400px;height:400px;background:rgba(239,68,68,.08);top:-10%;right:-5%"></div>
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:820px">
+    <div class="tag anim anim-1" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#fca5a5"><i class="fa-solid fa-triangle-exclamation"></i> הבעיה</div>
+    <div class="big-title anim anim-2">בעל עסק ממוצע<br>משתמש ב<span style="color:#f87171">7+ כלים</span> שונים.</div>
+    <div class="problem-grid anim anim-3">
+      <div class="problem-card">
+        <div class="num">₪3,000+</div>
+        <div class="lbl">תשלום חודשי על כלים שונים</div>
+      </div>
+      <div class="problem-card">
+        <div class="num">7</div>
+        <div class="lbl">אפליקציות נפרדות בממוצע</div>
+      </div>
+      <div class="problem-card">
+        <div class="num">4 שעות</div>
+        <div class="lbl">בשבוע על ניהול ידני</div>
+      </div>
+    </div>
+    <div class="pain-list anim anim-4" style="margin:0 auto">
+      <div class="pain-item">
+        <div class="icon"><i class="fa-solid fa-cash-register"></i></div>
+        <div>קופה בתוכנה אחת, הנהלת חשבונות בשנייה, עובדים בשלישית</div>
+      </div>
+      <div class="pain-item">
+        <div class="icon"><i class="fa-solid fa-link-slash"></i></div>
+        <div>אין חיבור בין הנתונים — המנהל לא רואה תמונה שלמה</div>
+      </div>
+      <div class="pain-item">
+        <div class="icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <div>רוב הכלים לא עובדים טוב מהנייד — הניהול נשאר במשרד</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 3 — THE SOLUTION
+     ============================ -->
+<div class="slide bg-solution" id="s3">
+  <div class="orb" style="width:500px;height:500px;background:rgba(34,211,238,.07);top:-15%;left:-10%"></div>
+  <div class="solution-cols">
+    <div>
+      <div class="tag anim anim-1" style="background:rgba(34,211,238,.15);border-color:rgba(34,211,238,.3);color:#67e8f9"><i class="fa-solid fa-lightbulb"></i> הפתרון</div>
+      <div class="big-title anim anim-2">הכל<br><span class="gradient-text">במקום אחד.</span></div>
+      <div class="sub-title anim anim-3">OneFlow Life BIZ — מערכת ניהול עסקית מלאה, מהטלפון, בעברית, בזמן אמת.</div>
+      <div class="anim anim-4" style="margin-top:1.5rem;display:flex;gap:.6rem;flex-wrap:wrap">
+        <span class="pill">✅ קופה וחנות</span>
+        <span class="pill">✅ מלאי חכם</span>
+        <span class="pill">✅ צוות ונוכחות</span>
+        <span class="pill">✅ תזרים וכספים</span>
+        <span class="pill">✅ לקוחות CRM</span>
+        <span class="pill">✅ בינה מלאכותית</span>
+      </div>
+    </div>
+    <div class="module-grid anim anim-3">
+      <div class="module-card"><div class="icon">📊</div><div class="name">לוח בקרה</div></div>
+      <div class="module-card"><div class="icon">💰</div><div class="name">קופה</div></div>
+      <div class="module-card"><div class="icon">🛍️</div><div class="name">מכירות</div></div>
+      <div class="module-card"><div class="icon">📦</div><div class="name">מלאי</div></div>
+      <div class="module-card"><div class="icon">🛒</div><div class="name">רכש</div></div>
+      <div class="module-card"><div class="icon">🍽️</div><div class="name">פוד קוסט</div></div>
+      <div class="module-card"><div class="icon">👥</div><div class="name">לקוחות</div></div>
+      <div class="module-card"><div class="icon">💳</div><div class="name">כספים</div></div>
+      <div class="module-card"><div class="icon">📈</div><div class="name">תקציב</div></div>
+      <div class="module-card"><div class="icon">⏱️</div><div class="name">נוכחות</div></div>
+      <div class="module-card"><div class="icon">🎓</div><div class="name">הכשרות</div></div>
+      <div class="module-card"><div class="icon">🤖</div><div class="name">AI תובנות</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 4 — FEATURES
+     ============================ -->
+<div class="slide bg-dark" id="s4">
+  <div style="width:100%;max-width:960px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-star"></i> יכולות מרכזיות</div>
+    <div class="features-layout">
+      <div class="feature-tabs anim anim-2" id="ftabs">
+        <div class="ftab active" data-img="guide-screens/pos.png" onclick="selectFeature(this)">
+          <div class="ficon" style="background:rgba(234,88,12,.15);color:#fb923c">💰</div>
+          <div><div class="fname">קופה וקטלוג</div><div class="fdesc">מכירה מהירה, ברקוד, הנחות, חשבוניות</div></div>
+        </div>
+        <div class="ftab" data-img="guide-screens/inventory.png" onclick="selectFeature(this)">
+          <div class="ficon" style="background:rgba(16,185,129,.15);color:#34d399">📦</div>
+          <div><div class="fname">מלאי חכם</div><div class="fdesc">מעקב בזמן אמת, התראת מלאי נמוך, AI מתכונים</div></div>
+        </div>
+        <div class="ftab" data-img="guide-screens/timeclock.png" onclick="selectFeature(this)">
+          <div class="ficon" style="background:rgba(99,102,241,.15);color:#818cf8">⏱️</div>
+          <div><div class="fname">נוכחות וצוות</div><div class="fdesc">שעון נוכחות, משמרות, סיכום שכר</div></div>
+        </div>
+        <div class="ftab" data-img="guide-screens/cashflow.png" onclick="selectFeature(this)">
+          <div class="ficon" style="background:rgba(236,72,153,.15);color:#f472b6">💳</div>
+          <div><div class="fname">כספים ותזרים</div><div class="fdesc">תזרים, תקציב, תשקיף, חיבור בנק</div></div>
+        </div>
+        <div class="ftab" data-img="guide-screens/crm.png" onclick="selectFeature(this)">
+          <div class="ficon" style="background:rgba(245,158,11,.15);color:#fbbf24">👥</div>
+          <div><div class="fname">לקוחות CRM</div><div class="fdesc">היסטוריה, נאמנות, שיווק ממוקד</div></div>
+        </div>
+      </div>
+      <div class="screen-frame anim anim-3">
+        <div class="screen-bar">
+          <div class="screen-dot" style="background:#ef4444"></div>
+          <div class="screen-dot" style="background:#f59e0b"></div>
+          <div class="screen-dot" style="background:#22c55e"></div>
+          <div style="flex:1;text-align:center;font-size:.7rem;color:#6b7280">oneflowlife.co.il</div>
+        </div>
+        <img id="feature-img" src="guide-screens/pos.png" class="screen-img" alt="צילום מסך" onerror="this.style.display='none';document.getElementById('feature-placeholder').style.display='flex'">
+        <div id="feature-placeholder" class="screen-placeholder" style="display:none"><i class="fa-solid fa-mobile-screen-button" style="font-size:3rem;opacity:.3"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 5 — LIVE DEMO
+     ============================ -->
+<div class="slide bg-gradient-2" id="s5">
+  <div class="orb" style="width:600px;height:600px;background:rgba(99,102,241,.1);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="demo-center">
+    <div class="tag anim anim-1" style="background:rgba(34,211,238,.15);border-color:rgba(34,211,238,.3);color:#67e8f9"><i class="fa-solid fa-play"></i> הדגמה חיה</div>
+    <div class="big-title anim anim-2">בואו <span class="cyan-text">נראה</span> ביחד.</div>
+    <div class="sub-title anim anim-3" style="margin:0 auto 1.5rem">המערכת עובדת עכשיו, בזמן אמת. אפשר להיכנס מהטלפון מהרגע הזה.</div>
+    <div class="demo-phone anim anim-4">
+      <img src="guide-screens/dashboard.png" alt="לוח בקרה" onerror="this.style.display='none'">
+    </div>
+    <a href="/business.html" target="_blank" class="demo-btn anim anim-5">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      פתח הדגמה חיה
+    </a>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 6 — VISION
+     ============================ -->
+<div class="slide bg-gradient-1" id="s6">
+  <div style="text-align:center;position:relative;z-index:1;width:100%;max-width:860px">
+    <div class="tag anim anim-1"><i class="fa-solid fa-compass"></i> החזון</div>
+    <div class="big-title anim anim-2">עסק. משפחה. קהילה.<br><span class="gradient-text">פלטפורמה אחת.</span></div>
+    <div class="vision-cols anim anim-3">
+      <div class="vision-card biz active-card">
+        <div class="focus-badge">⭐ פוקוס הערב</div>
+        <div class="vision-icon">🏪</div>
+        <div class="vision-title">עסק BIZ</div>
+        <div class="vision-desc">ניהול מלא: קופה, מלאי, עובדים, כספים, לקוחות, הכשרות</div>
+      </div>
+      <div class="vision-card fam">
+        <div class="vision-icon">👨‍👩‍👧</div>
+        <div class="vision-title">משפחה FAMILY</div>
+        <div class="vision-desc">תקציב, משימות, חסכונות, קניות, ילדים ומטרות משפחתיות</div>
+      </div>
+      <div class="vision-card com">
+        <div class="vision-icon">🤝</div>
+        <div class="vision-title">קהילה</div>
+        <div class="vision-desc">ניהול קהילות, סקרים, תקשורת ויצירת שייכות</div>
+      </div>
+    </div>
+    <div class="sub-title anim anim-4" style="margin:1.5rem auto 0;font-size:.9rem">
+      הלקוח שלך גם מנהל עסק וגם משפחה — אתה מכסה את הכל.
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SLIDE 7 — CTA
+     ============================ -->
+<div class="slide bg-cta" id="s7">
+  <div class="orb" style="width:700px;height:700px;background:rgba(99,102,241,.12);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  <div class="cta-center">
+    <div class="tag anim anim-1"><i class="fa-solid fa-rocket"></i> הצעת ערב ההשקה</div>
+    <div class="big-title anim anim-2">3 חודשים <span class="gradient-text">חינם.</span></div>
+    <div class="price-box anim anim-3">
+      <div class="price-launch">🎁 בלעדי לערב ההשקה</div>
+      <div style="font-size:1rem;color:rgba(255,255,255,.5);margin-bottom:.5rem">3 חודשי פיילוט</div>
+      <div class="price-main gradient-text">חינם</div>
+      <div class="price-period" style="margin-top:.4rem">לאחר מכן ₪149.90 / חודש בלבד</div>
+      <div class="price-note">ללא התחייבות · ביטול בכל עת</div>
+    </div>
+    <div class="cta-perks anim anim-4">
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> 3 חודשים ללא תשלום</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> ללא כרטיס אשראי</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> התקנה תוך 5 דקות</div>
+      <div class="cta-perk"><i class="fa-solid fa-check" style="color:#22d3ee"></i> תמיכה בעברית 24/7</div>
+    </div>
+    <div class="cta-actions anim anim-5">
+      <a href="/business.html" target="_blank" class="btn-primary">
+        <i class="fa-solid fa-rocket"></i> הרשמה עסקית
+      </a>
+      <a href="https://wa.me/972XXXXXXXXX" target="_blank" class="btn-secondary">
+        <i class="fa-brands fa-whatsapp" style="color:#22c55e"></i> שאלות? WhatsApp
+      </a>
+    </div>
+    <p style="margin-top:1.5rem;font-size:.78rem;color:rgba(255,255,255,.3)">oneflowlife.co.il</p>
+  </div>
+</div>
+
+<!-- ============================
+     NAVIGATION
+     ============================ -->
+<div id="nav">
+  <button class="nav-btn" id="btn-prev" onclick="go(-1)"><i class="fa-solid fa-chevron-right"></i></button>
+  <div id="dots"></div>
+  <span id="slide-num">1 / 7</span>
+  <button class="nav-btn" id="btn-next" onclick="go(1)"><i class="fa-solid fa-chevron-left"></i></button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const dotsEl = document.getElementById('dots');
+const numEl  = document.getElementById('slide-num');
+const progEl = document.getElementById('progress');
+let cur = 0;
+
+// Build dots
+slides.forEach((_,i) => {
+  const d = document.createElement('div');
+  d.className = 'nav-dot' + (i===0?' active':'');
+  d.onclick = () => go(i - cur);
+  dotsEl.appendChild(d);
+});
+
+function go(delta) {
+  const next = Math.max(0, Math.min(slides.length - 1, cur + delta));
+  if (next === cur) return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('out');
+  setTimeout(() => slides[cur].classList.remove('out'), 600);
+  cur = next;
+  slides[cur].classList.add('active');
+  document.querySelectorAll('.nav-dot').forEach((d,i) => d.classList.toggle('active', i===cur));
+  numEl.textContent = `${cur+1} / ${slides.length}`;
+  progEl.style.width = `${((cur+1)/slides.length)*100}%`;
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key==='ArrowUp') go(-1);
+  if (e.key==='ArrowLeft'||e.key==='ArrowDown'||e.key===' ') go(1);
+});
+
+// Touch swipe
+let tx=0;
+document.addEventListener('touchstart', e => tx=e.touches[0].clientX);
+document.addEventListener('touchend', e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx)>50) go(dx>0?1:-1);
+});
+
+// Feature tabs
+function selectFeature(el) {
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const img = document.getElementById('feature-img');
+  const ph  = document.getElementById('feature-placeholder');
+  img.src = el.dataset.img;
+  img.style.display = 'block';
+  ph.style.display  = 'none';
+}
+
+// Init progress
+progEl.style.width = `${(1/slides.length)*100}%`;
+</script>
+</body>
+</html>
