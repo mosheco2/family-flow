@@ -52,8 +52,6 @@
     <script defer src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -1850,14 +1848,13 @@
 
                 <!-- Survey Results Modal -->
                 <div id="survey-results-modal" class="fixed inset-0 z-[200] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div id="survey-results-inner" class="bg-white w-full max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col transition-all duration-300">
+                    <div id="survey-results-inner" class="bg-white w-full max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col">
                         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
                             <h3 id="results-modal-title" class="font-bold text-slate-800 text-base truncate flex-1 ml-2">תוצאות</h3>
                             <div class="flex items-center gap-2 shrink-0">
                                 <button onclick="downloadSurveyExcel()" title="הורד Excel" class="text-green-600 hover:bg-green-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> Excel</button>
                                 <button onclick="downloadSurveyPDF()" title="הורד PDF" class="text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-                                <button onclick="toggleResultsFullscreen()" id="fullscreen-btn" title="מסך מלא" class="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition text-sm"><i class="fa-solid fa-expand"></i></button>
-                                <button onclick="document.getElementById('survey-results-modal').classList.add('hidden'); exitResultsFullscreen();" class="text-slate-400 hover:text-slate-600 p-2 rounded-lg text-xl leading-none"><i class="fa-solid fa-xmark"></i></button>
+                                <button onclick="document.getElementById('survey-results-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-2 rounded-lg text-xl leading-none"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                         </div>
                         <div id="survey-results-body" class="overflow-y-auto flex-1 p-5"></div>
@@ -4417,27 +4414,6 @@
     } catch(e) {}
   };
 
-  // Fullscreen toggle
-  window.toggleResultsFullscreen = function() {
-    const inner = document.getElementById('survey-results-inner');
-    const btn = document.getElementById('fullscreen-btn');
-    const isFs = inner.classList.contains('results-fullscreen');
-    if (isFs) {
-      inner.classList.remove('results-fullscreen');
-      inner.style.cssText = '';
-      btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-    } else {
-      inner.classList.add('results-fullscreen');
-      inner.style.cssText = 'max-width:100vw;width:100vw;height:100vh;max-height:100vh;border-radius:0;';
-      btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
-    }
-  };
-  window.exitResultsFullscreen = function() {
-    const inner = document.getElementById('survey-results-inner');
-    if (inner) { inner.classList.remove('results-fullscreen'); inner.style.cssText = ''; }
-    const btn = document.getElementById('fullscreen-btn');
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
-  };
 
   function renderResults({ survey, questions, responses }) {
     _svCharts.forEach(c => c.destroy());
@@ -4659,56 +4635,69 @@
     XLSX.writeFile(wb, `סקר_${survey.title}_${new Date().toLocaleDateString('he-IL')}.xlsx`);
   };
 
-  window.downloadSurveyPDF = function() {
+  window.downloadSurveyPDF = async function() {
     if (!_currentResults) return;
     const { survey, questions, responses } = _currentResults;
     if (!responses.length) { alert('אין נתונים להורדה'); return; }
+    if (!window.html2pdf) { alert('ספריית PDF לא נטענה, נסה שוב'); return; }
 
-    const { jsPDF } = window.jspdf;
-    if (!jsPDF) { alert('ספריית PDF לא נטענה, נסה שוב'); return; }
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    doc.setFont('helvetica');
-
-    // Title
-    doc.setFontSize(16);
-    doc.text(survey.title || 'סקר', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`${responses.length} תשובות | ${new Date().toLocaleDateString('he-IL')}`, 105, 28, { align: 'center' });
-    doc.setTextColor(0);
-
-    // Table of respondents
     const rdKeys = Object.keys(responses[0]?.respondent_data || {});
-    const head = [
-      [...rdKeys.map(k => FIELD_LABELS[k]||k),
-       ...questions.map((_,i) => `ש${i+1}`),
-       'הערה', 'תאריך']
-    ];
-    const body = responses.map(r => {
+    const dateStr = new Date().toLocaleDateString('he-IL');
+
+    // Build full HTML table for pdf rendering (supports Hebrew via browser engine)
+    const tableRows = responses.map((r, ri) => {
       const rd = r.respondent_data || {};
-      return [
-        ...rdKeys.map(k => String(rd[k]||'')),
+      const cells = [
+        `<td>${ri+1}</td>`,
+        ...rdKeys.map(k => `<td>${rd[k]||'—'}</td>`),
         ...questions.map((q, i) => {
           const a = (r.answers||[]).find(a=>a.qi===i);
-          return String(a?.value ?? '');
+          return `<td>${a?.value != null ? a.value : '—'}</td>`;
         }),
-        String(r.comment||''),
-        new Date(r.submitted_at).toLocaleDateString('he-IL')
+        `<td>${r.comment||'—'}</td>`,
+        `<td>${new Date(r.submitted_at).toLocaleDateString('he-IL')}</td>`
       ];
-    });
+      return `<tr style="background:${ri%2===0?'#fff':'#f8fafc'}">${cells.join('')}</tr>`;
+    }).join('');
 
-    doc.autoTable({
-      head,
-      body,
-      startY: 35,
-      styles: { fontSize: 7, cellPadding: 2, halign: 'right' },
-      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: 10, right: 10 }
-    });
+    const headCells = [
+      '<th>#</th>',
+      ...rdKeys.map(k => `<th>${FIELD_LABELS[k]||k}</th>`),
+      ...questions.map((q,i) => `<th>ש${i+1}: ${q.question_text}</th>`),
+      '<th>הערה</th>',
+      '<th>תאריך</th>'
+    ].join('');
 
-    doc.save(`סקר_${survey.title}_${new Date().toLocaleDateString('he-IL')}.pdf`);
+    const html = `
+      <div dir="rtl" style="font-family:Arial,sans-serif;font-size:11px;padding:16px;color:#1e293b">
+        <h2 style="font-size:18px;margin-bottom:4px;color:#3744bf">${survey.title || 'סקר'}</h2>
+        <p style="color:#64748b;margin-bottom:16px;font-size:11px">${responses.length} תשובות | ${dateStr}</p>
+        <table style="width:100%;border-collapse:collapse;direction:rtl">
+          <thead>
+            <tr style="background:#5369e3;color:white">
+              ${headCells}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>`;
+
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    el.style.cssText = 'position:absolute;left:-9999px;top:0;width:900px';
+    document.body.appendChild(el);
+
+    try {
+      await html2pdf().set({
+        margin: 8,
+        filename: `סקר_${survey.title}_${dateStr}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      }).from(el).save();
+    } finally {
+      document.body.removeChild(el);
+    }
   };
 
   // Hook into switchTab after deferred scripts load
