@@ -612,7 +612,12 @@
                           </button>
                         </div>
 
-                        <!-- KPI cards -->
+                        <!-- Quick navigation tiles (FIRST) -->
+                        <div id="quick-tiles" class="grid grid-cols-3 gap-3 px-2 mb-4">
+                          <!-- inserted by JS -->
+                        </div>
+
+                        <!-- KPI cards (BELOW tiles) -->
                         <div class="grid grid-cols-2 gap-3 px-2 mb-4">
                           <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200">
                             <div class="text-indigo-200 text-[10px] font-semibold mb-1">מכירות היום</div>
@@ -620,9 +625,9 @@
                             <div class="text-indigo-200 text-[10px] mt-1" id="kpi-orders-today">0 הזמנות</div>
                           </div>
                           <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200">
-                            <div class="text-emerald-200 text-[10px] font-semibold mb-1">הכנסה חודשית</div>
-                            <div class="text-2xl font-black" id="kpi-revenue-month">₪0</div>
-                            <div class="text-emerald-200 text-[10px] mt-1" id="kpi-orders-month">0 הזמנות</div>
+                            <div class="text-emerald-200 text-[10px] font-semibold mb-1">עובדים פעילים</div>
+                            <div class="text-2xl font-black" id="kpi-active-staff">0</div>
+                            <div class="text-emerald-200 text-[10px] mt-1">בצוות</div>
                           </div>
                           <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">הזמנות פתוחות</div>
@@ -636,40 +641,17 @@
                           </div>
                         </div>
 
-                        <!-- Alerts -->
+                        <!-- Alerts (low stock only, compact) -->
                         <div id="dashboard-alerts" class="px-2 mb-4 hidden">
                           <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
                             <div class="flex items-center gap-2 mb-2">
                               <i class="fa-solid fa-triangle-exclamation text-amber-500 text-sm"></i>
-                              <span class="text-xs font-bold text-amber-800">התראות</span>
+                              <span class="text-xs font-bold text-amber-800">מלאי נמוך</span>
                             </div>
                             <div id="dashboard-alerts-list" class="space-y-1.5"></div>
                           </div>
                         </div>
-
-                        <!-- Quick navigation tiles -->
-                        <div id="quick-tiles" class="grid grid-cols-3 gap-3 px-2 mb-4">
-                          <!-- inserted by JS -->
-                        </div>
-
-                        <!-- Recent orders -->
-                        <div class="px-2 mb-4">
-                          <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-bold text-slate-700">הזמנות אחרונות</span>
-                            <button onclick="switchTab('sales')" class="text-indigo-500 text-xs font-bold">הכל →</button>
-                          </div>
-                          <div id="dashboard-recent-orders" class="space-y-2">
-                            <div class="text-xs text-slate-400 text-center py-4">טוען...</div>
-                          </div>
-                        </div>
-
-                        <!-- Open tasks -->
-                        <div class="px-2 mb-8">
-                          <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-bold text-slate-700">משימות פתוחות</span>
-                            <button onclick="switchTab('tasks')" class="text-indigo-500 text-xs font-bold">הכל →</button>
-                          </div>
-                          <div id="dashboard-open-tasks" class="space-y-2">
+                    </div>
                             <div class="text-xs text-slate-400 text-center py-4">טוען...</div>
                           </div>
                         </div>
