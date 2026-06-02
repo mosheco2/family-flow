@@ -62,6 +62,13 @@ const TABS = [
         if (typeof window.switchTab === 'function') window.switchTab(t);
       }, tab);
       await page.waitForTimeout(2000);
+      // Scroll past the top banner to show the tab content
+      await page.evaluate(() => {
+        const content = document.querySelector('#tab-content, .tab-content, main, #main-content, #app-content');
+        if (content) content.scrollIntoView({ behavior: 'instant', block: 'start' });
+        else window.scrollTo(0, 260);
+      });
+      await page.waitForTimeout(500);
       await page.screenshot({ path: `${OUT}/${file}` });
       console.log(`✅ נשמר: ${file}`);
     } catch (e) {
