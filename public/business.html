@@ -51,6 +51,9 @@
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
     <script defer src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -1847,10 +1850,15 @@
 
                 <!-- Survey Results Modal -->
                 <div id="survey-results-modal" class="fixed inset-0 z-[200] hidden flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col">
-                        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                            <h3 id="results-modal-title" class="font-bold text-slate-800 text-base">תוצאות</h3>
-                            <button onclick="document.getElementById('survey-results-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                    <div id="survey-results-inner" class="bg-white w-full max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col transition-all duration-300">
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+                            <h3 id="results-modal-title" class="font-bold text-slate-800 text-base truncate flex-1 ml-2">תוצאות</h3>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <button onclick="downloadSurveyExcel()" title="הורד Excel" class="text-green-600 hover:bg-green-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                                <button onclick="downloadSurveyPDF()" title="הורד PDF" class="text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                <button onclick="toggleResultsFullscreen()" id="fullscreen-btn" title="מסך מלא" class="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition text-sm"><i class="fa-solid fa-expand"></i></button>
+                                <button onclick="document.getElementById('survey-results-modal').classList.add('hidden'); exitResultsFullscreen();" class="text-slate-400 hover:text-slate-600 p-2 rounded-lg text-xl leading-none"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
                         </div>
                         <div id="survey-results-body" class="overflow-y-auto flex-1 p-5"></div>
                     </div>
@@ -4133,6 +4141,7 @@
   let _editingId = null;
   let _svQuestions = [];
   let _svCharts = [];
+  let _currentResults = null; // stored for export
 
   const FIELD_LABELS = {
     name:'שם פרטי', family_name:'שם משפחה', id_number:'ת.ז',
@@ -4401,10 +4410,33 @@
       const r = await fetch(`${API}/surveys/${id}/results`);
       const d = await r.json();
       if (!d.success) return;
+      _currentResults = d;
       renderResults(d);
       document.getElementById('results-modal-title').textContent = `תוצאות — ${d.survey.title}`;
       document.getElementById('survey-results-modal').classList.remove('hidden');
     } catch(e) {}
+  };
+
+  // Fullscreen toggle
+  window.toggleResultsFullscreen = function() {
+    const inner = document.getElementById('survey-results-inner');
+    const btn = document.getElementById('fullscreen-btn');
+    const isFs = inner.classList.contains('results-fullscreen');
+    if (isFs) {
+      inner.classList.remove('results-fullscreen');
+      inner.style.cssText = '';
+      btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+    } else {
+      inner.classList.add('results-fullscreen');
+      inner.style.cssText = 'max-width:100vw;width:100vw;height:100vh;max-height:100vh;border-radius:0;';
+      btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+    }
+  };
+  window.exitResultsFullscreen = function() {
+    const inner = document.getElementById('survey-results-inner');
+    if (inner) { inner.classList.remove('results-fullscreen'); inner.style.cssText = ''; }
+    const btn = document.getElementById('fullscreen-btn');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
   };
 
   function renderResults({ survey, questions, responses }) {
@@ -4414,17 +4446,19 @@
     if (!body) return;
     if (!responses.length) { body.innerHTML = '<p class="text-slate-400 text-center py-10">אין תגובות עדיין</p>'; return; }
 
-    let html = `<p class="text-xs text-slate-400 mb-4 font-medium">${responses.length} תגובות סה"כ</p>`;
+    let html = `<p class="text-xs text-slate-400 mb-5 font-medium">${responses.length} תגובות סה"כ</p>`;
 
-    // Per-question breakdown
-    questions.forEach((q, qi) => {
+    // Per-question breakdown — skip open_text (shown in respondent accordion)
+    const chartQs = questions.filter(q => q.type !== 'open_text');
+    chartQs.forEach((q, idx) => {
+      const qi = questions.indexOf(q);
       const answers = responses.map(r => {
         const a = (r.answers||[]).find(a => a.qi === qi);
         return a?.value ?? null;
-      }).filter(v => v !== null);
+      }).filter(v => v !== null && v !== '');
 
-      html += `<div class="mb-6">
-        <p class="text-sm font-bold text-slate-700 mb-2">${qi+1}. ${q.question_text}</p>`;
+      html += `<div class="mb-6 bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <p class="text-sm font-bold text-slate-700 mb-3">${qi+1}. ${q.question_text}</p>`;
 
       if (q.type === 'multiple_choice' || q.type === 'yes_no') {
         const opts = q.type === 'yes_no' ? ['כן','לא'] : (q.options||[]);
@@ -4432,83 +4466,250 @@
         opts.forEach(o => counts[o] = 0);
         answers.forEach(a => { if (counts[a] !== undefined) counts[a]++; });
         const total = answers.length || 1;
-        html += `<canvas id="chart-${qi}" class="mb-2" style="max-height:160px"></canvas>`;
-        html += `<div class="space-y-1">` + opts.map(o =>
+        const chartId = `chart-${qi}`;
+        html += `<canvas id="${chartId}" class="mb-3" style="max-height:160px"></canvas>`;
+        html += `<div class="space-y-1.5">` + opts.map(o =>
           `<div class="flex items-center gap-2 text-xs">
-            <span class="w-20 truncate text-slate-600 shrink-0">${o}</span>
-            <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div class="bg-indigo-500 h-full rounded-full" style="width:${Math.round(counts[o]/total*100)}%"></div>
+            <span class="w-24 truncate text-slate-600 shrink-0 font-medium">${o}</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full transition-all" style="width:${Math.round(counts[o]/total*100)}%"></div>
             </div>
-            <span class="text-slate-400 shrink-0">${counts[o]}</span>
+            <span class="text-slate-500 shrink-0 font-semibold w-10 text-left">${counts[o]} <span class="text-slate-300 font-normal">(${Math.round(counts[o]/total*100)}%)</span></span>
           </div>`).join('') + '</div>';
         setTimeout(() => {
-          const ctx = document.getElementById(`chart-${qi}`)?.getContext('2d');
+          const ctx = document.getElementById(chartId)?.getContext('2d');
           if (!ctx) return;
           _svCharts.push(new Chart(ctx, {
             type: 'doughnut',
             data: { labels: opts, datasets:[{ data: opts.map(o=>counts[o]),
-              backgroundColor:['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6'] }] },
-            options: { plugins:{ legend:{ position:'bottom', labels:{font:{size:10},boxWidth:10}}}, cutout:'65%' }
+              backgroundColor:['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6'],
+              borderWidth: 0 }] },
+            options: { plugins:{ legend:{ position:'bottom', labels:{font:{size:10},boxWidth:10,padding:12}}}, cutout:'68%' }
           }));
         }, 50);
       } else if (q.type === 'rating') {
         const avg = answers.length ? (answers.reduce((a,b)=>a+(+b),0)/answers.length).toFixed(1) : '—';
         const dist = [1,2,3,4,5].map(n => answers.filter(a=>+a===n).length);
-        html += `<div class="flex items-center gap-3 mb-2">
-          <span class="text-3xl font-black text-indigo-600">${avg}</span>
-          <div class="text-yellow-400 text-lg">${'★'.repeat(Math.round(+avg))}${'☆'.repeat(5-Math.round(+avg))}</div>
-          <span class="text-xs text-slate-400">${answers.length} מדרגים</span>
+        html += `<div class="flex items-center gap-3 mb-3">
+          <span class="text-4xl font-black text-indigo-600">${avg}</span>
+          <div>
+            <div class="text-yellow-400 text-xl leading-none">${'★'.repeat(Math.round(+avg))}${'☆'.repeat(5-Math.round(+avg))}</div>
+            <span class="text-xs text-slate-400">${answers.length} מדרגים</span>
+          </div>
         </div>`;
-        html += `<div class="space-y-1">` + [5,4,3,2,1].map(n =>
+        html += `<div class="space-y-1.5">` + [5,4,3,2,1].map(n =>
           `<div class="flex items-center gap-2 text-xs">
-            <span class="text-slate-500 shrink-0 w-8">${n} ★</span>
-            <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div class="bg-yellow-400 h-full rounded-full" style="width:${answers.length?Math.round(dist[n-1]/answers.length*100):0}%"></div>
+            <span class="text-amber-500 shrink-0 w-10 font-medium">${n} ★</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-amber-400 h-full rounded-full" style="width:${answers.length?Math.round(dist[n-1]/answers.length*100):0}%"></div>
             </div>
-            <span class="text-slate-400 shrink-0">${dist[n-1]}</span>
+            <span class="text-slate-400 shrink-0 w-8 text-left">${dist[n-1]}</span>
           </div>`).join('') + '</div>';
-      } else if (q.type === 'open_text') {
-        html += `<div class="space-y-1.5 max-h-40 overflow-y-auto">` +
-          answers.slice(0,20).map(a => `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs text-slate-600">"${a}"</div>`).join('') +
-          (answers.length>20 ? `<p class="text-[10px] text-slate-400">ועוד ${answers.length-20} תשובות...</p>` : '') + '</div>';
       }
       html += '</div>';
     });
 
-    // Comments section
-    const comments = responses.filter(r => r.comment).map(r => r.comment);
-    if (comments.length) {
-      html += `<div class="border-t border-slate-100 pt-4 mt-2">
-        <p class="text-sm font-bold text-slate-700 mb-2">הערות חופשיות (${comments.length})</p>
-        <div class="space-y-1.5 max-h-48 overflow-y-auto">
-          ${comments.map(c=>`<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-slate-600">"${c}"</div>`).join('')}
+    // Open text count summary (details in respondent accordion below)
+    const openQs = questions.filter(q => q.type === 'open_text');
+    if (openQs.length) {
+      const totalOpenAnswers = openQs.reduce((sum, q) => {
+        const qi = questions.indexOf(q);
+        return sum + responses.filter(r => (r.answers||[]).find(a=>a.qi===qi&&a.value)).length;
+      }, 0);
+      html += `<div class="mb-4 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 flex items-center gap-3">
+        <i class="fa-solid fa-comment-dots text-blue-400 text-xl"></i>
+        <div>
+          <p class="text-sm font-bold text-blue-800">תשובות לשאלות פתוחות</p>
+          <p class="text-xs text-blue-500">${totalOpenAnswers} תשובות — ניתן לצפייה בפירוט לפי ממלא הסקר למטה</p>
         </div>
       </div>`;
     }
 
-    // Respondents table
-    if (!survey.anonymous) {
-      html += `<div class="border-t border-slate-100 pt-4 mt-2">
-        <p class="text-sm font-bold text-slate-700 mb-2">פרטי ממלאי הסקר</p>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead><tr class="text-slate-400 border-b border-slate-100">
-              ${Object.keys(responses[0]?.respondent_data||{}).map(k=>`<th class="py-1.5 px-2 text-right font-semibold">${FIELD_LABELS[k]||k}</th>`).join('')}
-              <th class="py-1.5 px-2 text-right font-semibold">תאריך</th>
-            </tr></thead>
-            <tbody>
-              ${responses.map(r=>`<tr class="border-b border-slate-50">
-                ${Object.values(r.respondent_data||{}).map(v=>`<td class="py-1.5 px-2 text-slate-600">${v||'—'}</td>`).join('')}
-                <td class="py-1.5 px-2 text-slate-400">${new Date(r.submitted_at).toLocaleDateString('he-IL')}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
+    // Respondents accordion
+    html += `<div class="border-t border-slate-100 pt-5 mt-1">
+      <p class="text-sm font-bold text-slate-700 mb-3">ממלאי הסקר (${responses.length})</p>
+      <div class="space-y-2" id="respondents-accordion">`;
+
+    responses.forEach((resp, ri) => {
+      const rd = resp.respondent_data || {};
+      const displayName = rd.name ? `${rd.name}${rd.family_name ? ' ' + rd.family_name : ''}` :
+                          rd.email || rd.phone || `ממלא #${ri+1}`;
+      const date = new Date(resp.submitted_at).toLocaleDateString('he-IL', {day:'numeric', month:'long', year:'numeric'});
+
+      // Build detail rows
+      let detailHtml = '';
+      // Respondent fields
+      if (Object.keys(rd).length) {
+        detailHtml += `<div class="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3">`;
+        for (const [k, v] of Object.entries(rd)) {
+          if (v) detailHtml += `<div><span class="text-[10px] text-slate-400 block">${FIELD_LABELS[k]||k}</span><span class="text-xs text-slate-700 font-medium">${v}</span></div>`;
+        }
+        detailHtml += `</div>`;
+      }
+
+      // All answers
+      detailHtml += `<div class="space-y-2">`;
+      questions.forEach((q, qi) => {
+        const ans = (resp.answers||[]).find(a => a.qi === qi);
+        if (!ans || ans.value === null || ans.value === undefined || ans.value === '') return;
+        const valDisplay = q.type === 'rating' ? ('★'.repeat(+ans.value) + '☆'.repeat(5-Math.min(5,+ans.value)) + ` (${ans.value})`) : String(ans.value);
+        detailHtml += `<div class="bg-slate-50 rounded-xl px-3 py-2">
+          <p class="text-[10px] text-slate-400 mb-0.5">${qi+1}. ${q.question_text}</p>
+          <p class="text-xs text-slate-700 font-medium">${valDisplay}</p>
+        </div>`;
+      });
+      detailHtml += `</div>`;
+
+      // Comment
+      if (resp.comment) {
+        detailHtml += `<div class="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+          <p class="text-[10px] text-amber-600 font-semibold mb-1">הערה חופשית</p>
+          <p class="text-xs text-slate-600">${resp.comment}</p>
+        </div>`;
+      }
+
+      html += `<div class="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+        <button onclick="toggleAccordion(${ri})"
+          class="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition text-right">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shrink-0">
+              ${displayName.charAt(0).toUpperCase()}
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-bold text-slate-800">${displayName}</p>
+              <p class="text-[10px] text-slate-400">${date}</p>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-down text-slate-300 text-xs transition-transform accordion-icon-${ri}"></i>
+        </button>
+        <div id="accordion-${ri}" class="hidden border-t border-slate-100 px-4 py-3">
+          ${detailHtml}
         </div>
       </div>`;
-    }
+    });
 
+    html += `</div></div>`;
     body.innerHTML = html;
   }
+
+  window.toggleAccordion = function(ri) {
+    const el = document.getElementById(`accordion-${ri}`);
+    const icon = document.querySelector(`.accordion-icon-${ri}`);
+    if (!el) return;
+    const open = !el.classList.contains('hidden');
+    el.classList.toggle('hidden', open);
+    if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+  };
+
+  // ── Export ────────────────────────────────────────────────────
+  window.downloadSurveyExcel = function() {
+    if (!_currentResults) return;
+    const { survey, questions, responses } = _currentResults;
+    if (!responses.length) { alert('אין נתונים להורדה'); return; }
+
+    const XLSX = window.XLSX;
+    if (!XLSX) { alert('ספריית Excel לא נטענה, נסה שוב'); return; }
+
+    // Sheet 1: Raw responses
+    const rdKeys = Object.keys(responses[0]?.respondent_data || {});
+    const headers = [
+      ...rdKeys.map(k => FIELD_LABELS[k] || k),
+      ...questions.map((q, i) => `${i+1}. ${q.question_text}`),
+      'הערה חופשית',
+      'תאריך הגשה'
+    ];
+    const rows = responses.map(r => {
+      const rd = r.respondent_data || {};
+      return [
+        ...rdKeys.map(k => rd[k] || ''),
+        ...questions.map((q, i) => {
+          const a = (r.answers||[]).find(a => a.qi === i);
+          return a?.value ?? '';
+        }),
+        r.comment || '',
+        new Date(r.submitted_at).toLocaleDateString('he-IL')
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = headers.map(() => ({ wch: 20 }));
+
+    // Sheet 2: Question summary
+    const summaryRows = [['שאלה', 'סוג', 'סה"כ תשובות', 'פרטים']];
+    questions.forEach((q, qi) => {
+      const answers = responses.map(r => (r.answers||[]).find(a=>a.qi===qi)?.value).filter(v=>v!=null&&v!=='');
+      let details = '';
+      if (q.type === 'rating') {
+        const avg = answers.length ? (answers.reduce((a,b)=>a+(+b),0)/answers.length).toFixed(1) : '—';
+        details = `ממוצע: ${avg}`;
+      } else if (q.type === 'multiple_choice' || q.type === 'yes_no') {
+        const opts = q.type === 'yes_no' ? ['כן','לא'] : (q.options||[]);
+        details = opts.map(o=>`${o}: ${answers.filter(a=>a===o).length}`).join(', ');
+      } else {
+        details = answers.slice(0,5).join(' | ');
+      }
+      summaryRows.push([q.question_text, Q_LABELS[q.type]||q.type, answers.length, details]);
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryRows);
+    ws2['!cols'] = [{ wch: 40 }, { wch: 16 }, { wch: 14 }, { wch: 60 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'תשובות');
+    XLSX.utils.book_append_sheet(wb, ws2, 'סיכום');
+    XLSX.writeFile(wb, `סקר_${survey.title}_${new Date().toLocaleDateString('he-IL')}.xlsx`);
+  };
+
+  window.downloadSurveyPDF = function() {
+    if (!_currentResults) return;
+    const { survey, questions, responses } = _currentResults;
+    if (!responses.length) { alert('אין נתונים להורדה'); return; }
+
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) { alert('ספריית PDF לא נטענה, נסה שוב'); return; }
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFont('helvetica');
+
+    // Title
+    doc.setFontSize(16);
+    doc.text(survey.title || 'סקר', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`${responses.length} תשובות | ${new Date().toLocaleDateString('he-IL')}`, 105, 28, { align: 'center' });
+    doc.setTextColor(0);
+
+    // Table of respondents
+    const rdKeys = Object.keys(responses[0]?.respondent_data || {});
+    const head = [
+      [...rdKeys.map(k => FIELD_LABELS[k]||k),
+       ...questions.map((_,i) => `ש${i+1}`),
+       'הערה', 'תאריך']
+    ];
+    const body = responses.map(r => {
+      const rd = r.respondent_data || {};
+      return [
+        ...rdKeys.map(k => String(rd[k]||'')),
+        ...questions.map((q, i) => {
+          const a = (r.answers||[]).find(a=>a.qi===i);
+          return String(a?.value ?? '');
+        }),
+        String(r.comment||''),
+        new Date(r.submitted_at).toLocaleDateString('he-IL')
+      ];
+    });
+
+    doc.autoTable({
+      head,
+      body,
+      startY: 35,
+      styles: { fontSize: 7, cellPadding: 2, halign: 'right' },
+      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 10, right: 10 }
+    });
+
+    doc.save(`סקר_${survey.title}_${new Date().toLocaleDateString('he-IL')}.pdf`);
+  };
 
   // Hook into switchTab after deferred scripts load
   document.addEventListener('DOMContentLoaded', function() {
