@@ -31,7 +31,7 @@ app.use(express.static('public', {
         if (/\.(webp|png|jpe?g|gif|svg|ico)$/i.test(filePath)) {
             res.set('Cache-Control', 'public, max-age=604800, immutable');
         } else if (/\.(js|css)$/i.test(filePath)) {
-            res.set('Cache-Control', 'public, max-age=86400');
+            res.set('Cache-Control', 'no-cache, must-revalidate');
         }
     }
 }));
