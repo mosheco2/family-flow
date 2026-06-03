@@ -3252,18 +3252,29 @@ window.renderDashboard = async function(forceRefresh = false) {
 
         // KPI calculations
         const now = new Date();
-        let salesToday = 0, ordersToday = 0, openOrders = 0;
+        let salesToday = 0, ordersToday = 0, openOrders = 0, revenueMonth = 0;
+        const thisMonth = now.getMonth(), thisYear = now.getFullYear();
         (storeOrdersCache || []).forEach(o => {
             if (o.status === 'cancelled') return;
             const d = new Date(o.created_at);
             const amt = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
             const done = o.status === 'completed' || o.status === 'shipped';
-            const isToday = d.getDate()===now.getDate() && d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+            const isToday = d.getDate()===now.getDate() && d.getMonth()===thisMonth && d.getFullYear()===thisYear;
+            const isThisMonth = d.getMonth()===thisMonth && d.getFullYear()===thisYear;
             if (isToday) { ordersToday++; if (done) salesToday += amt; }
+            if (isThisMonth && done) revenueMonth += amt;
             if (!done) openOrders++;
         });
         const openTasks   = (allTasks || []).filter(t => t.status === 'pending').length;
         const activeStaff = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+
+        // Balance: sum all cashflow transactions
+        let totalIncome = 0, totalExpense = 0;
+        (allTransactions || []).forEach(t => {
+            const amt = parseFloat(t.amount) || 0;
+            if (t.type === 'income') totalIncome += amt; else totalExpense += amt;
+        });
+        const netBalance = totalIncome - totalExpense;
 
         const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
         s('kpi-sales-today',   `₪${salesToday.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
@@ -3271,6 +3282,14 @@ window.renderDashboard = async function(forceRefresh = false) {
         s('kpi-active-staff',  activeStaff);
         s('kpi-open-orders',   openOrders);
         s('kpi-open-tasks',    openTasks);
+        s('kpi-revenue-month', `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
+
+        // Balance banner
+        const balEl = document.getElementById('user-balance');
+        if (balEl) {
+            balEl.textContent = `${netBalance >= 0 ? '+' : ''}₪${Math.abs(netBalance).toLocaleString('he-IL', {maximumFractionDigits:0})}`;
+            balEl.className = `text-3xl font-black font-mono tracking-tight ${netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`;
+        }
 
         // Alerts: low stock (qty ≤ 2)
         const lowStock   = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 2);
@@ -10216,7 +10235,7 @@ function _showExcelStep1() {
     closeExcelImportModal();
     _excelSelectedBizType = null; _excelItemLabel = null;
     const html = `
-<div id="excel-import-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4" onclick="if(event.target===this)closeExcelImportModal()">
+<div id="excel-import-modal" class="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-4" onclick="if(event.target===this)closeExcelImportModal()">
   <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 relative" onclick="event.stopPropagation()">
     <button onclick="closeExcelImportModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-700 text-xl w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
     <h2 class="text-xl font-black text-slate-800 mb-1 text-center">📊 ייבוא מאקסל</h2>
@@ -10359,7 +10378,7 @@ function _showExcelPreviewModal() {
     const total = _excelImportRows.filter(r=>!r._isCategory).length;
     const modal = document.createElement('div');
     modal.id = 'excel-preview-modal';
-    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-2';
+    modal.className = 'fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-2';
     modal.innerHTML = `
 <style>
 .excel-drag-target > div { outline: 2px dashed #6366f1 !important; background: #eef2ff !important; }
