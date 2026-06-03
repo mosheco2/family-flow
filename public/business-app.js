@@ -9867,6 +9867,20 @@ function showOnboardingWizard() {
                         </div>
                     </div>
 
+                    <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl mb-4 shadow-sm">
+                        <label class="text-xs font-bold text-emerald-800 block mb-2">📊 ייבוא מאקסל</label>
+                        <p class="text-[11px] text-emerald-700 mb-3">טענו קובץ Excel עם עמודות: שם מנה/מוצר | קטגוריה | מחיר | תיאור</p>
+                        <div class="flex gap-2">
+                            <label class="flex-1 bg-white border-2 border-emerald-300 border-dashed text-emerald-700 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer hover:bg-emerald-50 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-file-excel text-emerald-600"></i> בחר קובץ Excel
+                                <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToWizard(this)">
+                            </label>
+                            <button onclick="downloadCatalogTemplate()" class="bg-white border border-emerald-200 text-emerald-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-emerald-50 transition shrink-0" title="הורד תבנית Excel">
+                                <i class="fa-solid fa-download"></i> תבנית
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
                         <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
@@ -10099,6 +10113,102 @@ window.saTogglePremium = async function(id, enable) {
         showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי');
     }
 };
+// ── ייבוא תפריט מאקסל ──────────────────────────────────────────────
+function downloadCatalogTemplate() {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['שם מנה/מוצר', 'קטגוריה', 'מחיר (₪)', 'תיאור'],
+        ['פיצה מרגריטה', 'פיצות', 45, 'פיצה קלאסית עם עגבניה וגבינה'],
+        ['קפה שחור', 'שתייה חמה', 12, ''],
+        ['סלט יווני', 'סלטים', 38, 'עם גבינת פטה וזיתים'],
+    ]);
+    ws['!cols'] = [{wch:22},{wch:16},{wch:12},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, 'תפריט');
+    XLSX.writeFile(wb, 'תבנית-תפריט.xlsx');
+}
+
+function parseExcelToProducts(file, callback) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const wb = XLSX.read(e.target.result, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            if (rows.length < 2) return showToast('error', 'הקובץ ריק או לא תקין');
+
+            // זיהוי עמודות לפי כותרת (גמיש — עברית ואנגלית)
+            const headers = rows[0].map(h => String(h).trim().toLowerCase());
+            const colIdx = key => {
+                const maps = {
+                    name: ['שם','name','מנה','מוצר','item','product','שם מנה','שם מוצר','שם מנה/מוצר'],
+                    category: ['קטגוריה','category','סוג','type'],
+                    price: ['מחיר','price','עלות','cost','מחיר (₪)','מחיר (nis)'],
+                    description: ['תיאור','description','הערות','notes','desc']
+                };
+                for (const alias of maps[key]) { const i = headers.indexOf(alias); if (i >= 0) return i; }
+                return -1;
+            };
+
+            const ni = colIdx('name'), ci = colIdx('category'), pi = colIdx('price'), di = colIdx('description');
+            if (ni < 0) return showToast('error', 'לא נמצאה עמודת "שם מנה/מוצר" בקובץ');
+
+            const products = [];
+            for (let r = 1; r < rows.length; r++) {
+                const row = rows[r];
+                const name = String(row[ni] || '').trim();
+                if (!name) continue;
+                products.push({
+                    name,
+                    category: ci >= 0 ? String(row[ci] || 'כללי').trim() : 'כללי',
+                    price: pi >= 0 ? (parseFloat(row[pi]) || 0) : 0,
+                    description: di >= 0 ? String(row[di] || '').trim() : '',
+                });
+            }
+            callback(products);
+        } catch(err) { showToast('error', 'שגיאה בקריאת הקובץ: ' + err.message); }
+    };
+    reader.readAsBinaryString(file);
+}
+
+// ייבוא לוויזארד
+function importExcelToWizard(input) {
+    const file = input.files[0];
+    if (!file) return;
+    parseExcelToProducts(file, products => {
+        let added = 0;
+        products.forEach(p => {
+            if (wizardProducts.length < 25) { wizardProducts.push(p); added++; }
+        });
+        renderWizardProducts();
+        showToast('success', `יובאו ${added} מוצרים מהאקסל`);
+        input.value = '';
+    });
+}
+
+// ייבוא לקטלוג קיים
+async function importExcelToCatalog(input) {
+    const file = input.files[0];
+    if (!file) return;
+    parseExcelToProducts(file, async products => {
+        if (!products.length) return showToast('error', 'לא נמצאו מוצרים בקובץ');
+        showToast('info', `מייבא ${products.length} מוצרים...`);
+        let ok = 0, fail = 0;
+        for (const p of products) {
+            try {
+                const res = await fetch(`${API}/store/catalog`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ groupId: currentGroup.id, name: p.name, price: p.price, category: p.category, description: p.description, isAvailable: true, productType: 'retail' })
+                });
+                if (res.ok) ok++; else fail++;
+            } catch { fail++; }
+        }
+        fetchStoreCatalog();
+        showToast(fail === 0 ? 'success' : 'info', `יובאו ${ok} מוצרים${fail ? ` (${fail} נכשלו)` : ''}`);
+        input.value = '';
+    });
+}
+// ─────────────────────────────────────────────────────────────────────
+
 function addWizardProduct() {
     if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בהקמה.');
     const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי'; const price = parseFloat(val('wiz-add-price')) || 0; const desc = val('wiz-add-desc');

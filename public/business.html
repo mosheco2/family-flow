@@ -1015,10 +1015,17 @@
     <div id="store-quotes-list" class="space-y-3 pb-8"></div>
 </div>
                             <div id="sales-view-catalog" class="hidden space-y-4">
-                                <div class="flex justify-between items-center mb-4 px-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
-                                    <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
-                                </div>
+                                <div class="flex justify-between items-center mb-4 px-1">
+                                    <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
+                                    <div class="flex gap-2 items-center">
+                                        <label class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1" title="ייבוא מ-Excel">
+                                        <i class="fa-solid fa-file-excel"></i> ייבוא Excel
+                                        <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToCatalog(this)">
+                                    </label>
+                                        <button onclick="downloadCatalogTemplate()" class="bg-white border border-slate-200 text-slate-600 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition" title="הורד תבנית Excel"><i class="fa-solid fa-download"></i></button>
+                                        <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
+                                    </div>
+                                </div>
                                 <div id="store-catalog-list" class="space-y-3 pb-8"></div>
                             </div>
                             
