@@ -9869,13 +9869,28 @@ function showOnboardingWizard() {
 
                     <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl mb-4 shadow-sm">
                         <label class="text-xs font-bold text-emerald-800 block mb-2">📊 ייבוא מאקסל</label>
-                        <p class="text-[11px] text-emerald-700 mb-3">טענו קובץ Excel עם עמודות: שם מנה/מוצר | קטגוריה | מחיר | תיאור</p>
+
+                        <p class="text-[11px] text-emerald-700 mb-2 font-semibold">1. בחר סוג עסק:</p>
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="setWizardExcelBizType('restaurant',this)" class="wiz-excel-biz flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">🍽️ מסעדה/קפה</button>
+                            <button onclick="setWizardExcelBizType('shop',this)" class="wiz-excel-biz flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">🛍️ חנות</button>
+                            <button onclick="setWizardExcelBizType('service',this)" class="wiz-excel-biz flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">🔧 שירותים</button>
+                        </div>
+
+                        <p class="text-[11px] text-emerald-700 mb-2 font-semibold">2. סוג הפריטים:</p>
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="setWizardExcelItemLabel('מנות',this)" class="wiz-excel-item flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">מנות</button>
+                            <button onclick="setWizardExcelItemLabel('מוצרים',this)" class="wiz-excel-item flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">מוצרים</button>
+                            <button onclick="setWizardExcelItemLabel('שירותים',this)" class="wiz-excel-item flex-1 py-2 border border-emerald-200 bg-white rounded-xl text-xs font-bold text-slate-600 hover:bg-emerald-100 transition">שירותים</button>
+                        </div>
+
+                        <p class="text-[11px] text-emerald-700 mb-2 font-semibold">3. טען קובץ:</p>
                         <div class="flex gap-2">
-                            <label class="flex-1 bg-white border-2 border-emerald-300 border-dashed text-emerald-700 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer hover:bg-emerald-50 transition flex items-center justify-center gap-2">
+                            <label class="flex-1 bg-white border-2 border-emerald-300 border-dashed text-emerald-700 px-3 py-2.5 rounded-xl text-xs font-bold cursor-pointer hover:bg-emerald-50 transition flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-file-excel text-emerald-600"></i> בחר קובץ Excel
                                 <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToWizard(this)">
                             </label>
-                            <button onclick="downloadCatalogTemplate()" class="bg-white border border-emerald-200 text-emerald-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-emerald-50 transition shrink-0" title="הורד תבנית Excel">
+                            <button onclick="downloadCatalogTemplate()" class="bg-white border border-emerald-200 text-emerald-600 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-50 transition shrink-0" title="הורד תבנית Excel">
                                 <i class="fa-solid fa-download"></i> תבנית
                             </button>
                         </div>
@@ -10131,11 +10146,49 @@ let _excelSelectedBizType = null;
 let _excelItemLabel = null;
 let _excelDragSrcIdx = null;
 
+// ── Inline wizard selectors ───────────────────────────────────────────
+function setWizardExcelBizType(type, btn) {
+    _excelSelectedBizType = type;
+    document.querySelectorAll('.wiz-excel-biz').forEach(b => {
+        const sel = b === btn;
+        b.classList.toggle('bg-emerald-600', sel); b.classList.toggle('text-white', sel);
+        b.classList.toggle('border-emerald-600', sel); b.classList.toggle('bg-white', !sel);
+        b.classList.toggle('text-slate-600', !sel);
+    });
+}
+function setWizardExcelItemLabel(label, btn) {
+    _excelItemLabel = label;
+    document.querySelectorAll('.wiz-excel-item').forEach(b => {
+        const sel = b === btn;
+        b.classList.toggle('bg-emerald-600', sel); b.classList.toggle('text-white', sel);
+        b.classList.toggle('border-emerald-600', sel); b.classList.toggle('bg-white', !sel);
+        b.classList.toggle('text-slate-600', !sel);
+    });
+}
+
 // ── Entry points ──────────────────────────────────────────────────────
 function importExcelToWizard(input) {
     const file = input.files[0]; if (!file) return;
     input.value = '';
-    _readExcelFile(file, 'wizard');
+    // If biz type already selected inline in wizard, skip step 1 modal
+    if (_excelSelectedBizType && _excelItemLabel) {
+        _excelImportCtx = 'wizard';
+        _excelImportRows = [];
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const wb = XLSX.read(e.target.result, { type: 'binary' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                _excelRawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                _excelImportRows = _excelSmartParse(_excelRawRows);
+                closeExcelImportModal();
+                _showExcelPreviewModal();
+            } catch(err) { showToast('error', 'שגיאה בקריאת הקובץ: ' + err.message); }
+        };
+        reader.readAsBinaryString(file);
+    } else {
+        _readExcelFile(file, 'wizard');
+    }
 }
 function importExcelToCatalog(input) {
     const file = input.files[0]; if (!file) return;
