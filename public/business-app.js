@@ -10305,6 +10305,17 @@ function _excelSmartParse(rows) {
     const parsed = [];
     let currentCategory = 'כללי';
 
+    // Known category-section keywords (these trigger a new section)
+    const SECTION_KEYWORDS = /^(מנות|ראשונות|עיקריות|קינוחים?|שתיה|שתייה|מאפים?|סלטים?|תוספות?|רטבים?|ירקות?|ממתקים?|ארוחות?|פיצות?|המבורגרים?|בשרים?|דגים?|לחמים?|מנות\s*ילדים?|מיוחדים?|פסטות?|שוורמות?|מנות\s*ראשונות?|מנות\s*עיקריות?|צ'?יפס|נקניקיות?)$/;
+    // Infer item type from parent category
+    const inferTypeFromCategory = cat => {
+        if (/תוספות?|תוספת/.test(cat)) return 'תוספת';
+        if (/רטבים?|רוטב/.test(cat)) return 'רוטב';
+        if (/ירקות?/.test(cat)) return 'ירק';
+        if (/שתיה|שתייה/.test(cat)) return 'שתיה';
+        return 'פריט';
+    };
+
     const firstRow = rows[0].map(c => String(c).trim());
     const isHeaderRow = firstRow.some(c => {
         const cl = c.toLowerCase();
@@ -10323,47 +10334,99 @@ function _excelSmartParse(rows) {
         });
     }
 
+    // Helper: extract price from a cell value
+    const extractPrice = val => {
+        const m = String(val).match(/(\d+(?:\.\d+)?)\s*(?:ש[""׳]ח|₪|שח)/);
+        if (m) return parseFloat(m[1]);
+        const n = parseFloat(String(val).replace(/[^\d.]/g,''));
+        return (!isNaN(n) && n > 0 && n < 10000) ? n : 0;
+    };
+
+    // Lookahead: does the next non-empty row have a price?
+    const nextRowHasPrice = startIdx => {
+        for (let i = startIdx; i < Math.min(startIdx+6, rows.length); i++) {
+            const nc = rows[i].map(c => String(c).trim());
+            if (nc.every(c=>c==='')) continue; // skip empty rows
+            const nonEmpty = nc.filter(c=>c!=='');
+            if (nonEmpty.length > 1) return true; // multiple columns → likely has price
+            // single cell: check if it's a number
+            if (nonEmpty.length === 1 && /^\d+(\.\d+)?$/.test(nonEmpty[0])) return true;
+            return false; // next non-empty row also has 1 cell → probably not a priced item
+        }
+        return false;
+    };
+
     for (let r = startRow; r < rows.length; r++) {
         const row = rows[r];
         const cells = row.map(c => String(c).trim());
-        const mainCell = cells[nameCol] || cells[0] || '';
+        const nonEmptyCells = cells.filter(c => c !== '');
+        if (nonEmptyCells.length === 0) continue;
+
+        let mainCell = cells[nameCol] || cells[0] || '';
+        const isNumericOnly = /^\d+(\.\d+)?$/.test(mainCell);
+
+        // ── Detect price ──────────────────────────────────────────────
+        let detectedPrice = 0;
+        // 1. Explicit price column
+        if (priceCol >= 0 && cells[priceCol]) {
+            detectedPrice = extractPrice(cells[priceCol]);
+        }
+        // 2. Search all OTHER columns for price (prefer non-name-col)
+        if (!detectedPrice) {
+            for (let i = 0; i < cells.length; i++) {
+                if (i === nameCol || !cells[i]) continue;
+                const p = extractPrice(cells[i]);
+                if (p) { detectedPrice = p; break; }
+            }
+        }
+
+        // ── Handle numeric-only name cell ──────────────────────────────
+        // If the "name" column is a number, the number IS the price;
+        // look for a text name in other columns
+        if (isNumericOnly && !detectedPrice) {
+            detectedPrice = parseFloat(mainCell);
+            let foundName = '';
+            for (let i = 0; i < cells.length; i++) {
+                if (i === nameCol || !cells[i]) continue;
+                if (!/^\d+(\.\d+)?$/.test(cells[i])) { foundName = cells[i]; break; }
+            }
+            mainCell = foundName || `פריט`;
+        } else if (isNumericOnly && detectedPrice) {
+            // Name column has a number AND price found elsewhere: swap them
+            let foundName = '';
+            for (let i = 0; i < cells.length; i++) {
+                if (i === nameCol || !cells[i]) continue;
+                if (!/^\d+(\.\d+)?$/.test(cells[i])) { foundName = cells[i]; break; }
+            }
+            if (foundName) { mainCell = foundName; }
+        }
+
         if (!mainCell) continue;
 
-        // Detect price anywhere in row
-        let detectedPrice = 0;
-        if (priceCol >= 0 && cells[priceCol]) {
-            const n = parseFloat(String(cells[priceCol]).replace(/[^\d.]/g,''));
-            if (!isNaN(n)) detectedPrice = n;
-        }
-        if (!detectedPrice) {
-            for (const c of cells) {
-                const m = c.match(/(\d+(?:\.\d+)?)\s*(?:ש[""׳]ח|₪|שח)/);
-                if (m) { detectedPrice = parseFloat(m[1]); break; }
+        // ── Category header detection ─────────────────────────────────
+        // ONLY mark as category if:
+        // (a) single non-empty cell AND
+        // (b) matches known section keyword OR is followed by priced items
+        if (nonEmptyCells.length === 1 && !isNumericOnly && !detectedPrice) {
+            const isKnownKeyword = SECTION_KEYWORDS.test(mainCell.trim());
+            const followedByPriced = nextRowHasPrice(r + 1);
+            if (isKnownKeyword || followedByPriced) {
+                currentCategory = mainCell;
+                parsed.push({ id: `cat-${r}`, name: mainCell, category: mainCell, price: 0, description: '', type: '__category__', selected: false, _isCategory: true });
+                continue;
             }
-        }
-        if (!detectedPrice) {
-            for (const c of cells.slice(1)) {
-                const n = parseFloat(c.replace(/[^\d.]/g,''));
-                if (!isNaN(n) && n > 0 && n < 10000) { detectedPrice = n; break; }
-            }
+            // else: fall through as a free modifier item
         }
 
-        // Detect row type from name keywords
-        let detectedType = 'פריט';
-        const nl = mainCell;
-        if (/תוספת|תוספות/.test(nl)) detectedType = 'תוספת';
-        else if (/רוטב|רטבים/.test(nl)) detectedType = 'רוטב';
-        else if (/ירק|ירקות/.test(nl)) detectedType = 'ירק';
-        else if (/שתיה|שתייה/.test(nl)) detectedType = 'שתיה';
-
-        // Category header: single non-empty cell, no numeric price found, short text
-        const nonEmptyCells = cells.filter(c => c !== '');
-        const onlyOneCell = nonEmptyCells.length === 1 || (nonEmptyCells.length === 2 && cells.indexOf(nonEmptyCells[0]) === 0 && !detectedPrice);
-        if (onlyOneCell && !detectedPrice && mainCell.length < 35) {
-            currentCategory = mainCell;
-            parsed.push({ id: `cat-${r}`, name: mainCell, category: mainCell, price: 0, description: '', type: '__category__', selected: false, _isCategory: true });
-            continue;
+        // ── Infer item type ───────────────────────────────────────────
+        let detectedType = inferTypeFromCategory(currentCategory);
+        if (detectedType === 'פריט') {
+            if (/תוספת|תוספות/.test(mainCell)) detectedType = 'תוספת';
+            else if (/רוטב|רטבים/.test(mainCell)) detectedType = 'רוטב';
+            else if (/ירק|ירקות/.test(mainCell)) detectedType = 'ירק';
+            else if (/שתיה|שתייה/.test(mainCell)) detectedType = 'שתיה';
         }
+        if (detectedPrice > 0) detectedType = detectedType === 'פריט' ? 'פריט' : detectedType;
 
         const cat = catCol >= 0 && cells[catCol] ? cells[catCol] : currentCategory;
         const desc = descCol >= 0 ? (cells[descCol] || '') : '';
