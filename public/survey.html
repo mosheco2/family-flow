@@ -3,7 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>סקר</title>
+<title>סקר | Oneflow Life</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<meta property="og:title" content="סקר | Oneflow Life">
+<meta property="og:description" content="ענו על הסקר שלנו">
+<meta property="og:image" content="/logo.png">
+<meta property="og:type" content="website">
+<script>
+  (async () => {
+    try {
+      const r = await fetch('/api/system/public-config');
+      const d = await r.json();
+      if (d.globalAiLogo) {
+        let icon = document.querySelector("link[rel~='icon']");
+        if (icon) icon.href = d.globalAiLogo;
+        document.querySelector("meta[property='og:image']").content = d.globalAiLogo;
+      }
+    } catch(e) {}
+  })();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

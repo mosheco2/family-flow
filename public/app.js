@@ -4099,6 +4099,13 @@ window.initPublicConfig = async function() {
                 // 2. עדכון סמל הדפדפן (Favicon)
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
+                document.querySelectorAll("link[rel='shortcut icon'], link[rel='apple-touch-icon']").forEach(l => l.href = data.globalAiLogo);
+
+                // 2b. עדכון og:image לשיתוף וואצאפ/סושיאל
+                ['og:image','og:image:secure_url'].forEach(prop => {
+                    const m = document.querySelector(`meta[property="${prop}"]`);
+                    if (m) m.content = data.globalAiLogo;
+                });
 
                 // 3. עדכון בועת העוזרת החכמה המרחפת!
                 // מאתרים את כל הכפתורים שמפעילים את מודאל ה-AI

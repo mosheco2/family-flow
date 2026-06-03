@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Oneflow Life | סופר אדמין</title>
     <link rel="icon" href="/logo.png" type="image/png">
+    <meta property="og:title" content="Oneflow Life | סופר אדמין">
+    <meta property="og:image" content="/logo.png">
+    <script>
+      (async () => {
+        try {
+          const r = await fetch('/api/system/public-config');
+          const d = await r.json();
+          if (d.globalAiLogo) {
+            document.querySelector("link[rel~='icon']").href = d.globalAiLogo;
+            document.querySelector("meta[property='og:image']").content = d.globalAiLogo;
+          }
+        } catch(e) {}
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">

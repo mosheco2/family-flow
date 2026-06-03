@@ -17691,6 +17691,8 @@ window.initPublicConfig = async function() {
         if (data.success) {
             // החלפת סמל הדפדפן (Favicon)
             if (data.globalAiLogo) {
+                window.currentBizAiLogo = data.globalAiLogo;
+
                 const link = document.querySelector("link[rel~='icon']");
                 if (link) link.href = data.globalAiLogo;
                 else {
@@ -17698,7 +17700,15 @@ window.initPublicConfig = async function() {
                     newLink.rel = 'icon'; newLink.href = data.globalAiLogo;
                     document.head.appendChild(newLink);
                 }
-                
+                document.querySelectorAll("link[rel='shortcut icon'], link[rel='apple-touch-icon']").forEach(l => l.href = data.globalAiLogo);
+
+                // og:image — add if missing, update if exists
+                ['og:image','og:image:secure_url'].forEach(prop => {
+                    let m = document.querySelector(`meta[property="${prop}"]`);
+                    if (!m) { m = document.createElement('meta'); m.setAttribute('property', prop); document.head.appendChild(m); }
+                    m.content = data.globalAiLogo;
+                });
+
                 // פתרון לתקלת ה"החלפה לשנייה אחת":
                 // מכיוון שיש קוד אחר שמרענן את מסך ה-HTML בעת טעינת הדף ודורס את הבועה (pristineHTML),
                 // אנו משתמשים ב-setInterval כדי לוודא שהלוגו נשאר מעודכן לנצח ולא מתאפס ל-logo.png.
