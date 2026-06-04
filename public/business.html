@@ -601,31 +601,29 @@
                <div class="px-2 w-full">
                    
                     <div id="content-feed">
-                        <!-- Dashboard header -->
-                        <div class="flex items-center justify-between px-2 mb-3">
-                          <div>
-                            <div class="text-lg font-black text-slate-800" id="dash-greeting">שלום 👋</div>
-                            <div class="text-xs text-slate-400" id="dash-date"></div>
-                          </div>
-                          <button onclick="renderDashboard(true)" class="bg-white border border-slate-200 text-slate-500 rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm flex items-center gap-1.5 hover:text-indigo-600">
-                            <i class="fa-solid fa-rotate-right"></i> רענן
-                          </button>
-                        </div>
-
-                        <!-- Quick navigation tiles (FIRST) -->
-                        <div id="quick-tiles" class="grid grid-cols-3 gap-3 px-2 mb-4">
-                          <!-- inserted by JS -->
-                        </div>
-
-                        <!-- Balance card (restored original style) -->
-                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2">
-                          <p class="text-blue-100 text-xs font-medium mb-1 opacity-80">יתרה נוכחית</p>
-                          <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
-                          <div class="flex items-center gap-3 mt-3">
-                            <span class="text-blue-200 text-[11px]">מכירות חודשי: <span id="kpi-revenue-month" class="font-bold text-white">₪0</span></span>
-                            <button onclick="switchTab('cashflow')" class="text-[11px] text-blue-200 hover:text-white underline">לתזרים →</button>
+                        <!-- Balance card — FIRST, prominent -->
+                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2 mt-1">
+                          <div class="flex items-start justify-between">
+                            <div>
+                              <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
+                              <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
+                              <p class="text-blue-200 text-[11px] mt-1 opacity-70" id="dash-date"></p>
+                              <span id="dash-greeting" class="hidden"></span>
+                              <div class="flex items-center gap-3 mt-3">
+                                <span class="text-blue-200 text-[11px]">מכירות חודשי: <span id="kpi-revenue-month" class="font-bold text-white">₪0</span></span>
+                                <button onclick="switchTab('cashflow')" class="text-[11px] text-blue-200 hover:text-white underline">לתזרים →</button>
+                              </div>
+                            </div>
+                            <button onclick="renderDashboard(true)" class="bg-white/20 hover:bg-white/30 text-white rounded-xl px-3 py-1.5 text-xs font-bold flex items-center gap-1.5">
+                              <i class="fa-solid fa-rotate-right"></i> רענן
+                            </button>
                           </div>
                           <i class="fa-solid fa-wallet absolute -left-4 -bottom-4 text-[7rem] text-white opacity-10 rotate-12"></i>
+                        </div>
+
+                        <!-- Quick navigation tiles -->
+                        <div id="quick-tiles" class="grid grid-cols-3 gap-3 px-2 mb-4">
+                          <!-- inserted by JS -->
                         </div>
 
                         <!-- KPI cards (BELOW tiles) -->
@@ -3043,7 +3041,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=43" defer></script>
+    <script src="business-app.js?v=44" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
