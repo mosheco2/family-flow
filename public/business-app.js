@@ -7417,50 +7417,65 @@ window.generateBannerAI = async function() {
 
     const btns = document.querySelectorAll('[id*="btn-generate-banner-ai"]');
     btns.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; });
-    showToast('info', 'מייצר רקע ב-AI — התהליך אורך עד 60 שניות, אנא המתן...');
 
     try {
-        const prompt = `Create a beautiful, abstract, professional blurred gradient background for a business store banner. No text, no logos, just a clean aesthetic banner background.`;
-        const res = await fetch(`${API}/ai/generate-image`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ prompt, groupId: currentGroup.id, type: 'banner' })
-        });
-        const data = await res.json();
-        if (!handleAIResponseCheck(data)) { btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
-        if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה'); btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
-
-        // Poll: wait until pollinations returns the REAL generated image (naturalWidth >= 200)
-        const imageUrl = data.imageUrl;
-        const readyUrl = await new Promise((resolve, reject) => {
-            let attempts = 0;
-            const tryLoad = () => {
-                const img = new Image();
-                const stampedUrl = imageUrl + '&_t=' + Date.now();
-                img.onload = () => {
-                    if (img.naturalWidth >= 200) return resolve(stampedUrl);
-                    // placeholder returned — retry
-                    attempts++;
-                    if (attempts >= 18) return reject();
-                    setTimeout(tryLoad, 5000);
-                };
-                img.onerror = () => {
-                    attempts++;
-                    if (attempts >= 18) return reject();
-                    setTimeout(tryLoad, 5000);
-                };
-                img.src = stampedUrl;
+        // Extract dominant colors from logo using Canvas, then build a gradient banner
+        const bannerBase64 = await new Promise((resolve, reject) => {
+            const logoImg = new Image();
+            logoImg.onload = () => {
+                try {
+                    // Sample colors from the logo
+                    const sample = document.createElement('canvas');
+                    sample.width = 50; sample.height = 50;
+                    const sCtx = sample.getContext('2d');
+                    sCtx.drawImage(logoImg, 0, 0, 50, 50);
+                    const pixels = sCtx.getImageData(0, 0, 50, 50).data;
+                    // Collect non-white, non-transparent pixels
+                    const colors = [];
+                    for (let i = 0; i < pixels.length; i += 16) {
+                        const r = pixels[i], g = pixels[i+1], b = pixels[i+2], a = pixels[i+3];
+                        if (a > 100 && (r < 230 || g < 230 || b < 230)) colors.push([r, g, b]);
+                    }
+                    // Average to get dominant color; fallback to indigo
+                    let c1 = [99, 102, 241], c2 = [168, 85, 247];
+                    if (colors.length > 3) {
+                        const avg = colors.reduce((a, c) => [a[0]+c[0], a[1]+c[1], a[2]+c[2]], [0,0,0]).map(v => Math.round(v / colors.length));
+                        // Derive two complementary shades
+                        c1 = avg;
+                        c2 = [Math.min(255, avg[0] + 60), Math.min(255, avg[1] + 40), Math.min(255, avg[2] + 80)];
+                    }
+                    // Build 1200×400 gradient banner
+                    const cv = document.createElement('canvas');
+                    cv.width = 1200; cv.height = 400;
+                    const ctx = cv.getContext('2d');
+                    const grad = ctx.createLinearGradient(0, 0, 1200, 400);
+                    grad.addColorStop(0,   `rgb(${c1[0]},${c1[1]},${c1[2]})`);
+                    grad.addColorStop(0.5, `rgb(${Math.round((c1[0]+c2[0])/2)},${Math.round((c1[1]+c2[1])/2)},${Math.round((c1[2]+c2[2])/2)})`);
+                    grad.addColorStop(1,   `rgb(${c2[0]},${c2[1]},${c2[2]})`);
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, 1200, 400);
+                    // Subtle noise overlay for texture
+                    ctx.globalAlpha = 0.06;
+                    for (let y = 0; y < 400; y += 4) for (let x = 0; x < 1200; x += 4) {
+                        const v = Math.random() > 0.5 ? 255 : 0;
+                        ctx.fillStyle = `rgb(${v},${v},${v})`;
+                        ctx.fillRect(x, y, 2, 2);
+                    }
+                    ctx.globalAlpha = 1;
+                    resolve(cv.toDataURL('image/jpeg', 0.92));
+                } catch(e) { reject(e); }
             };
-            tryLoad();
-        }).catch(() => null);
+            logoImg.onerror = () => reject(new Error('logo load failed'));
+            logoImg.src = logoBase64;
+        });
 
-        if (!readyUrl) { showToast('error', 'שירות יצירת התמונות לא הגיב. נסה שוב או העלה קובץ ידנית.'); return; }
-        document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = readyUrl);
-        document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = readyUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
+        document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = bannerBase64);
+        document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = bannerBase64; el.classList.remove('hidden'); el.style.display = 'block'; });
         document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
         document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-        showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
+        showToast('success', 'הרקע נוצר מצבעי הלוגו! לחצו "שמור הגדרות חנות"');
     } catch(e) {
-        showToast('error', 'שגיאת תקשורת מול שרת ה-AI');
+        showToast('error', 'שגיאה ביצירת הרקע: ' + e.message);
     } finally {
         btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; });
     }
