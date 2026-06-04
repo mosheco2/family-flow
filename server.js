@@ -2029,7 +2029,7 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
 
 app.post('/api/pantry/bulk-update', async (req, res) => {
     try {
-        const { groupId, items, sendEmail } = req.body;
+        const { groupId, items, sendEmail, pdfBase64 } = req.body;
         if (!groupId || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
         for (const item of items) {
             if (item.id && item.quantity !== undefined && item.quantity !== '') {
@@ -2062,7 +2062,26 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
                     </table>
                     <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
                 </div>`;
-                await sendSystemEmail(grp.admin_email, `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`, html);
+                const user = process.env.SMTP_USER;
+                const pass = process.env.SMTP_PASS;
+                if (user && pass) {
+                    const nodemailer = require('nodemailer');
+                    const transporter = nodemailer.createTransport({ host:'smtp.gmail.com', port:465, secure:true, auth:{user,pass} });
+                    const mailOpts = {
+                        from: `"Oneflow System" <${user}>`,
+                        to: grp.admin_email,
+                        subject: `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`,
+                        html
+                    };
+                    if (pdfBase64) {
+                        mailOpts.attachments = [{
+                            filename: `ספירת_מלאי_${dateStr.replace(/\//g,'-')}.pdf`,
+                            content: Buffer.from(pdfBase64, 'base64'),
+                            contentType: 'application/pdf'
+                        }];
+                    }
+                    await transporter.sendMail(mailOpts);
+                }
             }
         }
         res.json({ success: true });

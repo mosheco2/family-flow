@@ -7556,9 +7556,31 @@ window.openInventoryCountModal = function() {
     modal.classList.remove('hidden');
 };
 
+function _buildInventoryHtml(items, businessName, dateStr) {
+    const rows = items.map(i => `
+        <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${(i.item_name||'').replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">${(i.unit||"יח'").replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:bold;font-size:15px">${i.quantity !== '' ? i.quantity : '—'}</td>
+        </tr>`).join('');
+    return `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:32px;max-width:700px;color:#1e293b">
+        <h2 style="color:#4338ca;margin-bottom:4px">ספירת מלאי מחסן — ${(businessName||'').replace(/[<>]/g,'')}</h2>
+        <p style="color:#64748b;font-size:13px;margin:4px 0 20px">תאריך: ${dateStr}</p>
+        <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+                <th style="background:#f1f5f9;padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0">פריט</th>
+                <th style="background:#f1f5f9;padding:10px 12px;text-align:center;border-bottom:2px solid #e2e8f0">יחידה</th>
+                <th style="background:#f1f5f9;padding:10px 12px;text-align:center;border-bottom:2px solid #e2e8f0">כמות בפועל</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <p style="margin-top:24px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+    </div>`;
+}
+
 window.saveInventoryCount = async function(sendEmail) {
     const btn = getEl('inv-save-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    if (btn) { btn.disabled = true; btn.textContent = sendEmail ? 'מכין PDF...' : 'שומר...'; }
     const items = (pantryCache || []).map(p => ({
         id: p.id, item_name: p.item_name, unit: p.unit,
         quantity: getEl(`inv-qty-${p.id}`)?.value ?? ''
@@ -7569,14 +7591,38 @@ window.saveInventoryCount = async function(sendEmail) {
         if (btn) { btn.disabled = false; btn.textContent = 'שמור ספירה'; }
         return;
     }
+    let pdfBase64 = null;
+    if (sendEmail && typeof html2pdf !== 'undefined') {
+        try {
+            const dateStr = new Date().toLocaleDateString('he-IL');
+            const htmlStr = _buildInventoryHtml(items, currentGroup?.name || '', dateStr);
+            const el = document.createElement('div');
+            el.innerHTML = htmlStr;
+            el.style.position = 'absolute'; el.style.left = '-9999px'; el.style.width = '700px';
+            document.body.appendChild(el);
+            const pdfBlob = await html2pdf().set({
+                margin: 10,
+                filename: 'inventory.pdf',
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(el).outputPdf('blob');
+            document.body.removeChild(el);
+            pdfBase64 = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.readAsDataURL(pdfBlob);
+            });
+        } catch(e) { pdfBase64 = null; }
+    }
+    if (btn) btn.textContent = 'שולח...';
     try {
         const res = await fetch(`${API}/pantry/bulk-update`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, items, sendEmail: !!sendEmail })
+            body: JSON.stringify({ groupId: currentGroup.id, items, sendEmail: !!sendEmail, pdfBase64 })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', sendEmail ? 'ספירה נשמרה ונשלחה במייל!' : `ספירת המלאי נשמרה! (${changed.length} פריטים עודכנו)`);
+            showToast('success', sendEmail ? 'ספירה נשמרה ונשלחה במייל עם PDF!' : `ספירת המלאי נשמרה! (${changed.length} פריטים עודכנו)`);
             getEl('inventory-count-modal').classList.add('hidden');
             await loadDashboard();
         } else { showToast('error', data.error || 'שגיאה בשמירה'); }
@@ -7587,43 +7633,25 @@ window.saveInventoryCount = async function(sendEmail) {
 window.generateInventoryPDF = function() {
     const dateStr = new Date().toLocaleDateString('he-IL');
     const businessName = currentGroup?.name || '';
-    const rows = (pantryCache || []).map(p => {
+    const items = (pantryCache || []).map(p => {
         const qtyEl = getEl(`inv-qty-${p.id}`);
-        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : String(parseFloat(p.quantity) || 0);
-        return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${(p.item_name||'').replace(/[<>]/g,'')}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">${(p.unit||"יח'").replace(/[<>]/g,'')}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:bold;font-size:15px">${qty}</td>
-        </tr>`;
-    }).join('');
+        return { item_name: p.item_name, unit: p.unit, quantity: (qtyEl && qtyEl.value !== '') ? qtyEl.value : String(parseFloat(p.quantity) || 0) };
+    });
+    const bodyHtml = _buildInventoryHtml(items, businessName, dateStr);
     const printWindow = window.open('', '_blank', 'width=800,height=700');
     if (!printWindow) { showToast('error', 'לא ניתן לפתוח חלון הדפסה — אפשר חלונות קופצים'); return; }
     printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head>
-        <meta charset="utf-8">
-        <title>ספירת מלאי — ${businessName}</title>
+        <meta charset="utf-8"><title>ספירת מלאי — ${businessName}</title>
         <style>
-            body { font-family: Arial, Helvetica, sans-serif; padding: 32px; color: #1e293b; direction: rtl; }
-            h2 { color: #4338ca; margin-bottom: 4px; }
-            p.sub { color: #64748b; font-size: 13px; margin: 4px 0 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th { background: #f1f5f9; padding: 10px 12px; font-size: 12px; border-bottom: 2px solid #e2e8f0; }
+            body { margin: 0; padding: 0; }
+            .no-print { padding: 16px 32px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
             @media print { .no-print { display: none; } }
         </style>
     </head><body>
-        <div class="no-print" style="margin-bottom:20px">
+        <div class="no-print">
             <button onclick="window.print()" style="background:#4338ca;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:bold">🖨️ הדפס / שמור PDF</button>
         </div>
-        <h2>ספירת מלאי מחסן — ${businessName}</h2>
-        <p class="sub">תאריך: ${dateStr}</p>
-        <table>
-            <thead><tr>
-                <th style="text-align:right">פריט</th>
-                <th style="text-align:center">יחידה</th>
-                <th style="text-align:center">כמות בפועל</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
-        <p style="margin-top:24px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+        ${bodyHtml}
     </body></html>`);
     printWindow.document.close();
 };
