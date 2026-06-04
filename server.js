@@ -2568,23 +2568,30 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const logoPrompt   = 'professional business logo icon, clean modern design, colorful, high quality';
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-preview-image-generation' });
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+        const apiKey = process.env.GEMINI_API_KEY;
+        const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+        const imagenRes = await fetch(imagenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                instances: [{ prompt: finalPrompt }],
+                parameters: { sampleCount: 1, aspectRatio: type === 'banner' ? '16:9' : '1:1' }
+            })
         });
+        const imagenData = await imagenRes.json();
+        console.log('Imagen response status:', imagenRes.status, 'keys:', Object.keys(imagenData));
 
-        const parts = result.response.candidates?.[0]?.content?.parts || [];
-        const imgPart = parts.find(p => p.inlineData);
-        if (!imgPart) {
-            console.error('Gemini image gen - no image part. Parts:', JSON.stringify(parts.map(p => Object.keys(p))));
-            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
+        const base64 = imagenData.predictions?.[0]?.bytesBase64Encoded;
+        if (!base64) {
+            console.error('Imagen no image:', JSON.stringify(imagenData).slice(0, 500));
+            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. ' + (imagenData.error?.message || 'נסה שוב.') });
         }
 
-        const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+        const mimeType = imagenData.predictions[0].mimeType || 'image/png';
+        const imageUrl = `data:${mimeType};base64,${base64}`;
         res.json({ success: true, imageUrl });
     } catch(e) {
-        console.error('Image Gen Error:', e.message, e.status, e.errorDetails);
+        console.error('Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
     }
 });
