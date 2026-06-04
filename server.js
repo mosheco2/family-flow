@@ -2569,27 +2569,38 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
 
         const apiKey = process.env.GEMINI_API_KEY;
-        const imagenUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-        const imagenRes = await fetch(imagenUrl, {
+
+        // Try gemini-2.0-flash-exp via v1alpha (supports responseModalities IMAGE)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+        const geminiRes = await fetch(geminiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                instances: [{ prompt: finalPrompt }],
-                parameters: { sampleCount: 1, aspectRatio: type === 'banner' ? '16:9' : '1:1' }
+                contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
             })
         });
-        const imagenData = await imagenRes.json();
-        console.log('Imagen response status:', imagenRes.status, 'keys:', Object.keys(imagenData));
+        const geminiData = await geminiRes.json();
+        console.log('Gemini image gen status:', geminiRes.status);
 
-        const base64 = imagenData.predictions?.[0]?.bytesBase64Encoded;
-        if (!base64) {
-            console.error('Imagen no image:', JSON.stringify(imagenData).slice(0, 500));
-            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. ' + (imagenData.error?.message || 'נסה שוב.') });
+        if (geminiRes.ok) {
+            const parts = geminiData.candidates?.[0]?.content?.parts || [];
+            const imgPart = parts.find(p => p.inlineData);
+            if (imgPart) {
+                const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+                return res.json({ success: true, imageUrl });
+            }
         }
 
-        const mimeType = imagenData.predictions[0].mimeType || 'image/png';
-        const imageUrl = `data:${mimeType};base64,${base64}`;
-        res.json({ success: true, imageUrl });
+        // Fallback: list available models so we know what to use
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`);
+        const modelsData = await modelsRes.json();
+        const imageModels = (modelsData.models || [])
+            .filter(m => m.supportedGenerationMethods?.includes('generateContent') || m.supportedGenerationMethods?.includes('predict'))
+            .map(m => m.name);
+        console.log('Available models:', imageModels);
+        const errDetail = geminiData.error?.message || JSON.stringify(geminiData).slice(0, 200);
+        return res.json({ success: false, error: `מודל לא זמין. ${errDetail}`, availableModels: imageModels });
     } catch(e) {
         console.error('Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
