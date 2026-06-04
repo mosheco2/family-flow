@@ -2559,11 +2559,14 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
 // --- יצירת תמונות (לוגו ובאנר) באמצעות AI  ---
 app.post('/api/ai/generate-image', async (req, res) => {
     try {
-        const { prompt, groupId, type } = req.body;
+        const { groupId, type } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
 
-        const encodedPrompt = encodeURIComponent(prompt);
+        const bannerPrompt = 'professional business store banner background, realistic food and lifestyle photography, vibrant colors, clean modern design, no text, no logo, high quality';
+        const logoPrompt   = 'professional business logo icon, clean modern design, colorful, high quality';
+        const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
+        const encodedPrompt = encodeURIComponent(finalPrompt);
         const width  = type === 'banner' ? 1200 : 512;
         const height = type === 'banner' ? 400  : 512;
         const seed   = Math.floor(Math.random() * 1000000);
