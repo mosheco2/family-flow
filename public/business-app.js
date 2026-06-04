@@ -7650,7 +7650,10 @@ window.openStoreProductModal = function(id = null) {
                         </div>
                         <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
                         
-                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-bold text-slate-600">תיאור מורחב (עמוד מוצר):</label>
+                            <button type="button" onclick="generateStoreProductLongAI()" id="btn-sp-long-ai" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg hover:bg-purple-100 transition shadow-sm border border-purple-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
                         <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
                     </div>
                 </div>
@@ -8318,6 +8321,19 @@ async function generateStoreProductAI() {
             const res = await fetch(`${API}/store/ai-desc`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ productName: name, groupId: currentGroup.id }) }); const data = await res.json();
             if(data.success && data.description) { getEl('sp-desc').value = data.description; showToast('success', 'ה-AI ניסח תיאור בהצלחה!'); } else { showToast('error', data.error || 'שגיאה בניסוח'); }
         } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
+    });
+}
+
+async function generateStoreProductLongAI() {
+    const name = val('sp-name'); if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
+    executeWithAIWarning(async () => {
+        const btn = getEl('btn-sp-long-ai'); if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...'; }
+        try {
+            const shortDesc = (getEl('sp-desc') && getEl('sp-desc').value) || '';
+            const res = await fetch(`${API}/store/ai-long-desc`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ productName: name, shortDesc, groupId: currentGroup.id }) });
+            const data = await res.json();
+            if(data.success && data.description) { getEl('sp-long-desc').value = data.description; showToast('success', 'ה-AI ניסח תיאור מורחב בהצלחה!'); } else { showToast('error', data.error || 'שגיאה בניסוח'); }
+        } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI'; } }
     });
 }
 
@@ -13764,7 +13780,10 @@ window.openStoreProductModal = function(id = null) {
                         </div>
                         <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
                         
-                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-bold text-slate-600">תיאור מורחב (עמוד מוצר):</label>
+                            <button type="button" onclick="generateStoreProductLongAI()" id="btn-sp-long-ai" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg hover:bg-purple-100 transition shadow-sm border border-purple-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
                         <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
                     </div>
                 </div>

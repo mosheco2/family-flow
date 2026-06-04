@@ -2561,25 +2561,32 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const { prompt, groupId, type } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        
-        // אנו משתמשים בשירות יצירת התמונות החינמי של pollinations.ai 
-        // כדי לספק תוצאה מידית ויציבה ללא תלות במפתחות פרימיום.
+
         const encodedPrompt = encodeURIComponent(prompt);
-        
-        // הגדרת מידות התמונה (באנר מלבני, לוגו מרובע)
-        const width = type === 'banner' ? 1200 : 512;
-        const height = type === 'banner' ? 400 : 512;
-        
-        // הוספת Seed אקראי כדי למנוע קבלת תמונה מהקאש (שכפול) בכל לחיצה
-        const seed = Math.floor(Math.random() * 1000000);
-        
+        const width  = type === 'banner' ? 1200 : 512;
+        const height = type === 'banner' ? 400  : 512;
+        const seed   = Math.floor(Math.random() * 1000000);
         const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
-        
-        // השרת מחזיר את הכתובת הישירה לתמונה מיד, כשהדפדפן יטען אותה היא תיווצר בזמן אמת.
-        res.json({ success: true, imageUrl: imageUrl });
-    } catch(e) { 
+
+        // Fetch the image on the server and return base64 to avoid client-side CORS / broken-image issues
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 28000);
+        try {
+            const imgRes = await fetch(imageUrl, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (!imgRes.ok) throw new Error(`pollinations returned ${imgRes.status}`);
+            const arrayBuffer = await imgRes.arrayBuffer();
+            const base64 = `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+            res.json({ success: true, imageUrl: base64 });
+        } catch(fetchErr) {
+            clearTimeout(timeout);
+            // Fallback: return the direct URL so the client can try rendering it
+            console.warn('Image fetch failed, returning URL directly:', fetchErr.message);
+            res.json({ success: true, imageUrl: imageUrl });
+        }
+    } catch(e) {
         console.error('Image Gen Error:', e);
-        res.status(500).json({ error: 'שירות יצירת התמונות אינו זמין כרגע. נסה להעלות קובץ ידנית.' });
+        res.json({ success: false, error: 'שירות יצירת התמונות אינו זמין כרגע. נסה להעלות קובץ ידנית.' });
     }
 });
 app.post('/api/goals/familai-advice', async (req, res) => {
@@ -3397,6 +3404,27 @@ app.post('/api/store/ai-desc', async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, description: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/store/ai-long-desc', async (req, res) => {
+    try {
+        const { productName, shortDesc, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const shortDescHint = shortDesc ? ` (התיאור הקצר הקיים: "${shortDesc}")` : '';
+        const prompt = `כתוב תיאור מורחב ומפורט בעברית עבור המוצר/מנה: "${productName}"${shortDescHint}.
+התיאור המורחב מיועד לדף המוצר בחנות/מסעדה ועליו לכלול:
+- תיאור מפורט של המוצר (מרכיבים, טעמים, מרקם, אפשרויות הגשה)
+- יתרונות ונקודות חוזקה
+- טיפ או המלצה לצרכן
+- שפה שיווקית, חמה ומזמינה
+אל תחזור על אותו תוכן שבתיאור הקצר. כתוב 3-5 משפטים. אין להשתמש במרכאות.`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, description: result.response.text().trim() });
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
