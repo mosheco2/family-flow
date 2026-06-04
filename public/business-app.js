@@ -13452,34 +13452,24 @@ window.generateBannerAI = async function() {
 
     const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
     btns.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...'; });
-    showToast('info', 'ה-AI מייצר רקע תואם... זה עשוי לקחת עד 60 שניות');
+    showToast('info', 'ה-AI מייצר רקע תואם... התמונה תופיע תוך כ-30-60 שניות');
 
     try {
         const res = await fetch(`${API}/ai/generate-image`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner', logoBase64 })
+            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner' })
         });
         const data = await res.json();
         if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה ביצירת באנר'); return; }
 
         const imageUrl = data.imageUrl;
-        // Set src and wait for the browser to load the image (pollinations generates on-demand)
-        await new Promise((resolve, reject) => {
-            const previewEls = document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]');
-            const firstPreview = previewEls[0];
-            if (!firstPreview) return resolve();
-            const timeoutId = setTimeout(() => reject(new Error('timeout')), 90000);
-            firstPreview.onload = () => { clearTimeout(timeoutId); resolve(); };
-            firstPreview.onerror = () => { clearTimeout(timeoutId); reject(new Error('load error')); };
-            previewEls.forEach(el => { el.src = imageUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
-        });
-
+        document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = imageUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
         document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
         document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => { if (el.type !== 'file') el.value = imageUrl; });
         document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-        showToast('success', 'הבאנר הותאם ללוגו בהצלחה! לחצו "שמור הגדרות חנות"');
+        showToast('success', 'הרקע בדרך! התמונה תיטען תוך כ-30-60 שניות. לחצו "שמור הגדרות חנות" לאחר שהיא תופיע.');
     } catch(e) {
-        showToast('error', e.message === 'timeout' ? 'שירות ה-AI לא הגיב תוך 90 שניות. נסה שוב.' : 'שגיאת רשת מול שרת ה-AI');
+        showToast('error', 'שגיאת תקשורת מול שרת ה-AI. נסה שוב.');
     } finally {
         btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; });
     }
