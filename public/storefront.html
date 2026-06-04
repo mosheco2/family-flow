@@ -100,7 +100,6 @@
                 <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
                     <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
                     <button onclick="window.openContactModal()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-regular fa-envelope text-xs"></i> צור קשר</button>
-                    <button id="btn-store-announcements" onclick="window.openAnnouncementsModal()" class="hidden relative bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-1.5 rounded-lg border border-purple-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-bullhorn text-xs"></i> עדכונים<span id="announcements-badge" class="hidden absolute -top-1.5 -left-1.5 bg-red-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white"></span></button>
                     <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                     <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
                     <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
@@ -327,16 +326,17 @@
         <button onclick="window.resetStoreAfterOrder()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
 
-    <!-- Business Announcements Modal -->
-    <div id="announcements-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4 fade-in">
-        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col overflow-hidden max-h-[90vh]">
-            <button onclick="document.getElementById('announcements-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0 flex items-center gap-2"><i class="fa-solid fa-bullhorn text-purple-500"></i> עדכונים מהעסק</h3>
-            <div id="announcements-list" class="flex-1 overflow-y-auto modal-scroll space-y-3 pb-2 min-h-[100px]">
-                <p class="text-xs text-slate-400 text-center py-8">אין עדכונים כרגע.</p>
-            </div>
-            <div class="pt-4 border-t border-slate-100 flex justify-end shrink-0">
-                <button onclick="document.getElementById('announcements-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition">סגור</button>
+    <!-- Store Popup Modal -->
+    <div id="store-popup-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative overflow-hidden slide-up">
+            <div id="store-popup-img-wrap" class="hidden w-full h-40 overflow-hidden"><img id="store-popup-img" src="" class="w-full h-full object-cover"></div>
+            <div class="p-6">
+                <h3 id="store-popup-title" class="text-xl font-black text-slate-900 mb-3"></h3>
+                <p id="store-popup-content" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap mb-5"></p>
+                <div class="flex gap-3">
+                    <button onclick="window.closeStorePopup()" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition text-sm">סגור</button>
+                    <a id="store-popup-btn" href="#" target="_blank" class="hidden flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-center hover:bg-indigo-700 transition text-sm"></a>
+                </div>
             </div>
         </div>
     </div>
@@ -568,6 +568,7 @@
                 window.extractCategories();
                 window.renderPromotionsBanner();
                 window.renderCatalog();
+                loadStorePopups();
 
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
@@ -748,8 +749,6 @@
                 showContactRow = true;
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
-            // טעינת עדכונים מהעסק
-            fetchStoreAnnouncements();
         };
 
         window.toggleSideMenu = function(isOpen) {
@@ -1995,48 +1994,46 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         };
 
         // ============================================================
-        // --- עדכונים מהעסק (Business Announcements) ---
+        // --- פופאפים יזומים לחנות ---
         // ============================================================
-        let storeAnnouncementsCache = [];
-
-        async function fetchStoreAnnouncements() {
+        async function loadStorePopups() {
             if (!storeData || !storeData.groupId) return;
             try {
-                const res = await fetch(`${API}/store/customer-messages/${storeData.groupId}`);
+                const res = await fetch(`${API}/public/store-popups/${storeData.groupId}`);
                 const data = await res.json();
-                if (data.success && data.messages) {
-                    storeAnnouncementsCache = data.messages;
-                    const btn = document.getElementById('btn-store-announcements');
-                    if (btn && storeAnnouncementsCache.length > 0) {
-                        btn.classList.remove('hidden');
-                        const badge = document.getElementById('announcements-badge');
-                        if (badge) {
-                            badge.textContent = storeAnnouncementsCache.length > 9 ? '9+' : storeAnnouncementsCache.length;
-                            badge.classList.remove('hidden');
-                        }
-                    }
+                if (!data.success || !data.popups || data.popups.length === 0) return;
+                // הצג רק פופאפ אחד — הראשון שלא נצפה עדיין
+                const popup = data.popups.find(p => !localStorage.getItem(`ofl_popup_${p.id}`));
+                if (popup) {
+                    setTimeout(() => window.showStorePopup(popup), 1200);
                 }
             } catch(e) {}
         }
 
-        window.openAnnouncementsModal = function() {
-            const list = document.getElementById('announcements-list');
-            if (storeAnnouncementsCache.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין עדכונים כרגע.</p>';
-            } else {
-                list.innerHTML = storeAnnouncementsCache.map(m => {
-                    const d = new Date(m.created_at);
-                    const dateStr = d.toLocaleDateString('he-IL');
-                    return `<div class="bg-purple-50 border border-purple-100 rounded-xl p-3.5 shadow-sm">
-                        <div class="flex justify-between items-start mb-1.5">
-                            <h4 class="font-bold text-sm text-slate-800">${(m.subject||'').replace(/[<>]/g,'')}</h4>
-                            <span class="text-[10px] text-slate-400 shrink-0 mr-2">${dateStr}</span>
-                        </div>
-                        <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">${(m.content||'').replace(/[<>]/g,'')}</p>
-                    </div>`;
-                }).join('');
-            }
-            document.getElementById('announcements-modal').classList.remove('hidden');
+        window.showStorePopup = function(popup) {
+            const modal = document.getElementById('store-popup-modal');
+            if (!modal) return;
+            document.getElementById('store-popup-title').textContent = popup.title || '';
+            document.getElementById('store-popup-content').textContent = popup.content || '';
+            const imgWrap = document.getElementById('store-popup-img-wrap');
+            const img = document.getElementById('store-popup-img');
+            if (popup.image_url) {
+                img.src = popup.image_url;
+                imgWrap.classList.remove('hidden');
+            } else { imgWrap.classList.add('hidden'); }
+            const btn = document.getElementById('store-popup-btn');
+            if (popup.button_text && popup.button_url) {
+                btn.textContent = popup.button_text;
+                btn.href = popup.button_url;
+                btn.classList.remove('hidden');
+            } else { btn.classList.add('hidden'); }
+            modal.classList.remove('hidden');
+            localStorage.setItem(`ofl_popup_${popup.id}`, '1');
+        };
+
+        window.closeStorePopup = function() {
+            const modal = document.getElementById('store-popup-modal');
+            if (modal) modal.classList.add('hidden');
         };
 
         // ============================================================

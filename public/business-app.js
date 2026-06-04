@@ -7610,62 +7610,183 @@ window.inventoryCountWhatsApp = function() {
 };
 
 // ============================================================
-// --- שליחת הודעות ללקוחות (Customer Messages) ---
+// --- הודעות OneFlow ללקוחות + קהילות ---
 // ============================================================
-window.openCustomerMessageModal = function() {
-    const modal = getEl('customer-message-modal');
+let _oflMatchedCustomers = [];
+let _oflCommunities = [];
+
+window.openOneFlowMessageModal = async function() {
+    const modal = getEl('oneflow-message-modal');
     if (!modal) return;
-    const subjectEl = getEl('msg-subject');
-    const contentEl = getEl('msg-content');
-    const segmentEl = getEl('msg-segment');
-    if (subjectEl) subjectEl.value = '';
-    if (contentEl) contentEl.value = '';
-    if (segmentEl) segmentEl.value = 'all';
-    const resultEl = getEl('msg-customer-result');
-    if (resultEl) resultEl.innerHTML = '';
+    getEl('ofl-subject').value = '';
+    getEl('ofl-content').value = '';
+    getEl('ofl-target').value = 'customers';
+    getEl('ofl-result').innerHTML = '';
+    getEl('ofl-comm-select')?.classList.add('hidden');
     modal.classList.remove('hidden');
+
+    const statusEl = getEl('ofl-match-status');
+    if (statusEl) statusEl.innerHTML = '<span class="text-slate-400 text-xs">בודק לקוחות OneFlow...</span>';
+
+    try {
+        const res = await fetch(`${API}/store/oneflow-customers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            _oflMatchedCustomers = data.matched || [];
+            _oflCommunities = data.communities || [];
+
+            const commSel = getEl('ofl-comm-select');
+            if (commSel && _oflCommunities.length > 0) {
+                commSel.innerHTML = _oflCommunities.map(c =>
+                    `<option value="${c.id}">${safeStr(c.name)} (${c.family_count} משפחות)</option>`
+                ).join('');
+            }
+
+            if (statusEl) {
+                statusEl.innerHTML = _oflMatchedCustomers.length > 0
+                    ? `<span class="text-emerald-600 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i>${_oflMatchedCustomers.length} לקוחות מזוהים במערכת OneFlow</span>`
+                    : `<span class="text-slate-400 text-xs">לא נמצאו לקוחות עם חשבון OneFlow</span>`;
+            }
+        }
+    } catch(e) {
+        if (statusEl) statusEl.innerHTML = '<span class="text-red-500 text-xs">שגיאה בטעינת נתונים</span>';
+    }
 };
 
-window.sendCustomerMessage = async function() {
-    const subject = getEl('msg-subject')?.value?.trim();
-    const content = getEl('msg-content')?.value?.trim();
-    const segment = getEl('msg-segment')?.value || 'all';
+window.oflTargetChanged = function() {
+    const val = getEl('ofl-target')?.value;
+    const commSel = getEl('ofl-comm-select');
+    if (commSel) commSel.classList.toggle('hidden', val !== 'community');
+};
+
+window.sendOneFlowMessage = async function() {
+    const subject = getEl('ofl-subject')?.value?.trim();
+    const content = getEl('ofl-content')?.value?.trim();
+    const targetType = getEl('ofl-target')?.value || 'customers';
+    const communityId = getEl('ofl-comm-select')?.value;
+
     if (!subject || !content) return showToast('error', 'יש למלא נושא ותוכן');
-    const btn = getEl('msg-send-btn');
+    if (targetType === 'customers' && _oflMatchedCustomers.length === 0) return showToast('error', 'אין לקוחות OneFlow לשליחה');
+    if (targetType === 'community' && !communityId) return showToast('error', 'יש לבחור קהילה');
+
+    const btn = getEl('ofl-send-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'שולח...'; }
+
     try {
-        const res = await fetch(`${API}/store/send-customer-message`, {
+        const res = await fetch(`${API}/store/oneflow-message`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, subject, content, segment })
+            body: JSON.stringify({ groupId: currentGroup.id, subject, content, targetType, communityId })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', `ההודעה פורסמה! (${data.count} לקוחות במאגר)`);
-            if (data.customers && data.customers.length > 0) {
-                const withPhone = data.customers.filter(c => c.phone);
-                if (withPhone.length > 0) {
-                    const listHtml = withPhone.map(c => {
-                        let phone = c.phone.replace(/\D/g, '');
-                        if (phone.startsWith('0')) phone = '972' + phone.substring(1);
-                        const waMsg = `שלום ${c.name},\n${subject}\n\n${content}`;
-                        return `<div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
-                            <span class="text-sm text-slate-700 truncate flex-1">${safeStr(c.name)}</span>
-                            <a href="https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}" target="_blank"
-                               class="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2.5 py-1 rounded-lg border border-green-100 hover:bg-green-100 transition shrink-0 mr-2">
-                                <i class="fa-brands fa-whatsapp"></i> שלח
-                            </a>
-                        </div>`;
-                    }).join('');
-                    const resultEl = getEl('msg-customer-result');
-                    if (resultEl) resultEl.innerHTML = `<div class="mt-3 bg-slate-50 rounded-xl border border-slate-100 p-3">
-                        <p class="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1"><i class="fa-brands fa-whatsapp text-green-500"></i> שלח גם בוואטסאפ (לכל לקוח בנפרד):</p>
-                        ${listHtml}
-                    </div>`;
-                }
-            }
+            showToast('success', `ההודעה נשלחה ל-${data.count} קבוצות!`);
+            getEl('ofl-result').innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-700 font-bold flex items-center gap-2 mt-2">
+                <i class="fa-solid fa-circle-check text-emerald-500"></i> נשלח בהצלחה ל-${data.count} קבוצות OneFlow
+            </div>`;
         } else { showToast('error', data.error || 'שגיאה בשליחה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+
     if (btn) { btn.disabled = false; btn.textContent = 'שלח הודעה'; }
+};
+
+// ============================================================
+// --- ניהול פופאפים לחנות הציבורית ---
+// ============================================================
+let _storePopupsCache = [];
+
+window.openPopupManagerModal = async function() {
+    const modal = getEl('popup-manager-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    await loadStorePopupsList();
+};
+
+async function loadStorePopupsList() {
+    const list = getEl('popup-manager-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+        const data = await res.json();
+        _storePopupsCache = data.popups || [];
+        if (_storePopupsCache.length === 0) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-xl">אין פופאפים פעילים. צור פופאפ חדש למטה.</p>';
+            return;
+        }
+        list.innerHTML = _storePopupsCache.map(p => {
+            const scheduled = p.scheduled_at ? new Date(p.scheduled_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'מיידי';
+            const expires = p.expires_at ? new Date(p.expires_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'ללא הגבלה';
+            const activeClass = p.is_active ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-slate-400 bg-slate-100 border-slate-200';
+            return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>
+                    <p class="text-[10px] text-slate-400">מ: ${scheduled} | עד: ${expires}</p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
+                    <button onclick="window.togglePopup(${p.id}, ${!p.is_active})" class="text-slate-400 hover:text-amber-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 transition border border-slate-100" title="הפעל/כבה"><i class="fa-solid fa-power-off text-xs"></i></button>
+                    <button onclick="window.deleteStorePopup(${p.id})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 transition border border-slate-100" title="מחק"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינה</p>';
+    }
+}
+
+window.saveStorePopup = async function() {
+    const title = getEl('popup-title')?.value?.trim();
+    const content = getEl('popup-content')?.value?.trim();
+    const buttonText = getEl('popup-btn-text')?.value?.trim();
+    const buttonUrl = getEl('popup-btn-url')?.value?.trim();
+    const imageUrl = getEl('popup-image-url')?.value?.trim();
+    const scheduledAt = getEl('popup-scheduled-at')?.value;
+    const expiresAt = getEl('popup-expires-at')?.value;
+
+    if (!title || !content) return showToast('error', 'יש למלא כותרת ותוכן');
+
+    const btn = getEl('popup-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+
+    try {
+        const res = await fetch(`${API}/store/popups`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groupId: currentGroup.id, title, content,
+                buttonText: buttonText || null, buttonUrl: buttonUrl || null,
+                imageUrl: imageUrl || null,
+                scheduledAt: scheduledAt || null, expiresAt: expiresAt || null
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפופאפ נשמר!');
+            ['popup-title','popup-content','popup-btn-text','popup-btn-url','popup-image-url','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            await loadStorePopupsList();
+        } else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור פופאפ'; }
+};
+
+window.togglePopup = async function(id, isActive) {
+    const popup = _storePopupsCache.find(p => p.id === id);
+    if (!popup) return;
+    try {
+        await fetch(`${API}/store/popups/${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...popup, isActive })
+        });
+        await loadStorePopupsList();
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.deleteStorePopup = async function(id) {
+    try {
+        await fetch(`${API}/store/popups/${id}`, { method: 'DELETE' });
+        await loadStorePopupsList();
+        showToast('success', 'הפופאפ נמחק');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
 
 function renderPresetSelector() {
@@ -16350,16 +16471,12 @@ window.renderInboxList = function() {
         let bgClass = m.is_read ? 'bg-slate-50 opacity-70 border-slate-100' : 'bg-white border-indigo-200 shadow-sm';
         let typeBadge = '';
         
-        const isBroadcast = m.sender_type === 'business_broadcast';
         if (isSys) {
             iconHtml = '<i class="fa-solid fa-tower-cell text-indigo-500"></i>';
             typeBadge = '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-indigo-200">הודעת מערכת</span>';
         } else if (isCustomer) {
             iconHtml = '<i class="fa-solid fa-user text-emerald-500"></i>';
             typeBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-emerald-200">לקוח (חנות)</span>';
-        } else if (isBroadcast) {
-            iconHtml = '<i class="fa-solid fa-bullhorn text-purple-500"></i>';
-            typeBadge = '<span class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-purple-200">נשלח ללקוחות</span>';
         }
 
         // זיהוי החתימה הדיגיטלית של הניוזלטר

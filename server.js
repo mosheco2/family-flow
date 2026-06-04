@@ -127,6 +127,19 @@ pool.connect()
       try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)'); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS kiosk_password VARCHAR(100) DEFAULT '1234'`); } catch(e) {}
       try { await client.query('ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS stock_quantity INT DEFAULT NULL'); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_popups (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          content TEXT NOT NULL,
+          button_text VARCHAR(100),
+          button_url TEXT,
+          image_url TEXT,
+          scheduled_at TIMESTAMP,
+          expires_at TIMESTAMP,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -3146,41 +3159,136 @@ app.post('/api/store/inventory-count', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- שליחת הודעה ללקוחות ---
-app.post('/api/store/send-customer-message', async (req, res) => {
+// --- הודעות OneFlow: התאמת לקוחות + שליחה לאינבוקס ---
+app.get('/api/store/oneflow-customers/:groupId', async (req, res) => {
     try {
-        const { groupId, subject, content, segment } = req.body;
-        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
-
-        let customers = [];
-        if (segment === 'ordered') {
-            const r = await pool.query(
-                `SELECT DISTINCT sc.* FROM store_customers sc
-                 JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name)
-                 WHERE sc.group_id=$1 ORDER BY sc.name ASC`, [groupId]);
-            customers = r.rows;
-        } else {
-            const r = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [groupId]);
-            customers = r.rows;
+        const groupId = parseInt(req.params.groupId);
+        const custRes = await pool.query('SELECT id, name, phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+        const matched = [];
+        for (const c of custRes.rows) {
+            let found = false;
+            if (c.phone) {
+                const digits = (c.phone || '').replace(/\D/g, '');
+                const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+                const r = await pool.query('SELECT id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
+                if (r.rows.length) found = true;
+            }
+            if (!found && c.email) {
+                const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+                if (r.rows.length) found = true;
+            }
+            if (found) matched.push({ id: c.id, name: c.name, phone: c.phone, email: c.email });
         }
-
-        await pool.query(
-            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
-            [groupId, 'business_broadcast', 'העסק', '', subject, content]
-        );
-
-        res.json({ success: true, count: customers.length, customers: customers.map(c => ({ id: c.id, name: c.name, phone: c.phone })) });
+        // קהילות שהעסק שייך אליהן
+        const commRes = await pool.query(
+            `SELECT c.id, c.name, COUNT(fg.id)::int AS family_count
+             FROM community_businesses cb
+             JOIN communities c ON c.id = cb.community_id
+             LEFT JOIN family_groups fg ON fg.community_id = c.id AND fg.type='FAMILY'
+             WHERE cb.business_id=$1 AND cb.status='approved'
+             GROUP BY c.id, c.name`, [groupId]);
+        res.json({ success: true, matched, communities: commRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// קבלת הודעות עסק ללקוחות (לדף החנות הציבורי)
-app.get('/api/store/customer-messages/:groupId', async (req, res) => {
+app.post('/api/store/oneflow-message', async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT * FROM inbox_messages WHERE group_id=$1 AND sender_type='business_broadcast' ORDER BY created_at DESC LIMIT 20",
+        const { groupId, subject, content, targetType, communityId } = req.body;
+        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        const grpRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const senderName = grpRes.rows[0]?.name || 'עסק';
+        const targetGroupIds = new Set();
+
+        if (targetType === 'community' && communityId) {
+            const fgRes = await pool.query("SELECT id FROM family_groups WHERE community_id=$1 AND type='FAMILY'", [communityId]);
+            fgRes.rows.forEach(r => targetGroupIds.add(r.id));
+        } else {
+            const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+            for (const c of custRes.rows) {
+                let gid = null;
+                if (c.phone) {
+                    const digits = (c.phone || '').replace(/\D/g, '');
+                    const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+                    const r = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
+                    if (r.rows.length) gid = r.rows[0].group_id;
+                }
+                if (!gid && c.email) {
+                    const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+                    if (r.rows.length) gid = r.rows[0].id;
+                }
+                if (gid && gid !== parseInt(groupId)) targetGroupIds.add(gid);
+            }
+        }
+
+        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים OneFlow' });
+
+        await pool.query('BEGIN');
+        for (const gid of targetGroupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1,$2,$3,$4,$5,$6)',
+                [gid, 'business', senderName, '', subject, content]
+            );
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true, count: targetGroupIds.size });
+    } catch(e) {
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- פופאפים לחנות הציבורית ---
+app.get('/api/store/popups/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM store_popups WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, popups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/popups', async (req, res) => {
+    try {
+        const { groupId, title, content, buttonText, buttonUrl, imageUrl, scheduledAt, expiresAt } = req.body;
+        if (!groupId || !title || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+        const r = await pool.query(
+            `INSERT INTO store_popups (group_id, title, content, button_text, button_url, image_url, scheduled_at, expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [groupId, title, content, buttonText||null, buttonUrl||null, imageUrl||null, scheduledAt||null, expiresAt||null]
+        );
+        res.json({ success: true, popup: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/popups/:id', async (req, res) => {
+    try {
+        const { title, content, buttonText, buttonUrl, imageUrl, scheduledAt, expiresAt, isActive } = req.body;
+        await pool.query(
+            `UPDATE store_popups SET title=$1, content=$2, button_text=$3, button_url=$4, image_url=$5,
+             scheduled_at=$6, expires_at=$7, is_active=$8 WHERE id=$9`,
+            [title, content, buttonText||null, buttonUrl||null, imageUrl||null, scheduledAt||null, expiresAt||null, isActive !== false, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/popups/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM store_popups WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/public/store-popups/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, title, content, button_text, button_url, image_url, scheduled_at, expires_at
+             FROM store_popups
+             WHERE group_id=$1 AND is_active=TRUE
+               AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+               AND (expires_at IS NULL OR expires_at > NOW())
+             ORDER BY scheduled_at DESC NULLS LAST
+             LIMIT 5`,
             [req.params.groupId]
         );
-        res.json({ success: true, messages: result.rows });
+        res.json({ success: true, popups: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
