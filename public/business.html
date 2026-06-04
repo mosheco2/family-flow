@@ -617,20 +617,15 @@
                           <!-- inserted by JS -->
                         </div>
 
-                        <!-- Balance banner -->
-                        <div id="balance-banner" class="px-2 mb-4">
-                          <div class="rounded-2xl p-4 bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-lg flex items-center justify-between">
-                            <div>
-                              <div class="text-[10px] text-slate-400 font-semibold mb-0.5">יתרה תזרימית</div>
-                              <div id="user-balance" class="text-3xl font-black font-mono tracking-tight text-green-400">₪0</div>
-                              <div class="text-[10px] text-slate-400 mt-1">הכנסות פחות הוצאות (מצטבר)</div>
-                            </div>
-                            <div class="text-right">
-                              <div class="text-[10px] text-slate-400 font-semibold mb-0.5">מכירות חודשי</div>
-                              <div id="kpi-revenue-month" class="text-xl font-bold font-mono text-indigo-300">₪0</div>
-                              <button onclick="switchTab('cashflow')" class="mt-2 text-[10px] text-slate-400 hover:text-white flex items-center gap-1 mr-auto">לתזרים <i class="fa-solid fa-arrow-left text-[9px]"></i></button>
-                            </div>
+                        <!-- Balance card (restored original style) -->
+                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2">
+                          <p class="text-blue-100 text-xs font-medium mb-1 opacity-80">יתרה נוכחית</p>
+                          <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
+                          <div class="flex items-center gap-3 mt-3">
+                            <span class="text-blue-200 text-[11px]">מכירות חודשי: <span id="kpi-revenue-month" class="font-bold text-white">₪0</span></span>
+                            <button onclick="switchTab('cashflow')" class="text-[11px] text-blue-200 hover:text-white underline">לתזרים →</button>
                           </div>
+                          <i class="fa-solid fa-wallet absolute -left-4 -bottom-4 text-[7rem] text-white opacity-10 rotate-12"></i>
                         </div>
 
                         <!-- KPI cards (BELOW tiles) -->
@@ -3048,7 +3043,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=42" defer></script>
+    <script src="business-app.js?v=43" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

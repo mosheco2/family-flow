@@ -3284,11 +3284,13 @@ window.renderDashboard = async function(forceRefresh = false) {
         s('kpi-open-tasks',    openTasks);
         s('kpi-revenue-month', `₪${revenueMonth.toLocaleString('he-IL', {maximumFractionDigits:0})}`);
 
-        // Balance banner
+        // Balance banner — keep white text on blue card; add subtle indicator via prefix
         const balEl = document.getElementById('user-balance');
         if (balEl) {
-            balEl.textContent = `${netBalance >= 0 ? '+' : ''}₪${Math.abs(netBalance).toLocaleString('he-IL', {maximumFractionDigits:0})}`;
-            balEl.className = `text-3xl font-black font-mono tracking-tight ${netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            const prefix = netBalance > 0 ? '+' : netBalance < 0 ? '-' : '';
+            balEl.textContent = `${prefix}₪${Math.abs(netBalance).toLocaleString('he-IL', {maximumFractionDigits:0})}`;
+            // Keep font-size large; add subtle color hint for negative
+            balEl.className = `text-5xl font-bold tracking-tight${netBalance < 0 ? ' text-red-200' : ''}`;
         }
 
         // Alerts: low stock (qty ≤ 2)
