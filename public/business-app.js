@@ -19522,6 +19522,119 @@ window.updateLoginDots = function(total) {
     }
 };
 
+// ── SLA SETTINGS ───────────────────────────────────────────────
+
+const SLA_DEFAULTS = {
+  orders: [
+    { status: 'new',        status_label: 'הזמנה חדשה',      max_hours: 2,  is_active: true },
+    { status: 'processing', status_label: 'בהכנה',            max_hours: 4,  is_active: true },
+    { status: 'ready',      status_label: 'מוכנה לאיסוף',    max_hours: 24, is_active: true },
+  ],
+  quotes: [
+    { status: 'draft',  status_label: 'ממתינה לשליחה',        max_hours: 24, is_active: true },
+    { status: 'sent',   status_label: 'נשלחה, ממתינה לתגובה', max_hours: 72, is_active: true },
+  ]
+};
+
+let _slaRowCounter = 0;
+
+async function openSLAModal() {
+  document.getElementById('sla-modal').classList.remove('hidden');
+  const slaBtn = document.getElementById('btn-manage-sla');
+  if (slaBtn) slaBtn.classList.remove('hidden');
+  await renderSLAContent();
+}
+
+async function renderSLAContent() {
+  const container = document.getElementById('sla-content');
+  if (!container) return;
+  let existing = [];
+  try {
+    const res = await fetch(`${API}/sla?groupId=${currentGroup.id}`);
+    existing = await res.json();
+  } catch(e) {}
+
+  const mergeRows = (module) => {
+    const defaults = SLA_DEFAULTS[module] || [];
+    const saved = existing.filter(r => r.module === module);
+    const merged = defaults.map(d => {
+      const s = saved.find(r => r.status === d.status);
+      return s ? { ...d, ...s } : { ...d, module, group_id: currentGroup.id };
+    });
+    saved.forEach(s => { if (!merged.find(m => m.status === s.status)) merged.push(s); });
+    return merged;
+  };
+
+  const renderModule = (module, title, icon) => {
+    const rows = mergeRows(module);
+    return `
+      <div>
+        <h3 class="font-black text-slate-700 text-sm mb-3 flex items-center gap-2">${icon} ${title}</h3>
+        <div class="space-y-2" id="sla-rows-${module}">
+          ${rows.map(r => renderSLARow(module, r)).join('')}
+        </div>
+      </div>`;
+  };
+
+  container.innerHTML = `
+    ${renderModule('orders', 'הזמנות — חנות ציבורית', '📋')}
+    <hr class="border-slate-100">
+    ${renderModule('quotes', 'הצעות מחיר', '📄')}
+    <div id="sla-rows-custom" class="space-y-2"></div>
+  `;
+}
+
+function renderSLARow(module, r) {
+  const rowId = `sla-row-${_slaRowCounter++}`;
+  return `
+    <div class="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2.5" id="${rowId}" data-module="${module}" data-status="${r.status||''}">
+      <div class="flex-1 min-w-0">
+        <input type="text" class="sla-label w-full text-xs font-bold text-slate-700 bg-transparent outline-none border-b border-transparent focus:border-indigo-300" value="${safeStr(r.status_label||r.status)}" placeholder="שם השלב">
+        <input type="text" class="sla-status text-[10px] text-slate-400 bg-transparent outline-none w-full mt-0.5" value="${safeStr(r.status)}" placeholder="status value (אנגלית)">
+      </div>
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <input type="number" class="sla-hours w-14 text-center text-sm font-bold border border-slate-200 rounded-lg px-1 py-1.5 outline-none focus:border-indigo-400 bg-white" value="${r.max_hours||24}" min="0.5" step="0.5">
+        <span class="text-xs text-slate-400">ש'</span>
+        <button onclick="this.closest('[id^=sla-row]').remove()" class="text-slate-300 hover:text-red-400 ml-1 text-xs"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>`;
+}
+
+function addSLARow() {
+  const container = document.getElementById('sla-rows-custom');
+  if (!container) return;
+  const tempRow = { status: '', status_label: '', max_hours: 24, is_active: true };
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="flex items-center gap-2 mb-2">
+      <select class="sla-module-pick text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white outline-none flex-shrink-0">
+        <option value="orders">📋 הזמנות</option>
+        <option value="quotes">📄 הצעות מחיר</option>
+      </select>
+      ${renderSLARow('orders', tempRow)}
+    </div>`;
+  container.appendChild(div);
+}
+
+async function saveSLAConfigs() {
+  const rows = document.querySelectorAll('[id^="sla-row-"]');
+  let saved = 0;
+  for (const row of rows) {
+    let module = row.dataset.module;
+    const modulePick = row.parentElement?.querySelector('.sla-module-pick');
+    if (modulePick) module = modulePick.value;
+    const status = row.querySelector('.sla-status')?.value?.trim();
+    const statusLabel = row.querySelector('.sla-label')?.value?.trim();
+    const maxHours = parseFloat(row.querySelector('.sla-hours')?.value) || 24;
+    if (!status || !module) continue;
+    try {
+      await fetch(`${API}/sla`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, module, status, statusLabel, maxHours, isActive: true }) });
+      saved++;
+    } catch(e) {}
+  }
+  showToast('success', `${saved} הגדרות SLA נשמרו`);
+}
+
 // ── SMART ALERTS ───────────────────────────────────────────────
 
 function getTriggerIcon(type) {
@@ -19717,6 +19830,8 @@ async function openActivityPanel() {
   updateAlertBadge();
   const manageBtn = document.getElementById('btn-manage-rules');
   if (manageBtn && currentUser?.role === 'ADMIN') manageBtn.classList.remove('hidden');
+  const slaBtn = document.getElementById('btn-manage-sla');
+  if (slaBtn && currentUser?.role === 'ADMIN') slaBtn.classList.remove('hidden');
   if (currentUser?.role === 'ADMIN') {
     const filters = document.getElementById('activity-filters');
     if (filters) filters.classList.remove('hidden');

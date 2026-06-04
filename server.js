@@ -148,6 +148,8 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS product_category_map (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, normalized_name TEXT NOT NULL, category TEXT NOT NULL, UNIQUE(group_id, normalized_name))`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS alert_rules (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(200) NOT NULL, trigger_type VARCHAR(50) NOT NULL, trigger_config JSONB DEFAULT '{}', recipients JSONB DEFAULT '["ADMIN"]', channels JSONB DEFAULT '["in_app"]', cooldown_minutes INTEGER DEFAULT 60, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS alert_notifications (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, rule_id INTEGER REFERENCES alert_rules(id) ON DELETE SET NULL, trigger_type VARCHAR(50), message TEXT NOT NULL, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sla_configs (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, module VARCHAR(30) NOT NULL, status VARCHAR(50) NOT NULL, status_label VARCHAR(100), max_hours DECIMAL(6,2) NOT NULL DEFAULT 24, is_active BOOLEAN DEFAULT TRUE, UNIQUE(group_id, module, status))`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -2016,6 +2018,35 @@ app.post('/api/alerts/notifications/read-all', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── SLA CRUD ──────────────────────────────────────────────────────
+app.get('/api/sla', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM sla_configs WHERE group_id=$1 ORDER BY module, id', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sla', async (req, res) => {
+    try {
+        const { groupId, module, status, statusLabel, maxHours, isActive } = req.body;
+        await pool.query(
+            `INSERT INTO sla_configs (group_id, module, status, status_label, max_hours, is_active) VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (group_id, module, status) DO UPDATE SET status_label=$4, max_hours=$5, is_active=$6`,
+            [groupId, module, status, statusLabel, parseFloat(maxHours)||24, isActive !== false]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sla/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sla_configs WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
 app.post('/api/shopping/checkout', async (req, res) => {
     try {
         const { totalAmount, userId, storeName, branchName, boughtItems, missingItems } = req.body;
@@ -3751,7 +3782,7 @@ app.post('/api/store/orders', async (req, res) => {
 app.post('/api/store/orders/status', async (req, res) => {
     try {
         const { orderId, status } = req.body;
-        await pool.query('UPDATE store_orders SET status=$1 WHERE id=$2', [status, orderId]);
+        await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -6652,8 +6683,55 @@ async function runAlertEngine() {
     } catch(e) { console.error('Alert engine error:', e.message); }
 }
 
+async function checkSLABreaches() {
+    try {
+        const configs = await pool.query('SELECT * FROM sla_configs WHERE is_active=TRUE');
+        for (const cfg of configs.rows) {
+            // cooldown: don't re-fire same module+status breach within 60 min
+            const lastFired = await pool.query(
+                `SELECT created_at FROM alert_notifications WHERE group_id=$1 AND trigger_type='sla_breach' AND message LIKE $2 ORDER BY created_at DESC LIMIT 1`,
+                [cfg.group_id, `%[${cfg.module}:${cfg.status}]%`]
+            );
+            if (lastFired.rows.length > 0) {
+                const elapsedMins = (Date.now() - new Date(lastFired.rows[0].created_at).getTime()) / 60000;
+                if (elapsedMins < 60) continue;
+            }
+            let breachingRows = [];
+            if (cfg.module === 'orders') {
+                const res = await pool.query(
+                    `SELECT id, customer_name, COALESCE(status_changed_at, created_at) as since FROM store_orders
+                     WHERE group_id=$1 AND status=$2 AND COALESCE(status_changed_at, created_at) < NOW() - ($3 * INTERVAL '1 hour')`,
+                    [cfg.group_id, cfg.status, cfg.max_hours]
+                );
+                breachingRows = res.rows;
+            } else if (cfg.module === 'quotes') {
+                const statusFilter = cfg.status === 'draft' ? `quote_status='draft' OR quote_status IS NULL` : `quote_status=$2`;
+                const params = cfg.status === 'draft'
+                    ? [cfg.group_id, cfg.max_hours]
+                    : [cfg.group_id, cfg.status, cfg.max_hours];
+                const qParam = cfg.status === 'draft' ? `$2` : `$3`;
+                const res = await pool.query(
+                    `SELECT id, customer_name, COALESCE(status_changed_at, created_at) as since FROM store_orders
+                     WHERE group_id=$1 AND status='quote' AND (${statusFilter}) AND COALESCE(status_changed_at, created_at) < NOW() - (${qParam} * INTERVAL '1 hour')`,
+                    params
+                );
+                breachingRows = res.rows;
+            }
+            if (breachingRows.length > 0) {
+                const label = cfg.status_label || cfg.status;
+                const names = breachingRows.map(r => r.customer_name || `#${r.id}`).join(', ');
+                const msg = `[${cfg.module}:${cfg.status}] חריגת SLA בשלב "${label}" (מעל ${cfg.max_hours}ש'): ${names}`;
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message) VALUES ($1,$2,$3)',
+                    [cfg.group_id, 'sla_breach', msg]);
+            }
+        }
+    } catch(e) { console.error('SLA engine error:', e.message); }
+}
+
 setTimeout(runAlertEngine, 30000);
 setInterval(runAlertEngine, 5 * 60 * 1000);
+setTimeout(checkSLABreaches, 45000);
+setInterval(checkSLABreaches, 5 * 60 * 1000);
 
 // הפעלת השרת
 app.listen(port, () => {
