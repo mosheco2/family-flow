@@ -2062,7 +2062,7 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
                     </table>
                     <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
                 </div>`;
-                await sendEmailViaSMTP(grp.admin_email, `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`, html);
+                await sendSystemEmail(grp.admin_email, `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`, html);
             }
         }
         res.json({ success: true });
@@ -3221,7 +3221,7 @@ app.post('/api/store/inventory-count', async (req, res) => {
                     </table>
                     <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
                 </div>`;
-                await sendEmailViaSMTP(grp.admin_email, `ספירת מלאי — ${grp.name} — ${dateStr}`, html);
+                await sendSystemEmail(grp.admin_email, `ספירת מלאי — ${grp.name} — ${dateStr}`, html);
             }
         }
 

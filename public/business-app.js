@@ -7591,37 +7591,41 @@ window.generateInventoryPDF = function() {
         const qtyEl = getEl(`inv-qty-${p.id}`);
         const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : String(parseFloat(p.quantity) || 0);
         return `<tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${safeStr(p.item_name)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${safeStr(p.unit || "יח'")}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${qty}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${(p.item_name||'').replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">${(p.unit||"יח'").replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:bold;font-size:15px">${qty}</td>
         </tr>`;
     }).join('');
-    const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px;max-width:700px">
-        <h2 style="color:#4338ca;margin-bottom:4px">ספירת מלאי מחסן — ${businessName}</h2>
-        <p style="color:#64748b;font-size:13px;margin-bottom:16px">תאריך: ${dateStr}</p>
-        <table style="width:100%;border-collapse:collapse">
+    const printWindow = window.open('', '_blank', 'width=800,height=700');
+    if (!printWindow) { showToast('error', 'לא ניתן לפתוח חלון הדפסה — אפשר חלונות קופצים'); return; }
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl"><head>
+        <meta charset="utf-8">
+        <title>ספירת מלאי — ${businessName}</title>
+        <style>
+            body { font-family: Arial, Helvetica, sans-serif; padding: 32px; color: #1e293b; direction: rtl; }
+            h2 { color: #4338ca; margin-bottom: 4px; }
+            p.sub { color: #64748b; font-size: 13px; margin: 4px 0 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th { background: #f1f5f9; padding: 10px 12px; font-size: 12px; border-bottom: 2px solid #e2e8f0; }
+            @media print { .no-print { display: none; } }
+        </style>
+    </head><body>
+        <div class="no-print" style="margin-bottom:20px">
+            <button onclick="window.print()" style="background:#4338ca;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:bold">🖨️ הדפס / שמור PDF</button>
+        </div>
+        <h2>ספירת מלאי מחסן — ${businessName}</h2>
+        <p class="sub">תאריך: ${dateStr}</p>
+        <table>
             <thead><tr>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:right;font-size:12px;border-bottom:2px solid #e2e8f0">פריט</th>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">יחידה</th>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">כמות בפועל</th>
+                <th style="text-align:right">פריט</th>
+                <th style="text-align:center">יחידה</th>
+                <th style="text-align:center">כמות בפועל</th>
             </tr></thead>
             <tbody>${rows}</tbody>
         </table>
-        <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
-    </div>`;
-    const container = document.createElement('div');
-    container.style.position = 'absolute'; container.style.left = '-9999px';
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    const opt = {
-        margin: 10, filename: `ספירת_מלאי_${dateStr.replace(/\//g,'-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    if (typeof html2pdf !== 'undefined') {
-        html2pdf().from(container).set(opt).save().then(() => document.body.removeChild(container));
-    } else { document.body.removeChild(container); showToast('error', 'ספריית PDF לא טעונה'); }
+        <p style="margin-top:24px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+    </body></html>`);
+    printWindow.document.close();
 };
 
 window.inventoryCountWhatsApp = function() {
