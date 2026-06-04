@@ -2571,18 +2571,21 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-preview-image-generation' });
         const result = await model.generateContent({
             contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-            generationConfig: { responseModalities: ['IMAGE'] }
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
         });
 
         const parts = result.response.candidates?.[0]?.content?.parts || [];
         const imgPart = parts.find(p => p.inlineData);
-        if (!imgPart) return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
+        if (!imgPart) {
+            console.error('Gemini image gen - no image part. Parts:', JSON.stringify(parts.map(p => Object.keys(p))));
+            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
+        }
 
         const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
         res.json({ success: true, imageUrl });
     } catch(e) {
-        console.error('Image Gen Error:', e);
-        res.json({ success: false, error: 'שגיאה ביצירת תמונה. נסה שוב.' });
+        console.error('Image Gen Error:', e.message, e.status, e.errorDetails);
+        res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
     }
 });
 app.post('/api/goals/familai-advice', async (req, res) => {
