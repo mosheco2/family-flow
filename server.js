@@ -2571,23 +2571,21 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
         const aspectRatio  = type === 'banner' ? '16:9' : '1:1';
 
-        const response = await genAIv2.models.generateImages({
-            model: 'imagen-3.0-generate-001',
-            prompt: finalPrompt,
-            config: {
-                numberOfImages: 1,
-                aspectRatio,
-                outputMimeType: 'image/jpeg',
-            }
+        // Try gemini-2.0-flash with image output via new SDK
+        const response = await genAIv2.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+            config: { responseModalities: ['IMAGE', 'TEXT'] }
         });
 
-        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
-        if (!imgBytes) {
-            console.error('Imagen3 no image returned:', JSON.stringify(response).slice(0, 300));
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find(p => p.inlineData);
+        if (!imgPart) {
+            console.error('No image part in response:', JSON.stringify(response).slice(0, 400));
             return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
         }
 
-        const imageUrl = `data:image/jpeg;base64,${imgBytes}`;
+        const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
         res.json({ success: true, imageUrl });
     } catch(e) {
         console.error('Image Gen Error:', e.message);
