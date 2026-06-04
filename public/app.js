@@ -1631,6 +1631,14 @@ async function _doSubmitShopItem(item, qty, est, unit, upp) {
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } }
 }
 
+async function confirmCustomCategory() {
+    const input = getEl('cat-custom-input');
+    const category = (input.value || '').trim();
+    if (!category) return showToast('error', 'יש להזין שם קטגוריה');
+    input.value = '';
+    await confirmCategoryPick(category);
+}
+
 async function confirmCategoryPick(category) {
     getEl('cat-picker-modal').classList.add('hidden');
     const p = window._pendingShopItem;
