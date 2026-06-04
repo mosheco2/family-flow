@@ -11,7 +11,7 @@ const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
 let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
-let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
+let membersCache = []; let shoppingListCache = []; let wisdomCache = {}; let categoryMapCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
@@ -785,6 +785,7 @@ async function fetchData() {
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { loadCategoryMap(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
         
@@ -1411,7 +1412,7 @@ function renderUnifiedFeed() {
                 const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
                 const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; 
                 const prefix = item.isIncome ? '+' : '-';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${parseFloat(item.amount || 0).toFixed(2)}</span></div>`;
             } else if (item.type === 'task') {
                 const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; 
                 let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); 
@@ -1601,20 +1602,52 @@ function closeQuiz() { getEl('quiz-runner-modal').classList.add('hidden'); getEl
 
 function filterSuggestions(v) { const list = getEl('suggestions'); list.innerHTML = ''; if (!v) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(v)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { getEl('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
 
-async function submitShopItem() { 
-    const itemInput = getEl('shop-item'); const btn = getEl('btn-submit-shop'); 
-    const item = itemInput.value; const qty = parseFloat(val('shop-quantity')) || 1; const est = parseFloat(val('shop-est-price')) || 0; const unit = val('shop-unit') || "יח'"; const upp = parseInt(val('shop-upp')) || 1;
-    if(!item) return; if (btn && btn.disabled) return; 
+async function submitShopItem() {
+    const itemInput = getEl('shop-item'); const btn = getEl('btn-submit-shop');
+    const item = itemInput.value.trim(); const qty = parseFloat(val('shop-quantity')) || 1; const est = parseFloat(val('shop-est-price')) || 0; const unit = val('shop-unit') || "יח'"; const upp = parseInt(val('shop-upp')) || 1;
+    if(!item) return; if (btn && btn.disabled) return;
+    const isKnown = FLAT_PRODUCTS.some(p => p.name === item) || categoryMapCache[item];
+    if (!isKnown) {
+        window._pendingShopItem = { item, qty, est, unit, upp };
+        getEl('cat-picker-name').innerText = item;
+        getEl('cat-picker-modal').classList.remove('hidden');
+        return;
+    }
+    await _doSubmitShopItem(item, qty, est, unit, upp);
+}
+
+async function _doSubmitShopItem(item, qty, est, unit, upp) {
+    const btn = getEl('btn-submit-shop');
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
-    try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
-        const data = await res.json(); 
+    try {
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) });
+        const data = await res.json();
         if (data.success) {
+            const itemInput = getEl('shop-item');
             getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden');
             if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg;
             showToast('success', data.status === 'requested' ? 'הבקשה נשלחה להורה לאישור ⏳' : 'נוסף לרשימה'); fetchData();
         } else { showToast('error', data.error || 'שגיאת שרת בהוספת פריט לרכש'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } } 
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } }
+}
+
+async function confirmCategoryPick(category) {
+    getEl('cat-picker-modal').classList.add('hidden');
+    const p = window._pendingShopItem;
+    if (!p) return;
+    categoryMapCache[p.item] = category;
+    fetch(`${API}/shopping/category-map`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: p.item, category }) });
+    await _doSubmitShopItem(p.item, p.qty, p.est, p.unit, p.upp);
+    window._pendingShopItem = null;
+}
+
+async function loadCategoryMap() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const res = await fetch(`${API}/shopping/category-map?groupId=${currentGroup.id}`);
+        const data = await res.json();
+        if (Array.isArray(data)) { data.forEach(r => { categoryMapCache[r.normalized_name] = r.category; }); }
+    } catch(e) {}
 }
 
 async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
@@ -1673,7 +1706,7 @@ function renderShopList() {
             bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
         }
 
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }
@@ -1795,8 +1828,9 @@ function renderSupermarketList() {
     smCalcTotal();
 }
 
+let _smPriceModalItemId = null;
+
 function smToggleItem(id) {
-    const row = getEl(`sm-row-${id}`);
     const item = shoppingListCache.find(i => i.id == id);
     if (!item) return;
     const isChecked = item.status === 'in_cart';
@@ -1805,6 +1839,77 @@ function smToggleItem(id) {
     item._smMissing = false;
     fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: newStatus})});
     renderSupermarketList();
+    if (newStatus === 'in_cart') {
+        _smPriceModalItemId = id;
+        getEl('sm-price-modal-name').innerText = item.item_name;
+        getEl('sm-price-modal-qty').innerText = `${item.quantity} ${item.unit || "יח'"}`;
+        const inp = getEl('sm-price-modal-input');
+        inp.value = item.estimated_price > 0 ? item.estimated_price : '';
+        getEl('sm-price-modal').classList.remove('hidden');
+        setTimeout(() => inp.focus(), 100);
+    }
+}
+
+function smConfirmPrice() {
+    const price = parseFloat(getEl('sm-price-modal-input').value) || 0;
+    if (_smPriceModalItemId !== null) {
+        smUpdatePrice(_smPriceModalItemId, price);
+        const inp = getEl(`sm-price-${_smPriceModalItemId}`);
+        if (inp) inp.value = price > 0 ? price : '';
+    }
+    getEl('sm-price-modal').classList.add('hidden');
+    _smPriceModalItemId = null;
+}
+
+function smSkipPrice() {
+    getEl('sm-price-modal').classList.add('hidden');
+    _smPriceModalItemId = null;
+}
+
+function openEditShopItem(id) {
+    const item = shoppingListCache.find(i => i.id == id);
+    if (!item) return;
+    getEl('edit-item-id').value = id;
+    getEl('edit-item-name').value = item.item_name;
+    getEl('edit-item-quantity').value = item.quantity;
+    const unitSel = getEl('edit-item-unit');
+    const unitVal = item.unit || "יח'";
+    let found = false;
+    for (let opt of unitSel.options) { if (opt.value === unitVal) { opt.selected = true; found = true; break; } }
+    if (!found) { const opt = new Option(unitVal, unitVal, true, true); unitSel.add(opt); }
+    getEl('edit-item-price').value = item.estimated_price > 0 ? item.estimated_price : '';
+    getEl('edit-shop-item-modal').classList.remove('hidden');
+}
+
+async function saveEditShopItem() {
+    const id = getEl('edit-item-id').value;
+    const name = getEl('edit-item-name').value.trim();
+    const qty = parseFloat(getEl('edit-item-quantity').value) || 1;
+    const unit = getEl('edit-item-unit').value;
+    const price = parseFloat(getEl('edit-item-price').value) || 0;
+    if (!name) return showToast('error', 'שם הפריט חסר');
+    try {
+        const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price})});
+        const data = await res.json();
+        if (data.success) {
+            getEl('edit-shop-item-modal').classList.add('hidden');
+            showToast('success', 'הפריט עודכן');
+            fetchData();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function smQuickAdd() {
+    const input = getEl('sm-quick-input');
+    const name = (input.value || '').trim();
+    if (!name) return;
+    input.value = '';
+    try {
+        const res = await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: name, quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id})});
+        const data = await res.json();
+        if (data.success) { await fetchData(); renderSupermarketList(); showToast('success', `${name} נוסף לרשימה`); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 function smToggleMissing(id) {

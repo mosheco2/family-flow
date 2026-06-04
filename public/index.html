@@ -1242,6 +1242,10 @@
             <button onclick="openCheckoutSummary()" class="bg-white text-emerald-700 px-4 py-2 rounded-xl font-bold text-sm shadow-lg hover:scale-105 transition">סיים</button>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3" id="sm-list"></div>
+        <div class="bg-emerald-900 border-t border-emerald-700 px-4 py-2 flex gap-2 flex-shrink-0">
+            <input type="text" id="sm-quick-input" placeholder="+ הוסף פריט מהיר..." class="flex-1 bg-emerald-950 border border-emerald-700 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-400 placeholder-emerald-600" onkeydown="if(event.key==='Enter') smQuickAdd()">
+            <button onclick="smQuickAdd()" class="bg-emerald-500 text-white w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-emerald-400 transition"><i class="fa-solid fa-plus font-bold"></i></button>
+        </div>
         <div class="bg-emerald-900/80 border-t border-emerald-700 p-4 flex justify-between items-center flex-shrink-0">
             <div><p class="text-emerald-300 text-xs font-bold">סה"כ בסל</p><span class="text-white font-black text-2xl" id="sm-total">₪0.00</span></div>
             <button onclick="openCheckoutSummary(); closeSupermarketMode();" class="bg-gradient-to-r from-green-400 to-emerald-400 text-emerald-900 px-8 py-3 rounded-2xl font-black text-lg shadow-xl hover:scale-105 transition">✅ סיום קניה</button>
@@ -1278,6 +1282,79 @@
         </div>
     </div>
     
+    <!-- Edit Shop Item Modal -->
+    <div id="edit-shop-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">✏️ עריכת פריט</h3>
+                <button onclick="document.getElementById('edit-shop-item-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="edit-item-id">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">שם הפריט</label>
+                    <input type="text" id="edit-item-name" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400">
+                </div>
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">כמות</label>
+                        <input type="number" id="edit-item-quantity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" min="0.1" step="0.1">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">יחידה</label>
+                        <select id="edit-item-unit" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400 bg-white">
+                            <option>יח'</option><option>ק"ג</option><option>גרם</option><option>ליטר</option><option>מ"ל</option><option>חבילה</option><option>צרור</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">מחיר משוער</label>
+                    <input type="number" id="edit-item-price" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" min="0" step="0.1" placeholder="₪">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-5">
+                <button onclick="document.getElementById('edit-shop-item-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold text-sm">ביטול</button>
+                <button onclick="saveEditShopItem()" class="flex-1 bg-blue-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-100 hover:bg-blue-600 transition">שמור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supermarket Price Popup Modal -->
+    <div id="sm-price-modal" class="fixed inset-0 bg-black/70 hidden z-[250] flex items-center justify-center p-4">
+        <div class="bg-emerald-900 border border-emerald-600 rounded-[2rem] p-6 w-full max-w-xs text-center shadow-2xl">
+            <div class="text-3xl mb-2">💰</div>
+            <h3 id="sm-price-modal-name" class="text-white font-bold text-lg mb-0.5 truncate"></h3>
+            <p id="sm-price-modal-qty" class="text-emerald-400 text-xs mb-4"></p>
+            <input type="number" id="sm-price-modal-input" class="w-full bg-emerald-950 border border-emerald-600 text-white text-xl text-center rounded-xl px-3 py-3 outline-none focus:border-emerald-400 placeholder-emerald-700 mb-4" placeholder="₪ מחיר" min="0" step="0.1" onkeydown="if(event.key==='Enter') smConfirmPrice()">
+            <div class="flex gap-3">
+                <button onclick="smSkipPrice()" class="flex-1 bg-emerald-800 text-emerald-300 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition">דלג</button>
+                <button onclick="smConfirmPrice()" class="flex-1 bg-emerald-400 text-emerald-900 py-3 rounded-xl font-bold text-sm hover:bg-emerald-300 transition">אישור ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Picker Modal -->
+    <div id="cat-picker-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="text-center mb-4">
+                <div class="text-3xl mb-2">🗂️</div>
+                <h3 class="text-lg font-bold text-slate-800">באיזה קטגוריה שייך</h3>
+                <p class="text-blue-600 font-bold text-base mt-1" id="cat-picker-name"></p>
+            </div>
+            <div class="grid grid-cols-2 gap-2" id="cat-picker-grid">
+                <button onclick="confirmCategoryPick('ירקות ופירות 🍎')" class="bg-green-50 border border-green-200 text-green-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-green-100 transition text-right">🍎 ירקות ופירות</button>
+                <button onclick="confirmCategoryPick('חלב וביצים 🥛')" class="bg-blue-50 border border-blue-200 text-blue-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-blue-100 transition text-right">🥛 חלב וביצים</button>
+                <button onclick="confirmCategoryPick('לחם ומאפים 🍞')" class="bg-amber-50 border border-amber-200 text-amber-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-amber-100 transition text-right">🍞 לחם ומאפים</button>
+                <button onclick="confirmCategoryPick('מזווה ובישול 🍝')" class="bg-orange-50 border border-orange-200 text-orange-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-orange-100 transition text-right">🍝 מזווה ובישול</button>
+                <button onclick="confirmCategoryPick('בשר ודגים 🍗')" class="bg-red-50 border border-red-200 text-red-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-red-100 transition text-right">🍗 בשר ודגים</button>
+                <button onclick="confirmCategoryPick('ניקיון וטואלטיקה 🧻')" class="bg-cyan-50 border border-cyan-200 text-cyan-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-cyan-100 transition text-right">🧻 ניקיון</button>
+                <button onclick="confirmCategoryPick('חטיפים ומתוקים 🍫')" class="bg-purple-50 border border-purple-200 text-purple-800 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-purple-100 transition text-right">🍫 חטיפים</button>
+                <button onclick="confirmCategoryPick('שונות')" class="bg-slate-50 border border-slate-200 text-slate-700 py-2.5 px-3 rounded-xl text-sm font-bold hover:bg-slate-100 transition text-right">📦 שונות</button>
+            </div>
+            <button onclick="document.getElementById('cat-picker-modal').classList.add('hidden'); window._pendingShopItem=null;" class="w-full mt-4 text-slate-400 text-sm py-2 hover:text-slate-600">ביטול</button>
+        </div>
+    </div>
+
     <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out] max-h-[90vh] overflow-y-auto modal-scroll">
             <h3 id="trans-modal-title" class="text-xl font-bold mb-4 text-center text-slate-800"></h3>

@@ -145,6 +145,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_type VARCHAR(20) DEFAULT 'none'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_ref TEXT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sent_newsletters (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, subject VARCHAR(200), content_html TEXT, audience VARCHAR(50), recipient_count INT DEFAULT 0, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS product_category_map (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, normalized_name TEXT NOT NULL, category TEXT NOT NULL, UNIQUE(group_id, normalized_name))`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -1911,9 +1912,12 @@ app.post('/api/shopping/add', async (req, res) => {
 
 app.post('/api/shopping/update', async (req, res) => {
     try {
-        const { itemId, status, estimatedPrice } = req.body;
+        const { itemId, status, estimatedPrice, itemName, quantity, unit } = req.body;
         if (status !== undefined) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
         if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [parseFloat(estimatedPrice) || 0, itemId]);
+        if (itemName !== undefined) await pool.query('UPDATE shopping_list SET item_name=$1 WHERE id=$2', [itemName, itemId]);
+        if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [parseFloat(quantity) || 1, itemId]);
+        if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1924,6 +1928,22 @@ app.delete('/api/shopping/delete/:id', async (req, res) => {
 
 app.delete('/api/shopping/clear/:groupId', async (req, res) => {
     try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/shopping/category-map', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT normalized_name, category FROM product_category_map WHERE group_id=$1', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/category-map', async (req, res) => {
+    try {
+        const { groupId, normalizedName, category } = req.body;
+        await pool.query('INSERT INTO product_category_map (group_id, normalized_name, category) VALUES ($1, $2, $3) ON CONFLICT (group_id, normalized_name) DO UPDATE SET category=$3', [groupId, normalizedName, category]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/shopping/checkout', async (req, res) => {
@@ -1956,7 +1976,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
         
         for (let item of missingItems) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
         await pool.query('COMMIT');
-        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${totalAmount}`);
+        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${parseFloat(totalAmount).toFixed(2)}`);
         res.json({ success: true });
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
