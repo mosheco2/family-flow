@@ -19589,16 +19589,26 @@ async function renderSLAContent() {
 
 function renderSLARow(module, r) {
   const rowId = `sla-row-${_slaRowCounter++}`;
+  const channels = r.channels || ['in_app'];
+  const emailOn = channels.includes('email');
   return `
-    <div class="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2.5" id="${rowId}" data-module="${module}" data-status="${r.status||''}">
-      <div class="flex-1 min-w-0">
-        <input type="text" class="sla-label w-full text-xs font-bold text-slate-700 bg-transparent outline-none border-b border-transparent focus:border-indigo-300" value="${safeStr(r.status_label||r.status)}" placeholder="שם השלב">
-        <input type="text" class="sla-status text-[10px] text-slate-400 bg-transparent outline-none w-full mt-0.5" value="${safeStr(r.status)}" placeholder="status value (אנגלית)">
+    <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5" id="${rowId}" data-module="${module}" data-status="${r.status||''}">
+      <div class="flex items-center gap-2">
+        <div class="flex-1 min-w-0">
+          <input type="text" class="sla-label w-full text-xs font-bold text-slate-700 bg-transparent outline-none border-b border-transparent focus:border-indigo-300" value="${safeStr(r.status_label||r.status)}" placeholder="שם השלב">
+          <input type="text" class="sla-status text-[10px] text-slate-400 bg-transparent outline-none w-full mt-0.5" value="${safeStr(r.status)}" placeholder="status value (אנגלית)">
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <input type="number" class="sla-hours w-14 text-center text-sm font-bold border border-slate-200 rounded-lg px-1 py-1.5 outline-none focus:border-indigo-400 bg-white" value="${r.max_hours||24}" min="0.5" step="0.5">
+          <span class="text-xs text-slate-400">ש'</span>
+          <button onclick="this.closest('[id^=sla-row]').remove()" class="text-slate-300 hover:text-red-400 ml-1 text-xs"><i class="fa-solid fa-xmark"></i></button>
+        </div>
       </div>
-      <div class="flex items-center gap-1 flex-shrink-0">
-        <input type="number" class="sla-hours w-14 text-center text-sm font-bold border border-slate-200 rounded-lg px-1 py-1.5 outline-none focus:border-indigo-400 bg-white" value="${r.max_hours||24}" min="0.5" step="0.5">
-        <span class="text-xs text-slate-400">ש'</span>
-        <button onclick="this.closest('[id^=sla-row]').remove()" class="text-slate-300 hover:text-red-400 ml-1 text-xs"><i class="fa-solid fa-xmark"></i></button>
+      <div class="flex gap-2 mt-2">
+        <span class="text-[10px] text-slate-400 flex items-center">ערוץ:</span>
+        <span class="text-[11px] bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full px-2 py-0.5">🔔 פעמון</span>
+        <button type="button" onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.classList.toggle('bg-indigo-600',this.dataset.on==='1');this.classList.toggle('text-white',this.dataset.on==='1');this.classList.toggle('bg-slate-100',this.dataset.on!=='1');this.classList.toggle('text-slate-400',this.dataset.on!=='1');"
+          data-on="${emailOn?'1':'0'}" class="sla-email-toggle text-[11px] border rounded-full px-2 py-0.5 transition ${emailOn?'bg-indigo-600 text-white border-indigo-600':'bg-slate-100 text-slate-400 border-slate-200'}">📧 מייל</button>
       </div>
     </div>`;
 }
@@ -19630,8 +19640,11 @@ async function saveSLAConfigs() {
     const statusLabel = row.querySelector('.sla-label')?.value?.trim();
     const maxHours = parseFloat(row.querySelector('.sla-hours')?.value) || 24;
     if (!status || !module) continue;
+    const emailBtn = row.querySelector('.sla-email-toggle');
+    const channels = ['in_app'];
+    if (emailBtn && emailBtn.dataset.on === '1') channels.push('email');
     try {
-      await fetch(`${API}/sla`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, module, status, statusLabel, maxHours, isActive: true }) });
+      await fetch(`${API}/sla`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, module, status, statusLabel, maxHours, isActive: true, channels }) });
       saved++;
     } catch(e) {}
   }
@@ -19658,7 +19671,8 @@ function getRuleSummary(r) {
     quote_not_converted:`הצעות מחיר פתוחות מעל ${cfg.pending_days||3} ימים`,
     ticket_open:`קריאות שירות פתוחות מעל ${cfg.pending_hours||24}ש'`
   };
-  return `${s[r.trigger_type]||''} · cooldown: ${r.cooldown_minutes} דק'`;
+  const ch = (r.channels||['in_app']).map(c => c==='email'?'📧 מייל':'🔔 פעמון').join(' + ');
+  return `${s[r.trigger_type]||''} · cooldown: ${r.cooldown_minutes} דק' · ${ch}`;
 }
 
 async function loadAlertNotifications() {
@@ -19816,8 +19830,10 @@ async function saveNewAlertRule() {
   if (pendingEl) config.pending_hours = parseFloat(pendingEl.value)||24;
   if (minBalEl) config.min_balance = parseFloat(minBalEl.value)||500;
   if (pendingDaysEl) config.pending_days = parseFloat(pendingDaysEl.value)||3;
+  const channels = ['in_app'];
+  if (document.getElementById('rule-ch-email')?.checked) channels.push('email');
   try {
-    const res = await fetch(`${API}/alerts/rules`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, name, triggerType, triggerConfig: config, cooldownMinutes: cooldown }) });
+    const res = await fetch(`${API}/alerts/rules`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, name, triggerType, triggerConfig: config, cooldownMinutes: cooldown, channels }) });
     const data = await res.json();
     if (data.success) { document.getElementById('new-alert-rule-modal').classList.add('hidden'); showToast('success', 'חוק נשמר!'); loadAlertRules(); }
   } catch(e) { showToast('error', 'שגיאה'); }

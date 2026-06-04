@@ -149,6 +149,7 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS alert_rules (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(200) NOT NULL, trigger_type VARCHAR(50) NOT NULL, trigger_config JSONB DEFAULT '{}', recipients JSONB DEFAULT '["ADMIN"]', channels JSONB DEFAULT '["in_app"]', cooldown_minutes INTEGER DEFAULT 60, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS alert_notifications (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, rule_id INTEGER REFERENCES alert_rules(id) ON DELETE SET NULL, trigger_type VARCHAR(50), message TEXT NOT NULL, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sla_configs (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, module VARCHAR(30) NOT NULL, status VARCHAR(50) NOT NULL, status_label VARCHAR(100), max_hours DECIMAL(6,2) NOT NULL DEFAULT 24, is_active BOOLEAN DEFAULT TRUE, UNIQUE(group_id, module, status))`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sla_configs ADD COLUMN IF NOT EXISTS channels JSONB DEFAULT '["in_app"]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
 
      try {
@@ -469,6 +470,27 @@ async function sendSystemEmail(to, subject, htmlContent) {
         console.error('❌ שגיאה בשליחת המייל דרך Gmail:', e.message);
         return false;
     }
+}
+
+async function sendAlertEmail(groupId, subject, message) {
+    try {
+        const gr = await pool.query('SELECT admin_email, business_name FROM family_groups WHERE id=$1', [groupId]);
+        if (!gr.rows.length || !gr.rows[0].admin_email) return;
+        const { admin_email, business_name } = gr.rows[0];
+        const html = `
+            <div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+              <div style="background:#4f46e5;padding:20px 24px;">
+                <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-OneFlow</h2>
+                <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">${business_name || 'OneFlow Life'}</p>
+              </div>
+              <div style="padding:24px;">
+                <p style="font-size:15px;color:#1e293b;margin:0 0 16px;">${message}</p>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+                <p style="font-size:11px;color:#94a3b8;margin:0;">OneFlow Life · מערכת ניהול עסקי</p>
+              </div>
+            </div>`;
+        await sendSystemEmail(admin_email, subject, html);
+    } catch(e) { console.error('sendAlertEmail error:', e.message); }
 }
 
 app.post('/api/support/ticket', async (req, res) => {
@@ -1961,9 +1983,10 @@ app.get('/api/alerts/rules', async (req, res) => {
 
 app.post('/api/alerts/rules', async (req, res) => {
     try {
-        const { groupId, name, triggerType, triggerConfig, cooldownMinutes } = req.body;
-        await pool.query('INSERT INTO alert_rules (group_id, name, trigger_type, trigger_config, cooldown_minutes) VALUES ($1, $2, $3, $4, $5)',
-            [groupId, name, triggerType, JSON.stringify(triggerConfig || {}), cooldownMinutes || 60]);
+        const { groupId, name, triggerType, triggerConfig, cooldownMinutes, channels } = req.body;
+        const channelsJson = JSON.stringify(Array.isArray(channels) ? channels : ['in_app']);
+        await pool.query('INSERT INTO alert_rules (group_id, name, trigger_type, trigger_config, cooldown_minutes, channels) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, name, triggerType, JSON.stringify(triggerConfig || {}), cooldownMinutes || 60, channelsJson]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -2029,11 +2052,12 @@ app.get('/api/sla', async (req, res) => {
 
 app.post('/api/sla', async (req, res) => {
     try {
-        const { groupId, module, status, statusLabel, maxHours, isActive } = req.body;
+        const { groupId, module, status, statusLabel, maxHours, isActive, channels } = req.body;
+        const channelsJson = JSON.stringify(Array.isArray(channels) ? channels : ['in_app']);
         await pool.query(
-            `INSERT INTO sla_configs (group_id, module, status, status_label, max_hours, is_active) VALUES ($1,$2,$3,$4,$5,$6)
-             ON CONFLICT (group_id, module, status) DO UPDATE SET status_label=$4, max_hours=$5, is_active=$6`,
-            [groupId, module, status, statusLabel, parseFloat(maxHours)||24, isActive !== false]
+            `INSERT INTO sla_configs (group_id, module, status, status_label, max_hours, is_active, channels) VALUES ($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT (group_id, module, status) DO UPDATE SET status_label=$4, max_hours=$5, is_active=$6, channels=$7`,
+            [groupId, module, status, statusLabel, parseFloat(maxHours)||24, isActive !== false, channelsJson]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -6659,9 +6683,13 @@ async function checkRuleTrigger(rule) {
                 break;
             }
         }
+        const channels = rule.channels || ['in_app'];
         for (const message of messages) {
             await pool.query('INSERT INTO alert_notifications (group_id, rule_id, trigger_type, message) VALUES ($1, $2, $3, $4)',
                 [rule.group_id, rule.id, rule.trigger_type, message]);
+            if (channels.includes('email')) {
+                await sendAlertEmail(rule.group_id, `⚡ התראה: ${rule.name}`, message);
+            }
         }
     } catch(e) { console.error(`Alert trigger error (${rule.trigger_type}):`, e.message); }
 }
@@ -6723,6 +6751,10 @@ async function checkSLABreaches() {
                 const msg = `[${cfg.module}:${cfg.status}] חריגת SLA בשלב "${label}" (מעל ${cfg.max_hours}ש'): ${names}`;
                 await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message) VALUES ($1,$2,$3)',
                     [cfg.group_id, 'sla_breach', msg]);
+                const channels = cfg.channels || ['in_app'];
+                if (channels.includes('email')) {
+                    await sendAlertEmail(cfg.group_id, `⏱️ חריגת SLA: ${label}`, msg);
+                }
             }
         }
     } catch(e) { console.error('SLA engine error:', e.message); }
