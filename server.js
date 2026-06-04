@@ -126,7 +126,8 @@ pool.connect()
       try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)'); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS kiosk_password VARCHAR(100) DEFAULT '1234'`); } catch(e) {}
-      
+      try { await client.query('ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS stock_quantity INT DEFAULT NULL'); } catch(e) {}
+
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_email_type_key CASCADE');
@@ -3100,6 +3101,89 @@ app.post('/api/store/catalog/toggle', async (req, res) => {
 app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// --- ספירת מלאי ---
+app.post('/api/store/inventory-count', async (req, res) => {
+    try {
+        const { groupId, items, sendEmail } = req.body;
+        if (!groupId || !items || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        for (const item of items) {
+            if (item.id && item.stock_quantity !== undefined && item.stock_quantity !== '') {
+                await pool.query(
+                    'UPDATE store_catalog SET stock_quantity=$1 WHERE id=$2 AND group_id=$3',
+                    [parseInt(item.stock_quantity) || 0, item.id, groupId]
+                );
+            }
+        }
+
+        if (sendEmail) {
+            const grpRes = await pool.query('SELECT name, admin_email FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpRes.rows[0];
+            if (grp && grp.admin_email) {
+                const dateStr = new Date().toLocaleDateString('he-IL');
+                const rows = items.filter(i => i.stock_quantity !== '').map(i =>
+                    `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">${(i.name||'').replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${i.stock_quantity}</td></tr>`
+                ).join('');
+                const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px">
+                    <h2 style="color:#4338ca">ספירת מלאי — ${(grp.name||'').replace(/[<>]/g,'')}</h2>
+                    <p style="color:#64748b">תאריך: ${dateStr}</p>
+                    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                        <thead><tr>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:right">מוצר</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">כמות במלאי</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                </div>`;
+                await sendEmailViaSMTP(grp.admin_email, `ספירת מלאי — ${grp.name} — ${dateStr}`, html);
+            }
+        }
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליחת הודעה ללקוחות ---
+app.post('/api/store/send-customer-message', async (req, res) => {
+    try {
+        const { groupId, subject, content, segment } = req.body;
+        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        let customers = [];
+        if (segment === 'ordered') {
+            const r = await pool.query(
+                `SELECT DISTINCT sc.* FROM store_customers sc
+                 JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name)
+                 WHERE sc.group_id=$1 ORDER BY sc.name ASC`, [groupId]);
+            customers = r.rows;
+        } else {
+            const r = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [groupId]);
+            customers = r.rows;
+        }
+
+        await pool.query(
+            'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, 'business_broadcast', 'העסק', '', subject, content]
+        );
+
+        res.json({ success: true, count: customers.length, customers: customers.map(c => ({ id: c.id, name: c.name, phone: c.phone })) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת הודעות עסק ללקוחות (לדף החנות הציבורי)
+app.get('/api/store/customer-messages/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM inbox_messages WHERE group_id=$1 AND sender_type='business_broadcast' ORDER BY created_at DESC LIMIT 20",
+            [req.params.groupId]
+        );
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- הצעות מחיר (Quotes) ---
 app.post('/api/store/quotes', async (req, res) => {
     try {

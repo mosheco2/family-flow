@@ -7511,6 +7511,163 @@ function renderStoreCatalog() {
         html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
+// ============================================================
+// --- ספירת מלאי (Inventory Count) ---
+// ============================================================
+window.openInventoryCountModal = function() {
+    if (!storeCatalogCache || storeCatalogCache.length === 0) {
+        return showToast('info', 'אין מוצרים בקטלוג לספירה');
+    }
+    const modal = getEl('inventory-count-modal');
+    if (!modal) return;
+    const list = getEl('inventory-count-items');
+    list.innerHTML = storeCatalogCache.map(p => `
+        <div class="flex items-center justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-100">` : '<div class="w-8 h-8 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center"><i class="fa-solid fa-box text-slate-300 text-xs"></i></div>'}
+                <span class="text-sm font-medium text-slate-700 truncate">${safeStr(p.name)}</span>
+                <span class="text-[10px] text-slate-400 hidden sm:inline">${safeStr(p.category || '')}</span>
+            </div>
+            <input type="number" min="0" id="inv-qty-${p.id}"
+                value="${p.stock_quantity !== null && p.stock_quantity !== undefined ? p.stock_quantity : ''}"
+                placeholder="—"
+                class="w-20 text-center border border-slate-200 rounded-lg py-1.5 text-sm font-bold focus:border-amber-400 focus:outline-none bg-white">
+        </div>
+    `).join('');
+    modal.classList.remove('hidden');
+};
+
+window.saveInventoryCount = async function(sendEmail) {
+    const btn = getEl('inv-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    const items = (storeCatalogCache || []).map(p => ({
+        id: p.id, name: p.name,
+        stock_quantity: getEl(`inv-qty-${p.id}`)?.value ?? ''
+    }));
+    try {
+        const res = await fetch(`${API}/store/inventory-count`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, items, sendEmail: !!sendEmail })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', sendEmail ? 'ספירה נשמרה ונשלחה במייל!' : 'ספירת המלאי נשמרה!');
+            await fetchStoreCatalog();
+        } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור ספירה'; }
+};
+
+window.generateInventoryPDF = function() {
+    const dateStr = new Date().toLocaleDateString('he-IL');
+    const businessName = currentGroup?.name || '';
+    const rows = (storeCatalogCache || []).map(p => {
+        const qtyEl = getEl(`inv-qty-${p.id}`);
+        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : '—';
+        return `<tr>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${safeStr(p.name)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${safeStr(p.category || 'כללי')}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${qty}</td>
+        </tr>`;
+    }).join('');
+    const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px;max-width:700px">
+        <h2 style="color:#4338ca;margin-bottom:4px">ספירת מלאי — ${businessName}</h2>
+        <p style="color:#64748b;font-size:13px;margin-bottom:16px">תאריך: ${dateStr}</p>
+        <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:right;font-size:12px;border-bottom:2px solid #e2e8f0">מוצר</th>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">קטגוריה</th>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">כמות במלאי</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+    </div>`;
+    const container = document.createElement('div');
+    container.style.position = 'absolute'; container.style.left = '-9999px';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    const opt = {
+        margin: 10, filename: `ספירת_מלאי_${dateStr.replace(/\//g,'-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    if (typeof html2pdf !== 'undefined') {
+        html2pdf().from(container).set(opt).save().then(() => document.body.removeChild(container));
+    } else { document.body.removeChild(container); showToast('error', 'ספריית PDF לא טעונה'); }
+};
+
+window.inventoryCountWhatsApp = function() {
+    const dateStr = new Date().toLocaleDateString('he-IL');
+    let msg = `ספירת מלאי — ${currentGroup?.name || ''}\nתאריך: ${dateStr}\n\n`;
+    (storeCatalogCache || []).forEach(p => {
+        const qtyEl = getEl(`inv-qty-${p.id}`);
+        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : '—';
+        msg += `• ${p.name}: ${qty}\n`;
+    });
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+};
+
+// ============================================================
+// --- שליחת הודעות ללקוחות (Customer Messages) ---
+// ============================================================
+window.openCustomerMessageModal = function() {
+    const modal = getEl('customer-message-modal');
+    if (!modal) return;
+    const subjectEl = getEl('msg-subject');
+    const contentEl = getEl('msg-content');
+    const segmentEl = getEl('msg-segment');
+    if (subjectEl) subjectEl.value = '';
+    if (contentEl) contentEl.value = '';
+    if (segmentEl) segmentEl.value = 'all';
+    const resultEl = getEl('msg-customer-result');
+    if (resultEl) resultEl.innerHTML = '';
+    modal.classList.remove('hidden');
+};
+
+window.sendCustomerMessage = async function() {
+    const subject = getEl('msg-subject')?.value?.trim();
+    const content = getEl('msg-content')?.value?.trim();
+    const segment = getEl('msg-segment')?.value || 'all';
+    if (!subject || !content) return showToast('error', 'יש למלא נושא ותוכן');
+    const btn = getEl('msg-send-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'שולח...'; }
+    try {
+        const res = await fetch(`${API}/store/send-customer-message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, subject, content, segment })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `ההודעה פורסמה! (${data.count} לקוחות במאגר)`);
+            if (data.customers && data.customers.length > 0) {
+                const withPhone = data.customers.filter(c => c.phone);
+                if (withPhone.length > 0) {
+                    const listHtml = withPhone.map(c => {
+                        let phone = c.phone.replace(/\D/g, '');
+                        if (phone.startsWith('0')) phone = '972' + phone.substring(1);
+                        const waMsg = `שלום ${c.name},\n${subject}\n\n${content}`;
+                        return `<div class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                            <span class="text-sm text-slate-700 truncate flex-1">${safeStr(c.name)}</span>
+                            <a href="https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}" target="_blank"
+                               class="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2.5 py-1 rounded-lg border border-green-100 hover:bg-green-100 transition shrink-0 mr-2">
+                                <i class="fa-brands fa-whatsapp"></i> שלח
+                            </a>
+                        </div>`;
+                    }).join('');
+                    const resultEl = getEl('msg-customer-result');
+                    if (resultEl) resultEl.innerHTML = `<div class="mt-3 bg-slate-50 rounded-xl border border-slate-100 p-3">
+                        <p class="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1"><i class="fa-brands fa-whatsapp text-green-500"></i> שלח גם בוואטסאפ (לכל לקוח בנפרד):</p>
+                        ${listHtml}
+                    </div>`;
+                }
+            }
+        } else { showToast('error', data.error || 'שגיאה בשליחה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if (btn) { btn.disabled = false; btn.textContent = 'שלח הודעה'; }
+};
+
 function renderPresetSelector() {
     const sel = getEl('preset-selector'); if (!sel) return;
     if (storeModifierPresets.length > 0) {
@@ -16193,12 +16350,16 @@ window.renderInboxList = function() {
         let bgClass = m.is_read ? 'bg-slate-50 opacity-70 border-slate-100' : 'bg-white border-indigo-200 shadow-sm';
         let typeBadge = '';
         
+        const isBroadcast = m.sender_type === 'business_broadcast';
         if (isSys) {
             iconHtml = '<i class="fa-solid fa-tower-cell text-indigo-500"></i>';
             typeBadge = '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-indigo-200">הודעת מערכת</span>';
         } else if (isCustomer) {
             iconHtml = '<i class="fa-solid fa-user text-emerald-500"></i>';
             typeBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-emerald-200">לקוח (חנות)</span>';
+        } else if (isBroadcast) {
+            iconHtml = '<i class="fa-solid fa-bullhorn text-purple-500"></i>';
+            typeBadge = '<span class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-purple-200">נשלח ללקוחות</span>';
         }
 
         // זיהוי החתימה הדיגיטלית של הניוזלטר
