@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 const nodemailer = require('nodemailer');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use(express.static('public', {
 
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const genAIv2 = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // ============================================================
 // TWILIO SMS OTP CONFIGURATION & LOGIC
@@ -2562,45 +2564,31 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const { groupId, type } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) return res.json({ success: false, error: 'מפתח AI חסר בשרת' });
+        if (!genAIv2) return res.json({ success: false, error: 'מפתח AI חסר בשרת' });
 
-        const bannerPrompt = 'professional business store banner background, realistic high-quality photography, vibrant colors, modern clean design, no text, no logos, wide landscape format';
+        const bannerPrompt = 'professional business store banner background, realistic high-quality photography, vibrant colors, modern clean design, no text, no logos, wide panoramic landscape';
         const logoPrompt   = 'professional business logo icon, clean modern design, colorful, high quality';
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
+        const aspectRatio  = type === 'banner' ? '16:9' : '1:1';
 
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        // Try gemini-2.0-flash-exp via v1alpha (supports responseModalities IMAGE)
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
-        const geminiRes = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-                generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
-            })
-        });
-        const geminiData = await geminiRes.json();
-        console.log('Gemini image gen status:', geminiRes.status);
-
-        if (geminiRes.ok) {
-            const parts = geminiData.candidates?.[0]?.content?.parts || [];
-            const imgPart = parts.find(p => p.inlineData);
-            if (imgPart) {
-                const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
-                return res.json({ success: true, imageUrl });
+        const response = await genAIv2.models.generateImages({
+            model: 'imagen-3.0-generate-001',
+            prompt: finalPrompt,
+            config: {
+                numberOfImages: 1,
+                aspectRatio,
+                outputMimeType: 'image/jpeg',
             }
+        });
+
+        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
+        if (!imgBytes) {
+            console.error('Imagen3 no image returned:', JSON.stringify(response).slice(0, 300));
+            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
         }
 
-        // Fallback: list available models so we know what to use
-        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`);
-        const modelsData = await modelsRes.json();
-        const imageModels = (modelsData.models || [])
-            .filter(m => m.supportedGenerationMethods?.includes('generateContent') || m.supportedGenerationMethods?.includes('predict'))
-            .map(m => m.name);
-        console.log('Available models:', imageModels);
-        const errDetail = geminiData.error?.message || JSON.stringify(geminiData).slice(0, 200);
-        return res.json({ success: false, error: `מודל לא זמין. ${errDetail}`, availableModels: imageModels });
+        const imageUrl = `data:image/jpeg;base64,${imgBytes}`;
+        res.json({ success: true, imageUrl });
     } catch(e) {
         console.error('Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
