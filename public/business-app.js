@@ -7429,31 +7429,36 @@ window.generateBannerAI = async function() {
         if (!handleAIResponseCheck(data)) { btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
         if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה'); btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
 
-        // Poll: try loading the URL until the image is ready (up to 90s)
+        // Poll: wait until pollinations returns the REAL generated image (naturalWidth >= 200)
         const imageUrl = data.imageUrl;
-        await new Promise((resolve, reject) => {
+        const readyUrl = await new Promise((resolve, reject) => {
             let attempts = 0;
             const tryLoad = () => {
                 const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = () => {
+                const stampedUrl = imageUrl + '&_t=' + Date.now();
+                img.onload = () => {
+                    if (img.naturalWidth >= 200) return resolve(stampedUrl);
+                    // placeholder returned — retry
                     attempts++;
-                    if (attempts >= 18) return reject(new Error('timeout'));
+                    if (attempts >= 18) return reject();
                     setTimeout(tryLoad, 5000);
                 };
-                img.src = imageUrl + '&t=' + Date.now();
+                img.onerror = () => {
+                    attempts++;
+                    if (attempts >= 18) return reject();
+                    setTimeout(tryLoad, 5000);
+                };
+                img.src = stampedUrl;
             };
             tryLoad();
-        }).then(() => {
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = imageUrl);
-            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = imageUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
-        }).catch(() => {
-            showToast('error', 'שירות יצירת התמונות לא הגיב. נסה שוב או העלה קובץ ידנית.');
-        });
+        }).catch(() => null);
+
+        if (!readyUrl) { showToast('error', 'שירות יצירת התמונות לא הגיב. נסה שוב או העלה קובץ ידנית.'); return; }
+        document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = readyUrl);
+        document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = readyUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
+        document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
+        document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+        showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול שרת ה-AI');
     } finally {
@@ -10010,27 +10015,32 @@ window.generateLogoAI = async function() {
             if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה ביצירת לוגו'); return; }
 
             const imageUrl = data.imageUrl;
-            await new Promise((resolve, reject) => {
+            const readyUrl = await new Promise((resolve, reject) => {
                 let attempts = 0;
                 const tryLoad = () => {
                     const img = new Image();
-                    img.onload = () => resolve();
+                    const stampedUrl = imageUrl + '&_t=' + Date.now();
+                    img.onload = () => {
+                        if (img.naturalWidth >= 100) return resolve(stampedUrl);
+                        attempts++; if (attempts >= 18) return reject(); setTimeout(tryLoad, 5000);
+                    };
                     img.onerror = () => { attempts++; if (attempts >= 18) return reject(); setTimeout(tryLoad, 5000); };
-                    img.src = imageUrl + '&t=' + Date.now();
+                    img.src = stampedUrl;
                 };
                 tryLoad();
-            }).then(() => {
-                ['wizard', 'store', 'dash'].forEach(prefix => {
-                    const preview = getEl(`${prefix}-logo-preview`);
-                    const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
-                    const input = getEl(`${prefix}-logo-base64`);
-                    if(preview) { preview.src = imageUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
-                    if(icon) icon.classList.add('hidden');
-                    if(input) input.value = imageUrl;
-                });
-                showToast('success', 'הלוגו עוצב בהצלחה!');
-                triggerConfetti();
-            }).catch(() => { showToast('error', 'שירות הלוגו לא הגיב. נסה שוב או העלה קובץ ידנית.'); });
+            }).catch(() => null);
+
+            if (!readyUrl) { showToast('error', 'שירות הלוגו לא הגיב. נסה שוב או העלה קובץ ידנית.'); return; }
+            ['wizard', 'store', 'dash'].forEach(prefix => {
+                const preview = getEl(`${prefix}-logo-preview`);
+                const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
+                const input = getEl(`${prefix}-logo-base64`);
+                if(preview) { preview.src = readyUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
+                if(icon) icon.classList.add('hidden');
+                if(input) input.value = readyUrl;
+            });
+            showToast('success', 'הלוגו עוצב בהצלחה!');
+            triggerConfetti();
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     });
 };
