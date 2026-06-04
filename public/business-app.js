@@ -7516,44 +7516,69 @@ function renderStoreCatalog() {
 // --- ספירת מלאי (Inventory Count) ---
 // ============================================================
 window.openInventoryCountModal = function() {
-    if (!storeCatalogCache || storeCatalogCache.length === 0) {
-        return showToast('info', 'אין מוצרים בקטלוג לספירה');
-    }
     const modal = getEl('inventory-count-modal');
     if (!modal) return;
     const list = getEl('inventory-count-items');
-    list.innerHTML = storeCatalogCache.map(p => `
+    if (!pantryCache || pantryCache.length === 0) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400">
+            <i class="fa-solid fa-warehouse text-4xl mb-3 text-slate-200"></i>
+            <p class="text-sm font-medium">המלאי ריק</p>
+            <p class="text-xs mt-1">הוסף פריטים בכרטיסיית <strong>מלאי</strong> כדי לבצע ספירה</p>
+        </div>`;
+        modal.classList.remove('hidden');
+        return;
+    }
+    list.innerHTML = `
+        <p class="text-xs text-slate-400 mb-3">הכמות הנוכחית מולאה מראש. שנה לכמות שנספרה בפועל — ריק = דלג על פריט זה.</p>
+        <div class="space-y-0">
+        ${pantryCache.map(p => `
         <div class="flex items-center justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0">
             <div class="flex items-center gap-2 flex-1 min-w-0">
-                ${p.image_url ? `<img src="${p.image_url}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-100">` : '<div class="w-8 h-8 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center"><i class="fa-solid fa-box text-slate-300 text-xs"></i></div>'}
-                <span class="text-sm font-medium text-slate-700 truncate">${safeStr(p.name)}</span>
-                <span class="text-[10px] text-slate-400 hidden sm:inline">${safeStr(p.category || '')}</span>
+                <div class="w-7 h-7 rounded-lg bg-amber-50 shrink-0 flex items-center justify-center border border-amber-100">
+                    <i class="fa-solid fa-box text-amber-400 text-[10px]"></i>
+                </div>
+                <div class="min-w-0">
+                    <span class="text-sm font-medium text-slate-700 block truncate">${safeStr(p.item_name)}</span>
+                    <span class="text-[10px] text-slate-400">${safeStr(p.unit || "יח'")}</span>
+                </div>
             </div>
-            <input type="number" min="0" id="inv-qty-${p.id}"
-                value="${p.stock_quantity !== null && p.stock_quantity !== undefined ? p.stock_quantity : ''}"
-                placeholder="—"
-                class="w-20 text-center border border-slate-200 rounded-lg py-1.5 text-sm font-bold focus:border-amber-400 focus:outline-none bg-white">
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] text-slate-400 hidden sm:inline">נוכחי: <strong>${parseFloat(p.quantity) || 0}</strong></span>
+                <input type="number" min="0" step="0.01" id="inv-qty-${p.id}"
+                    value="${p.quantity !== null && p.quantity !== undefined ? parseFloat(p.quantity) : ''}"
+                    placeholder="—"
+                    class="w-20 text-center border border-slate-200 rounded-lg py-1.5 text-sm font-bold focus:border-amber-400 focus:outline-none bg-white">
+                <span class="text-[10px] text-slate-500 w-8">${safeStr(p.unit || "יח'")}</span>
+            </div>
         </div>
-    `).join('');
+        `).join('')}
+        </div>`;
     modal.classList.remove('hidden');
 };
 
 window.saveInventoryCount = async function(sendEmail) {
     const btn = getEl('inv-save-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
-    const items = (storeCatalogCache || []).map(p => ({
-        id: p.id, name: p.name,
-        stock_quantity: getEl(`inv-qty-${p.id}`)?.value ?? ''
+    const items = (pantryCache || []).map(p => ({
+        id: p.id, item_name: p.item_name, unit: p.unit,
+        quantity: getEl(`inv-qty-${p.id}`)?.value ?? ''
     }));
+    const changed = items.filter(i => i.quantity !== '');
+    if (changed.length === 0) {
+        showToast('info', 'לא הוזנה אף כמות — לא נשמר');
+        if (btn) { btn.disabled = false; btn.textContent = 'שמור ספירה'; }
+        return;
+    }
     try {
-        const res = await fetch(`${API}/store/inventory-count`, {
+        const res = await fetch(`${API}/pantry/bulk-update`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groupId: currentGroup.id, items, sendEmail: !!sendEmail })
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', sendEmail ? 'ספירה נשמרה ונשלחה במייל!' : 'ספירת המלאי נשמרה!');
-            await fetchStoreCatalog();
+            showToast('success', sendEmail ? 'ספירה נשמרה ונשלחה במייל!' : `ספירת המלאי נשמרה! (${changed.length} פריטים עודכנו)`);
+            getEl('inventory-count-modal').classList.add('hidden');
+            await loadDashboard();
         } else { showToast('error', data.error || 'שגיאה בשמירה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
     if (btn) { btn.disabled = false; btn.textContent = 'שמור ספירה'; }
@@ -7562,23 +7587,23 @@ window.saveInventoryCount = async function(sendEmail) {
 window.generateInventoryPDF = function() {
     const dateStr = new Date().toLocaleDateString('he-IL');
     const businessName = currentGroup?.name || '';
-    const rows = (storeCatalogCache || []).map(p => {
+    const rows = (pantryCache || []).map(p => {
         const qtyEl = getEl(`inv-qty-${p.id}`);
-        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : '—';
+        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : String(parseFloat(p.quantity) || 0);
         return `<tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${safeStr(p.name)}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${safeStr(p.category || 'כללי')}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${safeStr(p.item_name)}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${safeStr(p.unit || "יח'")}</td>
             <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${qty}</td>
         </tr>`;
     }).join('');
     const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px;max-width:700px">
-        <h2 style="color:#4338ca;margin-bottom:4px">ספירת מלאי — ${businessName}</h2>
+        <h2 style="color:#4338ca;margin-bottom:4px">ספירת מלאי מחסן — ${businessName}</h2>
         <p style="color:#64748b;font-size:13px;margin-bottom:16px">תאריך: ${dateStr}</p>
         <table style="width:100%;border-collapse:collapse">
             <thead><tr>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:right;font-size:12px;border-bottom:2px solid #e2e8f0">מוצר</th>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">קטגוריה</th>
-                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">כמות במלאי</th>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:right;font-size:12px;border-bottom:2px solid #e2e8f0">פריט</th>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">יחידה</th>
+                <th style="background:#f1f5f9;padding:8px 10px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0">כמות בפועל</th>
             </tr></thead>
             <tbody>${rows}</tbody>
         </table>
@@ -7601,11 +7626,11 @@ window.generateInventoryPDF = function() {
 
 window.inventoryCountWhatsApp = function() {
     const dateStr = new Date().toLocaleDateString('he-IL');
-    let msg = `ספירת מלאי — ${currentGroup?.name || ''}\nתאריך: ${dateStr}\n\n`;
-    (storeCatalogCache || []).forEach(p => {
+    let msg = `ספירת מלאי מחסן — ${currentGroup?.name || ''}\nתאריך: ${dateStr}\n\n`;
+    (pantryCache || []).forEach(p => {
         const qtyEl = getEl(`inv-qty-${p.id}`);
-        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : '—';
-        msg += `• ${p.name}: ${qty}\n`;
+        const qty = (qtyEl && qtyEl.value !== '') ? qtyEl.value : String(parseFloat(p.quantity) || 0);
+        msg += `• ${p.item_name}: ${qty} ${p.unit || "יח'"}\n`;
     });
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };

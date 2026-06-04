@@ -2027,6 +2027,48 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/pantry/bulk-update', async (req, res) => {
+    try {
+        const { groupId, items, sendEmail } = req.body;
+        if (!groupId || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
+        for (const item of items) {
+            if (item.id && item.quantity !== undefined && item.quantity !== '') {
+                await pool.query(
+                    'UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND group_id=$3',
+                    [parseFloat(item.quantity) || 0, item.id, groupId]
+                );
+            }
+        }
+        if (sendEmail) {
+            const grpRes = await pool.query('SELECT name, admin_email FROM family_groups WHERE id=$1', [groupId]);
+            const grp = grpRes.rows[0];
+            if (grp && grp.admin_email) {
+                const dateStr = new Date().toLocaleDateString('he-IL');
+                const rows = items.filter(i => i.quantity !== '').map(i =>
+                    `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">${(i.item_name||i.name||'').replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;color:#64748b">${(i.unit||"יח'").replace(/[<>]/g,'')}</td>
+                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold">${i.quantity}</td></tr>`
+                ).join('');
+                const html = `<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;padding:24px">
+                    <h2 style="color:#4338ca">ספירת מלאי מחסן — ${(grp.name||'').replace(/[<>]/g,'')}</h2>
+                    <p style="color:#64748b">תאריך: ${dateStr}</p>
+                    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+                        <thead><tr>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:right">פריט</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">יחידה</th>
+                            <th style="background:#f1f5f9;padding:8px 12px;text-align:center">כמות בפועל</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                </div>`;
+                await sendEmailViaSMTP(grp.admin_email, `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`, html);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ============================================================
 // --- BUDGET ENDPOINTS ---
 // ============================================================
