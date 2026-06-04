@@ -7598,12 +7598,13 @@ window.saveInventoryCount = async function(sendEmail) {
             const htmlStr = _buildInventoryHtml(items, currentGroup?.name || '', dateStr);
             const el = document.createElement('div');
             el.innerHTML = htmlStr;
-            el.style.position = 'absolute'; el.style.left = '-9999px'; el.style.width = '700px';
+            // position: fixed in viewport but invisible so html2canvas can capture it
+            el.style.cssText = 'position:fixed;top:0;left:0;width:700px;opacity:0.01;pointer-events:none;z-index:-9999;overflow:visible;';
             document.body.appendChild(el);
             const pdfBlob = await html2pdf().set({
                 margin: 10,
                 filename: 'inventory.pdf',
-                html2canvas: { scale: 2, useCORS: true, logging: false },
+                html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             }).from(el).outputPdf('blob');
             document.body.removeChild(el);
@@ -10582,19 +10583,25 @@ window.sendPurchaseOrderWhatsApp = function(orderId) {
 
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
     const dateStr = new Date(o.created_at).toLocaleDateString('he-IL');
+    const contactEmail = currentGroup?.admin_email || '';
     let msg = `שלום ${supData.name},\n`;
     msg += `הזמנת רכש #${o.id} מ${currentGroup.name}\n`;
-    msg += `תאריך: ${dateStr}\n\n`;
-    msg += `פירוט הפריטים:\n`;
+    msg += `תאריך: ${dateStr}\n`;
+    if (contactEmail) msg += `איש קשר: ${contactEmail}\n`;
+    msg += `\nפירוט הפריטים:\n`;
     items.forEach(i => {
-        msg += `• ${i.name} — כמות: ${i.quantity} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
+        msg += `• ${i.name} — כמות: ${i.quantity} ${i.unit || ''} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
     });
     msg += `\nסה"כ להזמנה: ₪${parseFloat(o.total_amount || 0).toFixed(2)}\n`;
-    msg += `\nנא לאשר קבלת ההזמנה.\nתודה!`;
+    if (o.notes) msg += `הערות: ${o.notes}\n`;
+    msg += `\nנא לאשר קבלת ההזמנה. תודה!`;
 
     let phone = supData.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '972' + phone.substring(1);
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+
+    // פתח PDF של ההזמנה בחלון נפרד
+    _openPurchaseOrderPrintWindow(o, supData, items, dateStr);
 };
 
 async function updateB2BOrderStatus(orderId, status) {
@@ -10606,6 +10613,57 @@ async function updateB2BOrderStatus(orderId, status) {
         if(data.success) { showToast('success', 'סטטוס הזמנה עודכן בהצלחה'); fetchB2BOrders(); } 
         else { showToast('error', data.error || 'שגיאה בעדכון סטטוס'); }
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+}
+
+function _openPurchaseOrderPrintWindow(o, supData, items, dateStr) {
+    const businessName = currentGroup?.name || '';
+    const contactEmail = currentGroup?.admin_email || '';
+    const rows = items.map(i => `
+        <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${(i.name||'').replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">${(i.unit||"יח'").replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">${parseFloat(i.quantity)||0}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">₪${parseFloat(i.price_per_unit||i.unit_price||0).toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:bold">₪${parseFloat(i.row_total||0).toFixed(2)}</td>
+        </tr>`).join('');
+    const pw = window.open('', '_blank', 'width=800,height=700');
+    if (!pw) return;
+    pw.document.write(`<!DOCTYPE html><html dir="rtl"><head>
+        <meta charset="utf-8"><title>הזמנת רכש #${o.id}</title>
+        <style>
+            body{font-family:Arial,Helvetica,sans-serif;padding:32px;color:#1e293b;direction:rtl}
+            h2{color:#4338ca;margin-bottom:2px}
+            .meta{color:#64748b;font-size:13px;margin:4px 0 20px}
+            table{width:100%;border-collapse:collapse}
+            th{background:#f1f5f9;padding:10px 12px;border-bottom:2px solid #e2e8f0;font-size:12px}
+            .total{text-align:left;margin-top:12px;font-size:16px;font-weight:bold;color:#1e293b}
+            @media print{.no-print{display:none}}
+        </style>
+    </head><body>
+        <div class="no-print" style="margin-bottom:20px">
+            <button onclick="window.print()" style="background:#4338ca;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:bold">🖨️ הדפס / שמור PDF</button>
+        </div>
+        <h2>הזמנת רכש #${o.id}</h2>
+        <div class="meta">
+            <strong>מ:</strong> ${businessName.replace(/[<>]/g,'')}${contactEmail ? ` | ${contactEmail}` : ''}<br>
+            <strong>אל:</strong> ${(supData.name||'').replace(/[<>]/g,'')}${supData.phone ? ` | ${supData.phone}` : ''}<br>
+            <strong>תאריך:</strong> ${dateStr}
+        </div>
+        <table>
+            <thead><tr>
+                <th style="text-align:right">פריט</th>
+                <th style="text-align:center">יחידה</th>
+                <th style="text-align:center">כמות</th>
+                <th style="text-align:center">מחיר יח'</th>
+                <th style="text-align:center">סה"כ</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="total">סה"כ להזמנה: ₪${parseFloat(o.total_amount||0).toFixed(2)}</div>
+        ${o.notes ? `<p style="margin-top:12px;font-size:13px;color:#475569"><strong>הערות:</strong> ${(o.notes||'').replace(/[<>]/g,'')}</p>` : ''}
+        <p style="margin-top:24px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+    </body></html>`);
+    pw.document.close();
 }
 
 let _receiveGoodsOrderId = null;
