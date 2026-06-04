@@ -2561,15 +2561,29 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
 // --- יצירת תמונות (לוגו ובאנר) באמצעות AI  ---
 app.post('/api/ai/generate-image', async (req, res) => {
     try {
-        const { groupId, type } = req.body;
+        const { groupId, type, prompt: businessName } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAIv2) return res.json({ success: false, error: 'מפתח AI חסר בשרת' });
 
-        const bannerPrompt = 'professional business store banner background, realistic high-quality photography, vibrant colors, modern clean design, no text, no logos, wide panoramic landscape';
-        const logoPrompt   = 'professional business logo icon, clean modern design, colorful, high quality';
-        const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
-        const aspectRatio  = type === 'banner' ? '16:9' : '1:1';
+        // Use Gemini to build a contextual English prompt from the business name
+        let finalPrompt;
+        if (type === 'banner' && businessName && genAI) {
+            try {
+                const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const geminiResult = await geminiModel.generateContent(
+                    `You are a professional image prompt engineer. Based on the business name "${businessName}", write a short English image generation prompt (max 30 words) for a wide banner background photo. Requirements: realistic photography style, relevant to the business type, vibrant colors, no text, no logos, no people faces. Return ONLY the prompt text.`
+                );
+                finalPrompt = geminiResult.response.text().trim().replace(/^["']|["']$/g, '');
+                console.log('Generated banner prompt:', finalPrompt);
+            } catch(e) {
+                console.error('Gemini prompt gen failed, using default:', e.message);
+            }
+        }
+        if (!finalPrompt) {
+            finalPrompt = type === 'banner'
+                ? 'professional business store banner background, realistic photography, vibrant colors, no text, no logos, wide panoramic'
+                : 'professional business logo icon, clean modern design, colorful, high quality';
+        }
 
         const hfToken = process.env.HF_TOKEN;
         if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
