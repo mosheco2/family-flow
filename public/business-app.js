@@ -7723,15 +7723,19 @@ async function _loadNewslettersInline() {
             container.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">אין ניוזלטרים ששוגרו עדיין</p>';
             return;
         }
+        window._nlHistoryCache = data.newsletters;
         container.innerHTML = data.newsletters.map(n => {
             const dateStr = new Date(n.sent_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-            const audienceLabel = n.audience === 'all' ? 'כל הלקוחות' : n.audience === 'oneflow' ? 'לקוחות OneFlow' : `קהילה`;
+            const audienceLabel = n.audience === 'all' ? 'כל הלקוחות' : n.audience === 'oneflow' ? 'לקוחות OneFlow' : 'קהילה';
             return `<div class="flex items-start justify-between gap-2 bg-white rounded-xl p-3 mb-2 border border-purple-100">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-bold text-slate-700 truncate">${n.subject || '(ללא נושא)'}</p>
                     <p class="text-xs text-slate-400 mt-0.5">${dateStr} · ${audienceLabel} · ${n.recipient_count || 0} נמענים</p>
                 </div>
-                <button onclick="window.deleteNewsletter(${n.id})" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 transition flex-shrink-0">מחק</button>
+                <div class="flex gap-1 flex-shrink-0">
+                    <button onclick="window.previewNewsletter(${n.id})" class="text-purple-500 hover:text-purple-700 text-xs px-2 py-1 rounded-lg hover:bg-purple-50 transition">צפה</button>
+                    <button onclick="window.deleteNewsletter(${n.id})" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 transition">מחק</button>
+                </div>
             </div>`;
         }).join('');
     } catch(e) {
@@ -7753,6 +7757,27 @@ window.deleteNewsletter = async function(id) {
     } catch(e) {
         showToast('error', 'שגיאת רשת');
     }
+};
+
+window.previewNewsletter = function(id) {
+    const n = (window._nlHistoryCache || []).find(x => x.id === id);
+    if (!n || !n.content_html) return showToast('error', 'אין תוכן לצפייה');
+    const modal = getEl('nl-preview-modal');
+    if (!modal) return;
+    getEl('nl-preview-subject').textContent = n.subject || '(ללא נושא)';
+    const frame = getEl('nl-preview-iframe');
+    if (frame) {
+        const blob = new Blob([n.content_html], { type: 'text/html; charset=utf-8' });
+        frame.src = URL.createObjectURL(blob);
+    }
+    modal.classList.remove('hidden');
+};
+
+window.closeNlPreviewModal = function() {
+    const modal = getEl('nl-preview-modal');
+    if (modal) modal.classList.add('hidden');
+    const frame = getEl('nl-preview-iframe');
+    if (frame) { URL.revokeObjectURL(frame.src); frame.src = ''; }
 };
 
 async function _nlLoadCommunities() {
@@ -8246,6 +8271,8 @@ async function _loadStorePopupsInline() {
         const data = await res.json();
         const popups = (data.popups || []).filter(p => (p.popup_type || 'store') !== 'employee');
         if (!popups.length) { list.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">אין פופאפים עדיין</p>'; return; }
+        // clear "seen" for active popups so admin can test in storefront
+        popups.filter(p => p.is_active).forEach(p => localStorage.removeItem(`ofl_popup_${p.id}`));
         const now = new Date();
         list.innerHTML = popups.map(p => {
             const exp = p.expires_at ? new Date(p.expires_at) : null;

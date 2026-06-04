@@ -4298,6 +4298,19 @@
     </div>
 </div>
 
+<!-- Newsletter Preview Modal -->
+<div id="nl-preview-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[10001] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden slide-up">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-envelope text-purple-500"></i> <span id="nl-preview-subject" class="truncate max-w-xs"></span></h3>
+            <button onclick="window.closeNlPreviewModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 overflow-hidden">
+            <iframe id="nl-preview-iframe" src="" class="w-full h-full border-0" style="min-height:500px;"></iframe>
+        </div>
+    </div>
+</div>
+
             <div id="inbox-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
                 <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
                     <button onclick="document.getElementById('inbox-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>

@@ -3419,7 +3419,7 @@ app.post('/api/store/newsletter/broadcast', async (req, res) => {
 app.get('/api/store/newsletters/:groupId', async (req, res) => {
     try {
         const r = await pool.query(
-            'SELECT id, subject, audience, recipient_count, sent_at FROM sent_newsletters WHERE group_id=$1 ORDER BY sent_at DESC LIMIT 30',
+            'SELECT id, subject, content_html, audience, recipient_count, sent_at FROM sent_newsletters WHERE group_id=$1 ORDER BY sent_at DESC LIMIT 30',
             [req.params.groupId]
         );
         res.json({ success: true, newsletters: r.rows });
