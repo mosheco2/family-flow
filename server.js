@@ -2557,7 +2557,6 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בפירוק המשימות'); }
 });
 // --- יצירת תמונות (לוגו ובאנר) באמצעות AI  ---
-// Returns a URL immediately; client polls until image is ready
 app.post('/api/ai/generate-image', async (req, res) => {
     try {
         const { prompt, groupId, type } = req.body;
@@ -2568,9 +2567,8 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const width  = type === 'banner' ? 1200 : 512;
         const height = type === 'banner' ? 400  : 512;
         const seed   = Math.floor(Math.random() * 1000000);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=flux`;
-        // Return URL immediately; browser will poll until image is ready
-        res.json({ success: true, imageUrl, pending: true });
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+        res.json({ success: true, imageUrl });
     } catch(e) {
         console.error('Image Gen Error:', e);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה. נסה שוב.' });

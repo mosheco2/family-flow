@@ -13447,98 +13447,39 @@ window.clearImage = function(targetIdPrefix) {
 };
 
 window.generateBannerAI = async function() {
-    // Find logo from any store/wizard logo input (not file type) or from preview img
-    let logoSrc = null;
-    document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => {
-        if (el.type !== 'file' && el.value && el.value !== 'DELETE' && el.value.length > 50) logoSrc = el.value;
-    });
-    if (!logoSrc) {
-        const p = document.querySelector('[id="store-logo-preview"]') || document.querySelector('[id="wizard-logo-preview"]');
-        if (p && p.src && p.src.length > 50 && !p.classList.contains('hidden')) logoSrc = p.src;
-    }
-    if (!logoSrc) return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך רקע!');
+    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null;
+    if (!logoBase64 || logoBase64 === 'DELETE') return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך רקע!');
 
     const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
     btns.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...'; });
-    showToast('info', 'מנתח צבעי הלוגו ומעצב רקע מותאם...');
+    showToast('info', 'ה-AI מייצר רקע תואם... זה עשוי לקחת עד 60 שניות');
 
     try {
-        // Extract dominant colors from logo
-        const palette = await new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                const cv = document.createElement('canvas'); cv.width = 80; cv.height = 80;
-                const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, 80, 80);
-                const d = ctx.getImageData(0, 0, 80, 80).data;
-                const buckets = {};
-                for (let i = 0; i < d.length; i += 4) {
-                    const a = d[i+3]; if (a < 80) continue;
-                    const r = Math.round(d[i]/32)*32, g = Math.round(d[i+1]/32)*32, b = Math.round(d[i+2]/32)*32;
-                    if (r > 220 && g > 220 && b > 220) continue; // skip whites
-                    const k = `${r},${g},${b}`; buckets[k] = (buckets[k]||0)+1;
-                }
-                const sorted = Object.entries(buckets).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k])=>k.split(',').map(Number));
-                if (!sorted.length) return resolve([[60,80,200],[120,40,180],[200,80,60]]);
-                // ensure at least 3 colors by deriving variants
-                while (sorted.length < 3) sorted.push(sorted[0].map(v=>Math.min(255,v+60)));
-                resolve(sorted);
-            };
-            img.onerror = () => resolve([[60,80,200],[120,40,180],[200,80,60]]);
-            img.src = logoSrc;
+        const res = await fetch(`${API}/ai/generate-image`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner', logoBase64 })
+        });
+        const data = await res.json();
+        if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה ביצירת באנר'); return; }
+
+        const imageUrl = data.imageUrl;
+        // Set src and wait for the browser to load the image (pollinations generates on-demand)
+        await new Promise((resolve, reject) => {
+            const previewEls = document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]');
+            const firstPreview = previewEls[0];
+            if (!firstPreview) return resolve();
+            const timeoutId = setTimeout(() => reject(new Error('timeout')), 90000);
+            firstPreview.onload = () => { clearTimeout(timeoutId); resolve(); };
+            firstPreview.onerror = () => { clearTimeout(timeoutId); reject(new Error('load error')); };
+            previewEls.forEach(el => { el.src = imageUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
         });
 
-        // Render a professional bokeh/glow banner on canvas
-        const W = 1200, H = 400;
-        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-        const ctx = cv.getContext('2d');
-        const c0 = palette[0], c1 = palette[1]||palette[0], c2 = palette[2]||palette[0];
-
-        // Background gradient
-        const bg = ctx.createLinearGradient(0,0,W,H);
-        bg.addColorStop(0, `rgb(${Math.max(0,c0[0]-60)},${Math.max(0,c0[1]-60)},${Math.max(0,c0[2]-60)})`);
-        bg.addColorStop(0.5, `rgb(${Math.max(0,c1[0]-40)},${Math.max(0,c1[1]-40)},${Math.max(0,c1[2]-40)})`);
-        bg.addColorStop(1, `rgb(${Math.max(0,c2[0]-50)},${Math.max(0,c2[1]-60)},${Math.max(0,c2[2]-30)})`);
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-        // Bokeh circles (soft glowing blobs)
-        const rng = (n) => Math.random()*n;
-        const colors = [...palette, palette[0].map(v=>Math.min(255,v+80))];
-        ctx.globalCompositeOperation = 'screen';
-        for (let i = 0; i < 22; i++) {
-            const cx = rng(W), cy = rng(H), r = 60 + rng(180);
-            const [cr, cg, cb] = colors[i % colors.length];
-            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-            const alpha = (0.12 + rng(0.18)).toFixed(2);
-            g.addColorStop(0, `rgba(${cr},${cg},${cb},${alpha})`);
-            g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
-        }
-        ctx.globalCompositeOperation = 'source-over';
-
-        // Subtle light streaks
-        ctx.globalAlpha = 0.07;
-        for (let i = 0; i < 5; i++) {
-            const y = rng(H); const streak = ctx.createLinearGradient(0, y, W, y+60);
-            streak.addColorStop(0, 'rgba(255,255,255,0)');
-            streak.addColorStop(0.5, 'rgba(255,255,255,0.6)');
-            streak.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = streak; ctx.fillRect(0, y, W, 30+rng(40));
-        }
-        ctx.globalAlpha = 1;
-
-        // Vignette
-        const vig = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, W*0.8);
-        vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
-        ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
-
-        const bannerBase64 = cv.toDataURL('image/jpeg', 0.93);
-        document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = bannerBase64; el.classList.remove('hidden'); el.style.display = 'block'; });
         document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
-        document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => { if (el.type !== 'file') el.value = bannerBase64; });
+        document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => { if (el.type !== 'file') el.value = imageUrl; });
         document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-        showToast('success', 'רקע מותאם-לוגו מוכן! לחצו "שמור הגדרות חנות"');
+        showToast('success', 'הבאנר הותאם ללוגו בהצלחה! לחצו "שמור הגדרות חנות"');
     } catch(e) {
-        showToast('error', 'שגיאה ביצירת הרקע: ' + e.message);
+        showToast('error', e.message === 'timeout' ? 'שירות ה-AI לא הגיב תוך 90 שניות. נסה שוב.' : 'שגיאת רשת מול שרת ה-AI');
     } finally {
         btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; });
     }
