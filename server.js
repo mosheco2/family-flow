@@ -2571,22 +2571,37 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
         const aspectRatio  = type === 'banner' ? '16:9' : '1:1';
 
-        // Try gemini-2.0-flash with image output via new SDK
-        const response = await genAIv2.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-            config: { responseModalities: ['IMAGE', 'TEXT'] }
-        });
+        const hfToken = process.env.HF_TOKEN;
+        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
 
-        const parts = response.candidates?.[0]?.content?.parts || [];
-        const imgPart = parts.find(p => p.inlineData);
-        if (!imgPart) {
-            console.error('No image part in response:', JSON.stringify(response).slice(0, 400));
-            return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
+        const hfWidth  = type === 'banner' ? 1024 : 512;
+        const hfHeight = type === 'banner' ? 576  : 512;
+
+        const hfRes = await fetch(
+            'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
+                signal: AbortSignal.timeout(25000)
+            }
+        );
+
+        if (hfRes.status === 503) {
+            const errData = await hfRes.json().catch(() => ({}));
+            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
+            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
+        }
+        if (!hfRes.ok) {
+            const errText = await hfRes.text().catch(() => '');
+            console.error('HF error:', hfRes.status, errText);
+            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}). נסה שוב.` });
         }
 
-        const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
-        res.json({ success: true, imageUrl });
+        const buffer = await hfRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
+        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
     } catch(e) {
         console.error('Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
