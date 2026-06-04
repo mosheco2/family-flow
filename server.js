@@ -2562,15 +2562,23 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const { groupId, type } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) return res.json({ success: false, error: 'מפתח AI חסר בשרת' });
 
-        const bannerPrompt = 'professional business store banner background, realistic food and lifestyle photography, vibrant colors, clean modern design, no text, no logo, high quality';
+        const bannerPrompt = 'professional business store banner background, realistic high-quality photography, vibrant colors, modern clean design, no text, no logos, wide landscape format';
         const logoPrompt   = 'professional business logo icon, clean modern design, colorful, high quality';
         const finalPrompt  = type === 'banner' ? bannerPrompt : logoPrompt;
-        const encodedPrompt = encodeURIComponent(finalPrompt);
-        const width  = type === 'banner' ? 1200 : 512;
-        const height = type === 'banner' ? 400  : 512;
-        const seed   = Math.floor(Math.random() * 1000000);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-preview-image-generation' });
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+            generationConfig: { responseModalities: ['IMAGE'] }
+        });
+
+        const parts = result.response.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find(p => p.inlineData);
+        if (!imgPart) return res.json({ success: false, error: 'לא התקבלה תמונה מה-AI. נסה שוב.' });
+
+        const imageUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
         res.json({ success: true, imageUrl });
     } catch(e) {
         console.error('Image Gen Error:', e);
