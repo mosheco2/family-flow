@@ -19526,13 +19526,16 @@ window.updateLoginDots = function(total) {
 
 const SLA_DEFAULTS = {
   orders: [
-    { status: 'new',        status_label: 'הזמנה חדשה',      max_hours: 2,  is_active: true },
-    { status: 'processing', status_label: 'בהכנה',            max_hours: 4,  is_active: true },
-    { status: 'ready',      status_label: 'מוכנה לאיסוף',    max_hours: 24, is_active: true },
+    { status: 'new',        status_label: 'חדשה 🚨',           max_hours: 1,  is_active: true },
+    { status: 'processing', status_label: 'בהכנה 📦',           max_hours: 3,  is_active: true },
+    { status: 'ready',      status_label: 'מוכנה לאיסוף 🛍️',   max_hours: 4,  is_active: true },
+    { status: 'shipped',    status_label: 'במשלוח 🚚',          max_hours: 24, is_active: true },
   ],
   quotes: [
-    { status: 'draft',  status_label: 'ממתינה לשליחה',        max_hours: 24, is_active: true },
-    { status: 'sent',   status_label: 'נשלחה, ממתינה לתגובה', max_hours: 72, is_active: true },
+    { status: 'draft',           status_label: 'טיוטה — טרם נשלחה',       max_hours: 24, is_active: true },
+    { status: 'sent',            status_label: 'נשלחה — ממתינה לתגובה',    max_hours: 72, is_active: true },
+    { status: 'waiting_customer',status_label: 'ממתינה לאישור לקוח',       max_hours: 48, is_active: true },
+    { status: 'frozen',          status_label: 'הוקפאה — לטיפול מחדש',    max_hours: 168, is_active: false },
   ]
 };
 
