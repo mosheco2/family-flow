@@ -7414,40 +7414,50 @@ window.generateBannerAI = async function() {
     if (logoValues.some(v => v && v !== 'DELETE' && v !== '')) logoBase64 = logoValues.find(v => v && v !== 'DELETE' && v !== '');
 
     if (!logoBase64 || logoBase64 === 'DELETE') return showToast('error', 'יש להעלות קודם לוגו כדי שה-AI יתאים לו רקע!');
-    
-    const btn = document.getElementById('btn-generate-banner-ai');
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; }
-    
+
+    const btns = document.querySelectorAll('[id*="btn-generate-banner-ai"]');
+    btns.forEach(b => { b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר רקע...'; });
+    showToast('info', 'מייצר רקע ב-AI — התהליך אורך עד 60 שניות, אנא המתן...');
+
     try {
-        showToast('info', 'מייצר רקע חכם ב-AI, אנא המתן...');
-        const prompt = `Create a beautiful, abstract, professional blurred gradient background for a business store banner. Use colors that match this brand. No text, no logos, just a clean aesthetic banner background.`;
+        const prompt = `Create a beautiful, abstract, professional blurred gradient background for a business store banner. No text, no logos, just a clean aesthetic banner background.`;
         const res = await fetch(`${API}/ai/generate-image`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ prompt: prompt, groupId: currentGroup.id, type: 'banner' })
+            body: JSON.stringify({ prompt, groupId: currentGroup.id, type: 'banner' })
         });
         const data = await res.json();
-        
-        if(!handleAIResponseCheck(data)) return;
-        
-        if (data.success && data.imageUrl) {
-            // שינוי קריטי: לא משתמשים ב-Canvas כדי למנוע CORS Error. פשוט מציגים ושומרים את ה-URL!
-            const finalUrl = data.imageUrl;
-            
-            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = finalUrl);
-            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = finalUrl; el.classList.remove('hidden'); el.style.display='block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display='none'; });
+        if (!handleAIResponseCheck(data)) { btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
+        if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה'); btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); return; }
+
+        // Poll: try loading the URL until the image is ready (up to 90s)
+        const imageUrl = data.imageUrl;
+        await new Promise((resolve, reject) => {
+            let attempts = 0;
+            const tryLoad = () => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = () => {
+                    attempts++;
+                    if (attempts >= 18) return reject(new Error('timeout'));
+                    setTimeout(tryLoad, 5000);
+                };
+                img.src = imageUrl + '&t=' + Date.now();
+            };
+            tryLoad();
+        }).then(() => {
+            document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = imageUrl);
+            document.querySelectorAll('[id="store-banner-preview"]').forEach(el => { el.src = imageUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
+            document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
             document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            
             showToast('success', 'הרקע מוכן! לחצו על "שמור הגדרות חנות"');
-            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
-            
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת רקע');
-            if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
-        }
+        }).catch(() => {
+            showToast('error', 'שירות יצירת התמונות לא הגיב. נסה שוב או העלה קובץ ידנית.');
+        });
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול שרת ה-AI');
-        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }
+    } finally {
+        btns.forEach(b => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; });
     }
 };
 
@@ -9987,32 +9997,40 @@ window.generateLogoAI = async function() {
     const slogan = val('wizard-slogan') || val('store-slogan') || '';
     
     executeWithAIWarning(async () => {
-        showToast('info', 'ה-AI מעצב לוגו מקצועי... (לוקח עד 15 שניות)');
+        showToast('info', 'ה-AI מעצב לוגו מקצועי... (לוקח עד 60 שניות)');
         try {
             const res = await fetch(`${API}/ai/generate-image`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     prompt: `Professional minimalist logo for a business named "${businessName}". Style: Modern, flat design, clean lines. Slogan: "${slogan}". High resolution, white background, suitable for a web app icon.`,
                     groupId: currentGroup.id, type: 'logo'
                 })
             });
             const data = await res.json();
-            if (data.success && data.imageUrl) {
-                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
-                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-                
+            if (!data.success || !data.imageUrl) { showToast('error', data.error || 'שגיאה ביצירת לוגו'); return; }
+
+            const imageUrl = data.imageUrl;
+            await new Promise((resolve, reject) => {
+                let attempts = 0;
+                const tryLoad = () => {
+                    const img = new Image();
+                    img.onload = () => resolve();
+                    img.onerror = () => { attempts++; if (attempts >= 18) return reject(); setTimeout(tryLoad, 5000); };
+                    img.src = imageUrl + '&t=' + Date.now();
+                };
+                tryLoad();
+            }).then(() => {
                 ['wizard', 'store', 'dash'].forEach(prefix => {
                     const preview = getEl(`${prefix}-logo-preview`);
                     const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
                     const input = getEl(`${prefix}-logo-base64`);
-                    
-                    if(preview) { preview.src = freshUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
+                    if(preview) { preview.src = imageUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
                     if(icon) icon.classList.add('hidden');
-                    if(input) input.value = freshUrl;
+                    if(input) input.value = imageUrl;
                 });
                 showToast('success', 'הלוגו עוצב בהצלחה!');
                 triggerConfetti();
-            } else { showToast('error', data.error || 'שגיאה ביצירת לוגו'); }
+            }).catch(() => { showToast('error', 'שירות הלוגו לא הגיב. נסה שוב או העלה קובץ ידנית.'); });
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     });
 };
