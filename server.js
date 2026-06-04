@@ -2577,15 +2577,26 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const hfWidth  = type === 'banner' ? 1024 : 512;
         const hfHeight = type === 'banner' ? 576  : 512;
 
-        const hfRes = await fetch(
-            'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-            {
+        // Use HF router endpoint (newer, more reliable)
+        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        let hfRes;
+        try {
+            hfRes = await fetch(hfEndpoint, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
                 body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
-                signal: AbortSignal.timeout(25000)
-            }
-        );
+                signal: AbortSignal.timeout(28000)
+            });
+        } catch (fetchErr) {
+            // Router failed - fallback to legacy endpoint
+            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
+            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
+                signal: AbortSignal.timeout(28000)
+            });
+        }
 
         if (hfRes.status === 503) {
             const errData = await hfRes.json().catch(() => ({}));
@@ -2595,7 +2606,7 @@ app.post('/api/ai/generate-image', async (req, res) => {
         if (!hfRes.ok) {
             const errText = await hfRes.text().catch(() => '');
             console.error('HF error:', hfRes.status, errText);
-            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}). נסה שוב.` });
+            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
         }
 
         const buffer = await hfRes.arrayBuffer();
