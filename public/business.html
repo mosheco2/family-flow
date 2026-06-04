@@ -1819,17 +1819,17 @@
                             <i class="fa-solid fa-bullhorn text-purple-500"></i> תקשורת ושיווק ללקוחות
                         </h2>
 
-                        <!-- כרטיס 1: הודעות OneFlow -->
-                        <div class="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
+                        <!-- כרטיס 1: מחולל ניוזלטרים -->
+                        <div class="bg-gradient-to-l from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 shadow-sm overflow-hidden">
                             <div class="p-4 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-paper-plane text-purple-600"></i></div>
+                                    <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-wand-magic-sparkles text-white"></i></div>
                                     <div>
-                                        <h4 class="font-bold text-slate-800 text-sm">ניוזלטר ללקוחות OneFlow</h4>
-                                        <p class="text-[11px] text-slate-500">שלח הודעה ישירה לאינבוקס של לקוחות שרשומים במערכת</p>
+                                        <h4 class="font-bold text-slate-800 text-sm">מחולל ניוזלטרים</h4>
+                                        <p class="text-[11px] text-slate-500">עצב ניוזלטר עם AI, צפה בתצוגה מקדימה ושגר ללקוחות ועובדים</p>
                                     </div>
                                 </div>
-                                <button onclick="window.openOneFlowMessageModal()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-purple-700 transition shrink-0">שלח הודעה</button>
+                                <button onclick="window.openNewsletterBuilderModal()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-purple-700 transition shrink-0">צור ניוזלטר</button>
                             </div>
                         </div>
 
@@ -3094,7 +3094,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=57" defer></script>
+    <script src="business-app.js?v=58" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -3968,6 +3968,131 @@
                     <button onclick="window.saveInventoryCount(true)" class="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-envelope"></i> שמור + מייל</button>
                 </div>
                 <button id="inv-save-btn" onclick="window.saveInventoryCount(false)" class="bg-amber-500 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition shadow-md">שמור ספירה</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Newsletter Builder Modal -->
+<div id="newsletter-builder-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col max-h-[96vh] overflow-hidden relative">
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center shrink-0 bg-gradient-to-l from-purple-600 to-indigo-600 text-white rounded-t-[2rem]">
+            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> מחולל ניוזלטרים</h3>
+            <button onclick="document.getElementById('newsletter-builder-modal').classList.add('hidden')" class="bg-white/20 hover:bg-white/30 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-5">
+            <div class="flex flex-col lg:flex-row gap-4">
+                <!-- עמודה שמאל: הגדרות -->
+                <div class="w-full lg:w-[340px] shrink-0 space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-2 text-sm"><i class="fa-solid fa-sliders text-purple-500 ml-1"></i> הגדרות הניוזלטר</h4>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">כותרת:</label>
+                        <input type="text" id="nl-title" class="modern-input py-2 text-sm bg-white" placeholder="למשל: מבצע קיץ חם!">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">כותרת משנה:</label>
+                        <select id="nl-subtitle" class="modern-input py-2 text-sm bg-white cursor-pointer">
+                            <option value="הטבה מיוחדת ללקוחות 🎁">הטבה מיוחדת ללקוחות 🎁</option>
+                            <option value="עדכון חשוב 📌">עדכון חשוב 📌</option>
+                            <option value="חדשות ועדכונים ✨">חדשות ועדכונים ✨</option>
+                            <option value="מוצרים חדשים 🆕">מוצרים חדשים 🆕</option>
+                            <option value="מבצע מיוחד 🔥">מבצע מיוחד 🔥</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">לוגו (נשמר אוטומטית):</label>
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 bg-white rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center cursor-pointer hover:border-purple-400 transition overflow-hidden shadow-sm" onclick="document.getElementById('nl-logo-upload').click()">
+                                <img id="nl-logo-preview" class="w-full h-full object-cover hidden">
+                                <i id="nl-logo-icon" class="fa-solid fa-image text-slate-300 text-sm"></i>
+                            </div>
+                            <button onclick="document.getElementById('nl-logo-upload').click()" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition">העלה לוגו</button>
+                        </div>
+                        <input type="file" id="nl-logo-upload" class="hidden" accept="image/*" onchange="window.handleNLLogoUpload(event)">
+                        <input type="hidden" id="nl-logo-base64">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-600 block mb-1">צבע תבנית:</label>
+                            <select id="nl-color" class="modern-input py-2 text-xs bg-white cursor-pointer">
+                                <option value="purple">💜 סגול</option>
+                                <option value="blue">💙 כחול</option>
+                                <option value="emerald">💚 ירוק</option>
+                                <option value="orange">🧡 כתום</option>
+                                <option value="slate">🖤 אלגנטי</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-slate-600 block mb-1">אורך:</label>
+                            <select id="nl-length" class="modern-input py-2 text-xs bg-white cursor-pointer">
+                                <option value="standard">📄 קצר</option>
+                                <option value="extended">📚 מורחב</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">טון דיבור:</label>
+                        <select id="nl-tone" class="modern-input py-2 text-xs bg-white cursor-pointer">
+                            <option value="enthusiastic">🎉 מלהיב וחגיגי</option>
+                            <option value="professional">💼 מקצועי ורשמי</option>
+                            <option value="funny">😂 הומוריסטי</option>
+                        </select>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-3">
+                        <label class="text-xs font-bold text-purple-600 block mb-1">אופציה א' — ניסוח עם AI:</label>
+                        <textarea id="nl-raw-points" class="modern-input py-2 text-xs h-16 resize-none bg-purple-50 border-purple-100 placeholder-purple-300" placeholder="הקלד נקודות עיקריות...&#10;למשל: מבצע 20% על כל המוצרים, שיתוף פעולה חדש, שעות פתיחה חדשות"></textarea>
+                    </div>
+
+                    <button onclick="window.generateNLAI()" id="nl-btn-generate" class="w-full bg-purple-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-purple-700 transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> נסח ועצב עם AI
+                    </button>
+
+                    <div class="border-t border-slate-200 pt-3">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">אופציה ב' — כתיבה ידנית:</label>
+                        <textarea id="nl-manual-text" class="modern-input py-2 text-xs h-20 resize-none bg-white" placeholder="כתוב את תוכן הניוזלטר כאן..."></textarea>
+                    </div>
+
+                    <button onclick="window.generateNLManual()" class="w-full bg-slate-700 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-slate-800 transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-pen-nib"></i> עטוף בעיצוב (ללא AI)
+                    </button>
+                </div>
+
+                <!-- עמודה ימין: תצוגה מקדימה + שיגור -->
+                <div class="flex-1 flex flex-col min-h-[500px]">
+                    <div class="bg-slate-50 border border-slate-200 rounded-t-2xl px-4 py-3 flex justify-between items-center">
+                        <h4 class="font-bold text-slate-700 text-sm"><i class="fa-regular fa-eye text-slate-400 ml-1"></i> תצוגה מקדימה</h4>
+                        <button onclick="document.getElementById('nl-editor').innerHTML='<div class=\\'flex h-full items-center justify-center text-slate-300 pointer-events-none\\' id=\\'nl-editor-placeholder\\'>תצוגה מקדימה תופיע כאן...</div>'" class="text-xs text-red-500 font-bold hover:underline">נקה</button>
+                    </div>
+                    <div id="nl-editor" contenteditable="true" class="flex-1 min-h-[350px] p-0 border-x border-slate-200 outline-none overflow-y-auto bg-slate-100 focus:bg-slate-50 transition" style="direction: rtl;">
+                        <div class="flex h-full items-center justify-center text-slate-300 pointer-events-none" id="nl-editor-placeholder">
+                            תצוגה מקדימה תופיע כאן...
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-b-2xl p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div class="w-full sm:w-auto">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שגר אל:</label>
+                            <select id="nl-target-audience" onchange="window.nlTargetChanged()" class="modern-input py-1.5 px-3 text-xs w-full sm:w-auto cursor-pointer">
+                                <option value="oneflow_customers">לקוחות OneFlow</option>
+                                <option value="employees">עובדי העסק</option>
+                                <option value="both">לקוחות + עובדים</option>
+                                <option value="community">קהילה שלמה</option>
+                            </select>
+                            <select id="nl-comm-select" class="modern-input py-1.5 px-3 text-xs w-full mt-1 hidden cursor-pointer"></select>
+                        </div>
+                        <div id="nl-result" class="text-xs text-slate-500 hidden"></div>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="window.copyNLHTML()" class="bg-white text-slate-600 border border-slate-200 px-3 py-2 rounded-xl font-bold shadow-sm hover:bg-slate-100 transition text-xs"><i class="fa-regular fa-copy"></i> העתק HTML</button>
+                            <button onclick="window.exportNLPDF()" class="bg-red-50 text-red-600 border border-red-100 px-3 py-2 rounded-xl font-bold shadow-sm hover:bg-red-100 transition text-xs"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            <button onclick="window.broadcastNewsletter()" id="nl-btn-broadcast" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-xs"><i class="fa-solid fa-paper-plane ml-1"></i> שגר</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

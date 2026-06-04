@@ -3238,6 +3238,74 @@ app.post('/api/store/oneflow-message', async (req, res) => {
     }
 });
 
+// --- AI ניסוח לעסקים ---
+app.post('/api/ai/generate', async (req, res) => {
+    try {
+        const { context, query } = req.body;
+        if (!context && !query) return res.status(400).json({ success: false, error: 'נתונים חסרים' });
+        const prompt = context ? `${context}\n\nבקשה: ${query}` : query;
+        const responseText = await callGeminiDirect(prompt);
+        res.json({ success: true, answer: responseText });
+    } catch(e) {
+        console.error('AI Gen Error:', e.message);
+        res.json({ success: false, error: 'שגיאה במנוע ה-AI: ' + e.message });
+    }
+});
+
+// --- שיגור ניוזלטר עסקי ---
+app.post('/api/store/newsletter/broadcast', async (req, res) => {
+    try {
+        const { groupId, subject, content, audience, communityId } = req.body;
+        if (!groupId || !subject || !content) return res.status(400).json({ error: 'נתונים חסרים' });
+
+        const grpRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const senderName = grpRes.rows[0]?.name || 'עסק';
+        const targetGroupIds = new Set();
+
+        if (audience === 'community' && communityId) {
+            const fgRes = await pool.query("SELECT id FROM family_groups WHERE community_id=$1 AND type='FAMILY'", [communityId]);
+            fgRes.rows.forEach(r => targetGroupIds.add(r.id));
+        }
+
+        if (audience === 'oneflow_customers' || audience === 'both') {
+            const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
+            for (const c of custRes.rows) {
+                let gid = null;
+                if (c.phone) {
+                    const digits = (c.phone || '').replace(/\D/g, '');
+                    const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+                    const r = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
+                    if (r.rows.length) gid = r.rows[0].group_id;
+                }
+                if (!gid && c.email) {
+                    const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+                    if (r.rows.length) gid = r.rows[0].id;
+                }
+                if (gid && gid !== parseInt(groupId)) targetGroupIds.add(gid);
+            }
+        }
+
+        if (audience === 'employees' || audience === 'both') {
+            targetGroupIds.add(parseInt(groupId));
+        }
+
+        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים' });
+
+        await pool.query('BEGIN');
+        for (const gid of targetGroupIds) {
+            await pool.query(
+                'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1,$2,$3,$4,$5,$6)',
+                [gid, 'business', senderName, '', subject, content]
+            );
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true, count: targetGroupIds.size });
+    } catch(e) {
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- פופאפים לחנות הציבורית ---
 app.get('/api/store/popups/:groupId', async (req, res) => {
     try {

@@ -7610,6 +7610,191 @@ window.inventoryCountWhatsApp = function() {
 };
 
 // ============================================================
+// --- מחולל ניוזלטרים לעסקים ---
+// ============================================================
+const NL_THEME_COLORS = {
+    purple: ['#4f46e5', '#9333ea'],
+    blue: ['#2563eb', '#1d4ed8'],
+    emerald: ['#10b981', '#047857'],
+    orange: ['#f97316', '#ea580c'],
+    slate: ['#475569', '#1e293b']
+};
+
+function _buildNLTemplate(title, subtitle, content, colorChoice, logoSrc) {
+    const [gradStart, gradEnd] = NL_THEME_COLORS[colorChoice] || NL_THEME_COLORS.purple;
+    const mascot = logoSrc || window.currentBusinessLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
+    return `<div id='nl-content-wrap' style='max-width:600px;margin:0 auto;font-family:Arial,sans-serif;direction:rtl;text-align:right;border:1px solid #e2e8f0;border-radius:20px;background-color:#ffffff;overflow:hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color:${gradStart};background-image:linear-gradient(135deg,${gradStart},${gradEnd});text-align:center;'><tr><td style='padding:30px 20px;' align='center'><img src='${mascot}' onerror="this.style.display='none'" style='width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid #ffffff;background:#ffffff;margin-bottom:12px;display:inline-block;'><h1 style='color:#ffffff;font-size:22px;font-weight:bold;margin:0;line-height:1.2;'>${(title||'עדכון חדש!').replace(/ /g,' ')}</h1><h2 style='color:#f1f5f9;font-size:14px;font-weight:normal;margin:5px 0 0 0;opacity:0.9;'>${subtitle.replace(/ /g,' ')}</h2></td></tr></table><div style='padding:25px;color:#334155;font-size:15px;line-height:1.5;text-align:right;background-color:#ffffff;'>${content}</div><div style='background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:15px;text-align:center;'><p style='color:${gradStart};font-size:14px;margin:0;font-weight:bold;'>צוות ${(window.currentBusinessName||'העסק שלנו')}</p></div></div>`;
+}
+
+window.openNewsletterBuilderModal = async function() {
+    const modal = getEl('newsletter-builder-modal');
+    modal.classList.remove('hidden');
+    const savedLogo = localStorage.getItem('ofl_biz_nl_logo');
+    if (savedLogo) {
+        const prev = getEl('nl-logo-preview');
+        const icon = getEl('nl-logo-icon');
+        const inp = getEl('nl-logo-base64');
+        if (prev && inp) { inp.value = savedLogo; prev.src = savedLogo; prev.classList.remove('hidden'); if (icon) icon.classList.add('hidden'); }
+    }
+    await _nlLoadCommunities();
+};
+
+async function _nlLoadCommunities() {
+    if (!currentGroupId) return;
+    try {
+        const res = await fetch(`${API}/store/oneflow-customers/${currentGroupId}`, { headers: { Authorization: authToken } });
+        const data = await res.json();
+        if (data.success && data.communities) {
+            const sel = getEl('nl-comm-select');
+            if (sel) {
+                sel.innerHTML = data.communities.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                window._nlCommunities = data.communities;
+            }
+        }
+    } catch(e) {}
+}
+
+window.nlTargetChanged = function() {
+    const target = getEl('nl-target-audience')?.value;
+    const commSel = getEl('nl-comm-select');
+    if (commSel) commSel.classList.toggle('hidden', target !== 'community');
+};
+
+window.handleNLLogoUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const size = 200;
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            const base64 = canvas.toDataURL('image/jpeg', 0.8);
+            getEl('nl-logo-base64').value = base64;
+            getEl('nl-logo-preview').src = base64;
+            getEl('nl-logo-preview').classList.remove('hidden');
+            if (getEl('nl-logo-icon')) getEl('nl-logo-icon').classList.add('hidden');
+            localStorage.setItem('ofl_biz_nl_logo', base64);
+            showToast('success', 'לוגו נשמר!');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.generateNLAI = async function() {
+    const title = getEl('nl-title')?.value || '';
+    const subtitle = getEl('nl-subtitle')?.value || 'עדכון חשוב 📌';
+    const rawPoints = getEl('nl-raw-points')?.value || '';
+    const tone = getEl('nl-tone')?.value || 'enthusiastic';
+    const lengthChoice = getEl('nl-length')?.value || 'standard';
+    const colorChoice = getEl('nl-color')?.value || 'purple';
+    const logoSrc = getEl('nl-logo-base64')?.value || '';
+
+    if (!rawPoints.trim()) return showToast('error', 'יש להזין נקודות עיקריות לניוזלטר');
+
+    const btn = getEl('nl-btn-generate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI בונה...';
+
+    try {
+        const bizName = window.currentBusinessName || 'העסק';
+        const lengthInstr = lengthChoice === 'standard' ? 'חובה עד 60 מילים.' : 'כתוב כ-120 מילים.';
+        const promptCtx = `אתה קופירייטר לעסק "${bizName}". כתוב ניוזלטר. כותרת: "${title||'עדכון חדש'}". טון: ${tone}. ${lengthInstr} אל תכתוב פתיחה! השתמש ב-<br>, <strong>. נקודות: ${rawPoints}`;
+
+        const res = await fetch(`${API}/ai/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: authToken },
+            body: JSON.stringify({ query: 'נסח כעת ללא הקדמות', context: promptCtx })
+        });
+        const textRes = await res.text();
+        let data;
+        try { data = JSON.parse(textRes); } catch(e) { throw new Error('שגיאה במנוע ה-AI'); }
+
+        if (data.success) {
+            let content = data.answer.replace(/^(בטח|הנה|לבקשתך|כמובן|בשמחה)[^\n]*\n+/gi, '').trim();
+            content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            const tmpl = _buildNLTemplate(title, subtitle, content, colorChoice, logoSrc);
+            const editor = getEl('nl-editor');
+            if (getEl('nl-editor-placeholder')) getEl('nl-editor-placeholder').style.display = 'none';
+            editor.innerHTML = tmpl;
+            showToast('success', 'הניוזלטר מוכן!');
+        } else { showToast('error', data.error || 'שגיאת AI'); }
+    } catch(e) { showToast('error', e.message); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח ועצב עם AI'; }
+};
+
+window.generateNLManual = function() {
+    const title = getEl('nl-title')?.value || '';
+    const subtitle = getEl('nl-subtitle')?.value || 'עדכון חשוב 📌';
+    const manualText = getEl('nl-manual-text')?.value || '';
+    const colorChoice = getEl('nl-color')?.value || 'purple';
+    const logoSrc = getEl('nl-logo-base64')?.value || '';
+
+    if (!manualText.trim()) return showToast('error', 'יש להזין תוכן ידני');
+    const content = manualText.replace(/\n/g, '<br>');
+    const tmpl = _buildNLTemplate(title, subtitle, content, colorChoice, logoSrc);
+    const editor = getEl('nl-editor');
+    if (getEl('nl-editor-placeholder')) getEl('nl-editor-placeholder').style.display = 'none';
+    editor.innerHTML = tmpl;
+    showToast('success', 'ניוזלטר ידני מוכן!');
+};
+
+window.copyNLHTML = function() {
+    const editor = getEl('nl-editor');
+    const html = editor.innerHTML;
+    if (!html || html.includes('תצוגה מקדימה')) return showToast('info', 'אין תוכן להעתקה');
+    navigator.clipboard.writeText(html).then(() => showToast('success', 'קוד HTML הועתק!')).catch(() => showToast('error', 'שגיאה בהעתקה'));
+};
+
+window.exportNLPDF = function() {
+    const element = document.getElementById('nl-content-wrap');
+    if (!element) return showToast('error', 'יש לחולל ניוזלטר תחילה');
+    const htmlDoc = `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>ניוזלטר</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Arial,sans-serif;background:#f1f5f9;display:flex;justify-content:center;padding:30px 20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}@media print{body{background:white;padding:0;}.no-print{display:none!important;}*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}.no-print{text-align:center;margin-bottom:20px;}.no-print button{background:#4f46e5;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:15px;font-weight:bold;cursor:pointer;}.no-print p{color:#64748b;font-size:12px;margin-top:8px;}</style></head><body><div><div class="no-print"><button onclick="window.print()">⬇️ שמור כ-PDF</button><p>לחץ "שמור כ-PDF" ← בחר "שמור כ-PDF" במדפסת</p></div>${element.outerHTML}</div></body></html>`;
+    const blob = new Blob([htmlDoc], { type: 'text/html; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (!win) return showToast('error', 'אפשר חלונות קופצים ונסה שוב');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    showToast('success', 'נפתח בלשונית חדשה — לחץ "שמור כ-PDF"');
+};
+
+window.broadcastNewsletter = async function() {
+    const editor = getEl('nl-editor');
+    if (!editor) return;
+    const content = editor.innerHTML;
+    if (!content || content.includes('תצוגה מקדימה')) return showToast('error', 'יש לחולל ניוזלטר תחילה');
+
+    const title = getEl('nl-title')?.value || 'ניוזלטר חדש';
+    const audience = getEl('nl-target-audience')?.value || 'oneflow_customers';
+    const communityId = getEl('nl-comm-select')?.value || '';
+
+    if (!confirm('לשגר את הניוזלטר לנמענים שנבחרו?')) return;
+
+    const btn = getEl('nl-btn-broadcast');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...';
+
+    try {
+        const res = await fetch(`${API}/store/newsletter/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: authToken },
+            body: JSON.stringify({ groupId: currentGroupId, subject: title, content, audience, communityId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const resultEl = getEl('nl-result');
+            if (resultEl) { resultEl.textContent = `✅ נשלח ל-${data.count} נמענים`; resultEl.classList.remove('hidden'); }
+            showToast('success', `הניוזלטר שוגר ל-${data.count} נמענים!`);
+        } else { showToast('error', data.error || 'שגיאה בשיגור'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1"></i> שגר'; }
+};
+
+// ============================================================
 // --- הודעות OneFlow ללקוחות + קהילות ---
 // ============================================================
 let _oflMatchedCustomers = [];
