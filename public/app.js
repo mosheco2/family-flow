@@ -1645,7 +1645,11 @@ async function confirmCategoryPick(category) {
     if (!p) return;
     categoryMapCache[p.item] = category;
     fetch(`${API}/shopping/category-map`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: p.item, category }) });
-    await _doSubmitShopItem(p.item, p.qty, p.est, p.unit, p.upp);
+    if (p._fromSupermarket) {
+        await _doSmQuickAdd(p.item);
+    } else {
+        await _doSubmitShopItem(p.item, p.qty, p.est, p.unit, p.upp);
+    }
     window._pendingShopItem = null;
 }
 
@@ -1695,7 +1699,7 @@ function renderShopList() {
     if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
     else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
+    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
     let currentCat = ''; let shopHtml = '';
     activeItems.forEach(i => {
@@ -1809,7 +1813,7 @@ function closeSupermarketMode() {
 
 function renderSupermarketList() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
+    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
     let currentCat = ''; let html = '';
     activeItems.forEach(i => {
@@ -1874,6 +1878,12 @@ function smSkipPrice() {
     _smPriceModalItemId = null;
 }
 
+function _getAllCategories() {
+    const cats = new Set(Object.keys(PRODUCT_DB));
+    Object.values(categoryMapCache).forEach(c => cats.add(c));
+    return [...cats];
+}
+
 function openEditShopItem(id) {
     const item = shoppingListCache.find(i => i.id == id);
     if (!item) return;
@@ -1886,6 +1896,13 @@ function openEditShopItem(id) {
     for (let opt of unitSel.options) { if (opt.value === unitVal) { opt.selected = true; found = true; break; } }
     if (!found) { const opt = new Option(unitVal, unitVal, true, true); unitSel.add(opt); }
     getEl('edit-item-price').value = item.estimated_price > 0 ? item.estimated_price : '';
+    const catSel = getEl('edit-item-category');
+    catSel.innerHTML = '';
+    const currentCat = (() => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(item.item_name)) return cat; } return categoryMapCache[item.item_name] || 'שונות'; })();
+    _getAllCategories().concat(['שונות']).filter((v,i,a)=>a.indexOf(v)===i).forEach(cat => {
+        const opt = new Option(cat, cat, false, cat === currentCat);
+        catSel.add(opt);
+    });
     getEl('edit-shop-item-modal').classList.remove('hidden');
 }
 
@@ -1895,11 +1912,16 @@ async function saveEditShopItem() {
     const qty = parseFloat(getEl('edit-item-quantity').value) || 1;
     const unit = getEl('edit-item-unit').value;
     const price = parseFloat(getEl('edit-item-price').value) || 0;
+    const category = getEl('edit-item-category').value;
     if (!name) return showToast('error', 'שם הפריט חסר');
     try {
         const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price})});
         const data = await res.json();
         if (data.success) {
+            if (category) {
+                categoryMapCache[name] = category;
+                fetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
+            }
             getEl('edit-shop-item-modal').classList.add('hidden');
             showToast('success', 'הפריט עודכן');
             fetchData();
@@ -1911,7 +1933,20 @@ async function smQuickAdd() {
     const input = getEl('sm-quick-input');
     const name = (input.value || '').trim();
     if (!name) return;
+    const isKnown = FLAT_PRODUCTS.some(p => p.name === name) || categoryMapCache[name];
+    if (!isKnown) {
+        input.value = '';
+        window._pendingShopItem = { item: name, qty: 1, est: 0, unit: "יח'", upp: 1, _fromSupermarket: true };
+        getEl('cat-picker-name').innerText = name;
+        getEl('cat-custom-input').value = '';
+        getEl('cat-picker-modal').classList.remove('hidden');
+        return;
+    }
     input.value = '';
+    await _doSmQuickAdd(name);
+}
+
+async function _doSmQuickAdd(name) {
     try {
         const res = await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: name, quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id})});
         const data = await res.json();
