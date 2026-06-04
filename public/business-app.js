@@ -7698,6 +7698,57 @@ window.openNewsletterBuilderModal = async function() {
     await _nlLoadCommunities();
 };
 
+window.toggleNewslettersPanel = async function() {
+    const panel = getEl('newsletters-panel');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (isHidden) await _loadNewslettersInline();
+};
+
+async function _loadNewslettersInline() {
+    const container = getEl('newsletters-inline-list');
+    if (!container || !currentGroup?.id) return;
+    container.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/store/newsletters/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success || !data.newsletters?.length) {
+            container.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">אין ניוזלטרים ששוגרו עדיין</p>';
+            return;
+        }
+        container.innerHTML = data.newsletters.map(n => {
+            const dateStr = new Date(n.sent_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+            const audienceLabel = n.audience === 'all' ? 'כל הלקוחות' : n.audience === 'oneflow' ? 'לקוחות OneFlow' : `קהילה`;
+            return `<div class="flex items-start justify-between gap-2 bg-white rounded-xl p-3 mb-2 border border-purple-100">
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${n.subject || '(ללא נושא)'}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">${dateStr} · ${audienceLabel} · ${n.recipient_count || 0} נמענים</p>
+                </div>
+                <button onclick="window.deleteNewsletter(${n.id})" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded-lg hover:bg-red-50 transition flex-shrink-0">מחק</button>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        container.innerHTML = '<p class="text-red-400 text-center text-xs py-2">שגיאה בטעינת ניוזלטרים</p>';
+    }
+}
+
+window.deleteNewsletter = async function(id) {
+    if (!confirm('למחוק ניוזלטר זה מההיסטוריה?')) return;
+    try {
+        const res = await fetch(`${API}/store/newsletters/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'נמחק');
+            await _loadNewslettersInline();
+        } else {
+            showToast('error', data.error || 'שגיאה במחיקה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+    }
+};
+
 async function _nlLoadCommunities() {
     if (!currentGroup?.id) return;
     try {

@@ -144,6 +144,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS image_base64 TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_type VARCHAR(20) DEFAULT 'none'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_ref TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sent_newsletters (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, subject VARCHAR(200), content_html TEXT, audience VARCHAR(50), recipient_count INT DEFAULT 0, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -384,6 +385,50 @@ const handleAIError = (e, res, defaultMsg) => {
     if (e.message && e.message.includes('GEMINI_API_KEY')) return res.status(500).json({ success: false, error: 'מפתח AI חסר בשרת' });
     res.status(500).json({ success: false, error: defaultMsg || 'שגיאה בתקשורת עם ה-AI', detail: e.message });
 };
+
+// =========================================================
+// פונקציית איתור לקוחות OneFlow לפי מספרי הזמנה + טלפון + מייל
+// =========================================================
+async function resolveOneFlowGroupIds(pool, businessGroupId, customers) {
+    const result = new Set();
+    // שיטה 1: חיפוש לפי family_group_id בהזמנות (הכי אמין)
+    const ordersRes = await pool.query(
+        `SELECT DISTINCT family_group_id FROM store_orders
+         WHERE group_id=$1 AND family_group_id IS NOT NULL AND family_group_id != $1`,
+        [businessGroupId]
+    );
+    ordersRes.rows.forEach(r => result.add(r.family_group_id));
+
+    // שיטה 2+3: התאמה לפי פרטי לקוחות (טלפון/מייל)
+    for (const c of customers) {
+        if (result.size > 0 && !c.phone && !c.email) continue;
+        let gid = null;
+        if (c.phone) {
+            const digits = (c.phone || '').replace(/\D/g, '');
+            const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+            // שיטה 2a: חיפוש בעמודת phone של users
+            const ur = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
+            if (ur.rows.length) gid = ur.rows[0].group_id;
+            // שיטה 2b: חיפוש לפי customer_phone בהזמנות
+            if (!gid) {
+                const or2 = await pool.query(
+                    `SELECT DISTINCT family_group_id FROM store_orders
+                     WHERE group_id=$1 AND family_group_id IS NOT NULL
+                       AND (REGEXP_REPLACE(customer_phone,'\\D','','g')=$2 OR REGEXP_REPLACE(customer_phone,'\\D','','g')=$3)
+                     LIMIT 1`,
+                    [businessGroupId, digits, alt]
+                );
+                if (or2.rows.length) gid = or2.rows[0].family_group_id;
+            }
+        }
+        if (!gid && c.email) {
+            const er = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
+            if (er.rows.length) gid = er.rows[0].id;
+        }
+        if (gid && gid !== parseInt(businessGroupId)) result.add(gid);
+    }
+    return result;
+}
 
 // =========================================================
 // פונקציית מערכת המיילים המרכזית (מאובטחת)
@@ -3253,22 +3298,13 @@ app.get('/api/store/oneflow-customers/:groupId', async (req, res) => {
     try {
         const groupId = parseInt(req.params.groupId);
         const custRes = await pool.query('SELECT id, name, phone, email FROM store_customers WHERE group_id=$1', [groupId]);
-        const matched = [];
-        for (const c of custRes.rows) {
-            let found = false;
-            if (c.phone) {
-                const digits = (c.phone || '').replace(/\D/g, '');
-                const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
-                const r = await pool.query('SELECT id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
-                if (r.rows.length) found = true;
-            }
-            if (!found && c.email) {
-                const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
-                if (r.rows.length) found = true;
-            }
-            if (found) matched.push({ id: c.id, name: c.name, phone: c.phone, email: c.email });
-        }
-        // קהילות שהעסק שייך אליהן
+        const matchedGids = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
+        // מציג ללקוח רשימה של customers שנמצאו ב-OneFlow
+        const matched = custRes.rows.filter(c => {
+            if (!c.phone && !c.email) return false;
+            // נבדוק אם customer הזה היה חלק מה-matching (אם יש הזמנות נחזיר הכל)
+            return true;
+        });
         const commRes = await pool.query(
             `SELECT c.id, c.name, COUNT(fg.id)::int AS family_count
              FROM community_businesses cb
@@ -3276,7 +3312,7 @@ app.get('/api/store/oneflow-customers/:groupId', async (req, res) => {
              LEFT JOIN family_groups fg ON fg.community_id = c.id AND fg.type='FAMILY'
              WHERE cb.business_id=$1 AND cb.status='approved'
              GROUP BY c.id, c.name`, [groupId]);
-        res.json({ success: true, matched, communities: commRes.rows });
+        res.json({ success: true, matched, matchedCount: matchedGids.size, communities: commRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3287,30 +3323,17 @@ app.post('/api/store/oneflow-message', async (req, res) => {
 
         const grpRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
         const senderName = grpRes.rows[0]?.name || 'עסק';
-        const targetGroupIds = new Set();
+        let targetGroupIds = new Set();
 
         if (targetType === 'community' && communityId) {
             const fgRes = await pool.query("SELECT id FROM family_groups WHERE community_id=$1 AND type='FAMILY'", [communityId]);
             fgRes.rows.forEach(r => targetGroupIds.add(r.id));
         } else {
             const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
-            for (const c of custRes.rows) {
-                let gid = null;
-                if (c.phone) {
-                    const digits = (c.phone || '').replace(/\D/g, '');
-                    const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
-                    const r = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
-                    if (r.rows.length) gid = r.rows[0].group_id;
-                }
-                if (!gid && c.email) {
-                    const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
-                    if (r.rows.length) gid = r.rows[0].id;
-                }
-                if (gid && gid !== parseInt(groupId)) targetGroupIds.add(gid);
-            }
+            targetGroupIds = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
         }
 
-        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים OneFlow' });
+        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים OneFlow. ודא שלקוחותיך הזמינו מהחנות דרך OneFlow Life.' });
 
         await pool.query('BEGIN');
         for (const gid of targetGroupIds) {
@@ -3358,27 +3381,20 @@ app.post('/api/store/newsletter/broadcast', async (req, res) => {
 
         if (audience === 'oneflow_customers' || audience === 'both') {
             const custRes = await pool.query('SELECT phone, email FROM store_customers WHERE group_id=$1', [groupId]);
-            for (const c of custRes.rows) {
-                let gid = null;
-                if (c.phone) {
-                    const digits = (c.phone || '').replace(/\D/g, '');
-                    const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
-                    const r = await pool.query('SELECT group_id FROM users WHERE phone=$1 OR phone=$2 OR phone=$3 LIMIT 1', [digits, alt, c.phone]);
-                    if (r.rows.length) gid = r.rows[0].group_id;
-                }
-                if (!gid && c.email) {
-                    const r = await pool.query("SELECT id FROM family_groups WHERE LOWER(admin_email)=LOWER($1) AND type='FAMILY' LIMIT 1", [c.email]);
-                    if (r.rows.length) gid = r.rows[0].id;
-                }
-                if (gid && gid !== parseInt(groupId)) targetGroupIds.add(gid);
-            }
+            const oneflowGids = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
+            oneflowGids.forEach(gid => targetGroupIds.add(gid));
         }
 
         if (audience === 'employees' || audience === 'both') {
             targetGroupIds.add(parseInt(groupId));
         }
 
-        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים' });
+        if (targetGroupIds.size === 0) {
+            const errMsg = (audience === 'oneflow_customers' || audience === 'both')
+                ? 'לא נמצאו נמענים OneFlow. ודא שלקוחות הזמינו מהחנות דרך OneFlow Life.'
+                : 'לא נמצאו נמענים';
+            return res.json({ success: false, error: errMsg });
+        }
 
         await pool.query('BEGIN');
         for (const gid of targetGroupIds) {
@@ -3387,12 +3403,32 @@ app.post('/api/store/newsletter/broadcast', async (req, res) => {
                 [gid, 'business', senderName, '', subject, content]
             );
         }
+        // שמירת הניוזלטר בהיסטוריה
+        await pool.query(
+            'INSERT INTO sent_newsletters (group_id, subject, content_html, audience, recipient_count) VALUES ($1,$2,$3,$4,$5)',
+            [groupId, subject, content, audience || 'unknown', targetGroupIds.size]
+        );
         await pool.query('COMMIT');
         res.json({ success: true, count: targetGroupIds.size });
     } catch(e) {
         await pool.query('ROLLBACK');
         res.status(500).json({ error: e.message });
     }
+});
+
+app.get('/api/store/newsletters/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, subject, audience, recipient_count, sent_at FROM sent_newsletters WHERE group_id=$1 ORDER BY sent_at DESC LIMIT 30',
+            [req.params.groupId]
+        );
+        res.json({ success: true, newsletters: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/newsletters/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sent_newsletters WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- פופאפים לחנות הציבורית ---

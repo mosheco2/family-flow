@@ -1829,7 +1829,18 @@
                                         <p class="text-[11px] text-slate-500">עצב ניוזלטר עם AI, צפה בתצוגה מקדימה ושגר ללקוחות ועובדים</p>
                                     </div>
                                 </div>
-                                <button onclick="window.openNewsletterBuilderModal()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-purple-700 transition shrink-0">צור ניוזלטר</button>
+                                <div class="flex gap-2 shrink-0">
+                                    <button onclick="window.toggleNewslettersPanel()" class="bg-purple-100 text-purple-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-purple-200 transition">היסטוריה</button>
+                                    <button onclick="window.openNewsletterBuilderModal()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-purple-700 transition">צור ניוזלטר</button>
+                                </div>
+                            </div>
+                            <!-- פנל היסטוריית ניוזלטרים -->
+                            <div id="newsletters-panel" class="hidden border-t border-purple-100 p-4 bg-purple-50/30">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-xs font-bold text-slate-600">ניוזלטרים ששוגרו</span>
+                                    <button onclick="window.openNewsletterBuilderModal()" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm hover:bg-purple-700 transition"><i class="fa-solid fa-plus"></i> ניוזלטר חדש</button>
+                                </div>
+                                <div id="newsletters-inline-list"><p class="text-slate-400 text-center text-xs py-2">טוען...</p></div>
                             </div>
                         </div>
 
