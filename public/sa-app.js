@@ -218,7 +218,10 @@ window.switchSATab = function(tabId) {
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
     
     if (activeView) activeView.classList.remove('hidden');
-    
+
+    const newsletterBuilder = document.getElementById('sa-newsletter-builder');
+    if (newsletterBuilder) newsletterBuilder.classList.toggle('hidden', tabId !== 'inbox');
+
     if (activeBtn) {
         // עיצוב כפתור פעיל מודרני
         activeBtn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition items-center gap-3';
