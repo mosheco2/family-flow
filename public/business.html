@@ -593,7 +593,7 @@
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
-                            <button onclick="switchTab('surveys')" id="tab-surveys" class="tab-btn">סקרים 📋</button>
+                            <button onclick="switchTab('surveys')" id="tab-surveys" class="tab-btn">תקשורת 📣</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
@@ -755,7 +755,6 @@
                                         <input type="text" id="filter-customer-search" onkeyup="renderStoreCustomers()" class="modern-input py-2 pr-9 pl-3 text-sm bg-slate-50 shadow-sm" placeholder="חיפוש לפי שם, טלפון...">
                                     </div>
                                     <div class="flex gap-2">
-                                        <button onclick="window.openOneFlowMessageModal()" class="bg-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700 transition" title="שלח הודעה ללקוחות OneFlow"><i class="fa-solid fa-paper-plane"></i></button>
                                         <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
                                     </div>
                                 </div>
@@ -786,7 +785,6 @@
                                         <input type="text" id="filter-customer-search" onkeyup="renderStoreCustomers()" class="modern-input py-2 pr-9 pl-3 text-sm bg-slate-50 shadow-sm" placeholder="חיפוש לפי שם, טלפון...">
                                     </div>
                                     <div class="flex gap-2">
-                                        <button onclick="window.openOneFlowMessageModal()" class="bg-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700 transition" title="שלח הודעה ללקוחות OneFlow"><i class="fa-solid fa-paper-plane"></i></button>
                                         <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
                                     </div>
                                 </div>
@@ -1038,7 +1036,6 @@
                                         <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelToCatalog(this)">
                                     </label>
                                         <button onclick="downloadCatalogTemplate()" class="bg-white border border-slate-200 text-slate-600 px-2 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition" title="הורד תבנית Excel"><i class="fa-solid fa-download"></i></button>
-                                        <button onclick="window.openInventoryCountModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-amber-600 transition" title="ספירת מלאי"><i class="fa-solid fa-clipboard-list mr-1"></i> מלאי</button>
                                         <button onclick="window.openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
                                     </div>
                                 </div>
@@ -1057,13 +1054,6 @@
                             </div>
 
                             <div id="sales-view-marketing" class="hidden space-y-8">
-                                <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                                    <div>
-                                        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-rectangle-ad text-orange-500"></i> פופאפים לחנות הציבורית</h4>
-                                        <p class="text-[11px] text-slate-500 mt-0.5">הודעות יזומות שיקפצו ללקוחות בכניסה לחנות</p>
-                                    </div>
-                                    <button onclick="window.openPopupManagerModal()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-orange-600 transition shrink-0"><i class="fa-solid fa-sliders mr-1"></i> נהל פופאפים</button>
-                                </div>
                                 <div>
                                     <div class="flex justify-between items-center mb-4">
                                         <h4 class="font-bold text-slate-800 text-lg">מבצעים פעילים 🎁</h4>
@@ -1577,9 +1567,16 @@
                     </div>
                     
                     <div id="content-pantry" class="hidden">
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between shadow-sm mb-4">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-list text-amber-600"></i> ספירת מלאי קטלוג</h4>
+                                <p class="text-[11px] text-slate-500 mt-0.5">עדכן כמויות מלאי, ייצא PDF ושלח סיכום</p>
+                            </div>
+                            <button onclick="window.openInventoryCountModal()" class="bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-amber-600 transition shrink-0"><i class="fa-solid fa-clipboard-list mr-1"></i> ספירת מלאי</button>
+                        </div>
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <button onclick="getPantryInsight()" id="btn-pantry-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-200 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> דוח מלאי AI</button>
-                            
+
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-bold text-slate-800 text-lg">מזווה וארונות 📦</h3>
                             </div>
@@ -1818,23 +1815,64 @@
 
                     <!-- ═══ SURVEYS TAB ═══ -->
                     <div id="content-surveys" class="hidden space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <i class="fa-solid fa-clipboard-list text-indigo-500"></i> סקרים ללקוחות
-                            </h2>
-                            <button onclick="openSurveyBuilder()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-md hover:bg-indigo-700 transition">
-                                <i class="fa-solid fa-plus"></i> סקר חדש
-                            </button>
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 px-1">
+                            <i class="fa-solid fa-bullhorn text-purple-500"></i> תקשורת ושיווק ללקוחות
+                        </h2>
+
+                        <!-- כרטיס 1: הודעות OneFlow -->
+                        <div class="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-paper-plane text-purple-600"></i></div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-sm">ניוזלטר ללקוחות OneFlow</h4>
+                                        <p class="text-[11px] text-slate-500">שלח הודעה ישירה לאינבוקס של לקוחות שרשומים במערכת</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.openOneFlowMessageModal()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-purple-700 transition shrink-0">שלח הודעה</button>
+                            </div>
                         </div>
-                        <div id="survey-limit-warn" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-sm font-medium flex items-center gap-2">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            מקסימום 3 סקרים פעילים. סגור סקר כדי להפעיל חדש.
+
+                        <!-- כרטיס 2: פופאפים לחנות -->
+                        <div class="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-rectangle-ad text-orange-600"></i></div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-sm">פופאפים יזומים לחנות</h4>
+                                        <p class="text-[11px] text-slate-500">הגדר הודעות שיקפצו ללקוחות בכניסה לחנות הציבורית</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.openPopupManagerModal()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-orange-600 transition shrink-0">נהל פופאפים</button>
+                            </div>
                         </div>
-                        <div id="surveys-list" class="space-y-3"></div>
-                        <div id="surveys-empty" class="hidden text-center py-14">
-                            <i class="fa-solid fa-clipboard-list text-5xl text-slate-200 mb-3 block"></i>
-                            <p class="text-slate-400 font-semibold">אין סקרים עדיין</p>
-                            <p class="text-slate-300 text-sm mt-1">לחץ "סקר חדש" כדי להתחיל</p>
+
+                        <!-- כרטיס 3: סקרים -->
+                        <div class="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-clipboard-list text-indigo-600"></i></div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-sm">סקרים ולידים</h4>
+                                        <p class="text-[11px] text-slate-500">צור סקרי שביעות רצון, משוב ואיסוף לידים</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.openSurveysPanel()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition shrink-0">נהל סקרים</button>
+                            </div>
+                            <!-- פנל סקרים מורחב -->
+                            <div id="surveys-panel" class="hidden border-t border-indigo-50 p-4 bg-indigo-50/30">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-xs font-bold text-slate-600">הסקרים שלי</span>
+                                    <button onclick="openSurveyBuilder()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> סקר חדש</button>
+                                </div>
+                                <div id="survey-limit-warn" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-xs font-medium flex items-center gap-2 mb-2">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> מקסימום 3 סקרים פעילים. סגור סקר כדי להפעיל חדש.
+                                </div>
+                                <div id="surveys-list" class="space-y-2"></div>
+                                <div id="surveys-empty" class="hidden text-center py-8">
+                                    <p class="text-slate-400 text-sm font-semibold">אין סקרים עדיין</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -3056,7 +3094,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=56" defer></script>
+    <script src="business-app.js?v=57" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -4311,6 +4349,15 @@
     try { return JSON.parse(localStorage.getItem('ofl_session') || '{}').group?.id || null; }
     catch(e) { return null; }
   }
+
+  // ── Toggle surveys panel ──────────────────────────────────────
+  window.openSurveysPanel = function() {
+    const panel = document.getElementById('surveys-panel');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+    if (isHidden) loadSurveys();
+  };
 
   // ── Load surveys ──────────────────────────────────────────────
   window.loadSurveys = async function() {
