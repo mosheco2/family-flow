@@ -2564,30 +2564,45 @@ app.post('/api/ai/generate-image', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
 
         const encodedPrompt = encodeURIComponent(prompt);
-        const width  = type === 'banner' ? 1200 : 512;
-        const height = type === 'banner' ? 400  : 512;
+        const width  = type === 'banner' ? 1200 : 400;
+        const height = type === 'banner' ? 400  : 400;
         const seed   = Math.floor(Math.random() * 1000000);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=flux`;
 
-        // Fetch the image on the server and return base64 to avoid client-side CORS / broken-image issues
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 28000);
-        try {
-            const imgRes = await fetch(imageUrl, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (!imgRes.ok) throw new Error(`pollinations returned ${imgRes.status}`);
-            const arrayBuffer = await imgRes.arrayBuffer();
-            const base64 = `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
-            res.json({ success: true, imageUrl: base64 });
-        } catch(fetchErr) {
-            clearTimeout(timeout);
-            // Fallback: return the direct URL so the client can try rendering it
-            console.warn('Image fetch failed, returning URL directly:', fetchErr.message);
-            res.json({ success: true, imageUrl: imageUrl });
+        const fetchWithTimeout = async (url, ms) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), ms);
+            try {
+                const r = await fetch(url, { signal: controller.signal });
+                clearTimeout(timer);
+                return r;
+            } catch(e) { clearTimeout(timer); throw e; }
+        };
+
+        // Try up to 2 attempts with 55s timeout each
+        let lastErr = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const imgRes = await fetchWithTimeout(imageUrl, 55000);
+                if (!imgRes.ok) throw new Error(`pollinations status ${imgRes.status}`);
+                const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+                if (!contentType.startsWith('image/')) throw new Error(`unexpected content-type: ${contentType}`);
+                const arrayBuffer = await imgRes.arrayBuffer();
+                if (arrayBuffer.byteLength < 1000) throw new Error('image too small, still generating');
+                const ext = contentType.includes('png') ? 'png' : 'jpeg';
+                const base64 = `data:image/${ext};base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+                return res.json({ success: true, imageUrl: base64 });
+            } catch(e) {
+                lastErr = e;
+                console.warn(`Image attempt ${attempt + 1} failed:`, e.message);
+                if (attempt === 0) await new Promise(r => setTimeout(r, 3000));
+            }
         }
+        console.error('All image attempts failed:', lastErr?.message);
+        res.json({ success: false, error: 'שירות יצירת התמונות לא הגיב. נסה שוב בעוד מספר שניות או העלה קובץ ידנית.' });
     } catch(e) {
         console.error('Image Gen Error:', e);
-        res.json({ success: false, error: 'שירות יצירת התמונות אינו זמין כרגע. נסה להעלות קובץ ידנית.' });
+        res.json({ success: false, error: 'שגיאה ביצירת תמונה. נסה שוב.' });
     }
 });
 app.post('/api/goals/familai-advice', async (req, res) => {
