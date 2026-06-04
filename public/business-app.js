@@ -7998,6 +7998,8 @@ window.saveStorePopup = async function() {
             ['popup-title','popup-content','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
             window.clearPopupImage();
             await loadStorePopupsList();
+            const spanel = getEl('store-popups-panel');
+            if (spanel && !spanel.classList.contains('hidden')) await _loadStorePopupsInline();
         } else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 
@@ -8020,9 +8022,44 @@ window.deleteStorePopup = async function(id) {
     try {
         await fetch(`${API}/store/popups/${id}`, { method: 'DELETE' });
         await loadStorePopupsList();
+        const spanel = getEl('store-popups-panel');
+        if (spanel && !spanel.classList.contains('hidden')) await _loadStorePopupsInline();
         showToast('success', 'הפופאפ נמחק');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
+
+window.toggleStorePopupsPanel = async function() {
+    const panel = getEl('store-popups-panel');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (isHidden) await _loadStorePopupsInline();
+};
+
+async function _loadStorePopupsInline() {
+    const list = getEl('store-popups-inline-list');
+    if (!list) return;
+    try {
+        const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+        const data = await res.json();
+        const popups = (data.popups || []).filter(p => (p.popup_type || 'store') !== 'employee');
+        if (!popups.length) { list.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">אין פופאפים עדיין</p>'; return; }
+        const now = new Date();
+        list.innerHTML = popups.map(p => {
+            const exp = p.expires_at ? new Date(p.expires_at) : null;
+            const isExpiring = exp && (exp - now) < 86400000 && exp > now;
+            const isExpired = exp && exp <= now;
+            const badge = isExpiring ? ' <span class="text-amber-500 text-[10px] font-bold">⚠️ פג בקרוב</span>' : (isExpired ? ' <span class="text-red-400 text-[10px]">פג תוקף</span>' : '');
+            return `<div class="flex items-center justify-between py-1.5 border-b border-orange-100 last:border-0 text-xs">
+                <span class="font-medium text-slate-700">${p.title}${badge}</span>
+                <div class="flex gap-1">
+                    <button onclick="window.togglePopup(${p.id},${!p.is_active})" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעיל' : 'כבוי'}</button>
+                    <button onclick="window.deleteStorePopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500">מחק</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { list.innerHTML = '<p class="text-red-400 text-center text-xs py-2">שגיאת טעינה</p>'; }
+}
 
 // ============================================================
 // --- פופאפים לעובדים ---
@@ -8095,6 +8132,8 @@ window.saveEmployeePopup = async function() {
     const imageBase64 = getEl('emp-popup-image-base64')?.value || null;
     const scheduledAt = getEl('emp-popup-scheduled-at')?.value;
     const expiresAt = getEl('emp-popup-expires-at')?.value;
+    const triggerType = getEl('emp-popup-trigger')?.value || 'none';
+    const triggerRef = getEl('emp-popup-trigger-ref')?.value?.trim() || null;
 
     if (!title || !content) return showToast('error', 'יש למלא כותרת ותוכן');
     const btn = getEl('emp-popup-save-btn');
@@ -8102,14 +8141,17 @@ window.saveEmployeePopup = async function() {
     try {
         const res = await fetch(`${API}/store/popups`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'employee' })
+            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'employee', triggerType, triggerRef })
         });
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הפופאפ לעובדים נשמר!');
-            ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at','emp-popup-trigger-ref'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            const triggerSel = getEl('emp-popup-trigger'); if (triggerSel) triggerSel.value = 'none';
             getEl('emp-popup-image-base64').value = '';
             await _loadEmpPopupsList();
+            const epanel = getEl('emp-popups-panel');
+            if (epanel && !epanel.classList.contains('hidden')) await _loadEmpPopupsInline();
         } else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
     if (btn) { btn.disabled = false; btn.textContent = 'שמור פופאפ'; }
@@ -8118,12 +8160,55 @@ window.saveEmployeePopup = async function() {
 window.toggleEmpPopup = async function(id, isActive) {
     await fetch(`${API}/store/popups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive }) });
     await _loadEmpPopupsList();
+    const epanel = getEl('emp-popups-panel');
+    if (epanel && !epanel.classList.contains('hidden')) await _loadEmpPopupsInline();
 };
 
 window.deleteEmpPopup = async function(id) {
     await fetch(`${API}/store/popups/${id}`, { method: 'DELETE' });
     await _loadEmpPopupsList();
+    const epanel = getEl('emp-popups-panel');
+    if (epanel && !epanel.classList.contains('hidden')) await _loadEmpPopupsInline();
     showToast('success', 'הפופאפ נמחק');
+};
+
+window.toggleEmpPopupsPanel = async function() {
+    const panel = getEl('emp-popups-panel');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (isHidden) await _loadEmpPopupsInline();
+};
+
+async function _loadEmpPopupsInline() {
+    const list = getEl('emp-popups-inline-list');
+    if (!list) return;
+    try {
+        const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+        const data = await res.json();
+        const popups = (data.popups || []).filter(p => p.popup_type === 'employee');
+        if (!popups.length) { list.innerHTML = '<p class="text-slate-400 text-center text-xs py-2">אין פופאפים לעובדים עדיין</p>'; return; }
+        const triggerLabels = { none: 'תמיד', shift: 'משמרת', task: 'משימה' };
+        list.innerHTML = popups.map(p => {
+            const trigger = triggerLabels[p.trigger_type] || 'תמיד';
+            return `<div class="flex items-center justify-between py-1.5 border-b border-teal-100 last:border-0 text-xs">
+                <div>
+                    <span class="font-medium text-slate-700">${p.title}</span>
+                    <span class="text-slate-400 mr-1">(${trigger})</span>
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="window.toggleEmpPopup(${p.id},${!p.is_active})" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעיל' : 'כבוי'}</button>
+                    <button onclick="window.deleteEmpPopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500">מחק</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { list.innerHTML = '<p class="text-red-400 text-center text-xs py-2">שגיאת טעינה</p>'; }
+}
+
+window.empPopupTriggerChanged = function() {
+    const val = getEl('emp-popup-trigger')?.value;
+    const wrap = getEl('emp-popup-trigger-ref-wrap');
+    if (wrap) wrap.classList.toggle('hidden', val !== 'task');
 };
 
 window.checkEmployeePopups = async function() {

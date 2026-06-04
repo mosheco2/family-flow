@@ -142,6 +142,8 @@ pool.connect()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS popup_type VARCHAR(20) DEFAULT 'store'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS image_base64 TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_type VARCHAR(20) DEFAULT 'none'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_ref TEXT`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -2287,7 +2289,20 @@ app.post('/api/tasks/update', async (req, res) => {
         await pool.query('COMMIT');
         if (status === 'done') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה: ${t.title}`);
         if (status === 'approved') await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_approved', `משימה אושרה: ${t.title}`);
-        res.json({success:true});
+        let triggeredPopup = null;
+        if (status === 'done') {
+            try {
+                const pRes = await pool.query(
+                    `SELECT id, title, content, image_base64 FROM store_popups
+                     WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+                       AND trigger_type='task' AND trigger_ref=$2
+                       AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1`,
+                    [t.group_id, String(taskId)]
+                );
+                if (pRes.rows.length > 0) triggeredPopup = pRes.rows[0];
+            } catch(e2) {}
+        }
+        res.json({success:true, triggeredPopup});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -2958,7 +2973,18 @@ app.post('/api/timeclock/punch', async (req, res) => {
             res.json({ success: true, status: 'out' });
         } else {
             await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
-            res.json({ success: true, status: 'in' });
+            let triggeredPopup = null;
+            try {
+                const pRes = await pool.query(
+                    `SELECT id, title, content, image_base64 FROM store_popups
+                     WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+                       AND trigger_type='shift'
+                       AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1`,
+                    [groupId]
+                );
+                if (pRes.rows.length > 0) triggeredPopup = pRes.rows[0];
+            } catch(e2) {}
+            res.json({ success: true, status: 'in', triggeredPopup });
         }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3318,12 +3344,12 @@ app.get('/api/store/popups/:groupId', async (req, res) => {
 
 app.post('/api/store/popups', async (req, res) => {
     try {
-        const { groupId, title, content, imageBase64, scheduledAt, expiresAt, popupType } = req.body;
+        const { groupId, title, content, imageBase64, scheduledAt, expiresAt, popupType, triggerType, triggerRef } = req.body;
         if (!groupId || !title || !content) return res.status(400).json({ error: 'נתונים חסרים' });
         const r = await pool.query(
-            `INSERT INTO store_popups (group_id, title, content, image_base64, scheduled_at, expires_at, popup_type)
-             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-            [groupId, title, content, imageBase64||null, scheduledAt||null, expiresAt||null, popupType||'store']
+            `INSERT INTO store_popups (group_id, title, content, image_base64, scheduled_at, expires_at, popup_type, trigger_type, trigger_ref)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [groupId, title, content, imageBase64||null, scheduledAt||null, expiresAt||null, popupType||'store', triggerType||'none', triggerRef||null]
         );
         res.json({ success: true, popup: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
