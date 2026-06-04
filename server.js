@@ -140,6 +140,8 @@ pool.connect()
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS popup_type VARCHAR(20) DEFAULT 'store'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS image_base64 TEXT`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -3316,12 +3318,12 @@ app.get('/api/store/popups/:groupId', async (req, res) => {
 
 app.post('/api/store/popups', async (req, res) => {
     try {
-        const { groupId, title, content, buttonText, buttonUrl, imageUrl, scheduledAt, expiresAt } = req.body;
+        const { groupId, title, content, imageBase64, scheduledAt, expiresAt, popupType } = req.body;
         if (!groupId || !title || !content) return res.status(400).json({ error: 'נתונים חסרים' });
         const r = await pool.query(
-            `INSERT INTO store_popups (group_id, title, content, button_text, button_url, image_url, scheduled_at, expires_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-            [groupId, title, content, buttonText||null, buttonUrl||null, imageUrl||null, scheduledAt||null, expiresAt||null]
+            `INSERT INTO store_popups (group_id, title, content, image_base64, scheduled_at, expires_at, popup_type)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [groupId, title, content, imageBase64||null, scheduledAt||null, expiresAt||null, popupType||'store']
         );
         res.json({ success: true, popup: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -3329,12 +3331,16 @@ app.post('/api/store/popups', async (req, res) => {
 
 app.put('/api/store/popups/:id', async (req, res) => {
     try {
-        const { title, content, buttonText, buttonUrl, imageUrl, scheduledAt, expiresAt, isActive } = req.body;
-        await pool.query(
-            `UPDATE store_popups SET title=$1, content=$2, button_text=$3, button_url=$4, image_url=$5,
-             scheduled_at=$6, expires_at=$7, is_active=$8 WHERE id=$9`,
-            [title, content, buttonText||null, buttonUrl||null, imageUrl||null, scheduledAt||null, expiresAt||null, isActive !== false, req.params.id]
-        );
+        const { isActive, expiresAt, clearImage } = req.body;
+        const fields = [];
+        const vals = [];
+        let i = 1;
+        if (isActive !== undefined) { fields.push(`is_active=$${i++}`); vals.push(isActive); }
+        if (expiresAt !== undefined) { fields.push(`expires_at=$${i++}`); vals.push(expiresAt || null); }
+        if (clearImage) { fields.push(`image_base64=$${i++}`); vals.push(null); }
+        if (fields.length === 0) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE store_popups SET ${fields.join(',')} WHERE id=$${i}`, vals);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -3346,14 +3352,32 @@ app.delete('/api/store/popups/:id', async (req, res) => {
 
 app.get('/api/public/store-popups/:groupId', async (req, res) => {
     try {
+        await pool.query(`UPDATE store_popups SET image_base64=NULL WHERE group_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW() AND image_base64 IS NOT NULL`, [req.params.groupId]);
         const r = await pool.query(
-            `SELECT id, title, content, button_text, button_url, image_url, scheduled_at, expires_at
+            `SELECT id, title, content, image_base64, scheduled_at, expires_at
              FROM store_popups
-             WHERE group_id=$1 AND is_active=TRUE
+             WHERE group_id=$1 AND is_active=TRUE AND popup_type='store'
                AND (scheduled_at IS NULL OR scheduled_at <= NOW())
                AND (expires_at IS NULL OR expires_at > NOW())
              ORDER BY scheduled_at DESC NULLS LAST
              LIMIT 5`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, popups: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/employee-popups/:groupId', async (req, res) => {
+    try {
+        await pool.query(`UPDATE store_popups SET image_base64=NULL WHERE group_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW() AND image_base64 IS NOT NULL`, [req.params.groupId]);
+        const r = await pool.query(
+            `SELECT id, title, content, image_base64, scheduled_at, expires_at
+             FROM store_popups
+             WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+               AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+               AND (expires_at IS NULL OR expires_at > NOW())
+             ORDER BY scheduled_at DESC NULLS LAST
+             LIMIT 3`,
             [req.params.groupId]
         );
         res.json({ success: true, popups: r.rows });

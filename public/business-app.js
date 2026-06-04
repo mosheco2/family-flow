@@ -1579,6 +1579,7 @@ async function loadDashboard() {
        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
+        setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
 
         // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
@@ -7640,9 +7641,9 @@ window.openNewsletterBuilderModal = async function() {
 };
 
 async function _nlLoadCommunities() {
-    if (!currentGroupId) return;
+    if (!currentGroup?.id) return;
     try {
-        const res = await fetch(`${API}/store/oneflow-customers/${currentGroupId}`, { headers: { Authorization: authToken } });
+        const res = await fetch(`${API}/store/oneflow-customers/${currentGroup.id}`);
         const data = await res.json();
         if (data.success && data.communities) {
             const sel = getEl('nl-comm-select');
@@ -7707,7 +7708,7 @@ window.generateNLAI = async function() {
 
         const res = await fetch(`${API}/ai/generate`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: authToken },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: 'נסח כעת ללא הקדמות', context: promptCtx })
         });
         const textRes = await res.text();
@@ -7781,8 +7782,8 @@ window.broadcastNewsletter = async function() {
     try {
         const res = await fetch(`${API}/store/newsletter/broadcast`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: authToken },
-            body: JSON.stringify({ groupId: currentGroupId, subject: title, content, audience, communityId })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, subject: title, content, audience, communityId })
         });
         const data = await res.json();
         if (data.success) {
@@ -7893,19 +7894,28 @@ async function loadStorePopupsList() {
     try {
         const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
         const data = await res.json();
-        _storePopupsCache = data.popups || [];
+        _storePopupsCache = (data.popups || []).filter(p => p.popup_type !== 'employee');
         if (_storePopupsCache.length === 0) {
-            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-xl">אין פופאפים פעילים. צור פופאפ חדש למטה.</p>';
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-xl">אין פופאפים. צור פופאפ חדש למטה.</p>';
             return;
         }
+        const now = new Date();
+        const oneDayMs = 24 * 60 * 60 * 1000;
         list.innerHTML = _storePopupsCache.map(p => {
             const scheduled = p.scheduled_at ? new Date(p.scheduled_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'מיידי';
-            const expires = p.expires_at ? new Date(p.expires_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'ללא הגבלה';
+            const expiresDate = p.expires_at ? new Date(p.expires_at) : null;
+            const expires = expiresDate ? expiresDate.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'ללא הגבלה';
+            const isExpiringSoon = expiresDate && (expiresDate - now) < oneDayMs && (expiresDate - now) > 0;
+            const isExpired = expiresDate && expiresDate < now;
             const activeClass = p.is_active ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-slate-400 bg-slate-100 border-slate-200';
-            return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0">
+            const rowClass = isExpired ? 'opacity-50' : isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : '';
+            const warningBadge = isExpiringSoon ? `<span class="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ פג תוקף בקרוב</span>` : '';
+            const extendBtn = isExpiringSoon ? `<button onclick="window.extendPopupExpiry(${p.id})" class="text-[9px] text-blue-600 font-bold hover:underline">הארך 7 ימים</button>` : '';
+            return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${rowClass}">
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>
+                    <div class="flex items-center gap-1.5 flex-wrap"><p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>${warningBadge}</div>
                     <p class="text-[10px] text-slate-400">מ: ${scheduled} | עד: ${expires}</p>
+                    ${extendBtn}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
@@ -7919,12 +7929,56 @@ async function loadStorePopupsList() {
     }
 }
 
+window.handlePopupImageUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxSize = 800;
+            const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+            canvas.width = img.width * ratio; canvas.height = img.height * ratio;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.75);
+            getEl('popup-image-base64').value = base64;
+            const prev = getEl('popup-img-preview'); const wrap = getEl('popup-img-preview-wrap'); const clr = getEl('popup-img-clear-btn');
+            if (prev) prev.src = base64;
+            if (wrap) wrap.classList.remove('hidden');
+            if (clr) clr.classList.remove('hidden');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearPopupImage = function() {
+    getEl('popup-image-base64').value = '';
+    const prev = getEl('popup-img-preview'); const wrap = getEl('popup-img-preview-wrap'); const clr = getEl('popup-img-clear-btn');
+    if (prev) prev.src = '';
+    if (wrap) wrap.classList.add('hidden');
+    if (clr) clr.classList.add('hidden');
+    const inp = getEl('popup-img-upload'); if (inp) inp.value = '';
+};
+
+window.extendPopupExpiry = async function(id) {
+    const popup = _storePopupsCache.find(p => p.id === id);
+    if (!popup) return;
+    const current = popup.expires_at ? new Date(popup.expires_at) : new Date();
+    current.setDate(current.getDate() + 7);
+    const newExpiry = current.toISOString();
+    try {
+        await fetch(`${API}/store/popups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expiresAt: newExpiry }) });
+        showToast('success', 'תוקף הפופאפ הוארך ב-7 ימים');
+        await loadStorePopupsList();
+    } catch(e) { showToast('error', 'שגיאה בהארכה'); }
+};
+
 window.saveStorePopup = async function() {
     const title = getEl('popup-title')?.value?.trim();
     const content = getEl('popup-content')?.value?.trim();
-    const buttonText = getEl('popup-btn-text')?.value?.trim();
-    const buttonUrl = getEl('popup-btn-url')?.value?.trim();
-    const imageUrl = getEl('popup-image-url')?.value?.trim();
+    const imageBase64 = getEl('popup-image-base64')?.value || null;
     const scheduledAt = getEl('popup-scheduled-at')?.value;
     const expiresAt = getEl('popup-expires-at')?.value;
 
@@ -7936,17 +7990,13 @@ window.saveStorePopup = async function() {
     try {
         const res = await fetch(`${API}/store/popups`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                groupId: currentGroup.id, title, content,
-                buttonText: buttonText || null, buttonUrl: buttonUrl || null,
-                imageUrl: imageUrl || null,
-                scheduledAt: scheduledAt || null, expiresAt: expiresAt || null
-            })
+            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'store' })
         });
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הפופאפ נשמר!');
-            ['popup-title','popup-content','popup-btn-text','popup-btn-url','popup-image-url','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            ['popup-title','popup-content','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            window.clearPopupImage();
             await loadStorePopupsList();
         } else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
@@ -7972,6 +8022,135 @@ window.deleteStorePopup = async function(id) {
         await loadStorePopupsList();
         showToast('success', 'הפופאפ נמחק');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// ============================================================
+// --- פופאפים לעובדים ---
+// ============================================================
+window.openEmployeePopupModal = async function() {
+    document.getElementById('employee-popup-modal').classList.remove('hidden');
+    await _loadEmpPopupsList();
+};
+
+async function _loadEmpPopupsList() {
+    const list = getEl('emp-popup-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+        const data = await res.json();
+        const empPopups = (data.popups || []).filter(p => p.popup_type === 'employee');
+        if (empPopups.length === 0) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-xl">אין פופאפים לעובדים. צור פופאפ חדש למטה.</p>';
+            return;
+        }
+        const now = new Date();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        list.innerHTML = empPopups.map(p => {
+            const expires = p.expires_at ? new Date(p.expires_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'ללא הגבלה';
+            const expiresDate = p.expires_at ? new Date(p.expires_at) : null;
+            const isExpiringSoon = expiresDate && (expiresDate - now) < oneDayMs && (expiresDate - now) > 0;
+            const activeClass = p.is_active ? 'text-teal-600 bg-teal-50 border-teal-200' : 'text-slate-400 bg-slate-100 border-slate-200';
+            return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : ''}">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>
+                    <p class="text-[10px] text-slate-400">עד: ${expires}${isExpiringSoon ? ' ⚠️' : ''}</p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
+                    <button onclick="window.toggleEmpPopup(${p.id}, ${!p.is_active})" class="text-slate-400 hover:text-amber-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 transition border border-slate-100"><i class="fa-solid fa-power-off text-xs"></i></button>
+                    <button onclick="window.deleteEmpPopup(${p.id})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינה</p>'; }
+}
+
+window.handleEmpPopupImageUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxSize = 800;
+            const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+            canvas.width = img.width * ratio; canvas.height = img.height * ratio;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.75);
+            getEl('emp-popup-image-base64').value = base64;
+            const prev = getEl('emp-popup-img-preview'); const wrap = getEl('emp-popup-img-preview-wrap');
+            if (prev) prev.src = base64;
+            if (wrap) wrap.classList.remove('hidden');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.saveEmployeePopup = async function() {
+    const title = getEl('emp-popup-title')?.value?.trim();
+    const content = getEl('emp-popup-content')?.value?.trim();
+    const imageBase64 = getEl('emp-popup-image-base64')?.value || null;
+    const scheduledAt = getEl('emp-popup-scheduled-at')?.value;
+    const expiresAt = getEl('emp-popup-expires-at')?.value;
+
+    if (!title || !content) return showToast('error', 'יש למלא כותרת ותוכן');
+    const btn = getEl('emp-popup-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    try {
+        const res = await fetch(`${API}/store/popups`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'employee' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפופאפ לעובדים נשמר!');
+            ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+            getEl('emp-popup-image-base64').value = '';
+            await _loadEmpPopupsList();
+        } else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור פופאפ'; }
+};
+
+window.toggleEmpPopup = async function(id, isActive) {
+    await fetch(`${API}/store/popups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive }) });
+    await _loadEmpPopupsList();
+};
+
+window.deleteEmpPopup = async function(id) {
+    await fetch(`${API}/store/popups/${id}`, { method: 'DELETE' });
+    await _loadEmpPopupsList();
+    showToast('success', 'הפופאפ נמחק');
+};
+
+window.checkEmployeePopups = async function() {
+    if (!currentGroup?.id) return;
+    try {
+        const res = await fetch(`${API}/store/employee-popups/${currentGroup.id}`);
+        const data = await res.json();
+        const popups = data.popups || [];
+        if (!popups.length) return;
+        const seen = JSON.parse(localStorage.getItem('ofl_emp_popups_seen') || '{}');
+        const toShow = popups.find(p => !seen[p.id]);
+        if (!toShow) return;
+        seen[toShow.id] = 1;
+        localStorage.setItem('ofl_emp_popups_seen', JSON.stringify(seen));
+        const modal = getEl('emp-popup-display');
+        getEl('emp-popup-display-title').textContent = toShow.title || '';
+        getEl('emp-popup-display-content').textContent = toShow.content || '';
+        const imgWrap = getEl('emp-popup-display-img-wrap');
+        const img = getEl('emp-popup-display-img');
+        if (toShow.image_base64) { img.src = toShow.image_base64; imgWrap.classList.remove('hidden'); }
+        else { imgWrap.classList.add('hidden'); }
+        modal.classList.remove('hidden');
+    } catch(e) {}
+};
+
+window.closeEmpPopupDisplay = function() {
+    getEl('emp-popup-display').classList.add('hidden');
 };
 
 function renderPresetSelector() {

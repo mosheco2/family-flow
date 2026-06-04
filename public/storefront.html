@@ -2017,16 +2017,12 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             document.getElementById('store-popup-content').textContent = popup.content || '';
             const imgWrap = document.getElementById('store-popup-img-wrap');
             const img = document.getElementById('store-popup-img');
-            if (popup.image_url) {
-                img.src = popup.image_url;
+            if (popup.image_base64) {
+                img.src = popup.image_base64;
                 imgWrap.classList.remove('hidden');
             } else { imgWrap.classList.add('hidden'); }
             const btn = document.getElementById('store-popup-btn');
-            if (popup.button_text && popup.button_url) {
-                btn.textContent = popup.button_text;
-                btn.href = popup.button_url;
-                btn.classList.remove('hidden');
-            } else { btn.classList.add('hidden'); }
+            btn.classList.add('hidden');
             modal.classList.remove('hidden');
             localStorage.setItem(`ofl_popup_${popup.id}`, '1');
         };

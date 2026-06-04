@@ -1847,7 +1847,21 @@
                             </div>
                         </div>
 
-                        <!-- כרטיס 3: סקרים -->
+                        <!-- כרטיס 3: פופאפים לעובדים -->
+                        <div class="bg-white rounded-2xl border border-teal-100 shadow-sm overflow-hidden">
+                            <div class="p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-users text-teal-600"></i></div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-sm">פופאפים לעובדים</h4>
+                                        <p class="text-[11px] text-slate-500">הגדר הודעות שיקפצו לעובדים בכניסה לאפליקציה</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.openEmployeePopupModal()" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-teal-700 transition shrink-0">נהל</button>
+                            </div>
+                        </div>
+
+                        <!-- כרטיס 4: סקרים -->
                         <div class="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden">
                             <div class="p-4 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
@@ -3094,7 +3108,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=58" defer></script>
+    <script src="business-app.js?v=59" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -4157,18 +4171,18 @@
                     <textarea id="popup-content" rows="3" class="modern-input py-2 text-sm w-full resize-none" placeholder="טקסט הפופאפ..."></textarea>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-slate-500 block mb-1">URL תמונה (אופציונלי):</label>
-                    <input type="url" id="popup-image-url" class="modern-input py-2 text-sm w-full dir-ltr text-left" placeholder="https://...">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">טקסט כפתור (אופציונלי):</label>
-                        <input type="text" id="popup-btn-text" class="modern-input py-2 text-sm w-full" placeholder='לחצו כאן'>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (אופציונלי):</label>
+                    <div class="flex items-center gap-3">
+                        <div id="popup-img-preview-wrap" class="hidden w-14 h-14 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                            <img id="popup-img-preview" src="" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <button type="button" onclick="document.getElementById('popup-img-upload').click()" class="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-orange-100 hover:bg-orange-100 transition"><i class="fa-solid fa-image ml-1"></i>העלה תמונה</button>
+                            <button type="button" id="popup-img-clear-btn" onclick="window.clearPopupImage()" class="hidden text-xs text-red-500 font-bold hover:underline">הסר תמונה</button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">קישור כפתור:</label>
-                        <input type="url" id="popup-btn-url" class="modern-input py-2 text-sm w-full dir-ltr text-left" placeholder="https://...">
-                    </div>
+                    <input type="file" id="popup-img-upload" class="hidden" accept="image/*" onchange="window.handlePopupImageUpload(event)">
+                    <input type="hidden" id="popup-image-base64">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -4185,6 +4199,70 @@
         <div class="p-4 border-t border-slate-100 shrink-0 flex gap-2 justify-end bg-slate-50">
             <button onclick="document.getElementById('popup-manager-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
             <button id="popup-save-btn" onclick="window.saveStorePopup()" class="bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition shadow-md">שמור פופאפ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Popup Manager Modal -->
+<div id="employee-popup-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative slide-up">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-users text-teal-500"></i> פופאפים לעובדים</h3>
+            <button onclick="document.getElementById('employee-popup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-5">
+            <div>
+                <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">פופאפים קיימים לעובדים</h4>
+                <div id="emp-popup-list"></div>
+            </div>
+            <div class="border-t border-slate-100 pt-4 space-y-3">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wide">יצירת פופאפ חדש לעובדים</h4>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת:</label>
+                    <input type="text" id="emp-popup-title" class="modern-input py-2 text-sm w-full" placeholder="כותרת...">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">תוכן:</label>
+                    <textarea id="emp-popup-content" rows="3" class="modern-input py-2 text-sm w-full resize-none" placeholder="תוכן הפופאפ..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (אופציונלי):</label>
+                    <div class="flex items-center gap-3">
+                        <div id="emp-popup-img-preview-wrap" class="hidden w-14 h-14 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                            <img id="emp-popup-img-preview" src="" class="w-full h-full object-cover">
+                        </div>
+                        <button type="button" onclick="document.getElementById('emp-popup-img-upload').click()" class="bg-teal-50 text-teal-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-teal-100 hover:bg-teal-100 transition"><i class="fa-solid fa-image ml-1"></i>העלה תמונה</button>
+                    </div>
+                    <input type="file" id="emp-popup-img-upload" class="hidden" accept="image/*" onchange="window.handleEmpPopupImageUpload(event)">
+                    <input type="hidden" id="emp-popup-image-base64">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תאריך/שעת הצגה:</label>
+                        <input type="datetime-local" id="emp-popup-scheduled-at" class="modern-input py-2 text-sm w-full dir-ltr text-left">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תפוגה (אופציונלי):</label>
+                        <input type="datetime-local" id="emp-popup-expires-at" class="modern-input py-2 text-sm w-full dir-ltr text-left">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-100 shrink-0 flex gap-2 justify-end bg-slate-50">
+            <button onclick="document.getElementById('employee-popup-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
+            <button id="emp-popup-save-btn" onclick="window.saveEmployeePopup()" class="bg-teal-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition shadow-md">שמור פופאפ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Employee popup display (shown on app load) -->
+<div id="emp-popup-display" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[10000] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-bounce-in">
+        <div id="emp-popup-display-img-wrap" class="hidden w-full h-40 overflow-hidden"><img id="emp-popup-display-img" src="" class="w-full h-full object-cover"></div>
+        <div class="p-6">
+            <h3 id="emp-popup-display-title" class="text-xl font-black text-slate-900 mb-3"></h3>
+            <p id="emp-popup-display-content" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap mb-5"></p>
+            <button onclick="window.closeEmpPopupDisplay()" class="w-full bg-teal-600 text-white py-3 rounded-xl font-bold hover:bg-teal-700 transition">הבנתי ✓</button>
         </div>
     </div>
 </div>
