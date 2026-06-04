@@ -8498,19 +8498,7 @@ window.checkEmployeePopups = async function() {
         const data = await res.json();
         const popups = data.popups || [];
         if (!popups.length) return;
-        const seen = JSON.parse(localStorage.getItem('ofl_emp_popups_seen') || '{}');
-        const toShow = popups.find(p => !seen[p.id]);
-        if (!toShow) return;
-        seen[toShow.id] = 1;
-        localStorage.setItem('ofl_emp_popups_seen', JSON.stringify(seen));
-        const modal = getEl('emp-popup-display');
-        getEl('emp-popup-display-title').textContent = toShow.title || '';
-        getEl('emp-popup-display-content').textContent = toShow.content || '';
-        const imgWrap = getEl('emp-popup-display-img-wrap');
-        const img = getEl('emp-popup-display-img');
-        if (toShow.image_base64) { img.src = toShow.image_base64; imgWrap.classList.remove('hidden'); }
-        else { imgWrap.classList.add('hidden'); }
-        modal.classList.remove('hidden');
+        showEmpTriggeredPopup(popups[0]);
     } catch(e) {}
 };
 

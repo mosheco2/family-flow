@@ -2002,11 +2002,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 const res = await fetch(`${API}/public/store-popups/${storeData.groupId}`);
                 const data = await res.json();
                 if (!data.success || !data.popups || data.popups.length === 0) return;
-                // הצג רק פופאפ אחד — הראשון שלא נצפה עדיין
-                const popup = data.popups.find(p => !localStorage.getItem(`ofl_popup_${p.id}`));
-                if (popup) {
-                    setTimeout(() => window.showStorePopup(popup), 1200);
-                }
+                setTimeout(() => window.showStorePopup(data.popups[0]), 1200);
             } catch(e) {}
         }
 
@@ -2024,7 +2020,6 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const btn = document.getElementById('store-popup-btn');
             btn.classList.add('hidden');
             modal.classList.remove('hidden');
-            localStorage.setItem(`ofl_popup_${popup.id}`, '1');
         };
 
         window.closeStorePopup = function() {
