@@ -6591,6 +6591,42 @@ async function checkRuleTrigger(rule) {
                 if (balance < minBalance) messages.push(`יתרה נמוכה: ₪${balance.toFixed(2)} (מתחת ל-₪${minBalance})`);
                 break;
             }
+            case 'order_unhandled': {
+                const hours = config.pending_hours || 2;
+                const orders = await pool.query(
+                    `SELECT id, customer_name FROM store_orders WHERE group_id=$1 AND status='new' AND created_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (orders.rows.length > 0) {
+                    const names = orders.rows.map(o => o.customer_name || `#${o.id}`).join(', ');
+                    messages.push(`${orders.rows.length} הזמנות ממתינות לטיפול מעל ${hours}ש': ${names}`);
+                }
+                break;
+            }
+            case 'quote_not_converted': {
+                const days = config.pending_days || 3;
+                const quotes = await pool.query(
+                    `SELECT id, customer_name FROM store_orders WHERE group_id=$1 AND status='quote' AND quote_status NOT IN ('approved','rejected') AND created_at < NOW() - ($2 * INTERVAL '1 day')`,
+                    [rule.group_id, days]
+                );
+                if (quotes.rows.length > 0) {
+                    const names = quotes.rows.map(q => q.customer_name || `#${q.id}`).join(', ');
+                    messages.push(`${quotes.rows.length} הצעות מחיר לא הומרו להזמנה מעל ${days} ימים: ${names}`);
+                }
+                break;
+            }
+            case 'ticket_open': {
+                const hours = config.pending_hours || 24;
+                const tickets = await pool.query(
+                    `SELECT id, subject FROM support_tickets WHERE group_id=$1 AND status='open' AND created_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (tickets.rows.length > 0) {
+                    const subjects = tickets.rows.map(t => t.subject || `#${t.id}`).join(', ');
+                    messages.push(`${tickets.rows.length} קריאות שירות פתוחות מעל ${hours}ש': ${subjects}`);
+                }
+                break;
+            }
         }
         for (const message of messages) {
             await pool.query('INSERT INTO alert_notifications (group_id, rule_id, trigger_type, message) VALUES ($1, $2, $3, $4)',

@@ -19525,13 +19525,23 @@ window.updateLoginDots = function(total) {
 // ── SMART ALERTS ───────────────────────────────────────────────
 
 function getTriggerIcon(type) {
-  const icons = { timeclock_no_punch_in:'⏰', timeclock_no_punch_out:'🚪', inventory_low:'📦', task_overdue:'✅', shopping_pending:'🛒', balance_low:'💰' };
+  const icons = { timeclock_no_punch_in:'⏰', timeclock_no_punch_out:'🚪', inventory_low:'📦', task_overdue:'✅', shopping_pending:'🛒', balance_low:'💰', order_unhandled:'📋', quote_not_converted:'📄', ticket_open:'🎫' };
   return icons[type] || '⚡';
 }
 
 function getRuleSummary(r) {
   const cfg = r.trigger_config || {};
-  const s = { timeclock_no_punch_in:'בדיקת החתמת כניסה יומית', timeclock_no_punch_out:`לאחר ${cfg.max_hours||10}ש' ללא יציאה`, inventory_low:`כמות ≤ ${cfg.min_quantity!==undefined?cfg.min_quantity:1}`, task_overdue:'משימות שעברו דד-ליין', shopping_pending:`בקשות ממתינות מעל ${cfg.pending_hours||24}ש'`, balance_low:`יתרה מתחת ל-₪${cfg.min_balance||500}` };
+  const s = {
+    timeclock_no_punch_in:'בדיקת החתמת כניסה יומית',
+    timeclock_no_punch_out:`לאחר ${cfg.max_hours||10}ש' ללא יציאה`,
+    inventory_low:`כמות ≤ ${cfg.min_quantity!==undefined?cfg.min_quantity:1}`,
+    task_overdue:'משימות שעברו דד-ליין',
+    shopping_pending:`בקשות ממתינות מעל ${cfg.pending_hours||24}ש'`,
+    balance_low:`יתרה מתחת ל-₪${cfg.min_balance||500}`,
+    order_unhandled:`הזמנות ממתינות מעל ${cfg.pending_hours||2}ש'`,
+    quote_not_converted:`הצעות מחיר פתוחות מעל ${cfg.pending_days||3} ימים`,
+    ticket_open:`קריאות שירות פתוחות מעל ${cfg.pending_hours||24}ש'`
+  };
   return `${s[r.trigger_type]||''} · cooldown: ${r.cooldown_minutes} דק'`;
 }
 
@@ -19666,7 +19676,10 @@ function updateRuleTriggerConfig() {
     inventory_low: `<div><label class="text-xs font-bold text-slate-500 block mb-1">כמות מינימום (התראה כשמתחת ל-)</label><input type="number" id="cfg-min-quantity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="1" min="0" step="0.1"></div>`,
     task_overdue: '',
     shopping_pending: `<div><label class="text-xs font-bold text-slate-500 block mb-1">שעות המתנה לפני התראה</label><input type="number" id="cfg-pending-hours" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="24" min="1"></div>`,
-    balance_low: `<div><label class="text-xs font-bold text-slate-500 block mb-1">יתרה מינימום (₪)</label><input type="number" id="cfg-min-balance" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="500" min="0"></div>`
+    balance_low: `<div><label class="text-xs font-bold text-slate-500 block mb-1">יתרה מינימום (₪)</label><input type="number" id="cfg-min-balance" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="500" min="0"></div>`,
+    order_unhandled: `<div><label class="text-xs font-bold text-slate-500 block mb-1">שעות המתנה לפני התראה</label><input type="number" id="cfg-pending-hours" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="2" min="1"></div>`,
+    quote_not_converted: `<div><label class="text-xs font-bold text-slate-500 block mb-1">ימים לפני התראה</label><input type="number" id="cfg-pending-days" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="3" min="1"></div>`,
+    ticket_open: `<div><label class="text-xs font-bold text-slate-500 block mb-1">שעות המתנה לפני התראה</label><input type="number" id="cfg-pending-hours" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="24" min="1"></div>`
   };
   container.innerHTML = configs[type] || '';
 }
@@ -19681,10 +19694,12 @@ async function saveNewAlertRule() {
   const minQtyEl = document.getElementById('cfg-min-quantity');
   const pendingEl = document.getElementById('cfg-pending-hours');
   const minBalEl = document.getElementById('cfg-min-balance');
+  const pendingDaysEl = document.getElementById('cfg-pending-days');
   if (maxHoursEl) config.max_hours = parseFloat(maxHoursEl.value)||10;
   if (minQtyEl) config.min_quantity = parseFloat(minQtyEl.value)||1;
   if (pendingEl) config.pending_hours = parseFloat(pendingEl.value)||24;
   if (minBalEl) config.min_balance = parseFloat(minBalEl.value)||500;
+  if (pendingDaysEl) config.pending_days = parseFloat(pendingDaysEl.value)||3;
   try {
     const res = await fetch(`${API}/alerts/rules`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, name, triggerType, triggerConfig: config, cooldownMinutes: cooldown }) });
     const data = await res.json();
