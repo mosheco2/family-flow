@@ -1761,9 +1761,10 @@ window.handlePunch = async function() {
                     console.warn("Confetti ignored safely", confettiErr); 
                 }
                 
-                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-                await window.checkTimeclockStatus(); 
-                fetchData(); 
+                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!');
+                if (data.triggeredPopup) setTimeout(() => showEmpTriggeredPopup(data.triggeredPopup), 1500);
+                await window.checkTimeclockStatus();
+                fetchData();
             } else { 
                 showToast('error', data.error || 'שגיאה בדיווח'); 
                 window.checkTimeclockStatus(); 
@@ -3221,7 +3222,12 @@ async function submitShift() {
     finally { btn.disabled = false; btn.innerText = 'שמור'; }
 }
 
-async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+async function updateTask(id, s) {
+    if(s==='done' || s==='completed_self') triggerConfetti();
+    const res = await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})});
+    fetchData();
+    try { const d = await res.json(); if (d.triggeredPopup) setTimeout(() => showEmpTriggeredPopup(d.triggeredPopup), 800); } catch(e) {}
+}
 async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקשה?')) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
 
 window.currentFeedPage = 1;
@@ -7988,6 +7994,33 @@ window.sendOneFlowMessage = async function() {
 // --- ניהול פופאפים לחנות הציבורית ---
 // ============================================================
 let _storePopupsCache = [];
+let _editingStorePopupId = null;
+let _editingEmpPopupId = null;
+
+function _formatCountdown(expiresAt) {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt) - new Date();
+    if (diff <= 0) return null;
+    const days = Math.floor(diff / 86400000);
+    const hrs = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (days > 0) return `עוד ${days}י${hrs > 0 ? ` ${hrs}ש` : ''}`;
+    if (hrs > 0) return `עוד ${hrs}ש${mins > 0 ? ` ${mins}ד` : ''}`;
+    return `עוד ${mins}ד`;
+}
+
+function showEmpTriggeredPopup(popup) {
+    if (!popup) return;
+    const modal = getEl('emp-popup-display');
+    if (!modal) return;
+    getEl('emp-popup-display-title').textContent = popup.title || '';
+    getEl('emp-popup-display-content').textContent = popup.content || '';
+    const imgWrap = getEl('emp-popup-display-img-wrap');
+    const img = getEl('emp-popup-display-img');
+    if (popup.image_base64) { img.src = popup.image_base64; imgWrap.classList.remove('hidden'); }
+    else { imgWrap.classList.add('hidden'); }
+    modal.classList.remove('hidden');
+}
 
 window.openPopupManagerModal = async function() {
     const modal = getEl('popup-manager-modal');
@@ -8018,16 +8051,17 @@ async function loadStorePopupsList() {
             const isExpired = expiresDate && expiresDate < now;
             const activeClass = p.is_active ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-slate-400 bg-slate-100 border-slate-200';
             const rowClass = isExpired ? 'opacity-50' : isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : '';
+            const countdown = _formatCountdown(p.expires_at);
             const warningBadge = isExpiringSoon ? `<span class="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ פג תוקף בקרוב</span>` : '';
-            const extendBtn = isExpiringSoon ? `<button onclick="window.extendPopupExpiry(${p.id})" class="text-[9px] text-blue-600 font-bold hover:underline">הארך 7 ימים</button>` : '';
+            const countdownBadge = countdown ? ` <span class="text-[9px] text-blue-500 font-bold">${countdown}</span>` : '';
             return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${rowClass}">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 flex-wrap"><p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>${warningBadge}</div>
+                    <div class="flex items-center gap-1.5 flex-wrap"><p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>${warningBadge}${countdownBadge}</div>
                     <p class="text-[10px] text-slate-400">מ: ${scheduled} | עד: ${expires}</p>
-                    ${extendBtn}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
+                    <button onclick="window.editStorePopup(${p.id})" class="text-slate-400 hover:text-blue-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 transition border border-slate-100" title="ערוך"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="window.togglePopup(${p.id}, ${!p.is_active})" class="text-slate-400 hover:text-amber-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 transition border border-slate-100" title="הפעל/כבה"><i class="fa-solid fa-power-off text-xs"></i></button>
                     <button onclick="window.deleteStorePopup(${p.id})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 transition border border-slate-100" title="מחק"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -8097,13 +8131,17 @@ window.saveStorePopup = async function() {
     if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
 
     try {
-        const res = await fetch(`${API}/store/popups`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'store' })
-        });
+        const isEdit = !!_editingStorePopupId;
+        const url = isEdit ? `${API}/store/popups/${_editingStorePopupId}` : `${API}/store/popups`;
+        const body = isEdit
+            ? { title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null }
+            : { groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'store' };
+        const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הפופאפ נשמר!');
+            showToast('success', isEdit ? 'הפופאפ עודכן!' : 'הפופאפ נשמר!');
+            _editingStorePopupId = null;
+            if (btn) btn.textContent = 'שמור פופאפ';
             ['popup-title','popup-content','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
             window.clearPopupImage();
             await loadStorePopupsList();
@@ -8112,7 +8150,25 @@ window.saveStorePopup = async function() {
         } else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 
-    if (btn) { btn.disabled = false; btn.textContent = 'שמור פופאפ'; }
+    if (btn) { btn.disabled = false; if (!_editingStorePopupId) btn.textContent = 'שמור פופאפ'; }
+};
+
+window.editStorePopup = function(id) {
+    const p = _storePopupsCache.find(x => x.id === id);
+    if (!p) return;
+    _editingStorePopupId = id;
+    const titleEl = getEl('popup-title'); if (titleEl) titleEl.value = p.title || '';
+    const contentEl = getEl('popup-content'); if (contentEl) contentEl.value = p.content || '';
+    const schedEl = getEl('popup-scheduled-at'); if (schedEl) schedEl.value = p.scheduled_at ? new Date(p.scheduled_at).toISOString().slice(0,16) : '';
+    const expEl = getEl('popup-expires-at'); if (expEl) expEl.value = p.expires_at ? new Date(p.expires_at).toISOString().slice(0,16) : '';
+    if (p.image_base64) {
+        const inp = getEl('popup-image-base64'); if (inp) inp.value = p.image_base64;
+        const prev = getEl('popup-img-preview'); if (prev) { prev.src = p.image_base64; prev.classList.remove('hidden'); }
+    }
+    const btn = getEl('popup-save-btn'); if (btn) btn.textContent = 'עדכן פופאפ';
+    getEl('popup-manager-list')?.closest('.overflow-y-auto')?.scrollTo({ top: 999, behavior: 'smooth' });
+    getEl('popup-title')?.focus();
+    showToast('info', 'ערוך את הפופאפ ולחץ עדכן');
 };
 
 window.togglePopup = async function(id, isActive) {
@@ -8158,10 +8214,13 @@ async function _loadStorePopupsInline() {
             const exp = p.expires_at ? new Date(p.expires_at) : null;
             const isExpiring = exp && (exp - now) < 86400000 && exp > now;
             const isExpired = exp && exp <= now;
-            const badge = isExpiring ? ' <span class="text-amber-500 text-[10px] font-bold">⚠️ פג בקרוב</span>' : (isExpired ? ' <span class="text-red-400 text-[10px]">פג תוקף</span>' : '');
+            const countdown = _formatCountdown(p.expires_at);
+            const badge = isExpiring ? ' <span class="text-amber-500 text-[10px] font-bold">⚠️</span>' : (isExpired ? ' <span class="text-red-400 text-[10px]">פג</span>' : '');
+            const cdBadge = countdown ? ` <span class="text-blue-500 text-[10px] font-bold">${countdown}</span>` : '';
             return `<div class="flex items-center justify-between py-1.5 border-b border-orange-100 last:border-0 text-xs">
-                <span class="font-medium text-slate-700">${p.title}${badge}</span>
+                <span class="font-medium text-slate-700">${p.title}${badge}${cdBadge}</span>
                 <div class="flex gap-1">
+                    <button onclick="window.editStorePopup(${p.id});document.getElementById('popup-manager-modal').classList.remove('hidden')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">ערוך</button>
                     <button onclick="window.togglePopup(${p.id},${!p.is_active})" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעיל' : 'כבוי'}</button>
                     <button onclick="window.deleteStorePopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500">מחק</button>
                 </div>
@@ -8196,14 +8255,17 @@ async function _loadEmpPopupsList() {
             const expires = p.expires_at ? new Date(p.expires_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : 'ללא הגבלה';
             const expiresDate = p.expires_at ? new Date(p.expires_at) : null;
             const isExpiringSoon = expiresDate && (expiresDate - now) < oneDayMs && (expiresDate - now) > 0;
+            const countdown = _formatCountdown(p.expires_at);
+            const triggerLabel = { none: 'כניסה', shift: 'משמרת', task: 'משימה' }[p.trigger_type] || 'כניסה';
             const activeClass = p.is_active ? 'text-teal-600 bg-teal-50 border-teal-200' : 'text-slate-400 bg-slate-100 border-slate-200';
             return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : ''}">
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>
-                    <p class="text-[10px] text-slate-400">עד: ${expires}${isExpiringSoon ? ' ⚠️' : ''}</p>
+                    <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)} <span class="text-[9px] text-slate-400 font-normal">(${triggerLabel})</span></p>
+                    <p class="text-[10px] text-slate-400">עד: ${expires}${isExpiringSoon ? ' ⚠️' : ''}${countdown ? ` · <span class="text-blue-500 font-bold">${countdown}</span>` : ''}</p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
+                    <button onclick="window.editEmpPopup(${p.id})" class="text-slate-400 hover:text-blue-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 transition border border-slate-100" title="ערוך"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="window.toggleEmpPopup(${p.id}, ${!p.is_active})" class="text-slate-400 hover:text-amber-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 transition border border-slate-100"><i class="fa-solid fa-power-off text-xs"></i></button>
                     <button onclick="window.deleteEmpPopup(${p.id})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -8248,22 +8310,51 @@ window.saveEmployeePopup = async function() {
     const btn = getEl('emp-popup-save-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/store/popups`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'employee', triggerType, triggerRef })
-        });
+        const isEdit = !!_editingEmpPopupId;
+        const url = isEdit ? `${API}/store/popups/${_editingEmpPopupId}` : `${API}/store/popups`;
+        const body = isEdit
+            ? { title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, triggerType, triggerRef }
+            : { groupId: currentGroup.id, title, content, imageBase64, scheduledAt: scheduledAt || null, expiresAt: expiresAt || null, popupType: 'employee', triggerType, triggerRef };
+        const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'הפופאפ לעובדים נשמר!');
+            showToast('success', isEdit ? 'הפופאפ עודכן!' : 'הפופאפ לעובדים נשמר!');
+            _editingEmpPopupId = null;
+            if (btn) btn.textContent = 'שמור פופאפ';
             ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at','emp-popup-trigger-ref'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
             const triggerSel = getEl('emp-popup-trigger'); if (triggerSel) triggerSel.value = 'none';
-            getEl('emp-popup-image-base64').value = '';
+            const imgInp = getEl('emp-popup-image-base64'); if (imgInp) imgInp.value = '';
+            const trigWrap = getEl('emp-popup-trigger-ref-wrap'); if (trigWrap) trigWrap.classList.add('hidden');
             await _loadEmpPopupsList();
             const epanel = getEl('emp-popups-panel');
             if (epanel && !epanel.classList.contains('hidden')) await _loadEmpPopupsInline();
         } else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
-    if (btn) { btn.disabled = false; btn.textContent = 'שמור פופאפ'; }
+    if (btn) { btn.disabled = false; if (!_editingEmpPopupId) btn.textContent = 'שמור פופאפ'; }
+};
+
+window.editEmpPopup = async function(id) {
+    const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+    const data = await res.json();
+    const p = (data.popups || []).find(x => x.id === id);
+    if (!p) return;
+    _editingEmpPopupId = id;
+    const titleEl = getEl('emp-popup-title'); if (titleEl) titleEl.value = p.title || '';
+    const contentEl = getEl('emp-popup-content'); if (contentEl) contentEl.value = p.content || '';
+    const schedEl = getEl('emp-popup-scheduled-at'); if (schedEl) schedEl.value = p.scheduled_at ? new Date(p.scheduled_at).toISOString().slice(0,16) : '';
+    const expEl = getEl('emp-popup-expires-at'); if (expEl) expEl.value = p.expires_at ? new Date(p.expires_at).toISOString().slice(0,16) : '';
+    const trigSel = getEl('emp-popup-trigger'); if (trigSel) trigSel.value = p.trigger_type || 'none';
+    const trigRef = getEl('emp-popup-trigger-ref'); if (trigRef) trigRef.value = p.trigger_ref || '';
+    const trigWrap = getEl('emp-popup-trigger-ref-wrap'); if (trigWrap) trigWrap.classList.toggle('hidden', (p.trigger_type || 'none') !== 'task');
+    if (p.image_base64) {
+        const inp = getEl('emp-popup-image-base64'); if (inp) inp.value = p.image_base64;
+        const prev = getEl('emp-popup-img-preview'); const wrap = getEl('emp-popup-img-preview-wrap');
+        if (prev) prev.src = p.image_base64; if (wrap) wrap.classList.remove('hidden');
+    }
+    const btn = getEl('emp-popup-save-btn'); if (btn) btn.textContent = 'עדכן פופאפ';
+    document.getElementById('employee-popup-modal').classList.remove('hidden');
+    getEl('emp-popup-title')?.focus();
+    showToast('info', 'ערוך את הפופאפ ולחץ עדכן');
 };
 
 window.toggleEmpPopup = async function(id, isActive) {
@@ -8300,12 +8391,15 @@ async function _loadEmpPopupsInline() {
         const triggerLabels = { none: 'תמיד', shift: 'משמרת', task: 'משימה' };
         list.innerHTML = popups.map(p => {
             const trigger = triggerLabels[p.trigger_type] || 'תמיד';
+            const countdown = _formatCountdown(p.expires_at);
             return `<div class="flex items-center justify-between py-1.5 border-b border-teal-100 last:border-0 text-xs">
                 <div>
                     <span class="font-medium text-slate-700">${p.title}</span>
                     <span class="text-slate-400 mr-1">(${trigger})</span>
+                    ${countdown ? `<span class="text-blue-500 font-bold">${countdown}</span>` : ''}
                 </div>
                 <div class="flex gap-1">
+                    <button onclick="window.editEmpPopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">ערוך</button>
                     <button onclick="window.toggleEmpPopup(${p.id},${!p.is_active})" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעיל' : 'כבוי'}</button>
                     <button onclick="window.deleteEmpPopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500">מחק</button>
                 </div>

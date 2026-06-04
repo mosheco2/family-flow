@@ -3454,13 +3454,19 @@ app.post('/api/store/popups', async (req, res) => {
 
 app.put('/api/store/popups/:id', async (req, res) => {
     try {
-        const { isActive, expiresAt, clearImage } = req.body;
+        const { isActive, expiresAt, clearImage, title, content, imageBase64, scheduledAt, triggerType, triggerRef } = req.body;
         const fields = [];
         const vals = [];
         let i = 1;
         if (isActive !== undefined) { fields.push(`is_active=$${i++}`); vals.push(isActive); }
         if (expiresAt !== undefined) { fields.push(`expires_at=$${i++}`); vals.push(expiresAt || null); }
         if (clearImage) { fields.push(`image_base64=$${i++}`); vals.push(null); }
+        if (title !== undefined) { fields.push(`title=$${i++}`); vals.push(title); }
+        if (content !== undefined) { fields.push(`content=$${i++}`); vals.push(content); }
+        if (imageBase64 !== undefined && !clearImage) { fields.push(`image_base64=$${i++}`); vals.push(imageBase64 || null); }
+        if (scheduledAt !== undefined) { fields.push(`scheduled_at=$${i++}`); vals.push(scheduledAt || null); }
+        if (triggerType !== undefined) { fields.push(`trigger_type=$${i++}`); vals.push(triggerType); }
+        if (triggerRef !== undefined) { fields.push(`trigger_ref=$${i++}`); vals.push(triggerRef || null); }
         if (fields.length === 0) return res.json({ success: true });
         vals.push(req.params.id);
         await pool.query(`UPDATE store_popups SET ${fields.join(',')} WHERE id=$${i}`, vals);
@@ -3497,6 +3503,7 @@ app.get('/api/store/employee-popups/:groupId', async (req, res) => {
             `SELECT id, title, content, image_base64, scheduled_at, expires_at
              FROM store_popups
              WHERE group_id=$1 AND is_active=TRUE AND popup_type='employee'
+               AND trigger_type='none'
                AND (scheduled_at IS NULL OR scheduled_at <= NOW())
                AND (expires_at IS NULL OR expires_at > NOW())
              ORDER BY scheduled_at DESC NULLS LAST
