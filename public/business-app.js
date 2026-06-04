@@ -19522,6 +19522,176 @@ window.updateLoginDots = function(total) {
     }
 };
 
+// ── SMART ALERTS ───────────────────────────────────────────────
+
+function getTriggerIcon(type) {
+  const icons = { timeclock_no_punch_in:'⏰', timeclock_no_punch_out:'🚪', inventory_low:'📦', task_overdue:'✅', shopping_pending:'🛒', balance_low:'💰' };
+  return icons[type] || '⚡';
+}
+
+function getRuleSummary(r) {
+  const cfg = r.trigger_config || {};
+  const s = { timeclock_no_punch_in:'בדיקת החתמת כניסה יומית', timeclock_no_punch_out:`לאחר ${cfg.max_hours||10}ש' ללא יציאה`, inventory_low:`כמות ≤ ${cfg.min_quantity!==undefined?cfg.min_quantity:1}`, task_overdue:'משימות שעברו דד-ליין', shopping_pending:`בקשות ממתינות מעל ${cfg.pending_hours||24}ש'`, balance_low:`יתרה מתחת ל-₪${cfg.min_balance||500}` };
+  return `${s[r.trigger_type]||''} · cooldown: ${r.cooldown_minutes} דק'`;
+}
+
+async function loadAlertNotifications() {
+  try {
+    const res = await fetch(`${API}/alerts/notifications?groupId=${currentGroup.id}&limit=50`);
+    const data = await res.json();
+    const list = document.getElementById('alert-notif-list');
+    if (!list) return;
+    if (!data.length) { list.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין התראות פעילות 🎉</p>'; return; }
+    list.innerHTML = data.map(n => `
+      <div class="flex gap-3 p-3 rounded-xl border ${n.is_read?'bg-white border-slate-100':'bg-red-50 border-red-100'} cursor-pointer" onclick="markAlertRead(${n.id}, this)">
+        <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm ${n.is_read?'bg-slate-100':'bg-red-100'}">${getTriggerIcon(n.trigger_type)}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-slate-800 leading-snug">${safeStr(n.message)}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${new Date(n.created_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</p>
+        </div>
+        ${!n.is_read?'<div class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 mt-2"></div>':''}
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function markAlertRead(id, el) {
+  await fetch(`${API}/alerts/notifications/${id}/read`, { method:'POST' });
+  if (el) { el.classList.remove('bg-red-50','border-red-100'); el.classList.add('bg-white','border-slate-100'); const dot=el.querySelector('.bg-red-500.rounded-full'); if(dot) dot.remove(); }
+  updateAlertBadge();
+}
+
+async function markAllAlertsRead() {
+  await fetch(`${API}/alerts/notifications/read-all`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
+  loadAlertNotifications();
+  updateAlertBadge();
+}
+
+async function updateAlertBadge() {
+  if (!currentGroup?.id) return;
+  try {
+    const res = await fetch(`${API}/alerts/unread-count?groupId=${currentGroup.id}`);
+    const data = await res.json();
+    const badge = document.getElementById('bell-badge');
+    const tabBadge = document.getElementById('alert-tab-badge');
+    if (data.count > 0) {
+      if (badge) { badge.innerText = data.count; badge.classList.remove('hidden'); }
+      if (tabBadge) { tabBadge.innerText = data.count; tabBadge.classList.remove('hidden'); tabBadge.classList.add('flex'); }
+    } else {
+      if (badge) badge.classList.add('hidden');
+      if (tabBadge) { tabBadge.classList.add('hidden'); tabBadge.classList.remove('flex'); }
+    }
+  } catch(e) {}
+}
+
+function switchActivityTab(tab) {
+  const actTab = document.getElementById('act-tab-activity');
+  const alertTab = document.getElementById('act-tab-alerts');
+  const actContent = document.getElementById('activity-list');
+  const alertContent = document.getElementById('alert-notif-list-wrap');
+  const actFilters = document.getElementById('activity-filters');
+  if (tab === 'activity') {
+    actTab.classList.add('border-white','text-white'); actTab.classList.remove('border-transparent','text-white/50');
+    alertTab.classList.remove('border-white','text-white'); alertTab.classList.add('border-transparent','text-white/50');
+    actContent.classList.remove('hidden'); alertContent.classList.add('hidden');
+    if (currentUser?.role==='ADMIN' && actFilters) actFilters.classList.remove('hidden');
+    loadActivityFeed();
+  } else {
+    alertTab.classList.add('border-white','text-white'); alertTab.classList.remove('border-transparent','text-white/50');
+    actTab.classList.remove('border-white','text-white'); actTab.classList.add('border-transparent','text-white/50');
+    actContent.classList.add('hidden'); alertContent.classList.remove('hidden');
+    if (actFilters) actFilters.classList.add('hidden');
+    loadAlertNotifications();
+  }
+}
+
+async function openAlertRulesModal() {
+  document.getElementById('alert-rules-modal').classList.remove('hidden');
+  await loadAlertRules();
+}
+
+function closeAlertRulesModal() {
+  document.getElementById('alert-rules-modal').classList.add('hidden');
+}
+
+async function loadAlertRules() {
+  try {
+    const res = await fetch(`${API}/alerts/rules?groupId=${currentGroup.id}`);
+    const data = await res.json();
+    const list = document.getElementById('alert-rules-list');
+    if (!list) return;
+    if (!data.length) { list.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">אין חוקים מוגדרים עדיין.<br>לחץ "הוסף חוק חדש" כדי להתחיל.</p>'; return; }
+    list.innerHTML = data.map(r => `
+      <div class="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 mb-2">
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-sm text-slate-800">${getTriggerIcon(r.trigger_type)} ${safeStr(r.name)}</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${getRuleSummary(r)}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0 mt-0.5">
+          <button onclick="toggleAlertRule(${r.id},${!r.is_active})" class="w-10 h-5 rounded-full transition relative ${r.is_active?'bg-red-500':'bg-slate-300'}">
+            <span class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${r.is_active?'left-5':'left-0.5'}"></span>
+          </button>
+          <button onclick="deleteAlertRule(${r.id})" class="text-slate-400 hover:text-red-500 text-xs transition"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function toggleAlertRule(id, newState) {
+  await fetch(`${API}/alerts/rules/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ isActive: newState }) });
+  loadAlertRules();
+}
+
+async function deleteAlertRule(id) {
+  if (!confirm('למחוק חוק זה?')) return;
+  await fetch(`${API}/alerts/rules/${id}`, { method:'DELETE' });
+  loadAlertRules();
+}
+
+function openNewAlertRuleForm() {
+  document.getElementById('new-alert-rule-modal').classList.remove('hidden');
+  document.getElementById('new-rule-name').value = '';
+  document.getElementById('new-rule-cooldown').value = 60;
+  document.getElementById('new-rule-trigger').value = 'timeclock_no_punch_in';
+  updateRuleTriggerConfig();
+}
+
+function updateRuleTriggerConfig() {
+  const type = document.getElementById('new-rule-trigger').value;
+  const container = document.getElementById('rule-config-fields');
+  const configs = {
+    timeclock_no_punch_in: '',
+    timeclock_no_punch_out: `<div><label class="text-xs font-bold text-slate-500 block mb-1">שעות מקסימום ללא יציאה</label><input type="number" id="cfg-max-hours" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="10" min="1"></div>`,
+    inventory_low: `<div><label class="text-xs font-bold text-slate-500 block mb-1">כמות מינימום (התראה כשמתחת ל-)</label><input type="number" id="cfg-min-quantity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="1" min="0" step="0.1"></div>`,
+    task_overdue: '',
+    shopping_pending: `<div><label class="text-xs font-bold text-slate-500 block mb-1">שעות המתנה לפני התראה</label><input type="number" id="cfg-pending-hours" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="24" min="1"></div>`,
+    balance_low: `<div><label class="text-xs font-bold text-slate-500 block mb-1">יתרה מינימום (₪)</label><input type="number" id="cfg-min-balance" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400" value="500" min="0"></div>`
+  };
+  container.innerHTML = configs[type] || '';
+}
+
+async function saveNewAlertRule() {
+  const name = document.getElementById('new-rule-name').value.trim();
+  const triggerType = document.getElementById('new-rule-trigger').value;
+  const cooldown = parseInt(document.getElementById('new-rule-cooldown').value) || 60;
+  if (!name) return showToast('error', 'חסר שם לחוק');
+  const config = {};
+  const maxHoursEl = document.getElementById('cfg-max-hours');
+  const minQtyEl = document.getElementById('cfg-min-quantity');
+  const pendingEl = document.getElementById('cfg-pending-hours');
+  const minBalEl = document.getElementById('cfg-min-balance');
+  if (maxHoursEl) config.max_hours = parseFloat(maxHoursEl.value)||10;
+  if (minQtyEl) config.min_quantity = parseFloat(minQtyEl.value)||1;
+  if (pendingEl) config.pending_hours = parseFloat(pendingEl.value)||24;
+  if (minBalEl) config.min_balance = parseFloat(minBalEl.value)||500;
+  try {
+    const res = await fetch(`${API}/alerts/rules`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, name, triggerType, triggerConfig: config, cooldownMinutes: cooldown }) });
+    const data = await res.json();
+    if (data.success) { document.getElementById('new-alert-rule-modal').classList.add('hidden'); showToast('success', 'חוק נשמר!'); loadAlertRules(); }
+  } catch(e) { showToast('error', 'שגיאה'); }
+}
+
 // ── ACTIVITY FEED ──────────────────────────────────────────────
 const ACTION_ICONS_BIZ = { finance:'💰', task:'✅', shopping:'🛒', pantry:'📦', business:'🏪', user:'👤' };
 
@@ -19529,6 +19699,9 @@ async function openActivityPanel() {
   const panel = document.getElementById('activity-panel');
   if (!panel) return;
   panel.classList.remove('hidden');
+  updateAlertBadge();
+  const manageBtn = document.getElementById('btn-manage-rules');
+  if (manageBtn && currentUser?.role === 'ADMIN') manageBtn.classList.remove('hidden');
   if (currentUser?.role === 'ADMIN') {
     const filters = document.getElementById('activity-filters');
     if (filters) filters.classList.remove('hidden');
@@ -19548,9 +19721,9 @@ async function openActivityPanel() {
 function closeActivityPanel() {
   const panel = document.getElementById('activity-panel');
   if (panel) panel.classList.add('hidden');
-  const badge = document.getElementById('bell-badge');
-  if (badge) badge.classList.add('hidden');
 }
+
+setInterval(updateAlertBadge, 60000);
 
 async function loadActivityFeed() {
   const days = document.getElementById('filter-days')?.value || 30;

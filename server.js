@@ -146,6 +146,8 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_popups ADD COLUMN IF NOT EXISTS trigger_ref TEXT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS sent_newsletters (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, subject VARCHAR(200), content_html TEXT, audience VARCHAR(50), recipient_count INT DEFAULT 0, sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS product_category_map (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, normalized_name TEXT NOT NULL, category TEXT NOT NULL, UNIQUE(group_id, normalized_name))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS alert_rules (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(200) NOT NULL, trigger_type VARCHAR(50) NOT NULL, trigger_config JSONB DEFAULT '{}', recipients JSONB DEFAULT '["ADMIN"]', channels JSONB DEFAULT '["in_app"]', cooldown_minutes INTEGER DEFAULT 60, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS alert_notifications (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, rule_id INTEGER REFERENCES alert_rules(id) ON DELETE SET NULL, trigger_type VARCHAR(50), message TEXT NOT NULL, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -1942,6 +1944,74 @@ app.post('/api/shopping/category-map', async (req, res) => {
     try {
         const { groupId, normalizedName, category } = req.body;
         await pool.query('INSERT INTO product_category_map (group_id, normalized_name, category) VALUES ($1, $2, $3) ON CONFLICT (group_id, normalized_name) DO UPDATE SET category=$3', [groupId, normalizedName, category]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ALERT RULES CRUD ────────────────────────────────────────────
+app.get('/api/alerts/rules', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT * FROM alert_rules WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/rules', async (req, res) => {
+    try {
+        const { groupId, name, triggerType, triggerConfig, cooldownMinutes } = req.body;
+        await pool.query('INSERT INTO alert_rules (group_id, name, trigger_type, trigger_config, cooldown_minutes) VALUES ($1, $2, $3, $4, $5)',
+            [groupId, name, triggerType, JSON.stringify(triggerConfig || {}), cooldownMinutes || 60]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/alerts/rules/:id', async (req, res) => {
+    try {
+        const { isActive, name, triggerConfig, cooldownMinutes } = req.body;
+        if (isActive !== undefined) await pool.query('UPDATE alert_rules SET is_active=$1 WHERE id=$2', [isActive, req.params.id]);
+        if (name !== undefined) await pool.query('UPDATE alert_rules SET name=$1 WHERE id=$2', [name, req.params.id]);
+        if (triggerConfig !== undefined) await pool.query('UPDATE alert_rules SET trigger_config=$1 WHERE id=$2', [JSON.stringify(triggerConfig), req.params.id]);
+        if (cooldownMinutes !== undefined) await pool.query('UPDATE alert_rules SET cooldown_minutes=$1 WHERE id=$2', [cooldownMinutes, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/alerts/rules/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM alert_rules WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/alerts/notifications', async (req, res) => {
+    try {
+        const { groupId, limit } = req.query;
+        const result = await pool.query('SELECT * FROM alert_notifications WHERE group_id=$1 ORDER BY created_at DESC LIMIT $2',
+            [groupId, parseInt(limit) || 50]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/alerts/unread-count', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const result = await pool.query('SELECT COUNT(*) as count FROM alert_notifications WHERE group_id=$1 AND is_read=FALSE', [groupId]);
+        res.json({ count: parseInt(result.rows[0].count) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/notifications/:id/read', async (req, res) => {
+    try {
+        await pool.query('UPDATE alert_notifications SET is_read=TRUE WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/alerts/notifications/read-all', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        await pool.query('UPDATE alert_notifications SET is_read=TRUE WHERE group_id=$1', [groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -6453,6 +6523,101 @@ app.post('/api/public/survey/:code/submit', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ── ALERT ENGINE ──────────────────────────────────────────────────────────
+async function checkRuleTrigger(rule) {
+    const config = rule.trigger_config || {};
+    const messages = [];
+    try {
+        switch(rule.trigger_type) {
+            case 'timeclock_no_punch_in': {
+                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                const users = await pool.query(
+                    `SELECT u.nickname FROM users u WHERE u.group_id=$1 AND u.role != 'ADMIN'
+                     AND NOT EXISTS (SELECT 1 FROM time_clock tc WHERE tc.user_id=u.id AND tc.punch_in >= $2)`,
+                    [rule.group_id, todayStart]
+                );
+                if (users.rows.length > 0) messages.push(`עובדים שלא החתימו כניסה היום: ${users.rows.map(u=>u.nickname).join(', ')}`);
+                break;
+            }
+            case 'timeclock_no_punch_out': {
+                const maxHours = config.max_hours || 10;
+                const punches = await pool.query(
+                    `SELECT u.nickname FROM time_clock tc JOIN users u ON tc.user_id=u.id
+                     WHERE u.group_id=$1 AND tc.punch_out IS NULL AND tc.punch_in < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, maxHours]
+                );
+                punches.rows.forEach(p => messages.push(`${p.nickname} החתים כניסה לפני ${maxHours}+ שעות ולא יצא`));
+                break;
+            }
+            case 'inventory_low': {
+                const minQty = config.min_quantity !== undefined ? config.min_quantity : 1;
+                const items = await pool.query(
+                    'SELECT item_name, quantity FROM pantry WHERE group_id=$1 AND quantity <= $2 ORDER BY quantity',
+                    [rule.group_id, minQty]
+                );
+                if (items.rows.length > 0) {
+                    const names = items.rows.map(i=>`${i.item_name}(${i.quantity})`).join(', ');
+                    messages.push(`מוצרים מתחת לרף מינימום: ${names}`);
+                }
+                break;
+            }
+            case 'task_overdue': {
+                const tasks = await pool.query(
+                    `SELECT t.title, u.nickname FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+                     WHERE t.group_id=$1 AND t.status NOT IN ('approved','cancelled')
+                     AND t.deadline IS NOT NULL AND t.deadline < NOW()`,
+                    [rule.group_id]
+                );
+                tasks.rows.forEach(t => messages.push(`משימה באיחור: "${t.title}"${t.nickname ? ` (${t.nickname})` : ''}`));
+                break;
+            }
+            case 'shopping_pending': {
+                const hours = config.pending_hours || 24;
+                const items = await pool.query(
+                    `SELECT item_name FROM shopping_list WHERE group_id=$1 AND status='requested' AND added_at < NOW() - ($2 * INTERVAL '1 hour')`,
+                    [rule.group_id, hours]
+                );
+                if (items.rows.length > 0) messages.push(`בקשות רכש ממתינות מעל ${hours}ש': ${items.rows.map(i=>i.item_name).join(', ')}`);
+                break;
+            }
+            case 'balance_low': {
+                const minBalance = config.min_balance || 500;
+                const result = await pool.query(
+                    `SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) as balance FROM transactions WHERE group_id=$1`,
+                    [rule.group_id]
+                );
+                const balance = parseFloat(result.rows[0]?.balance || 0);
+                if (balance < minBalance) messages.push(`יתרה נמוכה: ₪${balance.toFixed(2)} (מתחת ל-₪${minBalance})`);
+                break;
+            }
+        }
+        for (const message of messages) {
+            await pool.query('INSERT INTO alert_notifications (group_id, rule_id, trigger_type, message) VALUES ($1, $2, $3, $4)',
+                [rule.group_id, rule.id, rule.trigger_type, message]);
+        }
+    } catch(e) { console.error(`Alert trigger error (${rule.trigger_type}):`, e.message); }
+}
+
+async function runAlertEngine() {
+    try {
+        const rulesRes = await pool.query('SELECT * FROM alert_rules WHERE is_active=TRUE');
+        for (const rule of rulesRes.rows) {
+            const lastFired = await pool.query(
+                'SELECT created_at FROM alert_notifications WHERE rule_id=$1 ORDER BY created_at DESC LIMIT 1',
+                [rule.id]
+            );
+            if (lastFired.rows.length > 0) {
+                const elapsedMins = (Date.now() - new Date(lastFired.rows[0].created_at).getTime()) / 60000;
+                if (elapsedMins < (rule.cooldown_minutes || 60)) continue;
+            }
+            await checkRuleTrigger(rule);
+        }
+    } catch(e) { console.error('Alert engine error:', e.message); }
+}
+
+setTimeout(runAlertEngine, 30000);
+setInterval(runAlertEngine, 5 * 60 * 1000);
 
 // הפעלת השרת
 app.listen(port, () => {
