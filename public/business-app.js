@@ -8332,8 +8332,8 @@ async function generateStoreProductLongAI() {
             const shortDesc = (getEl('sp-desc') && getEl('sp-desc').value) || '';
             const res = await fetch(`${API}/store/ai-long-desc`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ productName: name, shortDesc, groupId: currentGroup.id }) });
             const data = await res.json();
-            if(data.success && data.description) { getEl('sp-long-desc').value = data.description; showToast('success', 'ה-AI ניסח תיאור מורחב בהצלחה!'); } else { showToast('error', data.error || 'שגיאה בניסוח'); }
-        } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI'; } }
+            if(data.success && data.description) { getEl('sp-long-desc').value = data.description; showToast('success', 'ה-AI ניסח תיאור מורחב בהצלחה!'); } else { const errMsg = data.error || 'שגיאה בניסוח'; console.error('ai-long-desc:', data); showToast('error', errMsg); }
+        } catch(e) { console.error('ai-long-desc fetch error:', e); showToast('error', 'שגיאת תקשורת: ' + e.message); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI'; } }
     });
 }
 

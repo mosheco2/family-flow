@@ -360,8 +360,9 @@ async function handleAITokens(groupId) {
 
 const handleAIError = (e, res, defaultMsg) => {
     console.error('AI Error:', e);
-    if (e.message && e.message.includes('429')) return res.status(429).json({ error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
-    res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
+    if (e.message && e.message.includes('429')) return res.status(429).json({ success: false, error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
+    if (e.message && e.message.includes('GEMINI_API_KEY')) return res.status(500).json({ success: false, error: 'מפתח AI חסר בשרת' });
+    res.status(500).json({ success: false, error: defaultMsg || 'שגיאה בתקשורת עם ה-AI', detail: e.message });
 };
 
 // =========================================================
