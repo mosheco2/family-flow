@@ -8333,6 +8333,35 @@ window.openStoreOrderModal = function(orderId) {
     document.getElementById('so-modal-items').innerHTML = itemsHtml;
     document.getElementById('store-order-modal').classList.remove('hidden');
 };
+
+window.createCustomerFromOrder = async function() {
+    const order = window.storeOrdersCache && window.currentStoreOrderId
+        ? window.storeOrdersCache.find(o => o.id === window.currentStoreOrderId) : null;
+    if (!order) return showToast('error', 'לא נמצאה ההזמנה');
+    const name = order.customer_name || '';
+    const phone = order.customer_phone || '';
+    const email = order.customer_email || '';
+    if (!name && !phone) return showToast('error', 'אין פרטי לקוח בהזמנה');
+
+    // בדיקה אם הלקוח כבר קיים
+    const exists = (storeCustomersCache || []).some(c =>
+        (phone && c.phone === phone) || (name && c.name === name)
+    );
+    if (exists) return showToast('info', 'לקוח עם פרטים אלו כבר קיים במאגר');
+
+    try {
+        const res = await fetch(`${API}/store/customers`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, name, phone, email, notes: `נוצר מהזמנה #${order.id}` })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `הלקוח "${name}" נוסף למאגר הלקוחות!`);
+            if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
+        } else { showToast('error', 'שגיאה ביצירת הלקוח'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window.updateStoreOrderStatus = async function(status) {
     if(!window.currentStoreOrderId) return;
     try { 
@@ -9708,6 +9737,9 @@ function renderB2BOrders() {
             actionsHtml += `<button onclick="editDraftOrder(${o.id})" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-pen"></i> ערוך ומלא חוסרים בעגלה</button>`;
         } else {
             actionsHtml += `<button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
+            if (supData.phone) {
+                actionsHtml += `<button onclick="sendPurchaseOrderWhatsApp(${o.id})" class="flex-1 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-[#25D366]/20"><i class="fa-brands fa-whatsapp"></i> שלח לווצאפ</button>`;
+            }
             if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
                 actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
             }
@@ -9757,6 +9789,29 @@ async function editDraftOrder(orderId) {
         fetchB2BOrders(); updateB2BCartUI(); switchProcurementTab('list');
     } catch(e) { showToast('error', 'שגיאה בטעינת הטיוטה לעגלה'); }
 }
+
+window.sendPurchaseOrderWhatsApp = function(orderId) {
+    const o = (b2bOrdersHistory || []).find(x => x.id === orderId);
+    if (!o) return showToast('error', 'לא נמצאה ההזמנה');
+    const supData = suppliersList.find(s => String(s.id) === String(o.supplier_id)) || {};
+    if (!supData.phone) return showToast('error', 'לספק אין מספר טלפון מוגדר');
+
+    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+    const dateStr = new Date(o.created_at).toLocaleDateString('he-IL');
+    let msg = `שלום ${supData.name},\n`;
+    msg += `הזמנת רכש #${o.id} מ${currentGroup.name}\n`;
+    msg += `תאריך: ${dateStr}\n\n`;
+    msg += `פירוט הפריטים:\n`;
+    items.forEach(i => {
+        msg += `• ${i.name} — כמות: ${i.quantity} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
+    });
+    msg += `\nסה"כ להזמנה: ₪${parseFloat(o.total_amount || 0).toFixed(2)}\n`;
+    msg += `\nנא לאשר קבלת ההזמנה.\nתודה!`;
+
+    let phone = supData.phone.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = '972' + phone.substring(1);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+};
 
 async function updateB2BOrderStatus(orderId, status) {
     try {
@@ -16490,7 +16545,13 @@ window.getVatSettings = function() {
     try {
         const id = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : '';
         const savedVat = localStorage.getItem('ofl_vat_' + id);
-        return savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
+        const settings = savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
+        // מיגרציה: עדכון מ-17% ל-18% (שיעור מע"מ חדש בישראל)
+        if (settings.rate === 17) {
+            settings.rate = 18;
+            localStorage.setItem('ofl_vat_' + id, JSON.stringify(settings));
+        }
+        return settings;
     } catch(e) { return { enabled: true, rate: 18 }; }
 };
 
