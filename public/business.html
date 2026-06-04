@@ -4180,14 +4180,10 @@
     <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative slide-up">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
             <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-rectangle-ad text-orange-500"></i> ניהול פופאפים לחנות</h3>
-            <button onclick="document.getElementById('popup-manager-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="window.closeStorePopupModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-5">
-            <div>
-                <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">פופאפים קיימים</h4>
-                <div id="popup-manager-list"></div>
-            </div>
-            <div class="border-t border-slate-100 pt-4 space-y-3">
+            <div class="border-t border-slate-100 pt-0 space-y-3">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wide">יצירת פופאפ חדש</h4>
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">כותרת:</label>
@@ -4224,7 +4220,7 @@
             </div>
         </div>
         <div class="p-4 border-t border-slate-100 shrink-0 flex gap-2 justify-end bg-slate-50">
-            <button onclick="document.getElementById('popup-manager-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
+            <button onclick="window.closeStorePopupModal()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
             <button id="popup-save-btn" onclick="window.saveStorePopup()" class="bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition shadow-md">שמור פופאפ</button>
         </div>
     </div>
@@ -4235,14 +4231,10 @@
     <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative slide-up">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
             <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-users text-teal-500"></i> פופאפים לעובדים</h3>
-            <button onclick="document.getElementById('employee-popup-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="window.closeEmpPopupModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-5">
-            <div>
-                <h4 class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">פופאפים קיימים לעובדים</h4>
-                <div id="emp-popup-list"></div>
-            </div>
-            <div class="border-t border-slate-100 pt-4 space-y-3">
+            <div class="border-t border-slate-100 pt-0 space-y-3">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wide">יצירת פופאפ חדש לעובדים</h4>
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">כותרת:</label>
@@ -4288,7 +4280,7 @@
             </div>
         </div>
         <div class="p-4 border-t border-slate-100 shrink-0 flex gap-2 justify-end bg-slate-50">
-            <button onclick="document.getElementById('employee-popup-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
+            <button onclick="window.closeEmpPopupModal()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">סגור</button>
             <button id="emp-popup-save-btn" onclick="window.saveEmployeePopup()" class="bg-teal-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition shadow-md">שמור פופאפ</button>
         </div>
     </div>

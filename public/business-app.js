@@ -8030,13 +8030,15 @@ window.openPopupManagerModal = async function() {
 };
 
 async function loadStorePopupsList() {
-    const list = getEl('popup-manager-list');
-    if (!list) return;
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
     try {
         const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
         const data = await res.json();
         _storePopupsCache = (data.popups || []).filter(p => p.popup_type !== 'employee');
+    } catch(e) {}
+    const list = getEl('popup-manager-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
         if (_storePopupsCache.length === 0) {
             list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 border border-dashed border-slate-200 rounded-xl">אין פופאפים. צור פופאפ חדש למטה.</p>';
             return;
@@ -8052,12 +8054,13 @@ async function loadStorePopupsList() {
             const activeClass = p.is_active ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-slate-400 bg-slate-100 border-slate-200';
             const rowClass = isExpired ? 'opacity-50' : isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : '';
             const countdown = _formatCountdown(p.expires_at);
+            const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '';
             const warningBadge = isExpiringSoon ? `<span class="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ פג תוקף בקרוב</span>` : '';
             const countdownBadge = countdown ? ` <span class="text-[9px] text-blue-500 font-bold">${countdown}</span>` : '';
             return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${rowClass}">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap"><p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)}</p>${warningBadge}${countdownBadge}</div>
-                    <p class="text-[10px] text-slate-400">מ: ${scheduled} | עד: ${expires}</p>
+                    <p class="text-[10px] text-slate-400">נוצר: ${createdAt} | מ: ${scheduled} | עד: ${expires}</p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
@@ -8140,6 +8143,8 @@ window.saveStorePopup = async function() {
         const data = await res.json();
         if (data.success) {
             showToast('success', isEdit ? 'הפופאפ עודכן!' : 'הפופאפ נשמר!');
+            const savedId = data.popup?.id || _editingStorePopupId;
+            if (savedId) localStorage.removeItem(`ofl_popup_${savedId}`);
             _editingStorePopupId = null;
             if (btn) btn.textContent = 'שמור פופאפ';
             ['popup-title','popup-content','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
@@ -8153,8 +8158,16 @@ window.saveStorePopup = async function() {
     if (btn) { btn.disabled = false; if (!_editingStorePopupId) btn.textContent = 'שמור פופאפ'; }
 };
 
-window.editStorePopup = function(id) {
-    const p = _storePopupsCache.find(x => x.id === id);
+window.editStorePopup = async function(id, openModal = false) {
+    let p = _storePopupsCache.find(x => x.id === id);
+    if (!p) {
+        try {
+            const res = await fetch(`${API}/store/popups/${currentGroup.id}`);
+            const data = await res.json();
+            _storePopupsCache = (data.popups || []).filter(x => x.popup_type !== 'employee');
+            p = _storePopupsCache.find(x => x.id === id);
+        } catch(e) {}
+    }
     if (!p) return;
     _editingStorePopupId = id;
     const titleEl = getEl('popup-title'); if (titleEl) titleEl.value = p.title || '';
@@ -8163,12 +8176,36 @@ window.editStorePopup = function(id) {
     const expEl = getEl('popup-expires-at'); if (expEl) expEl.value = p.expires_at ? new Date(p.expires_at).toISOString().slice(0,16) : '';
     if (p.image_base64) {
         const inp = getEl('popup-image-base64'); if (inp) inp.value = p.image_base64;
-        const prev = getEl('popup-img-preview'); if (prev) { prev.src = p.image_base64; prev.classList.remove('hidden'); }
+        const prev = getEl('popup-img-preview'); const wrap = getEl('popup-img-preview-wrap');
+        if (prev) { prev.src = p.image_base64; prev.classList.remove('hidden'); }
+        if (wrap) wrap.classList.remove('hidden');
     }
     const btn = getEl('popup-save-btn'); if (btn) btn.textContent = 'עדכן פופאפ';
-    getEl('popup-manager-list')?.closest('.overflow-y-auto')?.scrollTo({ top: 999, behavior: 'smooth' });
+    if (openModal) { const m = getEl('popup-manager-modal'); if (m) m.classList.remove('hidden'); }
     getEl('popup-title')?.focus();
     showToast('info', 'ערוך את הפופאפ ולחץ עדכן');
+};
+
+window.closeStorePopupModal = function() {
+    _editingStorePopupId = null;
+    ['popup-title','popup-content','popup-scheduled-at','popup-expires-at'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+    const imgInp = getEl('popup-image-base64'); if (imgInp) imgInp.value = '';
+    const prev = getEl('popup-img-preview'); const wrap = getEl('popup-img-preview-wrap');
+    if (prev) prev.classList.add('hidden'); if (wrap) wrap.classList.add('hidden');
+    const btn = getEl('popup-save-btn'); if (btn) btn.textContent = 'שמור פופאפ';
+    const m = getEl('popup-manager-modal'); if (m) m.classList.add('hidden');
+};
+
+window.closeEmpPopupModal = function() {
+    _editingEmpPopupId = null;
+    ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at','emp-popup-trigger-ref'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
+    const trigSel = getEl('emp-popup-trigger'); if (trigSel) trigSel.value = 'none';
+    const imgInp = getEl('emp-popup-image-base64'); if (imgInp) imgInp.value = '';
+    const trigWrap = getEl('emp-popup-trigger-ref-wrap'); if (trigWrap) trigWrap.classList.add('hidden');
+    const prev = getEl('emp-popup-img-preview'); const wrap = getEl('emp-popup-img-preview-wrap');
+    if (prev) prev.classList.add('hidden'); if (wrap) wrap.classList.add('hidden');
+    const btn = getEl('emp-popup-save-btn'); if (btn) btn.textContent = 'שמור פופאפ';
+    document.getElementById('employee-popup-modal').classList.add('hidden');
 };
 
 window.togglePopup = async function(id, isActive) {
@@ -8215,12 +8252,16 @@ async function _loadStorePopupsInline() {
             const isExpiring = exp && (exp - now) < 86400000 && exp > now;
             const isExpired = exp && exp <= now;
             const countdown = _formatCountdown(p.expires_at);
+            const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '';
             const badge = isExpiring ? ' <span class="text-amber-500 text-[10px] font-bold">⚠️</span>' : (isExpired ? ' <span class="text-red-400 text-[10px]">פג</span>' : '');
             const cdBadge = countdown ? ` <span class="text-blue-500 text-[10px] font-bold">${countdown}</span>` : '';
             return `<div class="flex items-center justify-between py-1.5 border-b border-orange-100 last:border-0 text-xs">
-                <span class="font-medium text-slate-700">${p.title}${badge}${cdBadge}</span>
+                <div>
+                    <span class="font-medium text-slate-700">${p.title}${badge}${cdBadge}</span>
+                    ${createdAt ? `<span class="text-slate-400 text-[10px] mr-1">· ${createdAt}</span>` : ''}
+                </div>
                 <div class="flex gap-1">
-                    <button onclick="window.editStorePopup(${p.id});document.getElementById('popup-manager-modal').classList.remove('hidden')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">ערוך</button>
+                    <button onclick="window.editStorePopup(${p.id}, true)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">ערוך</button>
                     <button onclick="window.togglePopup(${p.id},${!p.is_active})" class="px-2 py-0.5 rounded text-[10px] font-bold ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעיל' : 'כבוי'}</button>
                     <button onclick="window.deleteStorePopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-500">מחק</button>
                 </div>
@@ -8258,10 +8299,11 @@ async function _loadEmpPopupsList() {
             const countdown = _formatCountdown(p.expires_at);
             const triggerLabel = { none: 'כניסה', shift: 'משמרת', task: 'משימה' }[p.trigger_type] || 'כניסה';
             const activeClass = p.is_active ? 'text-teal-600 bg-teal-50 border-teal-200' : 'text-slate-400 bg-slate-100 border-slate-200';
+            const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '';
             return `<div class="flex items-center justify-between gap-2 py-2.5 border-b border-slate-100 last:border-0 ${isExpiringSoon ? 'bg-amber-50 rounded-xl px-2' : ''}">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-slate-800 truncate">${safeStr(p.title)} <span class="text-[9px] text-slate-400 font-normal">(${triggerLabel})</span></p>
-                    <p class="text-[10px] text-slate-400">עד: ${expires}${isExpiringSoon ? ' ⚠️' : ''}${countdown ? ` · <span class="text-blue-500 font-bold">${countdown}</span>` : ''}</p>
+                    <p class="text-[10px] text-slate-400">${createdAt ? `נוצר: ${createdAt} · ` : ''}עד: ${expires}${isExpiringSoon ? ' ⚠️' : ''}${countdown ? ` · <span class="text-blue-500 font-bold">${countdown}</span>` : ''}</p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[9px] px-2 py-0.5 rounded-full border font-bold ${activeClass}">${p.is_active ? 'פעיל' : 'כבוי'}</span>
@@ -8319,6 +8361,12 @@ window.saveEmployeePopup = async function() {
         const data = await res.json();
         if (data.success) {
             showToast('success', isEdit ? 'הפופאפ עודכן!' : 'הפופאפ לעובדים נשמר!');
+            const savedId = data.popup?.id || _editingEmpPopupId;
+            if (savedId) {
+                const seen = JSON.parse(localStorage.getItem('ofl_emp_popups_seen') || '{}');
+                delete seen[savedId]; delete seen[String(savedId)];
+                localStorage.setItem('ofl_emp_popups_seen', JSON.stringify(seen));
+            }
             _editingEmpPopupId = null;
             if (btn) btn.textContent = 'שמור פופאפ';
             ['emp-popup-title','emp-popup-content','emp-popup-scheduled-at','emp-popup-expires-at','emp-popup-trigger-ref'].forEach(id => { const el = getEl(id); if(el) el.value=''; });
@@ -8392,11 +8440,13 @@ async function _loadEmpPopupsInline() {
         list.innerHTML = popups.map(p => {
             const trigger = triggerLabels[p.trigger_type] || 'תמיד';
             const countdown = _formatCountdown(p.expires_at);
+            const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '';
             return `<div class="flex items-center justify-between py-1.5 border-b border-teal-100 last:border-0 text-xs">
                 <div>
                     <span class="font-medium text-slate-700">${p.title}</span>
                     <span class="text-slate-400 mr-1">(${trigger})</span>
                     ${countdown ? `<span class="text-blue-500 font-bold">${countdown}</span>` : ''}
+                    ${createdAt ? `<span class="text-slate-400 text-[10px]">· ${createdAt}</span>` : ''}
                 </div>
                 <div class="flex gap-1">
                     <button onclick="window.editEmpPopup(${p.id})" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">ערוך</button>
