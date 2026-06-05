@@ -3349,20 +3349,17 @@ document.addEventListener('click', function(e) {
 // ============================================================
 // ── EMPLOYEE HOME — MEMBER / SENIOR ────────────────────────────
 async function renderEmployeeDashboard() {
-    const empHome   = document.getElementById('employee-home');
-    const adminHome = document.getElementById('tour-balance-card');
-    const urgentSec = document.getElementById('urgent-items-section');
-    if (!empHome) return;
+    if (!document.getElementById('emp-home-header')) return;
 
-    // הצג מסך עובד, הסתר כרטיסי מנהל
-    empHome.classList.remove('hidden');
-    if (adminHome) adminHome.closest && adminHome.classList.add('hidden');
-    // הסתר quick-tiles וalerts שמיועדים למנהל
+    // הצג חלקי מסך עובד, הסתר כרטיסי מנהל
+    ['emp-home-header','emp-home-footer'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+    });
     ['tour-balance-card','quick-tiles','admin-kpi-cards','dashboard-alerts'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
-    if (urgentSec) urgentSec.classList.add('hidden');
 
     // ─ ברכה ותאריך ─
     const now = new Date();
@@ -3424,6 +3421,9 @@ async function renderEmployeeDashboard() {
             }).join('');
         }
     }
+
+    // ─ פאנל "מה מחכה לך" — כמו מנהל, עם אפשרות סגירה ─
+    renderUrgentItems();
 }
 
 window.renderDashboard = async function(forceRefresh = false) {
@@ -3435,8 +3435,10 @@ window.renderDashboard = async function(forceRefresh = false) {
         const el = document.getElementById(id);
         if (el) el.classList.remove('hidden');
     });
-    const empHome = document.getElementById('employee-home');
-    if (empHome) empHome.classList.add('hidden');
+    ['emp-home-header','emp-home-footer'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
 
     try {
         // Header
