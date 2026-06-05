@@ -3317,8 +3317,144 @@ window.renderDashboard = async function(forceRefresh = false) {
                 alertsBox.classList.add('hidden');
             }
         }
+
+        // ★ Urgent items panel
+        renderUrgentItems();
+
     } catch(err) { console.error('renderDashboard:', err); }
 };
+
+// ── URGENT ITEMS — "מה מחכה לך עכשיו" ─────────────────────────
+async function renderUrgentItems() {
+    const section = document.getElementById('urgent-items-section');
+    const list    = document.getElementById('urgent-items-list');
+    const badge   = document.getElementById('urgent-count-badge');
+    if (!section || !list || !currentGroup) return;
+
+    const isAdmin   = currentUser?.role === 'ADMIN';
+    const isManager = currentUser?.role === 'MANAGER';
+    const isSenior  = currentUser?.role === 'SENIOR';
+    const isMember  = currentUser?.role === 'MEMBER';
+    const now       = new Date();
+    const todayStr  = now.toDateString();
+    const items     = [];
+
+    if (isAdmin || isManager) {
+        // ─ הזמנות ממתינות מעל שעתיים ─
+        const oldOrders = (storeOrdersCache || []).filter(o => {
+            if (o.status !== 'new') return false;
+            return (now - new Date(o.created_at)) / 3600000 >= 2;
+        });
+        if (oldOrders.length > 0) {
+            const hrs = Math.floor((now - new Date(oldOrders[0].created_at)) / 3600000);
+            items.push({ icon:'🚨', urgency:'high',
+                title:`${oldOrders.length} הזמנות ממתינות לטיפול`,
+                sub:`הישנה: ${hrs} שעות ללא מענה`,
+                tab:'sales', actionLabel:'טפל' });
+        }
+
+        // ─ עובדים ללא החתמת כניסה — fetch lightweight ─
+        try {
+            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all`);
+            const tcData = await tcRes.json();
+            const todayPunches = tcData.filter(p => new Date(p.punch_in).toDateString() === todayStr);
+            const punchedIds = new Set(todayPunches.map(p => p.user_id));
+            const missing = (membersCache || []).filter(m => m.role !== 'ADMIN' && !punchedIds.has(m.id));
+            if (missing.length > 0) {
+                items.push({ icon:'👤', urgency:'medium',
+                    title:`${missing.length} עובדים לא החתימו כניסה היום`,
+                    sub: missing.slice(0,3).map(m => m.nickname || m.name).join(', '),
+                    tab:'timeclock', actionLabel:'צפה' });
+            }
+        } catch(e) {}
+
+        // ─ הצעות מחיר פתוחות מעל 3 ימים ─
+        const oldQuotes = (storeOrdersCache || []).filter(o => {
+            if (o.status !== 'quote') return false;
+            if (o.quote_status === 'approved' || o.quote_status === 'rejected') return false;
+            return (now - new Date(o.created_at)) / 86400000 >= 3;
+        });
+        if (oldQuotes.length > 0) {
+            items.push({ icon:'📄', urgency:'medium',
+                title:`${oldQuotes.length} הצעות מחיר ממתינות מעל 3 ימים`,
+                sub:`האחרונה: ${oldQuotes[0].customer_name || `#${oldQuotes[0].id}`}`,
+                tab:'sales', actionLabel:'צפה' });
+        }
+
+        // ─ מלאי נמוך ─
+        const lowStock = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 2);
+        if (lowStock.length > 0) {
+            items.push({ icon:'📦', urgency:'low',
+                title:`${lowStock.length} מוצרים מתחת למינימום`,
+                sub: lowStock.slice(0,3).map(p => p.item_name).join(', '),
+                tab:'pantry', actionLabel:'עדכן' });
+        }
+
+        // ─ משימות שעברו דד-ליין ─
+        const overdue = (allTasks || []).filter(t =>
+            t.status !== 'approved' && t.status !== 'cancelled' &&
+            t.deadline && new Date(t.deadline) < now
+        );
+        if (overdue.length > 0) {
+            items.push({ icon:'✅', urgency:'medium',
+                title:`${overdue.length} משימות שעברו דד-ליין`,
+                sub: overdue[0].title || '',
+                tab:'tasks', actionLabel:'טפל' });
+        }
+
+    } else if (isSenior || isMember) {
+        // ─ האם החתמתי כניסה היום ─
+        try {
+            const stRes = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`);
+            const stData = await stRes.json();
+            if (!stData.punch_in) {
+                items.push({ icon:'⏱', urgency:'high',
+                    title:'לא החתמת כניסה היום',
+                    sub:'לחץ להחתמה מהירה',
+                    tab:'timeclock', actionLabel:'החתם עכשיו' });
+            }
+        } catch(e) {}
+
+        // ─ משימות אישיות ליום זה ─
+        const myTasks = (allTasks || []).filter(t => {
+            if (t.status === 'approved' || t.status === 'cancelled') return false;
+            if (t.assigned_to && t.assigned_to !== currentUser?.id) return false;
+            const due = t.deadline ? new Date(t.deadline) : null;
+            return due && (due.toDateString() === todayStr || due < now);
+        });
+        if (myTasks.length > 0) {
+            items.push({ icon:'✅', urgency:'medium',
+                title:`${myTasks.length} משימות שלך להיום`,
+                sub: myTasks.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'פתח' });
+        }
+    }
+
+    if (items.length === 0) { section.classList.add('hidden'); return; }
+
+    const C = {
+        high:   { bg:'bg-red-50',   border:'border-red-100',   ibg:'bg-red-100',   txt:'text-red-600' },
+        medium: { bg:'bg-amber-50', border:'border-amber-100', ibg:'bg-amber-100', txt:'text-amber-700' },
+        low:    { bg:'bg-slate-50', border:'border-slate-100', ibg:'bg-slate-100', txt:'text-slate-500' }
+    };
+
+    list.innerHTML = items.map((item, i) => {
+        const c = C[item.urgency] || C.low;
+        const sep = i < items.length - 1 ? `border-b ${c.border}` : '';
+        return `<div class="flex items-center gap-3 px-4 py-3 ${c.bg} ${sep} cursor-pointer active:opacity-70 transition-opacity"
+                     onclick="switchTab('${item.tab}')">
+          <div class="w-9 h-9 rounded-xl ${c.ibg} flex items-center justify-center flex-shrink-0 text-base">${item.icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-bold text-slate-800 leading-tight">${item.title}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">${item.sub}</div>
+          </div>
+          <span class="text-[10px] font-bold ${c.txt} bg-white border ${c.border} rounded-full px-2.5 py-1 flex-shrink-0 whitespace-nowrap">${item.actionLabel} →</span>
+        </div>`;
+    }).join('');
+
+    if (badge) badge.textContent = items.length;
+    section.classList.remove('hidden');
+}
 
 function buildAndRenderFeed() {
     window.currentFeedPage = 1;

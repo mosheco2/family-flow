@@ -601,6 +601,21 @@
                <div class="px-2 w-full">
                    
                     <div id="content-feed">
+
+                        <!-- ★ מה מחכה לך — URGENT ITEMS (role-aware) -->
+                        <div id="urgent-items-section" class="px-2 mb-4 hidden">
+                          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                            <div class="bg-gradient-to-l from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-100">
+                              <span class="text-sm font-black text-amber-800 flex items-center gap-2">
+                                <span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black animate-pulse" id="urgent-count-badge">0</span>
+                                ⚡ מה מחכה לך עכשיו
+                              </span>
+                              <button onclick="document.getElementById('urgent-items-section').classList.add('hidden')" class="text-amber-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div id="urgent-items-list" class="divide-y divide-slate-50"></div>
+                          </div>
+                        </div>
+
                         <!-- Balance card — FIRST, prominent -->
                         <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01] mx-2 mt-1">
                           <div class="flex items-start justify-between">
@@ -3992,25 +4007,20 @@
             </span>
         </button>
 
-        <!-- מפריד לפני נגישות -->
-        <div id="pill-sep-access" class="hidden w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
-
-        <!-- נגישות (תמיד גלוי) -->
-        <button onclick="openAccessibilityModal()"
-                aria-label="הגדרות נגישות"
-                class="relative group">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center
-                        hover:bg-blue-50 active:scale-95 transition-all duration-150">
-                <i class="fa-solid fa-universal-access text-blue-500 text-[20px]"></i>
-            </div>
-            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
-                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
-                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
-                         transition-all duration-150 origin-bottom pointer-events-none">
-                נגישות
-            </span>
-        </button>
     </div>
+
+    <!-- נגישות — מינימליסטי, צמוד לדופן ימין -->
+    <button onclick="openAccessibilityModal()"
+            aria-label="הגדרות נגישות"
+            class="fixed top-1/2 -translate-y-1/2 right-0 z-[85]
+                   w-7 h-14 bg-white/80 backdrop-blur-sm
+                   border border-l-0 border-slate-200
+                   rounded-l-xl shadow-md
+                   flex items-center justify-center
+                   hover:w-9 hover:bg-blue-50 active:scale-95
+                   transition-all duration-200 group">
+        <i class="fa-solid fa-universal-access text-blue-400 text-[13px] group-hover:text-blue-600"></i>
+    </button>
 
 <!-- Inventory Count Modal -->
 <div id="inventory-count-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
