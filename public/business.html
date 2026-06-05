@@ -691,6 +691,20 @@
                    
                     <div id="content-feed">
 
+                        <!-- ★ מה מחכה לך — URGENT ITEMS (role-aware, ראשון בעמוד) -->
+                        <div id="urgent-items-section" class="px-2 mt-2 mb-0 hidden">
+                          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                            <div class="bg-gradient-to-l from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-100">
+                              <span class="text-sm font-black text-amber-800 flex items-center gap-2">
+                                <span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black animate-pulse" id="urgent-count-badge">0</span>
+                                ⚡ מה מחכה לך עכשיו
+                              </span>
+                              <button onclick="document.getElementById('urgent-items-section').classList.add('hidden')" class="text-amber-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div id="urgent-items-list" class="divide-y divide-slate-50"></div>
+                          </div>
+                        </div>
+
                         <!-- ★ מסך עובד — חלק עליון: ברכה + כפתורים -->
                         <div id="emp-home-header" class="hidden px-2 pt-2 space-y-3">
 
@@ -729,20 +743,6 @@
                             </button>
                           </div>
 
-                        </div>
-
-                        <!-- ★ מה מחכה לך — URGENT ITEMS (role-aware) -->
-                        <div id="urgent-items-section" class="px-2 mb-4 hidden">
-                          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-                            <div class="bg-gradient-to-l from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-100">
-                              <span class="text-sm font-black text-amber-800 flex items-center gap-2">
-                                <span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black animate-pulse" id="urgent-count-badge">0</span>
-                                ⚡ מה מחכה לך עכשיו
-                              </span>
-                              <button onclick="document.getElementById('urgent-items-section').classList.add('hidden')" class="text-amber-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                            <div id="urgent-items-list" class="divide-y divide-slate-50"></div>
-                          </div>
                         </div>
 
                         <!-- ★ מסך עובד — חלק תחתון: משימות + קישורים -->
