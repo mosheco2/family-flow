@@ -3263,14 +3263,16 @@ window.toggleNavDropdown = function(group) {
         if (d) { d.classList.add('hidden'); d.removeAttribute('style'); }
     });
     if (isOpen) return;
-    // מיקום fixed מתחת לכפתור, בגבולות המסך
+    // מיקום fixed מתחת לכפתור — מוגבל לגבולות ה-nav (לא window שיכול להיות רחב יותר)
     const btn = document.getElementById(`gnav-group-${group}`);
-    if (!btn) return;
+    const nav = document.getElementById('group-nav');
+    if (!btn || !nav) return;
     const rect = btn.getBoundingClientRect();
+    const navRect = nav.getBoundingClientRect();
     const ddWidth = 170;
     let leftPos = rect.left;
-    if (leftPos + ddWidth > window.innerWidth - 8) leftPos = window.innerWidth - ddWidth - 8;
-    if (leftPos < 8) leftPos = 8;
+    if (leftPos + ddWidth > navRect.right - 4) leftPos = navRect.right - ddWidth - 4;
+    if (leftPos < navRect.left + 4) leftPos = navRect.left + 4;
     dd.style.cssText = `position:fixed !important; top:${rect.bottom + 4}px !important; left:${leftPos}px !important; right:auto !important; z-index:9999 !important;`;
     dd.classList.remove('hidden');
 };
