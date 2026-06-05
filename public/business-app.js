@@ -2721,14 +2721,14 @@ function toggleAiCheck() {
     const isOn = input.value === 'true';
     if (isOn) {
         input.value = 'false';
-        toggle.classList.remove('bg-slate-800');
+        toggle.classList.remove('bg-green-500');
         toggle.classList.add('bg-slate-200');
         knob.classList.remove('translate-x-6');
         knob.classList.add('translate-x-1');
     } else {
         input.value = 'true';
         toggle.classList.remove('bg-slate-200');
-        toggle.classList.add('bg-slate-800');
+        toggle.classList.add('bg-green-500');
         knob.classList.remove('translate-x-1');
         knob.classList.add('translate-x-6');
     }
@@ -2739,6 +2739,7 @@ function openTaskModal(isSelf = false) {
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
     const aiCheckEl = getEl('task-require-ai-check'); if (aiCheckEl) aiCheckEl.value = 'true';
     const knob = getEl('ai-check-knob'); if (knob) { knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6'); }
+    const toggleBtn = getEl('ai-check-toggle'); if (toggleBtn) { toggleBtn.classList.remove('bg-slate-200'); toggleBtn.classList.add('bg-green-500'); }
     setTaskMode('manual'); const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
 
     if(isSelf) { 
