@@ -1534,7 +1534,8 @@ async function loadDashboard() {
         // =========================================================================
 
         const isAdmin = currentUser.role === 'ADMIN';
-        if(isAdmin) { 
+        const isManager = currentUser.role === 'MANAGER';
+        if(isAdmin) {
             ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
             const profileUp = getEl('profile-upgrade-section');
@@ -1552,7 +1553,9 @@ async function loadDashboard() {
                     getEl('tc-month-filter').innerHTML += `<option value="${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}">${d.getMonth()+1}/${d.getFullYear()}</option>`;
                 }
             }
-        } else { 
+        } else if (isManager) {
+            ['btn-add-task','admin-tasks-hint'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+        } else {
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
             const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
