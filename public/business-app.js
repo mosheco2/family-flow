@@ -3253,34 +3253,42 @@ const GNAV_GROUPS = {
     more:      ['community','surveys']
 };
 
+// שמירת האב המקורי של כל dropdown לצורך החזרה
+const _gnavOriginalParents = {};
+
 window.toggleNavDropdown = function(group) {
     const dd = document.getElementById(`gnav-dropdown-${group}`);
     if (!dd) return;
     const isOpen = !dd.classList.contains('hidden');
-    // סגור את כולם ונקה סגנונות
-    Object.keys(GNAV_GROUPS).forEach(g => {
-        const d = document.getElementById(`gnav-dropdown-${g}`);
-        if (d) { d.classList.add('hidden'); d.removeAttribute('style'); }
-    });
+    window.closeNavDropdowns();
     if (isOpen) return;
-    // מיקום fixed מתחת לכפתור — מוגבל לגבולות ה-nav (לא window שיכול להיות רחב יותר)
+
     const btn = document.getElementById(`gnav-group-${group}`);
-    const nav = document.getElementById('group-nav');
-    if (!btn || !nav) return;
+    if (!btn) return;
     const rect = btn.getBoundingClientRect();
-    const navRect = nav.getBoundingClientRect();
+
+    // Portal: העברה ל-body כדי לעקוף overflow/transform של כל אב
+    if (!_gnavOriginalParents[group]) _gnavOriginalParents[group] = dd.parentElement;
+    document.body.appendChild(dd);
+
     const ddWidth = 170;
     let leftPos = rect.left;
-    if (leftPos + ddWidth > navRect.right - 4) leftPos = navRect.right - ddWidth - 4;
-    if (leftPos < navRect.left + 4) leftPos = navRect.left + 4;
-    dd.style.cssText = `position:fixed !important; top:${rect.bottom + 4}px !important; left:${leftPos}px !important; right:auto !important; z-index:9999 !important;`;
+    if (leftPos + ddWidth > window.innerWidth - 8) leftPos = window.innerWidth - ddWidth - 8;
+    if (leftPos < 8) leftPos = 8;
+
+    dd.style.cssText = `position:fixed; top:${rect.bottom + 4}px; left:${leftPos}px; right:auto; z-index:99999;`;
     dd.classList.remove('hidden');
 };
 
 window.closeNavDropdowns = function() {
     Object.keys(GNAV_GROUPS).forEach(g => {
         const dd = document.getElementById(`gnav-dropdown-${g}`);
-        if (dd) { dd.classList.add('hidden'); dd.removeAttribute('style'); }
+        if (!dd) return;
+        dd.classList.add('hidden');
+        dd.removeAttribute('style');
+        // החזרה לאב המקורי
+        const orig = _gnavOriginalParents[g];
+        if (orig && dd.parentElement !== orig) orig.appendChild(dd);
     });
 };
 
@@ -3326,9 +3334,14 @@ function syncGnavAlertBadge() {
     if (!hidden) dest.textContent = src.textContent;
 }
 
-// סגירת dropdown בלחיצה מחוץ לנאב
+// סגירת dropdown בלחיצה מחוץ לנאב או מחוץ ל-dropdown הפתוח
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('#group-nav')) window.closeNavDropdowns();
+    if (e.target.closest('#group-nav')) return;
+    const inOpenDropdown = Object.keys(GNAV_GROUPS).some(g => {
+        const dd = document.getElementById(`gnav-dropdown-${g}`);
+        return dd && !dd.classList.contains('hidden') && dd.contains(e.target);
+    });
+    if (!inOpenDropdown) window.closeNavDropdowns();
 });
 
 // ============================================================
