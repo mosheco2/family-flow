@@ -4127,6 +4127,7 @@ function enforcePermissions() {
             if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }
     });
+    try { updateFamilyGroupNavVisibility(); } catch(e) {}
 }
 
 // =====================================
@@ -4215,6 +4216,111 @@ if (!window.switchTabOverridden) {
 
 // קריאה ראשונית כשכל הדף נטען
 setTimeout(enforcePermissions, 1500);
+
+// ============================================================
+// --- FAMILY GROUP NAV ---
+// ============================================================
+const FAMILY_GNAV_GROUPS = {
+    home:   ['shop', 'myorders', 'pantry', 'recipes'],
+    money:  ['bank', 'cashflow', 'budget', 'forecast'],
+    family: ['tasks', 'academy', 'community', 'members']
+};
+
+const _fgnavOriginalParents = {};
+
+window.toggleFamilyNavDropdown = function(group) {
+    const dd = document.getElementById(`fgnav-dropdown-${group}`);
+    if (!dd) return;
+    const isOpen = !dd.classList.contains('hidden');
+    window.closeFamilyNavDropdowns();
+    if (isOpen) return;
+
+    const btn = document.getElementById(`fgnav-group-${group}`);
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+
+    if (!_fgnavOriginalParents[group]) _fgnavOriginalParents[group] = dd.parentElement;
+    document.body.appendChild(dd);
+
+    const ddWidth = 170;
+    let leftPos = rect.left;
+    if (leftPos + ddWidth > window.innerWidth - 8) leftPos = window.innerWidth - ddWidth - 8;
+    if (leftPos < 8) leftPos = 8;
+
+    dd.style.cssText = `position:fixed; top:${rect.bottom + 4}px; left:${leftPos}px; right:auto; z-index:99999;`;
+    dd.classList.remove('hidden');
+};
+
+window.closeFamilyNavDropdowns = function() {
+    Object.keys(FAMILY_GNAV_GROUPS).forEach(g => {
+        const dd = document.getElementById(`fgnav-dropdown-${g}`);
+        if (!dd) return;
+        dd.classList.add('hidden');
+        dd.removeAttribute('style');
+        const orig = _fgnavOriginalParents[g];
+        if (orig && dd.parentElement !== orig) orig.appendChild(dd);
+    });
+};
+
+function updateFamilyGroupNavActiveState(tabId) {
+    const feedBtn = document.getElementById('fgnav-btn-feed');
+    if (feedBtn) {
+        feedBtn.className = tabId === 'feed'
+            ? 'fgnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 transition-all duration-150'
+            : 'fgnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150';
+    }
+    let activeGroup = null;
+    for (const [g, tabs] of Object.entries(FAMILY_GNAV_GROUPS)) {
+        if (tabs.includes(tabId)) { activeGroup = g; break; }
+    }
+    Object.keys(FAMILY_GNAV_GROUPS).forEach(g => {
+        const btn = document.getElementById(`fgnav-btn-${g}`);
+        if (!btn) return;
+        btn.classList.toggle('bg-indigo-600', g === activeGroup);
+        btn.classList.toggle('text-white', g === activeGroup);
+        btn.classList.toggle('text-slate-400', g !== activeGroup);
+    });
+}
+
+function updateFamilyGroupNavVisibility() {
+    Object.entries(FAMILY_GNAV_GROUPS).forEach(([g, tabs]) => {
+        const groupEl = document.getElementById(`fgnav-group-${g}`);
+        if (!groupEl) return;
+        const hasVisible = tabs.some(id => {
+            const btn = document.getElementById(`tab-${id}`);
+            return btn && btn.style.display !== 'none';
+        });
+        groupEl.style.display = hasVisible ? '' : 'none';
+    });
+}
+
+function syncFamilyBellBadge() {
+    const src  = document.getElementById('bell-badge');
+    const dest = document.getElementById('fgnav-bell-badge');
+    if (!src || !dest) return;
+    const hidden = src.classList.contains('hidden');
+    dest.classList.toggle('hidden', hidden);
+    if (!hidden) dest.textContent = src.textContent;
+}
+
+// סגירת dropdown בלחיצה מחוץ לנאב
+document.addEventListener('click', function(e) {
+    if (e.target.closest('#family-group-nav')) return;
+    const inDropdown = Object.keys(FAMILY_GNAV_GROUPS).some(g => {
+        const dd = document.getElementById(`fgnav-dropdown-${g}`);
+        return dd && !dd.classList.contains('hidden') && dd.contains(e.target);
+    });
+    if (!inDropdown) window.closeFamilyNavDropdowns?.();
+});
+
+// עטיפת switchTab לעדכון group nav
+(function() {
+    const _prev = window.switchTab;
+    window.switchTab = function(tabId) {
+        _prev(tabId);
+        try { updateFamilyGroupNavActiveState(tabId); closeFamilyNavDropdowns(); syncFamilyBellBadge(); } catch(e) {}
+    };
+})();
 
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
