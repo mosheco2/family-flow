@@ -5834,6 +5834,7 @@ window.renderStoreQuotes = function() {
                         <h4 class="font-bold text-slate-800 text-sm truncate">${q.quote_number || `הצעה #${q.id}`} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
+                        ${q.customer_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הלקוח • ${new Date(q.customer_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
                         ${displayNote}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
@@ -5898,7 +5899,7 @@ window.updateQuoteStatus = async function(id, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 };
 
-window.sendQuoteToCustomer = function(id) {
+window.sendQuoteToCustomer = async function(id) {
     const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
     if (!q) return;
 
@@ -5909,19 +5910,30 @@ window.sendQuoteToCustomer = function(id) {
     const storeAlias = document.getElementById('store-alias-input') ? document.getElementById('store-alias-input').value : '';
     const displayId = storeAlias || currentGroup.group_code;
     const publicUrl = `${window.location.origin}/${displayId}`;
-    
+
     const cleanPhone = q.customer_phone.replace(/\D/g, '');
     let waPhone = cleanPhone;
     if (cleanPhone.startsWith('0')) {
         waPhone = '972' + cleanPhone.substring(1);
     }
-    
+
     const amount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
-    
+
+    let confirmUrl = '';
+    try {
+        const resp = await fetch(`${API}/store/quotes/${id}/prepare-send`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.confirmUrl) confirmUrl = data.confirmUrl;
+    } catch(e) {}
+
     let text = `שלום ${safeStr(q.customer_name)}, בהמשך לפנייתך,\n`;
     text += `הכנו עבורך הצעת מחיר (מס' ${q.id}) על סך ₪${amount}.\n\n`;
     text += `ההצעה המלאה תצורף לכאן כמסמך PDF.\n`;
     text += `לצפייה במוצרים נוספים בחנות שלנו:\n${publicUrl}\n\n`;
+    if (confirmUrl) {
+        text += `✅ לאישור קבלת ההצעה — לחץ כאן:\n${confirmUrl}\n`;
+        text += `(לחיצה תסמן שההצעה התקבלה אצלך)\n\n`;
+    }
     text += `אנא השב/י להודעה זו במילה "מאשר" או "לא מאשר" כדי שנוכל להתקדם.\n\n`;
     text += `בברכה,\n${currentGroup.name}\n\n`;
     text += `Oneflowlife.co.il תכירו, המערכת המושלמת לניהול משפחות ועסקים.`;
@@ -11305,6 +11317,7 @@ function renderB2BOrders() {
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                    ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
@@ -11344,7 +11357,7 @@ async function editDraftOrder(orderId) {
     } catch(e) { showToast('error', 'שגיאה בטעינת הטיוטה לעגלה'); }
 }
 
-window.sendPurchaseOrderWhatsApp = function(orderId) {
+window.sendPurchaseOrderWhatsApp = async function(orderId) {
     const o = (b2bOrdersHistory || []).find(x => x.id === orderId);
     if (!o) return showToast('error', 'לא נמצאה ההזמנה');
     const supData = suppliersList.find(s => String(s.id) === String(o.supplier_id)) || {};
@@ -11353,6 +11366,12 @@ window.sendPurchaseOrderWhatsApp = function(orderId) {
     const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
     const dateStr = new Date(o.created_at).toLocaleDateString('he-IL');
     const contactEmail = currentGroup?.admin_email || '';
+
+    let confirmUrl = '';
+    if (o.confirm_token) {
+        confirmUrl = `${window.location.origin}/c/po/${o.id}/${o.confirm_token}`;
+    }
+
     let msg = `שלום ${supData.name},\n`;
     msg += `הזמנת רכש #${o.id} מ${currentGroup.name}\n`;
     msg += `תאריך: ${dateStr}\n`;
@@ -11363,13 +11382,15 @@ window.sendPurchaseOrderWhatsApp = function(orderId) {
     });
     msg += `\nסה"כ להזמנה: ₪${parseFloat(o.total_amount || 0).toFixed(2)}\n`;
     if (o.notes) msg += `הערות: ${o.notes}\n`;
-    msg += `\nנא לאשר קבלת ההזמנה. תודה!`;
+    if (confirmUrl) {
+        msg += `\n✅ לאישור קבלת ההזמנה — לחץ כאן:\n${confirmUrl}\n`;
+    }
+    msg += `\nתודה!`;
 
     let phone = supData.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '972' + phone.substring(1);
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 
-    // פתח PDF של ההזמנה בחלון נפרד
     _openPurchaseOrderPrintWindow(o, supData, items, dateStr);
 };
 

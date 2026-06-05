@@ -96,7 +96,10 @@ pool.connect()
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_number VARCHAR(20)'); } catch(e) {}
       try { await client.query(`UPDATE store_orders SET quote_number = 'QT-' || LPAD(id::text, 6, '0') WHERE status = 'quote' AND quote_number IS NULL`); } catch(e) {}
-      try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS require_ai_check BOOLEAN DEFAULT TRUE'); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_confirmed_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
 
       await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
           id SERIAL PRIMARY KEY,
@@ -3849,6 +3852,16 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
     }
 });
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
+app.post('/api/store/quotes/:id/prepare-send', async (req, res) => {
+    try {
+        const token = require('crypto').randomBytes(24).toString('hex');
+        const r = await pool.query('UPDATE store_orders SET confirm_token=$1 WHERE id=$2 RETURNING id', [token, req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        res.json({ confirmUrl: `${baseUrl}/c/q/${req.params.id}/${token}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/store/quotes/:id/approve', async (req, res) => {
     try {
         const { targetDatetime } = req.body;
@@ -4757,12 +4770,15 @@ app.post('/api/b2b/orders', async (req, res) => {
         
         for (let order of orders) {
             // 1. שמירה במסד הנתונים
+            const poToken = require('crypto').randomBytes(24).toString('hex');
             const result = await dbClient.query(`
-                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
-                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
-            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
-            
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, confirm_token)
+                VALUES ($1, $2, $3, $4, $5, 'sent', $6) RETURNING id
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount, poToken]);
+
             const newOrderId = result.rows[0].id;
+            const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+            const poConfirmUrl = `${baseUrl}/c/po/${newOrderId}/${poToken}`;
             const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
@@ -4787,6 +4803,10 @@ app.post('/api/b2b/orders', async (req, res) => {
                             </div>
                             
                             <p>אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                            <div style="margin: 20px 0; text-align: center;">
+                                <a href="${poConfirmUrl}" style="display:inline-block;background:#22c55e;color:#fff;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;text-decoration:none;">✅ אשר קבלת הזמנה</a>
+                                <p style="font-size:11px;color:#94a3b8;margin-top:8px;">לחיצה תסמן אוטומטית שהמסמך התקבל אצלכם</p>
+                            </div>
                             <br>
                             <p>בברכה,</p>
                             <p><b>לקוח Oneflow BIZ</b></p>
@@ -6764,6 +6784,53 @@ setTimeout(runAlertEngine, 30000);
 setInterval(runAlertEngine, 5 * 60 * 1000);
 setTimeout(checkSLABreaches, 45000);
 setInterval(checkSLABreaches, 5 * 60 * 1000);
+
+// =========================================================
+// עמודי אישור קבלה ציבוריים (ללא auth)
+// =========================================================
+function confirmationPage(title, subtitle, alreadyDone) {
+    const color = alreadyDone ? '#64748b' : '#22c55e';
+    const icon = alreadyDone ? '✅' : '🎉';
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>אישור קבלה</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#fff;border-radius:24px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:380px;width:100%}.icon{font-size:64px;margin-bottom:20px}.title{font-size:22px;font-weight:900;color:#1e293b;margin-bottom:10px}.sub{font-size:14px;color:#64748b;line-height:1.6}.badge{display:inline-block;background:${color}20;color:${color};border:1px solid ${color}40;border-radius:100px;padding:6px 18px;font-size:13px;font-weight:700;margin-top:20px}</style></head>
+<body><div class="card"><div class="icon">${icon}</div><h1 class="title">${title}</h1><p class="sub">${subtitle}</p><span class="badge">${alreadyDone ? 'כבר אושר בעבר' : 'המערכת עודכנה ✓'}</span></div></body></html>`;
+}
+
+app.get('/c/q/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM store_orders WHERE id=$1 AND confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.customer_confirmed_at;
+        if (!alreadyDone) {
+            await pool.query('UPDATE store_orders SET customer_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
+        }
+        const name = order.customer_name || 'לקוח';
+        const num = order.quote_number || `#${order.id}`;
+        res.send(confirmationPage(
+            `תודה ${name}!`,
+            `קבלת הצעת מחיר ${num} על סך ₪${parseFloat(order.total_amount||0).toFixed(2)} אושרה.\nנציג ייצור איתך קשר בהקדם.`,
+            alreadyDone
+        ));
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+app.get('/c/po/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT po.*, s.name as supplier_name FROM purchase_orders po LEFT JOIN suppliers s ON po.supplier_id=s.id WHERE po.id=$1 AND po.confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.supplier_confirmed_at;
+        if (!alreadyDone) {
+            await pool.query('UPDATE purchase_orders SET supplier_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
+        }
+        res.send(confirmationPage(
+            `הזמנה #${order.id} התקבלה!`,
+            `תודה ${order.supplier_name || 'ספק'} על אישור קבלת הזמנת הרכש.\nנפנה אליכם בכל שאלה.`,
+            alreadyDone
+        ));
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
 
 // הפעלת השרת
 app.listen(port, () => {
