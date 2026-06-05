@@ -3246,8 +3246,8 @@ window.changeFeedPage = function(direction) {
 // --- GROUP NAV — 5 קבוצות ניווט ---
 // ============================================================
 const GNAV_GROUPS = {
-    team:      ['timeclock','shifts','calendar','tasks','deliveries','academy','members'],
-    sales:     ['pos','sales','customers'],
+    team:      ['timeclock','shifts','calendar','tasks','academy','members'],
+    sales:     ['pos','sales','customers','deliveries'],
     inventory: ['shop','pantry','foodcost'],
     finance:   ['bank','cashflow','budget','forecast'],
     more:      ['community','surveys']
