@@ -11193,11 +11193,15 @@ async function submitB2BOrders() {
         
         const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
         const data = await res.json();
-        
+
         if (data.success) {
-            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!'); getEl('b2b-checkout-modal').classList.add('hidden');
-            b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq'); 
-        } else showToast('error', data.error);
+            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!');
+        } else {
+            showToast('warning', 'ההזמנה נשמרה אך אירעה שגיאה: ' + (data.error || 'שגיאה לא ידועה'));
+        }
+        // מנקה את הסל תמיד — בין אם הצליח ובין אם הייתה שגיאה משנית
+        getEl('b2b-checkout-modal').classList.add('hidden');
+        b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq');
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 

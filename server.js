@@ -4769,16 +4769,23 @@ app.post('/api/b2b/orders', async (req, res) => {
         }
         
         for (let order of orders) {
-            // 1. שמירה במסד הנתונים
-            const poToken = require('crypto').randomBytes(24).toString('hex');
+            // 1. שמירה במסד הנתונים — INSERT ראשי ללא תלות בעמודות אופציונליות
             const result = await dbClient.query(`
-                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, confirm_token)
-                VALUES ($1, $2, $3, $4, $5, 'sent', $6) RETURNING id
-            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount, poToken]);
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
+                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
 
             const newOrderId = result.rows[0].id;
-            const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
-            const poConfirmUrl = `${baseUrl}/c/po/${newOrderId}/${poToken}`;
+
+            // 1b. אסימון אישור — UPDATE נפרד כדי שכשל כאן לא יפיל את ההזמנה
+            let poConfirmUrl = '';
+            try {
+                const poToken = require('crypto').randomBytes(24).toString('hex');
+                await dbClient.query('UPDATE purchase_orders SET confirm_token=$1 WHERE id=$2', [poToken, newOrderId]);
+                const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+                poConfirmUrl = `${baseUrl}/c/po/${newOrderId}/${poToken}`;
+            } catch(tokenErr) { console.warn('confirm_token update skipped:', tokenErr.message); }
+
             const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
