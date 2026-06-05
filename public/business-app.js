@@ -3254,29 +3254,31 @@ const GNAV_GROUPS = {
 };
 
 window.toggleNavDropdown = function(group) {
-    const isCurrentlyOpen = !document.getElementById(`gnav-dropdown-${group}`)?.classList.contains('hidden');
-    // סגור את כולם
-    Object.keys(GNAV_GROUPS).forEach(g => {
-        const dd = document.getElementById(`gnav-dropdown-${g}`);
-        if (dd) dd.classList.add('hidden');
-    });
-    if (isCurrentlyOpen) return;
-    // פתח את הנבחר — positioning fixed כדי לעקוף overflow של ה-nav
     const dd = document.getElementById(`gnav-dropdown-${group}`);
+    if (!dd) return;
+    const isOpen = !dd.classList.contains('hidden');
+    // סגור את כולם ונקה סגנונות
+    Object.keys(GNAV_GROUPS).forEach(g => {
+        const d = document.getElementById(`gnav-dropdown-${g}`);
+        if (d) { d.classList.add('hidden'); d.removeAttribute('style'); }
+    });
+    if (isOpen) return;
+    // מיקום fixed מתחת לכפתור, בגבולות המסך
     const btn = document.getElementById(`gnav-group-${group}`);
-    if (!dd || !btn) return;
+    if (!btn) return;
     const rect = btn.getBoundingClientRect();
-    dd.style.position = 'fixed';
-    dd.style.top = (rect.bottom + 4) + 'px';
-    dd.style.right = (window.innerWidth - rect.right) + 'px';
-    dd.style.left = 'auto';
+    const ddWidth = 170;
+    let leftPos = rect.left;
+    if (leftPos + ddWidth > window.innerWidth - 8) leftPos = window.innerWidth - ddWidth - 8;
+    if (leftPos < 8) leftPos = 8;
+    dd.style.cssText = `position:fixed !important; top:${rect.bottom + 4}px !important; left:${leftPos}px !important; right:auto !important; z-index:9999 !important;`;
     dd.classList.remove('hidden');
 };
 
 window.closeNavDropdowns = function() {
     Object.keys(GNAV_GROUPS).forEach(g => {
         const dd = document.getElementById(`gnav-dropdown-${g}`);
-        if (dd) dd.classList.add('hidden');
+        if (dd) { dd.classList.add('hidden'); dd.removeAttribute('style'); }
     });
 };
 
