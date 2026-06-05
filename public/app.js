@@ -824,6 +824,7 @@ async function fetchData() {
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
         try { renderQuickTiles(); } catch(e) {}
         try { renderFamilyUrgentItems(); } catch(e) {}
+        try { renderChildDashboard(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -1258,6 +1259,39 @@ function renderChildTodo() {
         htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
     });
     if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
+}
+
+function renderChildDashboard() {
+    const isChild = currentUser && currentUser.role !== 'ADMIN';
+    const header = getEl('child-home-header');
+    const footer = getEl('child-home-footer');
+    const balanceCard = getEl('tour-balance-card');
+    const quickTiles = getEl('quick-tiles');
+
+    if (!isChild) {
+        if (header) header.classList.add('hidden');
+        if (footer) footer.classList.add('hidden');
+        return;
+    }
+
+    // Show child sections, hide admin ones
+    if (header) header.classList.remove('hidden');
+    if (footer) footer.classList.remove('hidden');
+    if (balanceCard) balanceCard.classList.add('hidden');
+    if (quickTiles) quickTiles.classList.add('hidden');
+
+    // Copy balance from the main balance element
+    const mainBal = getEl('user-balance');
+    const childBal = getEl('child-balance-display');
+    if (childBal && mainBal) childBal.innerText = mainBal.innerText;
+
+    // Greeting
+    const greetEl = getEl('child-greeting-text');
+    if (greetEl && currentUser.name) {
+        const hour = new Date().getHours();
+        const greet = hour < 12 ? 'בוקר טוב' : hour < 18 ? 'צהריים טובים' : 'ערב טוב';
+        greetEl.innerText = `${greet}, ${currentUser.name}! 👋`;
+    }
 }
 
 function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id').value = id; getEl('approve-task-title').innerText = title; getEl('approve-task-reward').value = currentReward || 0; getEl('approve-task-modal').classList.remove('hidden'); }

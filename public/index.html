@@ -455,12 +455,51 @@
                           </div>
                         </div>
 
+                        <!-- ★ CHILD HOME HEADER -->
+                        <div id="child-home-header" class="hidden px-2 mb-4">
+                          <div class="bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-200 relative overflow-hidden">
+                            <i class="fa-solid fa-star absolute -right-4 -bottom-4 text-[5rem] text-white opacity-10 rotate-12"></i>
+                            <p class="text-violet-100 text-xs font-medium mb-0.5 opacity-80">היתרה שלי</p>
+                            <h1 class="text-3xl font-bold tracking-tight" id="child-balance-display">₪0</h1>
+                            <p class="text-violet-100 text-sm mt-3 mb-4 opacity-90" id="child-greeting-text">שלום! 👋</p>
+                            <div class="grid grid-cols-2 gap-3">
+                              <button onclick="switchTab('shop')" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
+                                <div class="text-2xl mb-1">🛒</div>
+                                <div class="text-xs font-bold">בקשת קניה</div>
+                              </button>
+                              <button onclick="switchTab('academy')" class="bg-white/20 hover:bg-white/30 backdrop-blur rounded-xl py-3 px-2 text-center transition active:scale-95">
+                                <div class="text-2xl mb-1">🎓</div>
+                                <div class="text-xs font-bold">אתגר אקדמיה</div>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                         <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01]">
                             <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
                             <h1 class="text-3xl font-bold tracking-tight" id="user-balance">₪0</h1>
                             <i class="fa-solid fa-wallet absolute -right-4 -bottom-4 text-[4rem] text-white opacity-10 rotate-12"></i>
                         </div>
                         <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
+
+                        <!-- ★ CHILD HOME FOOTER -->
+                        <div id="child-home-footer" class="hidden px-2 mb-6">
+                          <h3 class="font-bold text-slate-600 text-sm mb-3 px-1">קישורים מהירים</h3>
+                          <div class="grid grid-cols-3 gap-3">
+                            <button onclick="switchTab('bank')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                              <span class="text-2xl">🐷</span>
+                              <span class="text-xs font-bold text-slate-700">חיסכון</span>
+                            </button>
+                            <button onclick="switchTab('cashflow')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                              <span class="text-2xl">📜</span>
+                              <span class="text-xs font-bold text-slate-700">היסטוריה</span>
+                            </button>
+                            <button onclick="switchTab('community')" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:bg-violet-50 active:scale-95 transition">
+                              <span class="text-2xl">👥</span>
+                              <span class="text-xs font-bold text-slate-700">קהילה</span>
+                            </button>
+                          </div>
+                        </div>
 
                         <div id="quick-tiles" class="grid grid-cols-3 gap-3 px-2 mb-4">
                           <!-- 6 tiles inserted by JS -->
