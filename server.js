@@ -3839,9 +3839,9 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
             FROM store_orders so
             JOIN family_groups fg ON so.group_id = fg.id
             WHERE so.family_group_id = $1
-               OR ($2 IS NOT NULL AND $2 <> '' AND so.customer_phone = $2)
+               OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
             ORDER BY so.created_at DESC
-        `, [familyGroupId, userPhone || '']);
+        `, [familyGroupId, userPhone || null]);
 
         res.json({ success: true, orders: orders.rows });
     } catch(e) {
