@@ -3347,10 +3347,18 @@ function updateGroupNavBadges() {
     const teamBadge = document.getElementById('gnav-badge-team');
     if (teamBadge) { teamBadge.textContent = teamCount > 9 ? '9+' : teamCount; teamBadge.classList.toggle('hidden', teamCount === 0); }
 
+    // badge ספציפי על שורת "משימות" בדרופ-דאון
+    const taskDropBadge = document.getElementById('gdrop-badge-tasks');
+    if (taskDropBadge) { taskDropBadge.textContent = teamCount > 9 ? '9+' : teamCount; taskDropBadge.classList.toggle('hidden', teamCount === 0); }
+
     // מכירות: הזמנות חדשות
     const salesCount = (storeOrdersCache || []).filter(o => o.status === 'new').length;
     const salesBadge = document.getElementById('gnav-badge-sales');
     if (salesBadge) { salesBadge.textContent = salesCount > 9 ? '9+' : salesCount; salesBadge.classList.toggle('hidden', salesCount === 0); }
+
+    // badge ספציפי על שורת "מכירות וחנות" בדרופ-דאון
+    const ordersDropBadge = document.getElementById('gdrop-badge-orders');
+    if (ordersDropBadge) { ordersDropBadge.textContent = salesCount > 9 ? '9+' : salesCount; ordersDropBadge.classList.toggle('hidden', salesCount === 0); }
 }
 
 // רישום Service Worker
