@@ -742,17 +742,17 @@
 
                           <!-- קישורים מהירים נוספים -->
                           <div class="grid grid-cols-3 gap-2">
-                            <button onclick="switchTab('calendar')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
-                              <i class="fa-solid fa-calendar text-purple-500 text-lg"></i>
-                              <span class="text-[10px] font-bold text-slate-600">יומן</span>
+                            <button onclick="switchTab('deliveries')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-motorcycle text-orange-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">שליחויות</span>
                             </button>
-                            <button onclick="switchTab('academy')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
-                              <i class="fa-solid fa-graduation-cap text-amber-500 text-lg"></i>
-                              <span class="text-[10px] font-bold text-slate-600">הכשרות</span>
+                            <button onclick="switchTab('surveys')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-bullhorn text-blue-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">תקשורת</span>
                             </button>
-                            <button onclick="switchTab('community')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
-                              <i class="fa-solid fa-comments text-blue-500 text-lg"></i>
-                              <span class="text-[10px] font-bold text-slate-600">קהילה</span>
+                            <button onclick="switchTab('pos')" class="flex flex-col items-center gap-1.5 bg-white rounded-xl py-3 border border-slate-100 shadow-sm active:scale-95 transition-transform">
+                              <i class="fa-solid fa-cash-register text-emerald-500 text-lg"></i>
+                              <span class="text-[10px] font-bold text-slate-600">קופה</span>
                             </button>
                           </div>
 
@@ -798,7 +798,7 @@
                         </div>
 
                         <!-- KPI cards (BELOW tiles) -->
-                        <div class="grid grid-cols-2 gap-3 px-2 mb-4">
+                        <div id="admin-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4">
                           <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200">
                             <div class="text-indigo-200 text-[10px] font-semibold mb-1">מכירות היום</div>
                             <div class="text-2xl font-black" id="kpi-sales-today">₪0</div>

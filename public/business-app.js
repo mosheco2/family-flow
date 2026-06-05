@@ -3358,7 +3358,7 @@ async function renderEmployeeDashboard() {
     empHome.classList.remove('hidden');
     if (adminHome) adminHome.closest && adminHome.classList.add('hidden');
     // הסתר quick-tiles וalerts שמיועדים למנהל
-    ['tour-balance-card','quick-tiles','dashboard-alerts'].forEach(id => {
+    ['tour-balance-card','quick-tiles','admin-kpi-cards','dashboard-alerts'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -3431,7 +3431,7 @@ window.renderDashboard = async function(forceRefresh = false) {
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
     // הצג מחדש כרטיסי מנהל אם עברו ממצב עובד
-    ['tour-balance-card','quick-tiles'].forEach(id => {
+    ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('hidden');
     });
