@@ -6214,23 +6214,22 @@ async function renderFamilyUrgentItems() {
         const myTasks = (allTasks || []).filter(t => {
             if (t.status === 'approved' || t.status === 'cancelled') return false;
             if (t.assigned_to && String(t.assigned_to) !== String(currentUser?.id)) return false;
-            const due = t.deadline ? new Date(t.deadline) : null;
-            return due && (due.toDateString() === todayStr || due < now);
+            return t.status === 'pending';
         });
-        if (myTasks.length > 0)
-            items.push({ icon:'✅', urgency:'high',
+        if (myTasks.length > 0) {
+            const overdue = myTasks.filter(t => t.deadline && new Date(t.deadline) < now);
+            items.push({ icon:'✅', urgency: overdue.length > 0 ? 'high' : 'medium',
                 title:`${myTasks.length} משימות שלך ממתינות`,
                 sub: myTasks.slice(0,2).map(t => t.title).join(', '),
                 tab:'tasks', actionLabel:'בצע' });
+        }
 
         // אתגרי אקדמיה ממתינים
-        const myAcademy = (window.academyChallenges || []).filter(c =>
-            c.status === 'assigned' && String(c.assigned_to) === String(currentUser?.id)
-        );
+        const myAcademy = (bundlesCache || []).filter(b => b.status === 'assigned');
         if (myAcademy.length > 0)
             items.push({ icon:'🎓', urgency:'medium',
                 title:`${myAcademy.length} אתגרי אקדמיה ממתינים לך`,
-                sub:'לחץ לפתיחה',
+                sub: myAcademy.slice(0,2).map(b => b.title).join(', '),
                 tab:'academy', actionLabel:'התחל' });
     }
 
