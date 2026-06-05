@@ -1935,10 +1935,10 @@
                         <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-indigo-50 p-3 rounded-xl border border-indigo-100 mx-2 mb-4 hidden font-medium shadow-sm"><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i> נהלו פרויקטים וסדרי עבודה. בנו נהלים שוטפים (SOPs) או משימות בודדות, והקצו לצוות. כשיסיימו יצלמו הוכחה לתגמול!</p>
                         <div class="flex flex-row justify-between items-center mb-4 px-2 gap-2">
                             <h3 class="font-bold text-slate-700 text-base">משימות ונהלים</h3>
-                            <div class="flex flex-wrap gap-2">
-                                <button onclick="openTaskModal(true)" id="btn-self-task" class="flex-1 sm:flex-none bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> דיווח עצמי</button>
-                                <button onclick="if(typeof window.openTaskSetManagerModal === 'function') window.openTaskSetManagerModal()" id="btn-manage-task-sets" class="flex-1 sm:flex-none bg-white text-indigo-600 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition hidden"><i class="fa-solid fa-layer-group mr-1"></i> נהלים (SOPs)</button>
-                                <button onclick="openTaskModal()" id="btn-add-task" class="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> משימה חדשה</button>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-200 transition hidden whitespace-nowrap"><i class="fa-solid fa-star text-yellow-500 mr-1"></i> דיווח עצמי</button>
+                                <button onclick="if(typeof window.openTaskSetManagerModal === 'function') window.openTaskSetManagerModal()" id="btn-manage-task-sets" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-50 transition hidden whitespace-nowrap"><i class="fa-solid fa-layer-group mr-1"></i> נהלים (SOPs)</button>
+                                <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 transition hidden whitespace-nowrap"><i class="fa-solid fa-plus mr-1"></i> משימה חדשה</button>
                             </div>
                         </div>
                         <div id="tasks-list" class="space-y-3 pb-20"></div>
