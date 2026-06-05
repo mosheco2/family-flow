@@ -3347,7 +3347,97 @@ document.addEventListener('click', function(e) {
 // ============================================================
 // --- Dashboard (Home Tab) ---
 // ============================================================
+// ── EMPLOYEE HOME — MEMBER / SENIOR ────────────────────────────
+async function renderEmployeeDashboard() {
+    const empHome   = document.getElementById('employee-home');
+    const adminHome = document.getElementById('tour-balance-card');
+    const urgentSec = document.getElementById('urgent-items-section');
+    if (!empHome) return;
+
+    // הצג מסך עובד, הסתר כרטיסי מנהל
+    empHome.classList.remove('hidden');
+    if (adminHome) adminHome.closest && adminHome.classList.add('hidden');
+    // הסתר quick-tiles וalerts שמיועדים למנהל
+    ['tour-balance-card','quick-tiles','dashboard-alerts'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+    if (urgentSec) urgentSec.classList.add('hidden');
+
+    // ─ ברכה ותאריך ─
+    const now = new Date();
+    const greet = document.getElementById('emp-greeting');
+    const dateL  = document.getElementById('emp-date-label');
+    if (greet && currentUser) greet.textContent = `שלום, ${currentUser.nickname || currentUser.name} 👋`;
+    if (dateL) dateL.textContent = now.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+
+    // ─ סטטוס החתמה ─
+    try {
+        const stRes  = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`);
+        const stData = await stRes.json();
+        const punchEl  = document.getElementById('emp-punch-status');
+        const shiftEl  = document.getElementById('emp-shift-label');
+        if (punchEl) {
+            if (stData.punch_in && !stData.punch_out) {
+                const since = new Date(stData.punch_in);
+                const hrs   = ((now - since) / 3600000).toFixed(1);
+                punchEl.textContent = `✅ בעבודה כבר ${hrs} שעות`;
+                punchEl.className   = 'text-[10px] text-emerald-600 font-bold';
+            } else if (stData.punch_out) {
+                punchEl.textContent = 'יציאה מוקלטת ✓';
+                punchEl.className   = 'text-[10px] text-slate-500';
+            } else {
+                punchEl.textContent = '⚠️ לא החתמת כניסה';
+                punchEl.className   = 'text-[10px] text-red-500 font-bold';
+            }
+        }
+        if (shiftEl) shiftEl.textContent = stData.punch_in ? `כניסה: ${new Date(stData.punch_in).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}` : 'לא בשמרת פעילה';
+    } catch(e) {
+        const punchEl = document.getElementById('emp-punch-status');
+        if (punchEl) punchEl.textContent = 'לא זמין';
+    }
+
+    // ─ משימות אישיות להיום ─
+    const tasksList = document.getElementById('emp-tasks-list');
+    if (tasksList) {
+        const todayStr = now.toDateString();
+        const myTasks  = (allTasks || []).filter(t => {
+            if (t.status === 'approved' || t.status === 'cancelled') return false;
+            if (t.assigned_to && t.assigned_to !== currentUser?.id) return false;
+            const due = t.deadline ? new Date(t.deadline) : null;
+            return due && (due.toDateString() === todayStr || due < now);
+        });
+        if (myTasks.length === 0) {
+            tasksList.innerHTML = `<div class="px-4 py-4 text-xs text-slate-400 text-center">אין משימות לסגירה היום 🎉</div>`;
+        } else {
+            tasksList.innerHTML = myTasks.slice(0, 6).map(t => {
+                const overdue = t.deadline && new Date(t.deadline) < now && new Date(t.deadline).toDateString() !== todayStr;
+                const icon    = t.status === 'completed' ? '✅' : overdue ? '🔴' : '⬜';
+                return `<div class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 active:opacity-70 transition"
+                             onclick="switchTab('tasks')">
+                  <span class="text-base flex-shrink-0">${icon}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-700 truncate">${t.title}</div>
+                    ${overdue ? `<div class="text-[10px] text-red-500">עבר דד-ליין</div>` : ''}
+                  </div>
+                </div>`;
+            }).join('');
+        }
+    }
+}
+
 window.renderDashboard = async function(forceRefresh = false) {
+    const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
+    if (isEmployee) { await renderEmployeeDashboard(); return; }
+
+    // הצג מחדש כרטיסי מנהל אם עברו ממצב עובד
+    ['tour-balance-card','quick-tiles'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+    });
+    const empHome = document.getElementById('employee-home');
+    if (empHome) empHome.classList.add('hidden');
+
     try {
         // Header
         const greetEl = document.getElementById('dash-greeting');
