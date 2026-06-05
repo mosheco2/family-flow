@@ -3314,9 +3314,15 @@ function updateGroupNavActiveState(tabId) {
 }
 
 function updateGroupNavVisibility() {
+    const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     Object.entries(GNAV_GROUPS).forEach(([g, tabs]) => {
         const groupEl = document.getElementById(`gnav-group-${g}`);
         if (!groupEl) return;
+        // עובדים לא רואים כספים ומלאי
+        if (isEmployee && (g === 'finance' || g === 'inventory')) {
+            groupEl.style.display = 'none';
+            return;
+        }
         const hasVisible = tabs.some(id => {
             const btn = document.getElementById(`tab-${id}`);
             return btn && btn.style.display !== 'none';
@@ -3519,6 +3525,9 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Urgent items panel
         renderUrgentItems();
 
+        // ★ Sparklines
+        try { renderSparklines(); } catch(e) {}
+
     } catch(err) { console.error('renderDashboard:', err); }
 };
 
@@ -3653,6 +3662,166 @@ async function renderUrgentItems() {
     if (badge) badge.textContent = items.length;
     section.classList.remove('hidden');
 }
+
+// ── SPARKLINES ─────────────────────────────────────────────────
+function buildSparklineSVG(data, stroke, w = 120, h = 28) {
+    if (!data || data.length < 2) return '';
+    const min = Math.min(...data), max = Math.max(...data);
+    const range = max - min || 1;
+    const pts = data.map((v, i) => {
+        const x = (i / (data.length - 1)) * w;
+        const y = h - 2 - ((v - min) / range) * (h - 6);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
+
+function renderSparklines() {
+    const now = new Date();
+    const days7 = Array.from({length: 7}, (_, i) => {
+        const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return d.toDateString();
+    });
+
+    // מכירות יומיות
+    const salesByDay = days7.map(ds => (storeOrdersCache || []).filter(o =>
+        (o.status === 'completed' || o.status === 'shipped') &&
+        new Date(o.created_at).toDateString() === ds
+    ).reduce((s, o) => s + (parseFloat(o.total_amount) || parseFloat(o.total) || 0), 0));
+
+    // הזמנות פתוחות לפי יום (צבירה)
+    const ordersByDay = days7.map(ds => (storeOrdersCache || []).filter(o =>
+        o.status === 'new' && new Date(o.created_at).toDateString() <= ds
+    ).length);
+
+    // משימות פתוחות (פשוט — אותו מספר לכל יום, ניתן לשפר)
+    const openTasksNow = (allTasks || []).filter(t => t.status === 'pending').length;
+    const tasksByDay = days7.map((_, i) => Math.max(0, openTasksNow - (6 - i) * 0.3 | 0));
+
+    // עובדים — קבוע (אין היסטוריה)
+    const staffCount = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+    const staffByDay = days7.map(() => staffCount);
+
+    const sp = document.getElementById('spark-sales');
+    if (sp) sp.innerHTML = buildSparklineSVG(salesByDay, 'rgba(255,255,255,0.8)');
+    const so = document.getElementById('spark-orders');
+    if (so) so.innerHTML = buildSparklineSVG(ordersByDay, '#f59e0b');
+    const st = document.getElementById('spark-tasks');
+    if (st) st.innerHTML = buildSparklineSVG(tasksByDay, '#f43f5e');
+    const ss = document.getElementById('spark-staff');
+    if (ss) ss.innerHTML = buildSparklineSVG(staffByDay, 'rgba(255,255,255,0.8)');
+}
+
+// ── GLOBAL SEARCH ───────────────────────────────────────────────
+window.openGlobalSearch = function() {
+    const modal = document.getElementById('global-search-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    setTimeout(() => document.getElementById('global-search-input')?.focus(), 100);
+};
+
+window.closeGlobalSearch = function() {
+    const modal = document.getElementById('global-search-modal');
+    if (modal) modal.classList.add('hidden');
+    const inp = document.getElementById('global-search-input');
+    if (inp) inp.value = '';
+    const res = document.getElementById('global-search-results');
+    if (res) res.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">התחל להקליד לחיפוש...</div>';
+};
+
+window.runGlobalSearch = function(q) {
+    const res = document.getElementById('global-search-results');
+    if (!res) return;
+    q = (q || '').trim().toLowerCase();
+    if (q.length < 2) {
+        res.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">התחל להקליד לחיפוש...</div>';
+        return;
+    }
+
+    const sections = [];
+
+    // הזמנות
+    const orders = (storeOrdersCache || []).filter(o =>
+        (o.customer_name || '').toLowerCase().includes(q) ||
+        String(o.id).includes(q) || (o.status || '').includes(q)
+    ).slice(0, 5);
+    if (orders.length) sections.push({
+        title: '🛍️ הזמנות', tab: 'sales',
+        items: orders.map(o => ({
+            label: `הזמנה #${o.id} — ${o.customer_name || 'לא ידוע'}`,
+            sub: `₪${parseFloat(o.total_amount || o.total || 0).toFixed(0)} · ${o.status}`,
+            tab: 'sales'
+        }))
+    });
+
+    // לקוחות
+    const customers = (window.customersCache || []).filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q) || (c.email || '').toLowerCase().includes(q)
+    ).slice(0, 5);
+    if (customers.length) sections.push({
+        title: '🤝 לקוחות',
+        items: customers.map(c => ({ label: c.name, sub: c.phone || c.email || '', tab: 'customers' }))
+    });
+
+    // מוצרים / מלאי
+    const products = (pantryCache || []).filter(p =>
+        (p.item_name || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q)
+    ).slice(0, 5);
+    if (products.length) sections.push({
+        title: '📦 מוצרים',
+        items: products.map(p => ({ label: p.item_name, sub: `כמות: ${p.quantity} ${p.unit || ''}`, tab: 'pantry' }))
+    });
+
+    // עובדים
+    const staff = (membersCache || []).filter(m =>
+        (m.name || '').toLowerCase().includes(q) ||
+        (m.nickname || '').toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q)
+    ).slice(0, 5);
+    if (staff.length) sections.push({
+        title: '👥 צוות',
+        items: staff.map(m => ({ label: m.nickname || m.name, sub: m.role, tab: 'members' }))
+    });
+
+    // משימות
+    const tasks = (allTasks || []).filter(t =>
+        (t.title || '').toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q)
+    ).slice(0, 5);
+    if (tasks.length) sections.push({
+        title: '✅ משימות',
+        items: tasks.map(t => ({ label: t.title, sub: t.status, tab: 'tasks' }))
+    });
+
+    if (sections.length === 0) {
+        res.innerHTML = '<div class="text-center text-slate-400 text-xs py-8">לא נמצאו תוצאות</div>';
+        return;
+    }
+
+    res.innerHTML = sections.map(sec => `
+        <div class="mb-3">
+          <div class="text-[10px] font-black text-slate-400 px-3 py-1.5 uppercase tracking-wide">${sec.title}</div>
+          ${sec.items.map(item => `
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 cursor-pointer active:bg-slate-100 transition"
+                 onclick="switchTab('${item.tab}'); closeGlobalSearch()">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-800 truncate">${item.label}</div>
+                <div class="text-[10px] text-slate-400 truncate">${item.sub}</div>
+              </div>
+              <i class="fa-solid fa-arrow-left text-slate-300 text-xs flex-shrink-0"></i>
+            </div>
+          `).join('')}
+        </div>
+    `).join('');
+};
+
+// close search on Escape
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.closeGlobalSearch?.();
+});
 
 function buildAndRenderFeed() {
     window.currentFeedPage = 1;

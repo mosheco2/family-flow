@@ -648,8 +648,11 @@
                     </div>
                   </div>
 
-                  <!-- Spacer + פעמון התראות -->
+                  <!-- Spacer + חיפוש + פעמון התראות -->
                   <div class="flex-1"></div>
+                  <button onclick="openGlobalSearch()" class="relative flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-all duration-150 ml-0.5" title="חיפוש">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm"></i>
+                  </button>
                   <button onclick="openActivityPanel()" class="relative flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-all duration-150 ml-1">
                     <i class="fa-solid fa-bell text-slate-400 text-sm"></i>
                     <span id="gnav-alert-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center ring-2 ring-slate-900">0</span>
@@ -804,25 +807,29 @@
 
                         <!-- KPI cards (BELOW tiles) -->
                         <div id="admin-kpi-cards" class="grid grid-cols-2 gap-3 px-2 mb-4">
-                          <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200">
+                          <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-3.5 text-white shadow-md shadow-indigo-200 overflow-hidden relative">
                             <div class="text-indigo-200 text-[10px] font-semibold mb-1">מכירות היום</div>
                             <div class="text-2xl font-black" id="kpi-sales-today">₪0</div>
                             <div class="text-indigo-200 text-[10px] mt-1" id="kpi-orders-today">0 הזמנות</div>
+                            <div id="spark-sales" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
                           </div>
-                          <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200">
+                          <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-3.5 text-white shadow-md shadow-emerald-200 overflow-hidden relative">
                             <div class="text-emerald-200 text-[10px] font-semibold mb-1">עובדים פעילים</div>
                             <div class="text-2xl font-black" id="kpi-active-staff">0</div>
                             <div class="text-emerald-200 text-[10px] mt-1">בצוות</div>
+                            <div id="spark-staff" class="absolute bottom-0 left-0 right-0 opacity-40"></div>
                           </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm">
+                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">הזמנות פתוחות</div>
                             <div class="text-2xl font-black text-amber-500" id="kpi-open-orders">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">ממתינות לטיפול</div>
+                            <div id="spark-orders" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
                           </div>
-                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm">
+                          <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm overflow-hidden relative">
                             <div class="text-slate-400 text-[10px] font-semibold mb-1">משימות פתוחות</div>
                             <div class="text-2xl font-black text-rose-500" id="kpi-open-tasks">0</div>
                             <div class="text-slate-400 text-[10px] mt-1">לא הושלמו</div>
+                            <div id="spark-tasks" class="absolute bottom-0 left-0 right-0 opacity-30"></div>
                           </div>
                         </div>
 
@@ -5465,5 +5472,27 @@
         </div>
       </div>
     </div>
+
+  <!-- ★ GLOBAL SEARCH MODAL -->
+  <div id="global-search-modal" class="hidden fixed inset-0 z-[9998] flex flex-col" dir="rtl">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeGlobalSearch()"></div>
+    <div class="relative z-10 bg-white rounded-b-3xl shadow-2xl max-h-[85vh] flex flex-col mx-0 mt-0">
+      <!-- שדה חיפוש -->
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+        <i class="fa-solid fa-magnifying-glass text-indigo-500 text-base flex-shrink-0"></i>
+        <input id="global-search-input" type="text" placeholder="חפש לקוח, הזמנה, מוצר, עובד, משימה..."
+          class="flex-1 text-sm font-medium text-slate-800 bg-transparent outline-none placeholder-slate-400"
+          oninput="runGlobalSearch(this.value)" autofocus>
+        <button onclick="closeGlobalSearch()" class="text-slate-400 hover:text-slate-600 flex-shrink-0">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <!-- תוצאות -->
+      <div id="global-search-results" class="overflow-y-auto flex-1 px-2 py-2">
+        <div class="text-center text-slate-400 text-xs py-8">התחל להקליד לחיפוש...</div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
