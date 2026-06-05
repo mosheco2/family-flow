@@ -1355,6 +1355,7 @@ function switchTab(t) {
     const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
+    window._currentBizSubTab = null;
 
     // עדכון group nav
     try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
@@ -1388,6 +1389,8 @@ function switchTab(t) {
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
     if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
+    if (t === 'shop') try { switchProcurementTab('list'); } catch(e) {}
+    if (t === 'calendar') try { window.switchCalendarTab('main'); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -10472,6 +10475,7 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
 // ==========================================
 
 function switchProcurementTab(tab) {
+    window._currentBizSubTab = 'shop.' + tab;
     ['list', 'rfq', 'suppliers'].forEach(t => {
         const view = getEl(`proc-view-${t}`);
         const btn = getEl(`btn-proc-${t}`);
@@ -12628,6 +12632,7 @@ async function analyzeFoodCostAI() {
 }
 // --- מסופון שליחים משופר (Dropdown UI) ---
 window.switchDeliveryTab = function(tab) {
+    window._currentBizSubTab = 'deliveries.' + tab;
     const views = ['active', 'transit', 'history'];
     views.forEach(v => {
         const viewEl = getEl(`del-view-${v}`);
@@ -14074,6 +14079,7 @@ setInterval(() => {
 }, 20000);
 
 window.switchSalesTab = function(subTab) {
+    window._currentBizSubTab = 'sales.' + subTab;
     ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
@@ -14288,6 +14294,7 @@ currentCalDate = new Date();
 window.currentCalMode = window.currentCalMode || 'day'; // day, week, month, agenda
 
 window.switchCalendarTab = function(subTab) {
+    window._currentBizSubTab = 'calendar.' + subTab;
     ['main', 'requests', 'settings'].forEach(t => {
         const view = getEl(`cal-view-${t}`); if(view) view.classList.add('hidden');
         const btn = getEl(`btn-cal-tab-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
@@ -21160,9 +21167,178 @@ const BIZ_HELP_CONTENT = {
     },
 };
 
+const BIZ_HELP_SUBTAB_CONTENT = {
+    'shop.list': {
+        icon: '🛒', title: 'קטלוג ספקים',
+        what: 'עיין בקטלוג הספקים, הוסף פריטים לסל וצור הזמנת רכש ישירות אל הספק.',
+        tips: [
+            '🔍 חפש מוצר בשורת החיפוש לאיתור מהיר',
+            '➕ לחץ על פריט להוספה לסל הרכישה',
+            '🛒 לאחר בחירת הפריטים לחץ "סיים הזמנה" לשליחה לספק',
+            '💰 המחירים מוצגים לפי הסכם עם הספק',
+            '📦 ניתן לסנן לפי קטגוריה / ספק',
+        ]
+    },
+    'shop.rfq': {
+        icon: '📋', title: 'בקשות רכש (RFQ)',
+        what: 'ניהול בקשות רכש שנשלחו לספקים — מעקב סטטוס מבקשה ועד אספקה.',
+        tips: [
+            '📋 ראה את כל הבקשות: ממתינות / נשלחו / סופקו',
+            '✅ לחץ על בקשה לאישורה ושליחתה לספק',
+            '📊 בקשות שמסופקות עדכנות את המלאי אוטומטית',
+            '🔔 הגב לספק ישירות מתוך הבקשה',
+            '📅 עקוב אחר תאריך אספקה משוער לכל בקשה',
+        ]
+    },
+    'shop.suppliers': {
+        icon: '🏭', title: 'מאגר ספקים',
+        what: 'ניהול ספקים — פרטי קשר, תנאי תשלום וקטלוגי מוצרים.',
+        tips: [
+            '➕ לחץ "ספק חדש" להוספת ספק למאגר',
+            '📞 שמור פרטי קשר, מייל ותנאי תשלום לכל ספק',
+            '📦 כל ספק מקושר לקטלוג המוצרים שלו',
+            '⭐ סמן ספקים מועדפים לגישה מהירה',
+            '📊 ראה היסטוריית הזמנות לכל ספק',
+        ]
+    },
+    'sales.orders': {
+        icon: '📦', title: 'הזמנות חנות',
+        what: 'הזמנות שנכנסו מלקוחות — עדכן סטטוס, תאם משלוח ותקשר עם הלקוח.',
+        tips: [
+            '🆕 הזמנות חדשות מסומנות בבאדג׳ כחול — טפל בהן ראשון',
+            '🔄 לחץ על הזמנה לעדכון סטטוס: ממתין → הכנה → מוכן → נמסר',
+            '🛵 הקצה שליח ישירות מתוך כרטיס ההזמנה',
+            '💬 שלח עדכון SMS ללקוח בלחיצה אחת',
+            '🔍 חפש הזמנה לפי שם לקוח, טלפון או מספר',
+        ]
+    },
+    'sales.quotes': {
+        icon: '💼', title: 'הצעות מחיר',
+        what: 'שלח הצעות מחיר ללקוחות — עם אישורם ההצעה הופכת להזמנה אוטומטית.',
+        tips: [
+            '➕ לחץ "הצעת מחיר חדשה" ובחר לקוח ופריטים',
+            '📧 הצעה שנשלחת מגיעה ללקוח עם קישור לאישור',
+            '✅ כאשר הלקוח מאשר — ההצעה הופכת להזמנה',
+            '⏰ הגדר תאריך תפוגה להצעה',
+            '💰 ניתן לכלול הנחה מיוחדת בכל הצעה',
+        ]
+    },
+    'sales.catalog': {
+        icon: '🏪', title: 'קטלוג מנות / מוצרים',
+        what: 'ניהול מוצרי החנות — הוספה, עריכת מחיר וניהול זמינות.',
+        tips: [
+            '➕ לחץ "מוצר חדש" לפרסום מוצר חדש בחנות',
+            '✏️ לחץ על מוצר קיים לעריכת שם, מחיר ותמונה',
+            '🔴 כבה מוצר שאינו זמין זמנית — לא יוצג ללקוחות',
+            '🏷️ הוסף קטגוריות לסינון קל בחנות',
+            '📱 המוצרים מופיעים בחנות האונליין ובקיוסק',
+        ]
+    },
+    'sales.complex': {
+        icon: '🍽️', title: 'פרויקטים וקייטרינג',
+        what: 'ניהול הזמנות מורכבות — אירועים, קייטרינג ופרויקטים מרובי פריטים.',
+        tips: [
+            '➕ צור פרויקט חדש עם תאריך, מקום וכמות סועדים',
+            '📋 הוסף תפריט מותאם לכל אירוע',
+            '💰 שלח הצעת מחיר מפורטת ללקוח לאישור',
+            '📅 ראה כל האירועים הקרובים לפי תאריך',
+            '🧾 הפק חשבונית / אישור הזמנה ישירות מהמערכת',
+        ]
+    },
+    'sales.marketing': {
+        icon: '📣', title: 'שיווק ומבצעים',
+        what: 'ניהול קמפיינים, הנחות ומבצעים — משוך לקוחות ושגר מכירות.',
+        tips: [
+            '➕ צור מבצע חדש עם קוד קופון או אחוז הנחה',
+            '⏰ הגדר תאריך תחילה וסיום לכל מבצע',
+            '🎯 ניתן להגביל מבצע למוצרים ספציפיים',
+            '📊 ראה כמה פעמים קוד קופון נוצל',
+            '📢 שתף מבצע ישירות לקהילה בלחיצה',
+        ]
+    },
+    'sales.settings': {
+        icon: '⚙️', title: 'הגדרות חנות',
+        what: 'הגדרת אזורי משלוח, שעות פעילות, שיטות תשלום ופרטי החנות.',
+        tips: [
+            '🚚 הגדר אזורי משלוח ועלויות משלוח',
+            '🕐 הגדר שעות פעילות לקבלת הזמנות',
+            '💳 בחר שיטות תשלום: מזומן, אשראי, העברה',
+            '📱 הגדר טלפון ומייל לעדכוני הזמנות',
+            '🔗 הקישור לחנות ניתן לשיתוף עם לקוחות',
+        ]
+    },
+    'deliveries.active': {
+        icon: '🟡', title: 'שליחויות ממתינות',
+        what: 'הזמנות שאושרו ומוכנות לשליחה — הקצה שליח ושגר לדרך.',
+        tips: [
+            '🛵 לחץ "הקצה שליח" ובחר מהרשימה',
+            '📍 וודא שהכתובת מלאה לפני השליחה',
+            '📞 לחץ על הטלפון ליצירת קשר עם הלקוח',
+            '🔄 שנה סטטוס ל"בדרך" לאחר שהשליח יצא',
+            '⚡ הזמנות דחופות מסומנות בצבע שונה',
+        ]
+    },
+    'deliveries.transit': {
+        icon: '🛵', title: 'שליחויות בדרך',
+        what: 'משלוחים שנמצאים כרגע בדרך ללקוח — עקוב ועדכן.',
+        tips: [
+            '📍 ראה את כל המשלוחים הפעילים בשטח',
+            '✅ לחץ "נמסר" לסגירת המשלוח לאחר האספקה',
+            '📞 לחץ על שם השליח לשיחה ישירה',
+            '⚠️ משלוח שמאחר? ליצור קשר עם השליח',
+            '🔄 ניתן להקצות מחדש לשליח אחר אם יש בעיה',
+        ]
+    },
+    'deliveries.history': {
+        icon: '📋', title: 'היסטוריית שליחויות',
+        what: 'כל המשלוחים שהושלמו — ניתוח ביצועים וסיכום.',
+        tips: [
+            '📊 ראה ממוצע זמן משלוח לכל שליח',
+            '🔍 חפש משלוח לפי שם לקוח או כתובת',
+            '📅 סנן לפי תאריך לניתוח תקופתי',
+            '⭐ ראה אילו שליחים הכי מהירים ואמינים',
+            '📥 ייצא דוח משלוחים לפי חודש',
+        ]
+    },
+    'calendar.main': {
+        icon: '📅', title: 'יומן',
+        what: 'תצוגת כל הפגישות והתורים — ניהול לוח זמנים עסקי.',
+        tips: [
+            '➕ לחץ על תאריך ביומן להוספת פגישה חדשה',
+            '📋 לחץ על פגישה קיימת לצפייה בפרטים ועריכה',
+            '👤 פגישות מקושרות ללקוח לצפייה בהיסטוריה',
+            '🔔 הגדר תזכורות לפני פגישות חשובות',
+            '📆 עבור בין תצוגה יומית / שבועית / חודשית',
+        ]
+    },
+    'calendar.requests': {
+        icon: '⏳', title: 'בקשות תורים',
+        what: 'בקשות תור שנשלחו מלקוחות — ממתינות לאישורך.',
+        tips: [
+            '✅ לחץ "אשר" לאישור הבקשה ושמירה ביומן',
+            '❌ לחץ "דחה" ושלח ללקוח הצעת זמן חלופי',
+            '📞 ניתן להתקשר ישירות ללקוח מתוך הבקשה',
+            '⏰ הבקשות ממוינות לפי דחיפות — אשר כמה שיותר מהר',
+            '📅 תאריך הבקשה מוצג להשוואה עם הזמינות ביומן',
+        ]
+    },
+    'calendar.settings': {
+        icon: '⚙️', title: 'הגדרות יומן',
+        what: 'הגדרת זמינות, אורך תורים ושעות קבלה.',
+        tips: [
+            '🕐 הגדר שעות פתיחה לכל יום בשבוע',
+            '⏱️ קבע אורך ברירת מחדל לפגישה (15/30/60 דק\')',
+            '🔒 חסום זמנים שבהם אינך זמין',
+            '📱 לקוחות יראו רק זמנים פנויים בעת הזמנה',
+            '🔗 שתף את קישור הזמנת התור עם לקוחות',
+        ]
+    },
+};
+
 function openBizHelp() {
     const tab = window._currentBizTab || 'feed';
-    const help = BIZ_HELP_CONTENT[tab];
+    const subTabKey = window._currentBizSubTab;
+    const help = (subTabKey && BIZ_HELP_SUBTAB_CONTENT[subTabKey]) || BIZ_HELP_CONTENT[tab];
     if (!help) {
         // Generic help for unmapped tabs
         const sheet = document.getElementById('biz-help-sheet');
