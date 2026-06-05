@@ -663,6 +663,9 @@
                     <i class="fa-solid fa-bell text-slate-400 text-sm"></i>
                     <span id="gnav-alert-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center ring-2 ring-slate-900">0</span>
                   </button>
+                  <button onclick="openBizHelp()" class="relative flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-all duration-150 ml-1" title="עזרה">
+                    <i class="fa-regular fa-circle-question text-slate-400 text-sm"></i>
+                  </button>
                 </div>
 
                 <!-- OLD tab buttons — hidden, kept for JS (enforcePermissions/switchTab) -->
@@ -5499,6 +5502,27 @@
       </div>
     </div>
   </div>
+
+
+<!-- ★ Help Sheet Modal -->
+<div id="biz-help-sheet" class="fixed inset-0 z-[99997] flex items-end hidden">
+  <div class="absolute inset-0 bg-black/50" onclick="closeBizHelp()"></div>
+  <div class="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl overflow-hidden">
+    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-200 rounded-full"></div>
+    <div class="max-h-[78vh] overflow-y-auto modal-scroll pt-7 pb-4 px-5">
+      <div class="flex items-center gap-3 mb-4">
+        <span id="biz-help-icon" class="text-3xl"></span>
+        <h2 id="biz-help-title" class="font-bold text-slate-800 text-xl"></h2>
+      </div>
+      <p id="biz-help-what" class="text-sm text-slate-600 mb-4 leading-relaxed bg-indigo-50 p-3 rounded-xl border border-indigo-100"></p>
+      <h3 class="font-bold text-slate-700 mb-3 text-sm">💡 טיפים ופעולות עיקריות</h3>
+      <ul id="biz-help-tips" class="space-y-2 mb-4"></ul>
+    </div>
+    <div class="px-5 pb-6 pt-3 border-t border-slate-100 bg-white">
+      <button onclick="closeBizHelp()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition">הבנתי, סגור</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

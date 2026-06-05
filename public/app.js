@@ -457,6 +457,7 @@ function switchTab(t) { 
     }); 
     const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
+    window._currentFamilyTab = t;
 
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
@@ -6271,4 +6272,182 @@ async function renderFamilyUrgentItems() {
 
     if (badge) badge.textContent = items.length;
     section.classList.remove('hidden');
+}
+
+// ════════════════════════════════════════════════
+// ★ HELP SYSTEM — תוכן עזרה לכל מודול (משפחה)
+// ════════════════════════════════════════════════
+window._currentFamilyTab = 'feed';
+
+const FAMILY_HELP_CONTENT = {
+    feed: {
+        icon: '🏠', title: 'לוח ראשי',
+        what: 'דשבורד משפחתי — תצוגת יתרה, משימות דחופות וסיכום פעילות המשפחה.',
+        tips: [
+            '💰 הכרטיס הגדול מציג את יתרת הכסף שלך',
+            '⚡ "מה מחכה לך" — פעולות דחופות שצריך לטפל בהן',
+            '🎯 הכרטיסים הקטנים — קישורים מהירים לפעולות נפוצות',
+            '🔔 לחץ על הפעמון לצפייה בכל הפעילות המשפחתית האחרונה',
+            '👨‍👩‍👧 ההורה רואה תצוגה שונה מהילד — כל תפקיד מותאם',
+        ]
+    },
+    shop: {
+        icon: '🛒', title: 'בקשות קנייה',
+        what: 'שלח בקשות לרכישת מוצרים, ועקוב אחר הסטטוס עד לאישור.',
+        tips: [
+            '➕ לחץ "+ בקשה" לפתיחת בקשת קנייה חדשה',
+            '📝 ציין את שם המוצר, כמות ומחיר משוער',
+            '⏳ הבקשה נשלחת לאישור ההורה',
+            '✅ לאחר אישור — המוצר יירכש ויגיע!',
+            '🛍️ ניתן לעקוב אחר סטטוס כל בקשה',
+        ]
+    },
+    myorders: {
+        icon: '📦', title: 'ההזמנות שלי',
+        what: 'עקוב אחר כל בקשות הקנייה שלך — ממתינות, מאושרות ומבוטלות.',
+        tips: [
+            '📋 ראה את כל הבקשות שהגשת',
+            '🟡 בקשות ממתינות — ממתינות לאישור ההורה',
+            '✅ בקשות מאושרות — המוצר בדרך',
+            '❌ בקשות דחויות — לחץ לצפייה בסיבת הדחייה',
+            '🔄 ניתן להגיש בקשה חדשה בכל עת',
+        ]
+    },
+    bank: {
+        icon: '🐷', title: 'חיסכון',
+        what: 'ניהול חיסכון, יעדים כספיים ומעקב אחר הכסף שנחסך.',
+        tips: [
+            '🎯 הגדר יעד חיסכון — למה אתה חוסך?',
+            '💰 ראה כמה כסף כבר חסכת לעומת היעד',
+            '📈 הגרף מציג את התקדמות החיסכון שלך',
+            '💸 ניתן לבקש מקדמה על הכסף (טעון אישור)',
+            '🏆 עמוד ביעד וקבל בונוס מיוחד!',
+        ]
+    },
+    cashflow: {
+        icon: '📜', title: 'היסטוריה',
+        what: 'צפייה בכל הפעולות הכספיות שלך — הכנסות, הוצאות ותגמולים.',
+        tips: [
+            '📋 ראה את כל הפעולות הכספיות לפי תאריך',
+            '🟢 ירוק = כסף שנכנס (שכר, בונוס, תגמול)',
+            '🔴 אדום = כסף שיצא (רכישה, הוצאה)',
+            '🔍 חפש פעולה ספציפית לפי שם או סכום',
+            '📊 ראה סיכום הכנסות/הוצאות לחודש',
+        ]
+    },
+    academy: {
+        icon: '🎓', title: 'אקדמיה',
+        what: 'למד, ענה על שאלות נכון — ותרוויח כסף אמיתי! אתגרים מותאמים אישית.',
+        tips: [
+            '🎲 לחץ "הגרל אתגר מהיר" לאתגר רנדומלי',
+            '📚 הספרייה — אלפי מבחנים לפי גיל ונושא',
+            '💰 כל תשובה נכונה = כסף לארנק שלך',
+            '🏆 השלם את כל שאלות האתגר לקבלת הבונוס המלא',
+            '📖 ניתן לחזור על אתגרים שהוקצו לך',
+        ]
+    },
+    tasks: {
+        icon: '✅', title: 'משימות',
+        what: 'המשימות שהוקצו לך — בצע, דווח וקבל תגמול!',
+        tips: [
+            '📋 ראה את כל המשימות הפעילות שלך',
+            '📸 לחץ "דיווח סיום" + צלם הוכחת ביצוע',
+            '⏰ שים לב לתאריכי יעד — אל תפספס!',
+            '💰 לאחר אישור ההורה — הבונוס נזקף לארנק',
+            '📋 משימת SOP = בצע שלב אחר שלב לפי הנוהל',
+        ]
+    },
+    community: {
+        icon: '👥', title: 'קהילה',
+        what: 'הצטרף לקהילות מקומיות — ראה הטבות, מבצעים ואירועים בשכונה.',
+        tips: [
+            '🔍 חפש קהילה לפי אזור מגורים',
+            '🏷️ ראה הטבות ומבצעים של עסקים מקומיים',
+            '📢 קרא עדכונים ואירועים מהשכונה',
+            '➕ הצטרף לקהילה חדשה בלחיצה',
+            '🤝 תרום להפעלת הקהילה המקומית',
+        ]
+    },
+    members: {
+        icon: '👨‍👩‍👧', title: 'משפחה',
+        what: 'ניהול חברי המשפחה — הוספת ילדים, הגדרת תפקידים וסיכומים.',
+        tips: [
+            '➕ לחץ "הוסף חבר" לצירוף בן/בת משפחה',
+            '👦 הגדר כל ילד עם שם וגיל',
+            '💰 ראה את יתרת הכסף של כל ילד',
+            '📊 עקוב אחר ביצועי כל ילד (משימות, לימוד)',
+            '⚙️ ניהל הרשאות — מה כל ילד יכול לראות',
+        ]
+    },
+    budget: {
+        icon: '📊', title: 'תקציב משפחתי',
+        what: 'הגדר יעדי הוצאות משפחתיים ועקוב אחר עמידה בתקציב.',
+        tips: [
+            '➕ הגדר קטגוריות הוצאה (מזון, בידור, לימודים...)',
+            '🎯 הגדר תקציב חודשי לכל קטגוריה',
+            '📈 המערכת עוקבת אוטומטית אחר ההוצאות',
+            '🔴 קטגוריות שחרגו מסומנות — קח תשומת לב',
+            '📅 עבור בין תצוגה חודשית לשנתית',
+        ]
+    },
+    pantry: {
+        icon: '📦', title: 'מזווה',
+        what: 'מעקב אחר מה יש בבית — מזון, ניקיון ומוצרים נחוצים.',
+        tips: [
+            '➕ הוסף מוצר למזווה עם כמות ותאריך תפוגה',
+            '🔴 מוצרים שאזלו מסומנים להשלמה',
+            '📅 שים לב לתאריכי תפוגה — הימנע מבזבוז',
+            '🛒 ניתן לשלוח מוצרים ישירות לרשימת הקנייה',
+            '✨ familAI יכולה להמליץ מתכונים לפי מה שיש',
+        ]
+    },
+    recipes: {
+        icon: '🍳', title: 'מתכונים',
+        what: 'מצא וצור מתכונים מהמרכיבים שיש לך בבית — עם עזרת AI.',
+        tips: [
+            '✨ לחץ "צור מתכון" ו-familAI תבנה מתכון מהמזווה שלך',
+            '🥕 בחר מרכיבים ספציפיים שרוצים להשתמש בהם',
+            '👨‍👩‍👧 ציין כמה סועדים לכוונון הכמויות',
+            '📋 העתק את המתכון לשמירה או שיתוף',
+            '🔄 ניסית מתכון? ניתן לבקש גרסה משופרת',
+        ]
+    },
+    forecast: {
+        icon: '📅', title: 'תחזית',
+        what: 'תכנון הוצאות עתידיות — ראה לאן הולך הכסף המשפחתי.',
+        tips: [
+            '➕ הוסף הוצאה עתידית צפויה (חופשה, ציוד לבית...)',
+            '📆 עבור בין תצוגה חודשית לשנתית',
+            '📊 הגרף מציג תחזית תזרים לחודשים הבאים',
+            '🎯 תכנן רכישות גדולות מראש',
+            '💡 עזר לכל המשפחה לחסוך ביחד ליעד משותף',
+        ]
+    },
+};
+
+function openFamilyHelp() {
+    const tab = window._currentFamilyTab || 'feed';
+    const help = FAMILY_HELP_CONTENT[tab];
+    const sheet = document.getElementById('family-help-sheet');
+    if (!sheet) return;
+    if (!help) {
+        document.getElementById('family-help-icon').textContent = '❓';
+        document.getElementById('family-help-title').textContent = 'עזרה';
+        document.getElementById('family-help-what').textContent = 'לפרטים נוספים פנה להורה או למנהל המשפחה.';
+        document.getElementById('family-help-tips').innerHTML = '';
+        sheet.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('family-help-icon').textContent = help.icon;
+    document.getElementById('family-help-title').textContent = help.title;
+    document.getElementById('family-help-what').textContent = help.what;
+    document.getElementById('family-help-tips').innerHTML = help.tips
+        .map(t => `<li class="flex items-start gap-2 text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3 shadow-sm leading-relaxed">${t}</li>`)
+        .join('');
+    sheet.classList.remove('hidden');
+}
+
+function closeFamilyHelp() {
+    const sheet = document.getElementById('family-help-sheet');
+    if (sheet) sheet.classList.add('hidden');
 }
