@@ -823,6 +823,7 @@ async function fetchData() {
 
         try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
         try { renderQuickTiles(); } catch(e) {}
+        try { renderFamilyUrgentItems(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -6118,4 +6119,103 @@ function renderQuickTiles() {
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
     </button>
   `).join('');
+}
+
+// ── FAMILY URGENT ITEMS — "מה מחכה לך" ──────────────────────
+async function renderFamilyUrgentItems() {
+    const section = document.getElementById('family-urgent-section');
+    const list    = document.getElementById('family-urgent-list');
+    const badge   = document.getElementById('family-urgent-badge');
+    if (!section || !list || !currentGroup) return;
+
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const now     = new Date();
+    const todayStr = now.toDateString();
+    const items   = [];
+
+    const C = {
+        high:   { bg:'bg-red-50',   border:'border-red-100',   ibg:'bg-red-100',   txt:'text-red-600' },
+        medium: { bg:'bg-amber-50', border:'border-amber-100', ibg:'bg-amber-100', txt:'text-amber-700' },
+        low:    { bg:'bg-slate-50', border:'border-slate-100', ibg:'bg-slate-100', txt:'text-slate-500' }
+    };
+
+    if (isAdmin) {
+        // ─ משימות ממתינות לאישור ─
+        const pendingApproval = (allTasks || []).filter(t => t.status === 'completed' || t.status === 'done');
+        if (pendingApproval.length > 0)
+            items.push({ icon:'✅', urgency:'high',
+                title:`${pendingApproval.length} משימות ממתינות לאישורך`,
+                sub: pendingApproval.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'אשר' });
+
+        // ─ פריטי קניות ממתינים לאישור ─
+        const pendingShop = (shoppingListCache || []).filter(i => i.status === 'pending_approval');
+        if (pendingShop.length > 0)
+            items.push({ icon:'🛒', urgency:'high',
+                title:`${pendingShop.length} בקשות קניה ממתינות`,
+                sub: pendingShop.slice(0,2).map(i => i.name).join(', '),
+                tab:'shop', actionLabel:'בדוק' });
+
+        // ─ משימות שעברו דד-ליין ─
+        const overdue = (allTasks || []).filter(t =>
+            t.status === 'pending' && t.deadline && new Date(t.deadline) < now
+        );
+        if (overdue.length > 0)
+            items.push({ icon:'⏰', urgency:'medium',
+                title:`${overdue.length} משימות שעברו דד-ליין`,
+                sub: overdue.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'ראה' });
+
+        // ─ מלאי מזווה נמוך ─
+        const lowPantry = (pantryCache || []).filter(p => parseFloat(p.quantity) <= 1);
+        if (lowPantry.length > 0)
+            items.push({ icon:'📦', urgency:'low',
+                title:`${lowPantry.length} פריטים במזווה כמעט נגמרו`,
+                sub: lowPantry.slice(0,3).map(p => p.item_name).join(', '),
+                tab:'pantry', actionLabel:'עדכן' });
+
+    } else {
+        // ─ ילד/חבר משפחה ─
+        // משימות אישיות לסגירה
+        const myTasks = (allTasks || []).filter(t => {
+            if (t.status === 'approved' || t.status === 'cancelled') return false;
+            if (t.assigned_to && String(t.assigned_to) !== String(currentUser?.id)) return false;
+            const due = t.deadline ? new Date(t.deadline) : null;
+            return due && (due.toDateString() === todayStr || due < now);
+        });
+        if (myTasks.length > 0)
+            items.push({ icon:'✅', urgency:'high',
+                title:`${myTasks.length} משימות שלך ממתינות`,
+                sub: myTasks.slice(0,2).map(t => t.title).join(', '),
+                tab:'tasks', actionLabel:'בצע' });
+
+        // אתגרי אקדמיה ממתינים
+        const myAcademy = (window.academyChallenges || []).filter(c =>
+            c.status === 'assigned' && String(c.assigned_to) === String(currentUser?.id)
+        );
+        if (myAcademy.length > 0)
+            items.push({ icon:'🎓', urgency:'medium',
+                title:`${myAcademy.length} אתגרי אקדמיה ממתינים לך`,
+                sub:'לחץ לפתיחה',
+                tab:'academy', actionLabel:'התחל' });
+    }
+
+    if (items.length === 0) { section.classList.add('hidden'); return; }
+
+    list.innerHTML = items.map((item, i) => {
+        const c = C[item.urgency] || C.low;
+        const sep = i < items.length - 1 ? `border-b ${c.border}` : '';
+        return `<div class="flex items-center gap-3 px-4 py-3 ${c.bg} ${sep} cursor-pointer active:opacity-70 transition-opacity"
+                     onclick="switchTab('${item.tab}')">
+          <div class="w-9 h-9 rounded-xl ${c.ibg} flex items-center justify-center flex-shrink-0 text-base">${item.icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-bold text-slate-800 leading-tight">${item.title}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">${item.sub}</div>
+          </div>
+          <span class="text-[10px] font-bold ${c.txt} bg-white border ${c.border} rounded-full px-2.5 py-1 flex-shrink-0 whitespace-nowrap">${item.actionLabel} →</span>
+        </div>`;
+    }).join('');
+
+    if (badge) badge.textContent = items.length;
+    section.classList.remove('hidden');
 }

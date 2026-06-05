@@ -440,6 +440,21 @@
                     </div>
                     
                     <div id="content-feed">
+                        
+                        <!-- ★ מה מחכה לך — URGENT ITEMS (role-aware) -->
+                        <div id="family-urgent-section" class="px-2 mt-2 mb-3 hidden">
+                          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                            <div class="bg-gradient-to-l from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-100">
+                              <span class="text-sm font-black text-amber-800 flex items-center gap-2">
+                                <span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black animate-pulse" id="family-urgent-badge">0</span>
+                                ⚡ מה מחכה לך עכשיו
+                              </span>
+                              <button onclick="document.getElementById('family-urgent-section').classList.add('hidden')" class="text-amber-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div id="family-urgent-list" class="divide-y divide-slate-50"></div>
+                          </div>
+                        </div>
+
                         <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg shadow-blue-200 mb-4 relative overflow-hidden transform transition hover:scale-[1.01]">
                             <p class="text-blue-100 text-xs font-medium mb-0.5 opacity-80">יתרה נוכחית</p>
                             <h1 class="text-3xl font-bold tracking-tight" id="user-balance">₪0</h1>
