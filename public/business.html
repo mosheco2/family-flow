@@ -570,6 +570,94 @@
                     <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
                 </div>
 
+                <!-- ★ GROUP NAV — 5 קבוצות במקום 20 טאבים -->
+                <div id="group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 relative z-30 overflow-x-auto" style="scrollbar-width:none">
+
+                  <!-- ראשי — direct -->
+                  <button id="gnav-btn-feed" onclick="switchTab('feed')"
+                    class="gnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 transition-all duration-150">
+                    <i class="fa-solid fa-house text-[10px]"></i> ראשי
+                  </button>
+
+                  <!-- צוות -->
+                  <div class="relative flex-shrink-0" id="gnav-group-team">
+                    <button id="gnav-btn-team" onclick="toggleNavDropdown('team')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-users text-[10px]"></i> צוות <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-team" class="hidden absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[120] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('timeclock');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-timeclock">⏱️ נוכחות</button>
+                      <button onclick="switchTab('shifts');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-shifts">🗓️ משמרות</button>
+                      <button onclick="switchTab('calendar');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-calendar">📅 יומן ותורים</button>
+                      <button onclick="switchTab('tasks');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-tasks">✅ משימות</button>
+                      <button onclick="switchTab('deliveries');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-deliveries">🛵 שליחויות</button>
+                      <button onclick="switchTab('academy');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-academy">🎓 הכשרות</button>
+                      <button onclick="switchTab('members');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-members">👥 ניהול צוות</button>
+                    </div>
+                  </div>
+
+                  <!-- מכירות -->
+                  <div class="relative flex-shrink-0" id="gnav-group-sales">
+                    <button id="gnav-btn-sales" onclick="toggleNavDropdown('sales')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-store text-[10px]"></i> מכירות <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-sales" class="hidden absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[120] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('pos');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pos">💰 קופה</button>
+                      <button onclick="switchTab('sales');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-sales">🛍️ מכירות וחנות</button>
+                      <button onclick="switchTab('customers');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-customers">🤝 לקוחות</button>
+                    </div>
+                  </div>
+
+                  <!-- מלאי -->
+                  <div class="relative flex-shrink-0" id="gnav-group-inventory">
+                    <button id="gnav-btn-inventory" onclick="toggleNavDropdown('inventory')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-box text-[10px]"></i> מלאי <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-inventory" class="hidden absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[120] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('shop');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-shop">🛒 רכש וספקים</button>
+                      <button onclick="switchTab('pantry');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pantry">📦 מלאי מחסן</button>
+                      <button onclick="switchTab('foodcost');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-foodcost">🍽️ פוד קוסט</button>
+                    </div>
+                  </div>
+
+                  <!-- כספים -->
+                  <div class="relative flex-shrink-0" id="gnav-group-finance">
+                    <button id="gnav-btn-finance" onclick="toggleNavDropdown('finance')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-shekel-sign text-[10px]"></i> כספים <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                    </button>
+                    <div id="gnav-dropdown-finance" class="hidden absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[120] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('bank');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-bank">💳 כספים</button>
+                      <button onclick="switchTab('cashflow');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-cashflow">💸 תזרים</button>
+                      <button onclick="switchTab('budget');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-budget">📊 תקציב</button>
+                      <button onclick="switchTab('forecast');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-forecast">📈 תשקיף</button>
+                    </div>
+                  </div>
+
+                  <!-- עוד (קהילות, תקשורת) -->
+                  <div class="relative flex-shrink-0" id="gnav-group-more">
+                    <button id="gnav-btn-more" onclick="toggleNavDropdown('more')"
+                      class="gnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
+                      <i class="fa-solid fa-ellipsis text-[10px]"></i> עוד
+                    </button>
+                    <div id="gnav-dropdown-more" class="hidden absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[120] min-w-[160px]" onclick="event.stopPropagation()">
+                      <button onclick="switchTab('community');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-community">🏘️ קהילות</button>
+                      <button onclick="switchTab('surveys');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-surveys">📣 תקשורת</button>
+                    </div>
+                  </div>
+
+                  <!-- Spacer + פעמון התראות -->
+                  <div class="flex-1"></div>
+                  <button onclick="openActivityPanel()" class="relative flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-all duration-150 ml-1">
+                    <i class="fa-solid fa-bell text-slate-400 text-sm"></i>
+                    <span id="gnav-alert-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center ring-2 ring-slate-900">0</span>
+                  </button>
+                </div>
+
+                <!-- OLD tab buttons — hidden, kept for JS (enforcePermissions/switchTab) -->
+                <div style="display:none" aria-hidden="true">
                 <div class="relative px-2 py-1 group w-full border-b border-slate-100 bg-white z-30">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
@@ -598,6 +686,7 @@
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
                 </div>
+                </div><!-- /hidden legacy nav -->
                <div class="px-2 w-full">
                    
                     <div id="content-feed">

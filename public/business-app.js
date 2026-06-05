@@ -1352,9 +1352,12 @@ function switchTab(t) {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden');
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
+
+    // עדכון group nav
+    try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); } catch(e) {}
+
     // ניהול פוטר עגלה ו-FAB
     if (t !== 'shop' && t !== 'pos') { 
         const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
@@ -2164,6 +2167,7 @@ function enforcePermissions() {
     } else {
         ['bank-admin-view','admin-members-tools','timeclock-admin-view','academy-admin-view','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.remove('hidden'); });
     }
+    try { updateGroupNavVisibility(); } catch(e) {}
 }
 
 // =====================================
@@ -3237,6 +3241,80 @@ window.changeFeedPage = function(direction) {
     if (window.currentFeedPage < 1) window.currentFeedPage = 1;
     renderUnifiedFeed();
 };
+
+// ============================================================
+// --- GROUP NAV — 5 קבוצות ניווט ---
+// ============================================================
+const GNAV_GROUPS = {
+    team:      ['timeclock','shifts','calendar','tasks','deliveries','academy','members'],
+    sales:     ['pos','sales','customers'],
+    inventory: ['shop','pantry','foodcost'],
+    finance:   ['bank','cashflow','budget','forecast'],
+    more:      ['community','surveys']
+};
+
+window.toggleNavDropdown = function(group) {
+    Object.keys(GNAV_GROUPS).forEach(g => {
+        const dd = document.getElementById(`gnav-dropdown-${g}`);
+        if (!dd) return;
+        if (g === group) { dd.classList.toggle('hidden'); }
+        else { dd.classList.add('hidden'); }
+    });
+};
+
+window.closeNavDropdowns = function() {
+    Object.keys(GNAV_GROUPS).forEach(g => {
+        const dd = document.getElementById(`gnav-dropdown-${g}`);
+        if (dd) dd.classList.add('hidden');
+    });
+};
+
+function updateGroupNavActiveState(tabId) {
+    const feedBtn = document.getElementById('gnav-btn-feed');
+    if (feedBtn) {
+        feedBtn.className = tabId === 'feed'
+            ? 'gnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 transition-all duration-150'
+            : 'gnav-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150';
+    }
+    let activeGroup = null;
+    for (const [g, tabs] of Object.entries(GNAV_GROUPS)) {
+        if (tabs.includes(tabId)) { activeGroup = g; break; }
+    }
+    Object.keys(GNAV_GROUPS).forEach(g => {
+        const btn = document.getElementById(`gnav-btn-${g}`);
+        if (!btn) return;
+        const isActive = g === activeGroup;
+        btn.classList.toggle('bg-indigo-600', isActive);
+        btn.classList.toggle('text-white', isActive);
+        btn.classList.toggle('text-slate-400', !isActive);
+    });
+}
+
+function updateGroupNavVisibility() {
+    Object.entries(GNAV_GROUPS).forEach(([g, tabs]) => {
+        const groupEl = document.getElementById(`gnav-group-${g}`);
+        if (!groupEl) return;
+        const hasVisible = tabs.some(id => {
+            const btn = document.getElementById(`tab-${id}`);
+            return btn && btn.style.display !== 'none';
+        });
+        groupEl.style.display = hasVisible ? '' : 'none';
+    });
+}
+
+function syncGnavAlertBadge() {
+    const src  = document.getElementById('alert-badge');
+    const dest = document.getElementById('gnav-alert-badge');
+    if (!src || !dest) return;
+    const hidden = src.classList.contains('hidden');
+    dest.classList.toggle('hidden', hidden);
+    if (!hidden) dest.textContent = src.textContent;
+}
+
+// סגירת dropdown בלחיצה מחוץ לנאב
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#group-nav')) window.closeNavDropdowns();
+});
 
 // ============================================================
 // --- Dashboard (Home Tab) ---
