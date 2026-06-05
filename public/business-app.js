@@ -2713,6 +2713,27 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { getEl('task-modal').classList.add('hidden'); }
 
+function toggleAiCheck() {
+    const toggle = getEl('ai-check-toggle');
+    const knob = getEl('ai-check-knob');
+    const input = getEl('task-require-ai-check');
+    if (!toggle || !knob || !input) return;
+    const isOn = input.value === 'true';
+    if (isOn) {
+        input.value = 'false';
+        toggle.classList.remove('bg-slate-800');
+        toggle.classList.add('bg-slate-200');
+        knob.classList.remove('translate-x-6');
+        knob.classList.add('translate-x-1');
+    } else {
+        input.value = 'true';
+        toggle.classList.remove('bg-slate-200');
+        toggle.classList.add('bg-slate-800');
+        knob.classList.remove('translate-x-1');
+        knob.classList.add('translate-x-6');
+    }
+}
+
 function openTaskModal(isSelf = false) {
     getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf;
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
