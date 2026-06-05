@@ -1352,11 +1352,11 @@ function switchTab(t) {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden');
+    const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
 
     // עדכון group nav
-    try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); } catch(e) {}
+    try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
 
     // ניהול פוטר עגלה ו-FAB
     if (t !== 'shop' && t !== 'pos') { 
@@ -2640,6 +2640,7 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
         try { if (typeof fetchStoreQuotes === 'function') fetchStoreQuotes(); } catch(e) {}
 
         try { renderQuickTiles(); } catch(e) {}
+        try { updateGroupNavBadges(); } catch(e) {}
 
     } catch(e) {
         console.error("Fetch data error:", e);
@@ -3338,6 +3339,23 @@ function syncGnavAlertBadge() {
     const hidden = src.classList.contains('hidden');
     dest.classList.toggle('hidden', hidden);
     if (!hidden) dest.textContent = src.textContent;
+}
+
+function updateGroupNavBadges() {
+    // צוות: משימות pending
+    const teamCount = (allTasks || []).filter(t => t.status === 'pending').length;
+    const teamBadge = document.getElementById('gnav-badge-team');
+    if (teamBadge) { teamBadge.textContent = teamCount > 9 ? '9+' : teamCount; teamBadge.classList.toggle('hidden', teamCount === 0); }
+
+    // מכירות: הזמנות חדשות
+    const salesCount = (storeOrdersCache || []).filter(o => o.status === 'new').length;
+    const salesBadge = document.getElementById('gnav-badge-sales');
+    if (salesBadge) { salesBadge.textContent = salesCount > 9 ? '9+' : salesCount; salesBadge.classList.toggle('hidden', salesCount === 0); }
+}
+
+// רישום Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
 // סגירת dropdown בלחיצה מחוץ לנאב או מחוץ ל-dropdown הפתוח

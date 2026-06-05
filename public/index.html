@@ -153,7 +153,16 @@
             object-fit: cover !important; 
             object-position: center !important;
         }
+
+        @keyframes tabFadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        .tab-anim { animation: tabFadeIn 0.18s ease forwards; }
     </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FamilyFlow">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
@@ -348,7 +357,7 @@
                   <div class="relative flex-shrink-0" id="fgnav-group-home">
                     <button id="fgnav-btn-home" onclick="toggleFamilyNavDropdown('home')"
                       class="fgnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
-                      <i class="fa-solid fa-basket-shopping text-[10px]"></i> בית <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                      <i class="fa-solid fa-basket-shopping text-[10px]"></i> בית <span id="fgnav-badge-home" class="hidden text-[9px] bg-amber-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none">0</span> <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
                     </button>
                     <div id="fgnav-dropdown-home" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 min-w-[160px]" onclick="event.stopPropagation()">
                       <button onclick="switchTab('shop');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-shop">🛒 קניות</button>
@@ -376,7 +385,7 @@
                   <div class="relative flex-shrink-0" id="fgnav-group-family">
                     <button id="fgnav-btn-family" onclick="toggleFamilyNavDropdown('family')"
                       class="fgnav-btn flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-150">
-                      <i class="fa-solid fa-users text-[10px]"></i> משפחה <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
+                      <i class="fa-solid fa-users text-[10px]"></i> משפחה <span id="fgnav-badge-family" class="hidden text-[9px] bg-red-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none">0</span> <i class="fa-solid fa-chevron-down text-[7px] opacity-60"></i>
                     </button>
                     <div id="fgnav-dropdown-family" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 min-w-[160px]" onclick="event.stopPropagation()">
                       <button onclick="switchTab('tasks');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-tasks">✅ משימות</button>

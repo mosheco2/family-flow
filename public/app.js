@@ -455,10 +455,10 @@ function switchTab(t) { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
+
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -825,6 +825,7 @@ async function fetchData() {
         try { renderQuickTiles(); } catch(e) {}
         try { renderFamilyUrgentItems(); } catch(e) {}
         try { renderChildDashboard(); } catch(e) {}
+        try { updateFamilyNavBadges(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -4336,6 +4337,25 @@ function syncFamilyBellBadge() {
     const hidden = src.classList.contains('hidden');
     dest.classList.toggle('hidden', hidden);
     if (!hidden) dest.textContent = src.textContent;
+}
+
+function updateFamilyNavBadges() {
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const homeCount = isAdmin
+        ? (shoppingListCache || []).filter(i => i.status === 'pending_approval').length
+        : (allTasks || []).filter(t => t.status === 'pending' && String(t.assigned_to) === String(currentUser?.id)).length;
+    const homeBadge = document.getElementById('fgnav-badge-home');
+    if (homeBadge) { homeBadge.textContent = homeCount > 9 ? '9+' : homeCount; homeBadge.classList.toggle('hidden', homeCount === 0); }
+
+    const familyCount = isAdmin
+        ? (allTasks || []).filter(t => t.status === 'completed' || t.status === 'done').length
+        : (bundlesCache || []).filter(b => b.status === 'assigned').length;
+    const familyBadge = document.getElementById('fgnav-badge-family');
+    if (familyBadge) { familyBadge.textContent = familyCount > 9 ? '9+' : familyCount; familyBadge.classList.toggle('hidden', familyCount === 0); }
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
 }
 
 // סגירת dropdown בלחיצה מחוץ לנאב

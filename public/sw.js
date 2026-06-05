@@ -1,21 +1,13 @@
-// Oneflow Service Worker — network-first, safe passthrough
-const CACHE_NAME = 'oneflow-shell-v1';
-const SHELL_URLS = [
-  '/',
-  '/index.html',
-  '/business.html',
-  '/manifest.json',
-  '/manifest-biz.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+const CACHE_NAME = 'family-flow-v1';
+const STATIC_ASSETS = [
+  '/index.html', '/app.js', '/business.html', '/business-app.js',
+  '/manifest.json', '/manifest-business.json', '/favicon.png',
+  '/icons/icon-192x192.png', '/icons/icon-512x512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(SHELL_URLS).catch(() => {}))
-      .then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(STATIC_ASSETS).catch(() => {})));
 });
 
 self.addEventListener('activate', event => {
@@ -27,21 +19,21 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // API calls — always network, never cache
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request));
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/') || url.port === '3000' || url.port === '10000') {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
     return;
   }
-  // Everything else — network first, fall back to cache
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response && response.status === 200 && event.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(res => {
+        if (!res || res.status !== 200 || res.type === 'opaque') return res;
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        return res;
+      }).catch(() => caches.match('/index.html'));
+    })
   );
 });
