@@ -4391,6 +4391,19 @@ async function openInternalMsgStatsModal(msgId, title) {
 
 async function loadSAFinanceData() {
     try {
+        // טעינת סיכום פיננסי
+        const summaryRes = await fetch(`${API}/sa/finance-summary`, { headers: { 'Authorization': saToken || '' } });
+        const summaryData = await summaryRes.json();
+        if (summaryData.success) {
+            const s = summaryData.summary;
+            const fmt = v => '₪' + parseFloat(v || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const el = id => document.getElementById(id);
+            if (el('sa-fin-total-commission')) el('sa-fin-total-commission').textContent = fmt(s.total_commission);
+            if (el('sa-fin-total-cashback')) el('sa-fin-total-cashback').textContent = fmt(s.total_cashback);
+            if (el('sa-fin-month-commission')) el('sa-fin-month-commission').textContent = fmt(s.month_commission);
+            if (el('sa-fin-month-cashback')) el('sa-fin-month-cashback').textContent = fmt(s.month_cashback);
+        }
+
         // טעינת אחוזים
         const ratesRes = await fetch(`${API}/sa/settings/rates`, { headers: { 'Authorization': saToken || '' } });
         const ratesData = await ratesRes.json();

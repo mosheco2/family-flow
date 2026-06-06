@@ -5082,6 +5082,21 @@ app.put('/api/sa/communities/:commId/set-manager', verifySA, async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// סיכום פיננסי גלובלי (סופר אדמין)
+app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                COALESCE(SUM(commission_amount), 0) as total_commission,
+                COALESCE(SUM(cashback_amount), 0) as total_cashback,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()) THEN commission_amount ELSE 0 END), 0) as month_commission,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()) THEN cashback_amount ELSE 0 END), 0) as month_cashback
+            FROM business_platform_dues
+        `);
+        res.json({ success: true, summary: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // חובות עסקים לפלטפורמה (סופר אדמין)
 app.get('/api/sa/business-dues', verifySA, async (req, res) => {
     try {

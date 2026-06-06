@@ -670,6 +670,32 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
 
                 <div id="sa-view-finance" class="hidden space-y-8 fade-in">
+                    <!-- קוביות סיכום -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-black text-blue-700" id="sa-fin-total-commission">--</span>
+                            <span class="text-[10px] text-blue-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-fin-total-cashback">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ קאשבק לקהילות</span>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-blue-600" id="sa-fin-month-commission">--</span>
+                            <span class="text-[10px] text-blue-500 font-bold mt-1">עמלות החודש</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-emerald-600" id="sa-fin-month-cashback">--</span>
+                            <span class="text-[10px] text-emerald-500 font-bold mt-1">קאשבק החודש</span>
+                        </div>
+                    </div>
+
                     <!-- אחוזי עמלה וקאשבק -->
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <h2 class="text-xl font-bold mb-6 text-slate-800"><i class="fa-solid fa-percent text-emerald-500 mr-2"></i> הגדרות עמלה וקאשבק קהילתי</h2>
