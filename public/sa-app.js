@@ -63,7 +63,8 @@ window.applyUserPermissions = function() {
         'clients': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all'
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
+        'finance': 'all'
     };
 
     Object.keys(tabRequirements).forEach(tab => {
@@ -92,8 +93,9 @@ window.checkTabAccess = function(tabId) {
     
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
-        'comm': 'comm', 'biz': 'biz', 'content': 'content', 
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all'
+        'comm': 'comm', 'biz': 'biz', 'content': 'content',
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
+        'finance': 'all'
     };
     
     if (req[tabId] && !perms.includes(req[tabId])) return false;
