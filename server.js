@@ -5010,13 +5010,22 @@ app.get('/api/sa/communities', async (req, res) => {
 // פונקציה פנימית: טריגר קאשבק כאשר הזמנה מסומנת כ-delivered
 async function triggerCashbackForOrder(orderId) {
     try {
+        // מצא את הקהילה המשותפת: המשפחה שהזמינה (family_communities) + העסק שמכר (community_businesses)
         const orderRes = await pool.query(
-            `SELECT so.*, fg.community_id FROM store_orders so
-             JOIN family_groups fg ON so.group_id = fg.id
-             WHERE so.id = $1 AND so.status = 'delivered'`, [orderId]);
-        if (!orderRes.rows.length) return;
+            `SELECT so.group_id, so.family_group_id, so.total_amount,
+                    fc.community_id
+             FROM store_orders so
+             JOIN family_communities fc ON fc.group_id = so.family_group_id
+             JOIN community_businesses cb ON cb.community_id = fc.community_id
+                  AND cb.business_id = so.group_id AND cb.status = 'approved'
+             WHERE so.id = $1 AND so.status = 'delivered'
+             LIMIT 1`, [orderId]);
+
+        if (!orderRes.rows.length) {
+            console.log(`Cashback: no matching community for order ${orderId} (family not in same community as business, or order not delivered)`);
+            return;
+        }
         const order = orderRes.rows[0];
-        if (!order.community_id) return;
 
         // בדיקה שלא כבר טופל
         const existing = await pool.query('SELECT id FROM business_platform_dues WHERE order_id=$1', [orderId]);
@@ -5044,6 +5053,7 @@ async function triggerCashbackForOrder(orderId) {
                 VALUES ($1,$2,'cashback',$3,$4)`,
                 [order.community_id, cashbackAmount, orderId, `קאשבק מהזמנה #${orderId} על סך ₪${amount}`]);
         }
+        console.log(`Cashback triggered: order ${orderId}, community ${order.community_id}, cashback ₪${cashbackAmount}`);
     } catch(e) { console.error('Cashback trigger error:', e.message); }
 }
 
