@@ -3741,6 +3741,26 @@ app.put('/api/store/quotes/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// סיכום עמלות וגביות לעסק (תצוגה עצמית)
+app.get('/api/store/commission-summary/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const duesRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(d.commission_amount), 0) as total_commission,
+                COALESCE(SUM(d.order_amount), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', d.created_at) = DATE_TRUNC('month', NOW()) THEN d.commission_amount ELSE 0 END), 0) as month_commission,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', d.created_at) = DATE_TRUNC('month', NOW()) THEN d.order_amount ELSE 0 END), 0) as month_sales
+            FROM business_platform_dues d WHERE d.business_id = $1`, [groupId]);
+        const collRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(amount), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', collected_at) = DATE_TRUNC('month', NOW()) THEN amount ELSE 0 END), 0) as month_collected
+            FROM business_platform_collections WHERE business_id = $1`, [groupId]);
+        res.json({ success: true, summary: { ...duesRes.rows[0], ...collRes.rows[0] } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
         const orders = await pool.query("SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC", [req.params.groupId]);

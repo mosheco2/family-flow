@@ -1373,7 +1373,7 @@ function switchTab(t) {
     
     // הפעלת לוגיקה ספציפית לכל טאב
     if (t === 'feed') try { renderDashboard(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
+    if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} try { fetchCommissionSummary(); } catch(e) {} } 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
@@ -3998,6 +3998,37 @@ function renderUnifiedFeed() {
         html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
     });
     list.innerHTML = html;
+}
+
+async function fetchCommissionSummary() {
+    if (!currentGroup || !currentGroup.id) return;
+    const container = document.getElementById('biz-commission-cubes');
+    if (!container) return;
+    try {
+        const res = await fetch(`${API}/store/commission-summary/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) { container.innerHTML = '<div class="col-span-2 text-center text-xs text-red-400 py-2">שגיאה בטעינת נתונים</div>'; return; }
+        const s = data.summary;
+        const fmt = v => '₪' + parseFloat(v || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const pct = (collected, total) => total > 0 ? Math.min(100, Math.round(collected / total * 100)) : 0;
+        const totalPct = pct(s.total_collected, s.total_commission);
+        const monthPct = pct(s.month_collected, s.month_commission);
+        const cube = (icon, color, label, main, sub, subLabel, barPct, barColor, tag) => `
+            <div class="bg-${color}-50 border border-${color}-100 rounded-2xl p-4 text-center relative">
+                ${tag ? `<span class="absolute top-2 right-2 text-[9px] font-bold bg-${color}-200 text-${color}-700 px-1.5 py-0.5 rounded-full">${tag}</span>` : ''}
+                <i class="fa-solid ${icon} text-lg text-${color}-400 mb-1 ${tag ? 'mt-2' : ''} block"></i>
+                <div class="text-base font-black text-${color}-700">${main}</div>
+                <div class="text-[10px] text-${color}-600 font-bold mb-2">${label}</div>
+                <div class="text-[10px] font-bold text-${color}-500 mb-0.5">${sub} · ${subLabel}</div>
+                <div class="w-full bg-${color}-100 rounded-full h-1.5">
+                    <div class="bg-${barColor} h-1.5 rounded-full transition-all duration-700" style="width:${barPct}%"></div>
+                </div>
+                <div class="text-[9px] text-${color}-400 mt-0.5">${barPct}% שולם</div>
+            </div>`;
+        container.innerHTML =
+            cube('fa-file-invoice-dollar', 'blue', 'סה"כ עמלה', fmt(s.total_commission), fmt(s.total_collected), 'שולם', totalPct, 'rgb(99,102,241)', '') +
+            cube('fa-file-invoice-dollar', 'indigo', 'עמלה החודש', fmt(s.month_commission), fmt(s.month_collected), 'שולם', monthPct, 'rgb(99,102,241)', 'חודש שוטף');
+    } catch(e) { if(container) container.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-2">אין נתוני עמלות עדיין</div>'; }
 }
 
 function renderCashflow() {
