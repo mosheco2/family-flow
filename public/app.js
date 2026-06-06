@@ -2841,9 +2841,11 @@ function renderFamilyCommunities() {
         myConnectedCommunitiesCache.forEach(c => {
             const cbInfo = myCashbackCache.find(x => x.community_id === c.id) || {};
             const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
+            const totalEarned = parseFloat(cbInfo.total_earned || 0).toFixed(2);
             const isManager = cbInfo.is_community_manager;
-            const walletBadge = parseFloat(walletBal) > 0
-                ? `<span class="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal} בארנק</span>`
+            const hasData = cbInfo && cbInfo.community_id;
+            const walletBadge = hasData
+                ? `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`
                 : '';
             const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
             html += `
