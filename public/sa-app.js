@@ -1698,7 +1698,7 @@ function renderSACommFamilies(query = '') {
     famList.innerHTML = filtered.map(f => {
         const usersHtml = f.users && f.users.length > 0 ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('') : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים.</div>';
         const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
-        const isManager = f.is_community_manager;
+        const isManager = f.is_community_manager === true;
         const managerBtn = isManager
             ? `<button onclick="event.stopPropagation();setSACommunityManager(${commId},${f.id},false)" class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded hover:bg-red-100 transition whitespace-nowrap">הסר מנהל</button>`
             : `<button onclick="event.stopPropagation();setSACommunityManager(${commId},${f.id},true)" class="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded hover:bg-purple-200 transition whitespace-nowrap">הגדר מנהל</button>`;

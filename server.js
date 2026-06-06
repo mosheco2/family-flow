@@ -4704,7 +4704,10 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
         if (families.length > 0) {
             const familyIds = families.map(f => f.id);
             const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
-            families.forEach(f => { f.users = usersRes.rows.filter(u => u.group_id === f.id); });
+            families.forEach(f => {
+                f.users = usersRes.rows.filter(u => u.group_id === f.id);
+                f.is_community_manager = f.is_community_manager === true; // normalize null → false
+            });
         }
 
         const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);

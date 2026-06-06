@@ -2691,6 +2691,7 @@ async function fetchCashbackInfo() {
         const data = await res.json();
         if(data.success) {
             myCashbackCache = data.communities || [];
+            renderFamilyCommunities(); // re-render now that cashback data is ready
         }
     } catch(e) {}
 }
@@ -2839,7 +2840,7 @@ function renderFamilyCommunities() {
                     <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
                     <div class="space-y-2">`;
         myConnectedCommunitiesCache.forEach(c => {
-            const cbInfo = myCashbackCache.find(x => x.community_id === c.id) || {};
+            const cbInfo = myCashbackCache.find(x => String(x.community_id) === String(c.id)) || {};
             const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
             const totalEarned = parseFloat(cbInfo.total_earned || 0).toFixed(2);
             const isManager = cbInfo.is_community_manager;
