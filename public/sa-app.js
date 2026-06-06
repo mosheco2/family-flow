@@ -4407,6 +4407,15 @@ async function loadSAFinanceData() {
             if (el('sa-fin-total-cashback')) el('sa-fin-total-cashback').textContent = fmt(s.total_cashback);
             if (el('sa-fin-month-commission')) el('sa-fin-month-commission').textContent = fmt(s.month_commission);
             if (el('sa-fin-month-cashback')) el('sa-fin-month-cashback').textContent = fmt(s.month_cashback);
+            if (el('sa-fin-total-collected')) el('sa-fin-total-collected').textContent = fmt(s.total_collected);
+            if (el('sa-fin-month-collected')) el('sa-fin-month-collected').textContent = fmt(s.month_collected);
+            // progress bars
+            const totalPct = s.total_commission > 0 ? Math.min(100, Math.round(s.total_collected / s.total_commission * 100)) : 0;
+            const monthPct = s.month_commission > 0 ? Math.min(100, Math.round(s.month_collected / s.month_commission * 100)) : 0;
+            if (el('sa-fin-collected-pct')) el('sa-fin-collected-pct').textContent = totalPct + '%';
+            if (el('sa-fin-collected-bar')) el('sa-fin-collected-bar').style.width = totalPct + '%';
+            if (el('sa-fin-month-collected-pct')) el('sa-fin-month-collected-pct').textContent = monthPct + '%';
+            if (el('sa-fin-month-collected-bar')) el('sa-fin-month-collected-bar').style.width = monthPct + '%';
         }
 
         // טעינת אחוזים
@@ -4426,15 +4435,30 @@ async function loadSAFinanceData() {
         const duesTbody = document.getElementById('sa-dues-table-body');
         if (duesTbody && duesData.success) {
             if (!duesData.dues.length) {
-                duesTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">אין נתונים עדיין. נתונים יצברו כשהזמנות יסומנו כ"נמסר".</td></tr>';
+                duesTbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">אין נתונים עדיין. נתונים יצברו כשהזמנות יסומנו כ"נמסר".</td></tr>';
             } else {
-                duesTbody.innerHTML = duesData.dues.map(d => `<tr class="hover:bg-slate-50">
+                duesTbody.innerHTML = duesData.dues.map(d => {
+                    const totalComm = parseFloat(d.total_commission||0);
+                    const collected = parseFloat(d.total_collected||0);
+                    const collPct = totalComm > 0 ? Math.min(100, Math.round(collected / totalComm * 100)) : 0;
+                    return `<tr class="hover:bg-slate-50">
                     <td class="px-4 py-3 font-bold text-slate-800">${safeStr(d.business_name)}<br><span class="text-[10px] text-slate-400">${safeStr(d.group_code)}</span></td>
                     <td class="px-4 py-3 text-center font-mono">₪${parseFloat(d.total_sales||0).toFixed(2)}</td>
-                    <td class="px-4 py-3 text-center font-mono text-blue-700">₪${parseFloat(d.total_commission||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono text-blue-700">₪${totalComm.toFixed(2)}</td>
                     <td class="px-4 py-3 text-center font-mono text-amber-600">₪${parseFloat(d.total_cashback||0).toFixed(2)}</td>
                     <td class="px-4 py-3 text-center font-mono font-bold text-red-600">₪${parseFloat(d.pending_commission||0).toFixed(2)}</td>
-                </tr>`).join('');
+                    <td class="px-4 py-3 text-center">
+                        <span class="font-mono text-violet-700 font-bold">₪${collected.toFixed(2)}</span>
+                        <div class="w-20 mx-auto mt-1">
+                            <div class="flex justify-between text-[9px] text-violet-400 mb-0.5"><span>${collPct}%</span></div>
+                            <div class="w-full bg-violet-100 rounded-full h-1"><div class="bg-violet-500 h-1 rounded-full" style="width:${collPct}%"></div></div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="openCollectionModal(${d.business_id},'${safeStr(d.business_name)}')" class="bg-violet-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-violet-700 transition shadow-sm"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>גביה</button>
+                    </td>
+                </tr>`;
+                }).join('');
             }
         }
 
@@ -4457,6 +4481,59 @@ async function loadSAFinanceData() {
         }
     } catch(e) { console.error('Finance load error:', e); }
 }
+
+window.openCollectionModal = function(bizId, bizName) {
+    document.getElementById('sa-coll-biz-id').value = bizId;
+    document.getElementById('sa-coll-biz-name').textContent = bizName;
+    document.getElementById('sa-coll-amount').value = '';
+    document.getElementById('sa-coll-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sa-coll-notes').value = '';
+    document.getElementById('sa-collection-modal').classList.remove('hidden');
+    loadCollectionHistory(bizId);
+};
+
+async function loadCollectionHistory(bizId) {
+    const container = document.getElementById('sa-coll-history');
+    if (!container) return;
+    container.innerHTML = '<p class="text-slate-400 text-center py-2">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/sa/business-collections/${bizId}`, { headers: { 'Authorization': saToken || '' } });
+        const data = await res.json();
+        if (!data.success || !data.collections.length) {
+            container.innerHTML = '<p class="text-slate-400 text-center py-2">אין גביות רשומות עדיין</p>';
+            return;
+        }
+        container.innerHTML = data.collections.map(c => `
+            <div class="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 text-xs">
+                <span class="text-slate-400">${new Date(c.collected_at).toLocaleDateString('he-IL')}</span>
+                <span class="font-bold text-violet-700">₪${parseFloat(c.amount).toFixed(2)}</span>
+                <span class="text-slate-500 truncate max-w-[120px]">${c.notes || ''}</span>
+            </div>`).join('');
+    } catch(e) { container.innerHTML = '<p class="text-red-400 text-center py-2">שגיאה בטעינה</p>'; }
+}
+
+window.saveBusinessCollection = async function() {
+    const bizId = document.getElementById('sa-coll-biz-id').value;
+    const amount = document.getElementById('sa-coll-amount').value;
+    const date = document.getElementById('sa-coll-date').value;
+    const notes = document.getElementById('sa-coll-notes').value;
+    if (!amount || parseFloat(amount) <= 0) return showToast('error', 'נא להזין סכום חיובי');
+    try {
+        const res = await fetch(`${API}/sa/business-collections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ business_id: bizId, amount: parseFloat(amount), collected_at: date, notes })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הגביה נרשמה בהצלחה!');
+            document.getElementById('sa-coll-amount').value = '';
+            document.getElementById('sa-coll-notes').value = '';
+            loadCollectionHistory(bizId);
+            loadSAFinanceData();
+        } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
 
 function updateRatesExample(commPct, cashbackPct) {
     const commEl = document.getElementById('sa-example-comm');

@@ -131,6 +131,15 @@ pool.connect()
           status VARCHAR(20) DEFAULT 'pending',
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_collections (
+          id SERIAL PRIMARY KEY,
+          business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          collected_at DATE NOT NULL DEFAULT CURRENT_DATE,
+          notes TEXT,
+          created_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===================================================
 
       await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
@@ -5095,7 +5104,7 @@ app.put('/api/sa/communities/:commId/set-manager', verifySA, async (req, res) =>
 // סיכום פיננסי גלובלי (סופר אדמין)
 app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
     try {
-        const result = await pool.query(`
+        const duesRes = await pool.query(`
             SELECT
                 COALESCE(SUM(commission_amount), 0) as total_commission,
                 COALESCE(SUM(cashback_amount), 0) as total_cashback,
@@ -5103,7 +5112,13 @@ app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
                 COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()) THEN cashback_amount ELSE 0 END), 0) as month_cashback
             FROM business_platform_dues
         `);
-        res.json({ success: true, summary: result.rows[0] });
+        const collRes = await pool.query(`
+            SELECT
+                COALESCE(SUM(amount), 0) as total_collected,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', collected_at) = DATE_TRUNC('month', NOW()) THEN amount ELSE 0 END), 0) as month_collected
+            FROM business_platform_collections
+        `);
+        res.json({ success: true, summary: { ...duesRes.rows[0], ...collRes.rows[0] } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5111,18 +5126,45 @@ app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
 app.get('/api/sa/business-dues', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT fg.name as business_name, fg.group_code,
+            SELECT fg.id as business_id, fg.name as business_name, fg.group_code,
                 COUNT(d.id) as order_count,
                 SUM(d.order_amount) as total_sales,
                 SUM(d.commission_amount) as total_commission,
                 SUM(d.cashback_amount) as total_cashback,
-                SUM(CASE WHEN d.status='pending' THEN d.commission_amount ELSE 0 END) as pending_commission
+                SUM(CASE WHEN d.status='pending' THEN d.commission_amount ELSE 0 END) as pending_commission,
+                COALESCE((SELECT SUM(c.amount) FROM business_platform_collections c WHERE c.business_id=fg.id), 0) as total_collected
             FROM business_platform_dues d
             JOIN family_groups fg ON d.business_id = fg.id
             GROUP BY fg.id, fg.name, fg.group_code
             ORDER BY total_commission DESC
         `);
         res.json({ success: true, dues: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רישום גביה מעסק
+app.post('/api/sa/business-collections', verifySA, async (req, res) => {
+    try {
+        const { business_id, amount, collected_at, notes } = req.body;
+        if (!business_id || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        await pool.query(
+            `INSERT INTO business_platform_collections (business_id, amount, collected_at, notes, created_by) VALUES ($1,$2,$3,$4,$5)`,
+            [business_id, parseFloat(amount), collected_at || new Date().toISOString().split('T')[0], notes || null, req.saUser?.name || 'SA']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// היסטוריית גביות לעסק
+app.get('/api/sa/business-collections/:businessId', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT bpc.*, fg.name as business_name FROM business_platform_collections bpc
+             JOIN family_groups fg ON bpc.business_id=fg.id
+             WHERE bpc.business_id=$1 ORDER BY bpc.collected_at DESC`,
+            [req.params.businessId]
+        );
+        res.json({ success: true, collections: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
