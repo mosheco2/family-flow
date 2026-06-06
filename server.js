@@ -3843,7 +3843,7 @@ app.post('/api/store/orders/status', async (req, res) => {
         const { orderId, status } = req.body;
         await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
         res.json({ success: true });
-        if (status === 'delivered') triggerCashbackForOrder(orderId);
+        if (status === 'delivered' || status === 'completed') triggerCashbackForOrder(orderId);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5018,7 +5018,7 @@ async function triggerCashbackForOrder(orderId) {
              JOIN family_communities fc ON fc.group_id = so.family_group_id
              JOIN community_businesses cb ON cb.community_id = fc.community_id
                   AND cb.business_id = so.group_id AND cb.status = 'approved'
-             WHERE so.id = $1 AND so.status = 'delivered'
+             WHERE so.id = $1 AND so.status IN ('delivered','completed')
              LIMIT 1`, [orderId]);
 
         if (!orderRes.rows.length) {
