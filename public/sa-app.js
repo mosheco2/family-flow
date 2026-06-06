@@ -196,8 +196,9 @@ window.switchSATab = function(tabId) {
     }
 
     if (tabId === 'pulse') updateSADashboard();
+    if (tabId === 'finance') loadSAFinanceData();
 
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -1696,11 +1697,32 @@ function renderSACommFamilies(query = '') {
     if (filtered.length === 0) { famList.innerHTML = `<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">${query ? 'לא נמצאו משפחות' : 'אין משפחות'}</p>`; return; }
     famList.innerHTML = filtered.map(f => {
         const usersHtml = f.users && f.users.length > 0 ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('') : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים.</div>';
-        return `<div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm"><div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')"><div class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}</div><div class="flex items-center gap-2"><span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">קוד: ${safeStr(f.group_code || '---')}</span></div></div><div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">${usersHtml}</div></div>`;
+        const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
+        const isManager = f.is_community_manager;
+        const managerBtn = isManager
+            ? `<button onclick="event.stopPropagation();setSACommunityManager(${commId},${f.id},false)" class="text-[9px] font-bold bg-red-50 text-red-500 px-1.5 py-0.5 rounded hover:bg-red-100 transition whitespace-nowrap">הסר מנהל</button>`
+            : `<button onclick="event.stopPropagation();setSACommunityManager(${commId},${f.id},true)" class="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded hover:bg-purple-200 transition whitespace-nowrap">הגדר מנהל</button>`;
+        const starIcon = isManager ? '<i class="fa-solid fa-star text-purple-400 text-[10px] mr-1"></i>' : '';
+        return `<div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm"><div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')"><div class="flex items-center gap-2">${managerBtn}</div><div class="font-bold text-slate-700 flex items-center gap-2">${starIcon}<i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}</div></div><div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">${usersHtml}</div></div>`;
     }).join('');
 }
 
 function filterSACommFamilies() { const query = getEl('sa-search-comm-fam') ? getEl('sa-search-comm-fam').value : ''; renderSACommFamilies(query); }
+
+async function setSACommunityManager(commId, groupId, isManager) {
+    try {
+        const res = await fetch(`${API}/sa/communities/${commId}/set-manager`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ groupId, isManager })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', isManager ? 'המשפחה הוגדרה כמנהלת קהילה!' : 'הוסרה הרשאת מנהל קהילה');
+            openSACommunityModal(commId);
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
 
 async function saveSACommunityEdit() {
     const id = val('sa-edit-comm-id'); const name = val('sa-edit-comm-name'); const code = val('sa-edit-comm-code'); const email = val('sa-edit-comm-email'); const pass = val('sa-edit-comm-pass'); const cityData = val('sa-edit-comm-city-data'); const imageUrl = val('sa-edit-comm-image-base64');
@@ -4361,4 +4383,81 @@ async function openInternalMsgStatsModal(msgId, title) {
     } catch(e) {
         tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-center text-red-500">שגיאת רשת.</td></tr>';
     }
+}
+
+// ============================================================
+// --- FINANCE & CASHBACK TAB ---
+// ============================================================
+
+async function loadSAFinanceData() {
+    try {
+        // טעינת אחוזים
+        const ratesRes = await fetch(`${API}/sa/settings/rates`, { headers: { 'Authorization': saToken || '' } });
+        const ratesData = await ratesRes.json();
+        if (ratesData.success) {
+            const commInput = document.getElementById('sa-commission-pct');
+            const cashbackInput = document.getElementById('sa-cashback-pct');
+            if (commInput) commInput.value = ratesData.platform_commission_pct;
+            if (cashbackInput) cashbackInput.value = ratesData.community_cashback_pct;
+            updateRatesExample(ratesData.platform_commission_pct, ratesData.community_cashback_pct);
+        }
+
+        // טעינת חובות עסקים
+        const duesRes = await fetch(`${API}/sa/business-dues`, { headers: { 'Authorization': saToken || '' } });
+        const duesData = await duesRes.json();
+        const duesTbody = document.getElementById('sa-dues-table-body');
+        if (duesTbody && duesData.success) {
+            if (!duesData.dues.length) {
+                duesTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">אין נתונים עדיין. נתונים יצברו כשהזמנות יסומנו כ"נמסר".</td></tr>';
+            } else {
+                duesTbody.innerHTML = duesData.dues.map(d => `<tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${safeStr(d.business_name)}<br><span class="text-[10px] text-slate-400">${safeStr(d.group_code)}</span></td>
+                    <td class="px-4 py-3 text-center font-mono">₪${parseFloat(d.total_sales||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono text-blue-700">₪${parseFloat(d.total_commission||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono text-amber-600">₪${parseFloat(d.total_cashback||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono font-bold text-red-600">₪${parseFloat(d.pending_commission||0).toFixed(2)}</td>
+                </tr>`).join('');
+            }
+        }
+
+        // טעינת ארנקים
+        const walletsRes = await fetch(`${API}/sa/community-wallets`, { headers: { 'Authorization': saToken || '' } });
+        const walletsData = await walletsRes.json();
+        const walletsTbody = document.getElementById('sa-wallets-table-body');
+        if (walletsTbody && walletsData.success) {
+            if (!walletsData.wallets.length) {
+                walletsTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">אין קהילות רשומות</td></tr>';
+            } else {
+                walletsTbody.innerHTML = walletsData.wallets.map(w => `<tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${safeStr(w.name)}</td>
+                    <td class="px-4 py-3 text-slate-500 text-sm">${safeStr(w.city||'כללי')}</td>
+                    <td class="px-4 py-3 text-center">${w.family_count||0}</td>
+                    <td class="px-4 py-3 text-center font-mono text-amber-700">₪${parseFloat(w.total_earned||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono font-bold text-emerald-700">₪${parseFloat(w.balance||0).toFixed(2)}</td>
+                </tr>`).join('');
+            }
+        }
+    } catch(e) { console.error('Finance load error:', e); }
+}
+
+function updateRatesExample(commPct, cashbackPct) {
+    const commEl = document.getElementById('sa-example-comm');
+    const cashEl = document.getElementById('sa-example-cashback');
+    if (commEl) commEl.textContent = '₪' + (1000 * commPct / 100).toFixed(2);
+    if (cashEl) cashEl.textContent = '₪' + (1000 * commPct / 100 * cashbackPct / 100).toFixed(2);
+}
+
+async function savePlatformRates() {
+    const commPct = parseFloat(document.getElementById('sa-commission-pct')?.value || 3);
+    const cashbackPct = parseFloat(document.getElementById('sa-cashback-pct')?.value || 30);
+    try {
+        const res = await fetch(`${API}/sa/settings/rates`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ platform_commission_pct: commPct, community_cashback_pct: cashbackPct })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההגדרות נשמרו בהצלחה!'); updateRatesExample(commPct, cashbackPct); }
+        else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }

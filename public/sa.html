@@ -202,6 +202,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="hidden flex">
               <i class="fa-solid fa-handshake"></i> שותפים
             </button>
+            <button id="btn-sa-tab-finance" onclick="switchSATab('finance')" class="hidden flex">
+              <i class="fa-solid fa-wallet" style="color:#f59e0b"></i> פיננסים וקאשבק
+            </button>
           </div>
           <div class="sb-footer">
             <button onclick="logoutSA()" class="sb-logout">
@@ -661,6 +664,80 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                     </tr>
                                 </thead>
                                 <tbody id="sa-communities-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sa-view-finance" class="hidden space-y-8 fade-in">
+                    <!-- אחוזי עמלה וקאשבק -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <h2 class="text-xl font-bold mb-6 text-slate-800"><i class="fa-solid fa-percent text-emerald-500 mr-2"></i> הגדרות עמלה וקאשבק קהילתי</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
+                                <label class="text-xs font-bold text-emerald-700 block mb-2">אחוז עמלה מהפלטפורמה (% ממחזור מכירות)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" id="sa-commission-pct" step="0.1" min="0" max="100" class="modern-input py-2.5 text-sm flex-1" placeholder="3" oninput="updateRatesExample(this.value, document.getElementById('sa-cashback-pct')?.value||30)">
+                                    <span class="text-emerald-700 font-bold">%</span>
+                                </div>
+                                <p class="text-[10px] text-emerald-600 mt-2">כמה % גובה הפלטפורמה מכל הזמנה שסטטוסה שונה ל"נמסר"</p>
+                            </div>
+                            <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                                <label class="text-xs font-bold text-amber-700 block mb-2">אחוז קאשבק לקהילה (% מהעמלה שחוזר לקהילה)</label>
+                                <div class="flex items-center gap-3">
+                                    <input type="number" id="sa-cashback-pct" step="0.1" min="0" max="100" class="modern-input py-2.5 text-sm flex-1" placeholder="30" oninput="updateRatesExample(document.getElementById('sa-commission-pct')?.value||3, this.value)">
+                                    <span class="text-amber-700 font-bold">%</span>
+                                </div>
+                                <p class="text-[10px] text-amber-600 mt-2">מתוך העמלה, כמה % חוזר לארנק הקהילה של הלקוח</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 text-sm text-slate-600 mb-5 text-right">
+                            <span class="font-bold">דוגמה:</span> הזמנה 1,000&#8362; &#8592; עמלה <span id="sa-example-comm" class="font-bold text-emerald-700">30.00&#8362;</span> &#8592; קאשבק לקהילה <span id="sa-example-cashback" class="font-bold text-amber-600">9.00&#8362;</span>
+                        </div>
+                        <button onclick="savePlatformRates()" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-emerald-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור הגדרות</button>
+                    </div>
+
+                    <!-- חובות עסקים -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-5">
+                            <button onclick="loadSAFinanceData()" class="text-xs text-slate-500 hover:text-slate-700 font-bold"><i class="fa-solid fa-rotate-right mr-1"></i> רענן</button>
+                            <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-file-invoice-dollar text-blue-500 mr-2"></i> חובות עסקים לפלטפורמה</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">עסק</th>
+                                        <th class="px-4 py-3 text-center">מחזור מכירות</th>
+                                        <th class="px-4 py-3 text-center">עמלה כוללת</th>
+                                        <th class="px-4 py-3 text-center">קאשבק שהופרש</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">ממתין לגבייה</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-dues-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ארנקי קהילות -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                        <h2 class="text-xl font-bold mb-5 text-slate-800"><i class="fa-solid fa-wallet text-purple-500 mr-2"></i> ארנקי קהילות - יתרות קאשבק</h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">קהילה</th>
+                                        <th class="px-4 py-3">אזור</th>
+                                        <th class="px-4 py-3 text-center">משפחות</th>
+                                        <th class="px-4 py-3 text-center">סה"כ נצבר</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">יתרה זמינה</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-wallets-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">טוען נתונים...</td></tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
