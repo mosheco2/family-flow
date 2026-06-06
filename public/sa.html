@@ -800,40 +800,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <!-- modal גביה מעסק -->
-                <div id="sa-collection-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-                    <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl">
-                        <div class="flex justify-between items-center mb-5">
-                            <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-violet-500 mr-2"></i> רישום גביה</h3>
-                            <button onclick="document.getElementById('sa-collection-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <p class="text-sm font-bold text-slate-600 mb-4" id="sa-coll-biz-name"></p>
-                        <input type="hidden" id="sa-coll-biz-id">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">סכום שנגבה (₪)</label>
-                                <input type="number" id="sa-coll-amount" step="0.01" min="0" class="modern-input py-2.5 text-sm w-full" placeholder="0.00">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">תאריך גביה</label>
-                                <input type="date" id="sa-coll-date" class="modern-input py-2.5 text-sm w-full">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">הערות (אופציונלי)</label>
-                                <input type="text" id="sa-coll-notes" class="modern-input py-2.5 text-sm w-full" placeholder="למשל: העברה בנקאית, מספר אסמכתא...">
-                            </div>
-                        </div>
-                        <button onclick="saveBusinessCollection()" class="mt-6 bg-violet-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow hover:bg-violet-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור גביה</button>
-                        <!-- היסטוריית גביות -->
-                        <div class="mt-5">
-                            <h4 class="text-xs font-bold text-slate-500 mb-2"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריית גביות</h4>
-                            <div id="sa-coll-history" class="space-y-1 max-h-48 overflow-y-auto text-xs text-slate-600">
-                                <p class="text-slate-400 text-center py-2">טוען...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div id="sa-view-biz" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -2501,5 +2467,38 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
     } catch(e) {}
 })();
 </script>
+
+<!-- modal גביה מעסק — מחוץ לכל container כדי ש-fixed יעבוד נכון -->
+<div id="sa-collection-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-violet-500 mr-2"></i> רישום גביה</h3>
+            <button onclick="document.getElementById('sa-collection-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-sm font-bold text-slate-600 mb-4" id="sa-coll-biz-name"></p>
+        <input type="hidden" id="sa-coll-biz-id">
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">סכום שנגבה (₪)</label>
+                <input type="number" id="sa-coll-amount" step="0.01" min="0" class="modern-input py-2.5 text-sm w-full" placeholder="0.00">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">תאריך גביה</label>
+                <input type="date" id="sa-coll-date" class="modern-input py-2.5 text-sm w-full">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1">הערות (אופציונלי)</label>
+                <input type="text" id="sa-coll-notes" class="modern-input py-2.5 text-sm w-full" placeholder="למשל: העברה בנקאית, מספר אסמכתא...">
+            </div>
+        </div>
+        <button onclick="saveBusinessCollection()" class="mt-6 bg-violet-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow hover:bg-violet-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור גביה</button>
+        <div class="mt-5">
+            <h4 class="text-xs font-bold text-slate-500 mb-2"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריית גביות</h4>
+            <div id="sa-coll-history" class="space-y-1 max-h-48 overflow-y-auto text-xs text-slate-600">
+                <p class="text-slate-400 text-center py-2">טוען...</p>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
