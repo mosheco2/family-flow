@@ -792,6 +792,7 @@ async function fetchData() {
         
         // קריאה לרינדור הקהילות ממש כאן!
         try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
+        try { fetchCashbackInfo(); } catch(e) {}
         
         try {
             const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
@@ -2844,10 +2845,7 @@ function renderFamilyCommunities() {
             const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
             const totalEarned = parseFloat(cbInfo.total_earned || 0).toFixed(2);
             const isManager = cbInfo.is_community_manager;
-            const hasData = cbInfo && cbInfo.community_id;
-            const walletBadge = hasData
-                ? `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`
-                : '';
+            const walletBadge = `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`;
             const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
             html += `
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">

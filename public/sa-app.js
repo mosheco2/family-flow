@@ -1146,7 +1146,10 @@ async function loadSAData() {
         
         // תיקון סנכרון: טוען צוותים ונציגים כבר בהתחלה עבור כל המודולים
         if(typeof loadSAHRData === 'function') loadSAHRData();
-        
+
+        // safety re-apply: מוודא שטאבי ההרשאות מוצגים גם אם הקריאה הראשונה רצה לפני שה-DOM היה מוכן
+        if(typeof applyUserPermissions === 'function') applyUserPermissions();
+
     } catch (e) { console.error('loadSAData error:', e); showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
