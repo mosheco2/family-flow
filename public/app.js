@@ -2665,6 +2665,7 @@ async function submitForgotCode() {
 let myConnectedCommunitiesCache = [];
 let myCommunityBusinessesCache = [];
 let myInitiativesCache = [];
+let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
@@ -2679,7 +2680,19 @@ async function fetchCommunityData() {
         }
         
         await fetchMyInitiatives();
+        await fetchCashbackInfo();
     } catch(e) { console.error('Error fetching community data', e); }
+}
+
+async function fetchCashbackInfo() {
+    if(!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/cashback-info/${currentGroup.id}`);
+        const data = await res.json();
+        if(data.success) {
+            myCashbackCache = data.communities || [];
+        }
+    } catch(e) {}
 }
 
 async function fetchMyInitiatives() {
@@ -2826,13 +2839,26 @@ function renderFamilyCommunities() {
                     <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
                     <div class="space-y-2">`;
         myConnectedCommunitiesCache.forEach(c => {
+            const cbInfo = myCashbackCache.find(x => x.community_id === c.id) || {};
+            const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
+            const isManager = cbInfo.is_community_manager;
+            const walletBadge = parseFloat(walletBal) > 0
+                ? `<span class="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal} בארנק</span>`
+                : '';
+            const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
             html += `
-            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm fade-in">
-                <div>
-                    <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        ${isManager ? `<button onclick="openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
+                        <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
+                    </div>
+                    <div class="text-right">
+                        <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
+                        <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+                        <div class="flex gap-1 mt-1 justify-end">${walletBadge}${managerBadge}</div>
+                    </div>
                 </div>
-                <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
             </div>`;
         });
         html += `</div>`;
@@ -2961,6 +2987,118 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
     window.familySwitchTabOverridden = true;
 }
 // ============================================================
+// --- פאנל מנהל קהילה ---
+// ============================================================
+
+async function openCommunityManagerPanel(commId) {
+    try {
+        const res = await fetch(`${API}/community/manager-data/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) return showToast('error', 'שגיאה בטעינת נתוני קהילה');
+
+        const comm = data.managed_communities.find(c => c.community_id === commId);
+        const wallet = data.wallets.find(w => w.community_id === commId) || { balance: 0, total_earned: 0 };
+        const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'pending');
+        const approved = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'approved');
+        const txs = (data.transactions || []).filter(t => t.community_id === commId).slice(0, 10);
+
+        let modal = document.getElementById('comm-manager-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'comm-manager-modal';
+            modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4';
+            document.body.appendChild(modal);
+        }
+
+        const pendingHtml = pending.length ? pending.map(b => `
+            <div class="bg-orange-50 border border-orange-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <div class="flex gap-2">
+                    <button onclick="saApproveBizFromManager(${b.community_id}, ${b.business_id})" class="bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-emerald-600">אשר</button>
+                    <button onclick="saRejectBizFromManager(${b.community_id}, ${b.business_id})" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">דחה</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(b.business_name)}</p>
+                    <p class="text-[10px] text-slate-500">הנחה מוצעת: ${b.discount_pct}%</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין בקשות ממתינות</p>';
+
+        const approvedHtml = approved.length ? approved.map(b => `
+            <div class="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">${b.discount_pct}% הנחה</span>
+                <span class="font-bold text-slate-700 text-sm">${safeStr(b.business_name)}</span>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-2">אין עסקים פעילים</p>';
+
+        const txHtml = txs.length ? txs.map(t => `
+            <div class="flex justify-between items-center border-b border-slate-50 py-2">
+                <span class="text-emerald-600 font-bold text-sm">+₪${parseFloat(t.amount).toFixed(2)}</span>
+                <div class="text-right">
+                    <p class="text-xs text-slate-700">${safeStr(t.description || '')}</p>
+                    <p class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleDateString('he-IL')}</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין תנועות עדיין</p>';
+
+        modal.innerHTML = `
+        <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative" dir="rtl">
+            <button onclick="document.getElementById('comm-manager-modal').remove()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-bold mb-1 text-slate-800"><i class="fa-solid fa-star text-purple-500 mr-2"></i> ניהול קהילה</h3>
+            <p class="text-sm text-slate-500 mb-5">${safeStr(comm?.community_name || '')}</p>
+
+            <!-- ארנק -->
+            <div class="bg-gradient-to-l from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 mb-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] text-amber-600 font-bold">סה"כ נצבר</p>
+                        <p class="text-2xl font-black text-amber-800">₪${parseFloat(wallet.total_earned).toFixed(2)}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-amber-600 font-bold"><i class="fa-solid fa-wallet mr-1"></i> ארנק קהילה</p>
+                        <p class="text-3xl font-black text-amber-700">₪${parseFloat(wallet.balance).toFixed(2)}</p>
+                        <p class="text-[10px] text-amber-500">יתרה זמינה</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- אישורי עסקים -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> בקשות הצטרפות ממתינות</h4>
+                ${pendingHtml}
+            </div>
+
+            <!-- שותפים -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-handshake text-blue-500"></i> עסקים פעילים בקהילה</h4>
+                ${approvedHtml}
+            </div>
+
+            <!-- תנועות ארנק -->
+            <div>
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> היסטוריית קאשבק</h4>
+                ${txHtml}
+            </div>
+        </div>`;
+        modal.classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאה בטעינת פאנל קהילה'); }
+}
+
+async function saApproveBizFromManager(communityId, businessId) {
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'העסק אושר!'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function saRejectBizFromManager(communityId, businessId) {
+    try {
+        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'הבקשה נדחתה'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// ============================================================
 // --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
 // ============================================================
 
@@ -3044,7 +3182,7 @@ function handleCommImageUpload(event, type) {
 }
 
 function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users', 'biz'].forEach(t => {
+    ['stats', 'comm', 'content', 'users', 'biz', 'finance'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
@@ -3055,6 +3193,78 @@ function switchSATab(tabId) {
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+    if (tabId === 'finance') loadSAFinanceData();
+}
+
+async function loadSAFinanceData() {
+    try {
+        // טעינת אחוזים
+        const ratesRes = await fetch(`${API}/sa/settings/rates`, { headers: { 'Authorization': saToken || '' } });
+        const ratesData = await ratesRes.json();
+        if (ratesData.success) {
+            const commInput = document.getElementById('sa-commission-pct');
+            const cashbackInput = document.getElementById('sa-cashback-pct');
+            if (commInput) commInput.value = ratesData.platform_commission_pct;
+            if (cashbackInput) cashbackInput.value = ratesData.community_cashback_pct;
+            updateRatesExample(ratesData.platform_commission_pct, ratesData.community_cashback_pct);
+        }
+        // טעינת חובות עסקים
+        const duesRes = await fetch(`${API}/sa/business-dues`, { headers: { 'Authorization': saToken || '' } });
+        const duesData = await duesRes.json();
+        const duesTbody = document.getElementById('sa-dues-table-body');
+        if (duesTbody && duesData.success) {
+            if (!duesData.dues.length) {
+                duesTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">אין נתונים עדיין. נתונים יצברו כשהזמנות יסומנו כ"נמסר".</td></tr>';
+            } else {
+                duesTbody.innerHTML = duesData.dues.map(d => `<tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${safeStr(d.business_name)}<br><span class="text-[10px] text-slate-400">${safeStr(d.group_code)}</span></td>
+                    <td class="px-4 py-3 text-center font-mono">₪${parseFloat(d.total_sales||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono text-blue-700">₪${parseFloat(d.total_commission||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono text-amber-600">₪${parseFloat(d.total_cashback||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono font-bold text-red-600">₪${parseFloat(d.pending_commission||0).toFixed(2)}</td>
+                </tr>`).join('');
+            }
+        }
+        // טעינת ארנקים
+        const walletsRes = await fetch(`${API}/sa/community-wallets`, { headers: { 'Authorization': saToken || '' } });
+        const walletsData = await walletsRes.json();
+        const walletsTbody = document.getElementById('sa-wallets-table-body');
+        if (walletsTbody && walletsData.success) {
+            if (!walletsData.wallets.length) {
+                walletsTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">אין קהילות רשומות</td></tr>';
+            } else {
+                walletsTbody.innerHTML = walletsData.wallets.map(w => `<tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-slate-800">${safeStr(w.name)}</td>
+                    <td class="px-4 py-3 text-slate-500 text-sm">${safeStr(w.city||'כללי')}</td>
+                    <td class="px-4 py-3 text-center">${w.family_count||0}</td>
+                    <td class="px-4 py-3 text-center font-mono text-amber-700">₪${parseFloat(w.total_earned||0).toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center font-mono font-bold text-emerald-700">₪${parseFloat(w.balance||0).toFixed(2)}</td>
+                </tr>`).join('');
+            }
+        }
+    } catch(e) { console.error('Finance load error:', e); }
+}
+
+function updateRatesExample(commPct, cashbackPct) {
+    const commEl = document.getElementById('sa-example-comm');
+    const cashEl = document.getElementById('sa-example-cashback');
+    if (commEl) commEl.textContent = '₪' + (1000 * commPct / 100).toFixed(2);
+    if (cashEl) cashEl.textContent = '₪' + (1000 * commPct / 100 * cashbackPct / 100).toFixed(2);
+}
+
+async function savePlatformRates() {
+    const commPct = parseFloat(document.getElementById('sa-commission-pct')?.value || 3);
+    const cashbackPct = parseFloat(document.getElementById('sa-cashback-pct')?.value || 30);
+    try {
+        const res = await fetch(`${API}/sa/settings/rates`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ platform_commission_pct: commPct, community_cashback_pct: cashbackPct })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'ההגדרות נשמרו בהצלחה!'); updateRatesExample(commPct, cashbackPct); }
+        else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function loadSACommunityData() {
@@ -3408,15 +3618,18 @@ function renderSACommFamilies(query = '') {
             ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50 hover:bg-slate-100 transition"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('')
             : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים פנימיים.</div>';
 
+        const commId = getEl('sa-edit-comm-id') ? getEl('sa-edit-comm-id').value : '';
+        const isManagerFamily = f.is_community_manager;
         return `
         <div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm">
             <div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')">
-                <div class="font-bold text-slate-700 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
-                </div>
                 <div class="flex items-center gap-2">
-                    <span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">קוד: ${safeStr(f.group_code || '---')}</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
+                    ${isManagerFamily ? '' : `<button onclick="event.stopPropagation();setSACommunityManager(${commId}, ${f.id}, true)" class="text-[9px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded hover:bg-purple-200 transition whitespace-nowrap">הגדר מנהל</button>`}
+                    ${isManagerFamily ? `<button onclick="event.stopPropagation();setSACommunityManager(${commId}, ${f.id}, false)" class="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded hover:bg-red-100 hover:text-red-600 transition whitespace-nowrap">הסר מנהל</button>` : ''}
+                </div>
+                <div class="font-bold text-slate-700 flex items-center gap-2">
+                    ${isManagerFamily ? '<i class="fa-solid fa-star text-purple-400 text-[10px]"></i>' : ''}
+                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
                 </div>
             </div>
             <div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">
@@ -3424,6 +3637,21 @@ function renderSACommFamilies(query = '') {
             </div>
         </div>`;
     }).join('');
+}
+
+async function setSACommunityManager(commId, groupId, isManager) {
+    try {
+        const res = await fetch(`${API}/sa/communities/${commId}/set-manager`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ groupId, isManager })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', isManager ? 'המשפחה הוגדרה כמנהלת קהילה!' : 'הוסרה הרשאת מנהל קהילה');
+            openSACommunityModal(commId);
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function filterSACommFamilies() {

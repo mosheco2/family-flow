@@ -101,6 +101,38 @@ pool.connect()
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
 
+      // ============ COMMUNITY CASHBACK SYSTEM ============
+      try { await client.query(`ALTER TABLE family_communities ADD COLUMN IF NOT EXISTS is_community_manager BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallets (
+          community_id INT PRIMARY KEY REFERENCES communities(id) ON DELETE CASCADE,
+          balance NUMERIC(12,2) DEFAULT 0,
+          total_earned NUMERIC(12,2) DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS community_wallet_transactions (
+          id SERIAL PRIMARY KEY,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          type VARCHAR(20) NOT NULL DEFAULT 'cashback',
+          reference_id INT,
+          description TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_dues (
+          id SERIAL PRIMARY KEY,
+          business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_id INT,
+          order_amount NUMERIC(12,2),
+          commission_pct NUMERIC(5,2),
+          commission_amount NUMERIC(12,2),
+          cashback_pct NUMERIC(5,2),
+          cashback_amount NUMERIC(12,2),
+          community_id INT,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===================================================
+
       await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
           id SERIAL PRIMARY KEY,
           group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -3811,6 +3843,7 @@ app.post('/api/store/orders/status', async (req, res) => {
         const { orderId, status } = req.body;
         await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
         res.json({ success: true });
+        if (status === 'delivered') triggerCashbackForOrder(orderId);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -4660,20 +4693,22 @@ app.delete('/api/sa/communities/:id', async (req, res) => {
 
 app.get('/api/sa/communities/:id/details', async (req, res) => {
     try {
-        const familiesRes = await pool.query('SELECT id, name, admin_email, group_code FROM family_groups WHERE community_id = $1 AND type = $2', [req.params.id, 'FAMILY']);
+        const familiesRes = await pool.query(`
+            SELECT f.id, f.name, f.admin_email, f.group_code, fc.is_community_manager
+            FROM family_communities fc
+            JOIN family_groups f ON fc.group_id = f.id
+            WHERE fc.community_id = $1 AND f.type = 'FAMILY'
+        `, [req.params.id]);
         const families = familiesRes.rows;
 
         if (families.length > 0) {
             const familyIds = families.map(f => f.id);
             const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
-            
-            families.forEach(f => {
-                f.users = usersRes.rows.filter(u => u.group_id === f.id);
-            });
+            families.forEach(f => { f.users = usersRes.rows.filter(u => u.group_id === f.id); });
         }
 
         const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
-        
+
         res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -4964,27 +4999,178 @@ app.get('/api/sa/communities', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/communities/:id/details', async (req, res) => {
+// duplicate removed — see /api/sa/communities/:id/details above
+// ============================================================
+// --- COMMUNITY CASHBACK SYSTEM ENDPOINTS ---
+// ============================================================
+
+// פונקציה פנימית: טריגר קאשבק כאשר הזמנה מסומנת כ-delivered
+async function triggerCashbackForOrder(orderId) {
     try {
-        const familiesRes = await pool.query(`
-            SELECT f.id, f.name, f.admin_email, f.group_code 
-            FROM family_communities fc
-            JOIN family_groups f ON fc.group_id = f.id
-            WHERE fc.community_id = $1 AND f.type = 'FAMILY'
-        `, [req.params.id]);
-        const families = familiesRes.rows;
+        const orderRes = await pool.query(
+            `SELECT so.*, fg.community_id FROM store_orders so
+             JOIN family_groups fg ON so.group_id = fg.id
+             WHERE so.id = $1 AND so.status = 'delivered'`, [orderId]);
+        if (!orderRes.rows.length) return;
+        const order = orderRes.rows[0];
+        if (!order.community_id) return;
 
-        if (families.length > 0) {
-            const familyIds = families.map(f => f.id);
-            const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
-            families.forEach(f => { f.users = usersRes.rows.filter(u => u.group_id === f.id); });
+        // בדיקה שלא כבר טופל
+        const existing = await pool.query('SELECT id FROM business_platform_dues WHERE order_id=$1', [orderId]);
+        if (existing.rows.length) return;
+
+        const commPct = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='platform_commission_pct'")).rows[0]?.value || 3);
+        const cashbackPct = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='community_cashback_pct'")).rows[0]?.value || 30);
+        const amount = parseFloat(order.total_amount || 0);
+        const commAmount = parseFloat((amount * commPct / 100).toFixed(2));
+        const cashbackAmount = parseFloat((commAmount * cashbackPct / 100).toFixed(2));
+
+        await pool.query(`INSERT INTO business_platform_dues
+            (business_id, order_id, order_amount, commission_pct, commission_amount, cashback_pct, cashback_amount, community_id, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')`,
+            [order.group_id, orderId, amount, commPct, commAmount, cashbackPct, cashbackAmount, order.community_id]);
+
+        if (cashbackAmount > 0) {
+            await pool.query(`INSERT INTO community_wallets (community_id, balance, total_earned, updated_at)
+                VALUES ($1,$2,$2,NOW())
+                ON CONFLICT (community_id) DO UPDATE SET
+                balance = community_wallets.balance + $2,
+                total_earned = community_wallets.total_earned + $2,
+                updated_at = NOW()`, [order.community_id, cashbackAmount]);
+            await pool.query(`INSERT INTO community_wallet_transactions (community_id, amount, type, reference_id, description)
+                VALUES ($1,$2,'cashback',$3,$4)`,
+                [order.community_id, cashbackAmount, orderId, `קאשבק מהזמנה #${orderId} על סך ₪${amount}`]);
         }
+    } catch(e) { console.error('Cashback trigger error:', e.message); }
+}
 
-        const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
-        
-        res.json({ success: true, families: families, businesses: businessesRes.rows });
+// הגדרת אחוזי עמלה וקאשבק (סופר אדמין)
+app.get('/api/sa/settings/rates', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('platform_commission_pct','community_cashback_pct')");
+        const rates = {};
+        result.rows.forEach(r => { rates[r.key] = parseFloat(r.value); });
+        res.json({ success: true, platform_commission_pct: rates.platform_commission_pct || 3, community_cashback_pct: rates.community_cashback_pct || 30 });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+app.put('/api/sa/settings/rates', verifySA, async (req, res) => {
+    try {
+        const { platform_commission_pct, community_cashback_pct } = req.body;
+        if (platform_commission_pct !== undefined) {
+            await pool.query("INSERT INTO system_settings (key,value) VALUES ('platform_commission_pct',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(platform_commission_pct)]);
+        }
+        if (community_cashback_pct !== undefined) {
+            await pool.query("INSERT INTO system_settings (key,value) VALUES ('community_cashback_pct',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(community_cashback_pct)]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגדרת מנהל קהילה (סופר אדמין)
+app.put('/api/sa/communities/:commId/set-manager', verifySA, async (req, res) => {
+    try {
+        const { groupId, isManager } = req.body;
+        const { commId } = req.params;
+        await pool.query(
+            `UPDATE family_communities SET is_community_manager=$1 WHERE group_id=$2 AND community_id=$3`,
+            [!!isManager, groupId, commId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חובות עסקים לפלטפורמה (סופר אדמין)
+app.get('/api/sa/business-dues', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT fg.name as business_name, fg.group_code,
+                COUNT(d.id) as order_count,
+                SUM(d.order_amount) as total_sales,
+                SUM(d.commission_amount) as total_commission,
+                SUM(d.cashback_amount) as total_cashback,
+                SUM(CASE WHEN d.status='pending' THEN d.commission_amount ELSE 0 END) as pending_commission
+            FROM business_platform_dues d
+            JOIN family_groups fg ON d.business_id = fg.id
+            GROUP BY fg.id, fg.name, fg.group_code
+            ORDER BY total_commission DESC
+        `);
+        res.json({ success: true, dues: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יתרות ארנקי קהילות (סופר אדמין)
+app.get('/api/sa/community-wallets', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city,
+                COALESCE(w.balance, 0) as balance,
+                COALESCE(w.total_earned, 0) as total_earned,
+                w.updated_at,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count
+            FROM communities c
+            LEFT JOIN community_wallets w ON w.community_id = c.id
+            ORDER BY COALESCE(w.total_earned,0) DESC
+        `);
+        res.json({ success: true, wallets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מידע ארנק לחבר קהילה / מנהל קהילה
+app.get('/api/community/cashback-info/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const commsRes = await pool.query(`
+            SELECT fc.community_id, fc.is_community_manager, c.name as community_name,
+                COALESCE(w.balance, 0) as balance,
+                COALESCE(w.total_earned, 0) as total_earned
+            FROM family_communities fc
+            JOIN communities c ON c.id = fc.community_id
+            LEFT JOIN community_wallets w ON w.community_id = fc.community_id
+            WHERE fc.group_id = $1
+        `, [groupId]);
+        res.json({ success: true, communities: commsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
+app.get('/api/community/manager-data/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        // מצא את הקהילות שהמשפחה מנהלת
+        const mgrRes = await pool.query(
+            `SELECT fc.community_id, c.name as community_name FROM family_communities fc
+             JOIN communities c ON c.id=fc.community_id
+             WHERE fc.group_id=$1 AND fc.is_community_manager=TRUE`, [groupId]);
+        if (!mgrRes.rows.length) return res.json({ success: true, managed_communities: [] });
+        const commIds = mgrRes.rows.map(r => r.community_id);
+
+        // עסקים ממתינים לאישור
+        const pendingRes = await pool.query(
+            `SELECT cb.community_id, cb.business_id, fg.name as business_name, cb.discount_pct, cb.status, cb.created_at
+             FROM community_businesses cb JOIN family_groups fg ON cb.business_id=fg.id
+             WHERE cb.community_id=ANY($1)`, [commIds]);
+
+        // ארנקים
+        const walletsRes = await pool.query(
+            `SELECT cw.*, c.name as community_name FROM community_wallets cw
+             JOIN communities c ON c.id=cw.community_id WHERE cw.community_id=ANY($1)`, [commIds]);
+
+        // תנועות אחרונות
+        const txRes = await pool.query(
+            `SELECT cwt.*, c.name as community_name FROM community_wallet_transactions cwt
+             JOIN communities c ON c.id=cwt.community_id
+             WHERE cwt.community_id=ANY($1) ORDER BY cwt.created_at DESC LIMIT 50`, [commIds]);
+
+        res.json({
+            success: true,
+            managed_communities: mgrRes.rows,
+            pending_businesses: pendingRes.rows,
+            wallets: walletsRes.rows,
+            transactions: txRes.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ============================================================
 // --- FOOD COST & RECIPE ENDPOINTS ---
 // ============================================================
