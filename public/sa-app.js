@@ -1921,7 +1921,38 @@ window.handleBannerImageUpload = function(event, targetInputId, previewId) {
     reader.readAsDataURL(file);
 }
 
-async function loadSAPartners() { setTimeout(() => { renderSAPartnersTable(); }, 300); loadZoneManagers(); }
+async function loadSAPartners() {
+    setTimeout(() => { renderSAPartnersTable(); }, 300);
+    loadZoneManagers();
+    loadPartnersKPI();
+}
+
+async function loadPartnersKPI() {
+    try {
+        const [mgrsRes, campsRes, leadsRes] = await Promise.all([
+            fetch(`${API}/sa/zone-managers`, { headers: { 'Authorization': saToken } }),
+            fetch(`${API}/sa/campaigns/stats`, { headers: { 'Authorization': saToken } }).catch(() => null),
+            fetch(`${API}/sa/leads/stats`, { headers: { 'Authorization': saToken } }).catch(() => null)
+        ]);
+        const mgrsData = await mgrsRes.json().catch(() => ({}));
+        const managers = Array.isArray(mgrsData.managers) ? mgrsData.managers : [];
+        const totalZM = managers.length;
+        const activeZM = managers.filter(m => m.status === 'active').length;
+        const communities = managers.reduce((sum, m) => sum + (parseInt(m.community_count) || 0), 0);
+        const setKPI = (id, val) => { const el = getEl(id); if (el) el.textContent = val; };
+        setKPI('sa-partners-kpi-total-zm', totalZM);
+        setKPI('sa-partners-kpi-active-zm', activeZM);
+        setKPI('sa-partners-kpi-communities', communities);
+        if (campsRes) {
+            const cd = await campsRes.json().catch(() => ({}));
+            setKPI('sa-partners-kpi-campaigns', cd.active_campaigns ?? '--');
+        }
+        if (leadsRes) {
+            const ld = await leadsRes.json().catch(() => ({}));
+            setKPI('sa-partners-kpi-leads', ld.total_leads ?? '--');
+        }
+    } catch(e) {}
+}
 
 function renderSAPartnersTable() {
     const tbody = getEl('sa-partners-table-body'); if (!tbody) return;

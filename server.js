@@ -5499,6 +5499,22 @@ app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA — סטטיסטיקות קמפיינים
+app.get('/api/sa/campaigns/stats', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT COUNT(*) FILTER (WHERE status='active') as active_campaigns, COUNT(*) as total_campaigns FROM zm_campaigns`);
+        res.json({ success: true, active_campaigns: parseInt(r.rows[0].active_campaigns)||0, total_campaigns: parseInt(r.rows[0].total_campaigns)||0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — סטטיסטיקות לידים
+app.get('/api/sa/leads/stats', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT COUNT(*) as total_leads FROM zm_campaign_leads`);
+        res.json({ success: true, total_leads: parseInt(r.rows[0].total_leads)||0 });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA — רשימת בקשות הרשמה ממתינות
 app.get('/api/sa/zone-managers/pending', verifySA, async (req, res) => {
     try {
