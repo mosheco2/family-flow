@@ -313,7 +313,10 @@ async function loadCampaigns() {
             const campUrl = `${host}/campaign.html?t=${c.token}`;
             const ogUrl = `${host}/c/camp/${c.token}`;
             const waLines = [];
-            if (c.text_content) waLines.push(c.text_content.trim());
+            if (c.text_content) {
+                const firstPara = c.text_content.trim().split(/\n\n+/)[0].split('\n')[0];
+                waLines.push(firstPara + '...');
+            }
             waLines.push('');
             waLines.push(`👉 ${ogUrl}`);
             const waText = waLines.join('\n');
