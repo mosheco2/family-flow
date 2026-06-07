@@ -71,6 +71,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 #toast{font-family:'Rubik',sans-serif!important;border-radius:99px!important}
 @media(max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
 @media(max-width:640px){#sa-sidebar{width:200px}#sa-main-content{margin-right:200px;padding:0.75rem}}
+.legal-editor p{margin-bottom:0.6rem}
+.legal-editor h2{font-size:1.2rem;font-weight:800;color:#1e293b;margin:1rem 0 0.4rem}
+.legal-editor h3{font-size:1rem;font-weight:700;color:#334155;margin:0.8rem 0 0.3rem}
+.legal-editor ul{list-style:disc;padding-right:1.5rem;margin-bottom:0.5rem}
+.legal-editor ol{list-style:decimal;padding-right:1.5rem;margin-bottom:0.5rem}
+.legal-editor li{margin-bottom:0.2rem}
+.legal-tb-btn.active{background:white;box-shadow:0 1px 4px rgba(0,0,0,.12);color:#4f46e5}
 </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative min-h-screen">
@@ -1763,11 +1770,33 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <button onclick="switchLegalDoc('legal_accessibility')" id="legal-tab-legal_accessibility" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">הצהרת נגישות</button>
                         </div>
 
-                        <div class="mb-2 flex items-center justify-between">
+                        <div class="mb-3 flex items-center justify-between">
                             <label id="legal-doc-label" class="text-sm font-bold text-slate-700">תקנון — משפחה</label>
-                            <span class="text-xs text-slate-400">HTML / טקסט רגיל</span>
                         </div>
-                        <textarea id="legal-doc-textarea" rows="18" class="w-full border border-slate-200 rounded-2xl p-4 text-sm font-mono text-slate-700 bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white transition resize-y" placeholder="הכנס את תוכן המסמך כאן..."></textarea>
+
+                        <!-- Rich text toolbar -->
+                        <div class="flex flex-wrap gap-1 mb-0 bg-slate-50 border border-slate-200 border-b-0 rounded-t-2xl p-2">
+                            <button type="button" onclick="legalFmt('bold')" title="מודגש" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition font-bold text-sm">B</button>
+                            <button type="button" onclick="legalFmt('italic')" title="נטוי" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition italic text-sm">I</button>
+                            <button type="button" onclick="legalFmt('underline')" title="קו תחתי" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition underline text-sm">U</button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmtBlock('h2')" title="כותרת גדולה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs font-bold">H1</button>
+                            <button type="button" onclick="legalFmtBlock('h3')" title="כותרת קטנה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs font-bold">H2</button>
+                            <button type="button" onclick="legalFmtBlock('p')" title="פסקה רגילה" class="legal-tb-btn px-2 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-xs">¶</button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmt('insertUnorderedList')" title="רשימת נקודות" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-sm"><i class="fa-solid fa-list-ul text-xs"></i></button>
+                            <button type="button" onclick="legalFmt('insertOrderedList')" title="רשימה ממוספרת" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm transition text-sm"><i class="fa-solid fa-list-ol text-xs"></i></button>
+                            <div class="w-px h-6 bg-slate-200 mx-1 self-center"></div>
+                            <button type="button" onclick="legalFmt('removeFormat')" title="נקה עיצוב" class="legal-tb-btn w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white hover:shadow-sm transition text-xs"><i class="fa-solid fa-eraser text-xs"></i></button>
+                        </div>
+
+                        <!-- Contenteditable editor -->
+                        <div id="legal-doc-editor"
+                             contenteditable="true"
+                             dir="rtl"
+                             class="w-full min-h-[320px] border border-slate-200 rounded-b-2xl p-5 text-sm text-slate-700 bg-white focus:outline-none focus:border-indigo-400 transition leading-relaxed legal-editor"
+                             style="font-family:inherit"
+                             onmouseup="updateLegalToolbar()" onkeyup="updateLegalToolbar()"></div>
 
                         <div class="flex items-center gap-3 mt-4">
                             <button onclick="saveLegalDoc()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור מסמך</button>
@@ -2361,7 +2390,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=21"></script>
+    <script src="sa-app.js?v=22"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>

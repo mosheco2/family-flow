@@ -5256,6 +5256,8 @@ const LEGAL_DOC_LABELS = {
 let currentLegalKey = 'legal_tos_family';
 let legalDocsCache = {};
 
+function getLegalEditor() { return document.getElementById('legal-doc-editor'); }
+
 async function loadLegalDocs() {
     try {
         const res = await fetch(`${API}/sa/legal`, { headers: { 'Authorization': saToken || '' } });
@@ -5268,33 +5270,34 @@ async function loadLegalDocs() {
 }
 
 function switchLegalDoc(key) {
+    // שמור את התוכן הנוכחי לפני מעבר
+    const editor = getLegalEditor();
+    if (editor) legalDocsCache[currentLegalKey] = editor.innerHTML;
     currentLegalKey = key;
     Object.keys(LEGAL_DOC_LABELS).forEach(k => {
         const btn = document.getElementById(`legal-tab-${k}`);
         if (!btn) return;
-        if (k === key) {
-            btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white transition';
-        } else {
-            btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
-        }
+        btn.className = k === key
+            ? 'px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white transition'
+            : 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     renderLegalDoc(key);
 }
 
 function renderLegalDoc(key) {
     const label = document.getElementById('legal-doc-label');
-    const textarea = document.getElementById('legal-doc-textarea');
+    const editor = getLegalEditor();
     const status = document.getElementById('legal-save-status');
     if (label) label.textContent = LEGAL_DOC_LABELS[key] || key;
-    if (textarea) textarea.value = legalDocsCache[key] || '';
+    if (editor) editor.innerHTML = legalDocsCache[key] || '';
     if (status) status.classList.add('hidden');
 }
 
 async function saveLegalDoc() {
-    const textarea = document.getElementById('legal-doc-textarea');
+    const editor = getLegalEditor();
     const status = document.getElementById('legal-save-status');
-    if (!textarea) return;
-    const content = textarea.value;
+    if (!editor) return;
+    const content = editor.innerHTML;
     try {
         const res = await fetch(`${API}/sa/legal/${currentLegalKey}`, {
             method: 'PUT',
@@ -5311,4 +5314,24 @@ async function saveLegalDoc() {
             showToast('error', data.error || 'שגיאה');
         }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function legalFmt(cmd) {
+    document.getElementById('legal-doc-editor')?.focus();
+    document.execCommand(cmd, false, null);
+    updateLegalToolbar();
+}
+
+function legalFmtBlock(tag) {
+    document.getElementById('legal-doc-editor')?.focus();
+    document.execCommand('formatBlock', false, tag);
+    updateLegalToolbar();
+}
+
+function updateLegalToolbar() {
+    const cmds = { bold: 'bold', italic: 'italic', underline: 'underline' };
+    document.querySelectorAll('.legal-tb-btn[title]').forEach(btn => btn.classList.remove('active'));
+    if (document.queryCommandState('bold'))      document.querySelector('.legal-tb-btn[title="מודגש"]')?.classList.add('active');
+    if (document.queryCommandState('italic'))    document.querySelector('.legal-tb-btn[title="נטוי"]')?.classList.add('active');
+    if (document.queryCommandState('underline')) document.querySelector('.legal-tb-btn[title="קו תחתי"]')?.classList.add('active');
 }
