@@ -308,30 +308,41 @@ async function loadCampaigns() {
             return;
         }
         const host = window.location.origin;
-        list.innerHTML = zmCampaigns.map(c => `
+        const typeLabels = { business:'🏪 עסקים', family:'👨‍👩‍👧 משפחות', community_join:'🤝 קהילה', general:'כללי' };
+        list.innerHTML = zmCampaigns.map(c => {
+            const campUrl = `${host}/campaign.html?t=${c.token}`;
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(campUrl)}`;
+            const bannerHtml = c.image_url ? `<img src="${c.image_url}" class="w-full h-20 object-cover rounded-xl mb-3">` : '';
+            return `
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                ${bannerHtml}
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex gap-2">
-                        <button onclick="deleteCampaign(${c.id})" class="text-xs text-red-400 hover:text-red-600 transition px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-                        <button onclick="openZMEditCampaign(${c.id})" class="text-xs text-slate-400 hover:text-slate-600 transition px-2 py-1"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteCampaign(${c.id})" class="text-xs text-red-400 hover:text-red-600 transition px-2 py-1">🗑</button>
+                        <button onclick="openZMEditCampaign(${c.id})" class="text-xs text-slate-400 hover:text-slate-600 transition px-2 py-1">✏️</button>
                     </div>
                     <div class="text-right">
-                        <h4 class="font-bold text-slate-800 text-sm">${c.title}</h4>
-                        <p class="text-xs text-slate-400 mt-0.5">${c.subtitle || ''}</p>
+                        <div class="flex items-center gap-1.5 justify-end mb-0.5">
+                            <span class="text-[10px] font-bold text-indigo-500">${typeLabels[c.campaign_type] || 'כללי'}</span>
+                            <h4 class="font-bold text-slate-800 text-sm">${c.title}</h4>
+                        </div>
+                        <p class="text-xs text-slate-400">${c.subtitle || ''}</p>
                     </div>
                 </div>
-                <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
-                    <div class="flex gap-2">
-                        <button onclick="viewCampaignLeads(${c.id}, '${(c.title||'').replace(/'/g,"\\'")}' )" class="text-xs font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition">
-                            <i class="fa-solid fa-users mr-1"></i>${c.lead_count || 0} לידים
-                        </button>
-                        <button onclick="copyLink('${host}/campaign.html?t=${c.token}')" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition">
-                            <i class="fa-solid fa-link mr-1"></i>העתק לינק
-                        </button>
-                    </div>
-                    <span class="text-[10px] text-slate-400">${new Date(c.created_at).toLocaleDateString('he-IL')}</span>
+                <div class="grid grid-cols-4 gap-1.5 mt-3 pt-2 border-t border-slate-100">
+                    <button onclick="viewCampaignLeads(${c.id})" class="text-xs font-bold bg-emerald-50 text-emerald-700 px-2 py-1.5 rounded-lg hover:bg-emerald-100 transition text-center">
+                        👥 ${c.lead_count || 0}
+                    </button>
+                    <button onclick="copyLink('${campUrl}')" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg hover:bg-indigo-100 transition text-center">
+                        🔗 לינק
+                    </button>
+                    <a href="${waUrl}" target="_blank" class="text-xs font-bold bg-green-50 text-green-600 px-2 py-1.5 rounded-lg hover:bg-green-100 transition text-center block">
+                        💬 ווצאפ
+                    </a>
+                    <span class="text-[10px] text-slate-400 text-center self-center">${new Date(c.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-4">שגיאה</div>'; }
 }
 
@@ -345,6 +356,65 @@ function copyLink(url) {
     });
 }
 
+function zmGetSelectedCampaignType() {
+    const checked = document.querySelector('input[name="camp-type"]:checked');
+    return checked ? checked.value : 'family';
+}
+
+function zmSetCampaignType(type) {
+    const radio = document.getElementById(`ctype-${type}`);
+    if (radio) {
+        radio.checked = true;
+        document.querySelectorAll('.camp-type-option').forEach(el => {
+            el.classList.remove('border-indigo-400','bg-indigo-50','text-indigo-700');
+            el.classList.add('border-slate-200','text-slate-500');
+        });
+        const opt = radio.nextElementSibling;
+        if (opt) { opt.classList.add('border-indigo-400','bg-indigo-50','text-indigo-700'); opt.classList.remove('border-slate-200','text-slate-500'); }
+    }
+}
+
+function zmSetBannerPreview(url) {
+    const preview = document.getElementById('zm-camp-banner-preview');
+    const img = document.getElementById('zm-camp-banner-img');
+    const removeBtn = document.getElementById('zm-remove-banner-btn');
+    document.getElementById('zm-camp-image-url').value = url || '';
+    if (url) {
+        img.src = url; preview.classList.remove('hidden'); removeBtn.classList.remove('hidden');
+    } else {
+        img.src = ''; preview.classList.add('hidden'); removeBtn.classList.add('hidden');
+    }
+}
+
+function zmRemoveBanner() { zmSetBannerPreview(''); }
+
+function zmHandleImageUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('התמונה גדולה מדי — מקסימום 2MB'); return; }
+    const reader = new FileReader();
+    reader.onload = e => zmSetBannerPreview(e.target.result);
+    reader.readAsDataURL(file);
+}
+
+async function zmAIGenerateBanner() {
+    const title = document.getElementById('zm-camp-title').value.trim();
+    const campaignType = zmGetSelectedCampaignType();
+    const btn = document.getElementById('zm-ai-banner-btn');
+    btn.disabled = true; btn.textContent = '⏳ יוצר תמונה...';
+    try {
+        const res = await fetch(`${API}/zone-manager/ai/generate-banner`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ title, campaignType })
+        });
+        const data = await res.json();
+        if (data.success && data.imageUrl) {
+            zmSetBannerPreview(data.imageUrl);
+        } else { alert(data.error || 'לא ניתן ליצור תמונה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+    btn.disabled = false; btn.textContent = '🖼 צור תמונה';
+}
+
 function openZMCreateCampaign() {
     document.getElementById('zm-camp-editing-id').value = '';
     document.getElementById('zm-camp-modal-title').textContent = 'קמפיין חדש';
@@ -353,6 +423,8 @@ function openZMCreateCampaign() {
     document.getElementById('zm-camp-text').value = '';
     document.getElementById('zm-ai-goal').value = '';
     document.getElementById('zm-ai-audience').value = '';
+    zmSetCampaignType('family');
+    zmSetBannerPreview('');
     ['name','last_name','business_name','address','city','phone','email'].forEach(f => {
         const el = document.getElementById(`fld-${f}`);
         if (el) el.checked = false;
@@ -371,6 +443,8 @@ function openZMEditCampaign(id) {
     document.getElementById('zm-camp-text').value = c.text_content || '';
     document.getElementById('zm-ai-goal').value = '';
     document.getElementById('zm-ai-audience').value = '';
+    zmSetCampaignType(c.campaign_type || 'family');
+    zmSetBannerPreview(c.image_url || '');
     const fields = Array.isArray(c.fields_config) ? c.fields_config : [];
     ['name','last_name','business_name','address','city','phone','email'].forEach(f => {
         const el = document.getElementById(`fld-${f}`);
@@ -383,12 +457,13 @@ function openZMEditCampaign(id) {
 async function zmAIDraftCampaign() {
     const goal = document.getElementById('zm-ai-goal').value.trim();
     const audience = document.getElementById('zm-ai-audience').value.trim();
+    const campaignType = zmGetSelectedCampaignType();
     const btn = document.getElementById('zm-ai-draft-btn');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>יוצר עם AI...';
+    btn.disabled = true; btn.textContent = '⏳ יוצר...';
     try {
         const res = await fetch(`${API}/zone-manager/ai/draft-campaign`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ goal, audience })
+            body: JSON.stringify({ goal, audience, campaignType })
         });
         const data = await res.json();
         if (data.success) {
@@ -397,7 +472,7 @@ async function zmAIDraftCampaign() {
             if (data.text_content) document.getElementById('zm-camp-text').value = data.text_content;
         } else { alert(data.error || 'שגיאה ב-AI'); }
     } catch(e) { alert('שגיאת תקשורת'); }
-    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>צור טקסט עם AI';
+    btn.disabled = false; btn.textContent = '✨ צור טקסט';
 }
 
 async function saveZMCampaign() {
@@ -411,7 +486,9 @@ async function saveZMCampaign() {
         title,
         subtitle: document.getElementById('zm-camp-subtitle').value.trim() || null,
         text_content: document.getElementById('zm-camp-text').value.trim() || null,
-        fields_config
+        fields_config,
+        campaign_type: zmGetSelectedCampaignType(),
+        image_url: document.getElementById('zm-camp-image-url').value || null
     };
     try {
         const url = editingId ? `${API}/zone-manager/campaigns/${editingId}` : `${API}/zone-manager/campaigns`;
@@ -457,6 +534,7 @@ async function loadLeadsTab() {
 
 async function viewCampaignLeads(campId, campTitle) {
     if (!campId) return;
+    zmCurrentCampIdForLeads = campId;
     const list = document.getElementById('zm-leads-list');
     list.innerHTML = '<div class="text-center text-slate-400 py-4">טוען לידים...</div>';
     try {
@@ -478,25 +556,149 @@ async function viewCampaignLeads(campId, campTitle) {
     } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-4">שגיאה</div>'; }
 }
 
+const LEAD_TYPE_LABELS = { business:'🏪 עסק', family:'👨‍👩‍👧 משפחה', unknown:'❓ לא ידוע' };
+const LEAD_STATUS_LABELS = { new:'🆕 חדש', contacted:'📞 פנינו', interested:'✅ מתעניין', not_interested:'❌ לא מתעניין', converted:'🎉 הצטרף!' };
+const LEAD_STATUS_COLORS = { new:'bg-blue-50 text-blue-600', contacted:'bg-amber-50 text-amber-600', interested:'bg-emerald-50 text-emerald-600', not_interested:'bg-red-50 text-red-500', converted:'bg-purple-50 text-purple-600' };
+
 function renderLeads(leads) {
+    window._zmLeadsCache = leads;
     return leads.map(l => {
-        const fields = Object.entries(l.data || {}).map(([k,v]) => v ? `<span class="text-slate-600">${v}</span>` : '').filter(Boolean).join(' · ');
+        const fields = Object.entries(l.data || {}).map(([k,v]) => v ? `${v}` : '').filter(Boolean).join(' · ');
         const score = l.ai_score;
         const scoreColor = score >= 8 ? 'text-emerald-600 bg-emerald-50' : score >= 5 ? 'text-amber-600 bg-amber-50' : score ? 'text-red-500 bg-red-50' : 'text-slate-400 bg-slate-50';
+        const statusLabel = LEAD_STATUS_LABELS[l.status] || l.status || 'חדש';
+        const statusColor = LEAD_STATUS_COLORS[l.status] || 'bg-slate-100 text-slate-500';
+        const typeLabel = LEAD_TYPE_LABELS[l.lead_type] || '';
         return `
         <div class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
             <div class="flex justify-between items-start">
-                <div>
+                <div class="flex flex-col gap-1.5 items-start">
+                    <button onclick="openLeadCRMWithData(${l.id}, window._zmLeadsCache?.find(x=>x.id===${l.id})||{})" class="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition">ניהול</button>
                     ${score !== null && score !== undefined ? `<span class="text-xs font-black px-2 py-0.5 rounded-full ${scoreColor}">AI: ${score}/10</span>` : ''}
-                    <span class="text-[10px] text-slate-400 block mt-1">${new Date(l.created_at).toLocaleDateString('he-IL')}</span>
+                    <span class="text-[10px] text-slate-400">${new Date(l.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <div class="text-right">
+                    <div class="flex items-center gap-1.5 justify-end mb-1">
+                        ${typeLabel ? `<span class="text-[10px] font-bold text-slate-500">${typeLabel}</span>` : ''}
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
+                    </div>
                     <p class="text-sm font-bold text-slate-700">${fields || '—'}</p>
                     ${l.ai_notes ? `<p class="text-[11px] text-slate-400 mt-0.5 italic">${l.ai_notes}</p>` : ''}
+                    ${l.crm_notes ? `<p class="text-[11px] text-slate-500 mt-0.5">📝 ${l.crm_notes}</p>` : ''}
                 </div>
             </div>
         </div>`;
     }).join('');
+}
+
+// ============================================================
+// LEAD CRM
+// ============================================================
+
+let zmCurrentLeadId = null;
+let zmCurrentCampIdForLeads = null;
+
+async function openLeadCRM(leadId) {
+    zmCurrentLeadId = leadId;
+    const modal = document.getElementById('zm-lead-crm-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('zm-lead-actions-list').innerHTML = '<div class="text-slate-400 text-xs text-center py-2">טוען...</div>';
+
+    // מצא את הליד מהנתונים שכבר טעונים
+    const allLeads = document.querySelectorAll('[data-lead-id]');
+    // נטען מחדש מה-API
+    try {
+        const [actRes] = await Promise.all([
+            fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: { 'Authorization': zmToken } })
+        ]);
+        const actData = await actRes.json();
+
+        // קח את הנתונים של הליד מהDOM הקיים
+        const leadEl = document.querySelector(`[data-lead-id="${leadId}"]`);
+        const dataDiv = document.getElementById('zm-lead-crm-data');
+
+        // אתחול ערכים
+        document.getElementById('zm-crm-lead-id').value = leadId;
+
+        // חפש את הליד ב-leads האחרונים שנטענו (נשמרים ב-zmCampaigns לא, אבל אפשר לחפש בDOM)
+        // נוסיף data attributes לכרטיסיות הלידים כדי לדעת את הנתונים
+        renderLeadCRMActions(actData.actions || []);
+    } catch(e) { console.error(e); }
+}
+
+async function openLeadCRMWithData(leadId, lead) {
+    zmCurrentLeadId = leadId;
+    const modal = document.getElementById('zm-lead-crm-modal');
+    modal.classList.remove('hidden');
+
+    document.getElementById('zm-crm-lead-id').value = leadId;
+    document.getElementById('zm-crm-lead-type').value = lead.lead_type || 'unknown';
+    document.getElementById('zm-crm-status').value = lead.status || 'new';
+    document.getElementById('zm-crm-notes').value = lead.crm_notes || '';
+
+    const fields = Object.entries(lead.data || {}).map(([k,v]) => v ? `<div class="flex justify-between"><span class="text-slate-400">${k}</span><span class="font-bold text-slate-700">${v}</span></div>` : '').filter(Boolean).join('');
+    document.getElementById('zm-lead-crm-data').innerHTML = fields || '<p class="text-slate-400 text-xs">אין נתונים</p>';
+
+    document.getElementById('zm-lead-actions-list').innerHTML = '<div class="text-slate-400 text-xs text-center py-2">טוען...</div>';
+    try {
+        const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: { 'Authorization': zmToken } });
+        const data = await res.json();
+        renderLeadCRMActions(data.actions || []);
+    } catch(e) {}
+}
+
+function renderLeadCRMActions(actions) {
+    const list = document.getElementById('zm-lead-actions-list');
+    if (!actions.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין פעולות עדיין</p>'; return; }
+    const icons = { call:'📞', whatsapp:'💬', meeting:'🤝', email:'✉️', other:'📝' };
+    list.innerHTML = actions.map(a => `
+        <div class="flex justify-between items-center bg-white rounded-xl px-3 py-2 border border-slate-100">
+            <span class="text-[10px] text-slate-400">${new Date(a.created_at).toLocaleDateString('he-IL')}</span>
+            <div class="text-right">
+                <span class="text-xs font-bold text-slate-700">${icons[a.action_type] || '📝'} ${a.action_type}</span>
+                ${a.notes ? `<p class="text-[11px] text-slate-400">${a.notes}</p>` : ''}
+            </div>
+        </div>`).join('');
+}
+
+async function saveLeadCRM() {
+    const leadId = document.getElementById('zm-crm-lead-id').value;
+    if (!leadId) return;
+    const body = {
+        lead_type: document.getElementById('zm-crm-lead-type').value,
+        status: document.getElementById('zm-crm-status').value,
+        crm_notes: document.getElementById('zm-crm-notes').value.trim() || null
+    };
+    try {
+        const res = await fetch(`${API}/zone-manager/leads/${leadId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('zm-lead-crm-modal').classList.add('hidden');
+            if (zmCurrentCampIdForLeads) viewCampaignLeads(zmCurrentCampIdForLeads);
+        } else { alert(data.error || 'שגיאה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+}
+
+async function addLeadAction(actionType) {
+    const leadId = document.getElementById('zm-crm-lead-id').value;
+    if (!leadId) return;
+    const notes = prompt(`הוסף הערה ל${actionType === 'call' ? 'שיחה' : actionType === 'whatsapp' ? 'ווצאפ' : actionType === 'meeting' ? 'פגישה' : 'מייל'} (אופציונלי):`);
+    if (notes === null) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ action_type: actionType, notes: notes || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const actRes = await fetch(`${API}/zone-manager/leads/${leadId}/actions`, { headers: { 'Authorization': zmToken } });
+            const actData = await actRes.json();
+            renderLeadCRMActions(actData.actions || []);
+        }
+    } catch(e) { alert('שגיאת תקשורת'); }
 }
 
 async function analyzeLeads(campId) {

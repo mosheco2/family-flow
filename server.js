@@ -230,6 +230,18 @@ pool.connect()
           content TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaigns ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaigns ADD COLUMN IF NOT EXISTS campaign_type VARCHAR(30) DEFAULT 'general'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS lead_type VARCHAR(20) DEFAULT 'unknown'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'new'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE zm_campaign_leads ADD COLUMN IF NOT EXISTS crm_notes TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_lead_actions (
+          id SERIAL PRIMARY KEY,
+          lead_id INT REFERENCES zm_campaign_leads(id) ON DELETE CASCADE,
+          action_type VARCHAR(50) NOT NULL,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END ZONE MANAGER MARKETING & INBOX =====
       // ===================================================
 
@@ -5658,21 +5670,21 @@ app.get('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
 
 app.post('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
     try {
-        const { title, subtitle, text_content, fields_config } = req.body;
+        const { title, subtitle, text_content, fields_config, campaign_type, image_url } = req.body;
         if (!title) return res.status(400).json({ error: 'כותרת הקמפיין חובה' });
         const token = `CAMP_${req.zmSession.managerId}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
         const result = await pool.query(
-            `INSERT INTO zm_campaigns (zone_manager_id, title, subtitle, text_content, fields_config, token)
-             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            `INSERT INTO zm_campaigns (zone_manager_id, title, subtitle, text_content, fields_config, token, campaign_type, image_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
             [req.zmSession.managerId, title, subtitle || null, text_content || null,
-             JSON.stringify(fields_config || []), token]);
+             JSON.stringify(fields_config || []), token, campaign_type || 'general', image_url || null]);
         res.json({ success: true, campaign: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) => {
     try {
-        const { title, subtitle, text_content, fields_config, status } = req.body;
+        const { title, subtitle, text_content, fields_config, status, campaign_type, image_url } = req.body;
         const sets = [], vals = [];
         const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
         if (title !== undefined) add('title', title);
@@ -5680,6 +5692,8 @@ app.put('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) =
         if (text_content !== undefined) add('text_content', text_content);
         if (fields_config !== undefined) add('fields_config', JSON.stringify(fields_config));
         if (status !== undefined) add('status', status);
+        if (campaign_type !== undefined) add('campaign_type', campaign_type);
+        if (image_url !== undefined) add('image_url', image_url);
         if (!sets.length) return res.json({ success: true });
         add('updated_at', new Date());
         vals.push(req.params.id, req.zmSession.managerId);
@@ -5719,11 +5733,69 @@ app.get('/api/public/campaign/:token', async (req, res) => {
 // הגשת טופס לינק ציבורי
 app.post('/api/public/campaign/:token/submit', async (req, res) => {
     try {
-        const campRes = await pool.query('SELECT id FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
+        const campRes = await pool.query('SELECT id, campaign_type FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
         if (!campRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
-        const data = req.body || {};
-        await pool.query('INSERT INTO zm_campaign_leads (campaign_id, data) VALUES ($1,$2)', [campRes.rows[0].id, JSON.stringify(data)]);
+        const body = req.body || {};
+        const leadType = body.lead_type || 'unknown';
+        delete body.lead_type;
+        const campType = campRes.rows[0].campaign_type;
+        const inferredType = leadType !== 'unknown' ? leadType : (campType === 'business' ? 'business' : campType === 'family' ? 'family' : 'unknown');
+        await pool.query('INSERT INTO zm_campaign_leads (campaign_id, data, lead_type) VALUES ($1,$2,$3)', [campRes.rows[0].id, JSON.stringify(body), inferredType]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- LEAD CRM: עדכון סטטוס/נוטות ---
+app.put('/api/zone-manager/leads/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { status, crm_notes, lead_type } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (status !== undefined) add('status', status);
+        if (crm_notes !== undefined) add('crm_notes', crm_notes);
+        if (lead_type !== undefined) add('lead_type', lead_type);
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE zm_campaign_leads SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- LEAD CRM: פעולות / לוג ---
+app.get('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zm_lead_actions WHERE lead_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, actions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, res) => {
+    try {
+        const { action_type, notes } = req.body;
+        if (!action_type) return res.status(400).json({ error: 'סוג פעולה חובה' });
+        await pool.query('INSERT INTO zm_lead_actions (lead_id, action_type, notes) VALUES ($1,$2,$3)', [req.params.id, action_type, notes || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: יצירת באנר ---
+app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAIv2) return res.status(503).json({ error: 'AI לא זמין' });
+        const { title, campaignType } = req.body;
+        const typeContext = campaignType === 'business' ? 'recruiting businesses to join a community platform' :
+                           campaignType === 'family' ? 'recruiting families to join a community platform' :
+                           'community engagement and connection campaign';
+        const prompt = `A professional, modern banner image for: "${title || 'Community Campaign'}". Context: ${typeContext}. Style: clean, colorful gradient, warm community feeling, minimalist design, no text, high quality digital art.`;
+        const response = await genAIv2.models.generateImages({
+            model: 'imagen-3.0-generate-002',
+            prompt,
+            config: { numberOfImages: 1, aspectRatio: '16:9', outputMimeType: 'image/jpeg' }
+        });
+        const imgBase64 = response.generatedImages?.[0]?.image?.imageBytes;
+        if (!imgBase64) return res.status(500).json({ error: 'לא ניתן ליצור תמונה' });
+        const dataUrl = `data:image/jpeg;base64,${Buffer.isBuffer(imgBase64) ? imgBase64.toString('base64') : imgBase64}`;
+        res.json({ success: true, imageUrl: dataUrl });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5731,13 +5803,25 @@ app.post('/api/public/campaign/:token/submit', async (req, res) => {
 app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, res) => {
     try {
         if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
-        const { goal, audience, tone } = req.body;
+        const { goal, audience, tone, campaignType } = req.body;
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס חברים לקהילה.
-מטרת הקמפיין: ${goal || 'גיוס משפחות ועסקים לקהילה מקומית'}
-קהל יעד: ${audience || 'תושבים מקומיים'}
-טון: ${tone || 'חם, ידידותי, מקצועי'}
-הפלט יכלול: כותרת ראשית (עד 10 מילים), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).
+        const typeContexts = {
+            business: `מנהל אזור של פלטפורמת OneFlow מגייס עסקים מקומיים להצטרף לפלטפורמה.
+העסק יקבל: חשיפה לקהילות מקומיות, לקוחות חדשים, כלי ניהול, קאשבק לקהילה.
+אין קשר לקהילה ספציפית — מדובר בהצטרפות לרשת העסקים של המערכת.`,
+            family: `מנהל אזור של פלטפורמת OneFlow מגייס משפחות להצטרף לפלטפורמה.
+המשפחה תקבל: הנחות בעסקים מקומיים, קאשבק, כלי ניהול משק בית, קהילה תומכת.
+אין קשר לקהילה ספציפית — מדובר בהצטרפות לרשת המשתמשים.`,
+            community_join: `מנהל אזור של פלטפורמת OneFlow מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך המערכת.
+הקהילה מציעה: רשת שכנים, הנחות בעסקים מקומיים, ניהול משותף וקאשבק לכלל חברי הקהילה.`,
+        };
+        const context = typeContexts[campaignType] || typeContexts.family;
+        const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס.
+הקשר: ${context}
+${goal ? `פרטים נוספים: ${goal}` : ''}
+קהל יעד: ${audience || 'לקוחות פוטנציאליים'}
+טון: ${tone || 'חם, ידידותי, מקצועי ומשכנע'}
+הפלט יכלול: כותרת ראשית (עד 8 מילים, מושכת), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).
 החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
         const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
         const txt = result.response.text().trim();

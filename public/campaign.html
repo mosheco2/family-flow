@@ -56,12 +56,16 @@
     <div id="camp-form-wrapper" class="hidden">
 
         <!-- Hero header -->
-        <div class="hero-gradient rounded-t-3xl p-8 text-center text-white mb-0" style="border-radius:1.75rem 1.75rem 0 0">
-            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                <i class="fa-solid fa-people-group text-3xl text-white"></i>
+        <div id="camp-hero" class="hero-gradient rounded-t-3xl p-8 text-center text-white mb-0 relative overflow-hidden" style="border-radius:1.75rem 1.75rem 0 0">
+            <img id="camp-banner-bg" src="" class="absolute inset-0 w-full h-full object-cover hidden" style="z-index:0">
+            <div class="absolute inset-0 hidden" id="camp-banner-overlay" style="background:rgba(0,0,0,0.45);z-index:1"></div>
+            <div class="relative" style="z-index:2">
+                <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm" id="camp-icon-wrap">
+                    <i class="fa-solid fa-people-group text-3xl text-white"></i>
+                </div>
+                <h1 id="camp-title" class="text-2xl font-black mb-2 leading-snug"></h1>
+                <p id="camp-subtitle" class="text-indigo-200 text-sm font-medium leading-relaxed"></p>
             </div>
-            <h1 id="camp-title" class="text-2xl font-black mb-2 leading-snug"></h1>
-            <p id="camp-subtitle" class="text-indigo-200 text-sm font-medium leading-relaxed"></p>
         </div>
 
         <!-- Text content + form -->
@@ -129,6 +133,14 @@ function renderCampaign() {
     document.getElementById('camp-title').textContent = campData.title || 'הצטרפות לקהילה';
     const subtitle = campData.subtitle || '';
     if (subtitle) { document.getElementById('camp-subtitle').textContent = subtitle; }
+    if (campData.image_url) {
+        const bg = document.getElementById('camp-banner-bg');
+        const overlay = document.getElementById('camp-banner-overlay');
+        bg.src = campData.image_url;
+        bg.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+        document.getElementById('camp-icon-wrap').classList.add('hidden');
+    }
     const textEl = document.getElementById('camp-text');
     if (campData.text_content) { textEl.textContent = campData.text_content; textEl.classList.remove('hidden'); }
 

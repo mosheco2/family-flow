@@ -26,6 +26,8 @@
         .btn-primary:hover { background: linear-gradient(135deg,#4338ca,#4f46e5); transform:translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,.4); }
         .btn-secondary { background:#f1f5f9; color:#475569; padding:.7rem 1.5rem; border-radius:.85rem; font-weight:600; cursor:pointer; border:1.5px solid #e2e8f0; transition:all .2s; font-family:'Rubik',sans-serif; font-size:.875rem; }
         .btn-secondary:hover { background:#e2e8f0; }
+        input[name="camp-type"]:checked + .camp-type-option { border-color:#4f46e5; background:#eef2ff; color:#4338ca; }
+        [dir="rtl"] .flex { direction: rtl; }
     </style>
 </head>
 <body>
@@ -205,12 +207,12 @@
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            <button class="tab-btn active whitespace-nowrap" onclick="zmSwitchTab('zones')" id="zmtab-zones"><i class="fa-solid fa-map mr-1"></i>אזורים</button>
-            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('marketing')" id="zmtab-marketing"><i class="fa-solid fa-bullhorn mr-1"></i>שיווק</button>
-            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('leads')" id="zmtab-leads"><i class="fa-solid fa-users mr-1"></i>לידים</button>
-            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('inbox')" id="zmtab-inbox"><i class="fa-solid fa-inbox mr-1"></i>אינבוקס <span id="zm-inbox-badge" class="hidden bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full ml-1"></span></button>
-            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('commissions')" id="zmtab-commissions"><i class="fa-solid fa-coins mr-1"></i>עמלות</button>
+        <div class="flex gap-1.5 overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch;scrollbar-width:none">
+            <button class="tab-btn active" onclick="zmSwitchTab('zones')" id="zmtab-zones" style="white-space:nowrap;min-width:fit-content">אזורים</button>
+            <button class="tab-btn" onclick="zmSwitchTab('marketing')" id="zmtab-marketing" style="white-space:nowrap;min-width:fit-content">שיווק</button>
+            <button class="tab-btn" onclick="zmSwitchTab('leads')" id="zmtab-leads" style="white-space:nowrap;min-width:fit-content">לידים</button>
+            <button class="tab-btn" onclick="zmSwitchTab('inbox')" id="zmtab-inbox" style="white-space:nowrap;min-width:fit-content">אינבוקס <span id="zm-inbox-badge" class="hidden bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full" style="vertical-align:middle"></span></button>
+            <button class="tab-btn" onclick="zmSwitchTab('commissions')" id="zmtab-commissions" style="white-space:nowrap;min-width:fit-content">עמלות</button>
         </div>
 
         <!-- Zones Tab -->
@@ -295,16 +297,62 @@
             <h3 class="font-black text-slate-800 text-base" id="zm-camp-modal-title">קמפיין חדש</h3>
         </div>
 
-        <!-- AI Draft button -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
-            <p class="text-xs font-bold text-indigo-700 mb-3 text-right"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>יצירה עם AI</p>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <input type="text" id="zm-ai-goal" class="zm-input text-xs" placeholder="מטרת הקמפיין">
-                <input type="text" id="zm-ai-audience" class="zm-input text-xs" placeholder="קהל יעד">
+        <!-- סוג קמפיין -->
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-2">סוג קמפיין</label>
+            <div class="grid grid-cols-3 gap-2">
+                <label class="cursor-pointer">
+                    <input type="radio" name="camp-type" id="ctype-business" value="business" class="sr-only">
+                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition">
+                        <div class="text-lg mb-1">🏪</div>גיוס עסקים
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="camp-type" id="ctype-family" value="family" class="sr-only" checked>
+                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-indigo-400 bg-indigo-50 text-xs font-bold text-indigo-700 transition">
+                        <div class="text-lg mb-1">👨‍👩‍👧</div>גיוס משפחות
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="camp-type" id="ctype-community_join" value="community_join" class="sr-only">
+                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition">
+                        <div class="text-lg mb-1">🤝</div>חיבור לקהילה
+                    </div>
+                </label>
             </div>
-            <button onclick="zmAIDraftCampaign()" class="w-full py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition" id="zm-ai-draft-btn">
-                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>צור טקסט עם AI
-            </button>
+        </div>
+
+        <!-- AI Draft -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+            <p class="text-xs font-bold text-indigo-700 mb-3 text-right">יצירה עם AI</p>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <input type="text" id="zm-ai-goal" class="zm-input text-xs" placeholder="פרטים נוספים (אופציונלי)">
+                <input type="text" id="zm-ai-audience" class="zm-input text-xs" placeholder="קהל יעד (אופציונלי)">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="zmAIDraftCampaign()" class="flex-1 py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition" id="zm-ai-draft-btn">
+                    ✨ צור טקסט
+                </button>
+                <button onclick="zmAIGenerateBanner()" class="flex-1 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl hover:from-purple-600 hover:to-pink-600 transition" id="zm-ai-banner-btn">
+                    🖼 צור תמונה
+                </button>
+            </div>
+        </div>
+
+        <!-- Banner Image -->
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-2">תמונת באנר</label>
+            <div id="zm-camp-banner-preview" class="hidden rounded-2xl overflow-hidden mb-2" style="height:120px">
+                <img id="zm-camp-banner-img" src="" class="w-full h-full object-cover">
+            </div>
+            <div class="flex gap-2">
+                <label class="flex-1 cursor-pointer">
+                    <input type="file" id="zm-camp-image-upload" accept="image/*" class="hidden" onchange="zmHandleImageUpload(this)">
+                    <span class="btn-secondary text-xs py-2 px-3 flex items-center justify-center gap-1.5 w-full">📁 העלה תמונה</span>
+                </label>
+                <button onclick="zmRemoveBanner()" class="text-xs text-red-400 hover:text-red-600 px-3 py-2 hidden" id="zm-remove-banner-btn">הסר</button>
+            </div>
+            <input type="hidden" id="zm-camp-image-url">
         </div>
 
         <div>
@@ -337,6 +385,53 @@
             <button onclick="document.getElementById('zm-campaign-modal').classList.add('hidden')" class="btn-secondary flex-1">ביטול</button>
             <button onclick="saveZMCampaign()" class="btn-primary flex-1">שמור קמפיין</button>
         </div>
+    </div>
+</div>
+
+<!-- Lead CRM Modal -->
+<div id="zm-lead-crm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9992] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <button onclick="document.getElementById('zm-lead-crm-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="font-black text-slate-800 text-base">ניהול ליד</h3>
+        </div>
+        <div id="zm-lead-crm-data" class="bg-slate-50 rounded-2xl p-4 text-sm text-right space-y-1"></div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1.5">סוג ליד</label>
+                <select id="zm-crm-lead-type" class="zm-input text-sm">
+                    <option value="unknown">לא ידוע</option>
+                    <option value="family">משפחה</option>
+                    <option value="business">עסק</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 block mb-1.5">סטטוס</label>
+                <select id="zm-crm-status" class="zm-input text-sm">
+                    <option value="new">חדש</option>
+                    <option value="contacted">פנינו</option>
+                    <option value="interested">מתעניין</option>
+                    <option value="not_interested">לא מתעניין</option>
+                    <option value="converted">הצטרף!</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">הערות</label>
+            <textarea id="zm-crm-notes" class="zm-input" rows="3" placeholder="הוסף הערות..."></textarea>
+        </div>
+        <button onclick="saveLeadCRM()" class="btn-primary w-full">שמור</button>
+        <div class="border-t border-slate-100 pt-4">
+            <p class="text-xs font-bold text-slate-500 mb-3 text-right">לוג פעולות</p>
+            <div class="grid grid-cols-4 gap-1.5 mb-3">
+                <button onclick="addLeadAction('call')" class="py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition">📞 שיחה</button>
+                <button onclick="addLeadAction('whatsapp')" class="py-2 rounded-xl text-xs font-bold bg-green-50 text-green-600 hover:bg-green-100 transition">💬 ווצאפ</button>
+                <button onclick="addLeadAction('meeting')" class="py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition">🤝 פגישה</button>
+                <button onclick="addLeadAction('email')" class="py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">✉️ מייל</button>
+            </div>
+            <div id="zm-lead-actions-list" class="space-y-2 max-h-48 overflow-y-auto"></div>
+        </div>
+        <input type="hidden" id="zm-crm-lead-id">
     </div>
 </div>
 
