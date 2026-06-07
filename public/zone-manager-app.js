@@ -313,9 +313,7 @@ async function loadCampaigns() {
             const campUrl = `${host}/campaign.html?t=${c.token}`;
             const ogUrl = `${host}/c/camp/${c.token}`;
             const waLines = [];
-            waLines.push(`🌟 *${c.title || 'OneFlow'}*`);
-            if (c.subtitle) waLines.push(`_${c.subtitle}_`);
-            if (c.text_content) { waLines.push(''); waLines.push(c.text_content.trim()); }
+            if (c.text_content) waLines.push(c.text_content.trim());
             waLines.push('');
             waLines.push(`👉 ${ogUrl}`);
             const waText = waLines.join('\n');

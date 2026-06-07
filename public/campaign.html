@@ -60,8 +60,13 @@
             <img id="camp-banner-bg" src="" class="absolute inset-0 w-full h-full object-cover hidden" style="z-index:0">
             <div class="absolute inset-0 hidden" id="camp-banner-overlay" style="background:rgba(0,0,0,0.45);z-index:1"></div>
             <div class="relative" style="z-index:2">
-                <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm" id="camp-icon-wrap">
-                    <i class="fa-solid fa-people-group text-3xl text-white"></i>
+                <!-- OneFlow logo -->
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-10 w-10 rounded-xl object-contain hidden" onerror="this.classList.add('hidden')">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm" id="camp-icon-wrap">
+                        <i class="fa-solid fa-leaf text-xl text-white"></i>
+                    </div>
+                    <span class="text-white font-black text-lg tracking-wide">OneFlow</span>
                 </div>
                 <h1 id="camp-title" class="text-2xl font-black mb-2 leading-snug"></h1>
                 <p id="camp-subtitle" class="text-indigo-200 text-sm font-medium leading-relaxed"></p>
@@ -129,6 +134,12 @@ function showError() {
 function renderCampaign() {
     document.getElementById('camp-loading').classList.add('hidden');
     document.getElementById('camp-form-wrapper').classList.remove('hidden');
+
+    // try to show logo
+    const logoImg = document.getElementById('camp-oneflow-logo');
+    fetch('/api/public/logo').then(r => {
+        if (r.ok) { logoImg.classList.remove('hidden'); document.getElementById('camp-icon-wrap').classList.add('hidden'); }
+    }).catch(() => {});
 
     document.getElementById('camp-title').textContent = campData.title || 'הצטרפות לקהילה';
     const subtitle = campData.subtitle || '';

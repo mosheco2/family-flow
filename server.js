@@ -8051,12 +8051,11 @@ app.get('/c/camp/:token', async (req, res) => {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         let ogImage = campaign?.image_url || '';
         if (!ogImage) {
-            // check if logo exists in DB before using logo endpoint URL
             const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
             const logoVal = logoRes.rows[0]?.value || '';
-            if (logoVal && logoVal.startsWith('data:') && logoVal.includes(',')) {
-                ogImage = `${baseUrl}/api/public/logo`;
-            }
+            ogImage = (logoVal && logoVal.startsWith('data:') && logoVal.includes(','))
+                ? `${baseUrl}/api/public/logo`
+                : `${baseUrl}/oneflow-og.svg`;
         }
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -8069,6 +8068,8 @@ app.get('/c/camp/:token', async (req, res) => {
 ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 <meta property="og:url" content="${campaignUrl}">
 <meta property="og:type" content="website">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:site_name" content="OneFlow">
 <meta name="twitter:card" content="summary_large_image">
 <meta http-equiv="refresh" content="0; url=${campaignUrl}">
