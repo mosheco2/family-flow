@@ -25,6 +25,20 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (event.request.method !== 'GET') return;
+  // HTML files: network-first (always fresh)
+  if (url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(event.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+  // Other assets: cache-first
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
