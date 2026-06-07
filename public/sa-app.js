@@ -64,7 +64,7 @@ window.applyUserPermissions = function() {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'all'
+        'finance': 'all', 'sysmap': 'open'
     };
 
     Object.keys(tabRequirements).forEach(tab => {
@@ -200,7 +200,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'pulse') updateSADashboard();
     if (tabId === 'finance') loadSAFinanceData();
 
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
