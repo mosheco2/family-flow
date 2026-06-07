@@ -357,21 +357,19 @@ function copyLink(url) {
 }
 
 function zmGetSelectedCampaignType() {
-    const checked = document.querySelector('input[name="camp-type"]:checked');
-    return checked ? checked.value : 'family';
+    return document.getElementById('zm-camp-type-value')?.value || 'family';
 }
 
 function zmSetCampaignType(type) {
-    const radio = document.getElementById(`ctype-${type}`);
-    if (radio) {
-        radio.checked = true;
-        document.querySelectorAll('.camp-type-option').forEach(el => {
-            el.classList.remove('border-indigo-400','bg-indigo-50','text-indigo-700');
-            el.classList.add('border-slate-200','text-slate-500');
-        });
-        const opt = radio.nextElementSibling;
-        if (opt) { opt.classList.add('border-indigo-400','bg-indigo-50','text-indigo-700'); opt.classList.remove('border-slate-200','text-slate-500'); }
-    }
+    document.getElementById('zm-camp-type-value').value = type;
+    document.querySelectorAll('.camp-type-btn').forEach(el => {
+        const isSelected = el.dataset.type === type;
+        el.classList.toggle('border-indigo-400', isSelected);
+        el.classList.toggle('bg-indigo-50', isSelected);
+        el.classList.toggle('text-indigo-700', isSelected);
+        el.classList.toggle('border-slate-200', !isSelected);
+        el.classList.toggle('text-slate-500', !isSelected);
+    });
 }
 
 function zmSetBannerPreview(url) {

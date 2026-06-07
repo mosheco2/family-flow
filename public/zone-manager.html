@@ -301,25 +301,17 @@
         <div>
             <label class="text-xs font-bold text-slate-500 block mb-2">סוג קמפיין</label>
             <div class="grid grid-cols-3 gap-2">
-                <label class="cursor-pointer">
-                    <input type="radio" name="camp-type" id="ctype-business" value="business" class="sr-only">
-                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition">
-                        <div class="text-lg mb-1">🏪</div>גיוס עסקים
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="camp-type" id="ctype-family" value="family" class="sr-only" checked>
-                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-indigo-400 bg-indigo-50 text-xs font-bold text-indigo-700 transition">
-                        <div class="text-lg mb-1">👨‍👩‍👧</div>גיוס משפחות
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="camp-type" id="ctype-community_join" value="community_join" class="sr-only">
-                    <div class="camp-type-option text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition">
-                        <div class="text-lg mb-1">🤝</div>חיבור לקהילה
-                    </div>
-                </label>
+                <div class="camp-type-btn cursor-pointer text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition" data-type="business" onclick="zmSetCampaignType('business')">
+                    <div class="text-lg mb-1">🏪</div>גיוס עסקים
+                </div>
+                <div class="camp-type-btn cursor-pointer text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition" data-type="family" onclick="zmSetCampaignType('family')">
+                    <div class="text-lg mb-1">👨‍👩‍👧</div>גיוס משפחות
+                </div>
+                <div class="camp-type-btn cursor-pointer text-center p-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-500 hover:border-indigo-300 transition" data-type="community_join" onclick="zmSetCampaignType('community_join')">
+                    <div class="text-lg mb-1">🤝</div>חיבור לקהילה
+                </div>
             </div>
+            <input type="hidden" id="zm-camp-type-value" value="family">
         </div>
 
         <!-- AI Draft -->

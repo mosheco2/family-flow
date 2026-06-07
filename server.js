@@ -1337,12 +1337,34 @@ app.get('/setup-db', async (req, res) => {
 const zoneManagerSessions = new Map();
 const zmPasswordResets = new Map(); // token -> { managerId, name, email, expires }
 
-function verifyZoneManager(req, res, next) {
+async function verifyZoneManager(req, res, next) {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
-    const session = zoneManagerSessions.get(token);
-    if (!session) return res.status(403).json({ error: 'Unauthorized zone manager' });
-    req.zmSession = session;
-    next();
+    if (!token) return res.status(403).json({ error: 'Unauthorized zone manager' });
+    // בדיקה ב-cache תחילה
+    if (zoneManagerSessions.has(token)) {
+        req.zmSession = zoneManagerSessions.get(token);
+        return next();
+    }
+    // אם השרת הופעל מחדש — חלץ manager ID מהטוקן ובדוק ב-DB
+    if (token.startsWith('ZM_')) {
+        const parts = token.split('_');
+        if (parts.length >= 3) {
+            const managerId = parseInt(parts[1]);
+            if (!isNaN(managerId)) {
+                try {
+                    const r = await pool.query("SELECT id,name,email FROM zone_managers WHERE id=$1 AND status='active'", [managerId]);
+                    if (r.rows.length) {
+                        const mgr = r.rows[0];
+                        const session = { managerId: mgr.id, name: mgr.name, email: mgr.email };
+                        zoneManagerSessions.set(token, session);
+                        req.zmSession = session;
+                        return next();
+                    }
+                } catch(e) {}
+            }
+        }
+    }
+    return res.status(403).json({ error: 'Unauthorized zone manager' });
 }
 
 function verifySA(req, res, next) {
@@ -5783,18 +5805,23 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
     try {
         if (!genAIv2) return res.status(503).json({ error: 'AI לא זמין' });
         const { title, campaignType } = req.body;
-        const typeContext = campaignType === 'business' ? 'recruiting businesses to join a community platform' :
-                           campaignType === 'family' ? 'recruiting families to join a community platform' :
-                           'community engagement and connection campaign';
-        const prompt = `A professional, modern banner image for: "${title || 'Community Campaign'}". Context: ${typeContext}. Style: clean, colorful gradient, warm community feeling, minimalist design, no text, high quality digital art.`;
-        const response = await genAIv2.models.generateImages({
-            model: 'imagen-3.0-generate-002',
-            prompt,
-            config: { numberOfImages: 1, aspectRatio: '16:9', outputMimeType: 'image/jpeg' }
+        const typeContext = campaignType === 'business'
+            ? 'modern business management software product, professional tools, productivity'
+            : campaignType === 'family'
+            ? 'family lifestyle app, warm home atmosphere, daily life, community'
+            : 'local community connection, neighborhood, togetherness, urban life';
+        const prompt = `Professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, NO text, NO words, NO letters, photorealistic quality, 16:9 aspect ratio.`;
+        const response = await genAIv2.models.generateContent({
+            model: 'gemini-2.0-flash-preview-image-generation',
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseModalities: ['IMAGE'] }
         });
-        const imgBase64 = response.generatedImages?.[0]?.image?.imageBytes;
-        if (!imgBase64) return res.status(500).json({ error: 'לא ניתן ליצור תמונה' });
-        const dataUrl = `data:image/jpeg;base64,${Buffer.isBuffer(imgBase64) ? imgBase64.toString('base64') : imgBase64}`;
+        let imgBase64 = null, mimeType = 'image/jpeg';
+        for (const part of (response.candidates?.[0]?.content?.parts || [])) {
+            if (part.inlineData?.data) { imgBase64 = part.inlineData.data; mimeType = part.inlineData.mimeType || 'image/jpeg'; break; }
+        }
+        if (!imgBase64) return res.status(500).json({ error: 'לא ניתן ליצור תמונה — נסה שוב' });
+        const dataUrl = `data:${mimeType};base64,${imgBase64}`;
         res.json({ success: true, imageUrl: dataUrl });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -5806,14 +5833,15 @@ app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, r
         const { goal, audience, tone, campaignType } = req.body;
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const typeContexts = {
-            business: `מנהל אזור של פלטפורמת OneFlow מגייס עסקים מקומיים להצטרף לפלטפורמה.
-העסק יקבל: חשיפה לקהילות מקומיות, לקוחות חדשים, כלי ניהול, קאשבק לקהילה.
-אין קשר לקהילה ספציפית — מדובר בהצטרפות לרשת העסקים של המערכת.`,
-            family: `מנהל אזור של פלטפורמת OneFlow מגייס משפחות להצטרף לפלטפורמה.
-המשפחה תקבל: הנחות בעסקים מקומיים, קאשבק, כלי ניהול משק בית, קהילה תומכת.
-אין קשר לקהילה ספציפית — מדובר בהצטרפות לרשת המשתמשים.`,
-            community_join: `מנהל אזור של פלטפורמת OneFlow מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך המערכת.
-הקהילה מציעה: רשת שכנים, הנחות בעסקים מקומיים, ניהול משותף וקאשבק לכלל חברי הקהילה.`,
+            business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
+OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, נוכחות דיגיטלית ועוד — הכל במקום אחד.
+המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר.`,
+            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים להצטרף לפלטפורמת OneFlow.
+OneFlow מציעה למשפחה: הנחות בעסקים מקומיים, קאשבק על קניות, ניהול תקציב ביתי, גישה לשירותים מקומיים.
+המטרה: גיוס משתמשים שירצו להוריד את האפליקציה ולהצטרף לרשת.`,
+            community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת OneFlow.
+הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי.
+המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
         };
         const context = typeContexts[campaignType] || typeContexts.family;
         const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס.
