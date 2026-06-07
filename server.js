@@ -5810,7 +5810,7 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
             : campaignType === 'family'
             ? { c1: '#4f46e5', c2: '#7c3aed', c3: '#db2777', accent: '#f472b6' }
             : { c1: '#064e3b', c2: '#059669', c3: '#10b981', accent: '#34d399' };
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const prompt = `Generate a beautiful SVG marketing banner. Output ONLY valid SVG code, nothing else.
 Dimensions: width="1600" height="900". No text, no letters, no numbers.
 Use colors: ${palette.c1}, ${palette.c2}, ${palette.c3}, ${palette.accent}.
@@ -5819,7 +5819,13 @@ Include: a gradient background (linearGradient from ${palette.c1} to ${palette.c
 abstract modern geometric design, layered depth effect.
 Start the response with: <svg width="1600" height="900" xmlns="http://www.w3.org/2000/svg">
 End with: </svg>`;
-        const result = await model.generateContent(prompt);
+        let result;
+        try {
+            result = await model.generateContent(prompt);
+        } catch(e) {
+            const fallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            result = await fallback.generateContent(prompt);
+        }
         const raw = result.response.text().trim();
         const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
         if (!match) throw new Error('SVG לא נוצר');
@@ -5857,7 +5863,10 @@ OneFlow מציעה למשפחה: הבנק המשפחתי, ניהול תקציב 
 ${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
 קהל יעד: ${audience || 'לקוחות פוטנציאליים'}
 טון: ${tone || 'חם, ידידותי, מקצועי ומשכנע'}
-הפלט יכלול: כותרת ראשית (עד 8 מילים, מושכת), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).
+הפלט יכלול:
+- title: כותרת ראשית מושכת (עד 8 מילים)
+- subtitle: כותרת משנה מסכמת (עד 20 מילים)
+- text_content: גוף הטקסט בלבד (3-4 משפטים) — חשוב: אל תחזור על הכותרת או כותרת המשנה. התחל ישירות בתוכן המרחיב, הפניות לערך, הטבות ספציפיות, וקריאה לפעולה.
 החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
         let result;
         try {
