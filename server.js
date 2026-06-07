@@ -5800,53 +5800,32 @@ app.post('/api/zone-manager/leads/:id/actions', verifyZoneManager, async (req, r
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- AI: יצירת באנר ---
+// --- AI: יצירת באנר (SVG via text model — works with any Gemini API key) ---
 app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, res) => {
     try {
-        if (!genAIv2) return res.status(503).json({ error: 'AI לא זמין' });
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
         const { title, campaignType } = req.body;
-        const typeContext = campaignType === 'business'
-            ? 'modern business management software, professional office tools, productivity, clean corporate'
+        const palette = campaignType === 'business'
+            ? { c1: '#1e3a8a', c2: '#2563eb', c3: '#0ea5e9', accent: '#38bdf8' }
             : campaignType === 'family'
-            ? 'family lifestyle app, warm home atmosphere, daily family life, happy household'
-            : 'local community connection, neighborhood togetherness, urban community life';
-        const prompt = `Create a professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, absolutely NO text, NO words, NO letters anywhere in the image, photorealistic quality, wide 16:9 aspect ratio.`;
-        // try image-generation via direct REST API (SDK wraps to v1beta; try both v1beta and v1alpha)
-        const imgCandidates = [
-            { ver: 'v1beta', model: 'gemini-2.0-flash-exp-image-generation' },
-            { ver: 'v1alpha', model: 'gemini-2.0-flash-exp-image-generation' },
-            { ver: 'v1beta', model: 'gemini-2.0-flash-preview-image-generation' },
-            { ver: 'v1alpha', model: 'gemini-2.0-flash-preview-image-generation' },
-        ];
-        let imgBase64 = null, mimeType = 'image/jpeg';
-        for (const { ver, model: modelName } of imgCandidates) {
-            try {
-                const url = `https://generativelanguage.googleapis.com/${ver}/models/${modelName}:generateContent?key=${apiKey}`;
-                const rawRes = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
-                    })
-                });
-                const data = await rawRes.json();
-                if (data.error) { console.error(`[banner] ${ver}/${modelName} ->`, data.error.message); continue; }
-                for (const part of (data.candidates?.[0]?.content?.parts || [])) {
-                    if (part.inlineData?.data) {
-                        imgBase64 = part.inlineData.data;
-                        mimeType = part.inlineData.mimeType || 'image/jpeg';
-                        break;
-                    }
-                }
-                if (imgBase64) break;
-            } catch(modelErr) {
-                console.error(`[banner] ${ver}/${modelName} exception:`, modelErr.message);
-            }
-        }
-        if (!imgBase64) return res.status(500).json({ error: 'יצירת תמונה אינה זמינה כרגע — נסה שוב מאוחר יותר' });
-        const dataUrl = `data:${mimeType};base64,${imgBase64}`;
-        res.json({ success: true, imageUrl: dataUrl });
+            ? { c1: '#4f46e5', c2: '#7c3aed', c3: '#db2777', accent: '#f472b6' }
+            : { c1: '#064e3b', c2: '#059669', c3: '#10b981', accent: '#34d399' };
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const prompt = `Generate a beautiful SVG marketing banner. Output ONLY valid SVG code, nothing else.
+Dimensions: width="1600" height="900". No text, no letters, no numbers.
+Use colors: ${palette.c1}, ${palette.c2}, ${palette.c3}, ${palette.accent}.
+Include: a gradient background (linearGradient from ${palette.c1} to ${palette.c2}),
+8-12 semi-transparent decorative shapes (circles, ellipses, rectangles, polygons) with opacity between 0.08 and 0.35,
+abstract modern geometric design, layered depth effect.
+Start the response with: <svg width="1600" height="900" xmlns="http://www.w3.org/2000/svg">
+End with: </svg>`;
+        const result = await model.generateContent(prompt);
+        const raw = result.response.text().trim();
+        const match = raw.match(/<svg[\s\S]*?<\/svg>/i);
+        if (!match) throw new Error('SVG לא נוצר');
+        const svgData = match[0];
+        const b64 = Buffer.from(svgData).toString('base64');
+        res.json({ success: true, imageUrl: `data:image/svg+xml;base64,${b64}` });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8063,8 +8042,12 @@ app.get('/c/camp/:token', async (req, res) => {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         let ogImage = campaign?.image_url || '';
         if (!ogImage) {
-            // use the public logo endpoint (serves binary, not base64 data URL)
-            ogImage = `${baseUrl}/api/public/logo`;
+            // check if logo exists in DB before using logo endpoint URL
+            const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
+            const logoVal = logoRes.rows[0]?.value || '';
+            if (logoVal && logoVal.startsWith('data:') && logoVal.includes(',')) {
+                ogImage = `${baseUrl}/api/public/logo`;
+            }
         }
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
