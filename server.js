@@ -1273,6 +1273,7 @@ app.get('/setup-db', async (req, res) => {
 
 // Zone Manager sessions: token → { managerId, name, email }
 const zoneManagerSessions = new Map();
+const zmPasswordResets = new Map(); // token -> { managerId, name, email, expires }
 
 function verifyZoneManager(req, res, next) {
     const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -5294,6 +5295,46 @@ app.post('/api/zone-manager/register', async (req, res) => {
             return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה' });
         }
         await pool.query(`INSERT INTO zone_managers (name, email, phone, password_hash, status, commission_pct) VALUES ($1,$2,$3,$4,'pending',5)`, [name, email, phone || null, password]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שכחתי סיסמה — שליחת לינק לאימייל
+app.post('/api/zone-manager/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'נדרשת כתובת מייל' });
+        const result = await pool.query("SELECT id, name, email FROM zone_managers WHERE LOWER(email)=LOWER($1) AND status='active'", [email]);
+        // לא חושפים אם המייל קיים
+        if (result.rows.length) {
+            const mgr = result.rows[0];
+            const token = `ZMR_${mgr.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            zmPasswordResets.set(token, { managerId: mgr.id, email: mgr.email, expires: Date.now() + 60 * 60 * 1000 });
+            const host = req.get('host');
+            const proto = req.headers['x-forwarded-proto'] || req.protocol;
+            const resetUrl = `${proto}://${host}/zone-manager.html?reset=${token}`;
+            const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px">
+                <h2 style="color:#4f46e5;margin-bottom:8px">איפוס סיסמה — OneFlow</h2>
+                <p style="color:#334155">שלום <strong>${mgr.name}</strong>,</p>
+                <p style="color:#334155">קיבלנו בקשה לאיפוס הסיסמה לחשבון מנהל האזור שלך.</p>
+                <p style="margin:24px 0"><a href="${resetUrl}" style="background:#4f46e5;color:white;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">לאיפוס הסיסמה — לחץ כאן</a></p>
+                <p style="color:#94a3b8;font-size:12px">הקישור תקף לשעה אחת. אם לא ביקשת איפוס סיסמה, ניתן להתעלם ממייל זה.</p>
+            </div>`;
+            await sendSystemEmail(mgr.email, 'איפוס סיסמה — OneFlow Zone Manager', html);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// איפוס סיסמה — ולידציה ועדכון
+app.post('/api/zone-manager/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password || password.length < 6) return res.status(400).json({ error: 'טוקן או סיסמה לא תקינים' });
+        const reset = zmPasswordResets.get(token);
+        if (!reset || reset.expires < Date.now()) return res.status(400).json({ error: 'הקישור לא תקף או שפג תוקפו — בקש קישור חדש' });
+        await pool.query("UPDATE zone_managers SET password_hash=$1 WHERE id=$2", [password, reset.managerId]);
+        zmPasswordResets.delete(token);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

@@ -2456,24 +2456,46 @@ async function openTransferCommunityModal(communityId, communityName) {
             transferModal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
             document.body.appendChild(transferModal);
         }
+        transferModal._allZones = zones;
+        transferModal._communityId = communityId;
+        transferModal._managerId = managerId;
         transferModal.innerHTML = `
-            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative">
-                <button onclick="document.getElementById('zm-transfer-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-                <h4 class="font-bold text-slate-800 mb-1 text-right">העברת קהילה</h4>
-                <p class="text-xs text-slate-500 mb-4 text-right">קהילה: <strong>${safeStr(communityName)}</strong></p>
-                <label class="text-xs font-bold text-slate-500 block mb-2">בחר אזור יעד:</label>
-                <div class="space-y-2 max-h-60 overflow-y-auto">
-                    ${zones.length ? zones.map(z => `
-                        <button onclick="transferCommunityToZone(${communityId}, ${z.id}, ${managerId})"
-                            class="w-full text-right flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition">
-                            <span class="text-xs text-slate-400">${safeStr(z.manager_name)}</span>
-                            <span class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-map-pin text-blue-400 mr-1"></i>${safeStr(z.name)}</span>
-                        </button>`).join('')
-                    : '<p class="text-xs text-slate-400 text-center py-4">אין אזורים אחרים זמינים</p>'}
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative flex flex-col" style="max-height:80vh">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+                    <button onclick="document.getElementById('zm-transfer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="text-right">
+                        <h4 class="font-bold text-slate-800">העברת קהילה</h4>
+                        <p class="text-xs text-slate-500">קהילה: <strong>${safeStr(communityName)}</strong></p>
+                    </div>
                 </div>
+                <div class="p-3 flex-shrink-0">
+                    <input type="text" id="zm-transfer-search" class="modern-input text-sm" placeholder="חיפוש לפי שם מנהל או שם אזור..." oninput="filterTransferZones()">
+                </div>
+                <div id="zm-transfer-list" class="overflow-y-auto flex-1 p-3 space-y-1"></div>
             </div>`;
+        renderTransferZones(zones, communityId, managerId);
         transferModal.classList.remove('hidden');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function filterTransferZones() {
+    const modal = getEl('zm-transfer-modal');
+    const q = getEl('zm-transfer-search').value.toLowerCase();
+    const filtered = (modal._allZones || []).filter(z =>
+        z.name.toLowerCase().includes(q) || z.manager_name.toLowerCase().includes(q)
+    );
+    renderTransferZones(filtered, modal._communityId, modal._managerId);
+}
+
+function renderTransferZones(zones, communityId, managerId) {
+    const el = getEl('zm-transfer-list');
+    if (!zones.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו אזורים</p>'; return; }
+    el.innerHTML = zones.map(z => `
+        <button onclick="transferCommunityToZone(${communityId}, ${z.id}, ${managerId})"
+            class="w-full text-right flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition">
+            <span class="text-xs text-slate-400 font-bold">${safeStr(z.manager_name)}</span>
+            <span class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-map-pin text-blue-400 ml-1"></i>${safeStr(z.name)}</span>
+        </button>`).join('');
 }
 
 async function transferCommunityToZone(communityId, zoneId, managerId) {

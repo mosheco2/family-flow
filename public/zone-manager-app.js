@@ -4,6 +4,14 @@ let zmManager = null;
 let zmData = null;
 
 window.onload = () => {
+    // בדוק אם יש טוקן איפוס ב-URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('reset');
+    if (resetToken) {
+        document.getElementById('zm-reset-token').value = resetToken;
+        zmSwitchAuthTab('reset');
+        return;
+    }
     const saved = localStorage.getItem('zm_token');
     const savedMgr = localStorage.getItem('zm_manager');
     if (saved && savedMgr) {
@@ -15,7 +23,7 @@ window.onload = () => {
 };
 
 function zmSwitchAuthTab(tab) {
-    ['login','register','pending'].forEach(t => {
+    ['login','register','pending','forgot','reset'].forEach(t => {
         const form = document.getElementById(`zm-form-${t}`);
         const btn = document.getElementById(`zm-auth-tab-${t}`);
         if (form) form.classList.toggle('hidden', t !== tab);
@@ -66,8 +74,49 @@ async function zmRegister() {
     } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); }
 }
 
-function zmForgotPassword() {
-    alert('לשחזור סיסמה פנה למנהל המערכת.\nניתן ליצור קשר דרך האתר הראשי של OneFlow.');
+async function zmForgotSubmit() {
+    const email = document.getElementById('zm-forgot-email')?.value?.trim();
+    const msg = document.getElementById('zm-forgot-msg');
+    const err = document.getElementById('zm-forgot-err');
+    msg.classList.add('hidden'); err.classList.add('hidden');
+    if (!email) { err.textContent = 'הכנס כתובת מייל'; err.classList.remove('hidden'); return; }
+    try {
+        const res = await fetch(`${API}/zone-manager/forgot-password`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.textContent = 'אם האימייל קיים במערכת, נשלח אליו קישור לאיפוס סיסמה. בדוק את תיבת הדואר שלך.';
+            msg.classList.remove('hidden');
+        } else { err.textContent = data.error || 'שגיאה'; err.classList.remove('hidden'); }
+    } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); }
+}
+
+async function zmResetSubmit() {
+    const token = document.getElementById('zm-reset-token')?.value;
+    const pass = document.getElementById('zm-reset-pass')?.value;
+    const pass2 = document.getElementById('zm-reset-pass2')?.value;
+    const err = document.getElementById('zm-reset-err');
+    const ok = document.getElementById('zm-reset-ok');
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    if (!pass || pass.length < 6) { err.textContent = 'הסיסמה חייבת להיות לפחות 6 תווים'; err.classList.remove('hidden'); return; }
+    if (pass !== pass2) { err.textContent = 'הסיסמאות אינן תואמות'; err.classList.remove('hidden'); return; }
+    try {
+        const res = await fetch(`${API}/zone-manager/reset-password`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password: pass })
+        });
+        const data = await res.json();
+        if (data.success) {
+            ok.textContent = 'הסיסמה עודכנה בהצלחה! כעת ניתן להתחבר עם הסיסמה החדשה.';
+            ok.classList.remove('hidden');
+            setTimeout(() => {
+                history.replaceState({}, '', '/zone-manager.html');
+                zmSwitchAuthTab('login');
+            }, 2500);
+        } else { err.textContent = data.error || 'שגיאה'; err.classList.remove('hidden'); }
+    } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); }
 }
 
 function zmLogout() {
