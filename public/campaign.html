@@ -19,7 +19,7 @@
         .hero-gradient { background: linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#6366f1 100%); }
     </style>
 </head>
-<body class="flex items-start justify-center p-4 pt-8 pb-16">
+<body class="flex items-start justify-center p-4 pt-6 pb-16">
 
 <div class="w-full max-w-lg">
 
@@ -55,18 +55,27 @@
     <!-- Campaign form -->
     <div id="camp-form-wrapper" class="hidden">
 
+        <!-- System top banner (from superadmin) -->
+        <div id="camp-system-banner" class="hidden mb-3">
+            <a id="camp-system-banner-link" href="#" target="_blank">
+                <img id="camp-system-banner-img" src="" class="w-full rounded-2xl object-cover" style="max-height:120px" alt="OneFlow">
+            </a>
+        </div>
+
         <!-- Hero header -->
-        <div id="camp-hero" class="hero-gradient rounded-t-3xl p-8 text-center text-white mb-0 relative overflow-hidden" style="border-radius:1.75rem 1.75rem 0 0">
+        <div id="camp-hero" class="hero-gradient p-8 text-center text-white mb-0 relative overflow-hidden" style="border-radius:1.75rem 1.75rem 0 0">
             <img id="camp-banner-bg" src="" class="absolute inset-0 w-full h-full object-cover hidden" style="z-index:0">
             <div class="absolute inset-0 hidden" id="camp-banner-overlay" style="background:rgba(0,0,0,0.45);z-index:1"></div>
             <div class="relative" style="z-index:2">
-                <!-- OneFlow logo -->
+                <!-- OneFlow logo row -->
                 <div class="flex items-center justify-center gap-2 mb-4">
-                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-10 w-10 rounded-xl object-contain hidden" onerror="this.classList.add('hidden')">
-                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm" id="camp-icon-wrap">
+                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-10 w-10 rounded-xl object-contain hidden"
+                         onload="this.classList.remove('hidden'); document.getElementById('camp-leaf-icon').classList.add('hidden');"
+                         onerror="this.classList.add('hidden'); document.getElementById('camp-leaf-icon').classList.remove('hidden');">
+                    <div id="camp-leaf-icon" class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
                         <i class="fa-solid fa-leaf text-xl text-white"></i>
                     </div>
-                    <span class="text-white font-black text-lg tracking-wide">OneFlow</span>
+                    <span class="text-white font-black text-base tracking-widest uppercase">OneFlow Life</span>
                 </div>
                 <h1 id="camp-title" class="text-2xl font-black mb-2 leading-snug"></h1>
                 <p id="camp-subtitle" class="text-indigo-200 text-sm font-medium leading-relaxed"></p>
@@ -118,11 +127,15 @@ window.onload = async () => {
     campToken = params.get('t');
     if (!campToken) { showError(); return; }
     try {
-        const res = await fetch(`${API}/public/campaign/${campToken}`);
-        const data = await res.json();
+        const [campRes, bannerRes] = await Promise.all([
+            fetch(`${API}/public/campaign/${campToken}`),
+            fetch(`${API}/public/system-banner`)
+        ]);
+        const data = await campRes.json();
         if (!data.success) { showError(); return; }
         campData = data.campaign;
-        renderCampaign();
+        const bannerData = await bannerRes.json().catch(() => ({}));
+        renderCampaign(bannerData);
     } catch(e) { showError(); }
 };
 
@@ -131,15 +144,20 @@ function showError() {
     document.getElementById('camp-error').classList.remove('hidden');
 }
 
-function renderCampaign() {
+function renderCampaign(bannerData) {
     document.getElementById('camp-loading').classList.add('hidden');
     document.getElementById('camp-form-wrapper').classList.remove('hidden');
 
-    // try to show logo
-    const logoImg = document.getElementById('camp-oneflow-logo');
-    fetch('/api/public/logo').then(r => {
-        if (r.ok) { logoImg.classList.remove('hidden'); document.getElementById('camp-icon-wrap').classList.add('hidden'); }
-    }).catch(() => {});
+    // System top banner
+    if (bannerData?.bannerImg) {
+        const bannerWrap = document.getElementById('camp-system-banner');
+        const bannerImg = document.getElementById('camp-system-banner-img');
+        const bannerLink = document.getElementById('camp-system-banner-link');
+        bannerImg.src = bannerData.bannerImg;
+        if (bannerData.bannerLink) bannerLink.href = bannerData.bannerLink;
+        else bannerLink.removeAttribute('href');
+        bannerWrap.classList.remove('hidden');
+    }
 
     document.getElementById('camp-title').textContent = campData.title || 'הצטרפות לקהילה';
     const subtitle = campData.subtitle || '';
@@ -150,7 +168,6 @@ function renderCampaign() {
         bg.src = campData.image_url;
         bg.classList.remove('hidden');
         overlay.classList.remove('hidden');
-        document.getElementById('camp-icon-wrap').classList.add('hidden');
     }
     const textEl = document.getElementById('camp-text');
     if (campData.text_content) { textEl.textContent = campData.text_content; textEl.classList.remove('hidden'); }

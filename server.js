@@ -8040,6 +8040,34 @@ app.get('/api/public/logo', async (req, res) => {
     } catch(e) { res.status(500).send(''); }
 });
 
+// Serve campaign banner image as binary (og:image must be a real URL, not data:)
+app.get('/api/public/campaign-image/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT image_url FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
+        const imageUrl = r.rows[0]?.image_url || '';
+        if (!imageUrl || !imageUrl.startsWith('data:')) return res.status(404).send('');
+        const [header, base64] = imageUrl.split(',');
+        const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(base64, 'base64'));
+    } catch(e) { res.status(500).send(''); }
+});
+
+// Public system banner (top banner from superadmin settings)
+app.get('/api/public/system-banner', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('ad_banner_img_top','ad_banner_link_top','global_ai_logo')");
+        const map = {};
+        r.rows.forEach(row => { map[row.key] = row.value; });
+        res.json({
+            bannerImg: map['ad_banner_img_top'] || '',
+            bannerLink: map['ad_banner_link_top'] || '',
+            logoData: !!(map['global_ai_logo'] && map['global_ai_logo'].startsWith('data:'))
+        });
+    } catch(e) { res.status(500).json({ bannerImg: '', bannerLink: '', logoData: false }); }
+});
+
 // OG preview route for campaign WhatsApp sharing
 app.get('/c/camp/:token', async (req, res) => {
     try {
@@ -8049,13 +8077,19 @@ app.get('/c/camp/:token', async (req, res) => {
              FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
         const campaign = campRes.rows[0];
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        let ogImage = campaign?.image_url || '';
+        // og:image must be an absolute HTTP URL (not data: URL)
+        let ogImage = '';
+        if (campaign?.image_url && campaign.image_url.startsWith('data:')) {
+            ogImage = `${baseUrl}/api/public/campaign-image/${token}`;
+        } else if (campaign?.image_url) {
+            ogImage = campaign.image_url;
+        }
         if (!ogImage) {
             const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
             const logoVal = logoRes.rows[0]?.value || '';
             ogImage = (logoVal && logoVal.startsWith('data:') && logoVal.includes(','))
                 ? `${baseUrl}/api/public/logo`
-                : `${baseUrl}/oneflow-og.svg`;
+                : '';
         }
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
