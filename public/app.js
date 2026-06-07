@@ -3071,6 +3071,14 @@ async function openCommunityManagerPanel(commId) {
                 ${approvedHtml}
             </div>
 
+            <!-- הודעות ממנהל האזור -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-inbox text-indigo-500"></i> הודעות ממנהל האזור</h4>
+                <button onclick="openCommunityManagerInbox(${commId})" class="w-full py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold text-sm hover:bg-indigo-100 transition">
+                    <i class="fa-solid fa-inbox mr-2"></i>פתח תיבת הודעות
+                </button>
+            </div>
+
             <!-- תנועות ארנק -->
             <div>
                 <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> היסטוריית קאשבק</h4>
@@ -3097,6 +3105,174 @@ async function saRejectBizFromManager(communityId, businessId) {
         if(data.success) { showToast('success', 'הבקשה נדחתה'); document.getElementById('comm-manager-modal')?.remove(); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// ============================================================
+// --- COMMUNITY MANAGER INBOX ---
+// ============================================================
+
+let cmInboxCurrentThreadId = null;
+let cmInboxCurrentCommunityId = null;
+
+async function openCommunityManagerInbox(communityId) {
+    cmInboxCurrentCommunityId = communityId;
+    cmInboxCurrentThreadId = null;
+    let modal = document.getElementById('cm-inbox-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cm-inbox-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9995] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden" dir="rtl" style="font-family:'Rubik',sans-serif">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+            <button onclick="document.getElementById('cm-inbox-modal').remove()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-black text-slate-800"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>הודעות ממנהל האזור</h3>
+        </div>
+        <div id="cm-inbox-view" class="flex-1 overflow-y-auto p-4">
+            <div class="text-center text-slate-400 py-6">טוען...</div>
+        </div>
+        <div id="cm-inbox-reply-bar" class="hidden p-4 border-t border-slate-100 space-y-2">
+            <div class="flex gap-2">
+                <button onclick="sendCMReply()" class="bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-600 transition whitespace-nowrap">שלח</button>
+                <textarea id="cm-reply-input" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 resize-none" rows="2" placeholder="כתוב תשובה..."></textarea>
+            </div>
+            <button onclick="showCMThreadList()" class="text-xs text-slate-400 hover:text-slate-600 font-bold">← חזרה לרשימה</button>
+        </div>
+        <div class="p-4 border-t border-slate-100 flex gap-2" id="cm-inbox-footer">
+            <button onclick="openCMNewThread()" class="flex-1 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition">
+                <i class="fa-solid fa-pen mr-1.5"></i>שלח הודעה למנהל האזור
+            </button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    showCMThreadList();
+}
+
+async function showCMThreadList() {
+    cmInboxCurrentThreadId = null;
+    document.getElementById('cm-inbox-reply-bar').classList.add('hidden');
+    document.getElementById('cm-inbox-footer').classList.remove('hidden');
+    const view = document.getElementById('cm-inbox-view');
+    view.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
+    try {
+        const res = await fetch(`${API}/community/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        const threads = data.threads || [];
+        if (!threads.length) {
+            view.innerHTML = '<div class="text-center text-slate-400 py-10"><i class="fa-solid fa-inbox text-4xl text-slate-200 mb-3 block"></i>אין הודעות עדיין</div>';
+            return;
+        }
+        view.innerHTML = threads.map(t => {
+            const unread = parseInt(t.unread_count || 0);
+            return `
+            <div class="flex items-center gap-3 rounded-2xl px-4 py-3.5 border mb-2 cursor-pointer hover:shadow-sm transition ${unread > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}" onclick="openCMThread(${t.id})">
+                <div class="w-9 h-9 rounded-xl ${unread > 0 ? 'bg-indigo-200' : 'bg-slate-200'} flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-comment-dots ${unread > 0 ? 'text-indigo-600' : 'text-slate-500'} text-sm"></i>
+                </div>
+                <div class="flex-1 min-w-0 text-right">
+                    <div class="flex justify-between">
+                        <span class="text-[10px] text-slate-400">${new Date(t.last_message_at).toLocaleDateString('he-IL')}</span>
+                        <p class="font-bold text-slate-700 text-sm truncate">${t.zone_manager_name || '—'}</p>
+                    </div>
+                    <p class="text-xs text-slate-500 truncate">${t.last_message || ''}</p>
+                </div>
+                ${unread > 0 ? `<span class="bg-indigo-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">${unread}</span>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאת תקשורת</div>'; }
+}
+
+async function openCMThread(threadId) {
+    cmInboxCurrentThreadId = threadId;
+    const view = document.getElementById('cm-inbox-view');
+    view.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
+    document.getElementById('cm-inbox-reply-bar').classList.remove('hidden');
+    document.getElementById('cm-inbox-footer').classList.add('hidden');
+    document.getElementById('cm-reply-input').value = '';
+    try {
+        const res = await fetch(`${API}/community/inbox/thread/${threadId}/${currentGroup.id}`);
+        const data = await res.json();
+        if (!data.success) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאה</div>'; return; }
+        view.innerHTML = `
+            <p class="text-xs font-bold text-slate-400 text-center mb-3">${data.thread.subject || ''} · ${data.thread.zone_manager_name || ''}</p>
+            <div class="space-y-3">
+                ${(data.messages || []).map(m => {
+                    const isCommunity = m.sender_type === 'community';
+                    return `<div class="flex ${isCommunity ? 'justify-start' : 'justify-end'}">
+                        <div class="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${isCommunity ? 'bg-slate-200 text-slate-700 rounded-bl-sm' : 'bg-indigo-500 text-white rounded-br-sm'}">
+                            <p>${m.content}</p>
+                            <p class="text-[10px] mt-1 ${isCommunity ? 'text-slate-400' : 'text-indigo-200'} text-left">${new Date(m.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</p>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        view.scrollTop = view.scrollHeight;
+    } catch(e) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאת תקשורת</div>'; }
+}
+
+async function sendCMReply() {
+    const content = document.getElementById('cm-reply-input').value.trim();
+    if (!content || !cmInboxCurrentThreadId) return;
+    document.getElementById('cm-reply-input').value = '';
+    try {
+        const res = await fetch(`${API}/community/inbox/thread/${cmInboxCurrentThreadId}/reply`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, content })
+        });
+        const data = await res.json();
+        if (data.success) openCMThread(cmInboxCurrentThreadId);
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function openCMNewThread() {
+    const communityId = cmInboxCurrentCommunityId;
+    if (!communityId) { showToast('error', 'שגיאה בזיהוי הקהילה'); return; }
+    let modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4" dir="rtl" style="font-family:'Rubik',sans-serif">
+        <div class="flex justify-between items-center">
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-black text-slate-800">שלח הודעה למנהל האזור</h3>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">נושא</label>
+            <input type="text" id="cm-new-subject" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400" placeholder="נושא ההודעה">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעה</label>
+            <textarea id="cm-new-content" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400 resize-none" rows="4" placeholder="כתוב את הודעתך..."></textarea>
+        </div>
+        <p id="cm-new-err" class="text-red-500 text-xs text-center hidden"></p>
+        <div class="flex gap-2">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 py-2 text-sm font-bold text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition">ביטול</button>
+            <button onclick="submitCMNewThread(${communityId}, this)" class="flex-1 py-2 text-sm font-bold text-white bg-indigo-500 rounded-xl hover:bg-indigo-600 transition">שלח</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitCMNewThread(communityId, btn) {
+    const subject = document.getElementById('cm-new-subject').value.trim();
+    const content = document.getElementById('cm-new-content').value.trim();
+    const err = document.getElementById('cm-new-err');
+    err.classList.add('hidden');
+    if (!content) { err.textContent = 'תוכן ההודעה חובה'; err.classList.remove('hidden'); return; }
+    btn.disabled = true; btn.textContent = 'שולח...';
+    try {
+        const res = await fetch(`${API}/community/inbox/new`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, communityId, subject, content })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.closest('.fixed').remove();
+            showCMThreadList();
+        } else { err.textContent = data.error || 'שגיאה'; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'שלח'; }
+    } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); btn.disabled = false; btn.textContent = 'שלח'; }
 }
 
 // ============================================================

@@ -205,15 +205,71 @@
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-2">
-            <button class="tab-btn active" onclick="zmSwitchTab('zones')" id="zmtab-zones">אזורים וקהילות</button>
-            <button class="tab-btn" onclick="zmSwitchTab('commissions')" id="zmtab-commissions">היסטוריית עמלות</button>
+        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <button class="tab-btn active whitespace-nowrap" onclick="zmSwitchTab('zones')" id="zmtab-zones"><i class="fa-solid fa-map mr-1"></i>אזורים</button>
+            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('marketing')" id="zmtab-marketing"><i class="fa-solid fa-bullhorn mr-1"></i>שיווק</button>
+            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('leads')" id="zmtab-leads"><i class="fa-solid fa-users mr-1"></i>לידים</button>
+            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('inbox')" id="zmtab-inbox"><i class="fa-solid fa-inbox mr-1"></i>אינבוקס <span id="zm-inbox-badge" class="hidden bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full ml-1"></span></button>
+            <button class="tab-btn whitespace-nowrap" onclick="zmSwitchTab('commissions')" id="zmtab-commissions"><i class="fa-solid fa-coins mr-1"></i>עמלות</button>
         </div>
 
         <!-- Zones Tab -->
         <div id="zmview-zones" class="space-y-4">
             <div id="zm-zones-container" class="space-y-4">
                 <div class="text-center text-slate-400 py-8">טוען...</div>
+            </div>
+        </div>
+
+        <!-- Marketing Tab -->
+        <div id="zmview-marketing" class="hidden space-y-4">
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="openZMCreateCampaign()" class="btn-primary text-sm py-2 px-4"><i class="fa-solid fa-plus ml-1.5"></i>קמפיין חדש</button>
+                    <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-bullhorn text-indigo-500 mr-2"></i>קמפיינים</h3>
+                </div>
+                <div id="zm-campaigns-list" class="space-y-3">
+                    <div class="text-center text-slate-400 py-6">טוען...</div>
+                </div>
+            </div>
+
+            <!-- Templates -->
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="openZMCreateTemplate()" class="btn-secondary text-sm py-2 px-4"><i class="fa-solid fa-plus ml-1.5"></i>תבנית חדשה</button>
+                    <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-file-lines text-slate-500 mr-2"></i>תבניות הודעה</h3>
+                </div>
+                <div id="zm-templates-list" class="space-y-2">
+                    <div class="text-center text-slate-400 py-4">טוען...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads Tab -->
+        <div id="zmview-leads" class="hidden">
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <div id="zm-leads-campaign-select-wrap"></div>
+                    <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-users text-emerald-500 mr-2"></i>לידים</h3>
+                </div>
+                <div id="zm-leads-list" class="space-y-2">
+                    <div class="text-center text-slate-400 py-6">בחר קמפיין לצפייה בלידים</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inbox Tab -->
+        <div id="zmview-inbox" class="hidden space-y-4">
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="openZMNewMessage()" class="btn-primary text-sm py-2 px-4"><i class="fa-solid fa-pen ml-1.5"></i>הודעה חדשה</button>
+                    <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>אינבוקס</h3>
+                </div>
+                <button onclick="openZMBroadcast()" class="w-full mb-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition">
+                    <i class="fa-solid fa-satellite-dish mr-1.5"></i>שידור לכל מנהלי הקהילות
+                </button>
+                <div id="zm-inbox-list" class="space-y-2">
+                    <div class="text-center text-slate-400 py-6">טוען...</div>
+                </div>
             </div>
         </div>
 
@@ -229,6 +285,157 @@
     </div>
 </div>
 
-<script src="zone-manager-app.js?v=3"></script>
+<!-- ===== MODALS ===== -->
+
+<!-- Campaign Create/Edit Modal -->
+<div id="zm-campaign-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <button onclick="document.getElementById('zm-campaign-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="font-black text-slate-800 text-base" id="zm-camp-modal-title">קמפיין חדש</h3>
+        </div>
+
+        <!-- AI Draft button -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+            <p class="text-xs font-bold text-indigo-700 mb-3 text-right"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>יצירה עם AI</p>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <input type="text" id="zm-ai-goal" class="zm-input text-xs" placeholder="מטרת הקמפיין">
+                <input type="text" id="zm-ai-audience" class="zm-input text-xs" placeholder="קהל יעד">
+            </div>
+            <button onclick="zmAIDraftCampaign()" class="w-full py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition" id="zm-ai-draft-btn">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>צור טקסט עם AI
+            </button>
+        </div>
+
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">כותרת ראשית *</label>
+            <input type="text" id="zm-camp-title" class="zm-input" placeholder="הצטרפו לקהילה שלנו!">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">כותרת משנה</label>
+            <input type="text" id="zm-camp-subtitle" class="zm-input" placeholder="תיאור קצר...">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">טקסט הקמפיין</label>
+            <textarea id="zm-camp-text" class="zm-input" rows="4" placeholder="כתוב את סיפור הקמפיין שלך..."></textarea>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-2">שדות הטופס (בחר מה הליד ימלא)</label>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-name" value="name" class="rounded"><span>שם פרטי</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-last_name" value="last_name" class="rounded"><span>שם משפחה</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-business_name" value="business_name" class="rounded"><span>שם עסק</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-city" value="city" class="rounded"><span>עיר</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-address" value="address" class="rounded"><span>כתובת</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-phone" value="phone" class="rounded"><span>טלפון</span></label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" id="fld-email" value="email" class="rounded"><span>מייל</span></label>
+            </div>
+        </div>
+        <p id="zm-camp-err" class="text-red-500 text-xs text-center hidden font-medium"></p>
+        <input type="hidden" id="zm-camp-editing-id">
+        <div class="flex gap-2 pt-2">
+            <button onclick="document.getElementById('zm-campaign-modal').classList.add('hidden')" class="btn-secondary flex-1">ביטול</button>
+            <button onclick="saveZMCampaign()" class="btn-primary flex-1">שמור קמפיין</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thread View Modal -->
+<div id="zm-thread-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-lg max-h-[92vh] flex flex-col p-0 overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-3xl">
+            <button onclick="document.getElementById('zm-thread-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="text-right">
+                <h3 class="font-black text-slate-800 text-sm" id="zm-thread-title"></h3>
+                <p class="text-xs text-slate-400" id="zm-thread-subtitle"></p>
+            </div>
+        </div>
+        <div id="zm-thread-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50" style="min-height:200px;max-height:400px"></div>
+        <div class="p-4 border-t border-slate-100 bg-white rounded-b-3xl space-y-2">
+            <button onclick="zmAISuggestReply()" class="w-full py-1.5 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 transition" id="zm-ai-reply-btn">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>הצעת תשובה עם AI
+            </button>
+            <div class="flex gap-2">
+                <button onclick="sendZMReply()" class="btn-primary px-4 py-2 text-sm whitespace-nowrap">שלח</button>
+                <textarea id="zm-reply-input" class="zm-input text-sm flex-1" rows="2" placeholder="כתוב תשובה..."></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Message / Broadcast Modal -->
+<div id="zm-newmsg-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-lg p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <button onclick="document.getElementById('zm-newmsg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="font-black text-slate-800 text-base" id="zm-newmsg-title">הודעה חדשה</h3>
+        </div>
+        <div id="zm-newmsg-target-wrap">
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">בחר מנהל קהילה</label>
+            <select id="zm-newmsg-target" class="zm-input">
+                <option value="">טוען מנהלי קהילות...</option>
+            </select>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">נושא</label>
+            <input type="text" id="zm-newmsg-subject" class="zm-input" placeholder="נושא ההודעה">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">תוכן ההודעה</label>
+            <textarea id="zm-newmsg-content" class="zm-input" rows="4" placeholder="כתוב את ההודעה..."></textarea>
+        </div>
+        <p id="zm-newmsg-err" class="text-red-500 text-xs text-center hidden font-medium"></p>
+        <div class="flex gap-2 pt-2">
+            <button onclick="document.getElementById('zm-newmsg-modal').classList.add('hidden')" class="btn-secondary flex-1">ביטול</button>
+            <button onclick="sendZMNewMessage()" class="btn-primary flex-1" id="zm-newmsg-send-btn">שלח</button>
+        </div>
+    </div>
+</div>
+
+<!-- Template Create Modal -->
+<div id="zm-template-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-md p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <button onclick="document.getElementById('zm-template-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="font-black text-slate-800 text-base">תבנית חדשה</h3>
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">שם התבנית *</label>
+            <input type="text" id="zm-tpl-name" class="zm-input" placeholder="למשל: ברוך הבא לקהילה">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">נושא</label>
+            <input type="text" id="zm-tpl-subject" class="zm-input" placeholder="נושא ברירת מחדל">
+        </div>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">תוכן *</label>
+            <textarea id="zm-tpl-content" class="zm-input" rows="5" placeholder="תוכן ההודעה..."></textarea>
+        </div>
+        <p id="zm-tpl-err" class="text-red-500 text-xs text-center hidden font-medium"></p>
+        <div class="flex gap-2 pt-2">
+            <button onclick="document.getElementById('zm-template-modal').classList.add('hidden')" class="btn-secondary flex-1">ביטול</button>
+            <button onclick="saveZMTemplate()" class="btn-primary flex-1">שמור תבנית</button>
+        </div>
+    </div>
+</div>
+
+<!-- Community Manager Appointment Modal -->
+<div id="zm-appoint-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9990] flex items-center justify-center p-4 hidden">
+    <div class="card w-full max-w-md p-6 space-y-4">
+        <div class="flex justify-between items-center">
+            <button onclick="document.getElementById('zm-appoint-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-star text-purple-500 mr-2"></i>מינוי מנהל קהילה</h3>
+        </div>
+        <p class="text-xs text-slate-500 text-right" id="zm-appoint-comm-name"></p>
+        <div>
+            <label class="text-xs font-bold text-slate-500 block mb-1.5">חיפוש משתמש</label>
+            <input type="text" id="zm-appoint-search" class="zm-input" placeholder="הקלד שם או מייל..." oninput="zmSearchMembers()">
+        </div>
+        <div id="zm-appoint-list" class="space-y-2 max-h-52 overflow-y-auto"></div>
+        <button onclick="document.getElementById('zm-appoint-modal').classList.add('hidden')" class="btn-secondary w-full">סגור</button>
+    </div>
+</div>
+
+<script src="zone-manager-app.js?v=4"></script>
 </body>
 </html>

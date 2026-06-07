@@ -181,6 +181,56 @@ pool.connect()
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       // ===== END ZONE MANAGER SYSTEM =====
+
+      // ===== ZONE MANAGER MARKETING & INBOX =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_campaigns (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          subtitle VARCHAR(300),
+          text_content TEXT,
+          fields_config JSONB DEFAULT '[]'::jsonb,
+          token VARCHAR(80) UNIQUE NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_campaign_leads (
+          id SERIAL PRIMARY KEY,
+          campaign_id INT REFERENCES zm_campaigns(id) ON DELETE CASCADE,
+          data JSONB NOT NULL DEFAULT '{}'::jsonb,
+          ai_score INT,
+          ai_notes TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_inbox_threads (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          subject VARCHAR(200),
+          last_message_at TIMESTAMP DEFAULT NOW(),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_inbox_messages (
+          id SERIAL PRIMARY KEY,
+          thread_id INT REFERENCES zm_inbox_threads(id) ON DELETE CASCADE,
+          sender_type VARCHAR(20) NOT NULL,
+          sender_id INT NOT NULL,
+          content TEXT NOT NULL,
+          is_read BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zm_message_templates (
+          id SERIAL PRIMARY KEY,
+          zone_manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          subject VARCHAR(200),
+          content TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END ZONE MANAGER MARKETING & INBOX =====
       // ===================================================
 
       await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
@@ -5549,6 +5599,381 @@ app.get('/api/sa/zone-managers/:id/details', verifySA, async (req, res) => {
         ]);
         if (!mgrRes.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         res.json({ success: true, manager: mgrRes.rows[0], zones: zonesRes.rows, communities: commRes.rows, commissions: commissionsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- ZONE MANAGER: MARKETING, CAMPAIGNS, LEADS, INBOX, TEMPLATES ---
+// ============================================================
+
+// חיפוש קהילות + משפחות לצורך מינוי מנהל קהילה (ע"י מנהל אזור)
+app.get('/api/zone-manager/communities-members', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const { communityId, q } = req.query;
+        if (!communityId) return res.status(400).json({ error: 'חסר communityId' });
+        const zoneCheck = await pool.query(
+            `SELECT c.id FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`,
+            [communityId, managerId]);
+        if (!zoneCheck.rows.length) return res.status(403).json({ error: 'קהילה לא שייכת לאזור שלך' });
+        const search = q ? `%${q}%` : '%';
+        const result = await pool.query(
+            `SELECT fc.group_id, fg.name, fg.admin_email, fc.is_community_manager
+             FROM family_communities fc
+             JOIN family_groups fg ON fg.id=fc.group_id
+             WHERE fc.community_id=$1 AND (fg.name ILIKE $2 OR fg.admin_email ILIKE $2)
+             ORDER BY fc.is_community_manager DESC, fg.name LIMIT 30`,
+            [communityId, search]);
+        res.json({ success: true, members: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מינוי/הסרת מנהל קהילה ע"י מנהל אזור (משפיע על אותו שדה ש-SA משתמש בו)
+app.post('/api/zone-manager/set-community-manager', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const { groupId, communityId, isManager } = req.body;
+        if (!groupId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const zoneCheck = await pool.query(
+            `SELECT c.id FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`,
+            [communityId, managerId]);
+        if (!zoneCheck.rows.length) return res.status(403).json({ error: 'קהילה לא שייכת לאזור שלך' });
+        await pool.query(
+            `UPDATE family_communities SET is_community_manager=$1 WHERE group_id=$2 AND community_id=$3`,
+            [!!isManager, groupId, communityId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- CAMPAIGNS ---
+app.get('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.*, (SELECT COUNT(*) FROM zm_campaign_leads WHERE campaign_id=c.id) as lead_count
+             FROM zm_campaigns c WHERE zone_manager_id=$1 ORDER BY created_at DESC`,
+            [req.zmSession.managerId]);
+        res.json({ success: true, campaigns: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/campaigns', verifyZoneManager, async (req, res) => {
+    try {
+        const { title, subtitle, text_content, fields_config } = req.body;
+        if (!title) return res.status(400).json({ error: 'כותרת הקמפיין חובה' });
+        const token = `CAMP_${req.zmSession.managerId}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        const result = await pool.query(
+            `INSERT INTO zm_campaigns (zone_manager_id, title, subtitle, text_content, fields_config, token)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.zmSession.managerId, title, subtitle || null, text_content || null,
+             JSON.stringify(fields_config || []), token]);
+        res.json({ success: true, campaign: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { title, subtitle, text_content, fields_config, status } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (title !== undefined) add('title', title);
+        if (subtitle !== undefined) add('subtitle', subtitle);
+        if (text_content !== undefined) add('text_content', text_content);
+        if (fields_config !== undefined) add('fields_config', JSON.stringify(fields_config));
+        if (status !== undefined) add('status', status);
+        if (!sets.length) return res.json({ success: true });
+        add('updated_at', new Date());
+        vals.push(req.params.id, req.zmSession.managerId);
+        await pool.query(`UPDATE zm_campaigns SET ${sets.join(',')} WHERE id=$${vals.length-1} AND zone_manager_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/zone-manager/campaigns/:id', verifyZoneManager, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/zone-manager/campaigns/:id/leads', verifyZoneManager, async (req, res) => {
+    try {
+        const camp = await pool.query('SELECT id FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        if (!camp.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const result = await pool.query('SELECT * FROM zm_campaign_leads WHERE campaign_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, leads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דף נחיתה ציבורי — קבלת הגדרות קמפיין
+app.get('/api/public/campaign/:token', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.id, c.title, c.subtitle, c.text_content, c.fields_config, zm.name as manager_name
+             FROM zm_campaigns c JOIN zone_managers zm ON zm.id=c.zone_manager_id
+             WHERE c.token=$1 AND c.status='active'`, [req.params.token]);
+        if (!result.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא או לא פעיל' });
+        res.json({ success: true, campaign: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגשת טופס לינק ציבורי
+app.post('/api/public/campaign/:token/submit', async (req, res) => {
+    try {
+        const campRes = await pool.query('SELECT id FROM zm_campaigns WHERE token=$1 AND status=$2', [req.params.token, 'active']);
+        if (!campRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const data = req.body || {};
+        await pool.query('INSERT INTO zm_campaign_leads (campaign_id, data) VALUES ($1,$2)', [campRes.rows[0].id, JSON.stringify(data)]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: ניסוח טקסט קמפיין ---
+app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { goal, audience, tone } = req.body;
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס חברים לקהילה.
+מטרת הקמפיין: ${goal || 'גיוס משפחות ועסקים לקהילה מקומית'}
+קהל יעד: ${audience || 'תושבים מקומיים'}
+טון: ${tone || 'חם, ידידותי, מקצועי'}
+הפלט יכלול: כותרת ראשית (עד 10 מילים), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).
+החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+        const txt = result.response.text().trim();
+        const parsed = JSON.parse(txt);
+        res.json({ success: true, ...parsed });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: ניתוח לידים ---
+app.post('/api/zone-manager/ai/analyze-leads', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { campaignId } = req.body;
+        const camp = await pool.query('SELECT id FROM zm_campaigns WHERE id=$1 AND zone_manager_id=$2', [campaignId, req.zmSession.managerId]);
+        if (!camp.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const leadsRes = await pool.query('SELECT id, data FROM zm_campaign_leads WHERE campaign_id=$1 AND ai_score IS NULL LIMIT 50', [campaignId]);
+        if (!leadsRes.rows.length) return res.json({ success: true, analyzed: 0 });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+        const leadsText = leadsRes.rows.map((l,i) => `${i+1}. ${JSON.stringify(l.data)}`).join('\n');
+        const prompt = `נתח את הלידים הבאים שנכנסו דרך קמפיין לגיוס חברים לקהילה. לכל ליד תן ציון 1-10 (10=חם מאוד) וקצר הערה.
+לידים:
+${leadsText}
+החזר JSON: {"results": [{"id": <מספר שורה>, "score": <1-10>, "notes": "<הערה קצרה>"}]}`;
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }] });
+        const parsed = JSON.parse(result.response.text().trim());
+        for (const r of (parsed.results || [])) {
+            const lead = leadsRes.rows[r.id - 1];
+            if (lead) await pool.query('UPDATE zm_campaign_leads SET ai_score=$1, ai_notes=$2 WHERE id=$3', [r.score, r.notes, lead.id]);
+        }
+        const updated = await pool.query('SELECT * FROM zm_campaign_leads WHERE campaign_id=$1 ORDER BY created_at DESC', [campaignId]);
+        res.json({ success: true, analyzed: leadsRes.rows.length, leads: updated.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AI: הצעת תשובה לשיחה ---
+app.post('/api/zone-manager/ai/suggest-reply', verifyZoneManager, async (req, res) => {
+    try {
+        if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
+        const { threadId } = req.body;
+        const thread = await pool.query('SELECT * FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at DESC LIMIT 6', [threadId]);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const history = messages.rows.reverse().map(m => `${m.sender_type === 'manager' ? 'מנהל אזור' : 'מנהל קהילה'}: ${m.content}`).join('\n');
+        const prompt = `הינך מנהל אזור בפלטפורמת OneFlow. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, suggestion: result.response.text().trim() });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- INBOX ---
+app.get('/api/zone-manager/inbox', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT t.*, c.name as community_name, fg.name as group_name,
+                (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='community' AND is_read=FALSE) as unread_count,
+                (SELECT content FROM zm_inbox_messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) as last_message
+             FROM zm_inbox_threads t
+             LEFT JOIN communities c ON c.id=t.community_id
+             LEFT JOIN family_groups fg ON fg.id=t.group_id
+             WHERE t.zone_manager_id=$1
+             ORDER BY t.last_message_at DESC`, [req.zmSession.managerId]);
+        res.json({ success: true, threads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/inbox/new', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, groupId, subject, content } = req.body;
+        if (!communityId || !groupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const thread = await pool.query(
+            `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject)
+             VALUES ($1,$2,$3,$4) RETURNING id`,
+            [req.zmSession.managerId, communityId, groupId, subject || 'שיחה חדשה']);
+        await pool.query(
+            `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content)
+             VALUES ($1,'manager',$2,$3)`,
+            [thread.rows[0].id, req.zmSession.managerId, content]);
+        res.json({ success: true, threadId: thread.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שידור להודעה לכל/לנבחרים
+app.post('/api/zone-manager/inbox/broadcast', verifyZoneManager, async (req, res) => {
+    try {
+        const { subject, content, targetGroupIds } = req.body;
+        if (!content) return res.status(400).json({ error: 'תוכן הודעה חובה' });
+        const { managerId } = req.zmSession;
+        let targets;
+        if (targetGroupIds && targetGroupIds.length) {
+            const r = await pool.query(
+                `SELECT DISTINCT fc.group_id, fc.community_id FROM family_communities fc
+                 JOIN communities c ON c.id=fc.community_id
+                 JOIN manager_zones mz ON mz.id=c.zone_id
+                 WHERE fc.is_community_manager=TRUE AND mz.manager_id=$1 AND fc.group_id=ANY($2)`,
+                [managerId, targetGroupIds]);
+            targets = r.rows;
+        } else {
+            const r = await pool.query(
+                `SELECT DISTINCT fc.group_id, fc.community_id FROM family_communities fc
+                 JOIN communities c ON c.id=fc.community_id
+                 JOIN manager_zones mz ON mz.id=c.zone_id
+                 WHERE fc.is_community_manager=TRUE AND mz.manager_id=$1`, [managerId]);
+            targets = r.rows;
+        }
+        let sent = 0;
+        for (const t of targets) {
+            const thread = await pool.query(
+                `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject)
+                 VALUES ($1,$2,$3,$4) RETURNING id`,
+                [managerId, t.community_id, t.group_id, subject || 'הודעה ממנהל האזור']);
+            await pool.query(
+                `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`,
+                [thread.rows[0].id, managerId, content]);
+            sent++;
+        }
+        res.json({ success: true, sent });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/zone-manager/inbox/:threadId', verifyZoneManager, async (req, res) => {
+    try {
+        const thread = await pool.query(
+            `SELECT t.*, c.name as community_name, fg.name as group_name
+             FROM zm_inbox_threads t LEFT JOIN communities c ON c.id=t.community_id
+             LEFT JOIN family_groups fg ON fg.id=t.group_id
+             WHERE t.id=$1 AND t.zone_manager_id=$2`, [req.params.threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at ASC', [req.params.threadId]);
+        await pool.query(`UPDATE zm_inbox_messages SET is_read=TRUE WHERE thread_id=$1 AND sender_type='community'`, [req.params.threadId]);
+        res.json({ success: true, thread: thread.rows[0], messages: messages.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/inbox/:threadId/reply', verifyZoneManager, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ error: 'תוכן חובה' });
+        const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [req.params.threadId, req.zmSession.managerId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        await pool.query(`INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`, [req.params.threadId, req.zmSession.managerId, content]);
+        await pool.query('UPDATE zm_inbox_threads SET last_message_at=NOW() WHERE id=$1', [req.params.threadId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- TEMPLATES ---
+app.get('/api/zone-manager/templates', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zm_message_templates WHERE zone_manager_id=$1 ORDER BY created_at DESC', [req.zmSession.managerId]);
+        res.json({ success: true, templates: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/zone-manager/templates', verifyZoneManager, async (req, res) => {
+    try {
+        const { name, subject, content } = req.body;
+        if (!name || !content) return res.status(400).json({ error: 'שם ותוכן חובה' });
+        const result = await pool.query(
+            'INSERT INTO zm_message_templates (zone_manager_id, name, subject, content) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.zmSession.managerId, name, subject || null, content]);
+        res.json({ success: true, template: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/zone-manager/templates/:id', verifyZoneManager, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zm_message_templates WHERE id=$1 AND zone_manager_id=$2', [req.params.id, req.zmSession.managerId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- COMMUNITY MANAGER INBOX (in main app) ---
+// מנהל קהילה — קבלת שיחות
+app.get('/api/community/inbox/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const result = await pool.query(
+            `SELECT t.*, zm.name as zone_manager_name, c.name as community_name,
+                (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='manager' AND is_read=FALSE) as unread_count,
+                (SELECT content FROM zm_inbox_messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) as last_message
+             FROM zm_inbox_threads t
+             LEFT JOIN zone_managers zm ON zm.id=t.zone_manager_id
+             LEFT JOIN communities c ON c.id=t.community_id
+             WHERE t.group_id=$1
+             ORDER BY t.last_message_at DESC`, [groupId]);
+        res.json({ success: true, threads: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — פתיחת שיחה חדשה עם מנהל האזור
+app.post('/api/community/inbox/new', async (req, res) => {
+    try {
+        const { groupId, communityId, subject, content } = req.body;
+        if (!groupId || !communityId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const managerCheck = await pool.query(
+            `SELECT mz.manager_id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE c.id=$1`, [communityId]);
+        if (!managerCheck.rows.length) return res.status(404).json({ error: 'לא נמצא מנהל אזור לקהילה זו' });
+        const zoneManagerId = managerCheck.rows[0].manager_id;
+        const thread = await pool.query(
+            `INSERT INTO zm_inbox_threads (zone_manager_id, community_id, group_id, subject) VALUES ($1,$2,$3,$4) RETURNING id`,
+            [zoneManagerId, communityId, groupId, subject || 'פנייה ממנהל קהילה']);
+        await pool.query(
+            `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'community',$2,$3)`,
+            [thread.rows[0].id, groupId, content]);
+        res.json({ success: true, threadId: thread.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — קריאת שיחה + סימון כנקרא
+app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
+    try {
+        const { threadId, groupId } = req.params;
+        const thread = await pool.query(
+            `SELECT t.*, zm.name as zone_manager_name, c.name as community_name
+             FROM zm_inbox_threads t
+             LEFT JOIN zone_managers zm ON zm.id=t.zone_manager_id
+             LEFT JOIN communities c ON c.id=t.community_id
+             WHERE t.id=$1 AND t.group_id=$2`, [threadId, groupId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at ASC', [threadId]);
+        await pool.query(`UPDATE zm_inbox_messages SET is_read=TRUE WHERE thread_id=$1 AND sender_type='manager'`, [threadId]);
+        res.json({ success: true, thread: thread.rows[0], messages: messages.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — מענה לשיחה
+app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
+    try {
+        const { groupId, content } = req.body;
+        if (!content || !groupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND group_id=$2', [req.params.threadId, groupId]);
+        if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
+        await pool.query(`INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'community',$2,$3)`, [req.params.threadId, groupId, content]);
+        await pool.query('UPDATE zm_inbox_threads SET last_message_at=NOW() WHERE id=$1', [req.params.threadId]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
