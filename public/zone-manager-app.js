@@ -14,6 +14,15 @@ window.onload = () => {
     }
 };
 
+function zmSwitchAuthTab(tab) {
+    ['login','register','pending'].forEach(t => {
+        const form = document.getElementById(`zm-form-${t}`);
+        const btn = document.getElementById(`zm-auth-tab-${t}`);
+        if (form) form.classList.toggle('hidden', t !== tab);
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+}
+
 async function zmLogin() {
     const email = document.getElementById('zm-login-email').value;
     const pass = document.getElementById('zm-login-pass').value;
@@ -36,12 +45,38 @@ async function zmLogin() {
     } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); }
 }
 
+async function zmRegister() {
+    const name = document.getElementById('zm-reg-name').value.trim();
+    const email = document.getElementById('zm-reg-email').value.trim();
+    const pass = document.getElementById('zm-reg-pass').value;
+    const phone = document.getElementById('zm-reg-phone').value.trim();
+    const err = document.getElementById('zm-reg-err');
+    err.classList.add('hidden');
+    if (!name || !email || !pass) { err.textContent = 'שם, מייל וסיסמה הם שדות חובה'; err.classList.remove('hidden'); return; }
+    if (pass.length < 6) { err.textContent = 'הסיסמה חייבת להיות לפחות 6 תווים'; err.classList.remove('hidden'); return; }
+    try {
+        const res = await fetch(`${API}/zone-manager/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password: pass, phone })
+        });
+        const data = await res.json();
+        if (!data.success) { err.textContent = data.error || 'שגיאה'; err.classList.remove('hidden'); return; }
+        zmSwitchAuthTab('pending');
+    } catch(e) { err.textContent = 'שגיאת תקשורת'; err.classList.remove('hidden'); }
+}
+
+function zmForgotPassword() {
+    alert('לשחזור סיסמה פנה למנהל המערכת.\nניתן ליצור קשר דרך האתר הראשי של OneFlow.');
+}
+
 function zmLogout() {
     localStorage.removeItem('zm_token');
     localStorage.removeItem('zm_manager');
     zmToken = null; zmManager = null; zmData = null;
     document.getElementById('zm-login').classList.remove('hidden');
     document.getElementById('zm-dashboard').classList.add('hidden');
+    zmSwitchAuthTab('login');
 }
 
 function showDashboard() {
@@ -56,13 +91,26 @@ async function loadDashboard() {
         const data = await res.json();
         if (!data.success) { zmLogout(); return; }
         zmData = data;
-        // stats
-        const totalComm = parseFloat(data.commissions?.total || 0);
-        const monthComm = parseFloat(data.commissions?.month || 0);
+        const fmt = v => '₪' + parseFloat(v || 0).toFixed(2);
+        const earned = parseFloat(data.commissions?.total || 0);
+        const earnedMonth = parseFloat(data.commissions?.month || 0);
+        const paid = parseFloat(data.commissions?.total_paid || 0);
+        const paidMonth = parseFloat(data.commissions?.month_paid || 0);
+
         document.getElementById('zm-stat-zones').textContent = data.zones?.length || 0;
         document.getElementById('zm-stat-communities').textContent = data.communities?.length || 0;
-        document.getElementById('zm-stat-comm-total').textContent = '₪' + totalComm.toFixed(2);
-        document.getElementById('zm-stat-comm-month').textContent = '₪' + monthComm.toFixed(2);
+        document.getElementById('zm-stat-comm-total').textContent = fmt(earned);
+        document.getElementById('zm-stat-comm-month').textContent = fmt(earnedMonth);
+        document.getElementById('zm-stat-paid-total').textContent = fmt(paid);
+        document.getElementById('zm-stat-paid-month').textContent = fmt(paidMonth);
+
+        const totalPct = earned > 0 ? Math.min(100, Math.round(paid / earned * 100)) : 0;
+        const monthPct = earnedMonth > 0 ? Math.min(100, Math.round(paidMonth / earnedMonth * 100)) : 0;
+        document.getElementById('zm-paid-total-bar').style.width = totalPct + '%';
+        document.getElementById('zm-paid-total-pct').textContent = totalPct + '%';
+        document.getElementById('zm-paid-month-bar').style.width = monthPct + '%';
+        document.getElementById('zm-paid-month-pct').textContent = monthPct + '%';
+
         renderZones(data);
     } catch(e) { console.error('Dashboard load error', e); }
 }

@@ -9,13 +9,14 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; }
         .card { background: white; border-radius: 1.5rem; box-shadow: 0 1px 8px rgba(0,0,0,0.07); border: 1px solid #e2e8f0; }
-        .stat-cube { background: white; border-radius: 1.25rem; padding: 1.25rem; text-align: center; border: 1px solid #e2e8f0; }
+        .stat-cube { background: white; border-radius: 1.25rem; padding: 1.1rem; text-align: center; border: 1px solid #e2e8f0; }
         .badge-ok { background:#dcfce7; color:#16a34a; }
         .badge-warn { background:#fef9c3; color:#ca8a04; }
-        .badge-danger { background:#fee2e2; color:#dc2626; }
         .progress-bar { height: 6px; border-radius: 9999px; background: #e2e8f0; overflow: hidden; }
         .progress-fill { height: 100%; border-radius: 9999px; transition: width .7s; }
-        .tab-btn { padding: .5rem 1.25rem; border-radius: 9999px; font-size:.8rem; font-weight:700; cursor:pointer; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; transition:all .2s; }
+        .auth-tab-btn { flex:1; padding:.55rem 1rem; font-size:.82rem; font-weight:700; cursor:pointer; border:none; border-bottom:2px solid transparent; background:transparent; color:#64748b; transition:all .2s; }
+        .auth-tab-btn.active { color:#4f46e5; border-bottom-color:#4f46e5; }
+        .tab-btn { padding:.5rem 1.25rem; border-radius:9999px; font-size:.8rem; font-weight:700; cursor:pointer; border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; transition:all .2s; }
         .tab-btn.active { background:#4f46e5; color:white; border-color:#4f46e5; }
         input { width:100%; padding:.65rem 1rem; border:1px solid #e2e8f0; border-radius:.75rem; font-size:.875rem; outline:none; }
         input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.15); }
@@ -24,28 +25,58 @@
     </style>
 </head>
 <body>
-<!-- Login Screen -->
+<!-- Auth Screen -->
 <div id="zm-login" class="min-h-screen flex items-center justify-center p-4">
-    <div class="card p-8 w-full max-w-sm">
-        <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <i class="fa-solid fa-map-location-dot text-3xl text-indigo-600"></i>
+    <div class="card w-full max-w-sm overflow-hidden">
+        <div class="p-7 pb-4 text-center bg-gradient-to-b from-indigo-50 to-white border-b border-slate-100">
+            <div class="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i class="fa-solid fa-map-location-dot text-2xl text-indigo-600"></i>
             </div>
-            <h1 class="text-2xl font-black text-slate-800">מנהל אזורים</h1>
-            <p class="text-sm text-slate-500 mt-1">OneFlow Zone Manager</p>
+            <h1 class="text-xl font-black text-slate-800">מנהל אזורים</h1>
+            <p class="text-xs text-slate-400 mt-1">OneFlow Zone Manager</p>
         </div>
-        <div class="space-y-3">
+
+        <!-- Tab switcher -->
+        <div class="flex border-b border-slate-100">
+            <button class="auth-tab-btn active" id="zm-auth-tab-login" onclick="zmSwitchAuthTab('login')">כניסה</button>
+            <button class="auth-tab-btn" id="zm-auth-tab-register" onclick="zmSwitchAuthTab('register')">הצטרפות</button>
+        </div>
+
+        <!-- Login form -->
+        <div id="zm-form-login" class="p-6 space-y-3">
             <input type="email" id="zm-login-email" placeholder="כתובת מייל" autocomplete="email">
             <input type="password" id="zm-login-pass" placeholder="סיסמה" autocomplete="current-password">
             <button class="btn-primary w-full" onclick="zmLogin()"><i class="fa-solid fa-sign-in-alt mr-2"></i>כניסה</button>
+            <p id="zm-login-err" class="text-red-500 text-xs text-center hidden"></p>
+            <p class="text-center text-xs text-slate-400 pt-1">
+                <button onclick="zmForgotPassword()" class="text-indigo-500 hover:underline font-bold">שכחתי סיסמה</button>
+            </p>
         </div>
-        <p id="zm-login-err" class="text-red-500 text-xs text-center mt-3 hidden"></p>
+
+        <!-- Register form -->
+        <div id="zm-form-register" class="p-6 space-y-3 hidden">
+            <input type="text" id="zm-reg-name" placeholder="שם מלא">
+            <input type="email" id="zm-reg-email" placeholder="כתובת מייל">
+            <input type="password" id="zm-reg-pass" placeholder="סיסמה (לפחות 6 תווים)">
+            <input type="tel" id="zm-reg-phone" placeholder="טלפון (אופציונלי)">
+            <button class="btn-primary w-full" onclick="zmRegister()"><i class="fa-solid fa-user-plus mr-2"></i>שלח בקשת הצטרפות</button>
+            <p id="zm-reg-err" class="text-red-500 text-xs text-center hidden"></p>
+        </div>
+
+        <!-- Pending approval screen -->
+        <div id="zm-form-pending" class="p-6 text-center hidden">
+            <div class="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-clock text-2xl text-amber-500"></i>
+            </div>
+            <h3 class="font-black text-slate-800 mb-2">בקשתך נשלחה!</h3>
+            <p class="text-sm text-slate-500">בקשת ההצטרפות שלך ממתינה לאישור מנהל המערכת. תקבל עדכון בקרוב.</p>
+            <button onclick="zmSwitchAuthTab('login')" class="mt-4 text-xs text-indigo-500 hover:underline font-bold">חזור למסך כניסה</button>
+        </div>
     </div>
 </div>
 
 <!-- Dashboard -->
 <div id="zm-dashboard" class="hidden min-h-screen">
-    <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
             <button onclick="zmLogout()" class="text-sm text-slate-500 hover:text-red-500 font-bold"><i class="fa-solid fa-sign-out-alt mr-1"></i>יציאה</button>
@@ -59,8 +90,8 @@
     </header>
 
     <div class="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        <!-- Stats row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- Stats: zones + communities -->
+        <div class="grid grid-cols-2 gap-3">
             <div class="stat-cube">
                 <i class="fa-solid fa-map text-indigo-400 text-xl mb-1"></i>
                 <div class="text-2xl font-black text-indigo-700" id="zm-stat-zones">--</div>
@@ -71,16 +102,41 @@
                 <div class="text-2xl font-black text-emerald-700" id="zm-stat-communities">--</div>
                 <div class="text-xs text-emerald-500 font-bold">קהילות</div>
             </div>
+        </div>
+
+        <!-- Commission cubes: earned + paid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="stat-cube">
-                <i class="fa-solid fa-coins text-amber-400 text-xl mb-1"></i>
-                <div class="text-xl font-black text-amber-700" id="zm-stat-comm-total">--</div>
-                <div class="text-xs text-amber-500 font-bold">סה"כ עמלות</div>
+                <div class="text-[9px] text-amber-600 font-bold mb-1 bg-amber-50 rounded-full px-2 py-0.5 inline-block">מתחילת פעילות</div>
+                <i class="fa-solid fa-coins text-amber-400 text-lg mb-1 block"></i>
+                <div class="text-lg font-black text-amber-700" id="zm-stat-comm-total">--</div>
+                <div class="text-[10px] text-amber-500 font-bold">עמלות שנצברו</div>
+            </div>
+            <div class="stat-cube">
+                <div class="text-[9px] text-amber-600 font-bold mb-1 bg-amber-50 rounded-full px-2 py-0.5 inline-block">חודש שוטף</div>
+                <i class="fa-solid fa-coins text-amber-300 text-lg mb-1 block"></i>
+                <div class="text-lg font-black text-amber-600" id="zm-stat-comm-month">--</div>
+                <div class="text-[10px] text-amber-400 font-bold">עמלות החודש</div>
             </div>
             <div class="stat-cube relative">
-                <span class="absolute top-2 right-2 text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
-                <i class="fa-solid fa-coins text-amber-300 text-xl mb-1 mt-2"></i>
-                <div class="text-xl font-black text-amber-600" id="zm-stat-comm-month">--</div>
-                <div class="text-xs text-amber-400 font-bold">עמלות החודש</div>
+                <div class="text-[9px] text-emerald-600 font-bold mb-1 bg-emerald-50 rounded-full px-2 py-0.5 inline-block">סה"כ שולם</div>
+                <i class="fa-solid fa-circle-check text-emerald-400 text-lg mb-1 block"></i>
+                <div class="text-lg font-black text-emerald-700" id="zm-stat-paid-total">--</div>
+                <div class="text-[10px] text-emerald-500 font-bold">שולם לסה"כ</div>
+                <div class="mt-2 px-1">
+                    <div class="progress-bar"><div class="progress-fill bg-emerald-400" id="zm-paid-total-bar" style="width:0%"></div></div>
+                    <div class="text-[9px] text-emerald-400 mt-0.5 text-left" id="zm-paid-total-pct">0%</div>
+                </div>
+            </div>
+            <div class="stat-cube relative">
+                <div class="text-[9px] text-emerald-600 font-bold mb-1 bg-emerald-50 rounded-full px-2 py-0.5 inline-block">חודש שוטף</div>
+                <i class="fa-solid fa-circle-check text-emerald-300 text-lg mb-1 block"></i>
+                <div class="text-lg font-black text-emerald-600" id="zm-stat-paid-month">--</div>
+                <div class="text-[10px] text-emerald-400 font-bold">שולם החודש</div>
+                <div class="mt-2 px-1">
+                    <div class="progress-bar"><div class="progress-fill bg-emerald-300" id="zm-paid-month-bar" style="width:0%"></div></div>
+                    <div class="text-[9px] text-emerald-300 mt-0.5 text-left" id="zm-paid-month-pct">0%</div>
+                </div>
             </div>
         </div>
 
@@ -100,7 +156,7 @@
         <!-- Commissions Tab -->
         <div id="zmview-commissions" class="hidden">
             <div class="card p-5">
-                <h3 class="font-bold text-slate-800 mb-4"><i class="fa-solid fa-clock-rotate-left text-amber-500 mr-2"></i>היסטוריית עמלות</h3>
+                <h3 class="font-bold text-slate-800 mb-4 text-right"><i class="fa-solid fa-clock-rotate-left text-amber-500 mr-2"></i>היסטוריית עמלות</h3>
                 <div id="zm-comm-list" class="space-y-2">
                     <div class="text-center text-slate-400 py-6">טוען...</div>
                 </div>
@@ -109,6 +165,6 @@
     </div>
 </div>
 
-<script src="zone-manager-app.js?v=1"></script>
+<script src="zone-manager-app.js?v=2"></script>
 </body>
 </html>

@@ -170,6 +170,16 @@ pool.connect()
           description TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_manager_payments (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          amount NUMERIC(12,2) NOT NULL,
+          payment_method VARCHAR(100),
+          notes TEXT,
+          paid_at TIMESTAMP DEFAULT NOW(),
+          recorded_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END ZONE MANAGER SYSTEM =====
       // ===================================================
 
@@ -5271,6 +5281,23 @@ app.get('/api/sa/community-wallets', verifySA, async (req, res) => {
 // ============================================================
 
 // לוגין מנהל אזור
+// הרשמה למנהל אזור (ממתין לאישור SA)
+app.post('/api/zone-manager/register', async (req, res) => {
+    try {
+        const { name, email, password, phone } = req.body;
+        if (!name || !email || !password) return res.status(400).json({ error: 'שם, אימייל וסיסמה הם שדות חובה' });
+        const existing = await pool.query('SELECT id,status FROM zone_managers WHERE email=$1', [email]);
+        if (existing.rows.length) {
+            const s = existing.rows[0].status;
+            if (s === 'pending') return res.status(400).json({ error: 'בקשת הרשמה כבר קיימת ומחכה לאישור' });
+            if (s === 'active') return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה ופעילה במערכת' });
+            return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה' });
+        }
+        await pool.query(`INSERT INTO zone_managers (name, email, phone, password_hash, status, commission_pct) VALUES ($1,$2,$3,$4,'pending',5)`, [name, email, phone || null, password]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/zone-manager/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -5313,11 +5340,11 @@ app.get('/api/zone-manager/dashboard', verifyZoneManager, async (req, res) => {
         const settings = await pool.query("SELECT key,value FROM system_settings WHERE key IN ('zone_min_communities','zone_max_zones_per_manager','community_min_families','community_min_businesses')");
         const s = {}; settings.rows.forEach(r => { s[r.key] = parseFloat(r.value); });
 
-        const commissions = await pool.query(`
-            SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',created_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month
-            FROM zone_manager_commissions WHERE manager_id=$1`, [managerId]);
-
-        res.json({ success: true, zones: zonesRes.rows, communities: commRes.rows, commissions: commissions.rows[0], settings: s });
+        const [commissionsRes, paidRes] = await Promise.all([
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',created_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month FROM zone_manager_commissions WHERE manager_id=$1`, [managerId]),
+            pool.query(`SELECT COALESCE(SUM(amount),0) as total_paid, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',paid_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month_paid FROM zone_manager_payments WHERE manager_id=$1`, [managerId])
+        ]);
+        res.json({ success: true, zones: zonesRes.rows, communities: commRes.rows, commissions: { ...commissionsRes.rows[0], ...paidRes.rows[0] }, settings: s });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5332,16 +5359,53 @@ app.get('/api/zone-manager/commissions', verifyZoneManager, async (req, res) => 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// SA — רשימת מנהלי אזורים
+// SA — רשימת מנהלי אזורים (פעילים ומושהים)
 app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT zm.*,
                 (SELECT COUNT(*) FROM manager_zones WHERE manager_id=zm.id) as zone_count,
                 (SELECT COUNT(*) FROM manager_zones mz JOIN communities c ON c.zone_id=mz.id WHERE mz.manager_id=zm.id) as community_count,
-                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_commissions WHERE manager_id=zm.id) as total_commissions
-            FROM zone_managers zm ORDER BY zm.created_at DESC`);
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_commissions WHERE manager_id=zm.id) as total_commissions,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_payments WHERE manager_id=zm.id) as total_paid,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_payments WHERE manager_id=zm.id AND DATE_TRUNC('month',paid_at)=DATE_TRUNC('month',NOW())) as month_paid
+            FROM zone_managers zm WHERE zm.status != 'pending' ORDER BY zm.created_at DESC`);
         res.json({ success: true, managers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת בקשות הרשמה ממתינות
+app.get('/api/sa/zone-managers/pending', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT id,name,email,phone,created_at FROM zone_managers WHERE status='pending' ORDER BY created_at DESC");
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת כל האזורים (לטרנספר)
+app.get('/api/sa/all-zones', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT mz.id, mz.name, zm.name as manager_name, zm.id as manager_id FROM manager_zones mz JOIN zone_managers zm ON mz.manager_id=zm.id WHERE zm.status='active' ORDER BY zm.name, mz.name`);
+        res.json({ success: true, zones: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — תשלום עמלה למנהל אזור
+app.post('/api/sa/zone-manager-payments', verifySA, async (req, res) => {
+    try {
+        const { manager_id, amount, payment_method, notes, paid_at } = req.body;
+        if (!manager_id || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        await pool.query(`INSERT INTO zone_manager_payments (manager_id, amount, payment_method, notes, paid_at, recorded_by) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [manager_id, amount, payment_method || null, notes || null, paid_at || new Date(), req.saUser?.name || 'SA']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — היסטוריית תשלומים למנהל
+app.get('/api/sa/zone-manager-payments/:id', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM zone_manager_payments WHERE manager_id=$1 ORDER BY paid_at DESC', [req.params.id]);
+        res.json({ success: true, payments: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

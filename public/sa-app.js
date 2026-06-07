@@ -1990,12 +1990,14 @@ async function loadZoneManagers() {
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>טוען...</td></tr>';
     try {
-        const [mgrsRes, settRes] = await Promise.all([
+        const [mgrsRes, settRes, pendRes] = await Promise.all([
             fetch(`${API}/sa/zone-managers`, { headers: { 'Authorization': saToken } }),
-            fetch(`${API}/sa/zone-settings`, { headers: { 'Authorization': saToken } })
+            fetch(`${API}/sa/zone-settings`, { headers: { 'Authorization': saToken } }),
+            fetch(`${API}/sa/zone-managers/pending`, { headers: { 'Authorization': saToken } })
         ]);
         const mgrsData = await mgrsRes.json();
         const settData = await settRes.json();
+        const pendData = await pendRes.json();
         if (mgrsData.success) { zmCache = mgrsData.managers || []; renderZMTable(); }
         if (settData.success) {
             zmSettingsCache = settData.settings || {};
@@ -2003,7 +2005,59 @@ async function loadZoneManagers() {
             if (getEl('zm-setting-min-businesses')) getEl('zm-setting-min-businesses').value = zmSettingsCache.community_min_businesses || 15;
             if (getEl('zm-setting-commission-pct')) getEl('zm-setting-commission-pct').value = zmSettingsCache.zone_manager_commission_pct || 5;
         }
+        if (pendData.success) renderZMPending(pendData.pending || []);
     } catch(e) { console.error('loadZoneManagers', e); }
+}
+
+function renderZMPending(pending) {
+    let container = getEl('zm-pending-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'zm-pending-container';
+        const tbody = getEl('sa-zone-managers-table-body');
+        if (tbody) tbody.closest('.bg-white').insertAdjacentElement('beforebegin', container);
+    }
+    if (!pending.length) { container.innerHTML = ''; return; }
+    container.className = 'bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4';
+    container.innerHTML = `
+        <h4 class="font-bold text-amber-800 mb-3 text-right"><i class="fa-solid fa-user-clock text-amber-500 mr-1"></i> בקשות הצטרפות ממתינות (${pending.length})</h4>
+        <div class="space-y-2">${pending.map(p => `
+            <div class="flex justify-between items-center bg-white rounded-xl px-4 py-3 border border-amber-100">
+                <div class="flex gap-2">
+                    <button onclick="approveZMRegistration(${p.id})" class="bg-emerald-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-emerald-600 transition">אשר</button>
+                    <button onclick="rejectZMRegistration(${p.id})" class="bg-red-100 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button>
+                </div>
+                <div class="text-right">
+                    <span class="font-bold text-slate-800 text-sm">${safeStr(p.name)}</span>
+                    <span class="text-slate-400 text-xs mr-2 dir-ltr">${safeStr(p.email)}</span>
+                    ${p.phone ? `<span class="text-slate-400 text-xs mr-2">${safeStr(p.phone)}</span>` : ''}
+                    <div class="text-[10px] text-slate-400 mt-0.5">${new Date(p.created_at).toLocaleDateString('he-IL')}</div>
+                </div>
+            </div>`).join('')}
+        </div>`;
+}
+
+async function approveZMRegistration(id) {
+    try {
+        const res = await fetch(`${API}/sa/zone-managers/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status: 'active' })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'מנהל האזור אושר בהצלחה!'); loadZoneManagers(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function rejectZMRegistration(id) {
+    if (!confirm('לדחות בקשה זו? המנהל יימחק מהמערכת.')) return;
+    try {
+        const res = await fetch(`${API}/sa/zone-managers/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הבקשה נדחתה'); loadZoneManagers(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function renderZMTable() {
@@ -2034,6 +2088,7 @@ function renderZMTable() {
             <td class="px-4 py-4 text-center">
                 <div class="flex gap-1 justify-center">
                     <button onclick="openZMDetailsModal(${m.id})" title="פרטים ואזורים" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-eye text-xs"></i></button>
+                    <button onclick="openZMPaymentModal(${m.id})" title="רישום תשלום" class="text-emerald-500 hover:text-emerald-700 bg-emerald-50 w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-hand-holding-dollar text-xs"></i></button>
                     <button onclick="openZMEditModal(${m.id})" title="עריכה" class="text-amber-500 hover:text-amber-700 bg-amber-50 w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="toggleZMStatus(${m.id}, '${m.status}')" title="${isActive ? 'השהה' : 'הפעל'}" class="${isActive ? 'text-orange-500 hover:text-orange-700 bg-orange-50' : 'text-emerald-500 hover:text-emerald-700 bg-emerald-50'} w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-${isActive ? 'pause' : 'play'} text-xs"></i></button>
                     <button onclick="deleteZoneManager(${m.id})" title="מחק" class="text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
@@ -2208,12 +2263,19 @@ async function openZMDetailsModal(id) {
     } else modal.classList.remove('hidden');
     getEl('zm-details-body').innerHTML = '<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>טוען...</div>';
     try {
-        const res = await fetch(`${API}/sa/zone-managers/${id}/details`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
+        const [detRes, paymRes] = await Promise.all([
+            fetch(`${API}/sa/zone-managers/${id}/details`, { headers: { 'Authorization': saToken } }),
+            fetch(`${API}/sa/zone-manager-payments/${id}`, { headers: { 'Authorization': saToken } })
+        ]);
+        const data = await detRes.json();
+        const paymData = await paymRes.json();
         if (!data.success) { getEl('zm-details-body').innerHTML = '<div class="text-center py-8 text-red-400">שגיאה בטעינה</div>'; return; }
+        data.payments = paymData.success ? (paymData.payments || []) : [];
         const m = data.manager, zones = data.zones || [], commissions = data.commissions || [];
-        const totalComm = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
+        const totalEarned = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
         const allCommunities = data.communities || [];
+        const totalPaid = (data.payments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const paidPct = totalEarned > 0 ? Math.min(100, Math.round(totalPaid / totalEarned * 100)) : 0;
         getEl('zm-details-title').innerHTML = `<i class="fa-solid fa-user-tie text-indigo-500 mr-2"></i> ${safeStr(m.name)}`;
         modal._managerId = id;
         modal._detailsData = data;
@@ -2223,37 +2285,53 @@ async function openZMDetailsModal(id) {
             return `
             <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-3">
                 <div class="flex justify-between items-center mb-2">
-                    <button onclick="addCommunityToZoneUI(${z.id})" class="text-xs bg-indigo-500 text-white px-3 py-1 rounded-full font-bold hover:bg-indigo-600 transition"><i class="fa-solid fa-plus mr-1"></i>שייך קהילה</button>
+                    <button onclick="openCommunityPickerModal(${z.id})" class="text-xs bg-indigo-500 text-white px-3 py-1 rounded-full font-bold hover:bg-indigo-600 transition"><i class="fa-solid fa-plus mr-1"></i>שייך קהילה</button>
                     <h4 class="font-bold text-indigo-800 text-sm"><i class="fa-solid fa-map-pin mr-1"></i>${safeStr(z.name)}</h4>
                 </div>
                 <div class="space-y-1">${commsInZone.length
-                    ? commsInZone.map(c => `<div class="flex justify-between items-center bg-white rounded-xl px-3 py-2 text-xs"><button onclick="removeCommunityFromZone(${c.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-times"></i></button><span class="text-slate-700 font-bold">${safeStr(c.name)} <span class="text-slate-400">${safeStr(c.city||'')}</span></span></div>`).join('')
+                    ? commsInZone.map(c => `
+                        <div class="flex justify-between items-center bg-white rounded-xl px-3 py-2 text-xs">
+                            <div class="flex gap-1">
+                                <button onclick="removeCommunityFromZone(${c.id})" title="הסר" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+                                <button onclick="openTransferCommunityModal(${c.id}, '${safeStr(c.name)}')" title="העבר למנהל אחר" class="text-blue-400 hover:text-blue-600 w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>
+                            </div>
+                            <span class="text-slate-700 font-bold">${safeStr(c.name)} <span class="text-slate-400">${safeStr(c.city||'')}</span></span>
+                        </div>`).join('')
                     : '<p class="text-xs text-indigo-400 text-center py-2">אין קהילות באזור זה</p>'
                 }</div>
             </div>`;
         }).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין אזורים — הוסף אזור ראשון</p>';
 
         getEl('zm-details-body').innerHTML = `
-            <div class="grid grid-cols-3 gap-3 mb-4">
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
                     <div class="text-2xl font-black text-indigo-700">${zones.length}</div>
                     <div class="text-xs text-indigo-500 font-bold mt-1">אזורים</div>
                 </div>
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
                     <div class="text-2xl font-black text-cyan-700">${allCommunities.length}</div>
                     <div class="text-xs text-cyan-500 font-bold mt-1">קהילות</div>
                 </div>
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
-                    <div class="text-xl font-black text-amber-700">₪${totalComm.toFixed(2)}</div>
-                    <div class="text-xs text-amber-500 font-bold mt-1">עמלות סה"כ</div>
+                <div class="bg-amber-50 border border-amber-100 rounded-2xl p-3 text-center">
+                    <div class="text-xl font-black text-amber-700">₪${totalEarned.toFixed(2)}</div>
+                    <div class="text-xs text-amber-500 font-bold mt-1">עמלות שנצברו</div>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+                    <div class="text-xl font-black text-emerald-700">₪${totalPaid.toFixed(2)}</div>
+                    <div class="text-xs text-emerald-500 font-bold mt-1">שולם</div>
+                    <div class="w-full bg-emerald-100 rounded-full h-1.5 mt-1"><div class="bg-emerald-500 h-1.5 rounded-full" style="width:${paidPct}%"></div></div>
+                    <div class="text-[9px] text-emerald-400 mt-0.5">${paidPct}%</div>
                 </div>
             </div>
             <div class="flex justify-between items-center mb-3">
-                <button onclick="addZoneToManagerUI(${m.id})" class="text-sm bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-600 transition"><i class="fa-solid fa-plus mr-1"></i>הוסף אזור</button>
+                <div class="flex gap-2">
+                    <button onclick="addZoneToManagerUI(${m.id})" class="text-sm bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-600 transition"><i class="fa-solid fa-plus mr-1"></i>הוסף אזור</button>
+                    <button onclick="openZMPaymentModal(${m.id})" class="text-sm bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-600 transition"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>רשום תשלום</button>
+                </div>
                 <h4 class="font-bold text-slate-700"><i class="fa-solid fa-map text-indigo-400 mr-1"></i>אזורים וקהילות</h4>
             </div>
             ${zonesHtml}
-            <div class="mt-4">
+            <div class="mt-5">
                 <h4 class="font-bold text-slate-700 mb-2 text-sm text-right"><i class="fa-solid fa-coins text-amber-400 mr-1"></i>עמלות אחרונות (${commissions.length})</h4>
                 ${commissions.slice(0,10).length
                     ? `<div class="space-y-1">${commissions.slice(0,10).map(c => `
@@ -2263,6 +2341,18 @@ async function openZMDetailsModal(id) {
                             <span class="font-bold text-amber-700 text-sm">₪${parseFloat(c.amount).toFixed(2)}</span>
                         </div>`).join('')}</div>`
                     : '<p class="text-xs text-slate-400 text-center py-4">אין עמלות עדיין</p>'
+                }
+            </div>
+            <div class="mt-4">
+                <h4 class="font-bold text-slate-700 mb-2 text-sm text-right"><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i>היסטוריית תשלומים (${(data.payments||[]).length})</h4>
+                ${(data.payments||[]).slice(0,10).length
+                    ? `<div class="space-y-1">${(data.payments||[]).slice(0,10).map(p => `
+                        <div class="flex justify-between items-center bg-emerald-50 rounded-xl px-3 py-2">
+                            <span class="text-xs text-slate-400">${new Date(p.paid_at).toLocaleDateString('he-IL')}</span>
+                            <span class="text-xs text-slate-500 truncate mx-2 flex-1 text-center">${safeStr(p.payment_method||'')}${p.notes ? ' · ' + safeStr(p.notes) : ''}</span>
+                            <span class="font-bold text-emerald-700 text-sm">₪${parseFloat(p.amount).toFixed(2)}</span>
+                        </div>`).join('')}</div>`
+                    : '<p class="text-xs text-slate-400 text-center py-4">אין תשלומים מתועדים</p>'
                 }
             </div>`;
     } catch(e) { console.error(e); getEl('zm-details-body').innerHTML = '<div class="text-center py-8 text-red-400">שגיאה בטעינה</div>'; }
@@ -2283,28 +2373,210 @@ async function addZoneToManagerUI(managerId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
-async function addCommunityToZoneUI(zoneId) {
+function openCommunityPickerModal(zoneId) {
     const modal = getEl('zm-details-modal');
     const managerId = modal?._managerId;
     const detailsData = modal?._detailsData;
     const assignedIds = (detailsData?.communities || []).map(c => c.id);
     const available = saCommunitiesCache.filter(c => !assignedIds.includes(c.id));
-    if (!available.length) { showToast('error', 'כל הקהילות כבר משויכות לאזורים'); return; }
-    const commList = available.map((c,i) => `${i+1}. ${c.name} (${c.city||''})`).join('\n');
-    const pick = prompt(`בחר מספר קהילה לשיוך:\n${commList}`);
-    if (!pick) return;
-    const idx = parseInt(pick) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= available.length) { showToast('error', 'בחירה לא תקינה'); return; }
-    const community = available[idx];
+
+    let picker = getEl('zm-comm-picker-modal');
+    if (!picker) {
+        picker = document.createElement('div');
+        picker.id = 'zm-comm-picker-modal';
+        picker.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
+        picker.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative flex flex-col" style="max-height:80vh">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+                    <button onclick="document.getElementById('zm-comm-picker-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    <h4 class="font-bold text-slate-800">בחר קהילה לשיוך</h4>
+                </div>
+                <div class="p-3 flex-shrink-0">
+                    <input type="text" id="zm-comm-picker-search" class="modern-input text-sm" placeholder="חיפוש לפי שם, עיר..." oninput="filterCommunityPicker()">
+                </div>
+                <div id="zm-comm-picker-list" class="overflow-y-auto flex-1 p-3 space-y-1"></div>
+            </div>`;
+        document.body.appendChild(picker);
+    }
+    picker.classList.remove('hidden');
+    picker._zoneId = zoneId;
+    picker._managerId = managerId;
+    picker._available = available;
+    getEl('zm-comm-picker-search').value = '';
+    renderCommunityPickerList(available, zoneId, managerId);
+}
+
+function filterCommunityPicker() {
+    const picker = getEl('zm-comm-picker-modal');
+    const q = getEl('zm-comm-picker-search').value.toLowerCase();
+    const filtered = (picker._available || []).filter(c =>
+        c.name.toLowerCase().includes(q) || (c.city || '').toLowerCase().includes(q)
+    );
+    renderCommunityPickerList(filtered, picker._zoneId, picker._managerId);
+}
+
+function renderCommunityPickerList(list, zoneId, managerId) {
+    const el = getEl('zm-comm-picker-list');
+    if (!list.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא נמצאו קהילות</p>'; return; }
+    el.innerHTML = list.map(c => `
+        <button onclick="assignCommunityToZone(${c.id}, ${zoneId}, ${managerId})"
+            class="w-full text-right flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition">
+            <span class="text-xs text-slate-400">${safeStr(c.city||'')}</span>
+            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
+        </button>`).join('');
+}
+
+async function assignCommunityToZone(communityId, zoneId, managerId) {
+    document.getElementById('zm-comm-picker-modal').classList.add('hidden');
     try {
-        const res = await fetch(`${API}/sa/communities/${community.id}/assign-zone`, {
+        const res = await fetch(`${API}/sa/communities/${communityId}/assign-zone`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
             body: JSON.stringify({ zone_id: zoneId })
         });
         const data = await res.json();
-        if (data.success) { showToast('success', `${community.name} שויכה לאזור!`); if (managerId) openZMDetailsModal(managerId); loadZoneManagers(); }
+        if (data.success) { showToast('success', 'הקהילה שויכה לאזור!'); if (managerId) openZMDetailsModal(managerId); loadZoneManagers(); }
         else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function openTransferCommunityModal(communityId, communityName) {
+    const modal = getEl('zm-details-modal');
+    const managerId = modal?._managerId;
+    try {
+        const res = await fetch(`${API}/sa/all-zones`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success) { showToast('error', 'שגיאה בטעינת אזורים'); return; }
+        const zones = (data.zones || []).filter(z => z.manager_id != managerId);
+
+        let transferModal = getEl('zm-transfer-modal');
+        if (!transferModal) {
+            transferModal = document.createElement('div');
+            transferModal.id = 'zm-transfer-modal';
+            transferModal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
+            document.body.appendChild(transferModal);
+        }
+        transferModal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative">
+                <button onclick="document.getElementById('zm-transfer-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <h4 class="font-bold text-slate-800 mb-1 text-right">העברת קהילה</h4>
+                <p class="text-xs text-slate-500 mb-4 text-right">קהילה: <strong>${safeStr(communityName)}</strong></p>
+                <label class="text-xs font-bold text-slate-500 block mb-2">בחר אזור יעד:</label>
+                <div class="space-y-2 max-h-60 overflow-y-auto">
+                    ${zones.length ? zones.map(z => `
+                        <button onclick="transferCommunityToZone(${communityId}, ${z.id}, ${managerId})"
+                            class="w-full text-right flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-blue-50 border border-slate-100 hover:border-blue-200 transition">
+                            <span class="text-xs text-slate-400">${safeStr(z.manager_name)}</span>
+                            <span class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-map-pin text-blue-400 mr-1"></i>${safeStr(z.name)}</span>
+                        </button>`).join('')
+                    : '<p class="text-xs text-slate-400 text-center py-4">אין אזורים אחרים זמינים</p>'}
+                </div>
+            </div>`;
+        transferModal.classList.remove('hidden');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function transferCommunityToZone(communityId, zoneId, managerId) {
+    document.getElementById('zm-transfer-modal').classList.add('hidden');
+    try {
+        const res = await fetch(`${API}/sa/communities/${communityId}/assign-zone`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ zone_id: zoneId })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הקהילה הועברה בהצלחה!'); if (managerId) openZMDetailsModal(managerId); loadZoneManagers(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function openZMPaymentModal(managerId) {
+    const mgr = zmCache.find(m => m.id === managerId) || { id: managerId, name: 'מנהל אזור' };
+    let modal = getEl('zm-payment-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'zm-payment-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl relative flex flex-col" style="max-height:90vh">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+                    <button onclick="document.getElementById('zm-payment-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    <h4 class="font-bold text-slate-800 text-right" id="zm-payment-modal-title">רישום תשלום עמלה</h4>
+                </div>
+                <div class="overflow-y-auto flex-1 p-6 space-y-4">
+                    <input type="hidden" id="zm-payment-manager-id">
+                    <div><label class="text-xs font-bold text-slate-500 block mb-1">סכום (₪):</label><input type="number" id="zm-payment-amount" class="modern-input" placeholder="0.00" step="0.01" min="0.01"></div>
+                    <div><label class="text-xs font-bold text-slate-500 block mb-1">אמצעי תשלום:</label>
+                        <select id="zm-payment-method" class="modern-input">
+                            <option value="">בחר אמצעי תשלום</option>
+                            <option value="העברה בנקאית">העברה בנקאית</option>
+                            <option value="מזומן">מזומן</option>
+                            <option value="ביט">ביט</option>
+                            <option value="פייבוקס">פייבוקס</option>
+                            <option value="צ'ק">צ'ק</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 block mb-1">תאריך תשלום:</label><input type="date" id="zm-payment-date" class="modern-input"></div>
+                    <div><label class="text-xs font-bold text-slate-500 block mb-1">הערות:</label><input type="text" id="zm-payment-notes" class="modern-input" placeholder="הערות נוספות"></div>
+                    <div class="flex gap-3 pt-2">
+                        <button onclick="document.getElementById('zm-payment-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                        <button onclick="saveZMPayment()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-emerald-700 transition">שמור תשלום</button>
+                    </div>
+                    <div id="zm-payment-history" class="pt-3 border-t border-slate-100"></div>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal._managerId = managerId;
+    getEl('zm-payment-manager-id').value = managerId;
+    getEl('zm-payment-modal-title').textContent = `תשלום עמלה — ${safeStr(mgr.name)}`;
+    getEl('zm-payment-amount').value = '';
+    getEl('zm-payment-method').value = '';
+    getEl('zm-payment-date').value = new Date().toISOString().split('T')[0];
+    getEl('zm-payment-notes').value = '';
+    loadZMPaymentHistory(managerId);
+}
+
+async function loadZMPaymentHistory(managerId) {
+    const el = getEl('zm-payment-history');
+    if (!el) return;
+    el.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">טוען היסטוריה...</div>';
+    try {
+        const res = await fetch(`${API}/sa/zone-manager-payments/${managerId}`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success || !data.payments.length) { el.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">אין תשלומים מתועדים</div>'; return; }
+        el.innerHTML = `<h5 class="font-bold text-slate-700 text-xs mb-2 text-right">היסטוריית תשלומים</h5>
+            <div class="space-y-1">${data.payments.map(p => `
+                <div class="flex justify-between items-center bg-slate-50 rounded-xl px-3 py-2 text-xs">
+                    <span class="text-slate-400">${new Date(p.paid_at).toLocaleDateString('he-IL')}</span>
+                    <span class="text-slate-500 truncate mx-2">${safeStr(p.payment_method||'')}${p.notes ? ' · ' + safeStr(p.notes) : ''}</span>
+                    <span class="font-bold text-emerald-700">₪${parseFloat(p.amount).toFixed(2)}</span>
+                </div>`).join('')}</div>`;
+    } catch(e) {}
+}
+
+async function saveZMPayment() {
+    const managerId = parseInt(val('zm-payment-manager-id'));
+    const amount = parseFloat(val('zm-payment-amount'));
+    const method = val('zm-payment-method');
+    const date = val('zm-payment-date');
+    const notes = val('zm-payment-notes');
+    if (!amount || amount <= 0) return showToast('error', 'יש להזין סכום תקין');
+    try {
+        const res = await fetch(`${API}/sa/zone-manager-payments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ manager_id: managerId, amount, payment_method: method, notes, paid_at: date ? new Date(date).toISOString() : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'התשלום נרשם בהצלחה!');
+            loadZMPaymentHistory(managerId);
+            loadZoneManagers();
+            getEl('zm-payment-amount').value = '';
+            getEl('zm-payment-notes').value = '';
+        } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
