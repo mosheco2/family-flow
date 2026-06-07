@@ -140,6 +140,37 @@ pool.connect()
           created_by VARCHAR(100),
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // ===== ZONE MANAGER SYSTEM =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_managers (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          phone VARCHAR(50),
+          password_hash VARCHAR(255) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          commission_pct NUMERIC(5,2) DEFAULT 5.00,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS manager_zones (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE communities ADD COLUMN IF NOT EXISTS zone_id INT REFERENCES manager_zones(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS zone_manager_commissions (
+          id SERIAL PRIMARY KEY,
+          manager_id INT REFERENCES zone_managers(id) ON DELETE CASCADE,
+          community_id INT REFERENCES communities(id) ON DELETE CASCADE,
+          order_id INT,
+          amount NUMERIC(12,2) NOT NULL,
+          commission_pct NUMERIC(5,2),
+          description TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END ZONE MANAGER SYSTEM =====
       // ===================================================
 
       await client.query(`CREATE TABLE IF NOT EXISTS saved_shopping_lists (
@@ -1229,6 +1260,17 @@ app.get('/setup-db', async (req, res) => {
 });
 
 // --- SUPER ADMIN ENDPOINTS ---
+
+// Zone Manager sessions: token → { managerId, name, email }
+const zoneManagerSessions = new Map();
+
+function verifyZoneManager(req, res, next) {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    const session = zoneManagerSessions.get(token);
+    if (!session) return res.status(403).json({ error: 'Unauthorized zone manager' });
+    req.zmSession = session;
+    next();
+}
 
 function verifySA(req, res, next) {
     const authHeader = req.headers.authorization || '';
@@ -5082,6 +5124,25 @@ async function triggerCashbackForOrder(orderId) {
                 VALUES ($1,$2,'cashback',$3,$4)`,
                 [order.community_id, cashbackAmount, orderId, `קאשבק מהזמנה #${orderId} על סך ₪${amount}`]);
         }
+        // עמלת מנהל אזור: אם הקהילה שייכת לאזור, הפרש % מהעמלה
+        try {
+            const zoneRes = await pool.query(`
+                SELECT mz.id as zone_id, zm.id as manager_id, zm.commission_pct
+                FROM communities c
+                JOIN manager_zones mz ON c.zone_id=mz.id
+                JOIN zone_managers zm ON mz.manager_id=zm.id AND zm.status='active'
+                WHERE c.id=$1`, [order.community_id]);
+            if (zoneRes.rows.length) {
+                const zm = zoneRes.rows[0];
+                const zmCommPct = parseFloat(zm.commission_pct || (await pool.query("SELECT value FROM system_settings WHERE key='zone_manager_commission_pct'")).rows[0]?.value || 5);
+                const zmAmount = parseFloat((commAmount * zmCommPct / 100).toFixed(2));
+                if (zmAmount > 0) {
+                    await pool.query(`INSERT INTO zone_manager_commissions (manager_id, community_id, order_id, amount, commission_pct, description) VALUES ($1,$2,$3,$4,$5,$6)`,
+                        [zm.manager_id, order.community_id, orderId, zmAmount, zmCommPct, `עמלה מהזמנה #${orderId} בקהילה`]);
+                }
+            }
+        } catch(zmErr) { console.error('Zone manager commission error:', zmErr.message); }
+
         console.log(`Cashback triggered: order ${orderId}, community ${order.community_id}, cashback ₪${cashbackAmount}`);
     } catch(e) { console.error('Cashback trigger error:', e.message); }
 }
@@ -5204,6 +5265,189 @@ app.get('/api/sa/community-wallets', verifySA, async (req, res) => {
         res.json({ success: true, wallets: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ============================================================
+// --- ZONE MANAGER SYSTEM ---
+// ============================================================
+
+// לוגין מנהל אזור
+app.post('/api/zone-manager/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await pool.query('SELECT * FROM zone_managers WHERE email=$1 AND password_hash=$2 AND status=$3', [email, password, 'active']);
+        if (!result.rows.length) return res.status(401).json({ error: 'פרטי גישה שגויים' });
+        const mgr = result.rows[0];
+        const token = `ZM_${mgr.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        zoneManagerSessions.set(token, { managerId: mgr.id, name: mgr.name, email: mgr.email });
+        res.json({ success: true, token, manager: { id: mgr.id, name: mgr.name, email: mgr.email, commission_pct: mgr.commission_pct } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דשבורד מנהל אזור
+app.get('/api/zone-manager/dashboard', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        // אזורים + קהילות
+        const zonesRes = await pool.query(`
+            SELECT mz.id, mz.name, mz.status,
+                COUNT(c.id) as community_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM family_communities WHERE community_id=c.id)),0) as family_count,
+                COALESCE(SUM((SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved')),0) as business_count
+            FROM manager_zones mz
+            LEFT JOIN communities c ON c.zone_id = mz.id
+            WHERE mz.manager_id=$1
+            GROUP BY mz.id, mz.name, mz.status
+            ORDER BY mz.created_at`, [managerId]);
+
+        const commRes = await pool.query(`
+            SELECT c.id, c.name, c.city, c.zone_id, mz.name as zone_name,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as business_count,
+                (SELECT fc2.is_community_manager FROM family_communities fc2 WHERE fc2.community_id=c.id AND fc2.is_community_manager=TRUE LIMIT 1) as has_local_manager
+            FROM communities c
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            WHERE mz.manager_id=$1
+            ORDER BY mz.id, c.name`, [managerId]);
+
+        // עמלות
+        const settings = await pool.query("SELECT key,value FROM system_settings WHERE key IN ('zone_min_communities','zone_max_zones_per_manager','community_min_families','community_min_businesses')");
+        const s = {}; settings.rows.forEach(r => { s[r.key] = parseFloat(r.value); });
+
+        const commissions = await pool.query(`
+            SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(CASE WHEN DATE_TRUNC('month',created_at)=DATE_TRUNC('month',NOW()) THEN amount ELSE 0 END),0) as month
+            FROM zone_manager_commissions WHERE manager_id=$1`, [managerId]);
+
+        res.json({ success: true, zones: zonesRes.rows, communities: commRes.rows, commissions: commissions.rows[0], settings: s });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// היסטוריית עמלות מנהל אזור
+app.get('/api/zone-manager/commissions', verifyZoneManager, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT zmc.*, c.name as community_name FROM zone_manager_commissions zmc
+            LEFT JOIN communities c ON zmc.community_id=c.id
+            WHERE zmc.manager_id=$1 ORDER BY zmc.created_at DESC LIMIT 100`, [req.zmSession.managerId]);
+        res.json({ success: true, commissions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת מנהלי אזורים
+app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT zm.*,
+                (SELECT COUNT(*) FROM manager_zones WHERE manager_id=zm.id) as zone_count,
+                (SELECT COUNT(*) FROM manager_zones mz JOIN communities c ON c.zone_id=mz.id WHERE mz.manager_id=zm.id) as community_count,
+                (SELECT COALESCE(SUM(amount),0) FROM zone_manager_commissions WHERE manager_id=zm.id) as total_commissions
+            FROM zone_managers zm ORDER BY zm.created_at DESC`);
+        res.json({ success: true, managers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — יצירת מנהל אזור
+app.post('/api/sa/zone-managers', verifySA, async (req, res) => {
+    try {
+        const { name, email, phone, password, commission_pct, notes } = req.body;
+        if (!name || !email || !password) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        const result = await pool.query(
+            `INSERT INTO zone_managers (name, email, phone, password_hash, commission_pct, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+            [name, email, phone || null, password, commission_pct || 5, notes || null]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — עדכון מנהל אזור
+app.put('/api/sa/zone-managers/:id', verifySA, async (req, res) => {
+    try {
+        const { name, email, phone, password, commission_pct, notes, status } = req.body;
+        const sets = [], vals = [];
+        const add = (col, v) => { sets.push(`${col}=$${sets.length+1}`); vals.push(v); };
+        if (name !== undefined) add('name', name);
+        if (email !== undefined) add('email', email);
+        if (phone !== undefined) add('phone', phone);
+        if (commission_pct !== undefined) add('commission_pct', commission_pct);
+        if (notes !== undefined) add('notes', notes);
+        if (status !== undefined) add('status', status);
+        if (password) add('password_hash', password);
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE zone_managers SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — מחיקת מנהל אזור
+app.delete('/api/sa/zone-managers/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM zone_managers WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — יצירת אזור למנהל
+app.post('/api/sa/zone-managers/:id/zones', verifySA, async (req, res) => {
+    try {
+        const { name } = req.body;
+        const maxZones = parseFloat((await pool.query("SELECT value FROM system_settings WHERE key='zone_max_zones_per_manager'")).rows[0]?.value || 4);
+        const existing = await pool.query('SELECT COUNT(*) FROM manager_zones WHERE manager_id=$1', [req.params.id]);
+        if (parseInt(existing.rows[0].count) >= maxZones) return res.status(400).json({ error: `מנהל יכול להחזיק עד ${maxZones} אזורים` });
+        const result = await pool.query('INSERT INTO manager_zones (manager_id, name) VALUES ($1,$2) RETURNING id', [req.params.id, name]);
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — שיוך קהילה לאזור
+app.put('/api/sa/communities/:id/assign-zone', verifySA, async (req, res) => {
+    try {
+        const { zone_id } = req.body;
+        await pool.query('UPDATE communities SET zone_id=$1 WHERE id=$2', [zone_id || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — הגדרות פרמטרי סף
+app.get('/api/sa/zone-settings', verifySA, async (req, res) => {
+    try {
+        const keys = ['zone_min_communities','zone_max_zones_per_manager','zone_manager_commission_pct','community_min_families','community_min_businesses'];
+        const result = await pool.query("SELECT key,value FROM system_settings WHERE key=ANY($1)", [keys]);
+        const defaults = { zone_min_communities: 5, zone_max_zones_per_manager: 4, zone_manager_commission_pct: 5, community_min_families: 30, community_min_businesses: 15 };
+        const s = { ...defaults };
+        result.rows.forEach(r => { s[r.key] = parseFloat(r.value); });
+        res.json({ success: true, settings: s });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/zone-settings', verifySA, async (req, res) => {
+    try {
+        const keys = ['zone_min_communities','zone_max_zones_per_manager','zone_manager_commission_pct','community_min_families','community_min_businesses'];
+        for (const key of keys) {
+            if (req.body[key] !== undefined) {
+                await pool.query("INSERT INTO system_settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2", [key, String(req.body[key])]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — אזורים וקהילות של מנהל ספציפי
+app.get('/api/sa/zone-managers/:id/details', verifySA, async (req, res) => {
+    try {
+        const [mgrRes, zonesRes, commRes, commissionsRes] = await Promise.all([
+            pool.query('SELECT id,name,email,phone,commission_pct,status,created_at FROM zone_managers WHERE id=$1', [req.params.id]),
+            pool.query(`SELECT mz.*, COUNT(c.id) as community_count FROM manager_zones mz LEFT JOIN communities c ON c.zone_id=mz.id WHERE mz.manager_id=$1 GROUP BY mz.id ORDER BY mz.created_at`, [req.params.id]),
+            pool.query(`SELECT c.id, c.name, c.city, c.zone_id, mz.name as zone_name,
+                (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as business_count
+                FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE mz.manager_id=$1`, [req.params.id]),
+            pool.query(`SELECT zmc.*, c.name as community_name FROM zone_manager_commissions zmc LEFT JOIN communities c ON zmc.community_id=c.id WHERE zmc.manager_id=$1 ORDER BY zmc.created_at DESC LIMIT 50`, [req.params.id])
+        ]);
+        if (!mgrRes.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, manager: mgrRes.rows[0], zones: zonesRes.rows, communities: commRes.rows, commissions: commissionsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
 
 // מידע ארנק לחבר קהילה / מנהל קהילה
 app.get('/api/community/cashback-info/:groupId', async (req, res) => {

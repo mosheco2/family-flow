@@ -283,6 +283,63 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </table>
                         </div>
                     </div>
+
+                    <!-- Zone Manager Section -->
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> מנהלי אזורים</h2>
+                                <p class="text-sm text-slate-500 mt-1">ניהול מנהלי האזורים, הקצאת אזורים וקהילות, מעקב עמלות.</p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap justify-end">
+                                <button onclick="openZMSettingsPanel()" class="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition text-sm"><i class="fa-solid fa-sliders mr-1"></i> הגדרות רף</button>
+                                <button onclick="openZMCreateModal()" class="bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-indigo-600 transition text-sm"><i class="fa-solid fa-plus mr-1"></i> הקם מנהל אזור</button>
+                            </div>
+                        </div>
+
+                        <!-- Settings panel (toggled) -->
+                        <div id="zm-settings-panel" class="hidden mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+                            <h3 class="text-sm font-bold text-indigo-800 mb-4 text-right"><i class="fa-solid fa-sliders mr-1"></i> הגדרות רף ועמלות מנהלי אזורים</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">מינימום משפחות לקהילה פעילה</label>
+                                    <input type="number" id="zm-setting-min-families" class="modern-input" placeholder="30" min="1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">מינימום עסקים לקהילה פעילה</label>
+                                    <input type="number" id="zm-setting-min-businesses" class="modern-input" placeholder="15" min="1">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-indigo-700 block mb-1">ברירת מחדל עמלה למנהל אזור (%)</label>
+                                    <input type="number" id="zm-setting-commission-pct" class="modern-input" placeholder="5" step="0.1" min="0" max="100">
+                                </div>
+                            </div>
+                            <div class="flex gap-3 mt-4">
+                                <button onclick="saveZoneSettings()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition">שמור הגדרות</button>
+                                <button onclick="document.getElementById('zm-settings-panel').classList.add('hidden')" class="bg-white text-slate-500 px-6 py-2.5 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition">סגור</button>
+                            </div>
+                        </div>
+
+                        <!-- Zone managers table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם מנהל האזור</th>
+                                        <th class="px-4 py-3">אימייל</th>
+                                        <th class="px-4 py-3 text-center">אזורים</th>
+                                        <th class="px-4 py-3 text-center">קהילות</th>
+                                        <th class="px-4 py-3 text-center">עמלה %</th>
+                                        <th class="px-4 py-3 text-center">סטטוס</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-zone-managers-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">לחץ על "שותפים" לטעינת הנתונים</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="sa-view-pulse" class="hidden fade-in">
@@ -2102,7 +2159,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=17"></script>
+    <script src="sa-app.js?v=18"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
