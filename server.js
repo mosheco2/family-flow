@@ -5806,22 +5806,19 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
         if (!genAIv2) return res.status(503).json({ error: 'AI לא זמין' });
         const { title, campaignType } = req.body;
         const typeContext = campaignType === 'business'
-            ? 'modern business management software product, professional tools, productivity'
+            ? 'modern business management software, professional office tools, productivity, clean corporate'
             : campaignType === 'family'
-            ? 'family lifestyle app, warm home atmosphere, daily life, community'
-            : 'local community connection, neighborhood, togetherness, urban life';
-        const prompt = `Professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, NO text, NO words, NO letters, photorealistic quality, 16:9 aspect ratio.`;
-        const response = await genAIv2.models.generateContent({
-            model: 'gemini-2.0-flash-preview-image-generation',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { responseModalities: ['IMAGE'] }
+            ? 'family lifestyle app, warm home atmosphere, daily family life, happy household'
+            : 'local community connection, neighborhood togetherness, urban community life';
+        const prompt = `Professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, NO text, NO words, NO letters anywhere, photorealistic quality, wide 16:9 aspect ratio.`;
+        const response = await genAIv2.models.generateImages({
+            model: 'imagen-3.0-generate-001',
+            prompt,
+            config: { numberOfImages: 1, aspectRatio: '16:9' }
         });
-        let imgBase64 = null, mimeType = 'image/jpeg';
-        for (const part of (response.candidates?.[0]?.content?.parts || [])) {
-            if (part.inlineData?.data) { imgBase64 = part.inlineData.data; mimeType = part.inlineData.mimeType || 'image/jpeg'; break; }
-        }
-        if (!imgBase64) return res.status(500).json({ error: 'לא ניתן ליצור תמונה — נסה שוב' });
-        const dataUrl = `data:${mimeType};base64,${imgBase64}`;
+        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
+        if (!imgBytes) return res.status(500).json({ error: 'לא ניתן ליצור תמונה — נסה שוב' });
+        const dataUrl = `data:image/jpeg;base64,${imgBytes}`;
         res.json({ success: true, imageUrl: dataUrl });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -5830,23 +5827,26 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
 app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, res) => {
     try {
         if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
-        const { goal, audience, tone, campaignType } = req.body;
+        const { goal, audience, tone, campaignType, modules } = req.body;
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const typeContexts = {
             business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
-OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, נוכחות דיגיטלית ועוד — הכל במקום אחד.
-המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר.`,
-            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים להצטרף לפלטפורמת OneFlow.
-OneFlow מציעה למשפחה: הנחות בעסקים מקומיים, קאשבק על קניות, ניהול תקציב ביתי, גישה לשירותים מקומיים.
-המטרה: גיוס משתמשים שירצו להוריד את האפליקציה ולהצטרף לרשת.`,
+OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
+המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר עסקי.`,
+            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת OneFlow.
+OneFlow מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
+המטרה: גיוס משתמשים שירצו להוריד את האפליקציה ולשפר את ניהול חיי המשפחה.`,
             community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת OneFlow.
-הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי.
+הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי ואירועים.
 המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
         };
         const context = typeContexts[campaignType] || typeContexts.family;
+        const modulesLine = (modules && modules.length)
+            ? `\nמודולים שיש לדגש במיוחד במסר: ${modules.join(', ')}.`
+            : '';
         const prompt = `כתוב טקסט שיווקי בעברית עבור קמפיין גיוס.
-הקשר: ${context}
-${goal ? `פרטים נוספים: ${goal}` : ''}
+הקשר: ${context}${modulesLine}
+${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
 קהל יעד: ${audience || 'לקוחות פוטנציאליים'}
 טון: ${tone || 'חם, ידידותי, מקצועי ומשכנע'}
 הפלט יכלול: כותרת ראשית (עד 8 מילים, מושכת), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).

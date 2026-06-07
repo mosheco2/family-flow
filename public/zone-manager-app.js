@@ -370,6 +370,24 @@ function zmSetCampaignType(type) {
         el.classList.toggle('border-slate-200', !isSelected);
         el.classList.toggle('text-slate-500', !isSelected);
     });
+    // show/hide module selector
+    const modsSection = document.getElementById('zm-modules-section');
+    const bizMods = document.getElementById('zm-modules-business');
+    const famMods = document.getElementById('zm-modules-family');
+    document.querySelectorAll('.zm-module-check').forEach(el => { el.checked = false; });
+    if (type === 'business') {
+        modsSection.classList.remove('hidden');
+        bizMods.classList.remove('hidden');
+        famMods.classList.add('hidden');
+    } else if (type === 'family') {
+        modsSection.classList.remove('hidden');
+        famMods.classList.remove('hidden');
+        bizMods.classList.add('hidden');
+    } else {
+        modsSection.classList.add('hidden');
+        bizMods.classList.add('hidden');
+        famMods.classList.add('hidden');
+    }
 }
 
 function zmSetBannerPreview(url) {
@@ -427,6 +445,7 @@ function openZMCreateCampaign() {
         const el = document.getElementById(`fld-${f}`);
         if (el) el.checked = false;
     });
+    document.querySelectorAll('.zm-module-check').forEach(el => { el.checked = false; });
     document.getElementById('zm-camp-err').classList.add('hidden');
     document.getElementById('zm-campaign-modal').classList.remove('hidden');
 }
@@ -456,12 +475,13 @@ async function zmAIDraftCampaign() {
     const goal = document.getElementById('zm-ai-goal').value.trim();
     const audience = document.getElementById('zm-ai-audience').value.trim();
     const campaignType = zmGetSelectedCampaignType();
+    const modules = Array.from(document.querySelectorAll('.zm-module-check:checked')).map(el => el.value);
     const btn = document.getElementById('zm-ai-draft-btn');
     btn.disabled = true; btn.textContent = '⏳ יוצר...';
     try {
         const res = await fetch(`${API}/zone-manager/ai/draft-campaign`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ goal, audience, campaignType })
+            body: JSON.stringify({ goal, audience, campaignType, modules })
         });
         const data = await res.json();
         if (data.success) {

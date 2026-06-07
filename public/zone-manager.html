@@ -314,6 +314,50 @@
             <input type="hidden" id="zm-camp-type-value" value="family">
         </div>
 
+        <!-- בחירת מודולים למיקוד -->
+        <div id="zm-modules-section" class="hidden">
+            <label class="text-xs font-bold text-slate-500 block mb-2">מיקוד מסר ה-AI — בחר מודולים (אופציונלי)</label>
+            <!-- עסקים -->
+            <div id="zm-modules-business" class="hidden">
+                <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="קופה (POS)"><span>💰 קופה (POS)</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="מכירות וחנות מקוונת"><span>🛍️ מכירות וחנות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול מלאי"><span>📦 ניהול מלאי</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="רכש וספקים (B2B)"><span>🏭 רכש וספקים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול לקוחות (CRM)"><span>🤝 CRM לקוחות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="שליחויות ולוגיסטיקה"><span>🛵 שליחויות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="תמחור ורווחיות"><span>🍽️ תמחור ורווחיות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="תזרים מזומנים"><span>💸 תזרים מזומנים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="תקציבים"><span>📊 תקציבים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="תשקיף כלכלי"><span>📅 תשקיף כלכלי</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="נוכחות ושכר עובדים"><span>⏱️ נוכחות ושכר</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול משמרות"><span>🗓️ ניהול משמרות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="יומן ותורים"><span>📆 יומן ותורים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול צוות"><span>👥 ניהול צוות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="פרויקטים ומשימות"><span>✅ פרויקטים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="מרכז הכשרות לעובדים"><span>🎓 הכשרות</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="חיבור לרשת הקהילה המקומית"><span>🏘️ קהילה מקומית</span></label>
+                </div>
+            </div>
+            <!-- משפחות -->
+            <div id="zm-modules-family" class="hidden">
+                <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="הבנק המשפחתי (חיסכון ויעדים)"><span>🏦 הבנק המשפחתי</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="מעקב תזרים עו״ש"><span>💸 תזרים עו"ש</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול תקציב משפחתי"><span>📊 ניהול תקציב</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="תשקיף כלכלי משפחתי"><span>📅 תשקיף כלכלי</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="רשימת סופר חכמה"><span>🛒 רשימת סופר</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול מזווה ביתי"><span>📦 ניהול מזווה</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="שף פרטי עם AI — מתכונים לפי מה שיש בבית"><span>👨‍🍳 שף פרטי (AI)</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="הזמנות ומשלוחים מעסקים מקומיים"><span>🛵 משלוחים מקומיים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="משימות הבית ועמידה ביעדים"><span>✅ משימות הבית</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="לומדות חינוכיות ואקדמיה לילדים"><span>🎓 לומדות לילדים</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="קהילה מקומית וגישה לעסקים שכונתיים"><span>🏘️ קהילה מקומית</span></label>
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer bg-slate-50 hover:bg-indigo-50 rounded-lg p-2 border border-slate-100 hover:border-indigo-200 transition"><input type="checkbox" class="zm-module-check" value="ניהול חברי המשפחה ותפקידים"><span>👨‍👩‍👧‍👦 ניהול משפחה</span></label>
+                </div>
+            </div>
+        </div>
+
         <!-- AI Draft -->
         <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
             <p class="text-xs font-bold text-indigo-700 mb-3 text-right">יצירה עם AI</p>
@@ -523,6 +567,6 @@
     </div>
 </div>
 
-<script src="zone-manager-app.js?v=4"></script>
+<script src="zone-manager-app.js?v=5"></script>
 </body>
 </html>
