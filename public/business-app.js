@@ -526,14 +526,14 @@ window.injectBusinessUI = function() {
                 <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                     <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול חנות ומכירות 🛍️</h3>
                     
-                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
-                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות חנות</button>
-                        <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
-                        <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
-                        <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">פרויקטים וקייטרינג</button>
-                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
-                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
-                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">אנליטיקה ודוחות</button>
+                    <div class="grid grid-cols-3 gap-2 mb-6">
+                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition"><i class="fa-solid fa-bag-shopping text-sm"></i>הזמנות</button>
+                        <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר</button>
+                        <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-book-open text-sm"></i>קטלוג</button>
+                        <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-utensils text-sm"></i>פרויקטים</button>
+                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
+                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
+                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -14138,11 +14138,11 @@ window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
     ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
     
     const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition';
 
     if(subTab === 'pos') { window.renderPOSCatalog('all'); }
     if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
