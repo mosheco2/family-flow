@@ -209,6 +209,11 @@
                     <button type="button" onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות לארגון / משפחה קיימת</button>
                     <button type="button" onclick="openForgotCodeModal()" class="text-slate-500 font-bold block w-full mt-2 hover:text-blue-500 transition"><i class="fa-regular fa-envelope"></i> שכחתי קוד סביבה</button>
                </div>
+               <div class="flex justify-center gap-4 pb-6 pt-2">
+                   <button type="button" onclick="openTosModal(event,'legal_privacy')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">מדיניות פרטיות</button>
+                   <span class="text-slate-200 text-[10px]">|</span>
+                   <button type="button" onclick="openTosModal(event,'legal_accessibility')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">הצהרת נגישות</button>
+               </div>
             </div>
             
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
@@ -1796,7 +1801,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=3" defer></script>
+    <script src="app.js?v=4" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

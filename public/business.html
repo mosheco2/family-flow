@@ -283,6 +283,11 @@
                     <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות לארגון / משפחה קיימת</button>
                     <button onclick="switchView('sa-login')" class="text-[10px] text-slate-300 mt-6 underline block w-full text-center">כניסת מנהל מערכת ראשי</button>
                 </div>
+                <div class="flex justify-center gap-4 pb-6 pt-2">
+                    <button type="button" onclick="openTosModal(event,'legal_privacy')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">מדיניות פרטיות</button>
+                    <span class="text-slate-200 text-[10px]">|</span>
+                    <button type="button" onclick="openTosModal(event,'legal_accessibility')" class="text-[10px] text-slate-400 hover:text-slate-600 transition underline">הצהרת נגישות</button>
+                </div>
             </div>
             
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
@@ -3354,7 +3359,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=66" defer></script>
+    <script src="business-app.js?v=67" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
