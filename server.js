@@ -8151,6 +8151,7 @@ app.get('/api/sa/legal', verifySA, async (req, res) => {
         const keys = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
         const r = await pool.query(`SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
         const map = {};
+        keys.forEach(k => { map[k] = LEGAL_DEFAULTS[k] || ''; });
         r.rows.forEach(row => { map[row.key] = row.value; });
         res.json({ success: true, docs: map });
     } catch(e) { res.status(500).json({ success: false }); }
