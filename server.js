@@ -5811,21 +5811,28 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
             ? 'family lifestyle app, warm home atmosphere, daily family life, happy household'
             : 'local community connection, neighborhood togetherness, urban community life';
         const prompt = `Create a professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, absolutely NO text, NO words, NO letters anywhere in the image, photorealistic quality, wide 16:9 aspect ratio.`;
-        // try image-generation models in order
-        const imageModels = [
-            'gemini-2.0-flash-exp-image-generation',
-            'gemini-2.0-flash-preview-image-generation',
-            'gemini-2.0-flash-exp',
+        // try image-generation via direct REST API (SDK wraps to v1beta; try both v1beta and v1alpha)
+        const imgCandidates = [
+            { ver: 'v1beta', model: 'gemini-2.0-flash-exp-image-generation' },
+            { ver: 'v1alpha', model: 'gemini-2.0-flash-exp-image-generation' },
+            { ver: 'v1beta', model: 'gemini-2.0-flash-preview-image-generation' },
+            { ver: 'v1alpha', model: 'gemini-2.0-flash-preview-image-generation' },
         ];
         let imgBase64 = null, mimeType = 'image/jpeg';
-        for (const modelName of imageModels) {
+        for (const { ver, model: modelName } of imgCandidates) {
             try {
-                const response = await genAIv2.models.generateContent({
-                    model: modelName,
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    config: { responseModalities: ['IMAGE', 'TEXT'] }
+                const url = `https://generativelanguage.googleapis.com/${ver}/models/${modelName}:generateContent?key=${apiKey}`;
+                const rawRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+                    })
                 });
-                for (const part of (response.candidates?.[0]?.content?.parts || [])) {
+                const data = await rawRes.json();
+                if (data.error) { console.error(`[banner] ${ver}/${modelName} ->`, data.error.message); continue; }
+                for (const part of (data.candidates?.[0]?.content?.parts || [])) {
                     if (part.inlineData?.data) {
                         imgBase64 = part.inlineData.data;
                         mimeType = part.inlineData.mimeType || 'image/jpeg';
@@ -5834,7 +5841,7 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
                 }
                 if (imgBase64) break;
             } catch(modelErr) {
-                console.error(`[banner] model ${modelName} failed:`, modelErr.message);
+                console.error(`[banner] ${ver}/${modelName} exception:`, modelErr.message);
             }
         }
         if (!imgBase64) return res.status(500).json({ error: 'יצירת תמונה אינה זמינה כרגע — נסה שוב מאוחר יותר' });
@@ -8031,6 +8038,20 @@ app.get('/c/po/:id/:token', async (req, res) => {
     } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
 });
 
+// Public logo endpoint — returns global_ai_logo as binary image (for OG meta tags)
+app.get('/api/public/logo', async (req, res) => {
+    try {
+        const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
+        const logoData = logoRes.rows[0]?.value || '';
+        if (!logoData || !logoData.startsWith('data:')) return res.status(404).send('');
+        const [header, base64] = logoData.split(',');
+        const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(base64, 'base64'));
+    } catch(e) { res.status(500).send(''); }
+});
+
 // OG preview route for campaign WhatsApp sharing
 app.get('/c/camp/:token', async (req, res) => {
     try {
@@ -8039,14 +8060,14 @@ app.get('/c/camp/:token', async (req, res) => {
             `SELECT c.title, c.subtitle, c.text_content, c.image_url
              FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
         const campaign = campRes.rows[0];
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
         let ogImage = campaign?.image_url || '';
         if (!ogImage) {
-            const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
-            ogImage = logoRes.rows[0]?.value || '';
+            // use the public logo endpoint (serves binary, not base64 data URL)
+            ogImage = `${baseUrl}/api/public/logo`;
         }
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
         const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
         res.set('Cache-Control', 'no-cache');
         res.send(`<!DOCTYPE html><html lang="he" dir="rtl"><head>
