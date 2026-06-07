@@ -1951,6 +1951,28 @@ async function loadPartnersKPI() {
             const ld = await leadsRes.json().catch(() => ({}));
             setKPI('sa-partners-kpi-leads', ld.total_leads ?? '--');
         }
+        // נתונים פיננסיים
+        const finRes = await fetch(`${API}/sa/finance-summary`, { headers: { 'Authorization': saToken } }).catch(() => null);
+        if (finRes) {
+            const fd = await finRes.json().catch(() => ({}));
+            if (fd.success) {
+                const s = fd.summary;
+                const fmt = v => '₪' + parseFloat(v || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                setKPI('sa-prt-fin-total-commission', fmt(s.total_commission));
+                setKPI('sa-prt-fin-total-cashback', fmt(s.total_cashback));
+                setKPI('sa-prt-fin-month-commission', fmt(s.month_commission));
+                setKPI('sa-prt-fin-month-cashback', fmt(s.month_cashback));
+                setKPI('sa-prt-fin-total-collected', fmt(s.total_collected));
+                setKPI('sa-prt-fin-month-collected', fmt(s.month_collected));
+                const totalPct = s.total_commission > 0 ? Math.min(100, Math.round(s.total_collected / s.total_commission * 100)) : 0;
+                const monthPct = s.month_commission > 0 ? Math.min(100, Math.round(s.month_collected / s.month_commission * 100)) : 0;
+                const bar = (id, pct) => { const el = getEl(id); if (el) el.style.width = pct + '%'; };
+                setKPI('sa-prt-fin-collected-pct', totalPct + '%');
+                bar('sa-prt-fin-collected-bar', totalPct);
+                setKPI('sa-prt-fin-month-collected-pct', monthPct + '%');
+                bar('sa-prt-fin-month-collected-bar', monthPct);
+            }
+        }
     } catch(e) {}
 }
 

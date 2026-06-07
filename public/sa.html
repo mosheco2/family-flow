@@ -294,6 +294,51 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                    <!-- קוביות פיננסיות -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-black text-blue-700" id="sa-prt-fin-total-commission">--</span>
+                            <span class="text-[10px] text-blue-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-prt-fin-total-cashback">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ קאשבק לקהילות</span>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-blue-600" id="sa-prt-fin-month-commission">--</span>
+                            <span class="text-[10px] text-blue-500 font-bold mt-1">עמלות החודש</span>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-emerald-600" id="sa-prt-fin-month-cashback">--</span>
+                            <span class="text-[10px] text-emerald-500 font-bold mt-1">קאשבק החודש</span>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-500 mb-2"></i>
+                            <span class="text-2xl font-black text-violet-700" id="sa-prt-fin-total-collected">--</span>
+                            <span class="text-[10px] text-violet-600 font-bold mt-1">סה"כ נגבה</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-violet-500 mb-0.5"><span id="sa-prt-fin-collected-pct">0%</span><span>מהחוב</span></div>
+                                <div class="w-full bg-violet-100 rounded-full h-1.5"><div id="sa-prt-fin-collected-bar" class="bg-violet-500 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-violet-600" id="sa-prt-fin-month-collected">--</span>
+                            <span class="text-[10px] text-violet-500 font-bold mt-1">גביה החודש</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-violet-400 mb-0.5"><span id="sa-prt-fin-month-collected-pct">0%</span><span>מהחודש</span></div>
+                                <div class="w-full bg-violet-100 rounded-full h-1.5"><div id="sa-prt-fin-month-collected-bar" class="bg-violet-400 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Zone Manager Section -->
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
