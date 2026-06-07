@@ -8201,6 +8201,9 @@ app.get('/c/camp/:token', async (req, res) => {
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
+        const hasCampaignImage = campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url);
+        const ogW = hasCampaignImage ? '1200' : '512';
+        const ogH = hasCampaignImage ? '630' : '512';
         res.set('Cache-Control', 'no-cache');
         res.send(`<!DOCTYPE html><html lang="he" dir="rtl"><head>
 <meta charset="UTF-8">
@@ -8209,10 +8212,10 @@ app.get('/c/camp/:token', async (req, res) => {
 ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 <meta property="og:url" content="${campaignUrl}">
 <meta property="og:type" content="website">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:width" content="${ogW}">
+<meta property="og:image:height" content="${ogH}">
 <meta property="og:site_name" content="OneFlow">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="${hasCampaignImage ? 'summary_large_image' : 'summary'}">
 <meta http-equiv="refresh" content="0; url=${campaignUrl}">
 <title>${title}</title>
 </head><body dir="rtl" style="font-family:sans-serif;text-align:center;padding:2rem;color:#334155">
