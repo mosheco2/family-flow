@@ -5499,6 +5499,31 @@ app.get('/api/sa/zone-managers', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA — סיכום פיננסי של מנהלי אזורים (עמלות + תשלומים)
+app.get('/api/sa/zone-managers/finance-summary', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT
+                COALESCE(SUM(c.amount), 0)                                                                          AS total_earned,
+                COALESCE(SUM(CASE WHEN DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', NOW()) THEN c.amount ELSE 0 END), 0) AS month_earned,
+                COALESCE((SELECT SUM(amount) FROM zone_manager_payments), 0)                                        AS total_paid,
+                COALESCE((SELECT SUM(amount) FROM zone_manager_payments WHERE DATE_TRUNC('month', paid_at) = DATE_TRUNC('month', NOW())), 0) AS month_paid
+            FROM zone_manager_commissions c
+        `);
+        const s = r.rows[0];
+        const totalDebt = parseFloat(s.total_earned) - parseFloat(s.total_paid);
+        const monthDebt = parseFloat(s.month_earned) - parseFloat(s.month_paid);
+        res.json({ success: true, summary: {
+            total_earned:  parseFloat(s.total_earned),
+            month_earned:  parseFloat(s.month_earned),
+            total_paid:    parseFloat(s.total_paid),
+            month_paid:    parseFloat(s.month_paid),
+            total_debt:    Math.max(0, totalDebt),
+            month_debt:    Math.max(0, monthDebt)
+        }});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA — סטטיסטיקות קמפיינים
 app.get('/api/sa/campaigns/stats', verifySA, async (req, res) => {
     try {

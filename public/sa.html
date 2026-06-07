@@ -294,48 +294,44 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <!-- קוביות פיננסיות -->
+                    <!-- קוביות פיננסיות — נתוני עמלות מנהלי אזורים -->
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
-                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-500 mb-2"></i>
-                            <span class="text-2xl font-black text-blue-700" id="sa-prt-fin-total-commission">--</span>
-                            <span class="text-[10px] text-blue-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-sack-dollar text-2xl text-amber-500 mb-2"></i>
+                            <span class="text-2xl font-black text-amber-700" id="sa-prt-fin-total-earned">--</span>
+                            <span class="text-[10px] text-amber-600 font-bold mt-1">סה"כ עמלות שנצברו</span>
                         </div>
                         <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
-                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-500 mb-2"></i>
-                            <span class="text-2xl font-black text-emerald-700" id="sa-prt-fin-total-cashback">--</span>
-                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ קאשבק לקהילות</span>
+                            <i class="fa-solid fa-money-bill-transfer text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-prt-fin-total-paid">--</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">סה"כ שולם למנהלים</span>
                         </div>
-                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
-                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
-                            <i class="fa-solid fa-sack-dollar text-2xl text-blue-400 mb-2 mt-2"></i>
-                            <span class="text-2xl font-black text-blue-600" id="sa-prt-fin-month-commission">--</span>
-                            <span class="text-[10px] text-blue-500 font-bold mt-1">עמלות החודש</span>
+                        <div class="bg-red-50 border border-red-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
+                            <i class="fa-solid fa-clock text-2xl text-red-400 mb-2"></i>
+                            <span class="text-2xl font-black text-red-600" id="sa-prt-fin-total-debt">--</span>
+                            <span class="text-[10px] text-red-500 font-bold mt-1">חוב פתוח למנהלים</span>
+                            <div class="w-full mt-2">
+                                <div class="flex justify-between text-[9px] text-red-400 mb-0.5"><span id="sa-prt-fin-paid-pct">0%</span><span>שולם</span></div>
+                                <div class="w-full bg-red-100 rounded-full h-1.5"><div id="sa-prt-fin-paid-bar" class="bg-emerald-400 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-sack-dollar text-2xl text-amber-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-amber-600" id="sa-prt-fin-month-earned">--</span>
+                            <span class="text-[10px] text-amber-500 font-bold mt-1">עמלות החודש</span>
                         </div>
                         <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
                             <span class="absolute top-2 right-2 text-[9px] font-bold bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
-                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-emerald-400 mb-2 mt-2"></i>
-                            <span class="text-2xl font-black text-emerald-600" id="sa-prt-fin-month-cashback">--</span>
-                            <span class="text-[10px] text-emerald-500 font-bold mt-1">קאשבק החודש</span>
+                            <i class="fa-solid fa-money-bill-transfer text-2xl text-emerald-400 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-emerald-600" id="sa-prt-fin-month-paid">--</span>
+                            <span class="text-[10px] text-emerald-500 font-bold mt-1">תשלומים החודש</span>
                         </div>
-                        <div class="bg-violet-50 border border-violet-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
-                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-500 mb-2"></i>
-                            <span class="text-2xl font-black text-violet-700" id="sa-prt-fin-total-collected">--</span>
-                            <span class="text-[10px] text-violet-600 font-bold mt-1">סה"כ נגבה</span>
-                            <div class="w-full mt-2">
-                                <div class="flex justify-between text-[9px] text-violet-500 mb-0.5"><span id="sa-prt-fin-collected-pct">0%</span><span>מהחוב</span></div>
-                                <div class="w-full bg-violet-100 rounded-full h-1.5"><div id="sa-prt-fin-collected-bar" class="bg-violet-500 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
-                            </div>
-                        </div>
-                        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
-                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
-                            <i class="fa-solid fa-hand-holding-dollar text-2xl text-violet-400 mb-2 mt-2"></i>
-                            <span class="text-2xl font-black text-violet-600" id="sa-prt-fin-month-collected">--</span>
-                            <span class="text-[10px] text-violet-500 font-bold mt-1">גביה החודש</span>
-                            <div class="w-full mt-2">
-                                <div class="flex justify-between text-[9px] text-violet-400 mb-0.5"><span id="sa-prt-fin-month-collected-pct">0%</span><span>מהחודש</span></div>
-                                <div class="w-full bg-violet-100 rounded-full h-1.5"><div id="sa-prt-fin-month-collected-bar" class="bg-violet-400 h-1.5 rounded-full transition-all duration-700" style="width:0%"></div></div>
-                            </div>
+                        <div class="bg-red-50 border border-red-200 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm relative">
+                            <span class="absolute top-2 right-2 text-[9px] font-bold bg-red-200 text-red-700 px-1.5 py-0.5 rounded-full">חודש שוטף</span>
+                            <i class="fa-solid fa-clock text-2xl text-red-300 mb-2 mt-2"></i>
+                            <span class="text-2xl font-black text-red-500" id="sa-prt-fin-month-debt">--</span>
+                            <span class="text-[10px] text-red-400 font-bold mt-1">חוב פתוח החודש</span>
                         </div>
                     </div>
 

@@ -1951,26 +1951,22 @@ async function loadPartnersKPI() {
             const ld = await leadsRes.json().catch(() => ({}));
             setKPI('sa-partners-kpi-leads', ld.total_leads ?? '--');
         }
-        // נתונים פיננסיים
-        const finRes = await fetch(`${API}/sa/finance-summary`, { headers: { 'Authorization': saToken } }).catch(() => null);
+        // נתונים פיננסיים של מנהלי האזורים (עמלות + תשלומים)
+        const finRes = await fetch(`${API}/sa/zone-managers/finance-summary`, { headers: { 'Authorization': saToken } }).catch(() => null);
         if (finRes) {
             const fd = await finRes.json().catch(() => ({}));
             if (fd.success) {
                 const s = fd.summary;
                 const fmt = v => '₪' + parseFloat(v || 0).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                setKPI('sa-prt-fin-total-commission', fmt(s.total_commission));
-                setKPI('sa-prt-fin-total-cashback', fmt(s.total_cashback));
-                setKPI('sa-prt-fin-month-commission', fmt(s.month_commission));
-                setKPI('sa-prt-fin-month-cashback', fmt(s.month_cashback));
-                setKPI('sa-prt-fin-total-collected', fmt(s.total_collected));
-                setKPI('sa-prt-fin-month-collected', fmt(s.month_collected));
-                const totalPct = s.total_commission > 0 ? Math.min(100, Math.round(s.total_collected / s.total_commission * 100)) : 0;
-                const monthPct = s.month_commission > 0 ? Math.min(100, Math.round(s.month_collected / s.month_commission * 100)) : 0;
-                const bar = (id, pct) => { const el = getEl(id); if (el) el.style.width = pct + '%'; };
-                setKPI('sa-prt-fin-collected-pct', totalPct + '%');
-                bar('sa-prt-fin-collected-bar', totalPct);
-                setKPI('sa-prt-fin-month-collected-pct', monthPct + '%');
-                bar('sa-prt-fin-month-collected-bar', monthPct);
+                setKPI('sa-prt-fin-total-earned',  fmt(s.total_earned));
+                setKPI('sa-prt-fin-total-paid',    fmt(s.total_paid));
+                setKPI('sa-prt-fin-total-debt',    fmt(s.total_debt));
+                setKPI('sa-prt-fin-month-earned',  fmt(s.month_earned));
+                setKPI('sa-prt-fin-month-paid',    fmt(s.month_paid));
+                setKPI('sa-prt-fin-month-debt',    fmt(s.month_debt));
+                const paidPct = s.total_earned > 0 ? Math.min(100, Math.round(s.total_paid / s.total_earned * 100)) : 0;
+                setKPI('sa-prt-fin-paid-pct', paidPct + '%');
+                const bar = getEl('sa-prt-fin-paid-bar'); if (bar) bar.style.width = paidPct + '%';
             }
         }
     } catch(e) {}
