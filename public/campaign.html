@@ -115,11 +115,13 @@ const FIELD_LABELS = {
     'address': 'כתובת',
     'city': 'עיר',
     'phone': 'טלפון',
-    'email': 'כתובת מייל'
+    'email': 'כתובת מייל',
+    'free_text': 'הודעה חופשית'
 };
 const FIELD_TYPES = {
     'phone': 'tel',
-    'email': 'email'
+    'email': 'email',
+    'free_text': 'textarea'
 };
 
 window.onload = async () => {
@@ -170,7 +172,12 @@ function renderCampaign(bannerData) {
         overlay.classList.remove('hidden');
     }
     const textEl = document.getElementById('camp-text');
-    if (campData.text_content) { textEl.textContent = campData.text_content; textEl.classList.remove('hidden'); }
+    if (campData.text_content) {
+        textEl.innerHTML = campData.text_content
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .split(/\n\n+/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('<p class="mt-3"></p>');
+        textEl.classList.remove('hidden');
+    }
 
     const fields = Array.isArray(campData.fields_config) ? campData.fields_config : [];
     const container = document.getElementById('camp-fields');
@@ -185,11 +192,21 @@ function renderCampaign(bannerData) {
                 <input type="tel" id="field-phone" class="camp-input" placeholder="050-0000000" dir="ltr">
             </div>`;
     } else {
-        container.innerHTML = fields.map(f => `
-            <div>
-                <label class="text-xs font-bold text-slate-500 block mb-1.5">${FIELD_LABELS[f] || f}</label>
-                <input type="${FIELD_TYPES[f] || 'text'}" id="field-${f}" class="camp-input" placeholder="${FIELD_LABELS[f] || f}" ${f==='phone'||f==='email'?'dir="ltr"':''}>
-            </div>`).join('');
+        container.innerHTML = fields.map(f => {
+            const label = FIELD_LABELS[f] || f;
+            const type = FIELD_TYPES[f] || 'text';
+            const dir = (f==='phone'||f==='email') ? 'dir="ltr"' : '';
+            if (type === 'textarea') {
+                return `<div>
+                <label class="text-xs font-bold text-slate-500 block mb-1.5">${label}</label>
+                <textarea id="field-${f}" class="camp-input" rows="3" placeholder="${label}" style="resize:none"></textarea>
+            </div>`;
+            }
+            return `<div>
+                <label class="text-xs font-bold text-slate-500 block mb-1.5">${label}</label>
+                <input type="${type}" id="field-${f}" class="camp-input" placeholder="${label}" ${dir}>
+            </div>`;
+        }).join('');
     }
 }
 

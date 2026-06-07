@@ -469,7 +469,7 @@ function openZMEditCampaign(id) {
     zmSetCampaignType(c.campaign_type || 'family');
     zmSetBannerPreview(c.image_url || '');
     const fields = Array.isArray(c.fields_config) ? c.fields_config : [];
-    ['name','last_name','business_name','address','city','phone','email'].forEach(f => {
+    ['name','last_name','business_name','address','city','phone','email','free_text'].forEach(f => {
         const el = document.getElementById(`fld-${f}`);
         if (el) el.checked = fields.includes(f);
     });
@@ -505,7 +505,7 @@ async function saveZMCampaign() {
     const err = document.getElementById('zm-camp-err');
     err.classList.add('hidden');
     if (!title) { err.textContent = 'כותרת הקמפיין חובה'; err.classList.remove('hidden'); return; }
-    const fields_config = ['name','last_name','business_name','address','city','phone','email'].filter(f => document.getElementById(`fld-${f}`)?.checked);
+    const fields_config = ['name','last_name','business_name','address','city','phone','email','free_text'].filter(f => document.getElementById(`fld-${f}`)?.checked);
     const body = {
         title,
         subtitle: document.getElementById('zm-camp-subtitle').value.trim() || null,
@@ -587,7 +587,11 @@ const LEAD_STATUS_COLORS = { new:'bg-blue-50 text-blue-600', contacted:'bg-amber
 function renderLeads(leads) {
     window._zmLeadsCache = leads;
     return leads.map(l => {
-        const fields = Object.entries(l.data || {}).map(([k,v]) => v ? `${v}` : '').filter(Boolean).join(' · ');
+        const fields = Object.entries(l.data || {}).map(([k,v]) => {
+            if (!v) return '';
+            if (k === 'free_text') return v.length > 30 ? v.substring(0,30)+'…' : v;
+            return `${v}`;
+        }).filter(Boolean).join(' · ');
         const score = l.ai_score;
         const scoreColor = score >= 8 ? 'text-emerald-600 bg-emerald-50' : score >= 5 ? 'text-amber-600 bg-amber-50' : score ? 'text-red-500 bg-red-50' : 'text-slate-400 bg-slate-50';
         const statusLabel = LEAD_STATUS_LABELS[l.status] || l.status || 'חדש';
@@ -660,7 +664,13 @@ async function openLeadCRMWithData(leadId, lead) {
     document.getElementById('zm-crm-status').value = lead.status || 'new';
     document.getElementById('zm-crm-notes').value = lead.crm_notes || '';
 
-    const fields = Object.entries(lead.data || {}).map(([k,v]) => v ? `<div class="flex justify-between"><span class="text-slate-400">${k}</span><span class="font-bold text-slate-700">${v}</span></div>` : '').filter(Boolean).join('');
+    const LEAD_FIELD_LABELS = { name:'שם פרטי', last_name:'שם משפחה', business_name:'שם עסק', address:'כתובת', city:'עיר', phone:'טלפון', email:'מייל', free_text:'הודעה חופשית' };
+    const fields = Object.entries(lead.data || {}).map(([k,v]) => {
+        if (!v) return '';
+        const label = LEAD_FIELD_LABELS[k] || k;
+        if (k === 'free_text') return `<div class="mt-2"><div class="text-slate-400 text-xs mb-1">${label}</div><div class="bg-slate-50 rounded-lg p-2 text-sm text-slate-700 whitespace-pre-wrap border border-slate-100">${v}</div></div>`;
+        return `<div class="flex justify-between gap-2"><span class="text-slate-400 text-xs">${label}</span><span class="font-bold text-slate-700 text-sm">${v}</span></div>`;
+    }).filter(Boolean).join('');
     document.getElementById('zm-lead-crm-data').innerHTML = fields || '<p class="text-slate-400 text-xs">אין נתונים</p>';
 
     document.getElementById('zm-lead-actions-list').innerHTML = '<div class="text-slate-400 text-xs text-center py-2">טוען...</div>';
