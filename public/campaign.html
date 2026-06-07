@@ -71,9 +71,7 @@
             <div class="relative" style="z-index:2">
                 <!-- OneFlow logo row -->
                 <div class="flex items-center justify-center mb-4">
-                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-14 w-14 rounded-2xl object-contain hidden"
-                         onload="this.classList.remove('hidden'); document.getElementById('camp-leaf-icon').classList.add('hidden');"
-                         onerror="this.classList.add('hidden'); document.getElementById('camp-leaf-icon').classList.remove('hidden');">
+                    <img id="camp-oneflow-logo" src="" class="h-14 w-14 rounded-2xl object-contain hidden">
                     <div id="camp-leaf-icon" class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                         <i class="fa-solid fa-leaf text-2xl text-white"></i>
                     </div>
@@ -160,6 +158,19 @@ function renderCampaign(bannerData) {
         if (bannerData.bannerLink) bannerLink.href = bannerData.bannerLink;
         else bannerLink.removeAttribute('href');
         bannerWrap.classList.remove('hidden');
+    }
+
+    // Load logo dynamically (bypasses browser cache)
+    if (bannerData?.logoSrc) {
+        const logoImg = document.getElementById('camp-oneflow-logo');
+        const leafIcon = document.getElementById('camp-leaf-icon');
+        const successLogo = document.querySelector('#camp-success img');
+        if (logoImg) {
+            logoImg.src = bannerData.logoSrc;
+            logoImg.classList.remove('hidden');
+            if (leafIcon) leafIcon.classList.add('hidden');
+        }
+        if (successLogo) successLogo.src = bannerData.logoSrc;
     }
 
     document.getElementById('camp-title').textContent = campData.title || 'הצטרפות לקהילה';

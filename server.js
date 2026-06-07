@@ -8076,7 +8076,7 @@ app.get('/api/public/logo', async (req, res) => {
         const [header, base64] = logoData.split(',');
         const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
         res.set('Content-Type', mimeType);
-        res.set('Cache-Control', 'public, max-age=3600');
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.send(Buffer.from(base64, 'base64'));
     } catch(e) { res.status(500).send(''); }
 });
@@ -8101,12 +8101,14 @@ app.get('/api/public/system-banner', async (req, res) => {
         const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('ad_banner_img_top','ad_banner_link_top','global_ai_logo')");
         const map = {};
         r.rows.forEach(row => { map[row.key] = row.value; });
+        const logoVal = map['global_ai_logo'] || '';
         res.json({
             bannerImg: map['ad_banner_img_top'] || '',
             bannerLink: map['ad_banner_link_top'] || '',
-            logoData: !!(map['global_ai_logo'] && map['global_ai_logo'].startsWith('data:'))
+            logoData: !!(logoVal && logoVal.startsWith('data:')),
+            logoSrc: logoVal.startsWith('data:') ? logoVal : ''
         });
-    } catch(e) { res.status(500).json({ bannerImg: '', bannerLink: '', logoData: false }); }
+    } catch(e) { res.status(500).json({ bannerImg: '', bannerLink: '', logoData: false, logoSrc: '' }); }
 });
 
 // Legal documents - public read
