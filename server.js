@@ -5810,15 +5810,35 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
             : campaignType === 'family'
             ? 'family lifestyle app, warm home atmosphere, daily family life, happy household'
             : 'local community connection, neighborhood togetherness, urban community life';
-        const prompt = `Professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, NO text, NO words, NO letters anywhere, photorealistic quality, wide 16:9 aspect ratio.`;
-        const response = await genAIv2.models.generateImages({
-            model: 'imagen-3.0-generate-001',
-            prompt,
-            config: { numberOfImages: 1, aspectRatio: '16:9' }
-        });
-        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
-        if (!imgBytes) return res.status(500).json({ error: 'לא ניתן ליצור תמונה — נסה שוב' });
-        const dataUrl = `data:image/jpeg;base64,${imgBytes}`;
+        const prompt = `Create a professional marketing banner image. Theme: ${typeContext}. Campaign: "${title || 'OneFlow'}". Style: vibrant colorful gradient background, abstract geometric shapes, modern clean design, absolutely NO text, NO words, NO letters anywhere in the image, photorealistic quality, wide 16:9 aspect ratio.`;
+        // try image-generation models in order
+        const imageModels = [
+            'gemini-2.0-flash-exp-image-generation',
+            'gemini-2.0-flash-preview-image-generation',
+            'gemini-2.0-flash-exp',
+        ];
+        let imgBase64 = null, mimeType = 'image/jpeg';
+        for (const modelName of imageModels) {
+            try {
+                const response = await genAIv2.models.generateContent({
+                    model: modelName,
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    config: { responseModalities: ['IMAGE', 'TEXT'] }
+                });
+                for (const part of (response.candidates?.[0]?.content?.parts || [])) {
+                    if (part.inlineData?.data) {
+                        imgBase64 = part.inlineData.data;
+                        mimeType = part.inlineData.mimeType || 'image/jpeg';
+                        break;
+                    }
+                }
+                if (imgBase64) break;
+            } catch(modelErr) {
+                // try next model
+            }
+        }
+        if (!imgBase64) return res.status(500).json({ error: 'יצירת תמונה אינה זמינה כרגע — נסה שוב מאוחר יותר' });
+        const dataUrl = `data:${mimeType};base64,${imgBase64}`;
         res.json({ success: true, imageUrl: dataUrl });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -5828,7 +5848,9 @@ app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, r
     try {
         if (!genAI) return res.status(503).json({ error: 'AI לא זמין' });
         const { goal, audience, tone, campaignType, modules } = req.body;
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const modelName = 'gemini-2.5-flash';
+        const fallbackModelName = 'gemini-1.5-flash';
+        let model = genAI.getGenerativeModel({ model: modelName });
         const typeContexts = {
             business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
 OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
@@ -5851,7 +5873,15 @@ ${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
 טון: ${tone || 'חם, ידידותי, מקצועי ומשכנע'}
 הפלט יכלול: כותרת ראשית (עד 8 מילים, מושכת), כותרת משנה (עד 20 מילים), גוף הטקסט (3-4 משפטים).
 החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
-        const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+        let result;
+        try {
+            result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+        } catch(primaryErr) {
+            if (primaryErr.message && (primaryErr.message.includes('503') || primaryErr.message.includes('overloaded') || primaryErr.message.includes('high demand'))) {
+                model = genAI.getGenerativeModel({ model: fallbackModelName });
+                result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } });
+            } else { throw primaryErr; }
+        }
         const txt = result.response.text().trim();
         const parsed = JSON.parse(txt);
         res.json({ success: true, ...parsed });
