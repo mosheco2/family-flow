@@ -64,7 +64,7 @@ window.applyUserPermissions = function() {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'all', 'sysmap': 'open'
+        'finance': 'all', 'sysmap': 'open', 'legal': 'open'
     };
 
     Object.keys(tabRequirements).forEach(tab => {
@@ -199,8 +199,9 @@ window.switchSATab = function(tabId) {
 
     if (tabId === 'pulse') updateSADashboard();
     if (tabId === 'finance') loadSAFinanceData();
+    if (tabId === 'legal') loadLegalDocs();
 
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -5242,5 +5243,72 @@ async function savePlatformRates() {
         const data = await res.json();
         if (data.success) { showToast('success', 'ההגדרות נשמרו בהצלחה!'); updateRatesExample(commPct, cashbackPct); }
         else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// ===== Legal Documents =====
+const LEGAL_DOC_LABELS = {
+    'legal_tos_family': 'תקנון — משפחה',
+    'legal_tos_business': 'תקנון — עסקים',
+    'legal_privacy': 'מדיניות פרטיות',
+    'legal_accessibility': 'הצהרת נגישות'
+};
+let currentLegalKey = 'legal_tos_family';
+let legalDocsCache = {};
+
+async function loadLegalDocs() {
+    try {
+        const res = await fetch(`${API}/sa/legal`, { headers: { 'Authorization': saToken || '' } });
+        const data = await res.json();
+        if (data.success) {
+            legalDocsCache = data.docs || {};
+            renderLegalDoc(currentLegalKey);
+        }
+    } catch(e) { showToast('error', 'שגיאה בטעינת המסמכים'); }
+}
+
+function switchLegalDoc(key) {
+    currentLegalKey = key;
+    Object.keys(LEGAL_DOC_LABELS).forEach(k => {
+        const btn = document.getElementById(`legal-tab-${k}`);
+        if (!btn) return;
+        if (k === key) {
+            btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white transition';
+        } else {
+            btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+        }
+    });
+    renderLegalDoc(key);
+}
+
+function renderLegalDoc(key) {
+    const label = document.getElementById('legal-doc-label');
+    const textarea = document.getElementById('legal-doc-textarea');
+    const status = document.getElementById('legal-save-status');
+    if (label) label.textContent = LEGAL_DOC_LABELS[key] || key;
+    if (textarea) textarea.value = legalDocsCache[key] || '';
+    if (status) status.classList.add('hidden');
+}
+
+async function saveLegalDoc() {
+    const textarea = document.getElementById('legal-doc-textarea');
+    const status = document.getElementById('legal-save-status');
+    if (!textarea) return;
+    const content = textarea.value;
+    try {
+        const res = await fetch(`${API}/sa/legal/${currentLegalKey}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken || '' },
+            body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (data.success) {
+            legalDocsCache[currentLegalKey] = content;
+            if (status) { status.textContent = 'נשמר בהצלחה ✓'; status.className = 'text-sm font-bold text-emerald-600'; status.classList.remove('hidden'); }
+            showToast('success', 'המסמך נשמר בהצלחה');
+        } else {
+            if (status) { status.textContent = 'שגיאה בשמירה'; status.className = 'text-sm font-bold text-red-500'; status.classList.remove('hidden'); }
+            showToast('error', data.error || 'שגיאה');
+        }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }

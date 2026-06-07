@@ -211,6 +211,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <button id="btn-sa-tab-sysmap" onclick="switchSATab('sysmap')" class="hidden flex">
               <i class="fa-solid fa-map" style="color:#94a3b8"></i> מפת המערכת
             </button>
+            <button id="btn-sa-tab-legal" onclick="switchSATab('legal')" class="hidden flex">
+              <i class="fa-solid fa-file-contract" style="color:#94a3b8"></i> מסמכים משפטיים
+            </button>
           </div>
           <div class="sb-footer">
             <button onclick="logoutSA()" class="sb-logout">
@@ -1744,6 +1747,35 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
                 </div>
 
+                <!-- מסמכים משפטיים -->
+                <div id="sa-view-legal" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="mb-6 border-b border-slate-100 pb-6">
+                            <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-contract text-indigo-600"></i> מסמכים משפטיים</h2>
+                            <p class="text-sm text-slate-500 mt-1">ניהול תקנון, מדיניות פרטיות ומסמכי הצהרה של המערכת</p>
+                        </div>
+
+                        <!-- Document tabs -->
+                        <div class="flex gap-2 flex-wrap mb-6" id="legal-doc-tabs">
+                            <button onclick="switchLegalDoc('legal_tos_family')" id="legal-tab-legal_tos_family" class="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white transition">תקנון — משפחה</button>
+                            <button onclick="switchLegalDoc('legal_tos_business')" id="legal-tab-legal_tos_business" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">תקנון — עסקים</button>
+                            <button onclick="switchLegalDoc('legal_privacy')" id="legal-tab-legal_privacy" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">מדיניות פרטיות</button>
+                            <button onclick="switchLegalDoc('legal_accessibility')" id="legal-tab-legal_accessibility" class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">הצהרת נגישות</button>
+                        </div>
+
+                        <div class="mb-2 flex items-center justify-between">
+                            <label id="legal-doc-label" class="text-sm font-bold text-slate-700">תקנון — משפחה</label>
+                            <span class="text-xs text-slate-400">HTML / טקסט רגיל</span>
+                        </div>
+                        <textarea id="legal-doc-textarea" rows="18" class="w-full border border-slate-200 rounded-2xl p-4 text-sm font-mono text-slate-700 bg-slate-50 focus:outline-none focus:border-indigo-400 focus:bg-white transition resize-y" placeholder="הכנס את תוכן המסמך כאן..."></textarea>
+
+                        <div class="flex items-center gap-3 mt-4">
+                            <button onclick="saveLegalDoc()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור מסמך</button>
+                            <span id="legal-save-status" class="text-sm font-bold hidden"></span>
+                        </div>
+                    </div>
+                </div>
+
         </main>
       </div>
     </div> <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -2329,7 +2361,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div>
     </div>
 
-    <script src="sa-app.js?v=20"></script>
+    <script src="sa-app.js?v=21"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
             <button onclick="document.getElementById('sa-sla-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>

@@ -8109,6 +8109,66 @@ app.get('/api/public/system-banner', async (req, res) => {
     } catch(e) { res.status(500).json({ bannerImg: '', bannerLink: '', logoData: false }); }
 });
 
+// Legal documents - public read
+const LEGAL_DEFAULTS = {
+    legal_tos_family: `<p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
+<p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב. ה"כסף" המוצג במערכת אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך ניהול פנימי בלבד.</p>
+<p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. המנהל נושא באחריות המלאה לבקר ולאשר את המידע.</p>
+<p><strong>4. פרטיות המידע:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. במקרה של חשבונות לקטינים, האחריות על המידע חלה על ההורה המנהל.</p>
+<p><strong>5. עדכונים ותקשורת:</strong> נהיה רשאים לשלוח אליכם התראות ועדכונים במידה ואישרתם קבלת דיוור. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>`,
+    legal_tos_business: `<p><strong>1. מבוא:</strong> ברוכים הבאים לפלטפורמת Oneflow לעסקים. השימוש מהווה הסכמה לתנאים המפורטים מטה.</p>
+<p><strong>2. מהות השירות:</strong> הפלטפורמה מספקת כלים לניהול עסק, לקוחות, הזמנות ושיווק. האחריות על הנתונים, ההזמנות וניהול הלקוחות חלה על בעל העסק בלבד.</p>
+<p><strong>3. תשלומים:</strong> כל עסקה כספית מתבצעת ישירות בין העסק ללקוח. Oneflow אינה צד בעסקה ואינה נושאת באחריות לכשלים בתשלום.</p>
+<p><strong>4. פרטיות:</strong> הנתונים שנאספים משמשים לתפעול השירות בלבד ולא יועברו לצדדים שלישיים ללא הסכמה.</p>
+<p><strong>5. הפסקת שירות:</strong> שמורה לנו הזכות להשעות חשבון שנמצאת בו הפרה של התנאים.</p>`,
+    legal_privacy: `<p><strong>מדיניות פרטיות — OneFlow</strong></p>
+<p>אנו מחויבים להגנה על פרטיות המשתמשים. מסמך זה מפרט אילו נתונים נאספים, כיצד הם נשמרים ולאילו מטרות.</p>
+<p><strong>נתונים הנאספים:</strong> שם, דוא"ל, מספר טלפון, תמונות שהועלו למערכת, ונתוני שימוש.</p>
+<p><strong>שימוש בנתונים:</strong> הנתונים משמשים אך ורק לתפעול השירות ושיפורו.</p>
+<p><strong>אחסון:</strong> הנתונים מאוחסנים בשרתים מאובטחים ומוגנים בהצפנה.</p>
+<p><strong>זכויות משתמש:</strong> ניתן לבקש מחיקת הנתונים בכל עת על ידי פנייה לתמיכה.</p>`,
+    legal_accessibility: `<p><strong>הצהרת נגישות — OneFlow</strong></p>
+<p>OneFlow פועלת לאפשר גישה שוויונית לשירות עבור אנשים עם מוגבלויות.</p>
+<p><strong>תכונות נגישות:</strong> הגדלת טקסט, ניגודיות גבוהה, גווני אפור, פונט קריא והדגשת קישורים.</p>
+<p><strong>רמת תאימות:</strong> אנו שואפים לעמוד בדרישות WCAG 2.1 ברמה AA.</p>
+<p><strong>פנייה לנגישות:</strong> לדיווח על בעיות נגישות או בקשת סיוע, אנא פנה לצוות התמיכה.</p>`
+};
+
+app.get('/api/public/legal/:key', async (req, res) => {
+    const allowed = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+    const { key } = req.params;
+    if (!allowed.includes(key)) return res.status(404).json({ success: false });
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = $1", [key]);
+        const content = r.rows[0]?.value || LEGAL_DEFAULTS[key] || '';
+        res.json({ success: true, content });
+    } catch(e) { res.status(500).json({ success: false, content: LEGAL_DEFAULTS[key] || '' }); }
+});
+
+// Legal documents - SA read all
+app.get('/api/sa/legal', verifySA, async (req, res) => {
+    try {
+        const keys = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+        const r = await pool.query(`SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
+        const map = {};
+        r.rows.forEach(row => { map[row.key] = row.value; });
+        res.json({ success: true, docs: map });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
+// Legal documents - SA update
+app.put('/api/sa/legal/:key', verifySA, async (req, res) => {
+    const allowed = ['legal_tos_family', 'legal_tos_business', 'legal_privacy', 'legal_accessibility'];
+    const { key } = req.params;
+    if (!allowed.includes(key)) return res.status(400).json({ success: false, error: 'Invalid key' });
+    const { content } = req.body;
+    if (typeof content !== 'string') return res.status(400).json({ success: false, error: 'Missing content' });
+    try {
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", [key, content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false }); }
+});
+
 // OG preview route for campaign WhatsApp sharing
 app.get('/c/camp/:token', async (req, res) => {
     try {
