@@ -5849,7 +5849,7 @@ OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, ח�
 המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר עסקי.`,
             family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת OneFlow.
 OneFlow מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
-המטרה: גיוס משתמשים שירצו להוריד את האפליקציה ולשפר את ניהול חיי המשפחה.`,
+המטרה: גיוס אנשים שישאירו פרטים ונציג ייצור איתם קשר (לא הורדת אפליקציה).`,
             community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת OneFlow.
 הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי ואירועים.
 המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
@@ -5866,7 +5866,7 @@ ${goal ? `פרטים נוספים שסיפק מנהל האזור: ${goal}` : ''}
 הפלט יכלול:
 - title: כותרת ראשית מושכת (עד 8 מילים)
 - subtitle: כותרת משנה מסכמת (עד 20 מילים)
-- text_content: גוף הטקסט בלבד (3-4 משפטים) — חשוב: אל תחזור על הכותרת או כותרת המשנה. התחל ישירות בתוכן המרחיב, הפניות לערך, הטבות ספציפיות, וקריאה לפעולה.
+- text_content: גוף הטקסט בלבד (3-4 משפטים) — חשוב: אל תחזור על הכותרת או כותרת המשנה. התחל ישירות בתוכן המרחיב, הפניות לערך, הטבות ספציפיות, וקריאה לפעולה להשארת פרטים (לא הורדת אפליקציה).
 החזר JSON בפורמט: {"title": "...", "subtitle": "...", "text_content": "..."}`;
         let result;
         try {
@@ -8077,19 +8077,22 @@ app.get('/c/camp/:token', async (req, res) => {
              FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
         const campaign = campRes.rows[0];
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // og:image must be an absolute HTTP URL (not data: URL)
+        // og:image must be an absolute HTTP URL returning JPEG/PNG (not data: or SVG)
         let ogImage = '';
-        if (campaign?.image_url && campaign.image_url.startsWith('data:')) {
+        const isSvg = (url) => url && (url.startsWith('data:image/svg') || url.endsWith('.svg'));
+        if (campaign?.image_url && campaign.image_url.startsWith('data:') && !isSvg(campaign.image_url)) {
             ogImage = `${baseUrl}/api/public/campaign-image/${token}`;
-        } else if (campaign?.image_url) {
-            ogImage = campaign.image_url;
         }
         if (!ogImage) {
             const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
             const logoVal = logoRes.rows[0]?.value || '';
-            ogImage = (logoVal && logoVal.startsWith('data:') && logoVal.includes(','))
-                ? `${baseUrl}/api/public/logo`
-                : '';
+            if (logoVal && logoVal.startsWith('data:') && logoVal.includes(',') && !isSvg(logoVal)) {
+                ogImage = `${baseUrl}/api/public/logo`;
+            }
+        }
+        // Final fallback: static logo.png (always JPEG/PNG, always works for WhatsApp)
+        if (!ogImage) {
+            ogImage = `${baseUrl}/logo.png`;
         }
         const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
