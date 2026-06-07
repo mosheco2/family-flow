@@ -70,14 +70,13 @@
             <div class="absolute inset-0 hidden" id="camp-banner-overlay" style="background:rgba(0,0,0,0.45);z-index:1"></div>
             <div class="relative" style="z-index:2">
                 <!-- OneFlow logo row -->
-                <div class="flex items-center justify-center gap-2 mb-4">
-                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-10 w-10 rounded-xl object-contain hidden"
+                <div class="flex items-center justify-center mb-4">
+                    <img id="camp-oneflow-logo" src="/api/public/logo" class="h-14 w-14 rounded-2xl object-contain hidden"
                          onload="this.classList.remove('hidden'); document.getElementById('camp-leaf-icon').classList.add('hidden');"
                          onerror="this.classList.add('hidden'); document.getElementById('camp-leaf-icon').classList.remove('hidden');">
-                    <div id="camp-leaf-icon" class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <i class="fa-solid fa-leaf text-xl text-white"></i>
+                    <div id="camp-leaf-icon" class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                        <i class="fa-solid fa-leaf text-2xl text-white"></i>
                     </div>
-                    <span class="text-white font-black text-base tracking-widest uppercase">OneFlow Life</span>
                 </div>
                 <h1 id="camp-title" class="text-2xl font-black mb-2 leading-snug"></h1>
                 <p id="camp-subtitle" class="text-indigo-200 text-sm font-medium leading-relaxed"></p>
