@@ -5744,7 +5744,7 @@ app.get('/api/zone-manager/campaigns/:id/leads', verifyZoneManager, async (req, 
 app.get('/api/public/campaign/:token', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT c.id, c.title, c.subtitle, c.text_content, c.fields_config, zm.name as manager_name
+            `SELECT c.id, c.title, c.subtitle, c.text_content, c.fields_config, c.image_url, zm.name as manager_name
              FROM zm_campaigns c JOIN zone_managers zm ON zm.id=c.zone_manager_id
              WHERE c.token=$1 AND c.status='active'`, [req.params.token]);
         if (!result.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא או לא פעיל' });
@@ -5834,7 +5834,7 @@ app.post('/api/zone-manager/ai/generate-banner', verifyZoneManager, async (req, 
                 }
                 if (imgBase64) break;
             } catch(modelErr) {
-                // try next model
+                console.error(`[banner] model ${modelName} failed:`, modelErr.message);
             }
         }
         if (!imgBase64) return res.status(500).json({ error: 'יצירת תמונה אינה זמינה כרגע — נסה שוב מאוחר יותר' });
@@ -8029,6 +8029,42 @@ app.get('/c/po/:id/:token', async (req, res) => {
             alreadyDone
         ));
     } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+// OG preview route for campaign WhatsApp sharing
+app.get('/c/camp/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const campRes = await pool.query(
+            `SELECT c.title, c.subtitle, c.text_content, c.image_url
+             FROM zm_campaigns c WHERE c.token=$1 AND c.status='active'`, [token]);
+        const campaign = campRes.rows[0];
+        let ogImage = campaign?.image_url || '';
+        if (!ogImage) {
+            const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
+            ogImage = logoRes.rows[0]?.value || '';
+        }
+        const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
+        res.set('Cache-Control', 'no-cache');
+        res.send(`<!DOCTYPE html><html lang="he" dir="rtl"><head>
+<meta charset="UTF-8">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${desc}">
+${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
+<meta property="og:url" content="${campaignUrl}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OneFlow">
+<meta name="twitter:card" content="summary_large_image">
+<meta http-equiv="refresh" content="0; url=${campaignUrl}">
+<title>${title}</title>
+</head><body dir="rtl" style="font-family:sans-serif;text-align:center;padding:2rem;color:#334155">
+<h2>${title}</h2><p>${desc}</p>
+<a href="${campaignUrl}" style="color:#4f46e5;font-weight:bold">לחץ כאן להמשך &rarr;</a>
+</body></html>`);
+    } catch(e) { res.redirect('/campaign.html?t=' + req.params.token); }
 });
 
 // הפעלת השרת

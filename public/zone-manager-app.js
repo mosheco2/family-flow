@@ -311,7 +311,15 @@ async function loadCampaigns() {
         const typeLabels = { business:'🏪 עסקים', family:'👨‍👩‍👧 משפחות', community_join:'🤝 קהילה', general:'כללי' };
         list.innerHTML = zmCampaigns.map(c => {
             const campUrl = `${host}/campaign.html?t=${c.token}`;
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(campUrl)}`;
+            const ogUrl = `${host}/c/camp/${c.token}`;
+            const waLines = [];
+            if (c.title) waLines.push(`*${c.title}*`);
+            if (c.subtitle) waLines.push(c.subtitle);
+            if (c.text_content) waLines.push(c.text_content.slice(0, 120) + (c.text_content.length > 120 ? '...' : ''));
+            waLines.push('');
+            waLines.push(`👉 ${ogUrl}`);
+            const waText = waLines.join('\n');
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(waText)}`;
             const bannerHtml = c.image_url ? `<img src="${c.image_url}" class="w-full h-20 object-cover rounded-xl mb-3">` : '';
             return `
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
