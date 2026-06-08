@@ -538,6 +538,16 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
 
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_fault_notes (
+          id SERIAL PRIMARY KEY,
+          fault_id INT REFERENCES equipment_faults(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          note TEXT NOT NULL,
+          status_from VARCHAR(20),
+          status_to VARCHAR(20),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -8459,11 +8469,32 @@ app.delete('/api/equipment/maintenance/:id', async (req, res) => {
 app.get('/api/equipment/faults/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT f.*, e.name as equipment_name, e.category as equipment_category
+            `SELECT f.*, e.name as equipment_name, e.category as equipment_category,
+             (SELECT COUNT(*) FROM equipment_fault_notes fn WHERE fn.fault_id=f.id) as notes_count
              FROM equipment_faults f JOIN equipment_items e ON e.id=f.equipment_id
              WHERE f.group_id=$1 ORDER BY f.created_at DESC`,
             [req.params.groupId]);
         res.json({ success: true, faults: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/faults/:id/notes', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM equipment_fault_notes WHERE fault_id=$1 ORDER BY created_at ASC`,
+            [req.params.id]);
+        res.json({ success: true, notes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/faults/:id/notes', async (req, res) => {
+    try {
+        const { note, statusFrom, statusTo, groupId } = req.body;
+        if (!note || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const result = await pool.query(
+            `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [req.params.id, groupId, note, statusFrom||null, statusTo||null]);
+        res.json({ success: true, note: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8493,17 +8524,24 @@ app.patch('/api/equipment/faults/:id/status', async (req, res) => {
         const existing = await pool.query('SELECT * FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
         if (!existing.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const fault = existing.rows[0];
-        let newDescription = fault.description || '';
-        if (note && note.trim()) {
-            const dateStr = new Date().toLocaleDateString('he-IL');
-            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
-            const label = statusLabels[status] || status;
-            newDescription = newDescription ? `${newDescription}\n\n[${dateStr}] סטטוס שונה ל"${label}": ${note.trim()}` : `[${dateStr}] סטטוס שונה ל"${label}": ${note.trim()}`;
-        }
         const resolvedDate = status === 'resolved' ? (fault.resolved_date || new Date().toISOString().split('T')[0]) : null;
         const result = await pool.query(
-            `UPDATE equipment_faults SET status=$1, description=$2, resolved_date=$3 WHERE id=$4 AND group_id=$5 RETURNING *`,
-            [status, newDescription || null, resolvedDate, req.params.id, groupId]);
+            `UPDATE equipment_faults SET status=$1, resolved_date=$2 WHERE id=$3 AND group_id=$4 RETURNING *`,
+            [status, resolvedDate, req.params.id, groupId]);
+        if (note && note.trim()) {
+            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+            const label = statusLabels[status] || status;
+            await pool.query(
+                `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5)`,
+                [req.params.id, groupId, `סטטוס שונה ל"${label}": ${note.trim()}`, fault.status, status]);
+        } else {
+            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+            const fromLabel = statusLabels[fault.status] || fault.status;
+            const toLabel = statusLabels[status] || status;
+            await pool.query(
+                `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5)`,
+                [req.params.id, groupId, `סטטוס שונה מ"${fromLabel}" ל"${toLabel}"`, fault.status, status]);
+        }
         res.json({ success: true, fault: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

@@ -21655,6 +21655,7 @@ let equipmentItems = [];
 let equipmentMaintenance = [];
 let equipmentFaults = [];
 let equipmentTechnicians = [];
+let equipmentFaultNotes = {};
 let equipmentMaintenanceFilter = 'all';
 let equipmentFaultsFilter = 'all';
 
@@ -21858,6 +21859,7 @@ function renderEquipmentFaults() {
         const stColor = FSTATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600';
         const stLabel = FSTATUS_LABELS[f.status] || f.status;
         const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        const notesCount = parseInt(f.notes_count) || 0;
         return `<div class="bg-white border ${f.severity === 'critical' ? 'border-red-200' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
             <div class="flex items-start gap-3">
                 ${f.image_url ? `<img src="${f.image_url}" class="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100 cursor-pointer" onclick="window.open('${f.image_url}','_blank')">` : ''}
@@ -21867,13 +21869,23 @@ function renderEquipmentFaults() {
                         <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sColor}">${sLabel}</span>
                         <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name)} · ${dateStr}</p>
-                    ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
-                    ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
-                    ${f.status !== 'resolved' ? `<div class="flex gap-2 mt-2">
-                        ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_phone ? `<button onclick="sendFaultWhatsApp(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> וואצאפ לטכנאי</button>` : ''; })()}
-                        ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_email ? `<button onclick="sendFaultEmail(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-100 transition"><i class="fa-solid fa-envelope"></i> מייל לטכנאי</button>` : ''; })()}
-                    </div>` : ''}
+                    <p class="text-[11px] text-slate-400 mb-2">${safeStr(f.equipment_name)} · ${dateStr}</p>
+                    <div class="flex gap-1 border-b border-slate-100 mb-2">
+                        <button onclick="showFaultTab(${f.id},'details')" id="ftab-details-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">פרטים</button>
+                        <button onclick="showFaultTab(${f.id},'notes')" id="ftab-notes-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600">הערות${notesCount ? ` <span class="bg-indigo-100 text-indigo-700 rounded-full px-1.5">${notesCount}</span>` : ''}</button>
+                    </div>
+                    <div id="ftab-content-details-${f.id}">
+                        ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
+                        ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
+                        ${f.status !== 'resolved' ? `<div class="flex gap-2 mt-2">
+                            ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_phone ? `<button onclick="sendFaultWhatsApp(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> וואצאפ לטכנאי</button>` : ''; })()}
+                            ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_email ? `<button onclick="sendFaultEmail(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-100 transition"><i class="fa-solid fa-envelope"></i> מייל לטכנאי</button>` : ''; })()}
+                        </div>` : ''}
+                    </div>
+                    <div id="ftab-content-notes-${f.id}" class="hidden">
+                        <div id="fnotes-list-${f.id}" class="space-y-1.5 mb-2 max-h-48 overflow-y-auto"></div>
+                        <button onclick="openAddNotePopup(${f.id})" class="w-full text-[11px] font-bold text-indigo-600 border border-dashed border-indigo-200 rounded-xl py-1.5 hover:bg-indigo-50 transition">+ הוסף הערה</button>
+                    </div>
                 </div>
                 <div class="flex flex-col gap-2 shrink-0">
                     <button onclick="openFaultStatusPopup(${f.id})" title="שינוי סטטוס" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-arrows-rotate text-xs"></i></button>
@@ -21883,6 +21895,112 @@ function renderEquipmentFaults() {
             </div>
         </div>`;
     }).join('');
+}
+
+async function showFaultTab(faultId, tab) {
+    const detailsBtn = getEl(`ftab-details-${faultId}`);
+    const notesBtn = getEl(`ftab-notes-${faultId}`);
+    const detailsContent = getEl(`ftab-content-details-${faultId}`);
+    const notesContent = getEl(`ftab-content-notes-${faultId}`);
+    if (!detailsBtn) return;
+    const activeClass = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
+    const inactiveClass = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+    if (tab === 'details') {
+        detailsBtn.className = activeClass;
+        notesBtn.className = inactiveClass;
+        detailsContent.classList.remove('hidden');
+        notesContent.classList.add('hidden');
+    } else {
+        notesBtn.className = activeClass;
+        detailsBtn.className = inactiveClass;
+        notesContent.classList.remove('hidden');
+        detailsContent.classList.add('hidden');
+        await fetchAndRenderFaultNotes(faultId);
+    }
+}
+
+async function fetchAndRenderFaultNotes(faultId) {
+    const container = getEl(`fnotes-list-${faultId}`);
+    if (!container) return;
+    try {
+        const res = await fetch(`${API}/equipment/faults/${faultId}/notes`);
+        const data = await res.json();
+        if (!data.success) return;
+        equipmentFaultNotes[faultId] = data.notes;
+        renderFaultNotesList(faultId);
+    } catch(e) {}
+}
+
+function renderFaultNotesList(faultId) {
+    const container = getEl(`fnotes-list-${faultId}`);
+    if (!container) return;
+    const notes = equipmentFaultNotes[faultId] || [];
+    if (!notes.length) {
+        container.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-2">אין הערות עדיין</p>`;
+        return;
+    }
+    const stColors = { open: 'bg-orange-100 text-orange-700', in_progress: 'bg-blue-100 text-blue-700', resolved: 'bg-emerald-100 text-emerald-700' };
+    const stLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+    container.innerHTML = notes.map(n => {
+        const dateStr = new Date(n.created_at).toLocaleDateString('he-IL');
+        const isStatusChange = n.status_from && n.status_to;
+        return `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+                <span class="text-slate-400 text-[10px]">${dateStr}</span>
+                ${isStatusChange ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColors[n.status_to] || 'bg-slate-100 text-slate-600'}">${stLabels[n.status_to] || n.status_to}</span>` : ''}
+            </div>
+            <p class="text-slate-600 leading-relaxed">${safeStr(n.note)}</p>
+        </div>`;
+    }).join('');
+}
+
+function openAddNotePopup(faultId) {
+    const fault = equipmentFaults.find(f => f.id === faultId);
+    if (!fault) return;
+    let modal = getEl('fault-add-note-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="fault-add-note-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">הוספת הערה</h3>
+                    <button onclick="getEl('fault-add-note-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="fanp-fault-id">
+                    <p id="fanp-fault-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <textarea id="fanp-note" rows="4" placeholder="כתוב הערה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div class="p-4 border-t border-slate-100">
+                    <button onclick="submitAddNote()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition shadow-md">שמור הערה</button>
+                </div>
+            </div>
+        </div>`);
+        modal = getEl('fault-add-note-popup');
+    }
+    getEl('fanp-fault-id').value = faultId;
+    getEl('fanp-fault-title').textContent = fault.title;
+    getEl('fanp-note').value = '';
+    modal.classList.remove('hidden');
+    setTimeout(() => getEl('fanp-note').focus(), 100);
+}
+
+async function submitAddNote() {
+    const faultId = getEl('fanp-fault-id').value;
+    const note = getEl('fanp-note').value.trim();
+    if (!note) { showToast('error', 'יש לכתוב הערה'); return; }
+    try {
+        const res = await fetch(`${API}/equipment/faults/${faultId}/notes`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ note, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הערה נשמרה');
+            getEl('fault-add-note-popup').classList.add('hidden');
+            await fetchEquipmentFaults();
+            setTimeout(() => showFaultTab(parseInt(faultId), 'notes'), 50);
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 // --- MODALS ---
@@ -22286,6 +22404,7 @@ async function submitFaultStatusChange() {
             showToast('success', 'סטטוס עודכן');
             getEl('fault-status-popup').classList.add('hidden');
             await fetchEquipmentFaults();
+            setTimeout(() => showFaultTab(parseInt(id), 'notes'), 50);
         } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
