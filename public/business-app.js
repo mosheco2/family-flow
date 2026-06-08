@@ -11261,23 +11261,29 @@ async function submitB2BOrders() {
 
     const btn = getEl('btn-submit-b2b-orders'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים...';
 
+    let submitted = false;
     try {
-        for (let order of splitOrders) { 
-            try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; } 
+        for (let order of splitOrders) {
+            try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; }
         }
-        
+
         const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
         const data = await res.json();
+        submitted = true;
 
         if (data.success) {
             triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!');
         } else {
             showToast('warning', 'ההזמנה נשמרה אך אירעה שגיאה: ' + (data.error || 'שגיאה לא ידועה'));
         }
-        // מנקה את הסל תמיד — בין אם הצליח ובין אם הייתה שגיאה משנית
+    } catch(e) {
+        showToast('warning', 'ההזמנה נשלחה — בדוק את ההיסטוריה לאישור');
+    } finally {
+        btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>';
         getEl('b2b-checkout-modal').classList.add('hidden');
         b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq');
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
+        fetchB2BOrders();
+    }
 }
 
 // היסטוריית הזמנות רכש מפוצלות
@@ -11436,6 +11442,15 @@ async function editDraftOrder(orderId) {
     } catch(e) { showToast('error', 'שגיאה בטעינת הטיוטה לעגלה'); }
 }
 
+async function downloadOrderPDFManual(orderId) {
+    const o = (b2bOrdersHistory || []).find(x => x.id === orderId);
+    if (!o) return showToast('error', 'לא נמצאה ההזמנה');
+    const supData = suppliersList.find(s => String(s.id) === String(o.supplier_id)) || {};
+    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+    const dateStr = new Date(o.created_at).toLocaleDateString('he-IL');
+    _openPurchaseOrderPrintWindow(o, supData, items, dateStr);
+}
+
 window.sendPurchaseOrderWhatsApp = async function(orderId) {
     const o = (b2bOrdersHistory || []).find(x => x.id === orderId);
     if (!o) return showToast('error', 'לא נמצאה ההזמנה');
@@ -11468,9 +11483,15 @@ window.sendPurchaseOrderWhatsApp = async function(orderId) {
 
     let phone = supData.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '972' + phone.substring(1);
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 
+    // פתיחת חלון PDF להדפסה/שמירה
     _openPurchaseOrderPrintWindow(o, supData, items, dateStr);
+
+    // המתנה קצרה ואז פתיחת WhatsApp
+    setTimeout(() => {
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        showToast('info', 'PDF נפתח בחלון נפרד — אפשר לצרפו לוואטסאפ ידנית');
+    }, 300);
 };
 
 async function updateB2BOrderStatus(orderId, status) {
