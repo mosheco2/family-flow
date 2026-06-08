@@ -1635,7 +1635,13 @@ async function loadDashboard() {
 
         // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
-            setTimeout(showOnboardingWizard, 1000);
+            // אם מהות העסק לא הוגדרה — פתח wizard בחירת מהות לפני ה-onboarding
+            const bizType = currentGroup.business_type || 'other';
+            if (!bizType || bizType === 'other') {
+                setTimeout(showBusinessTypeWizard, 800);
+            } else {
+                setTimeout(showOnboardingWizard, 1000);
+            }
         }
 
     } catch (e) {
@@ -11894,6 +11900,135 @@ async function submitReceiveGoods() {
 // ==========================================
 let currentWizardStep = 1;
 wizardProducts = []; // כבר מוגדר בראש הקובץ, רק מאפסים פה
+
+// ══════════════════════════════════════════════════════
+//  BUSINESS TYPE WIZARD — בחירת מהות עסק (עסק חדש)
+// ══════════════════════════════════════════════════════
+function showBusinessTypeWizard(afterSave) {
+    if (document.getElementById('biz-type-wizard')) return;
+    let selected = currentGroup?.business_type || null;
+
+    const cards = BUSINESS_TYPES.filter(b => b.id !== 'other').map(b => `
+        <button type="button" onclick="btWizSelect('${b.id}',this)"
+            class="bt-wiz-card flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition active:scale-95 ${selected===b.id?'border-indigo-500 bg-indigo-50':'border-slate-200 bg-white hover:border-indigo-200'}"
+            data-btype="${b.id}" style="touch-action:manipulation;cursor:pointer;">
+            <span class="text-3xl">${b.icon}</span>
+            <span class="text-xs font-bold text-slate-700 text-center leading-tight">${b.name}</span>
+        </button>`).join('');
+
+    const html = `<div id="biz-type-wizard" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-t-[2rem] px-6 py-5 text-white text-center">
+                <div class="text-3xl mb-2">🏢</div>
+                <h2 class="text-xl font-black mb-1">מה סוג העסק שלך?</h2>
+                <p class="text-white/70 text-xs">הבחירה תתאים את המערכת לצרכי העסק שלך</p>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-5">
+                <div class="grid grid-cols-3 gap-3 mb-4">${cards}</div>
+                <button type="button" onclick="btWizSelect('other',null)" class="w-full text-center text-xs text-slate-400 py-2 hover:text-slate-600 transition" style="touch-action:manipulation;cursor:pointer;">
+                    לא מוצא את הסוג שלי — בחר "כללי"
+                </button>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0">
+                <button type="button" id="bt-wiz-confirm" onclick="btWizConfirm()"
+                    class="w-full py-3.5 rounded-xl font-bold shadow transition ${selected ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
+                    ${selected ? '' : 'disabled'}>
+                    ${selected ? 'המשך →' : 'בחר סוג עסק להמשך'}
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    window._btWizSelected = selected;
+    window._btWizAfterSave = afterSave || null;
+}
+
+window.btWizSelect = function(typeId, btn) {
+    window._btWizSelected = typeId;
+    document.querySelectorAll('.bt-wiz-card').forEach(b => {
+        b.className = b.className.replace(/border-indigo-500 bg-indigo-50|border-slate-200 bg-white hover:border-indigo-200/g, '');
+        b.className += b.dataset.btype === typeId ? ' border-indigo-500 bg-indigo-50' : ' border-slate-200 bg-white hover:border-indigo-200';
+    });
+    const confirmBtn = document.getElementById('bt-wiz-confirm');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.className = confirmBtn.className.replace('bg-slate-200 text-slate-400 cursor-not-allowed','bg-indigo-600 text-white hover:bg-indigo-700');
+        confirmBtn.textContent = 'המשך →';
+    }
+};
+
+window.btWizConfirm = async function() {
+    const typeId = window._btWizSelected;
+    if (!typeId) return;
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ business_type: typeId, licensed_features: currentGroup.licensed_features || {} })
+        });
+        currentGroup.business_type = typeId;
+        applyBusinessTypeFilter();
+        document.getElementById('biz-type-wizard')?.remove();
+        if (window._btWizAfterSave) { window._btWizAfterSave(); return; }
+        // For new businesses — continue to main onboarding wizard
+        if (currentGroup.is_onboarded === false) {
+            setTimeout(showOnboardingWizard, 300);
+        } else {
+            showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b=>b.id===typeId)?.name||typeId}`);
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+// SA: Change business type for a group
+async function saChangeBizType(groupId, groupName, currentType) {
+    const cards = BUSINESS_TYPES.map(b => `
+        <button type="button" onclick="saBtSelect('${b.id}',this)" data-btype="${b.id}"
+            class="sa-bt-card flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition text-right w-full ${currentType===b.id?'border-indigo-500 bg-indigo-50':'border-slate-100 bg-white hover:border-indigo-200'}"
+            style="touch-action:manipulation;cursor:pointer;">
+            <span class="text-2xl shrink-0">${b.icon}</span>
+            <span class="text-sm font-bold text-slate-700">${b.name}</span>
+            ${currentType===b.id?'<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>':''}
+        </button>`).join('');
+
+    const html = `<div id="sa-biz-type-modal" class="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="font-black text-slate-800 text-base">🏢 מהות עסק — ${safeStr(groupName)}</h2>
+                <button onclick="document.getElementById('sa-biz-type-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 space-y-2">${cards}</div>
+            <div class="px-4 py-3 border-t border-slate-100 shrink-0">
+                <button type="button" onclick="saBtConfirm(${groupId})" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow">שמור שינוי מהות</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    window._saBtGroupId = groupId;
+    window._saBtSelected = currentType;
+}
+
+window.saBtSelect = function(typeId, btn) {
+    window._saBtSelected = typeId;
+    document.querySelectorAll('.sa-bt-card').forEach(b => {
+        const isThis = b.dataset.btype === typeId;
+        b.className = b.className.replace(/border-indigo-500 bg-indigo-50|border-slate-100 bg-white hover:border-indigo-200/g,'') + (isThis?' border-indigo-500 bg-indigo-50':' border-slate-100 bg-white hover:border-indigo-200');
+        const icon = b.querySelector('.fa-check'); if(icon) icon.remove();
+        if(isThis) b.insertAdjacentHTML('beforeend','<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>');
+    });
+};
+
+window.saBtConfirm = async function(groupId) {
+    const typeId = window._saBtSelected;
+    if (!typeId) return;
+    try {
+        await fetch(`/api/groups/${groupId}/business-settings`, {
+            method:'PATCH', headers:{'Content-Type':'application/json', 'Authorization': saToken||''},
+            body: JSON.stringify({ business_type: typeId })
+        });
+        document.getElementById('sa-biz-type-modal')?.remove();
+        showToast('success', `מהות עודכנה ל-${BUSINESS_TYPES.find(b=>b.id===typeId)?.name||typeId}`);
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
 
 function showOnboardingWizard() {
     if (document.getElementById('onboarding-wizard-modal')) {
@@ -22814,30 +22949,55 @@ function sendFaultEmail(faultId) {
 // =====================================================
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',       name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shifts','timeclock','tasks','cashflow','budget','members','calendar'] },
-    { id: 'retail',           name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','customers','cashflow','budget','members','timeclock','tasks'] },
-    { id: 'services',         name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank'] },
-    { id: 'construction',     name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank'] },
-    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',    icon: '🔧', modules: ['feed','equipment','calendar','tasks','customers','members','timeclock','cashflow'] },
-    { id: 'logistics',        name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','deliveries','pantry','shifts','timeclock','members','cashflow','tasks'] },
-    { id: 'healthcare',       name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank'] },
-    { id: 'beauty',           name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','calendar','pos','customers','members','timeclock','cashflow','tasks'] },
-    { id: 'education',        name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow'] },
-    { id: 'events',           name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget'] },
-    { id: 'food_production',  name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','pos','sales','tasks','members','timeclock','cashflow','equipment'] },
-    { id: 'other',            name: 'אחר / כללי',             icon: '🏢', modules: null }
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost'] },
+    { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank'] },
+    { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
+    { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','deliveries','pantry','shop','customers','shifts','timeclock','members','cashflow','tasks'] },
+    { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','pantry','shop'] },
+    { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
+    { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
+    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
+    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost'] },
+    { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
+// ─── מינוח מותאם per סוג עסק ───────────────────────────────────────────
+const BUSINESS_CONFIG = {
+    restaurant:         { customer:'אורח',      product:'מנה',           appointment:'שולחן',         supplier:'ספק חומרי גלם',    costing:'תמחור מנות',      order:'הזמנה'    },
+    retail:             { customer:'לקוח',       product:'מוצר',          appointment:'ביקור',         supplier:'ספק/יצרן',         costing:'תמחור מוצרים',    order:'הזמנה'    },
+    services:           { customer:'לקוח',       product:'שירות',         appointment:'פגישה',         supplier:'קבלן חיצוני',      costing:'תמחור שירותים',   order:'פרויקט'   },
+    construction:       { customer:'מזמין',      product:'חומר',          appointment:'פגישת אתר',     supplier:'ספק חומרי בנייה',  costing:'עלות פרויקט',     order:'פרויקט'   },
+    maintenance_repair: { customer:'לקוח',       product:'שירות/חלק',     appointment:'קריאת שירות',   supplier:'ספק חלקים',        costing:'תמחור שירות',     order:'קריאה'    },
+    logistics:          { customer:'לקוח B2B',   product:'פריט',          appointment:'חלון מסירה',    supplier:'ספק/יצרן',         costing:'עלות לוגיסטיקה',  order:'הזמנה'    },
+    healthcare:         { customer:'מטופל',      product:'טיפול',         appointment:'תור',           supplier:'ספק ציוד רפואי',   costing:'תמחור טיפול',     order:'הפניה'    },
+    beauty:             { customer:'לקוחה',      product:'טיפול/מוצר',    appointment:'תור',           supplier:'ספק קוסמטיקה',     costing:'תמחור טיפולים',   order:'הזמנה'    },
+    education:          { customer:'תלמיד',      product:'שיעור/קורס',    appointment:'שיעור',         supplier:'ספק חומרי לימוד',  costing:'תמחור קורסים',    order:'הרשמה'    },
+    sport:              { customer:'חבר',        product:'מנוי/אימון',    appointment:'אימון',         supplier:'ספק ציוד',         costing:'תמחור מנויים',    order:'הרשמה'    },
+    events:             { customer:'מזמין',      product:'שירות הפקה',    appointment:'אירוע',         supplier:'נותן שירות',       costing:'תמחור אירוע',     order:'הזמנה'    },
+    food_production:    { customer:'לקוח B2B',   product:'מוצר',          appointment:'הזמנת ייצור',   supplier:'ספק חומרי גלם',    costing:'עלות ייצור',      order:'הזמנה'    },
+    other:              { customer:'לקוח',       product:'מוצר/שירות',    appointment:'תור/פגישה',     supplier:'ספק',              costing:'תמחור',           order:'הזמנה'    }
+};
+
+function getBizTerm(key) {
+    const type = currentGroup?.business_type || 'other';
+    return (BUSINESS_CONFIG[type] || BUSINESS_CONFIG.other)[key] || key;
+}
+
 const EMPLOYEE_ROLE_TYPES = [
-    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue'    },
-    { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange'  },
-    { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green'   },
-    { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber'   },
-    { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal'    },
-    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple'  },
-    { id: 'cashier',        name: 'קופאי',          icon: '💰', feature_key: 'role_cashier',        price: 19, color: 'emerald' },
-    { id: 'shift_manager',  name: 'מנהל משמרת',    icon: '📋', feature_key: 'role_shift_manager',  price: 29, color: 'indigo'  },
-    { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate'   }
+    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','other'] },
+    { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange',  business_types: ['maintenance_repair','construction','logistics','other'] },
+    { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green',   business_types: ['restaurant','retail','logistics','food_production','other'] },
+    { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber',   business_types: ['restaurant','retail','logistics','food_production','construction','other'] },
+    { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal',    business_types: ['restaurant','retail','beauty','sport','events','other'] },
+    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple',  business_types: ['services','healthcare','sport','education','other'] },
+    { id: 'cashier',        name: 'קופאי',          icon: '💰', feature_key: 'role_cashier',        price: 19, color: 'emerald', business_types: ['restaurant','retail','beauty','sport','other'] },
+    { id: 'shift_manager',  name: 'מנהל משמרת',    icon: '📋', feature_key: 'role_shift_manager',  price: 29, color: 'indigo',  business_types: ['restaurant','retail','food_production','logistics','sport','other'] },
+    { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate',   business_types: null },
+    { id: 'waiter',         name: 'מלצר/ית',       icon: '🍽️', feature_key: 'role_waiter',         price: 15, color: 'amber',   business_types: ['restaurant'] },
+    { id: 'cook',           name: 'טבח/ית',         icon: '👨‍🍳', feature_key: 'role_cook',           price: 15, color: 'red',    business_types: ['restaurant','food_production'] },
 ];
 
 // --- Feature licensing helpers ---
@@ -22941,6 +23101,8 @@ async function showRoleDashboard(roleType) {
         case 'cashier':        await renderCashierDashboard(dashEl);        break;
         case 'shift_manager':  await renderShiftManagerDashboard(dashEl);   break;
         case 'branch_manager': await renderBranchManagerDashboard(dashEl);  break;
+        case 'waiter':         await renderWaiterDashboard(dashEl);         break;
+        case 'cook':           await renderCookDashboard(dashEl);           break;
     }
 
     // Inject "what's waiting today" widget after the dashboard header
@@ -23380,6 +23542,105 @@ async function renderBranchManagerDashboard(el) {
         ${roleFullMenuBtn()}`;
 }
 
+// --- 10. Waiter Dashboard (מסעדה) ---
+async function renderWaiterDashboard(el) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const myShifts = (allTasks||[]).filter(t => t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,2);
+    const myTasks  = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
+
+    const shiftHtml = myShifts.length ? myShifts.map(t => {
+        const p = t.title.split('|');
+        return `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+            <span class="text-xl">🕐</span>
+            <div><div class="text-sm font-bold text-slate-700">${p[2]||''} – ${p[3]||''}</div><div class="text-[10px] text-slate-400">משמרת היום</div></div>
+        </div>`;
+    }).join('') : `<p class="text-sm text-slate-400 py-3 text-center">אין משמרת מוגדרת להיום</p>`;
+
+    const tasksHtml = myTasks.length ? myTasks.map(t => `
+        <div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+            <button onclick="completeTaskQuick(${t.id},this)" class="w-5 h-5 rounded-full border-2 border-amber-300 shrink-0 flex items-center justify-center text-amber-500 text-[10px]" style="touch-action:manipulation;"></button>
+            <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
+        </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">אין משימות פתוחות 🎉</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🍽️','ממשק מלצר/ית','תפריט, שולחנות ומשימות משמרת','from-amber-500','to-orange-600')}
+        ${roleQuickActions([
+            {icon:'📋', label:'תפריט', tab:'sales'},
+            {icon:'💰', label:'קופה', tab:'pos'},
+            {icon:'✅', label:'משימות', tab:'tasks'}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50"><h3 class="font-black text-slate-800 text-sm">🕐 המשמרת שלי היום</h3></div>
+            <div class="px-4 py-1">${shiftHtml}</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">✅ משימות משמרת</h3>
+                <button type="button" onclick="rdAction('tasks','')" class="text-amber-500 text-xs font-bold underline" style="touch-action:manipulation;cursor:pointer;">הכל</button>
+            </div>
+            <div class="px-4 py-1">${tasksHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button type="button" onclick="rdAction('calendar','')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-amber-800">הזמנות שולחנות</div><div class="text-[10px] text-amber-500">יומן</div></div>
+            </button>
+            <button type="button" onclick="rdAction('members','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-orange-800">הצוות</div><div class="text-[10px] text-orange-500">צוות משמרת</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 11. Cook Dashboard (מסעדה / ייצור מזון) ---
+async function renderCookDashboard(el) {
+    const myTasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
+    let lowStock = [];
+    try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
+
+    const tasksHtml = myTasks.length ? myTasks.map(t => `
+        <div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+            <button onclick="completeTaskQuick(${t.id},this)" class="w-5 h-5 rounded-full border-2 border-red-300 shrink-0 flex items-center justify-center text-red-500 text-[10px]" style="touch-action:manipulation;"></button>
+            <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
+        </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">אין משימות פתוחות 🎉</p>`;
+
+    const lowHtml = lowStock.length ? lowStock.map(p => `
+        <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <span class="text-sm text-slate-700">${safeStr(p.name)}</span>
+            <span class="text-xs font-bold text-red-600">${p.quantity} ${p.unit||'יח'}</span>
+        </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">מלאי תקין 🎉</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('👨‍🍳','ממשק טבח/ית','מלאי, משימות מטבח ומשמרות','from-red-600','to-orange-700')}
+        ${roleQuickActions([
+            {icon:'📦', label:'מלאי', tab:'pantry'},
+            {icon:'✅', label:'משימות', tab:'tasks'},
+            {icon:'🗓️', label:'משמרות', tab:'shifts'}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-red-50 bg-red-50/50 flex justify-between items-center">
+                <h3 class="font-black text-red-700 text-sm">🚨 חסרים במלאי</h3>
+                <span class="bg-red-100 text-red-600 text-xs font-black px-2 py-0.5 rounded-full">${lowStock.length}</span>
+            </div>
+            <div class="px-4 py-1">${lowHtml}</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">✅ משימות מטבח</h3>
+                <button type="button" onclick="rdAction('tasks','')" class="text-red-500 text-xs font-bold underline" style="touch-action:manipulation;cursor:pointer;">הכל</button>
+            </div>
+            <div class="px-4 py-1">${tasksHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button type="button" onclick="rdAction('pantry','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-red-800">מלאי מטבח</div><div class="text-[10px] text-red-500">כל הפריטים</div></div>
+            </button>
+            <button type="button" onclick="rdAction('foodcost','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">🍽️</span><div class="text-right"><div class="text-xs font-black text-orange-800">תמחור מנות</div><div class="text-[10px] text-orange-500">עלות מנה</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
 // Helper: quick task complete from role dashboard
 async function completeTaskQuick(taskId, btn) {
     try {
@@ -23394,16 +23655,31 @@ async function completeTaskQuick(taskId, btn) {
 function openBusinessSettingsModal() {
     const current = currentGroup.business_type || 'other';
     const lf = currentGroup.licensed_features || {};
+    const currentBizInfo = BUSINESS_TYPES.find(b => b.id === current) || BUSINESS_TYPES[BUSINESS_TYPES.length-1];
 
-    const bizOptionsHtml = BUSINESS_TYPES.map(b => `
-        <button onclick="selectBusinessType('${b.id}',this)" data-btype="${b.id}"
-            class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition text-right w-full ${current===b.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200'}">
-            <span class="text-2xl shrink-0">${b.icon}</span>
-            <span class="text-sm font-bold text-slate-700">${b.name}</span>
-            ${current===b.id ? '<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>' : ''}
-        </button>`).join('');
+    // Business type section: read-only display for admins (only SA can change)
+    const bizDisplayHtml = `<div class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 border-indigo-200 bg-indigo-50">
+        <span class="text-2xl shrink-0">${currentBizInfo.icon}</span>
+        <div class="flex-1"><div class="text-sm font-bold text-slate-700">${currentBizInfo.name}</div><div class="text-[10px] text-slate-400">לשינוי מהות פנה לתמיכה</div></div>
+        <i class="fa-solid fa-lock text-slate-300"></i>
+    </div>`;
 
     const roleOptionsHtml = EMPLOYEE_ROLE_TYPES.map(r => `
+        <div class="flex items-center justify-between px-3 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">${r.icon}</span>
+                <div><div class="text-xs font-bold text-slate-700">${r.name}</div><div class="text-[10px] text-slate-400">₪${r.price}/חודש לממשק</div></div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="lic-${r.id}" ${lf[r.feature_key] ? 'checked' : ''} onchange="toggleFeatureLicense('${r.feature_key}',this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+        </div>`).join('');
+
+    // Filter role types to those relevant to this business type
+    const relevantRoles = EMPLOYEE_ROLE_TYPES.filter(r => !r.business_types || r.business_types.includes(current));
+
+    const filteredRoleOptionsHtml = relevantRoles.map(r => `
         <div class="flex items-center justify-between px-3 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
             <div class="flex items-center gap-2">
                 <span class="text-lg">${r.icon}</span>
@@ -23423,17 +23699,17 @@ function openBusinessSettingsModal() {
             </div>
             <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-6">
                 <div>
-                    <h3 class="font-black text-slate-700 text-sm mb-3">סוג העסק</h3>
-                    <div id="biz-type-list" class="grid grid-cols-1 gap-2">${bizOptionsHtml}</div>
+                    <h3 class="font-black text-slate-700 text-sm mb-3">מהות העסק</h3>
+                    ${bizDisplayHtml}
                 </div>
                 <div>
                     <h3 class="font-black text-slate-700 text-sm mb-1">ממשקי תפקיד (תוספת תשלום)</h3>
-                    <p class="text-[10px] text-slate-400 mb-3">הפעל ממשקים ייעודיים לעובדים לפי תפקיד</p>
-                    <div class="space-y-2">${roleOptionsHtml}</div>
+                    <p class="text-[10px] text-slate-400 mb-3">ממשקים ייעודיים לתפקידים הרלוונטיים לסוג העסק שלך</p>
+                    <div class="space-y-2">${filteredRoleOptionsHtml}</div>
                 </div>
             </div>
             <div class="px-5 py-4 border-t border-slate-100 shrink-0">
-                <button onclick="saveBusinessSettings()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow hover:bg-indigo-700 transition">שמור הגדרות</button>
+                <button onclick="document.getElementById('biz-settings-modal').remove()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow hover:bg-indigo-700 transition">סגור</button>
             </div>
         </div>
     </div>`;
