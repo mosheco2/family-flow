@@ -1390,10 +1390,11 @@ function switchTab(t) {
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
     // Role dashboard: show instead of feed for role employees
-    if (t === 'feed' && currentUser && currentUser.employee_role_type && currentUser.role !== 'ADMIN') {
+    if (t === 'feed' && currentUser && currentUser.employee_role_type && currentUser.role !== 'ADMIN' && !window._suppressRoleDash) {
         const feed = getEl('content-feed'); if (feed) feed.classList.add('hidden');
         setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 50);
     }
+    window._suppressRoleDash = false;
     window._currentBizSubTab = null;
 
     // עדכון group nav
@@ -22856,15 +22857,42 @@ function getEnabledModules() {
 }
 
 function applyBusinessTypeFilter() {
-    if (!currentUser || currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER') return;
+    if (!currentUser) return;
+    const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
     const enabled = getEnabledModules();
-    if (!enabled) return;
+    if (!enabled) {
+        ALL_TABS.forEach(tab => {
+            const tabBtn = getEl(`tab-${tab.id}`);
+            if (tabBtn) tabBtn.classList.remove('hidden');
+            const dropBtn = getEl(`gdrop-${tab.id}`);
+            if (dropBtn) { dropBtn.style.display = ''; dropBtn.style.opacity = ''; dropBtn.title = ''; }
+        });
+        ['team','sales','inventory','finance','more'].forEach(group => {
+            const groupBtn = getEl(`gnav-btn-${group}`);
+            if (groupBtn) groupBtn.style.display = '';
+        });
+        return;
+    }
     ALL_TABS.forEach(tab => {
         const isEnabled = enabled.includes(tab.id);
         const tabBtn = getEl(`tab-${tab.id}`);
-        if (tabBtn) { if (!isEnabled) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        if (tabBtn) { if (!isEnabled && !isAdminOrManager) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
         const dropBtn = getEl(`gdrop-${tab.id}`);
-        if (dropBtn) { dropBtn.style.display = isEnabled ? '' : 'none'; }
+        if (dropBtn) {
+            if (!isEnabled && !isAdminOrManager) {
+                dropBtn.style.display = 'none';
+                dropBtn.style.opacity = '';
+                dropBtn.title = '';
+            } else if (!isEnabled && isAdminOrManager) {
+                dropBtn.style.display = '';
+                dropBtn.style.opacity = '0.45';
+                dropBtn.title = 'מודול לא פעיל לסוג עסק זה';
+            } else {
+                dropBtn.style.display = '';
+                dropBtn.style.opacity = '';
+                dropBtn.title = '';
+            }
+        }
     });
     ['team','sales','inventory','finance','more'].forEach(group => {
         const groupEl = getEl(`gnav-group-${group}`);
@@ -22926,7 +22954,7 @@ function roleQuickActions(actions) {
 }
 
 function roleFullMenuBtn() {
-    return `<button onclick="switchTab('feed'); const d=getEl('content-role-dashboard'); if(d){d.classList.add('hidden');} const f=getEl('content-feed'); if(f){f.classList.remove('hidden');}" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
+    return `<button onclick="window._suppressRoleDash=true; switchTab('feed');" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
 }
 
 // --- 1. Salesperson Dashboard ---
