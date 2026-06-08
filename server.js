@@ -8469,20 +8469,41 @@ app.get('/api/equipment/faults/:groupId', async (req, res) => {
 
 app.post('/api/equipment/faults', async (req, res) => {
     try {
-        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes } = req.body;
+        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate } = req.body;
         if (!groupId || !equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
         let result;
         if (id) {
             result = await pool.query(
-                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7,
-                 resolved_date=CASE WHEN $6::text='resolved' AND resolved_date IS NULL THEN CURRENT_DATE ELSE resolved_date END
-                 WHERE id=$8 AND group_id=$9 RETURNING *`,
-                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, id, groupId]);
+                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7, resolved_date=$8
+                 WHERE id=$9 AND group_id=$10 RETURNING *`,
+                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, resolvedDate||null, id, groupId]);
         } else {
             result = await pool.query(
                 `INSERT INTO equipment_faults (equipment_id, group_id, title, description, image_url, severity, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
                 [equipmentId, groupId, title, description||null, imageUrl||null, severity||'medium', status||'open']);
         }
+        res.json({ success: true, fault: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/equipment/faults/:id/status', async (req, res) => {
+    try {
+        const { status, note, groupId } = req.body;
+        if (!status || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const existing = await pool.query('SELECT * FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
+        if (!existing.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const fault = existing.rows[0];
+        let newDescription = fault.description || '';
+        if (note && note.trim()) {
+            const dateStr = new Date().toLocaleDateString('he-IL');
+            const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+            const label = statusLabels[status] || status;
+            newDescription = newDescription ? `${newDescription}\n\n[${dateStr}] סטטוס שונה ל"${label}": ${note.trim()}` : `[${dateStr}] סטטוס שונה ל"${label}": ${note.trim()}`;
+        }
+        const resolvedDate = status === 'resolved' ? (fault.resolved_date || new Date().toISOString().split('T')[0]) : null;
+        const result = await pool.query(
+            `UPDATE equipment_faults SET status=$1, description=$2, resolved_date=$3 WHERE id=$4 AND group_id=$5 RETURNING *`,
+            [status, newDescription || null, resolvedDate, req.params.id, groupId]);
         res.json({ success: true, fault: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

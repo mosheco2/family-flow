@@ -21876,6 +21876,7 @@ function renderEquipmentFaults() {
                     </div>` : ''}
                 </div>
                 <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="openFaultStatusPopup(${f.id})" title="שינוי סטטוס" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-arrows-rotate text-xs"></i></button>
                     <button onclick="openFaultModal(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="deleteFault(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -22202,13 +22203,19 @@ async function submitFault() {
     const title = getEl('eqfault-title').value.trim();
     if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
     if (!title) { showToast('error', 'כותרת חובה'); return; }
+    const statusVal = getEl('eqfault-status').value;
+    let resolvedDate = null;
+    if (statusVal === 'resolved') {
+        const existing = id ? equipmentFaults.find(x => x.id === parseInt(id)) : null;
+        resolvedDate = existing?.resolved_date ? existing.resolved_date.split('T')[0] : new Date().toISOString().split('T')[0];
+    }
     try {
         const res = await fetch(`${API}/equipment/faults`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
                 description: getEl('eqfault-desc').value||null, imageUrl: window._eqFaultImageData||null,
-                severity: getEl('eqfault-severity').value, status: getEl('eqfault-status').value,
-                resolutionNotes: getEl('eqfault-resolution').value||null })
+                severity: getEl('eqfault-severity').value, status: statusVal,
+                resolutionNotes: getEl('eqfault-resolution').value||null, resolvedDate })
         });
         const data = await res.json();
         if (data.success) {
@@ -22222,6 +22229,65 @@ async function submitFault() {
 async function deleteFault(id) {
     if (!confirm('למחוק תקלה זו?')) return;
     try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
+}
+
+function openFaultStatusPopup(faultId) {
+    const fault = equipmentFaults.find(f => f.id === faultId);
+    if (!fault) return;
+    let modal = getEl('fault-status-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="fault-status-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">שינוי סטטוס תקלה</h3>
+                    <button onclick="getEl('fault-status-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="fsp-fault-id">
+                    <p id="fsp-fault-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס חדש</label>
+                        <select id="fsp-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="open">פתוח</option>
+                            <option value="in_progress">בטיפול</option>
+                            <option value="resolved">טופל</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">הערה (תתועד בגוף התקלה)</label>
+                        <textarea id="fsp-note" rows="3" placeholder="למשל: פנינו לטכנאי, מחכים לחלק חילוף..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100">
+                    <button onclick="submitFaultStatusChange()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition shadow-md">עדכן סטטוס</button>
+                </div>
+            </div>
+        </div>`);
+        modal = getEl('fault-status-popup');
+    }
+    getEl('fsp-fault-id').value = fault.id;
+    getEl('fsp-fault-title').textContent = fault.title;
+    getEl('fsp-status').value = fault.status;
+    getEl('fsp-note').value = '';
+    modal.classList.remove('hidden');
+}
+
+async function submitFaultStatusChange() {
+    const id = getEl('fsp-fault-id').value;
+    const status = getEl('fsp-status').value;
+    const note = getEl('fsp-note').value.trim();
+    try {
+        const res = await fetch(`${API}/equipment/faults/${id}/status`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ status, note, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'סטטוס עודכן');
+            getEl('fault-status-popup').classList.add('hidden');
+            await fetchEquipmentFaults();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 // --- טכנאים ---
