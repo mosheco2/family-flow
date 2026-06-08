@@ -1390,7 +1390,7 @@ function switchTab(t) {
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
     // Role dashboard: show instead of feed for role employees
-    if (t === 'feed' && currentUser && currentUser.employee_role_type && typeof isFeatureLicensed === 'function' && isFeatureLicensed('role_' + currentUser.employee_role_type)) {
+    if (t === 'feed' && currentUser && currentUser.employee_role_type && currentUser.role !== 'ADMIN') {
         const feed = getEl('content-feed'); if (feed) feed.classList.add('hidden');
         setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 50);
     }
@@ -1627,6 +1627,7 @@ async function loadDashboard() {
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
+        try { enforcePermissions(); } catch(e) {}
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
         setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
@@ -2162,19 +2163,34 @@ function enforcePermissions() {
 
     // 1. נעילה ויזואלית לפי תפקיד (Role) - טאבים ללא הרשאה מוצגים נעולים ולא לחיצים
     ALL_TABS.forEach(tab => {
+        const allowed = userTabs.includes(tab.id) || isAdmin;
+
+        // Old hidden tab bar (kept for JS compatibility)
         const btn = getEl(`tab-${tab.id}`);
-        if (!btn) return;
-        btn.style.display = 'inline-block';
-        if (userTabs.includes(tab.id) || isAdmin) {
-            btn.classList.remove('tab-perm-locked', 'opacity-40', 'grayscale', 'cursor-not-allowed');
-            btn.style.pointerEvents = '';
-            const lockIcon = btn.querySelector('.tab-perm-lock-icon');
-            if (lockIcon) lockIcon.remove();
-        } else {
-            if (!btn.classList.contains('tab-perm-locked')) {
+        if (btn) {
+            btn.style.display = 'inline-block';
+            if (allowed) {
+                btn.classList.remove('tab-perm-locked', 'opacity-40', 'grayscale', 'cursor-not-allowed');
+                btn.style.pointerEvents = '';
+                const li = btn.querySelector('.tab-perm-lock-icon'); if (li) li.remove();
+            } else if (!btn.classList.contains('tab-perm-locked')) {
                 btn.classList.add('tab-perm-locked', 'opacity-40', 'grayscale', 'cursor-not-allowed');
                 btn.style.pointerEvents = 'none';
                 btn.insertAdjacentHTML('afterbegin', '<i class="fa-solid fa-lock tab-perm-lock-icon text-slate-300 text-[8px] mr-0.5 align-middle"></i>');
+            }
+        }
+
+        // New gnav dropdown items
+        const dropBtn = getEl(`gdrop-${tab.id}`);
+        if (dropBtn) {
+            if (allowed) {
+                dropBtn.classList.remove('tab-perm-locked', 'opacity-40', 'grayscale');
+                dropBtn.style.pointerEvents = '';
+                const li = dropBtn.querySelector('.tab-perm-lock-icon'); if (li) li.remove();
+            } else if (!dropBtn.classList.contains('tab-perm-locked')) {
+                dropBtn.classList.add('tab-perm-locked', 'opacity-40', 'grayscale');
+                dropBtn.style.pointerEvents = 'none';
+                dropBtn.insertAdjacentHTML('afterbegin', '<i class="fa-solid fa-lock tab-perm-lock-icon text-slate-300 text-[8px] ml-1"></i>');
             }
         }
     });
