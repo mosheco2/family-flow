@@ -550,6 +550,21 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
 
+      // ===== BUSINESS TYPES & ROLE DASHBOARDS =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) DEFAULT 'other'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS licensed_features JSONB DEFAULT '{}'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_role_type VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          feature_key VARCHAR(100) NOT NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          price_monthly DECIMAL(10,2) DEFAULT 0,
+          activated_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(group_id, feature_key)
+      )`); } catch(e) {}
+      // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -8614,6 +8629,55 @@ app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
         res.json({ success: true, created });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ===== BUSINESS TYPE & LICENSING ENDPOINTS =====
+
+app.patch('/api/groups/:id/business-settings', async (req, res) => {
+    try {
+        const { business_type, licensed_features } = req.body;
+        await pool.query(
+            'UPDATE family_groups SET business_type=$1, licensed_features=$2 WHERE id=$3',
+            [business_type || 'other', JSON.stringify(licensed_features || {}), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/users/:id/role-type', async (req, res) => {
+    try {
+        const { employee_role_type } = req.body;
+        await pool.query('UPDATE users SET employee_role_type=$1 WHERE id=$2',
+            [employee_role_type || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/groups/:id/licenses', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM group_licenses WHERE group_id=$1 ORDER BY feature_key', [req.params.id]);
+        res.json({ success: true, licenses: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/groups/:id/licenses', async (req, res) => {
+    try {
+        const { feature_key, is_active, price_monthly } = req.body;
+        await pool.query(
+            `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
+             VALUES ($1,$2,$3,$4)
+             ON CONFLICT (group_id, feature_key) DO UPDATE SET is_active=$3, price_monthly=$4`,
+            [req.params.id, feature_key, is_active !== false, price_monthly || 0]
+        );
+        // Sync licensed_features JSONB on family_groups for fast client reads
+        const lic = await pool.query('SELECT feature_key, is_active FROM group_licenses WHERE group_id=$1', [req.params.id]);
+        const lf = {};
+        lic.rows.forEach(l => { lf[l.feature_key] = l.is_active; });
+        await pool.query('UPDATE family_groups SET licensed_features=$1 WHERE id=$2', [JSON.stringify(lf), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END BUSINESS TYPE & LICENSING =====
 
 // הפעלת השרת
 app.listen(port, () => {

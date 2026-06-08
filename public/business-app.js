@@ -1378,13 +1378,18 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys'].forEach(x => {
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-    }); 
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard'].forEach(x => {
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
+    });
     const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentBizTab = t;
+    // Role dashboard: show instead of feed for role employees
+    if (t === 'feed' && currentUser && currentUser.employee_role_type && typeof isFeatureLicensed === 'function' && isFeatureLicensed('role_' + currentUser.employee_role_type)) {
+        const feed = getEl('content-feed'); if (feed) feed.classList.add('hidden');
+        setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 50);
+    }
     window._currentBizSubTab = null;
 
     // עדכון group nav
@@ -22731,3 +22736,722 @@ function sendFaultEmail(faultId) {
     const body = `שלום,\n\nקריאת שירות מ${bizName}:\n\nציוד: ${fault.equipment_name}\nתקלה: ${fault.title}\nחומרה: ${sevLabel}\n${fault.description ? 'פירוט: ' + fault.description + '\n' : ''}\nאנא צרו קשר לתיאום טיפול.\n\nתודה,\n${bizName}`;
     window.location.href = `mailto:${techEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
+
+// =====================================================
+// ===== BUSINESS TYPES & EMPLOYEE ROLE DASHBOARDS =====
+// =====================================================
+
+const BUSINESS_TYPES = [
+    { id: 'restaurant',       name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shifts','timeclock','tasks','cashflow','budget','members','calendar'] },
+    { id: 'retail',           name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','customers','cashflow','budget','members','timeclock','tasks'] },
+    { id: 'services',         name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank'] },
+    { id: 'construction',     name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',    icon: '🔧', modules: ['feed','equipment','calendar','tasks','customers','members','timeclock','cashflow'] },
+    { id: 'logistics',        name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','deliveries','pantry','shifts','timeclock','members','cashflow','tasks'] },
+    { id: 'healthcare',       name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank'] },
+    { id: 'beauty',           name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','calendar','pos','customers','members','timeclock','cashflow','tasks'] },
+    { id: 'education',        name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow'] },
+    { id: 'events',           name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget'] },
+    { id: 'food_production',  name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','pos','sales','tasks','members','timeclock','cashflow','equipment'] },
+    { id: 'other',            name: 'אחר / כללי',             icon: '🏢', modules: null }
+];
+
+const EMPLOYEE_ROLE_TYPES = [
+    { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue'    },
+    { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange'  },
+    { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green'   },
+    { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber'   },
+    { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal'    },
+    { id: 'support',        name: 'נציג שירות',    icon: '🎧', feature_key: 'role_support',        price: 19, color: 'purple'  },
+    { id: 'cashier',        name: 'קופאי',          icon: '💰', feature_key: 'role_cashier',        price: 19, color: 'emerald' },
+    { id: 'shift_manager',  name: 'מנהל משמרת',    icon: '📋', feature_key: 'role_shift_manager',  price: 29, color: 'indigo'  },
+    { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate'   }
+];
+
+// --- Feature licensing helpers ---
+
+function isFeatureLicensed(featureKey) {
+    if (!currentGroup) return false;
+    if (currentUser && currentUser.role === 'ADMIN') return true; // Admins always have access
+    const lf = currentGroup.licensed_features || {};
+    return lf[featureKey] === true;
+}
+
+function getEnabledModules() {
+    if (!currentGroup) return null;
+    const bType = BUSINESS_TYPES.find(b => b.id === (currentGroup.business_type || 'other'));
+    if (!bType || !bType.modules) return null;
+    return bType.modules;
+}
+
+function applyBusinessTypeFilter() {
+    if (!currentUser || currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER') return;
+    const enabled = getEnabledModules();
+    if (!enabled) return;
+    ALL_TABS.forEach(tab => {
+        if (!enabled.includes(tab.id)) {
+            const tabBtn = getEl(`tab-${tab.id}`);
+            if (tabBtn) tabBtn.classList.add('hidden');
+        }
+    });
+}
+
+// --- Role dashboard dispatcher ---
+
+async function showRoleDashboard(roleType) {
+    if (!roleType) return;
+    const roleInfo = EMPLOYEE_ROLE_TYPES.find(r => r.id === roleType);
+    if (!roleInfo) return;
+
+    let dashEl = getEl('content-role-dashboard');
+    if (!dashEl) {
+        const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+        if (!container) return;
+        dashEl = document.createElement('div');
+        dashEl.id = 'content-role-dashboard';
+        dashEl.className = 'px-2';
+        container.appendChild(dashEl);
+    }
+    dashEl.classList.remove('hidden');
+
+    switch(roleType) {
+        case 'salesperson':    await renderSalespersonDashboard(dashEl);    break;
+        case 'field_tech':     await renderFieldTechDashboard(dashEl);      break;
+        case 'delivery':       await renderDeliveryDashboard(dashEl);       break;
+        case 'warehouse':      await renderWarehouseDashboard(dashEl);      break;
+        case 'cleaner':        await renderCleanerDashboard(dashEl);        break;
+        case 'support':        await renderSupportDashboard(dashEl);        break;
+        case 'cashier':        await renderCashierDashboard(dashEl);        break;
+        case 'shift_manager':  await renderShiftManagerDashboard(dashEl);   break;
+        case 'branch_manager': await renderBranchManagerDashboard(dashEl);  break;
+    }
+}
+
+function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
+    const today = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
+    return `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
+        <p class="text-white/60 text-xs mb-1">${today}</p>
+        <h2 class="text-xl font-black mb-0.5">${icon} שלום, ${safeStr(currentUser.nickname)}</h2>
+        <p class="text-white/80 text-xs">${title}</p>
+        <p class="text-white/60 text-[10px] mt-0.5">${subtitle}</p>
+    </div>`;
+}
+
+function roleQuickActions(actions) {
+    return `<div class="grid grid-cols-${Math.min(actions.length,3)} gap-3 mb-4">
+        ${actions.map(a => `<button onclick="${a.onclick}" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5 active:scale-95 transition">
+            <span class="text-2xl">${a.icon}</span>
+            <span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
+function roleFullMenuBtn() {
+    return `<button onclick="switchTab('feed'); const d=getEl('content-role-dashboard'); if(d){d.classList.add('hidden');} const f=getEl('content-feed'); if(f){f.classList.remove('hidden');}" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
+}
+
+// --- 1. Salesperson Dashboard ---
+async function renderSalespersonDashboard(el) {
+    let tasks = [], customers = [];
+    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json(); tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5); } catch(e) {}
+    try { const r = await fetch(`/api/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,3); } catch(e) {}
+
+    const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <button onclick="completeTaskQuick(${t.id},this)" class="w-5 h-5 rounded-full border-2 border-blue-300 shrink-0 hover:bg-blue-100 transition flex items-center justify-center text-blue-500 text-[10px]"></button>
+        <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
+        ${t.due_date ? `<span class="text-[10px] text-slate-400">${new Date(t.due_date).toLocaleDateString('he-IL')}</span>` : ''}
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין משימות פתוחות 🎉</p>`;
+
+    const custHtml = customers.length ? customers.map(c => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">${(c.name||'?')[0]}</div>
+        <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-700 truncate">${safeStr(c.name)}</div><div class="text-[10px] text-slate-400">${safeStr(c.phone||c.email||'')}</div></div>
+        ${c.phone ? `<a href="tel:${c.phone}" class="text-green-500 text-lg"><i class="fa-solid fa-phone"></i></a>` : ''}
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין לקוחות עדיין</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('💼','ממשק איש מכירות','ניהול לקוחות, הצעות מחיר ומשימות','from-blue-600','to-indigo-700')}
+        ${roleQuickActions([
+            {icon:'🤝', label:'לקוח חדש', onclick:"switchTab('customers')"},
+            {icon:'📄', label:'הצעת מחיר', onclick:"switchTab('sales')"},
+            {icon:'📅', label:'קבוע פגישה', onclick:"switchTab('calendar')"}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">📋 משימות פתוחות</h3>
+                <button onclick="switchTab('tasks')" class="text-blue-500 text-xs font-bold">הכל →</button>
+            </div>
+            <div class="px-4 py-1">${tasksHtml}</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
+                <button onclick="switchTab('customers')" class="text-blue-500 text-xs font-bold">הכל →</button>
+            </div>
+            <div class="px-4 py-1">${custHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('sales')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">🛍️</span><div class="text-right"><div class="text-xs font-black text-indigo-800">מכירות</div><div class="text-[10px] text-indigo-500">הזמנות והצעות</div></div>
+            </button>
+            <button onclick="switchTab('cashflow')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">💸</span><div class="text-right"><div class="text-xs font-black text-blue-800">תזרים</div><div class="text-[10px] text-blue-500">מצב כספי</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 2. Field Technician Dashboard ---
+async function renderFieldTechDashboard(el) {
+    let faults = [], tasks = [];
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
+    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json(); tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4); } catch(e) {}
+
+    const faultColors = {low:'bg-green-100 text-green-700', medium:'bg-yellow-100 text-yellow-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700'};
+    const faultLabels = {open:'פתוחה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים'};
+    const faultsHtml = faults.length ? faults.map(f => `<div class="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
+        <span class="text-xl shrink-0 mt-0.5">${f.status==='in_progress'?'🔄':'⚠️'}</span>
+        <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold text-slate-700 truncate">${safeStr(f.title||f.equipment_name)}</div>
+            <div class="text-[10px] text-slate-500">${safeStr(f.equipment_name||'')} ${f.location?'• '+f.location:''}</div>
+        </div>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${faultColors[f.severity]||'bg-slate-100 text-slate-600'} shrink-0">${faultLabels[f.status]||f.status}</span>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין תקלות פתוחות 🎉</p>`;
+
+    const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <button onclick="completeTaskQuick(${t.id},this)" class="w-5 h-5 rounded-full border-2 border-orange-300 shrink-0"></button>
+        <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין משימות</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🔧','ממשק טכנאי שטח','ניהול תקלות, ציוד ומשימות שטח','from-orange-500','to-red-600')}
+        ${roleQuickActions([
+            {icon:'⚠️', label:'דיווח תקלה', onclick:"switchTab('equipment')"},
+            {icon:'🔩', label:'ציוד', onclick:"switchTab('equipment')"},
+            {icon:'📋', label:'משימות', onclick:"switchTab('tasks')"}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">⚠️ תקלות פתוחות</h3>
+                <button onclick="switchTab('equipment')" class="text-orange-500 text-xs font-bold">הכל →</button>
+            </div>
+            <div class="px-4 py-1">${faultsHtml}</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">📋 משימות היום</h3>
+                <button onclick="switchTab('tasks')" class="text-orange-500 text-xs font-bold">הכל →</button>
+            </div>
+            <div class="px-4 py-1">${tasksHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('equipment')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">🔧</span><div class="text-right"><div class="text-xs font-black text-orange-800">ציוד</div><div class="text-[10px] text-orange-500">פנקס ציוד מלא</div></div>
+            </button>
+            <button onclick="switchTab('calendar')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-red-800">יומן</div><div class="text-[10px] text-red-500">תורים ופגישות</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 3. Delivery Dashboard ---
+async function renderDeliveryDashboard(el) {
+    let deliveries = [];
+    try { const r = await fetch(`/api/deliveries/${currentGroup.id}`); const d = await r.json(); deliveries = (d.deliveries||[]).filter(x => x.status !== 'delivered').slice(0,8); } catch(e) {}
+
+    const total = deliveries.length;
+    const stColors = {pending:'bg-yellow-100 text-yellow-700', assigned:'bg-blue-100 text-blue-700', in_transit:'bg-purple-100 text-purple-700', failed:'bg-red-100 text-red-700'};
+    const stLabels = {pending:'ממתין', assigned:'שובץ', in_transit:'בדרך', failed:'נכשל'};
+    const delivHtml = deliveries.length ? deliveries.map((d,i) => `<div class="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0">
+        <div class="w-7 h-7 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-black text-xs shrink-0">${i+1}</div>
+        <div class="flex-1 min-w-0">
+            <div class="text-sm font-bold text-slate-700 truncate">${safeStr(d.customer_name||d.address||'כתובת')}</div>
+            <div class="text-[10px] text-slate-500 truncate">${safeStr(d.address||'')}</div>
+        </div>
+        <div class="flex items-center gap-2">
+            ${d.customer_phone ? `<a href="tel:${d.customer_phone}" class="text-green-500"><i class="fa-solid fa-phone text-sm"></i></a>` : ''}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${stColors[d.status]||'bg-slate-100 text-slate-600'}">${stLabels[d.status]||d.status}</span>
+        </div>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין משלוחים פעילים 🎉</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🛵','ממשק שליח','ניהול משלוחים ואישורי מסירה','from-green-500','to-emerald-600')}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
+            <div class="bg-green-50 px-4 py-3 flex items-center justify-between border-b border-green-100">
+                <h3 class="font-black text-green-800 text-sm">🛵 משלוחים לביצוע</h3>
+                <span class="bg-green-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full">${total}</span>
+            </div>
+            <div class="px-4 py-1">${delivHtml}</div>
+        </div>
+        ${roleQuickActions([
+            {icon:'📍', label:'ניווט', onclick:"window.open('https://waze.com','_blank')"},
+            {icon:'✅', label:'אישור מסירה', onclick:"switchTab('deliveries')"},
+            {icon:'🛵', label:'כל המשלוחים', onclick:"switchTab('deliveries')"}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 4. Warehouse Dashboard ---
+async function renderWarehouseDashboard(el) {
+    let pantry = [];
+    try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); pantry = (d.items||[]).sort((a,b)=>(a.quantity||0)-(b.quantity||0)).slice(0,6); } catch(e) {}
+
+    const lowStock = pantry.filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2));
+    const lowHtml = lowStock.length ? lowStock.map(p => `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
+        <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span><span class="text-sm text-slate-700">${safeStr(p.name)}</span></div>
+        <span class="text-xs font-bold text-red-600">${p.quantity} ${p.unit||'יח'}</span>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין מלאי נמוך 🎉</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('📦','ממשק מחסנאי','ניהול מלאי, קבלות הוצאות וספירה','from-amber-500','to-yellow-600')}
+        ${roleQuickActions([
+            {icon:'📥', label:'קבלת סחורה', onclick:"switchTab('pantry')"},
+            {icon:'📤', label:'הוצאת מלאי', onclick:"switchTab('pantry')"},
+            {icon:'🔢', label:'ספירת מלאי', onclick:"switchTab('pantry')"}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-red-50 flex justify-between items-center bg-red-50/50">
+                <h3 class="font-black text-red-700 text-sm">🚨 מלאי נמוך / חסר</h3>
+                <span class="bg-red-100 text-red-600 text-xs font-black px-2 py-0.5 rounded-full">${lowStock.length}</span>
+            </div>
+            <div class="px-4 py-1">${lowHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('pantry')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-amber-800">מלאי</div><div class="text-[10px] text-amber-500">כל הפריטים</div></div>
+            </button>
+            <button onclick="switchTab('shop')" class="bg-yellow-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">🛒</span><div class="text-right"><div class="text-xs font-black text-yellow-800">רכש</div><div class="text-[10px] text-yellow-500">הזמן מספק</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 5. Cleaner Dashboard ---
+async function renderCleanerDashboard(el) {
+    let tasks = [];
+    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json();
+        tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,8); } catch(e) {}
+
+    const done = tasks.filter(t => t.status === 'done').length;
+    const total = tasks.length;
+    const pct = total > 0 ? Math.round(done/total*100) : 0;
+
+    const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <button onclick="completeTaskQuick(${t.id},this)" class="w-6 h-6 rounded-full border-2 ${t.status==='done'?'bg-teal-500 border-teal-500 text-white':'border-teal-300'} shrink-0 flex items-center justify-center text-xs transition">
+            ${t.status==='done'?'<i class="fa-solid fa-check"></i>':''}
+        </button>
+        <span class="text-sm ${t.status==='done'?'text-slate-400 line-through':'text-slate-700'} flex-1 truncate">${safeStr(t.title)}</span>
+        ${t.location ? `<span class="text-[10px] text-teal-500 shrink-0">${safeStr(t.location)}</span>` : ''}
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין משימות להיום</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🧹','ממשק מנקה / אחזקה','רשימות משימות לפי מיקום ותיעוד','from-teal-500','to-cyan-600')}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+                <h3 class="font-black text-slate-800 text-sm">📋 משימות היום</h3>
+                <span class="text-xs text-teal-600 font-bold">${done}/${total} הושלמו</span>
+            </div>
+            <div class="px-4 pt-3 pb-2">
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                    <div class="h-2 bg-teal-500 rounded-full transition-all" style="width:${pct}%"></div>
+                </div>
+            </div>
+            <div class="px-4 py-0">${tasksHtml}</div>
+        </div>
+        ${roleQuickActions([
+            {icon:'📸', label:'תיעוד תמונה', onclick:"if(typeof openCamera==='function')openCamera(); else showToast('info','לחץ על הוספת משימה')"},
+            {icon:'⚠️', label:'דיווח בעיה', onclick:"switchTab('tasks')"},
+            {icon:'✅', label:'כל המשימות', onclick:"switchTab('tasks')"}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 6. Support Dashboard ---
+async function renderSupportDashboard(el) {
+    let customers = [];
+    try { const r = await fetch(`/api/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,5); } catch(e) {}
+
+    const custHtml = customers.length ? customers.map(c => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold text-xs shrink-0">${(c.name||'?')[0]}</div>
+        <div class="flex-1 min-w-0"><div class="text-sm font-bold text-slate-700 truncate">${safeStr(c.name)}</div><div class="text-[10px] text-slate-500">${safeStr(c.email||c.phone||'')}</div></div>
+        <div class="flex gap-2">
+            ${c.phone ? `<a href="tel:${c.phone}" class="w-7 h-7 bg-green-50 rounded-full flex items-center justify-center text-green-600"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+            ${c.email ? `<a href="mailto:${c.email}" class="w-7 h-7 bg-blue-50 rounded-full flex items-center justify-center text-blue-600"><i class="fa-solid fa-envelope text-xs"></i></a>` : ''}
+        </div>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין לקוחות עדיין</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🎧','ממשק נציג שירות','ניהול פניות, היסטוריית לקוח ותמיכה','from-purple-600','to-violet-700')}
+        ${roleQuickActions([
+            {icon:'🔍', label:'חיפוש לקוח', onclick:"switchTab('customers')"},
+            {icon:'➕', label:'פנייה חדשה', onclick:"switchTab('customers')"},
+            {icon:'📞', label:'שיחות היום', onclick:"switchTab('customers')"}
+        ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
+                <button onclick="switchTab('customers')" class="text-purple-500 text-xs font-bold">הכל →</button>
+            </div>
+            <div class="px-4 py-1">${custHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('tasks')" class="bg-purple-50 rounded-2xl p-4 shadow-sm border border-purple-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">📋</span><div class="text-right"><div class="text-xs font-black text-purple-800">משימות</div><div class="text-[10px] text-purple-500">פניות פתוחות</div></div>
+            </button>
+            <button onclick="switchTab('calendar')" class="bg-violet-50 rounded-2xl p-4 shadow-sm border border-violet-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-violet-800">יומן</div><div class="text-[10px] text-violet-500">פגישות שירות</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 7. Cashier Dashboard ---
+async function renderCashierDashboard(el) {
+    let todaySales = 0, txCount = 0;
+    try {
+        const r = await fetch(`/api/transactions/${currentGroup.id}`);
+        const d = await r.json();
+        const today = new Date().toISOString().split('T')[0];
+        const todayTx = (d.transactions||[]).filter(t => t.created_at && t.created_at.startsWith(today) && t.amount > 0);
+        todaySales = todayTx.reduce((s,t) => s + parseFloat(t.amount||0), 0);
+        txCount = todayTx.length;
+    } catch(e) {}
+
+    el.innerHTML = `
+        ${roleDashboardHeader('💰','ממשק קופאי','מסוף קופה ועסקאות יומיות','from-emerald-500','to-green-600')}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
+            <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
+                <div class="p-4 text-center">
+                    <div class="text-2xl font-black text-emerald-600">₪${todaySales.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+                    <div class="text-xs text-slate-500 mt-1">מכירות היום</div>
+                </div>
+                <div class="p-4 text-center">
+                    <div class="text-2xl font-black text-blue-600">${txCount}</div>
+                    <div class="text-xs text-slate-500 mt-1">עסקאות</div>
+                </div>
+            </div>
+        </div>
+        <button onclick="switchTab('pos')" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3">
+            <i class="fa-solid fa-cash-register text-2xl"></i> פתח קופה
+        </button>
+        ${roleQuickActions([
+            {icon:'💳', label:'עסקה חדשה', onclick:"switchTab('pos')"},
+            {icon:'🔄', label:'החזר', onclick:"switchTab('pos')"},
+            {icon:'📊', label:'דוח יומי', onclick:"switchTab('cashflow')"}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 8. Shift Manager Dashboard ---
+async function renderShiftManagerDashboard(el) {
+    let clocked = [], members = [];
+    try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); clocked = d.records||d.report||[]; } catch(e) {}
+    try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
+
+    const present = clocked.filter(c => c.punch_in && !c.punch_out).length;
+    const total = members.length;
+
+    const memberRows = members.slice(0,6).map(m => {
+        const isIn = clocked.find(c => c.user_id == m.id && c.punch_in && !c.punch_out);
+        return `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-2 h-2 rounded-full ${isIn ? 'bg-green-500' : 'bg-slate-300'} shrink-0"></div>
+            <span class="text-sm text-slate-700 flex-1">${safeStr(m.nickname)}</span>
+            <span class="text-[10px] font-bold ${isIn ? 'text-green-600' : 'text-slate-400'}">${isIn ? 'נוכח' : 'לא נוכח'}</span>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        ${roleDashboardHeader('📋','ממשק מנהל משמרת','נוכחות צוות ואירועים בזמן אמת','from-indigo-600','to-blue-700')}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
+            <div class="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center justify-between">
+                <h3 class="font-black text-indigo-800 text-sm">👥 נוכחות עכשיו</h3>
+                <span class="text-xs font-bold text-indigo-600">${present}/${total} נוכחים</span>
+            </div>
+            <div class="h-2 bg-slate-100"><div class="h-2 bg-indigo-500" style="width:${total?Math.round(present/total*100):0}%"></div></div>
+            <div class="px-4 py-1">${memberRows || '<p class="text-center text-slate-400 text-sm py-5">אין נתוני נוכחות</p>'}</div>
+        </div>
+        ${roleQuickActions([
+            {icon:'⏱️', label:'נוכחות', onclick:"switchTab('timeclock')"},
+            {icon:'🗓️', label:'משמרות', onclick:"switchTab('shifts')"},
+            {icon:'📢', label:'הודעה לצוות', onclick:"if(typeof openInboxModal==='function')openInboxModal()"}
+        ])}
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('tasks')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-indigo-800">משימות משמרת</div><div class="text-[10px] text-indigo-500">רשימת פעולות</div></div>
+            </button>
+            <button onclick="switchTab('members')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// --- 9. Branch Manager Dashboard ---
+async function renderBranchManagerDashboard(el) {
+    let todaySales = 0, txCount = 0, present = 0, totalMembers = 0, faultsCount = 0;
+    const today = new Date().toISOString().split('T')[0];
+    try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+    try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); present = (d.records||d.report||[]).filter(c=>c.punch_in&&!c.punch_out).length; } catch(e) {}
+    try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); totalMembers = ((d.members||[]).filter(m=>m.role!=='ADMIN')).length; } catch(e) {}
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faultsCount = (d.faults||[]).filter(f=>f.status!=='resolved').length; } catch(e) {}
+
+    const kpis = [
+        {label:'מכירות היום', value:`₪${todaySales.toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', tab:'cashflow'},
+        {label:'עסקאות', value:txCount, icon:'🧾', color:'blue', tab:'cashflow'},
+        {label:'נוכחות', value:`${present}/${totalMembers}`, icon:'👥', color:'indigo', tab:'timeclock'},
+        {label:'תקלות פתוחות', value:faultsCount, icon:'⚠️', color:faultsCount>0?'red':'green', tab:'equipment'}
+    ];
+
+    const kpiHtml = kpis.map(k => `<button onclick="switchTab('${k.tab}')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition">
+        <span class="text-xl">${k.icon}</span>
+        <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
+        <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+    </button>`).join('');
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🏢','ממשק מנהל סניף','KPIs יומיים ואירועים חריגים','from-slate-700','to-slate-900')}
+        <div class="grid grid-cols-2 gap-3 mb-4">${kpiHtml}</div>
+        ${roleQuickActions([
+            {icon:'📊', label:'דוחות', onclick:"switchTab('cashflow')"},
+            {icon:'👥', label:'הצוות', onclick:"switchTab('members')"},
+            {icon:'✅', label:'משימות', onclick:"switchTab('tasks')"}
+        ])}
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button onclick="switchTab('budget')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">📈</span><div class="text-right"><div class="text-xs font-black text-slate-800">תקציב</div><div class="text-[10px] text-slate-500">מול ביצוע</div></div>
+            </button>
+            <button onclick="switchTab('forecast')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition">
+                <span class="text-2xl">🔮</span><div class="text-right"><div class="text-xs font-black text-slate-800">תשקיף</div><div class="text-[10px] text-slate-500">תחזית</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// Helper: quick task complete from role dashboard
+async function completeTaskQuick(taskId, btn) {
+    try {
+        await fetch(`/api/tasks/${currentGroup.id}/${taskId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'done'}) });
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i>'; btn.className = btn.className.replace(/border-\w+-300/,'border-green-500') + ' bg-green-500 border-green-500 text-white'; }
+    } catch(e) {}
+}
+
+// ===== BUSINESS TYPE SETTINGS MODAL =====
+
+function openBusinessSettingsModal() {
+    const current = currentGroup.business_type || 'other';
+    const lf = currentGroup.licensed_features || {};
+
+    const bizOptionsHtml = BUSINESS_TYPES.map(b => `
+        <button onclick="selectBusinessType('${b.id}',this)" data-btype="${b.id}"
+            class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition text-right w-full ${current===b.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200'}">
+            <span class="text-2xl shrink-0">${b.icon}</span>
+            <span class="text-sm font-bold text-slate-700">${b.name}</span>
+            ${current===b.id ? '<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>' : ''}
+        </button>`).join('');
+
+    const roleOptionsHtml = EMPLOYEE_ROLE_TYPES.map(r => `
+        <div class="flex items-center justify-between px-3 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">${r.icon}</span>
+                <div><div class="text-xs font-bold text-slate-700">${r.name}</div><div class="text-[10px] text-slate-400">₪${r.price}/חודש לממשק</div></div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="lic-${r.id}" ${lf[r.feature_key] ? 'checked' : ''} onchange="toggleFeatureLicense('${r.feature_key}',this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+        </div>`).join('');
+
+    const html = `<div id="biz-settings-modal" class="fixed inset-0 bg-black/60 z-[9999] flex items-end sm:items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="font-black text-slate-800 text-lg">⚙️ הגדרות עסק</h2>
+                <button onclick="document.getElementById('biz-settings-modal').remove()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-5 space-y-6">
+                <div>
+                    <h3 class="font-black text-slate-700 text-sm mb-3">סוג העסק</h3>
+                    <div id="biz-type-list" class="grid grid-cols-1 gap-2">${bizOptionsHtml}</div>
+                </div>
+                <div>
+                    <h3 class="font-black text-slate-700 text-sm mb-1">ממשקי תפקיד (תוספת תשלום)</h3>
+                    <p class="text-[10px] text-slate-400 mb-3">הפעל ממשקים ייעודיים לעובדים לפי תפקיד</p>
+                    <div class="space-y-2">${roleOptionsHtml}</div>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0">
+                <button onclick="saveBusinessSettings()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow hover:bg-indigo-700 transition">שמור הגדרות</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+let _pendingBusinessType = null;
+function selectBusinessType(typeId, btn) {
+    _pendingBusinessType = typeId;
+    document.querySelectorAll('#biz-type-list button').forEach(b => {
+        const isThis = b.dataset.btype === typeId;
+        b.className = b.className.replace(/border-\w+-500 bg-\w+-50|border-slate-100 bg-white hover:border-indigo-200/g,'') + (isThis ? ' border-indigo-500 bg-indigo-50' : ' border-slate-100 bg-white hover:border-indigo-200');
+        const icon = b.querySelector('.fa-check'); if (icon) icon.remove();
+        if (isThis) b.insertAdjacentHTML('beforeend','<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>');
+    });
+}
+
+async function toggleFeatureLicense(featureKey, isActive) {
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/licenses`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ feature_key: featureKey, is_active: isActive })
+        });
+        const lf = currentGroup.licensed_features || {};
+        lf[featureKey] = isActive;
+        currentGroup.licensed_features = lf;
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+}
+
+async function saveBusinessSettings() {
+    const typeId = _pendingBusinessType || currentGroup.business_type || 'other';
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ business_type: typeId, licensed_features: currentGroup.licensed_features || {} })
+        });
+        currentGroup.business_type = typeId;
+        document.getElementById('biz-settings-modal')?.remove();
+        showToast('success', 'הגדרות נשמרו בהצלחה');
+        applyBusinessTypeFilter();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+}
+
+// ===== ROLE TYPE ASSIGNMENT IN MEMBER MANAGEMENT =====
+
+function openRoleTypeModal(userId, nickname, currentRoleType) {
+    const html = `<div id="role-type-modal" class="fixed inset-0 bg-black/60 z-[9999] flex items-end sm:items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="font-black text-slate-800 text-base">תפקיד שטח — ${safeStr(nickname)}</h2>
+                <button onclick="document.getElementById('role-type-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 space-y-2">
+                <button onclick="assignRoleType(${userId},'',this)" class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 w-full text-right transition ${!currentRoleType ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 bg-white'}">
+                    <span class="text-xl">🚫</span><span class="text-sm font-bold text-slate-700">ללא ממשק מיוחד</span>
+                    ${!currentRoleType ? '<i class="fa-solid fa-check text-indigo-500 mr-auto"></i>' : ''}
+                </button>
+                ${EMPLOYEE_ROLE_TYPES.map(r => {
+                    const licensed = isFeatureLicensed(r.feature_key);
+                    const isActive = currentRoleType === r.id;
+                    return `<button onclick="${licensed?`assignRoleType(${userId},'${r.id}',this)`:`showToast('info','ממשק ${r.name} לא מורשה לעסק זה')`}" 
+                        class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 w-full text-right transition ${isActive?'border-indigo-500 bg-indigo-50':licensed?'border-slate-100 bg-white hover:border-indigo-200':'border-slate-100 bg-slate-50 opacity-50'}">
+                        <span class="text-xl">${r.icon}</span>
+                        <div class="flex-1"><div class="text-sm font-bold text-slate-700">${r.name}</div><div class="text-[10px] text-slate-400">${licensed?'מורשה':'לא מורשה — הפעל בהגדרות'}</div></div>
+                        ${isActive ? '<i class="fa-solid fa-check text-indigo-500"></i>' : ''}
+                    </button>`;
+                }).join('')}
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function assignRoleType(userId, roleType, btn) {
+    try {
+        await fetch(`/api/users/${userId}/role-type`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ employee_role_type: roleType || null })
+        });
+        const m = membersCache.find(x => x.id === userId);
+        if (m) m.employee_role_type = roleType || null;
+        document.getElementById('role-type-modal')?.remove();
+        showToast('success', roleType ? `ממשק שובץ בהצלחה` : 'ממשק הוסר');
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+}
+
+// ===== SA: Manage licenses for a group =====
+async function saManageLicenses(groupId, groupName) {
+    let licenses = [];
+    try { const r = await fetch(`/api/groups/${groupId}/licenses`); const d = await r.json(); licenses = d.licenses||[]; } catch(e) {}
+    const activeKeys = new Set(licenses.filter(l=>l.is_active).map(l=>l.feature_key));
+
+    const html = `<div id="sa-licenses-modal" class="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="font-black text-slate-800 text-base">🔑 רישיונות — ${safeStr(groupName)}</h2>
+                <button onclick="document.getElementById('sa-licenses-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 space-y-2">
+                ${EMPLOYEE_ROLE_TYPES.map(r => `<div class="flex items-center justify-between px-3 py-2.5 bg-white rounded-xl border border-slate-100">
+                    <div class="flex items-center gap-2"><span class="text-lg">${r.icon}</span>
+                    <div><div class="text-xs font-bold text-slate-700">${r.name}</div><div class="text-[10px] text-slate-400">₪${r.price}/חודש</div></div></div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" ${activeKeys.has(r.feature_key)?'checked':''} onchange="saToggleLicense(${groupId},'${r.feature_key}',this.checked)" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>`).join('')}
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0">
+                <button onclick="document.getElementById('sa-licenses-modal').remove()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סגור</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function saToggleLicense(groupId, featureKey, isActive) {
+    try {
+        await fetch(`/api/groups/${groupId}/licenses`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ feature_key: featureKey, is_active: isActive })
+        });
+        showToast('success', isActive ? 'ממשק הופעל' : 'ממשק כובה');
+    } catch(e) { showToast('error', 'שגיאה'); }
+}
+
+// ===== INJECT BUSINESS SETTINGS BUTTON IN ADMIN AREA =====
+(function injectBizSettingsBtn() {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const profileModal = document.getElementById('profile-modal');
+            if (!profileModal) return;
+            const observer = new MutationObserver(() => {
+                if (currentUser?.role === 'ADMIN' && !document.getElementById('btn-biz-settings-open')) {
+                    const wizBtn = document.getElementById('btn-reopen-wizard-biz');
+                    if (wizBtn) {
+                        wizBtn.insertAdjacentHTML('afterend', `<button id="btn-biz-settings-open" onclick="openBusinessSettingsModal()" 
+                            class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-sm">
+                            <i class="fa-solid fa-building-cog ml-1"></i> הגדרות עסק וממשקי תפקיד</button>`);
+                    }
+                }
+            });
+            observer.observe(profileModal, { attributes: true, attributeFilter: ['class'] });
+        }, 2000);
+    });
+})();
+
+// ===== INJECT ROLE TYPE BUTTON IN MEMBER LIST =====
+const _origRenderMembers = window.renderMembers;
+if (typeof window.renderMembersList === 'function' || true) {
+    // Patch: after member cards render, add role-type button for each member (admin only)
+    // This is called via the existing member rendering hook
+}
+
+// Add role-type button when admin opens permissions modal
+const _origOpenPermModal = window.openPermissionsModal;
+window.openPermissionsModal = function(userId, nickname, role, permsStr) {
+    if (typeof _origOpenPermModal === 'function') _origOpenPermModal(userId, nickname, role, permsStr);
+    if (currentUser?.role === 'ADMIN') {
+        setTimeout(() => {
+            const permsModal = document.getElementById('permissions-modal');
+            if (!permsModal || document.getElementById('btn-open-role-type')) return;
+            const m = membersCache.find(x => x.id === userId);
+            const footer = permsModal.querySelector('[class*="border-t"]');
+            if (footer) {
+                footer.insertAdjacentHTML('afterbegin', `<button id="btn-open-role-type" onclick="openRoleTypeModal(${userId},'${nickname.replace(/'/g,"\\'")}','${m?.employee_role_type||''}')" 
+                    class="w-full mb-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100">
+                    <i class="fa-solid fa-id-badge ml-1"></i> שייך ממשק תפקיד</button>`);
+            }
+        }, 200);
+    }
+};
+
+// ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
