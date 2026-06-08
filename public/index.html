@@ -176,7 +176,7 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+    <div id="toast" class="fixed left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]" style="top: max(1.5rem, env(safe-area-inset-top, 1.5rem))">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
@@ -325,7 +325,7 @@
                                     </button>
                                     <button onclick="openActivityPanel()" id="btn-bell" class="relative w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-800 transition">
                                         <i class="fa-solid fa-bell text-lg"></i>
-                                        <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">0</span>
+                                        <span id="bell-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[20px] h-4 flex items-center justify-center px-1">0</span>
                                     </button>
                                 </div>
 
@@ -1813,7 +1813,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=5" defer></script>
+    <script src="app.js?v=6" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

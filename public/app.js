@@ -492,23 +492,31 @@ function switchTab(t) { 
 let myOrdersCache = [];
 
 async function fetchMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
-    
-    try {
-        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
-        const data = await res.json();
-        
-        if (data.success) {
-            myOrdersCache = data.orders || [];
-            renderMyOrders();
-        } else {
-            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
-        }
-    } catch (e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
-    }
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    
+    const timeoutId = setTimeout(() => {
+        if (list.querySelector('.fa-spinner')) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">לא הצלחנו לטעון נסה לרענן את הדף</p>';
+        }
+    }, 10000);
+    
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        clearTimeout(timeoutId);
+        
+        if (data.success) {
+            myOrdersCache = data.orders || [];
+            renderMyOrders();
+        } else {
+            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
+        }
+    } catch (e) {
+        clearTimeout(timeoutId);
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
+    }
 }
 
 function renderMyOrders() {
@@ -1747,7 +1755,11 @@ function renderShopList() {
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
     if(activeItems.length === 0) { 
-        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
+        list.innerHTML = `<div class="text-center py-12 text-slate-400">
+  <i class="fa-solid fa-cart-shopping text-4xl mb-3"></i>
+  <p class="font-bold text-sm">העגלה ריקה</p>
+  <p class="text-xs mt-1">הוסף מוצרים מהקטלוג</p>
+</div>`; 
         const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
         const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
         return; 

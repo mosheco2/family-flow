@@ -42,6 +42,10 @@ var myCommunityBusinessesCache = [];
 var myInitiativesCache = [];
 var bizAvailableCommCache = [];
 
+function closeAllNavDropdowns() {
+    document.querySelectorAll('[id^="gnav-dropdown"]').forEach(d => d.classList.add('hidden'));
+}
+
 var foodCostData = [];
 var foodCostPrices = {};
 var rbCurrentItem = null;
@@ -150,6 +154,13 @@ window.exitImpersonationMode = function() {
 checkImpersonationMode();
 // =======================================================
 window.onload = async () => { 
+    // Restore pill hidden state from sessionStorage
+    if (sessionStorage.getItem('pill_hidden') === '1') {
+        const pill = document.getElementById('floating-pill');
+        const restore = document.getElementById('pill-hidden-restore');
+        if (pill) { pill.style.opacity = '0.1'; pill.style.pointerEvents = 'none'; }
+        if (restore) restore.classList.remove('hidden');
+    }
     initAccessibility();
     const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
@@ -9306,6 +9317,7 @@ let currentBundleStepsUI = [];
 let currentPizzaToppingsUI = [];
 
 window.openStoreProductModal = function(id = null) {
+    closeAllNavDropdowns();
     currentModifiersUI = []; 
     currentBundleStepsUI = [];
     currentPizzaToppingsUI = [];
@@ -10505,7 +10517,11 @@ async function loadBizCommunities() {
             const list = document.getElementById('biz-my-communities-list');
             if (list) {
                 if (data.communities.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
+                    list.innerHTML = `<div class="text-center py-8 text-slate-400">
+  <i class="fa-solid fa-users text-4xl mb-3"></i>
+  <p class="font-bold text-sm">אין קהילות פעילות</p>
+  <p class="text-xs mt-1">חפש קהילות בטאב "גלה קהילות"</p>
+</div>`;
                 } else {
                     list.innerHTML = data.communities.map(c => {
                         let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
@@ -10697,7 +10713,11 @@ function renderSuppliers() {
     if (!list) return;
     
     if (suppliersList.length === 0) {
-        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 col-span-full">טרם הוזנו ספקים למערכת. הוסף ספק והתחל לנהל את הקטלוג שלו.</p>';
+        list.innerHTML = `<div class="text-center py-10 text-slate-400">
+  <i class="fa-solid fa-truck text-4xl mb-3"></i>
+  <p class="font-bold text-sm">אין ספקים עדיין</p>
+  <p class="text-xs mt-1">לחץ "ספק חדש" כדי להוסיף</p>
+</div>`;
         return;
     }
     
@@ -10742,6 +10762,7 @@ function renderSuppliers() {
 }
 
 function openSupplierModal(id = null) {
+    closeAllNavDropdowns();
     if (!getEl('supplier-customer-number')) {
         const minOrderDiv = getEl('supplier-min-order').parentNode;
         minOrderDiv.insertAdjacentHTML('afterend', `<div><label class="text-xs font-bold text-slate-500 block mb-1.5">מספר לקוח (אצל הספק):</label><input type="text" id="supplier-customer-number" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: 102938"></div>`);
@@ -10844,6 +10865,7 @@ function renderSupplierProducts() {
 }
 
 function openSupplierCatalog(supplierId, supplierName) {
+    closeAllNavDropdowns();
     if (!getEl('supplier-catalog-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="supplier-catalog-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
@@ -10967,7 +10989,11 @@ function renderB2BCatalog() {
     if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.description && p.description.toLowerCase().includes(search)));
 
     if (filtered.length === 0) {
-        list.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 font-bold">לא נמצאו מוצרים</p><p class="text-xs text-slate-400 mt-1">נסו לחפש משהו אחר או שנו את הספק</p></div>';
+        list.innerHTML = `<div class="text-center py-10 text-slate-400">
+  <i class="fa-solid fa-clipboard-list text-4xl mb-3"></i>
+  <p class="font-bold text-sm">אין דרישות שוטפות</p>
+  <p class="text-xs mt-1">הוסף פריטים לעגלת הרכש</p>
+</div>`;
         return;
     }
 
@@ -11438,7 +11464,11 @@ function renderB2BOrders() {
     }
 
     if (filteredOrders.length === 0) { 
-        list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; 
+        list.innerHTML = `<div class="text-center py-10 text-slate-400">
+  <i class="fa-solid fa-file-invoice text-4xl mb-3"></i>
+  <p class="font-bold text-sm">אין הזמנות רכש</p>
+  <p class="text-xs mt-1">שלח הזמנה מעגלת הרכש</p>
+</div>`; 
         return; 
     }
     
@@ -11536,6 +11566,7 @@ function renderB2BOrders() {
 
 // פונקציה למשיכת טיוטת חוסרים חזרה לעגלה
 async function editDraftOrder(orderId) {
+    if (!confirm('למחוק הזמנה זו לצמיתות?')) return;
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
     if (!order) return;
     try {
@@ -15657,6 +15688,7 @@ window.renderBundleBuilderUI = function() {
 };
 
 window.openStoreProductModal = function(id = null) {
+    closeAllNavDropdowns();
     window.currentModifiersUI = []; 
     window.currentBundleStepsUI = [];
     window.currentPizzaToppingsUI = [];

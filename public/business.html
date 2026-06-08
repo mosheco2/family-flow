@@ -224,7 +224,7 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+    <div id="toast" class="fixed left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]" style="top: max(1.5rem, env(safe-area-inset-top, 1.5rem))">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
@@ -538,24 +538,24 @@
                         </div>
                         <h1 class="flex-1 min-w-0 text-base font-black text-slate-800 tracking-tight leading-tight truncate" id="dash-group-name">טוען...</h1>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <button onclick="openActivityPanel()" id="btn-bell" class="relative w-8 h-8 flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition" title="פעמון פעילות">
+                            <button onclick="openActivityPanel()" id="btn-bell" class="relative min-w-[44px] min-h-[44px] flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-full shadow-sm border border-yellow-100 transition" title="פעמון פעילות">
                                 <i class="fa-solid fa-bell text-xs"></i>
                                 <span id="bell-badge" class="hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5">0</span>
                             </button>
-                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative w-8 h-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
+                            <button onclick="if(typeof window.openInboxModal === 'function') window.openInboxModal()" class="relative min-w-[44px] min-h-[44px] bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-sm border border-emerald-100 transition" title="תיבת הודעות נכנסות">
                                 <i class="fa-regular fa-envelope text-xs"></i>
                                 <span id="inbox-unread-badge" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm hidden border border-white">0</span>
                             </button>
-                            <button onclick="openSupportTicketModal();" class="w-8 h-8 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
+                            <button onclick="openSupportTicketModal();" class="min-w-[44px] min-h-[44px] bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shadow-sm border border-blue-100 transition" title="מרכז שירות ותמיכה">
                                 <i class="fa-solid fa-headset text-xs"></i>
                             </button>
-                            <button onclick="openProfileModal();" class="w-8 h-8 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
+                            <button onclick="openProfileModal();" class="min-w-[44px] min-h-[44px] bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition" title="הגדרות פרופיל">
                                 <i class="fa-solid fa-gear text-xs"></i>
                             </button>
-                            <button onclick="logout();" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center shadow-sm border border-red-100 transition" title="התנתקות">
+                            <button onclick="logout();" class="min-w-[44px] min-h-[44px] bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center shadow-sm border border-red-100 transition" title="התנתקות">
                                 <i class="fa-solid fa-power-off text-xs"></i>
                             </button>
-                            <button onclick="toggleDesktopView();" class="w-8 h-8 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-sm border border-indigo-100 transition" id="btn-toggle-desktop" title="הרחב תצוגה">
+                            <button onclick="toggleDesktopView();" class="min-w-[44px] min-h-[44px] bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center shadow-sm border border-indigo-100 transition" id="btn-toggle-desktop" title="הרחב תצוגה">
                                 <i class="fa-solid fa-desktop text-xs"></i>
                             </button>
                         </div>
@@ -3373,7 +3373,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=74" defer></script>
+    <script src="business-app.js?v=75" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
@@ -4209,6 +4209,11 @@
                          transition-all duration-150 origin-bottom pointer-events-none">
                 צ'אט
             </span>
+        </button>
+
+        <button id="pill-hide-btn" onclick="(function(){document.getElementById('floating-pill').style.opacity='0.1';document.getElementById('floating-pill').style.pointerEvents='none';sessionStorage.setItem('pill_hidden','1');setTimeout(()=>{document.getElementById('pill-hidden-restore').classList.remove('hidden')},300);})()"
+          class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition text-[10px] ml-1" title="הסתר זמנית">
+          <i class="fa-solid fa-minus"></i>
         </button>
 
     </div>
@@ -5559,6 +5564,13 @@
         </div>
         <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
     </div>
+</div>
+
+<div id="pill-hidden-restore" class="hidden fixed bottom-3 left-3 z-[90]">
+  <button onclick="document.getElementById('floating-pill').style.opacity='';document.getElementById('floating-pill').style.pointerEvents='';sessionStorage.removeItem('pill_hidden');document.getElementById('pill-hidden-restore').classList.add('hidden')"
+    class="w-10 h-10 bg-slate-800 text-white rounded-full shadow-xl flex items-center justify-center text-sm hover:bg-slate-700 transition" title="הצג עוזרת">
+    <i class="fa-solid fa-robot"></i>
+  </button>
 </div>
 
 </body>
