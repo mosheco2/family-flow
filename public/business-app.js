@@ -2069,6 +2069,25 @@ window.openPermissionsModal = function(id, name, role, permsStr) {
                 <input type="radio" name="perm-role-type" value="${r.id}" class="accent-indigo-600" ${currentRoleType===r.id?'checked':''}> ${r.icon} ${r.name}
             </label>`).join('');
             roleTypeSection.classList.remove('hidden');
+
+            // Auto-check modules when role type is selected
+            roleTypeOptions.addEventListener('change', function(e) {
+                if (e.target.name !== 'perm-role-type') return;
+                const roleType = e.target.value;
+                // Highlight selected label
+                roleTypeOptions.querySelectorAll('label').forEach(l => {
+                    l.classList.remove('border-indigo-400','bg-indigo-50');
+                    l.classList.add('border-slate-200');
+                });
+                e.target.closest('label')?.classList.add('border-indigo-400','bg-indigo-50');
+                if (!roleType) return;
+                const autoTabs = ROLE_TYPE_TABS[roleType] || [];
+                if (autoTabs.length === 0) return;
+                document.querySelectorAll('.perm-tab-cb').forEach(cb => {
+                    if (autoTabs.includes(cb.value)) cb.checked = true;
+                });
+                showToast('info', `סומנו ${autoTabs.length} מודולים לתפקיד זה`);
+            });
         } else {
             roleTypeSection.classList.add('hidden');
         }
@@ -2167,19 +2186,6 @@ function enforcePermissions() {
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
     // הרחב הרשאות אוטומטית לפי תפקיד עובד — מונע חסימת כפתורים בדשבורד התפקיד
-    const ROLE_TYPE_TABS = {
-        salesperson:    ['pos','sales','customers','tasks','calendar','timeclock','shifts'],
-        field_tech:     ['tasks','equipment','calendar','timeclock','shifts'],
-        delivery:       ['deliveries','tasks','timeclock','shifts'],
-        warehouse:      ['pantry','shop','tasks','timeclock','shifts'],
-        cleaner:        ['tasks','timeclock','shifts'],
-        support:        ['customers','tasks','calendar','timeclock'],
-        cashier:        ['pos','sales','tasks','timeclock','shifts'],
-        shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow'],
-        branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry'],
-        waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
-        cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
-    };
     if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
         ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userTabs.includes(t)) userTabs.push(t); });
     }
@@ -22969,6 +22975,21 @@ function sendFaultEmail(faultId) {
 // ===== BUSINESS TYPES & EMPLOYEE ROLE DASHBOARDS =====
 // =====================================================
 
+// מיפוי תפקיד → מודולים שנדרשים לו (גלובלי — בשימוש ב-enforcePermissions + openPermissionsModal)
+const ROLE_TYPE_TABS = {
+    salesperson:    ['pos','sales','customers','tasks','calendar','timeclock','shifts'],
+    field_tech:     ['tasks','equipment','calendar','timeclock','shifts'],
+    delivery:       ['deliveries','tasks','timeclock','shifts'],
+    warehouse:      ['pantry','shop','tasks','timeclock','shifts'],
+    cleaner:        ['tasks','timeclock','shifts'],
+    support:        ['customers','tasks','calendar','timeclock'],
+    cashier:        ['pos','sales','tasks','timeclock','shifts'],
+    shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow'],
+    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry'],
+    waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
+    cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
+};
+
 const BUSINESS_TYPES = [
     { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost'] },
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank'] },
@@ -23064,11 +23085,8 @@ function applyBusinessTypeFilter() {
                 dropBtn.style.display = 'none';
                 dropBtn.style.opacity = '';
                 dropBtn.title = '';
-            } else if (!isEnabled && isAdminOrManager) {
-                dropBtn.style.display = '';
-                dropBtn.style.opacity = '0.45';
-                dropBtn.title = 'מודול לא פעיל לסוג עסק זה';
             } else {
+                // Admin/manager: all modules fully visible regardless of business type
                 dropBtn.style.display = '';
                 dropBtn.style.opacity = '';
                 dropBtn.title = '';
