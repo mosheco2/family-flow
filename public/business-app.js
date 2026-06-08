@@ -10814,8 +10814,10 @@ function editSupplierProduct(id) {
     try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
     const skuEl = getEl('cat-prod-sku'); if(skuEl) skuEl.value = sku;
     
-    getEl('catalog-form-title').innerText = 'עריכת מוצר'; 
-    getEl('btn-submit-cat-prod').innerText = 'שמור שינויים'; 
+    getEl('catalog-form-title').innerText = 'עריכת מוצר';
+    getEl('btn-submit-cat-prod').innerText = 'שמור שינויים';
+    const formTitleEl = getEl('catalog-form-title');
+    if (formTitleEl) formTitleEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function submitSupplierProduct() {
