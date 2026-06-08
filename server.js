@@ -2700,9 +2700,9 @@ app.get('/api/group/members', async (req, res) => {
         const { groupId } = req.query;
         let users;
         try {
-            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         } catch(err) {
-            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         }
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }

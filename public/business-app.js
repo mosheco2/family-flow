@@ -1598,7 +1598,7 @@ async function loadDashboard() {
                 }
             }
         } else if (isManager) {
-            ['btn-add-task','admin-tasks-hint'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+            ['btn-add-task','admin-tasks-hint','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
         } else {
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
@@ -2160,14 +2160,21 @@ function enforcePermissions() {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
     }
 
-    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מבוצע רק עבור עובדים שאינם מנהלים
+    // 1. נעילה ויזואלית לפי תפקיד (Role) - טאבים ללא הרשאה מוצגים נעולים ולא לחיצים
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
-        if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
+        if (!btn) return;
+        btn.style.display = 'inline-block';
+        if (userTabs.includes(tab.id) || isAdmin) {
+            btn.classList.remove('tab-perm-locked', 'opacity-40', 'grayscale', 'cursor-not-allowed');
+            btn.style.pointerEvents = '';
+            const lockIcon = btn.querySelector('.tab-perm-lock-icon');
+            if (lockIcon) lockIcon.remove();
+        } else {
+            if (!btn.classList.contains('tab-perm-locked')) {
+                btn.classList.add('tab-perm-locked', 'opacity-40', 'grayscale', 'cursor-not-allowed');
+                btn.style.pointerEvents = 'none';
+                btn.insertAdjacentHTML('afterbegin', '<i class="fa-solid fa-lock tab-perm-lock-icon text-slate-300 text-[8px] mr-0.5 align-middle"></i>');
             }
         }
     });
@@ -2226,7 +2233,7 @@ function enforcePermissions() {
     // וידוא שהמשתמש לא תקוע על טאב שנסגר פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module') || activeBtn.classList.contains('tab-perm-locked')) {
             if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }
     });
@@ -23472,30 +23479,5 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     });
 })();
 
-// ===== INJECT ROLE TYPE BUTTON IN MEMBER LIST =====
-const _origRenderMembers = window.renderMembers;
-if (typeof window.renderMembersList === 'function' || true) {
-    // Patch: after member cards render, add role-type button for each member (admin only)
-    // This is called via the existing member rendering hook
-}
-
-// Add role-type button when admin opens permissions modal
-const _origOpenPermModal = window.openPermissionsModal;
-window.openPermissionsModal = function(userId, nickname, role, permsStr) {
-    if (typeof _origOpenPermModal === 'function') _origOpenPermModal(userId, nickname, role, permsStr);
-    if (currentUser?.role === 'ADMIN') {
-        setTimeout(() => {
-            const permsModal = document.getElementById('permissions-modal');
-            if (!permsModal || document.getElementById('btn-open-role-type')) return;
-            const m = membersCache.find(x => x.id === userId);
-            const footer = permsModal.querySelector('[class*="border-t"]');
-            if (footer) {
-                footer.insertAdjacentHTML('afterbegin', `<button id="btn-open-role-type" onclick="openRoleTypeModal(${userId},'${nickname.replace(/'/g,"\\'")}','${m?.employee_role_type||''}')" 
-                    class="w-full mb-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100">
-                    <i class="fa-solid fa-id-badge ml-1"></i> שייך ממשק תפקיד</button>`);
-            }
-        }, 200);
-    }
-};
 
 // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
