@@ -8116,13 +8116,15 @@ app.get('/api/public/logo', async (req, res) => {
     try {
         const logoRes = await pool.query("SELECT value FROM system_settings WHERE key='global_ai_logo'");
         const logoData = logoRes.rows[0]?.value || '';
-        if (!logoData || !logoData.startsWith('data:')) return res.status(404).send('');
+        if (!logoData || !logoData.startsWith('data:')) {
+            return res.redirect('/social-logo.jpg');
+        }
         const [header, base64] = logoData.split(',');
         const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
         res.set('Content-Type', mimeType);
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Cache-Control', 'public, max-age=3600');
         res.send(Buffer.from(base64, 'base64'));
-    } catch(e) { res.status(500).send(''); }
+    } catch(e) { res.redirect('/social-logo.jpg'); }
 });
 
 // Serve campaign banner image as binary (og:image must be a real URL, not data:)
