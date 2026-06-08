@@ -22944,20 +22944,22 @@ async function showRoleDashboard(roleType) {
         }
     } catch(e) {}
 
-    // Event delegation — handles all data-rdtab and data-rdaction buttons
-    dashEl._rdHandler && dashEl.removeEventListener('click', dashEl._rdHandler);
-    dashEl._rdHandler = function(e) {
-        const btn = e.target.closest('[data-rdtab],[data-rdaction]');
-        if (!btn) return;
-        e.preventDefault(); e.stopPropagation();
+    // Attach direct listeners to every interactive button (more reliable than delegation on mobile)
+    function _rdAction(btn) {
         const tab = btn.dataset.rdtab;
         const action = btn.dataset.rdaction;
         if (action === 'full-menu') { window._suppressRoleDash = true; switchTab('feed'); return; }
         if (action === 'waze') { window.open('https://waze.com', '_blank'); return; }
         if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
         if (tab) { switchTab(tab); return; }
-    };
-    dashEl.addEventListener('click', dashEl._rdHandler);
+    }
+    dashEl.querySelectorAll('[data-rdtab],[data-rdaction]').forEach(btn => {
+        // Remove existing listeners by cloning the button
+        const clone = btn.cloneNode(true);
+        btn.parentNode.replaceChild(clone, btn);
+        clone.addEventListener('click', function(e) { e.stopPropagation(); _rdAction(clone); }, {capture: false, passive: false});
+        clone.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); _rdAction(clone); }, {capture: false, passive: false});
+    });
 }
 
 async function roleTodayWidget() {
