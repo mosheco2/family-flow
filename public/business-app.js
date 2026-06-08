@@ -23642,7 +23642,32 @@ async function renderShiftManagerDashboard(el) {
         </div>`;
     }).join('');
 
-    // Restaurant-specific: sales KPIs + table overview
+    // Restaurant-specific: sales KPIs + table overview + waiter assignment
+    let tableAssignHtml = '';
+    if (isRestaurant) {
+        const count = parseInt(currentGroup.table_count || 8);
+        const assigns = getTableAssignments();
+        const waiters = members.filter(m => m.employee_role_type === 'waiter' || !m.employee_role_type);
+        const waiterOpts = `<option value="">ללא</option>` + waiters.map(m => `<option value="${safeStr(m.nickname)}">${safeStr(m.nickname)}</option>`).join('');
+        const assignRows = Array.from({length:count}, (_, i) => {
+            const tid = i+1;
+            const assigned = assigns[tid] || '';
+            return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                <span class="font-black text-slate-700 text-sm w-6 text-center">${tid}</span>
+                <select onchange="assignTableWaiter(${tid},this.value)" class="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white" style="touch-action:manipulation;">
+                    ${waiterOpts.replace(`value="${assigned}"`, `value="${assigned}" selected`)}
+                </select>
+            </div>`;
+        }).join('');
+        tableAssignHtml = `<div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-amber-50 bg-amber-50/60 flex items-center justify-between">
+                <h3 class="font-black text-amber-800 text-sm">🍽️ שיוך מלצרים לשולחנות</h3>
+                <span class="text-[10px] text-amber-600">תחילת משמרת</span>
+            </div>
+            <div class="px-4 py-1 max-h-48 overflow-y-auto modal-scroll">${assignRows}</div>
+        </div>`;
+    }
+
     const restaurantKpiHtml = isRestaurant ? `
         <div class="grid grid-cols-3 gap-2 mb-4">
             <div class="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100">
@@ -23658,6 +23683,7 @@ async function renderShiftManagerDashboard(el) {
                 <div class="text-[9px] text-indigo-500 font-bold">נוכחות</div>
             </div>
         </div>
+        ${tableAssignHtml}
         ${renderTableGrid()}` : '';
 
     el.innerHTML = `
@@ -23748,18 +23774,34 @@ window.toggleTable = function(id, btn) {
     }
 };
 
+function getTableAssignments() {
+    const today = new Date().toISOString().split('T')[0];
+    try { return JSON.parse(localStorage.getItem(`table_assign_${currentGroup.id}_${today}`) || '{}'); } catch(e) { return {}; }
+}
+
+window.assignTableWaiter = function(tableId, waiterName) {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `table_assign_${currentGroup.id}_${today}`;
+    let a = getTableAssignments();
+    if (waiterName) a[tableId] = waiterName; else delete a[tableId];
+    localStorage.setItem(key, JSON.stringify(a));
+};
+
 function renderTableGrid() {
     const count = parseInt(currentGroup.table_count || 8);
     const states = getTableStates();
+    const assigns = getTableAssignments();
     const occupied = Array.from({length:count},(_,i)=>states[i+1]==='occupied').filter(Boolean).length;
     const rows = Array.from({length:count},(_,i) => {
         const id = i+1, isFree = (states[id]||'free') === 'free';
+        const waiter = assigns[id] ? `<span class="text-[7px] text-slate-500 leading-none truncate w-full text-center block">${safeStr(assigns[id])}</span>` : '';
         return `<button type="button"
             ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
             onclick="toggleTable(${id},this)"
             class="table-btn ${isFree?'bg-green-50 border-green-300 text-green-700':'bg-red-100 border-red-400 text-red-700'} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
             style="touch-action:manipulation;cursor:pointer;">
             <span class="font-black text-sm">${id}</span>
+            ${waiter}
             <span class="tsLabel text-[9px] font-bold">${isFree?'פנוי':'תפוס'}</span>
         </button>`;
     }).join('');
@@ -23774,6 +23816,28 @@ function renderTableGrid() {
 }
 
 // ─── KDS HELPERS ────────────────────────────────────────────────────────────
+window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
+    const key = `kds_items_${currentGroup.id}_${txId}`;
+    let done = [];
+    try { done = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+    if (checkbox.checked) { if (!done.includes(itemIdx)) done.push(itemIdx); }
+    else { done = done.filter(i => i !== itemIdx); }
+    localStorage.setItem(key, JSON.stringify(done));
+    // Update label styling
+    const label = checkbox.closest('label');
+    if (label) { label.classList.toggle('opacity-40', checkbox.checked); label.classList.toggle('line-through', checkbox.checked); }
+    // Update progress text
+    const prog = document.querySelector(`.kds-progress-${txId}`);
+    if (prog) prog.textContent = `${done.length}/${totalItems} מוכנים`;
+    // Enable/disable done button
+    const btn = document.getElementById(`kds-done-btn-${txId}`);
+    if (btn) {
+        const allDone = done.length >= totalItems && totalItems > 0;
+        btn.disabled = !allDone;
+        btn.className = `mt-2 w-full rounded-xl py-1.5 text-xs font-black active:scale-95 transition ${allDone?'bg-green-500 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
+    }
+};
+
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
     try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
@@ -23888,25 +23952,45 @@ async function renderCookDashboard(el) {
             byStation[s].push(i);
         });
 
+        const itemDoneKey = `kds_items_${currentGroup.id}_${t.id}`;
+        let itemsDone = [];
+        try { itemsDone = JSON.parse(localStorage.getItem(itemDoneKey) || '[]'); } catch(e2) {}
+
+        // Count total non-metadata items
+        let globalItemIdx = 0;
+        const totalItems = rawItems.length;
+        const doneCount = itemsDone.length;
+        const allDone = doneCount >= totalItems && totalItems > 0;
+
         const stationRows = KDS_STATIONS.filter(s => byStation[s.id]?.length).map(s => {
-            const rows = byStation[s.id].map(i => `<div class="text-xs text-slate-700 py-0.5">• ${safeStr(i.name||'')} ${(i.quantity||i.qty||1)>1?`×${i.quantity||i.qty}`:''}${i.note?` <span class="text-slate-400">(${safeStr(i.note)})</span>`:''}</div>`).join('');
+            const rows = byStation[s.id].map(i => {
+                const idx = globalItemIdx++;
+                const isDone = itemsDone.includes(idx);
+                return `<label class="flex items-center gap-2 py-1 cursor-pointer ${isDone?'opacity-40 line-through':''}" style="touch-action:manipulation;">
+                    <input type="checkbox" ${isDone?'checked':''} onchange="kdsItemCheck(${t.id},${idx},this,${totalItems})"
+                        class="w-4 h-4 rounded accent-green-600 shrink-0" style="touch-action:manipulation;">
+                    <span class="text-xs text-slate-700">${safeStr(i.name||'')} ${(i.quantity||i.qty||1)>1?`×${i.quantity||i.qty}`:''}${i.note?` <span class="text-slate-400">(${safeStr(i.note)})</span>`:''}</span>
+                </label>`;
+            }).join('');
             return `<div class="rounded-xl border mb-1.5 overflow-hidden">
                 <div class="px-2 py-1 text-[10px] font-black ${s.hdr}">${s.label}</div>
                 <div class="px-2 py-1">${rows}</div>
             </div>`;
         }).join('') || `<div class="text-xs text-slate-500 py-1">הזמנה #${t.id}</div>`;
 
-        return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative">
+        return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative" id="kds-ticket-${t.id}">
             <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
                 <span class="text-[10px] text-slate-400">${timeStr}</span>
                 <span class="text-sm font-black text-slate-700">₪${parseFloat(t.total_amount||0).toFixed(0)}</span>
             </div>
             ${stationRows}
-            <button type="button"
+            <div class="mt-1.5 text-[10px] text-slate-400 text-center kds-progress-${t.id}">${doneCount}/${totalItems} מוכנים</div>
+            <button type="button" id="kds-done-btn-${t.id}"
                 ontouchend="event.preventDefault();cookDoneOrder(${t.id},this);"
                 onclick="cookDoneOrder(${t.id},this)"
-                class="mt-2 w-full bg-green-500 text-white rounded-xl py-1.5 text-xs font-black active:scale-95 transition"
+                class="mt-2 w-full rounded-xl py-1.5 text-xs font-black active:scale-95 transition ${allDone?'bg-green-500 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed'}"
+                ${allDone?'':'disabled'}
                 style="touch-action:manipulation;cursor:pointer;">✅ הכנה הושלמה</button>
         </div>`;
     }).join('') : '<p class="text-center text-slate-400 text-sm py-4">אין הזמנות ממתינות 🎉</p>';
@@ -24070,6 +24154,11 @@ async function saveBusinessSettings() {
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
+        // Re-render role dashboard if currently visible (refreshes table count etc.)
+        const dashEl = document.getElementById('content-role-dashboard');
+        if (dashEl && !dashEl.classList.contains('hidden') && currentUser?.employee_role_type) {
+            setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 100);
+        }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 }
 
