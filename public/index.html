@@ -965,7 +965,10 @@
                 <div id="hm-view-contacts" class="hidden">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="font-black text-slate-800 text-sm">אנשי קשר לתיקונים</h3>
-                        <button onclick="openHMContactModal()" class="flex items-center gap-1 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                        <div class="flex gap-2">
+                            <button onclick="openLinkBusinessModal(null)" class="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-indigo-700 transition"><i class="fa-solid fa-magnifying-glass"></i> חיפוש OneFlow</button>
+                            <button onclick="openHMContactModal()" class="flex items-center gap-1 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                        </div>
                     </div>
                     <div id="hm-contacts-list"></div>
                 </div>

@@ -7750,21 +7750,26 @@ window.submitServiceCallWizard = async function() {
 
 window.openLinkBusinessModal = async function(techId) {
     document.getElementById('hm-link-biz-modal')?.remove();
+    const isNew = (techId === null || techId === undefined);
+    const subtitle = isNew
+        ? 'חפש עסק OneFlow — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
+        : 'חפש את שם העסק של בעל המקצוע ב-OneFlow כדי לאפשר שליחת קריאות ישירות.';
     const html = `<div id="hm-link-biz-modal" class="fixed inset-0 bg-slate-900/60 z-[9993] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
         <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
             <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
-                <h3 class="font-black text-slate-800 text-base">🔗 קשר לעסק OneFlow</h3>
+                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק OneFlow</h3>
                 <button onclick="document.getElementById('hm-link-biz-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
             <div class="p-4 space-y-3">
-                <p class="text-xs text-slate-500">חפש את שם העסק של בעל המקצוע ב-OneFlow כדי לאפשר שליחת קריאות ישירות.</p>
-                <input type="hidden" id="hm-link-tech-id" value="${techId}">
-                <input id="hm-link-search" type="text" placeholder="שם העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)">
+                <p class="text-xs text-slate-500">${subtitle}</p>
+                <input type="hidden" id="hm-link-tech-id" value="${techId ?? ''}">
+                <input id="hm-link-search" type="text" placeholder="שם העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)" autofocus>
                 <div id="hm-link-results" class="space-y-2 max-h-48 overflow-y-auto"></div>
             </div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => document.getElementById('hm-link-search')?.focus(), 100);
 };
 
 window.searchBusinessForLink = async function(q) {
@@ -7774,7 +7779,8 @@ window.searchBusinessForLink = async function(q) {
         const r = await fetch(`/api/groups/search-business?q=${encodeURIComponent(q)}`);
         const d = await r.json();
         if (!d.groups?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו עסקים</p>'; return; }
-        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${document.getElementById('hm-link-tech-id').value}, ${g.id})" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2" style="touch-action:manipulation;">
+        const techIdVal = document.getElementById('hm-link-tech-id')?.value || '';
+        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${techIdVal||'null'}, ${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}')" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2 active:scale-[0.98]" style="touch-action:manipulation;">
             <i class="fa-solid fa-store text-indigo-400 shrink-0"></i>
             <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-xs">${safeStr(g.name)}</div><div class="text-[10px] text-slate-400">${g.business_type||'עסק'}</div></div>
             <i class="fa-solid fa-link text-indigo-400 text-xs shrink-0"></i>
@@ -7782,10 +7788,18 @@ window.searchBusinessForLink = async function(q) {
     } catch(e) {}
 };
 
-window.linkTechToBusiness = async function(techId, bizGroupId) {
+window.linkTechToBusiness = async function(techId, bizGroupId, bizName) {
     try {
-        await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ businessGroupId: bizGroupId }) });
+        if (!techId) {
+            // Create a new contact from the business and link it
+            const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', businessGroupId: bizGroupId }) });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error);
+        } else {
+            await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ businessGroupId: bizGroupId }) });
+        }
         if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
         document.getElementById('hm-link-biz-modal')?.remove();
         await fetchHMContacts();
