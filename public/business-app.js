@@ -20499,7 +20499,7 @@ async function saveSLAConfigs() {
 // ── SMART ALERTS ───────────────────────────────────────────────
 
 function getTriggerIcon(type) {
-  const icons = { timeclock_no_punch_in:'⏰', timeclock_no_punch_out:'🚪', inventory_low:'📦', task_overdue:'✅', shopping_pending:'🛒', balance_low:'💰', order_unhandled:'📋', quote_not_converted:'📄', ticket_open:'🎫' };
+  const icons = { timeclock_no_punch_in:'⏰', timeclock_no_punch_out:'🚪', inventory_low:'📦', task_overdue:'✅', shopping_pending:'🛒', balance_low:'💰', order_unhandled:'📋', quote_not_converted:'📄', ticket_open:'🎫', equipment_maintenance:'🔧' };
   return icons[type] || '⚡';
 }
 
@@ -21679,6 +21679,15 @@ async function loadEquipment() {
     if (!currentGroup) return;
     await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults(), fetchEquipmentTechnicians()]);
     switchEquipmentTab('items');
+    checkEquipmentNotifications();
+}
+
+async function checkEquipmentNotifications() {
+    try {
+        const res = await fetch(`${API}/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.created > 0) updateAlertBadge();
+    } catch(e) {}
 }
 
 async function fetchEquipmentItems() {
@@ -21772,6 +21781,7 @@ function renderEquipmentItems() {
                     </div>
                 </div>
                 <div class="flex gap-2 mr-2 shrink-0">
+                    <button onclick="openEquipmentHistory(${item.id})" title="היסטוריית טיפול" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 transition text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-clock-rotate-left text-xs"></i></button>
                     <button onclick="openEquipmentItemModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="deleteEquipmentItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 transition text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -21894,6 +21904,148 @@ function renderEquipmentFaults() {
                 </div>
             </div>
         </div>`;
+    }).join('');
+}
+
+// --- EQUIPMENT HISTORY ---
+
+let eqHistItemId = null;
+let eqHistData = [];
+let eqHistTypeFilter = 'all';
+let eqHistPeriodFilter = 'all';
+
+async function openEquipmentHistory(itemId) {
+    const item = equipmentItems.find(x => x.id === itemId);
+    if (!item) return;
+    eqHistItemId = itemId;
+    eqHistTypeFilter = 'all';
+    eqHistPeriodFilter = 'all';
+    let modal = getEl('equipment-history-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="equipment-history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height:88vh">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                    <div>
+                        <h3 id="eqhist-title" class="font-black text-slate-800 text-base">היסטוריית טיפול</h3>
+                        <p id="eqhist-subtitle" class="text-xs text-slate-400 mt-0.5"></p>
+                    </div>
+                    <button onclick="getEl('equipment-history-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 border-b border-slate-100 space-y-2 shrink-0">
+                    <input id="eqhist-search" type="text" placeholder="חיפוש בהיסטוריה..." oninput="renderEqHistFiltered()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setEqHistFilter('type','all')" id="eqhf-type-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setEqHistFilter('type','maintenance')" id="eqhf-type-maintenance" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">🔧 תחזוקה</button>
+                            <button onclick="setEqHistFilter('type','fault')" id="eqhf-type-fault" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">⚠️ תקלות</button>
+                        </div>
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setEqHistFilter('period','all')" id="eqhf-period-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setEqHistFilter('period','month')" id="eqhf-period-month" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">חודש</button>
+                            <button onclick="setEqHistFilter('period','3months')" id="eqhf-period-3months" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">3 חודשים</button>
+                            <button onclick="setEqHistFilter('period','year')" id="eqhf-period-year" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">שנה</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="eqhist-list" class="overflow-y-auto flex-1 p-4"></div>
+            </div>
+        </div>`);
+        modal = getEl('equipment-history-modal');
+    }
+    getEl('eqhist-title').textContent = `היסטוריה: ${item.name}`;
+    getEl('eqhist-subtitle').textContent = 'טוען...';
+    getEl('eqhist-search').value = '';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`${API}/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            eqHistData = data.history;
+            getEl('eqhist-subtitle').textContent = `${eqHistData.length} רשומות`;
+            renderEqHistFiltered();
+        }
+    } catch(e) { getEl('eqhist-subtitle').textContent = 'שגיאה בטעינה'; }
+}
+
+function setEqHistFilter(filterType, value) {
+    if (filterType === 'type') {
+        eqHistTypeFilter = value;
+        ['all','maintenance','fault'].forEach(v => {
+            const btn = getEl(`eqhf-type-${v}`);
+            if (btn) btn.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`;
+        });
+    } else {
+        eqHistPeriodFilter = value;
+        ['all','month','3months','year'].forEach(v => {
+            const btn = getEl(`eqhf-period-${v}`);
+            if (btn) btn.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`;
+        });
+    }
+    renderEqHistFiltered();
+}
+
+function renderEqHistFiltered() {
+    const list = getEl('eqhist-list');
+    if (!list) return;
+    const search = (getEl('eqhist-search')?.value || '').trim().toLowerCase();
+    const now = new Date();
+    const periodMs = { month: 30, '3months': 90, year: 365 };
+    let filtered = eqHistData.filter(r => {
+        if (eqHistTypeFilter !== 'all' && r.type !== eqHistTypeFilter) return false;
+        if (eqHistPeriodFilter !== 'all') {
+            const days = periodMs[eqHistPeriodFilter];
+            const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - days);
+            if (!r.event_date || new Date(r.event_date) < cutoff) return false;
+        }
+        if (search) {
+            const haystack = `${r.title} ${r.description || ''} ${r.technician_name || ''} ${r.resolution_notes || ''}`.toLowerCase();
+            if (!haystack.includes(search)) return false;
+        }
+        return true;
+    });
+    if (!filtered.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400"><i class="fa-solid fa-magnifying-glass text-2xl mb-2 opacity-30 block"></i><p class="text-sm">אין רשומות התואמות לחיפוש</p></div>`;
+        return;
+    }
+    const mStatusColors = { pending:'bg-amber-100 text-amber-700', completed:'bg-emerald-100 text-emerald-700', overdue:'bg-red-100 text-red-700' };
+    const mStatusLabels = { pending:'ממתין', completed:'הושלם', overdue:'באיחור' };
+    list.innerHTML = filtered.map(r => {
+        const dateStr = r.event_date ? new Date(r.event_date).toLocaleDateString('he-IL') : '';
+        if (r.type === 'maintenance') {
+            const stColor = mStatusColors[r.status] || 'bg-slate-100 text-slate-600';
+            const stLabel = mStatusLabels[r.status] || r.status;
+            const mtLabel = MTYPE_LABELS[r.maintenance_type] || r.maintenance_type || '';
+            return `<div class="flex gap-3 mb-3">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">🔧</div>
+                <div class="flex-1 bg-blue-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span>
+                        ${mtLabel ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${mtLabel}</span>` : ''}
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mb-1">${dateStr}${r.technician_name ? ' · ' + safeStr(r.technician_name) : ''}${r.cost ? ' · ₪' + r.cost : ''}</p>
+                    ${r.description ? `<p class="text-[11px] text-slate-500">${safeStr(r.description)}</p>` : ''}
+                </div>
+            </div>`;
+        } else {
+            const stColor = FSTATUS_COLORS[r.status] || 'bg-slate-100 text-slate-600';
+            const stLabel = FSTATUS_LABELS[r.status] || r.status;
+            const sevColor = SEV_COLORS[r.severity] || 'bg-slate-100 text-slate-600';
+            const sevLabel = SEV_LABELS[r.severity] || r.severity;
+            return `<div class="flex gap-3 mb-3">
+                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">⚠️</div>
+                <div class="flex-1 bg-red-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${sevColor}">${sevLabel}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mb-1">${dateStr}</p>
+                    ${r.description ? `<p class="text-[11px] text-slate-500">${safeStr(r.description)}</p>` : ''}
+                    ${r.resolution_notes ? `<p class="text-[11px] text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-lg">${safeStr(r.resolution_notes)}</p>` : ''}
+                </div>
+            </div>`;
+        }
     }).join('');
 }
 

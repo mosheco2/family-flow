@@ -298,6 +298,7 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS sla_configs (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, module VARCHAR(30) NOT NULL, status VARCHAR(50) NOT NULL, status_label VARCHAR(100), max_hours DECIMAL(6,2) NOT NULL DEFAULT 24, is_active BOOLEAN DEFAULT TRUE, UNIQUE(group_id, module, status))`); } catch(e) {}
       try { await client.query(`ALTER TABLE sla_configs ADD COLUMN IF NOT EXISTS channels JSONB DEFAULT '["in_app"]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE alert_notifications ADD COLUMN IF NOT EXISTS reference_key VARCHAR(100)`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -8550,6 +8551,63 @@ app.delete('/api/equipment/faults/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_faults WHERE id=$1', [req.params.id]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/items/:id/history', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const maintenance = await pool.query(
+            `SELECT id, 'maintenance' as type, title, description, status,
+             COALESCE(completed_date::text, scheduled_date::text) as event_date,
+             scheduled_date, completed_date, maintenance_type, technician_name, cost
+             FROM equipment_maintenance WHERE equipment_id=$1 AND group_id=$2`,
+            [req.params.id, groupId]);
+        const faults = await pool.query(
+            `SELECT id, 'fault' as type, title, description, status, created_at::text as event_date,
+             severity, resolution_notes, resolved_date
+             FROM equipment_faults WHERE equipment_id=$1 AND group_id=$2`,
+            [req.params.id, groupId]);
+        const combined = [...maintenance.rows, ...faults.rows]
+            .sort((a, b) => new Date(b.event_date || 0) - new Date(a.event_date || 0));
+        res.json({ success: true, history: combined });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+        const upcoming = await pool.query(
+            `SELECT m.*, e.name as equipment_name
+             FROM equipment_maintenance m JOIN equipment_items e ON e.id=m.equipment_id
+             WHERE m.group_id=$1 AND m.status='pending' AND m.scheduled_date IS NOT NULL
+             AND m.scheduled_date >= $2 AND m.scheduled_date <= $3`,
+            [groupId, today.toISOString().split('T')[0], in7.toISOString().split('T')[0]]);
+        let created = 0;
+        for (const m of upcoming.rows) {
+            const sDate = new Date(m.scheduled_date); sDate.setHours(0,0,0,0);
+            const diffDays = Math.round((sDate - today) / 86400000);
+            const dateStr = sDate.toLocaleDateString('he-IL');
+            const notifications = [];
+            if (diffDays >= 2 && diffDays <= 7) {
+                notifications.push({ refKey: `eq_maint_${m.id}_7d_${m.scheduled_date}`, message: `🔧 תחזוקה בעוד ${diffDays} ימים: "${m.title}" — ${m.equipment_name} (${dateStr})` });
+            }
+            if (diffDays <= 1) {
+                const whenStr = diffDays === 0 ? 'היום' : 'מחר';
+                notifications.push({ refKey: `eq_maint_${m.id}_1d_${m.scheduled_date}`, message: `🔧 תחזוקה ${whenStr}: "${m.title}" — ${m.equipment_name} (${dateStr})` });
+            }
+            for (const n of notifications) {
+                const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, n.refKey]);
+                if (exists.rows.length > 0) continue;
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'equipment_maintenance', n.message, n.refKey]);
+                created++;
+            }
+        }
+        res.json({ success: true, created });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
