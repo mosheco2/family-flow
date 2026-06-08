@@ -19114,6 +19114,15 @@ window.markServiceReqDone = function(reqId) {
     }
 };
 
+window.markItemServed = function(orderId, idx) {
+    fetch(`/api/store/orders/${orderId}/item-ready`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({idx, ready: false})
+    }).catch(() => {});
+    const dashEl = document.getElementById('content-role-dashboard');
+    if (dashEl) renderWaiterDashboard(dashEl);
+};
+
 window.markReadyDelivered = function(orderId) {
     // Mark order as completed on server
     fetch('/api/store/orders/status', {
@@ -19312,7 +19321,17 @@ window.waiterSelectTable = function(tid, btn) {
 window.waiterAddItem = function(id) {
     if (!window.waiterSelectedTable) { showToast('info', 'בחר שולחן תחילה'); return; }
     const p = (storeCatalogCache||[]).find(x => x.id === id); if (!p) return;
-    const existing = window.waiterPOSCart.find(i => i.id === id && !i._justAdded);
+    // Handle complex dishes (modifiers, pizza, bundle) same as regular POS
+    if (p.options_text && p.options_text.length > 10) {
+        try {
+            const parsed = JSON.parse(p.options_text);
+            window._waiterPOSMode = true;
+            if (parsed && (parsed.isBundle || parsed.isComplex)) { window.openPOSBundleModal(p, parsed); return; }
+            if (parsed && parsed.isPizza) { window.openPOSPizzaModal(p, parsed); return; }
+            if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); return; }
+        } catch(e) { window._waiterPOSMode = false; }
+    }
+    const existing = window.waiterPOSCart.find(i => i.id === id && !i.modifiers);
     if (existing) existing.qty++;
     else window.waiterPOSCart.push({ id: p.id, name: p.name, price: parseFloat(p.price)||0, qty: 1, kitchenStation: p.kitchen_station || 'other', note: '', category: p.category||'' });
     window.waiterRenderCart();
@@ -19877,6 +19896,14 @@ window.submitPOSModifiers = function() {
         checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
     });
     const modal = document.getElementById('pos-modifiers-modal');
+    if (window._waiterPOSMode) {
+        window._waiterPOSMode = false;
+        const p = window.currentPOSProduct;
+        const modStr = selected.length ? ` (${selected.map(s=>s.name).join(', ')})` : '';
+        window.waiterPOSCart.push({ id: p.id, name: p.name + modStr, price: finalPrice, qty: 1, kitchenStation: p.kitchen_station||'other', note: '', modifiers: selected });
+        if(modal) modal.remove();
+        window.waiterRenderCart(); return;
+    }
     if (window.kioskModeCapture) {
         window.kioskModeCapture = false;
         if(modal) modal.remove();
@@ -20045,6 +20072,14 @@ window.submitPOSPizza = function() {
         }
     });
     const modal = document.getElementById('pos-pizza-modal');
+    if (window._waiterPOSMode) {
+        window._waiterPOSMode = false;
+        const p = window.currentPOSProduct;
+        const modStr = selected.length ? ` (${selected.map(s=>s.name).join(', ')})` : '';
+        window.waiterPOSCart.push({ id: p.id, name: p.name + modStr, price: finalPrice, qty: 1, kitchenStation: p.kitchen_station||'other', note: '', modifiers: selected });
+        if(modal) modal.remove();
+        window.waiterRenderCart(); return;
+    }
     if (window.kioskModeCapture) {
         window.kioskModeCapture = false;
         if (modal) modal.remove();
@@ -20146,6 +20181,14 @@ window.submitPOSBundle = function() {
     
     if (!isValid) return;
     const modal = document.getElementById('pos-bundle-modal');
+    if (window._waiterPOSMode) {
+        window._waiterPOSMode = false;
+        const p = window.currentPOSProduct;
+        const modStr = selected.length ? ` (${selected.map(s=>s.name).join(', ')})` : '';
+        window.waiterPOSCart.push({ id: p.id, name: p.name + modStr, price: finalPrice, qty: 1, kitchenStation: p.kitchen_station||'other', note: '', modifiers: selected });
+        if(modal) modal.remove();
+        window.waiterRenderCart(); return;
+    }
     if (window.kioskModeCapture) {
         window.kioskModeCapture = false;
         if(modal) modal.remove();
@@ -23733,6 +23776,8 @@ async function showRoleDashboard(roleType) {
         case 'waiter':         await renderWaiterDashboard(dashEl);         break;
         case 'cook':           await renderCookDashboard(dashEl);           break;
     }
+    // Start auto-refresh for operational roles that need real-time updates
+    if (['waiter','cook','shift_manager'].includes(roleType)) startRoleAutoRefresh(roleType);
 
     // Inject "what's waiting today" widget after the dashboard header
     try {
@@ -23744,6 +23789,22 @@ async function showRoleDashboard(roleType) {
     } catch(e) {}
 
     // Buttons use ontouchend="event.preventDefault();event.stopPropagation();rdAction(...);" onclick="rdAction(...)" directly — no dynamic listener attachment needed
+}
+
+function startRoleAutoRefresh(roleType) {
+    if (window._roleRefreshInterval) clearInterval(window._roleRefreshInterval);
+    window._roleRefreshInterval = setInterval(async () => {
+        // Skip if any interactive modal is open
+        if (document.getElementById('waiter-pos-modal') || document.getElementById('kds-bon-modal') ||
+            document.getElementById('biz-settings-modal') || document.getElementById('waiter-close-bill-modal')) return;
+        const dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) return;
+        try {
+            if (roleType === 'waiter') await renderWaiterDashboard(dashEl);
+            else if (roleType === 'cook') await renderCookDashboard(dashEl);
+            else if (roleType === 'shift_manager') await renderShiftManagerDashboard(dashEl);
+        } catch(e) {}
+    }, 20000); // every 20 seconds
 }
 
 function roleTodayWidget() {
@@ -24430,6 +24491,16 @@ window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
         btn.disabled = !allDone;
         btn.className = `mt-2 w-full rounded-xl py-1.5 text-xs font-black active:scale-95 transition ${allDone?'bg-green-500 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
     }
+    // POST per-item ready state to server so waiter sees it cross-device
+    try {
+        const ticket = document.getElementById(`kds-ticket-${txId}`);
+        const tableNum = ticket?.dataset?.tableNum || null;
+        const itemName = label?.querySelector('span')?.textContent?.trim() || '';
+        fetch(`/api/store/orders/${txId}/item-ready`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({idx: itemIdx, name: itemName, tableNum, ready: checkbox.checked})
+        }).catch(() => {});
+    } catch(e2) {}
 };
 
 window.kdsToggleExpand = function(txId) {
@@ -24538,10 +24609,15 @@ window.kdsUpdateBonProgress = function(txId) {
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
     try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
-    // Mark order as ready on server so waiter dashboard picks it up cross-device
+    // Mark order as completed on server — full bon close = auto-delivered to waiter
     fetch('/api/store/orders/status', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ orderId: txId, status: 'ready' })
+        body: JSON.stringify({ orderId: txId, status: 'completed' })
+    }).catch(() => {});
+    // Clear per-item ready list (all items now done)
+    fetch(`/api/store/orders/${txId}/item-ready`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({idx: -1, ready: false, clearAll: true})
     }).catch(() => {});
     const el = row?.closest?.('.kds-ticket');
     if (el) el.remove();
@@ -24563,18 +24639,36 @@ async function renderWaiterDashboard(el) {
         }
     } catch(e) {}
 
-    // Fetch ready orders from server (cross-device: cook marks ready on their device)
-    let pendingReady = [];
+    // Fetch orders for ready lists (full-order ready + per-item ready + auto-deliver completed)
+    let pendingReady = [], itemReadyList = [];
     try {
         const or = await fetch(`/api/store/orders/${currentGroup.id}`);
         const od = await or.json();
         if (Array.isArray(od)) {
-            pendingReady = od.filter(o => o.status === 'ready').map(o => {
-                let tableNum = null, items = [];
+            // Full-order ready (cook closed the full bon — now marked 'completed', auto-deliver)
+            // Auto-mark completed orders as delivered in local table_bills
+            const completedIds = new Set(od.filter(o => o.status === 'completed').map(o => String(o.id)));
+            if (completedIds.size > 0) {
+                try {
+                    const bills = getTableBills();
+                    let changed = false;
+                    Object.values(bills).forEach(bill => {
+                        (bill.submitted||[]).forEach(item => {
+                            if (item.orderId && completedIds.has(String(item.orderId)) && !item.delivered) {
+                                item.delivered = true; item.deliveredAt = new Date().toISOString(); changed = true;
+                            }
+                        });
+                    });
+                    if (changed) { saveTableBills(bills); if (document.getElementById('waiter-pos-modal')) window.waiterRenderCart(); }
+                } catch(e2) {}
+            }
+            // Per-item ready (cook checked individual dishes, order not yet closed)
+            od.filter(o => ['new','processing'].includes(o.status) && Array.isArray(o.items_ready) && o.items_ready.length > 0)
+              .forEach(o => {
+                let tableNum = null;
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
-                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
-                return { orderId: o.id, tableNum, time: o.created_at, items };
-            });
+                (o.items_ready||[]).forEach(ir => itemReadyList.push({orderId: o.id, tableNum: ir.tableNum||tableNum, name: ir.name, idx: ir.idx, time: ir.time}));
+              });
         }
     } catch(e) {}
 
@@ -24637,9 +24731,28 @@ async function renderWaiterDashboard(el) {
             }).join('')}</div>
         </div>` : '';
 
+    // Per-item ready section (individual dishes marked by cook, each needs serving)
+    const itemReadyHtml = itemReadyList.length ? `
+        <div class="bg-white rounded-2xl shadow-sm border border-orange-200 mb-4">
+            <div class="px-4 py-3 border-b border-orange-100 bg-orange-50/60 flex items-center justify-between">
+                <h3 class="font-black text-orange-700 text-sm">🍽️ מנות מוכנות (${itemReadyList.length})</h3>
+            </div>
+            <div class="px-4 py-1">${itemReadyList.slice(0,12).map(ir => {
+                const tbl = ir.tableNum ? `שולחן ${ir.tableNum}` : `הזמנה #${ir.orderId}`;
+                const tStr = ir.time ? new Date(ir.time).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
+                    <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(ir.name)}</span>
+                    <span class="text-[9px] text-slate-400 shrink-0">${tStr}</span>
+                    <button ontouchend="event.preventDefault();markItemServed(${ir.orderId},${ir.idx});" onclick="markItemServed(${ir.orderId},${ir.idx})" class="bg-orange-500 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">הוגש ✓</button>
+                </div>`;
+            }).join('')}</div>
+        </div>` : '';
+
     el.innerHTML = `
         ${roleDashboardHeader('🍽️','ממשק מלצר/ית','שולחנות, תפריט ומשימות משמרת','from-amber-500','to-orange-600')}
         ${renderTableGrid()}
+        ${itemReadyHtml}
         ${readyHtml}
         ${serviceReqHtml}
         <div class="grid grid-cols-2 gap-3 mb-4">
@@ -24681,7 +24794,7 @@ async function renderCookDashboard(el) {
         let done = [];
         try { done = JSON.parse(localStorage.getItem(doneKey)||'[]'); } catch(e2) {}
         kdsTickets = (Array.isArray(orders) ? orders : [])
-            .filter(t => t.created_at?.startsWith(today) && (t.status === 'new' || t.status === 'completed') && !done.includes(String(t.id)))
+            .filter(t => t.created_at?.startsWith(today) && ['new','processing','ready'].includes(t.status) && !done.includes(String(t.id)))
             .slice(0,15);
     } catch(e) {}
 
@@ -24716,7 +24829,8 @@ async function renderCookDashboard(el) {
         const timeStr = t.created_at ? new Date(t.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
         let rawItems = [];
         try { rawItems = Array.isArray(t.items) ? t.items : JSON.parse(t.items || '[]'); } catch(e2) {}
-        rawItems = rawItems.filter(i => !i.is_quote_metadata);
+        rawItems = rawItems.filter(i => !i.is_quote_metadata)
+            .flatMap(i => { const q = parseInt(i.quantity||i.qty||1); return q > 1 ? Array.from({length:q}, () => ({...i, quantity:1, qty:1})) : [i]; });
 
         // group by station
         const byStation = {};

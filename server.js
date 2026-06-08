@@ -558,6 +558,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS kitchen_station VARCHAR(30) DEFAULT 'other'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS send_order_email BOOLEAN DEFAULT true`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items_ready JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -8681,6 +8682,27 @@ app.patch('/api/groups/:id/business-settings', async (req, res) => {
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/store/orders/:id/item-ready', async (req, res) => {
+    try {
+        const { idx, name, tableNum, ready, clearAll } = req.body;
+        if (clearAll) {
+            await pool.query("UPDATE store_orders SET items_ready='[]'::jsonb WHERE id=$1", [req.params.id]);
+            return res.json({success: true});
+        }
+        const r = await pool.query('SELECT items_ready FROM store_orders WHERE id=$1', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({error:'not found'});
+        let itemsReady = [];
+        try { itemsReady = Array.isArray(r.rows[0].items_ready) ? r.rows[0].items_ready : JSON.parse(r.rows[0].items_ready||'[]'); } catch(e2) {}
+        if (ready) {
+            if (!itemsReady.find(i => i.idx === idx)) itemsReady.push({idx, name: name||'', tableNum: tableNum||null, time: new Date().toISOString()});
+        } else {
+            itemsReady = itemsReady.filter(i => i.idx !== idx);
+        }
+        await pool.query('UPDATE store_orders SET items_ready=$1 WHERE id=$2', [JSON.stringify(itemsReady), req.params.id]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/groups/:id/settings', async (req, res) => {
