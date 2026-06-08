@@ -23492,22 +23492,68 @@ async function renderSupportDashboard(el) {
 
 // --- 7. Cashier Dashboard ---
 async function renderCashierDashboard(el) {
-    let todaySales = 0, txCount = 0;
+    let todaySales = 0, txCount = 0, cashIn = 0, cashOut = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const regKey = `register_${currentGroup.id}_${today}`;
+    let regState = {};
+    try { regState = JSON.parse(localStorage.getItem(regKey) || '{}'); } catch(e) {}
+    const isOpen = !!regState.openedAt;
+    const openTime = regState.openedAt ? new Date(regState.openedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : null;
+    const openFloat = regState.openFloat || 0;
+
     try {
         const r = await fetch(`/api/transactions/${currentGroup.id}`);
         const d = await r.json();
-        const today = new Date().toISOString().split('T')[0];
         const todayTx = (d.transactions||[]).filter(t => t.created_at && t.created_at.startsWith(today) && t.amount > 0);
         todaySales = todayTx.reduce((s,t) => s + parseFloat(t.amount||0), 0);
         txCount = todayTx.length;
+        cashIn = todayTx.filter(t=>t.payment_method==='cash').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+        cashOut = todayTx.filter(t=>t.payment_method!=='cash'&&t.payment_method).reduce((s,t)=>s+parseFloat(t.amount||0),0);
     } catch(e) {}
+
+    const fmt = v => `₪${v.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+    const expectedCash = openFloat + cashIn;
+
+    window.cashierOpenRegister = function() {
+        const floatVal = parseFloat(prompt('סכום פתיחה בקופה (מזומן):', '0') || '0') || 0;
+        const state = { openedAt: new Date().toISOString(), openFloat: floatVal };
+        localStorage.setItem(regKey, JSON.stringify(state));
+        renderCashierDashboard(el);
+    };
+    window.cashierCloseRegister = function() {
+        const actualCash = parseFloat(prompt(`סכום מזומן בקופה לספירה (צפוי: ${fmt(expectedCash)}):`, String(expectedCash)) || String(expectedCash));
+        const diff = actualCash - expectedCash;
+        const state = { ...regState, closedAt: new Date().toISOString(), actualCash, diff };
+        localStorage.setItem(regKey, JSON.stringify(state));
+        const msg = diff === 0 ? 'הקופה מאוזנת ✅' : diff > 0 ? `עודף ${fmt(Math.abs(diff))} 📈` : `חסר ${fmt(Math.abs(diff))} ⚠️`;
+        alert(`סגירת קופה — ${msg}`);
+        renderCashierDashboard(el);
+    };
+
+    const registerBtnHtml = isOpen
+        ? `<div class="flex gap-3 mb-4">
+            <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 text-center">
+                <div class="text-xs font-bold text-emerald-700">קופה פתוחה מ-${openTime}</div>
+                <div class="text-[10px] text-emerald-500">פתיחה: ${fmt(openFloat)}</div>
+            </div>
+            <button type="button" ontouchend="event.preventDefault();cashierCloseRegister();" onclick="cashierCloseRegister()" class="bg-red-600 text-white rounded-2xl px-5 font-black text-sm shadow active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">סגור קופה</button>
+          </div>`
+        : `<button type="button" ontouchend="event.preventDefault();cashierOpenRegister();" onclick="cashierOpenRegister()" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3" style="touch-action:manipulation;cursor:pointer;">
+            <i class="fa-solid fa-cash-register text-2xl"></i> פתח קופה
+          </button>`;
+
+    const payBreakdown = cashIn > 0 || cashOut > 0 ? `
+        <div class="px-4 py-2 grid grid-cols-2 gap-2 border-t border-slate-50">
+            <div class="text-center"><div class="text-sm font-black text-slate-700">${fmt(cashIn)}</div><div class="text-[9px] text-slate-400">מזומן</div></div>
+            <div class="text-center"><div class="text-sm font-black text-slate-700">${fmt(cashOut)}</div><div class="text-[9px] text-slate-400">אשראי/אחר</div></div>
+        </div>` : '';
 
     el.innerHTML = `
         ${roleDashboardHeader('💰','ממשק קופאי','מסוף קופה ועסקאות יומיות','from-emerald-500','to-green-600')}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
             <div class="grid grid-cols-2 divide-x divide-x-reverse divide-slate-100">
                 <div class="p-4 text-center">
-                    <div class="text-2xl font-black text-emerald-600">₪${todaySales.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
+                    <div class="text-2xl font-black text-emerald-600">${fmt(todaySales)}</div>
                     <div class="text-xs text-slate-500 mt-1">מכירות היום</div>
                 </div>
                 <div class="p-4 text-center">
@@ -23515,10 +23561,9 @@ async function renderCashierDashboard(el) {
                     <div class="text-xs text-slate-500 mt-1">עסקאות</div>
                 </div>
             </div>
+            ${payBreakdown}
         </div>
-        <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('pos','');" onclick="rdAction('pos','')" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3 touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-            <i class="fa-solid fa-cash-register text-2xl"></i> פתח קופה
-        </button>
+        ${registerBtnHtml}
         ${roleQuickActions([
             {icon:'💳', label:'עסקה חדשה', tab:'pos'},
             {icon:'🔄', label:'החזר', tab:'pos'},
@@ -23529,12 +23574,18 @@ async function renderCashierDashboard(el) {
 
 // --- 8. Shift Manager Dashboard ---
 async function renderShiftManagerDashboard(el) {
-    let clocked = [], members = [];
+    let clocked = [], members = [], todaySales = 0, txCount = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const isRestaurant = (currentGroup.business_type === 'restaurant' || currentGroup.business_type === 'cafe');
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); clocked = d.records||d.report||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
+    if (isRestaurant) {
+        try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+    }
 
     const present = clocked.filter(c => c.punch_in && !c.punch_out).length;
     const total = members.length;
+    const fmt = v => `₪${v.toLocaleString('he-IL',{maximumFractionDigits:0})}`;
 
     const memberRows = members.slice(0,6).map(m => {
         const isIn = clocked.find(c => c.user_id == m.id && c.punch_in && !c.punch_out);
@@ -23545,8 +23596,27 @@ async function renderShiftManagerDashboard(el) {
         </div>`;
     }).join('');
 
+    // Restaurant-specific: sales KPIs + table overview
+    const restaurantKpiHtml = isRestaurant ? `
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100">
+                <div class="text-lg font-black text-emerald-600">${fmt(todaySales)}</div>
+                <div class="text-[9px] text-emerald-500 font-bold">מכירות היום</div>
+            </div>
+            <div class="bg-blue-50 rounded-2xl p-3 text-center border border-blue-100">
+                <div class="text-lg font-black text-blue-600">${txCount}</div>
+                <div class="text-[9px] text-blue-500 font-bold">הזמנות</div>
+            </div>
+            <div class="bg-indigo-50 rounded-2xl p-3 text-center border border-indigo-100">
+                <div class="text-lg font-black text-indigo-600">${present}/${total}</div>
+                <div class="text-[9px] text-indigo-500 font-bold">נוכחות</div>
+            </div>
+        </div>
+        ${renderTableGrid()}` : '';
+
     el.innerHTML = `
         ${roleDashboardHeader('📋','ממשק מנהל משמרת','נוכחות צוות ואירועים בזמן אמת','from-indigo-600','to-blue-700')}
+        ${restaurantKpiHtml}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
             <div class="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center justify-between">
                 <h3 class="font-black text-indigo-800 text-sm">👥 נוכחות עכשיו</h3>
@@ -23558,15 +23628,11 @@ async function renderShiftManagerDashboard(el) {
         ${roleQuickActions([
             {icon:'⏱️', label:'נוכחות', tab:'timeclock'},
             {icon:'🗓️', label:'משמרות', tab:'shifts'},
-            {icon:'📢', label:'הודעה לצוות', action:'inbox'}
+            {icon:'💰', label:'מכירות', tab:'cashflow'}
         ])}
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-indigo-800">משימות משמרת</div><div class="text-[10px] text-indigo-500">רשימת פעולות</div></div>
-            </button>
-            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('members','');" onclick="rdAction('members','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>
-            </button>
+            ${rdBtn('tasks','','bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-indigo-800">משימות משמרת</div><div class="text-[10px] text-indigo-500">רשימת פעולות</div></div>')}
+            ${rdBtn('members','','bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
 }
@@ -23612,6 +23678,67 @@ async function renderBranchManagerDashboard(el) {
         ${roleFullMenuBtn()}`;
 }
 
+// ─── TABLE MANAGEMENT HELPERS ──────────────────────────────────────────────
+function getTableStates() {
+    try { return JSON.parse(localStorage.getItem(`tables_${currentGroup.id}`) || '{}'); } catch(e) { return {}; }
+}
+
+window.toggleTable = function(id, btn) {
+    const states = getTableStates();
+    const next = (states[id] || 'free') === 'free' ? 'occupied' : 'free';
+    states[id] = next;
+    localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
+    const isFree = next === 'free';
+    btn.className = `table-btn ${isFree?'bg-green-50 border-green-300 text-green-700':'bg-red-100 border-red-400 text-red-700'} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5`;
+    btn.style.cssText = 'touch-action:manipulation;cursor:pointer;';
+    btn.querySelector('.tsLabel').textContent = isFree ? 'פנוי' : 'תפוס';
+    // update summary row
+    const summary = btn.closest('.table-grid-card')?.querySelector('.table-summary');
+    if (summary) {
+        const count = parseInt(currentGroup.table_count || 8);
+        const st = getTableStates();
+        const occ = Array.from({length:count},(_,i)=>st[i+1]==='occupied').filter(Boolean).length;
+        summary.innerHTML = `<span class="text-green-600 font-bold">${count-occ} פנויים</span> <span class="text-slate-300">·</span> <span class="text-red-600 font-bold">${occ} תפוסים</span>`;
+    }
+};
+
+function renderTableGrid() {
+    const count = parseInt(currentGroup.table_count || 8);
+    const states = getTableStates();
+    const occupied = Array.from({length:count},(_,i)=>states[i+1]==='occupied').filter(Boolean).length;
+    const rows = Array.from({length:count},(_,i) => {
+        const id = i+1, isFree = (states[id]||'free') === 'free';
+        return `<button type="button"
+            ontouchend="event.preventDefault();event.stopPropagation();toggleTable(${id},this);"
+            onclick="toggleTable(${id},this)"
+            class="table-btn ${isFree?'bg-green-50 border-green-300 text-green-700':'bg-red-100 border-red-400 text-red-700'} border-2 rounded-xl p-2 text-center flex flex-col items-center gap-0.5"
+            style="touch-action:manipulation;cursor:pointer;">
+            <span class="font-black text-sm">${id}</span>
+            <span class="tsLabel text-[9px] font-bold">${isFree?'פנוי':'תפוס'}</span>
+        </button>`;
+    }).join('');
+    return `<div class="table-grid-card bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+        <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
+            <h3 class="font-black text-slate-800 text-sm">🍽️ מצב שולחנות</h3>
+            <span class="table-summary text-[10px]"><span class="text-green-600 font-bold">${count-occupied} פנויים</span> <span class="text-slate-300">·</span> <span class="text-red-600 font-bold">${occupied} תפוסים</span></span>
+        </div>
+        <div class="p-3 grid grid-cols-4 gap-2">${rows}</div>
+        <div class="px-4 pb-3 text-[10px] text-slate-400 text-center">לחץ על שולחן לשינוי סטטוס</div>
+    </div>`;
+}
+
+// ─── KDS HELPERS ────────────────────────────────────────────────────────────
+window.cookDoneOrder = function(txId, row) {
+    const key = `kds_done_${currentGroup.id}`;
+    try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
+    const el = row?.closest?.('.kds-ticket');
+    if (el) el.remove();
+    const container = document.getElementById('kds-container');
+    if (container && !container.querySelector('.kds-ticket')) {
+        container.innerHTML = '<p class="text-center text-slate-400 text-sm py-4">אין הזמנות ממתינות 🎉</p>';
+    }
+};
+
 // --- 10. Waiter Dashboard (מסעדה) ---
 async function renderWaiterDashboard(el) {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -23633,10 +23760,11 @@ async function renderWaiterDashboard(el) {
         </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">אין משימות פתוחות 🎉</p>`;
 
     el.innerHTML = `
-        ${roleDashboardHeader('🍽️','ממשק מלצר/ית','תפריט, שולחנות ומשימות משמרת','from-amber-500','to-orange-600')}
+        ${roleDashboardHeader('🍽️','ממשק מלצר/ית','שולחנות, תפריט ומשימות משמרת','from-amber-500','to-orange-600')}
+        ${renderTableGrid()}
         ${roleQuickActions([
-            {icon:'📋', label:'תפריט', tab:'sales'},
             {icon:'💰', label:'קופה', tab:'pos'},
+            {icon:'📋', label:'תפריט', tab:'sales'},
             {icon:'✅', label:'משימות', tab:'tasks'}
         ])}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
@@ -23660,8 +23788,19 @@ async function renderWaiterDashboard(el) {
 // --- 11. Cook Dashboard (מסעדה / ייצור מזון) ---
 async function renderCookDashboard(el) {
     const myTasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
-    let lowStock = [];
+    let lowStock = [], kdsTickets = [];
+    const today = new Date().toISOString().split('T')[0];
     try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
+    try {
+        const r = await fetch(`/api/transactions/${currentGroup.id}`);
+        const d = await r.json();
+        const doneKey = `kds_done_${currentGroup.id}`;
+        let done = [];
+        try { done = JSON.parse(localStorage.getItem(doneKey)||'[]'); } catch(e2) {}
+        kdsTickets = (d.transactions||[])
+            .filter(t => t.created_at?.startsWith(today) && t.amount > 0 && !done.includes(String(t.id)))
+            .slice(0,10);
+    } catch(e) {}
 
     const tasksHtml = myTasks.length ? myTasks.map(t => `
         <div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
@@ -23675,13 +23814,39 @@ async function renderCookDashboard(el) {
             <span class="text-xs font-bold text-red-600">${p.quantity} ${p.unit||'יח'}</span>
         </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">מלאי תקין 🎉</p>`;
 
+    const kdsHtml = kdsTickets.length ? kdsTickets.map(t => {
+        const timeStr = t.created_at ? new Date(t.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+        const items = t.items ? (Array.isArray(t.items) ? t.items : (()=>{try{return JSON.parse(t.items);}catch(e){return[];}})()) : [];
+        const itemsHtml = items.length ? items.map(i => `<div class="text-xs text-slate-700 py-0.5">• ${safeStr(i.name||i)} ${i.qty>1?`×${i.qty}`:''}</div>`).join('') : `<div class="text-xs text-slate-500">הזמנה #${t.id}</div>`;
+        return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
+                <span class="text-[10px] text-slate-400">${timeStr}</span>
+                <span class="text-sm font-black text-slate-700">₪${parseFloat(t.amount||0).toFixed(0)}</span>
+            </div>
+            ${itemsHtml}
+            <button type="button"
+                ontouchend="event.preventDefault();cookDoneOrder(${t.id},this);"
+                onclick="cookDoneOrder(${t.id},this)"
+                class="mt-2 w-full bg-green-500 text-white rounded-xl py-1.5 text-xs font-black active:scale-95 transition"
+                style="touch-action:manipulation;cursor:pointer;">✅ הכנה הושלמה</button>
+        </div>`;
+    }).join('') : '<p class="text-center text-slate-400 text-sm py-4">אין הזמנות ממתינות 🎉</p>';
+
     el.innerHTML = `
-        ${roleDashboardHeader('👨‍🍳','ממשק טבח/ית','מלאי, משימות מטבח ומשמרות','from-red-600','to-orange-700')}
+        ${roleDashboardHeader('👨‍🍳','ממשק טבח/ית','KDS, מלאי ומשימות מטבח','from-red-600','to-orange-700')}
         ${roleQuickActions([
             {icon:'📦', label:'מלאי', tab:'pantry'},
             {icon:'✅', label:'משימות', tab:'tasks'},
             {icon:'🗓️', label:'משמרות', tab:'shifts'}
         ])}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-orange-50 bg-orange-50/70 flex items-center justify-between">
+                <h3 class="font-black text-orange-700 text-sm">🍳 הזמנות ממתינות (KDS)</h3>
+                <span class="bg-orange-100 text-orange-600 text-xs font-black px-2 py-0.5 rounded-full">${kdsTickets.length}</span>
+            </div>
+            <div id="kds-container" class="p-3 grid grid-cols-2 gap-2">${kdsHtml}</div>
+        </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-red-50 bg-red-50/50 flex justify-between items-center">
                 <h3 class="font-black text-red-700 text-sm">🚨 חסרים במלאי</h3>
@@ -23691,7 +23856,7 @@ async function renderCookDashboard(el) {
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
-                <h3 class="font-black text-slate-800 text-sm">✅ משימות מטבח</h3>
+                <h3 class="font-black text-slate-800 text-sm">📋 רשימת הכנה יומית</h3>
                 ${rdBtn('tasks','','text-red-500 text-xs font-bold underline','הכל')}
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
