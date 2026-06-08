@@ -7585,7 +7585,7 @@ function openHMContactModal(id = null) {
                     <h3 id="hmcontact-modal-title" class="font-black text-slate-800 text-base">הוספת איש קשר לתיקון</h3>
                     <button onclick="getEl('hm-contact-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="p-5 space-y-3">
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
                     <input type="hidden" id="hmcontact-id">
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם *</label><input id="hmcontact-name" type="text" placeholder="למשל: יוסי האינסטלטור" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם חברה</label><input id="hmcontact-company" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>

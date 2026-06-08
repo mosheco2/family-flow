@@ -905,8 +905,14 @@
 
             <!-- ניהול הבית -->
             <div id="content-home-maintenance" class="hidden px-2 pb-4">
+                <!-- banner -->
+                <div class="bg-gradient-to-r from-slate-700 to-slate-900 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
+                    <h3 class="text-lg font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-house-chimney-crack"></i> ניהול הבית</h3>
+                    <p class="text-slate-300 text-xs opacity-90">נהלו את ציוד הבית, לוח התחזוקה וספר התקלות.</p>
+                    <i class="fa-solid fa-screwdriver-wrench absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
+                </div>
                 <!-- sub-tabs -->
-                <div class="flex gap-2 overflow-x-auto pb-1 pt-3 mb-3 scrollbar-hide">
+                <div class="flex gap-2 overflow-x-auto pb-1 mb-3 scrollbar-hide">
                     <button onclick="switchHomeMaintenanceTab('items')" id="hm-tab-items" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white shadow">🔧 ציוד</button>
                     <button onclick="switchHomeMaintenanceTab('maintenance')" id="hm-tab-maintenance" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200">📋 תחזוקה</button>
                     <button onclick="switchHomeMaintenanceTab('faults')" id="hm-tab-faults" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200">⚠️ תקלות</button>
