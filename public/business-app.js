@@ -19158,7 +19158,7 @@ window.showWaiterPOS = async function() {
         try {
             const r = await fetch(`/api/store/catalog/${currentGroup.id}`);
             const d = await r.json();
-            if (d.catalog) storeCatalogCache = d.catalog;
+            if (Array.isArray(d) && d.length) storeCatalogCache = d;
         } catch(e) {}
     }
 
@@ -19204,6 +19204,7 @@ window.showWaiterPOS = async function() {
         <div class="flex items-center gap-3 px-4 py-3 bg-amber-600 text-white shrink-0">
             <button ontouchend="event.preventDefault();waiterCloseModal();" onclick="waiterCloseModal()" class="text-white text-xl" style="touch-action:manipulation;"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="font-black text-base flex-1">🍽️ הזמנה לשולחן</h2>
+            <button id="waiter-reload-catalog-btn" ontouchend="event.preventDefault();waiterReloadCatalog(this);" onclick="waiterReloadCatalog(this)" class="text-[11px] font-bold bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg transition" style="touch-action:manipulation;" title="טען מוצרים"><i class="fa-solid fa-rotate"></i> טען</button>
             <span id="waiter-pos-table-label" class="text-sm font-black bg-white/20 px-3 py-1 rounded-lg">${window.waiterSelectedTable ? `שולחן ${window.waiterSelectedTable}` : 'בחר שולחן'}</span>
         </div>
         <div class="bg-amber-50 border-b border-amber-200 px-3 py-2 shrink-0">
@@ -19236,6 +19237,36 @@ window.showWaiterPOS = async function() {
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
     window.waiterRenderCart();
+};
+
+window.waiterReloadCatalog = async function(btn) {
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const r = await fetch(`/api/store/catalog/${currentGroup.id}`);
+        const d = await r.json();
+        if (Array.isArray(d) && d.length) {
+            storeCatalogCache = d;
+            const products = d.filter(p => p.is_active !== false);
+            const prodHtml = products.length ? products.map(p => {
+                const isComp = !!(p.is_complimentary);
+                const handler = isComp ? `waiterAddComplimentary(${p.id})` : `waiterAddItem(${p.id})`;
+                const border = isComp ? 'border-amber-200' : 'border-slate-200';
+                const icon = p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="${isComp?'fa-solid fa-gift text-amber-300':'fa-solid fa-utensils text-slate-300'} text-2xl"></i>`;
+                const priceLabel = isComp ? `<span class="text-[10px] font-black text-amber-600">ללא חיוב</span>` : `<span class="font-black text-indigo-600 text-sm">₪${parseFloat(p.price||0).toFixed(0)}</span>`;
+                const compBadge = isComp ? `<span class="absolute top-1 left-1 bg-amber-400 text-white text-[8px] font-black px-1 py-0.5 rounded z-10">🎁</span>` : '';
+                return `<div onclick="${handler}" class="bg-white rounded-xl border ${border} shadow-sm cursor-pointer active:scale-95 transition flex flex-col relative overflow-hidden" style="touch-action:manipulation;">${compBadge}<div class="h-16 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden">${icon}</div><div class="p-2 text-right flex-1 flex flex-col justify-between"><div class="text-xs font-bold text-slate-800 leading-tight line-clamp-2">${safeStr(p.name)}</div>${priceLabel}</div></div>`;
+            }).join('') : '<p class="col-span-3 text-center text-slate-400 text-sm py-6">אין מוצרים — הוסף מוצרים בניהול חנות</p>';
+            const grid = document.getElementById('waiter-prod-grid');
+            if (grid) grid.innerHTML = prodHtml;
+            showToast('success', `נטענו ${products.length} מוצרים`);
+        } else {
+            showToast('error', 'לא נמצאו מוצרים');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בטעינת מוצרים');
+    } finally {
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> טען';
+    }
 };
 
 window.waiterCloseModal = function() {
@@ -24684,6 +24715,7 @@ async function saveBusinessSettings() {
         currentGroup.business_type = typeId;
         currentGroup.table_count = tableCount;
         currentGroup.send_order_email = sendEmail;
+        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
