@@ -18940,9 +18940,10 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
         }
     } else if (compZone) { compZone.classList.add('hidden'); }
 
-    grid.innerHTML = products.filter(p => !p.is_complimentary).map(p => {
+    grid.innerHTML = products.map(p => {
+        const isComp = !!(p.is_complimentary);
         let isComplex = false;
-        if (p.options_text && p.options_text.length > 10) {
+        if (!isComp && p.options_text && p.options_text.length > 10) {
             try {
                 const parsed = JSON.parse(p.options_text);
                 if (Array.isArray(parsed) || parsed.isBundle || parsed.isPizza || parsed.isComplex || parsed.complexType) isComplex = true;
@@ -18999,16 +19000,20 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
             priceHtml = `<span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${originalPrice.toFixed(2)}</span>`;
         }
         
+        const clickHandler = isComp ? `window.addPOSComplimentary(${p.id})` : `window.addPOSItem(${p.id})`;
+        const compBadge = isComp ? `<span class="absolute top-3 left-3 bg-amber-400 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-20">🎁 חינם</span>` : '';
+        const cardBorder = isComp ? 'border-amber-200 hover:border-amber-400' : 'border-slate-200 hover:border-indigo-400';
         return `
-        <div onclick="window.addPOSItem(${p.id})" class="bg-white rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full">
+        <div onclick="${clickHandler}" class="bg-white rounded-3xl border ${cardBorder} shadow-sm cursor-pointer hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full" style="touch-action:manipulation;">
             ${badgesHtml}
+            ${compBadge}
             ${isComplex ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-20"><i class="fa-solid fa-layer-group ml-1"></i>הרכבה</span>` : ''}
             <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden relative z-0">
-                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-utensils text-3xl text-slate-300"></i>`}
+                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="${isComp ? 'fa-solid fa-gift text-amber-300' : 'fa-solid fa-utensils text-slate-300'} text-3xl"></i>`}
             </div>
             <div class="p-4 flex-1 flex flex-col justify-between text-right">
                 <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
-                ${priceHtml}
+                ${isComp ? `<span class="text-xs font-black text-amber-600">ללא חיוב → בחר שולחן</span>` : priceHtml}
             </div>
         </div>`;
     }).join('');
@@ -24240,10 +24245,17 @@ async function saveBusinessSettings() {
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
-        // Re-render role dashboard if currently visible (refreshes table count etc.)
+        // Update any visible table grids directly
+        document.querySelectorAll('.table-grid-card').forEach(card => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = renderTableGrid();
+            card.replaceWith(tmp.firstElementChild);
+        });
+        // Re-render role dashboard if currently visible
         const dashEl = document.getElementById('content-role-dashboard');
-        if (dashEl && !dashEl.classList.contains('hidden') && currentUser?.employee_role_type) {
-            setTimeout(() => showRoleDashboard(currentUser.employee_role_type), 100);
+        if (dashEl && !dashEl.classList.contains('hidden')) {
+            const roleType = currentUser?.employee_role_type;
+            if (roleType) setTimeout(() => showRoleDashboard(roleType), 100);
         }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 }
