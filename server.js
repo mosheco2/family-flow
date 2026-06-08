@@ -557,6 +557,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_role_type VARCHAR(50)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS kitchen_station VARCHAR(30) DEFAULT 'other'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS send_order_email BOOLEAN DEFAULT true`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -4076,8 +4077,8 @@ app.post('/api/store/orders', async (req, res) => {
             } catch(e) {}
         }, 100);
         
-        const gRes = await pool.query('SELECT admin_email, name FROM family_groups WHERE id=$1', [groupId]);
-        if(gRes.rows.length > 0 && gRes.rows[0].admin_email) {
+        const gRes = await pool.query('SELECT admin_email, name, send_order_email FROM family_groups WHERE id=$1', [groupId]);
+        if(gRes.rows.length > 0 && gRes.rows[0].admin_email && gRes.rows[0].send_order_email !== false) {
             const deliveryHtml = isDeliv ? `<p style="margin-top: 10px; padding: 10px; background: #e0e7ff; border-radius: 8px;"><strong>כתובת למשלוח:</strong> ${deliveryDetails?.street || ''} ${deliveryDetails?.house || ''}, ${deliveryDetails?.city || ''}</p>` : '';
             const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
                 <h2 style="color:#0f172a;">הזמנה חדשה בחנות שלך! 🛍️</h2>
@@ -8637,10 +8638,10 @@ app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
 
 app.patch('/api/groups/:id/business-settings', async (req, res) => {
     try {
-        const { business_type, licensed_features, table_count } = req.body;
+        const { business_type, licensed_features, table_count, send_order_email } = req.body;
         await pool.query(
-            'UPDATE family_groups SET business_type=$1, licensed_features=$2, table_count=$3 WHERE id=$4',
-            [business_type || 'other', JSON.stringify(licensed_features || {}), parseInt(table_count) || 8, req.params.id]
+            'UPDATE family_groups SET business_type=$1, licensed_features=$2, table_count=$3, send_order_email=$4 WHERE id=$5',
+            [business_type || 'other', JSON.stringify(licensed_features || {}), parseInt(table_count) || 8, send_order_email !== false, req.params.id]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
