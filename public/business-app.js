@@ -3310,7 +3310,7 @@ window.changeFeedPage = function(direction) {
 const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members'],
     sales:     ['pos','sales','customers','deliveries'],
-    inventory: ['shop','pantry','foodcost'],
+    inventory: ['shop','pantry','equipment','foodcost'],
     finance:   ['bank','cashflow','budget','forecast'],
     more:      ['community','surveys']
 };

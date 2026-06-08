@@ -646,6 +646,7 @@
                     <div id="gnav-dropdown-inventory" class="hidden bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 z-[9999] min-w-[160px]" onclick="event.stopPropagation()">
                       <button onclick="switchTab('shop');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-shop">🛒 רכש וספקים</button>
                       <button onclick="switchTab('pantry');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pantry">📦 מלאי מחסן</button>
+                      <button onclick="switchTab('equipment');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-equipment">🔧 תחזוקת ציוד</button>
                       <button onclick="switchTab('foodcost');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-foodcost">🍽️ פוד קוסט</button>
                     </div>
                   </div>
@@ -3428,7 +3429,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=77" defer></script>
+    <script src="business-app.js?v=78" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
