@@ -19120,6 +19120,24 @@ window.markReadyDelivered = function(orderId) {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ orderId, status: 'completed' })
     }).catch(() => {});
+    // Sync delivered state into table_bills so waiter POS shows ✓
+    try {
+        const bills = getTableBills();
+        let changed = false;
+        Object.values(bills).forEach(bill => {
+            (bill.submitted || []).forEach(item => {
+                if (String(item.orderId) === String(orderId) && !item.delivered) {
+                    item.delivered = true;
+                    item.deliveredAt = new Date().toISOString();
+                    changed = true;
+                }
+            });
+        });
+        if (changed) saveTableBills(bills);
+    } catch(e) {}
+    // Refresh waiter POS cart if open
+    if (document.getElementById('waiter-pos-modal')) window.waiterRenderCart();
+    // Re-render role dashboard (removes the order from the ready list)
     const dashEl = document.getElementById('content-role-dashboard');
     if (dashEl) {
         const rt = currentUser?.employee_role_type;
@@ -19208,7 +19226,7 @@ window.showWaiterPOS = async function() {
             <span id="waiter-pos-table-label" class="text-sm font-black bg-white/20 px-3 py-1 rounded-lg">${window.waiterSelectedTable ? `שולחן ${window.waiterSelectedTable}` : 'בחר שולחן'}</span>
         </div>
         <div class="bg-amber-50 border-b border-amber-200 px-3 py-2 shrink-0">
-            <div id="waiter-table-chips" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width:none;">${tableBtns}</div>
+            <div id="waiter-table-chips" class="flex flex-wrap gap-2 pb-1 max-h-28 overflow-y-auto" style="scrollbar-width:thin;">${tableBtns}</div>
         </div>
         <div class="flex-1 flex overflow-hidden">
             <div class="flex-1 overflow-y-auto p-3 bg-slate-50">
@@ -24226,7 +24244,9 @@ async function renderShiftManagerDashboard(el) {
                 smPendingReady = od.filter(o => o.status === 'ready').map(o => {
                     let tableNum = null;
                     try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
-                    return { orderId: o.id, tableNum };
+                    let items = [];
+                    try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+                    return { orderId: o.id, tableNum, items };
                 });
             }
         } catch(e) {}
@@ -24238,9 +24258,15 @@ async function renderShiftManagerDashboard(el) {
             </div>
             <div class="px-4 py-1">${smPendingReady.slice(0,6).map(r=>{
                 const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
-                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                    <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg">${tbl}</span>
-                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg mr-auto" style="touch-action:manipulation;">סופק ✓</button>
+                const dishList = (r.items||[]).map(i => {
+                    const nm = i.name || (storeCatalogCache||[]).find(c=>String(c.id)===String(i.catalogId))?.name || '';
+                    const qty = (i.quantity||i.qty||1);
+                    return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
+                }).filter(Boolean).join(', ');
+                return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
+                    <span class="text-xs text-slate-700 flex-1">${safeStr(dishList) || `הזמנה #${r.orderId}`}</span>
+                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-2 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
                 </div>`;
             }).join('')}</div>
         </div>` : '';
@@ -24384,13 +24410,20 @@ window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
     if (checkbox.checked) { if (!done.includes(itemIdx)) done.push(itemIdx); }
     else { done = done.filter(i => i !== itemIdx); }
     localStorage.setItem(key, JSON.stringify(done));
-    // Update label styling
+    // Update label styling for the triggering checkbox
     const label = checkbox.closest('label');
     if (label) { label.classList.toggle('opacity-40', checkbox.checked); label.classList.toggle('line-through', checkbox.checked); }
-    // Update progress text
+    // Sync the same item in the other view (bon modal ↔ compact KDS ticket)
+    document.querySelectorAll(`input[type=checkbox][data-tx="${txId}"][data-idx="${itemIdx}"]`).forEach(cb => {
+        if (cb === checkbox) return;
+        cb.checked = checkbox.checked;
+        const lbl = cb.closest('label');
+        if (lbl) { lbl.classList.toggle('opacity-40', checkbox.checked); lbl.classList.toggle('line-through', checkbox.checked); }
+    });
+    // Update progress text in compact KDS ticket
     const prog = document.querySelector(`.kds-progress-${txId}`);
     if (prog) prog.textContent = `${done.length}/${totalItems} מוכנים`;
-    // Enable/disable done button
+    // Enable/disable done button in compact KDS ticket
     const btn = document.getElementById(`kds-done-btn-${txId}`);
     if (btn) {
         const allDone = done.length >= totalItems && totalItems > 0;
@@ -24537,9 +24570,10 @@ async function renderWaiterDashboard(el) {
         const od = await or.json();
         if (Array.isArray(od)) {
             pendingReady = od.filter(o => o.status === 'ready').map(o => {
-                let tableNum = null;
+                let tableNum = null, items = [];
                 try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
-                return { orderId: o.id, tableNum, time: o.created_at };
+                try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata); } catch(e3) {}
+                return { orderId: o.id, tableNum, time: o.created_at, items };
             });
         }
     } catch(e) {}
@@ -24587,10 +24621,18 @@ async function renderWaiterDashboard(el) {
             <div class="px-4 py-1">${pendingReady.slice(0,8).map(r=>{
                 const tStr = r.time ? new Date(r.time).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
                 const tbl = r.tableNum ? `שולחן ${r.tableNum}` : `הזמנה #${r.orderId}`;
-                return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
-                    <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">${tbl}</span>
-                    <span class="text-[10px] text-slate-400 flex-1">${tStr}</span>
-                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg" style="touch-action:manipulation;">סופק ✓</button>
+                const dishList = (r.items||[]).map(i => {
+                    const nm = i.name || (storeCatalogCache||[]).find(c=>String(c.id)===String(i.catalogId))?.name || '';
+                    const qty = (i.quantity||i.qty||1);
+                    return nm ? (qty > 1 ? `${nm} ×${qty}` : nm) : null;
+                }).filter(Boolean).join(', ');
+                return `<div class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+                    <span class="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0 mt-0.5">${tbl}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-slate-700 leading-tight">${safeStr(dishList) || tStr}</div>
+                        ${dishList && tStr ? `<div class="text-[9px] text-slate-400">${tStr}</div>` : ''}
+                    </div>
+                    <button ontouchend="event.preventDefault();markReadyDelivered(${r.orderId});" onclick="markReadyDelivered(${r.orderId})" class="bg-green-600 text-white text-xs font-black px-3 py-1 rounded-lg shrink-0" style="touch-action:manipulation;">סופק ✓</button>
                 </div>`;
             }).join('')}</div>
         </div>` : '';
@@ -24700,7 +24742,7 @@ async function renderCookDashboard(el) {
                 const isDone = itemsDone.includes(idx);
                 const itemName = i.name || (storeCatalogCache||[]).find(c => String(c.id) === String(i.catalogId))?.name || (i.catalogId ? `מוצר #${i.catalogId}` : '?');
                 return `<label class="flex items-center gap-2 py-1 cursor-pointer ${isDone?'opacity-40 line-through':''}" style="touch-action:manipulation;">
-                    <input type="checkbox" ${isDone?'checked':''} onchange="kdsItemCheck(${t.id},${idx},this,${totalItems})"
+                    <input type="checkbox" ${isDone?'checked':''} data-tx="${t.id}" data-idx="${idx}" onchange="kdsItemCheck(${t.id},${idx},this,${totalItems})"
                         class="w-4 h-4 rounded accent-green-600 shrink-0" style="touch-action:manipulation;">
                     <span class="text-xs font-bold text-slate-800">${safeStr(itemName)} ${(i.quantity||i.qty||1)>1?`<span class="text-amber-600">×${i.quantity||i.qty}</span>`:''}${i.note?` <span class="text-slate-400 font-normal">(${safeStr(i.note)})</span>`:''}</span>
                 </label>`;
