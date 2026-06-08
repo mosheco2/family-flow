@@ -8067,14 +8067,35 @@ app.get('/c/po/:id/:token', async (req, res) => {
         if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
         const order = r.rows[0];
         const alreadyDone = !!order.supplier_confirmed_at;
+        if (alreadyDone) {
+            return res.send(confirmationPage(`הזמנה #${order.id} אושרה!`, `תודה ${order.supplier_name || 'ספק'} — ההזמנה כבר אושרה בעבר.`, true));
+        }
+        // Show a confirmation page with a button — do NOT auto-confirm on GET
+        // (WhatsApp link-preview bots do GET requests, auto-confirming on GET is a bug)
+        res.send(`<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>אישור הזמנת רכש #${order.id}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#fff;border-radius:24px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:380px;width:100%}.icon{font-size:56px;margin-bottom:16px}.title{font-size:20px;font-weight:900;color:#1e293b;margin-bottom:8px}.sub{font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px}button{background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;width:100%}button:active{opacity:.85}</style></head>
+<body><div class="card">
+<div class="icon">📦</div>
+<h1 class="title">הזמנת רכש #${order.id}</h1>
+<p class="sub">מ: ${(order.supplier_name||'').replace(/[<>]/g,'')} קיבלתם הזמנת רכש חדשה.<br>לחצו לאישור הקבלה:</p>
+<form method="POST" action="/c/po/${order.id}/${req.params.token}">
+<button type="submit">✅ אישור קבלת ההזמנה</button>
+</form>
+</div></body></html>`);
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+app.post('/c/po/:id/:token', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT po.*, s.name as supplier_name FROM purchase_orders po LEFT JOIN suppliers s ON po.supplier_id=s.id WHERE po.id=$1 AND po.confirm_token=$2', [req.params.id, req.params.token]);
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף</h2>');
+        const order = r.rows[0];
+        const alreadyDone = !!order.supplier_confirmed_at;
         if (!alreadyDone) {
             await pool.query('UPDATE purchase_orders SET supplier_confirmed_at=NOW() WHERE id=$1', [req.params.id]);
         }
-        res.send(confirmationPage(
-            `הזמנה #${order.id} התקבלה!`,
-            `תודה ${order.supplier_name || 'ספק'} על אישור קבלת הזמנת הרכש.\nנפנה אליכם בכל שאלה.`,
-            alreadyDone
-        ));
+        res.send(confirmationPage(`הזמנה #${order.id} התקבלה!`, `תודה ${order.supplier_name || 'ספק'} על אישור קבלת הזמנת הרכש.\nנפנה אליכם בכל שאלה.`, alreadyDone));
     } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
 });
 

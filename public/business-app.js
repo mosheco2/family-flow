@@ -11507,7 +11507,7 @@ function renderB2BOrders() {
         html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
             <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)} <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100">#${o.id}</span></h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
                     ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')} • ${new Date(o.supplier_confirmed_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span>` : ''}
                 </div>
