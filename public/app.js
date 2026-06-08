@@ -7026,7 +7026,7 @@ function switchHomeMaintenanceTab(tab) {
     ['items','maintenance','faults','contacts'].forEach(t => {
         const v = getEl(`hm-view-${t}`); if (v) v.classList.toggle('hidden', t !== tab);
         const b = getEl(`hm-tab-${t}`);
-        if (b) b.className = `shrink-0 px-4 py-2 rounded-xl text-xs font-bold ${t === tab ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-500 border border-slate-200'}`;
+        if (b) b.className = `flex-1 py-2 text-xs font-bold rounded-xl transition ${t === tab ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`;
     });
     if (tab === 'items') renderHMItems();
     if (tab === 'maintenance') renderHMMaintenance();
