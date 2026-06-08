@@ -19316,8 +19316,13 @@ window.waiterSetNote = function(idx, val) {
 };
 
 window.waiterClearPending = function() {
+    if (!window.waiterPOSCart.length) {
+        showToast('info', 'אין פריטים חדשים לניקוי');
+        return;
+    }
     window.waiterPOSCart = [];
     window.waiterRenderCart();
+    showToast('success', 'פריטים חדשים נוקו ✓');
 };
 
 window.waiterMarkDelivered = function(tableId, subIdx) {
@@ -24383,59 +24388,98 @@ window.kdsShowBon = function(txId) {
     const ticket = document.getElementById(`kds-ticket-${txId}`);
     if (!ticket) return;
     const tableNum = ticket.dataset.tableNum || '';
-    const timeEl = ticket.querySelector('.text-\\[10px\\].text-slate-400');
-    const timeStr = timeEl?.textContent || '';
-    // Collect items from KDS data
-    const expandEl = document.getElementById(`kds-expand-${txId}`);
-    const stationsEl = ticket.querySelectorAll('.rounded-xl.border.mb-1\\.5');
+
+    // Pull labels directly from the KDS ticket (already rendered with correct names + globalIdx)
+    const labels = ticket.querySelectorAll('label');
+    const totalItems = labels.length;
+    const itemDoneKey = `kds_items_${currentGroup.id}_${txId}`;
+    let itemsDone = [];
+    try { itemsDone = JSON.parse(localStorage.getItem(itemDoneKey) || '[]'); } catch(e2) {}
+
+    // Build bon HTML with real interactive checkboxes mirroring the KDS ticket
+    const KDS_STATIONS = [
+        { id:'hot',    label:'🔥 פס חם',    border:'border-red-400',    hdr:'bg-red-100 text-red-800' },
+        { id:'cold',   label:'❄️ פס קר',    border:'border-blue-400',   hdr:'bg-blue-100 text-blue-800' },
+        { id:'drinks', label:'🥤 שתיה',     border:'border-purple-400', hdr:'bg-purple-100 text-purple-800' },
+        { id:'bread',  label:'🍞 לחמים',    border:'border-yellow-400', hdr:'bg-yellow-100 text-yellow-800' },
+        { id:'other',  label:'📋 אחר',      border:'border-slate-400',  hdr:'bg-slate-100 text-slate-700' },
+    ];
+    // Group labels by their station section (parent div header)
+    const stationBlocks = {};
+    ticket.querySelectorAll('.rounded-xl.border.mb-1\\.5').forEach(sec => {
+        const hdrText = sec.querySelector('div:first-child')?.textContent?.trim() || '';
+        const st = KDS_STATIONS.find(s => hdrText.startsWith(s.label.slice(0,2)) || hdrText.includes(s.id)) || KDS_STATIONS[4];
+        if (!stationBlocks[st.id]) stationBlocks[st.id] = { st, labels: [] };
+        let localIdx = 0;
+        sec.querySelectorAll('label').forEach(l => {
+            const cb = l.querySelector('input[type=checkbox]');
+            const idx = cb ? parseInt(cb.getAttribute('onchange')?.match(/,(\d+),/)?.[1] ?? localIdx) : localIdx;
+            const span = l.querySelector('span');
+            stationBlocks[st.id].labels.push({ idx, text: span?.innerHTML || '', isDone: itemsDone.includes(idx) });
+            localIdx++;
+        });
+    });
+
     let bonHtml = '';
-    stationsEl.forEach(stEl => {
-        const hdr = stEl.querySelector('div:first-child');
-        const items = stEl.querySelectorAll('label');
-        if (!items.length) return;
-        bonHtml += `<div class="mb-3 rounded-xl overflow-hidden border-2 ${hdr?.className?.includes('red')?'border-red-300':hdr?.className?.includes('blue')?'border-blue-300':hdr?.className?.includes('purple')?'border-purple-300':hdr?.className?.includes('yellow')?'border-yellow-300':'border-slate-300'}">
-            <div class="${hdr?.className||'bg-slate-100'} px-3 py-1.5 text-sm font-black">${hdr?.textContent||''}</div>
-            <div class="px-3 py-2 bg-white space-y-1">${Array.from(items).map(l=>{
-                const span = l.querySelector('span');
-                const cb = l.querySelector('input');
-                const isDone = cb?.checked;
-                return `<div class="flex items-center gap-2 py-1 border-b border-slate-50 last:border-0 ${isDone?'opacity-40 line-through':''}">
-                    <span class="w-2 h-2 rounded-full shrink-0 ${isDone?'bg-green-500':'bg-orange-400'}"></span>
-                    <span class="text-base font-bold text-slate-800">${span?.innerHTML||''}</span>
-                </div>`;
-            }).join('')}</div>
+    KDS_STATIONS.forEach(s => {
+        const block = stationBlocks[s.id];
+        if (!block?.labels?.length) return;
+        bonHtml += `<div class="mb-4 rounded-2xl overflow-hidden border-2 ${s.border}">
+            <div class="px-4 py-2 text-sm font-black ${s.hdr}">${s.label}</div>
+            <div class="bg-white divide-y divide-slate-50">${block.labels.map(item => `
+                <label class="flex items-center gap-3 px-4 py-3 cursor-pointer ${item.isDone?'opacity-40':''}" style="touch-action:manipulation;">
+                    <input type="checkbox" ${item.isDone?'checked':''} data-tx="${txId}" data-idx="${item.idx}"
+                        onchange="kdsItemCheck(${txId},${item.idx},this,${totalItems});kdsUpdateBonProgress(${txId})"
+                        class="w-5 h-5 rounded accent-green-600 shrink-0" style="touch-action:manipulation;">
+                    <span class="text-base font-bold text-slate-800 flex-1">${item.text}</span>
+                </label>`).join('')}
+            </div>
         </div>`;
     });
-    const elapsedMs = Date.now() - (ticket._openedAt || Date.now());
-    ticket._openedAt = ticket._openedAt || Date.now();
+
+    const doneCount = itemsDone.length;
+    const allDone = doneCount >= totalItems && totalItems > 0;
+    const timeStr = ticket.querySelector('.text-\\[10px\\].text-slate-400')?.textContent || '';
+
     document.getElementById('kds-bon-modal')?.remove();
     const bonModal = `<div id="kds-bon-modal" class="fixed inset-0 bg-black/80 z-[9998] flex flex-col" style="direction:rtl;">
         <div class="bg-red-700 text-white px-4 py-3 flex items-center justify-between shrink-0">
             <button ontouchend="event.preventDefault();document.getElementById('kds-bon-modal')?.remove();" onclick="document.getElementById('kds-bon-modal')?.remove()" class="text-white text-xl" style="touch-action:manipulation;"><i class="fa-solid fa-xmark"></i></button>
             <div class="text-center flex-1">
-                <div class="text-2xl font-black">🎫 בון הזמנה #${txId}</div>
-                ${tableNum ? `<div class="text-base font-bold opacity-90">שולחן ${tableNum}</div>` : ''}
+                <div class="text-xl font-black">🎫 בון הזמנה #${txId}</div>
+                ${tableNum ? `<div class="text-sm font-bold opacity-90">שולחן ${tableNum}</div>` : ''}
             </div>
-            <div class="text-right text-sm opacity-80">${timeStr}</div>
+            <div class="text-sm opacity-80">${timeStr}</div>
         </div>
         <div class="flex-1 overflow-y-auto p-4 bg-amber-50">
             ${bonHtml || '<p class="text-center text-slate-400 py-8">אין פריטים</p>'}
         </div>
-        <div class="bg-white px-4 py-3 border-t border-slate-200 shrink-0">
-            <div id="kds-bon-progress-${txId}" class="text-center text-sm font-bold text-slate-600 mb-2"></div>
+        <div class="bg-white px-4 py-4 border-t border-slate-200 shrink-0">
+            <div id="kds-bon-prog-${txId}" class="text-center text-sm font-bold text-slate-500 mb-3">${doneCount}/${totalItems} מוכנים</div>
             <button type="button" id="kds-bon-done-btn-${txId}"
                 ontouchend="event.preventDefault();cookDoneOrder(${txId},document.getElementById('kds-ticket-${txId}'));document.getElementById('kds-bon-modal')?.remove();"
                 onclick="cookDoneOrder(${txId},document.getElementById('kds-ticket-${txId}'));document.getElementById('kds-bon-modal')?.remove();"
-                class="w-full bg-green-600 text-white rounded-xl py-4 font-black text-base active:scale-95 transition shadow-lg" style="touch-action:manipulation;">
-                ✅ הכנה הושלמה — שלח למלצר
-            </button>
+                class="w-full rounded-xl py-4 font-black text-base active:scale-95 transition shadow-lg ${allDone?'bg-green-600 text-white':'bg-slate-200 text-slate-500'}"
+                ${allDone?'':'disabled'}
+                style="touch-action:manipulation;">✅ הכנה הושלמה — שלח למלצר</button>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', bonModal);
-    // sync progress
-    const progEl = document.getElementById(`kds-bon-progress-${txId}`);
-    const progSrc = document.querySelector(`.kds-progress-${txId}`);
-    if (progEl && progSrc) progEl.textContent = progSrc.textContent;
+};
+
+window.kdsUpdateBonProgress = function(txId) {
+    const key = `kds_items_${currentGroup.id}_${txId}`;
+    let done = [];
+    try { done = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+    const totalItems = document.querySelectorAll(`#kds-bon-modal input[data-tx="${txId}"]`).length;
+    const progEl = document.getElementById(`kds-bon-prog-${txId}`);
+    if (progEl) progEl.textContent = `${done.length}/${totalItems} מוכנים`;
+    const btn = document.getElementById(`kds-bon-done-btn-${txId}`);
+    const allDone = done.length >= totalItems && totalItems > 0;
+    if (btn) {
+        btn.disabled = !allDone;
+        btn.className = `w-full rounded-xl py-4 font-black text-base active:scale-95 transition shadow-lg ${allDone?'bg-green-600 text-white':'bg-slate-200 text-slate-500'}`;
+    }
 };
 
 window.cookDoneOrder = function(txId, row) {
@@ -24835,21 +24879,19 @@ async function saveBusinessSettings() {
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
-        // Re-render role dashboard always — for table count to refresh
+        // Immediately update any visible table grids
+        document.querySelectorAll('.table-grid-card').forEach(card => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = renderTableGrid();
+            card.replaceWith(tmp.firstElementChild);
+        });
+        // Re-render role dashboard (async — updates summary counts etc.)
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
+        if (roleToRefresh) showRoleDashboard(roleToRefresh);
+        // Re-open waiter POS with new table count if it was open
         setTimeout(() => {
-            if (roleToRefresh) {
-                showRoleDashboard(roleToRefresh);
-            } else {
-                document.querySelectorAll('.table-grid-card').forEach(card => {
-                    const tmp = document.createElement('div');
-                    tmp.innerHTML = renderTableGrid();
-                    card.replaceWith(tmp.firstElementChild);
-                });
-            }
-            // Also refresh waiter POS if open
             if (document.getElementById('waiter-pos-modal')) window.showWaiterPOS();
-        }, 150);
+        }, 100);
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 }
 

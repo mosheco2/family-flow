@@ -3998,12 +3998,48 @@ app.get('/api/store/commission-summary/:groupId', async (req, res) => {
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
         const orders = await pool.query("SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC", [req.params.groupId]);
+        // Enrich items: prefer JSONB items (have name/catalogId), fall back to store_order_items rows
+        const catRes = await pool.query('SELECT id, name, kitchen_station FROM store_catalog WHERE group_id=$1', [req.params.groupId]);
+        const catMap = {};
+        catRes.rows.forEach(p => { catMap[p.id] = p; });
+
         for (let o of orders.rows) {
-            const items = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
-            if (items.rows.length > 0) {
-                o.items = items.rows;
+            let jsonbItems = [];
+            try { jsonbItems = Array.isArray(o.items) ? o.items : JSON.parse(o.items || '[]'); } catch(e) {}
+            const hasNames = jsonbItems.filter(i => !i.is_quote_metadata).some(i => i.name);
+
+            if (!hasNames) {
+                // Try store_order_items (use normalized field names)
+                const rows = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
+                if (rows.rows.length > 0) {
+                    const sqlItems = rows.rows.map(r => ({
+                        catalogId: r.catalog_id,
+                        name: r.item_name || catMap[r.catalog_id]?.name || '',
+                        quantity: parseFloat(r.quantity) || 1,
+                        qty: parseFloat(r.quantity) || 1,
+                        price: parseFloat(r.price_at_order) || 0,
+                        kitchenStation: catMap[r.catalog_id]?.kitchen_station || 'other',
+                        note: ''
+                    }));
+                    // Keep metadata items from JSONB
+                    const meta = jsonbItems.filter(i => i.is_quote_metadata);
+                    o.items = [...sqlItems, ...meta];
+                } else {
+                    // No store_order_items — enrich JSONB items from catalog
+                    o.items = jsonbItems.map(i => {
+                        if (i.is_quote_metadata) return i;
+                        const cat = i.catalogId ? catMap[i.catalogId] : null;
+                        return { ...i, name: i.name || cat?.name || '', kitchenStation: i.kitchenStation || cat?.kitchen_station || 'other' };
+                    });
+                }
+            } else {
+                // JSONB has names — still enrich station if missing
+                o.items = jsonbItems.map(i => {
+                    if (i.is_quote_metadata) return i;
+                    const cat = i.catalogId ? catMap[i.catalogId] : null;
+                    return { ...i, kitchenStation: i.kitchenStation || cat?.kitchen_station || 'other' };
+                });
             }
-            // else: keep JSONB items as-is (quote-converted orders store items in JSONB column)
         }
         res.json(orders.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
