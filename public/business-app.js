@@ -19115,11 +19115,11 @@ window.markServiceReqDone = function(reqId) {
 };
 
 window.markReadyDelivered = function(orderId) {
-    const key = `kds_ready_${currentGroup.id}`;
-    let list = [];
-    try { list = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e) {}
-    const item = list.find(r => String(r.orderId) === String(orderId));
-    if (item) { item.delivered = true; localStorage.setItem(key, JSON.stringify(list)); }
+    // Mark order as completed on server
+    fetch('/api/store/orders/status', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ orderId, status: 'completed' })
+    }).catch(() => {});
     const dashEl = document.getElementById('content-role-dashboard');
     if (dashEl) {
         const rt = currentUser?.employee_role_type;
@@ -24127,6 +24127,15 @@ async function renderCashierDashboard(el) {
 async function renderShiftManagerDashboard(el) {
     let clocked = [], members = [], todaySales = 0, txCount = 0;
     const today = new Date().toISOString().split('T')[0];
+    // Refresh group settings (catches admin changes from other devices)
+    try {
+        const sr = await fetch(`/api/groups/${currentGroup.id}/settings`);
+        const sd = await sr.json();
+        if (sd && sd.table_count) {
+            currentGroup.table_count = parseInt(sd.table_count);
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+        }
+    } catch(e) {}
     const isRestaurant = (currentGroup.business_type === 'restaurant' || currentGroup.business_type === 'cafe');
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); clocked = d.records||d.report||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
@@ -24208,9 +24217,20 @@ async function renderShiftManagerDashboard(el) {
                 </div>`).join('')}</div>
         </div>` : '';
 
-    let smReadyList = [];
-    try { smReadyList = JSON.parse(localStorage.getItem(`kds_ready_${currentGroup.id}`)||'[]'); } catch(e) {}
-    const smPendingReady = smReadyList.filter(r => !r.delivered);
+    let smPendingReady = [];
+    if (isRestaurant) {
+        try {
+            const or = await fetch(`/api/store/orders/${currentGroup.id}`);
+            const od = await or.json();
+            if (Array.isArray(od)) {
+                smPendingReady = od.filter(o => o.status === 'ready').map(o => {
+                    let tableNum = null;
+                    try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                    return { orderId: o.id, tableNum };
+                });
+            }
+        } catch(e) {}
+    }
     const smReadyHtml = isRestaurant && smPendingReady.length ? `
         <div class="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
             <div class="px-4 py-3 border-b border-green-100 bg-green-50/60">
@@ -24485,19 +24505,11 @@ window.kdsUpdateBonProgress = function(txId) {
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
     try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
-    // Save to "ready for pickup" queue for waiters
-    try {
-        const ticket = row?.closest?.('.kds-ticket');
-        const readyKey = `kds_ready_${currentGroup.id}`;
-        let readyList = [];
-        try { readyList = JSON.parse(localStorage.getItem(readyKey)||'[]'); } catch(e2) {}
-        // Find table from kds ticket (look for table in dom or from order note)
-        const ticketEl = document.getElementById(`kds-ticket-${txId}`);
-        const tableNum = ticketEl?.dataset?.tableNum || null;
-        readyList.unshift({ orderId: txId, tableNum, time: new Date().toISOString(), delivered: false });
-        readyList = readyList.slice(0, 30);
-        localStorage.setItem(readyKey, JSON.stringify(readyList));
-    } catch(e) {}
+    // Mark order as ready on server so waiter dashboard picks it up cross-device
+    fetch('/api/store/orders/status', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ orderId: txId, status: 'ready' })
+    }).catch(() => {});
     const el = row?.closest?.('.kds-ticket');
     if (el) el.remove();
     const container = document.getElementById('kds-container');
@@ -24508,6 +24520,30 @@ window.cookDoneOrder = function(txId, row) {
 
 // --- 10. Waiter Dashboard (מסעדה) ---
 async function renderWaiterDashboard(el) {
+    // Refresh group settings from server so admin changes (table count etc.) are reflected
+    try {
+        const sr = await fetch(`/api/groups/${currentGroup.id}/settings`);
+        const sd = await sr.json();
+        if (sd && sd.table_count) {
+            currentGroup.table_count = parseInt(sd.table_count);
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+        }
+    } catch(e) {}
+
+    // Fetch ready orders from server (cross-device: cook marks ready on their device)
+    let pendingReady = [];
+    try {
+        const or = await fetch(`/api/store/orders/${currentGroup.id}`);
+        const od = await or.json();
+        if (Array.isArray(od)) {
+            pendingReady = od.filter(o => o.status === 'ready').map(o => {
+                let tableNum = null;
+                try { tableNum = JSON.parse(o.notes||'{}').tableNumber || null; } catch(e2) {}
+                return { orderId: o.id, tableNum, time: o.created_at };
+            });
+        }
+    } catch(e) {}
+
     const todayStr = new Date().toISOString().split('T')[0];
     const myShifts = (allTasks||[]).filter(t => t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,2);
     const myTasks  = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
@@ -24543,10 +24579,6 @@ async function renderWaiterDashboard(el) {
                 </div>`).join('')}</div>
         </div>` : '';
 
-    // Ready to deliver
-    let readyList = [];
-    try { readyList = JSON.parse(localStorage.getItem(`kds_ready_${currentGroup.id}`)||'[]'); } catch(e) {}
-    const pendingReady = readyList.filter(r => !r.delivered);
     const readyHtml = pendingReady.length ? `
         <div class="bg-white rounded-2xl shadow-sm border border-green-200 mb-4">
             <div class="px-4 py-3 border-b border-green-100 bg-green-50/60 flex items-center justify-between">

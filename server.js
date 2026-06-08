@@ -8683,6 +8683,13 @@ app.patch('/api/groups/:id/business-settings', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/groups/:id/settings', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT table_count, business_type, send_order_email FROM family_groups WHERE id=$1', [req.params.id]);
+        res.json(r.rows[0] || {});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.patch('/api/users/:id/role-type', async (req, res) => {
     try {
         const { employee_role_type } = req.body;
