@@ -10383,6 +10383,20 @@ async function saveWelcomeMsg(type = 'FAMILY') {
     }
 }
 
+window.switchBizCommunityTab = function(tab) {
+    ['mine', 'discover'].forEach(t => {
+        const view = document.getElementById(`comm-view-${t}`);
+        const btn = document.getElementById(`btn-comm-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+    });
+    const activeView = document.getElementById(`comm-view-${tab}`);
+    const activeBtn = document.getElementById(`btn-comm-${tab}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+    if (tab === 'discover') filterBizAvailableCommunities();
+};
+
 async function loadBizCommunities() {
     try {
         if (!currentGroup || !currentGroup.id) return;

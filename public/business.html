@@ -1961,41 +1961,48 @@
                     </div>
 
                     <div id="content-community" class="hidden">
-                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                        <!-- Hero banner -->
+                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-5 relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1">הקהילות שלנו 🏘️</h3>
                             <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות והציעו הטבות כדי למשוך לקוחות חדשים!</p>
                             <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
                         </div>
-
-                        <h3 class="font-bold text-slate-700 text-lg mb-3 px-2">הקהילות שלי</h3>
-                        <div id="biz-my-communities-list" class="space-y-3 mb-8">
-                            <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
+                        <!-- Tab buttons (2 columns) -->
+                        <div class="grid grid-cols-2 gap-2 mb-5">
+                            <button id="btn-comm-mine" onclick="window.switchBizCommunityTab('mine')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition">
+                                <i class="fa-solid fa-house-flag text-sm"></i>הקהילות שלי
+                            </button>
+                            <button id="btn-comm-discover" onclick="window.switchBizCommunityTab('discover')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-compass text-sm"></i>גלה קהילות
+                            </button>
                         </div>
-
-                        <div class="flex justify-between items-center mb-3 px-2">
-                            <h3 class="font-bold text-slate-700 text-lg">גלו קהילות חדשות 🔍</h3>
-                        </div>
-                        
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                                <div class="relative">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
-                                </div>
-                                <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
-                                    <option value="all">כל הגדלים</option>
-                                    <option value="50">+50 משפחות</option>
-                                    <option value="100">+100 משפחות</option>
-                                    <option value="500">+500 משפחות</option>
-                                </select>
-                                <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200 sm:col-span-1 col-span-2">
-                                    <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
-                                    <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
-                                </label>
+                        <!-- Sub-view: My Communities -->
+                        <div id="comm-view-mine">
+                            <div id="biz-my-communities-list" class="space-y-3 mb-4">
+                                <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
                             </div>
                         </div>
-
-                        <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20">
+                        <!-- Sub-view: Discover Communities -->
+                        <div id="comm-view-discover" class="hidden">
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
+                                <div class="grid grid-cols-2 gap-3 mb-2">
+                                    <div class="relative">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
+                                    </div>
+                                    <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
+                                        <option value="all">כל הגדלים</option>
+                                        <option value="50">+50 משפחות</option>
+                                        <option value="100">+100 משפחות</option>
+                                        <option value="500">+500 משפחות</option>
+                                    </select>
+                                    <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200 col-span-2">
+                                        <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
+                                        <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20"></div>
                         </div>
                     </div>
                     <div id="content-members" class="hidden space-y-6">
@@ -3359,7 +3366,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=68" defer></script>
+    <script src="business-app.js?v=69" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

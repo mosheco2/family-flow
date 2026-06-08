@@ -2687,6 +2687,19 @@ let myCommunityBusinessesCache = [];
 let myInitiativesCache = [];
 let myCashbackCache = []; // [{community_id, community_name, balance, total_earned, is_community_manager}]
 
+function switchFamCommunityTab(tab) {
+    ['join', 'benefits', 'news'].forEach(t => {
+        const view = document.getElementById(`fam-comm-view-${t}`);
+        const btn = document.getElementById(`btn-fam-comm-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+    });
+    const activeView = document.getElementById(`fam-comm-view-${tab}`);
+    const activeBtn = document.getElementById(`btn-fam-comm-${tab}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-orange-500 text-white shadow-md shadow-orange-200 transition';
+}
+
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
@@ -2840,57 +2853,82 @@ function renderFamilyCommunities() {
     const tabContent = getEl('content-community');
     if (!tabContent) return;
 
-    let container = getEl('multi-comm-dynamic-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'multi-comm-dynamic-container';
-        const topBanner = tabContent.querySelector('.bg-gradient-to-r');
-        if (topBanner) {
-            topBanner.insertAdjacentElement('afterend', container);
+    const isConnected = myConnectedCommunitiesCache.length > 0;
+
+    // ── Join sub-view ──────────────────────────────────────────
+    const joinView = getEl('fam-comm-view-join');
+    if (joinView) {
+        // Show/hide join form vs connected info
+        const joinSection = getEl('community-join-section');
+        const connectedInfo = getEl('community-connected-info');
+        const nameDisplay = getEl('community-name-display');
+
+        if (isConnected) {
+            if (joinSection) joinSection.classList.add('hidden');
+            if (connectedInfo) {
+                connectedInfo.classList.remove('hidden');
+                if (nameDisplay) {
+                    const names = myConnectedCommunitiesCache.map(c => safeStr(c.name)).join(', ');
+                    nameDisplay.textContent = names;
+                }
+            }
+            // Build connected communities list inside join view (with cashback data)
+            let commListHtml = `<div class="mb-4">
+                <h3 class="font-bold text-slate-800 mb-3 text-sm"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
+                <div class="space-y-2">`;
+            myConnectedCommunitiesCache.forEach(c => {
+                const cbInfo = myCashbackCache.find(x => String(x.community_id) === String(c.id)) || {};
+                const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
+                const isManager = cbInfo.is_community_manager;
+                const walletBadge = `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`;
+                const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
+                commListHtml += `
+                <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            ${isManager ? `<button onclick="openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
+                            <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
+                        </div>
+                        <div class="text-right">
+                            <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
+                            <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+                            <div class="flex gap-1 mt-1 justify-end">${walletBadge}${managerBadge}</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            commListHtml += `</div>`;
+            if (myConnectedCommunitiesCache.length < 5) {
+                commListHtml += `<button onclick="document.getElementById('dyn-extra-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>
+                <div id="dyn-extra-join-section" class="hidden mt-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+                    <div class="flex gap-2">
+                        <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="קוד קהילה">
+                        <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
+                    </div>
+                </div>`;
+            }
+            commListHtml += `</div>`;
+
+            let dynContainer = getEl('join-dyn-comm-list');
+            if (!dynContainer) {
+                dynContainer = document.createElement('div');
+                dynContainer.id = 'join-dyn-comm-list';
+                joinView.appendChild(dynContainer);
+            }
+            dynContainer.innerHTML = commListHtml;
         } else {
-            tabContent.prepend(container);
-        }
-    }
+            if (joinSection) joinSection.classList.remove('hidden');
+            if (connectedInfo) connectedInfo.classList.add('hidden');
+            // Show the intro banner
+            let dynContainer = getEl('join-dyn-comm-list');
+            if (!dynContainer) {
+                dynContainer = document.createElement('div');
+                dynContainer.id = 'join-dyn-comm-list';
+                joinView.appendChild(dynContainer);
+            }
+            dynContainer.innerHTML = `
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 mb-4 mt-2 shadow-sm fade-in flex items-center gap-4 text-right">
 
-    let html = '';
-
-    // 1. הקהילות שלי (או הבאנר הראשי המאוחד במידה ואין קהילות)
-    if (myConnectedCommunitiesCache.length > 0) {
-        html += `<div class="mb-6">
-                    <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
-                    <div class="space-y-2">`;
-        myConnectedCommunitiesCache.forEach(c => {
-            const cbInfo = myCashbackCache.find(x => String(x.community_id) === String(c.id)) || {};
-            const walletBal = parseFloat(cbInfo.balance || 0).toFixed(2);
-            const totalEarned = parseFloat(cbInfo.total_earned || 0).toFixed(2);
-            const isManager = cbInfo.is_community_manager;
-            const walletBadge = `<span class="text-[9px] font-bold ${parseFloat(walletBal) > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-200'} border px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-wallet mr-0.5"></i> ₪${walletBal}</span>`;
-            const managerBadge = isManager ? `<span class="text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-md"><i class="fa-solid fa-star mr-0.5"></i> מנהל קהילה</span>` : '';
-            html += `
-            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl shadow-sm fade-in">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        ${isManager ? `<button onclick="openCommunityManagerPanel(${c.id})" class="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded transition border border-transparent hover:border-purple-200"><i class="fa-solid fa-gear mr-1"></i>ניהול</button>` : ''}
-                        <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
-                    </div>
-                    <div class="text-right">
-                        <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
-                        <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
-                        <div class="flex gap-1 mt-1 justify-end">${walletBadge}${managerBadge}</div>
-                    </div>
-                </div>
-            </div>`;
-        });
-        html += `</div>`;
-        
-        if (myConnectedCommunitiesCache.length < 5) {
-            html += `<button onclick="document.getElementById('dynamic-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>`;
-        }
-        html += `</div>`;
-    } else {
-        // הבאנר הקומפקטי שביקשת
-        html += `
-            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 mb-6 mt-2 shadow-sm fade-in flex items-center gap-4 text-right">
                 <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500 text-2xl shrink-0">
                     <i class="fa-solid fa-users-rays"></i>
                 </div>
@@ -2900,77 +2938,76 @@ function renderFamilyCommunities() {
                         התחברו לקהילות קיימות באזורכם או צרו קהילה חדשה בעצמכם כדי לקבל מידע חשוב, הטבות והנחות מעסקים מקומיים ועסקים אחרים!
                     </p>
                 </div>
-            </div>
-        `;
+            </div>`;
+        }
     }
 
-    // 2. טופס הצטרפות קבוע ויפה
-    const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
-    html += `
-    <div id="community-join-section" class="${hideJoin} mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
-        <h3 class="font-bold text-slate-800 text-sm mb-1"><i class="fa-solid fa-plug text-slate-400 mr-1"></i> התחברות לקהילה קיימת</h3>
-        <p class="text-[11px] text-slate-500 mb-4">הזינו את קוד הקהילה שקיבלתם מחבר כדי להצטרף אליה.</p>
-        <div class="flex gap-2">
-            <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
-            <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
-        </div>
-    </div>`;
-
-    // 3. עסקים בקהילות שלנו
-    if (myCommunityBusinessesCache.length > 0) {
-        html += `
-        <div id="community-businesses-section" class="mb-6 fade-in">
-            <div class="flex items-center justify-between mb-4 px-1">
-                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-shop text-emerald-500"></i>
-                    עסקים בקהילות שלנו
-                </h2>
-            </div>
-            <div class="space-y-3">
-        `;
-        myCommunityBusinessesCache.forEach(biz => {
-            const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
-            const minFam = parseInt(biz.min_families) || 30;
-            const famCount = parseInt(biz.family_count) || 0;
-            const discountActive = famCount >= minFam;
-            const discountBadge = discountActive
-                ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
-                : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
-            html += `
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
-                <div class="flex items-center gap-3 min-w-0">
-                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-                    <div class="min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                            ${discountBadge}
-                            <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
-                                מקהילת ${safeStr(biz.comm_name)}
-                            </span>
+    // ── Benefits sub-view ─────────────────────────────────────
+    const bizList = getEl('community-businesses-list');
+    if (bizList) {
+        if (myCommunityBusinessesCache.length > 0) {
+            let bizHtml = '';
+            myCommunityBusinessesCache.forEach(biz => {
+                const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
+                const minFam = parseInt(biz.min_families) || 30;
+                const famCount = parseInt(biz.family_count) || 0;
+                const discountActive = famCount >= minFam;
+                const discountBadge = discountActive
+                    ? `<span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">${biz.discount_pct}% הנחה</span>`
+                    : `<span class="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100"><i class="fa-solid fa-clock-rotate-left"></i> ${biz.discount_pct}% הנחה ב-${famCount}/${minFam} משפחות</span>`;
+                bizHtml += `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
+                            <i class="fa-solid fa-store"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${discountBadge}
+                                <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
+                                    מקהילת ${safeStr(biz.comm_name)}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
-                    לחנות
-                </a>
-            </div>`;
-        });
-        html += `</div></div>`;
+                    <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
+                        לחנות
+                    </a>
+                </div>`;
+            });
+            bizList.innerHTML = bizHtml;
+        } else {
+            bizList.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין עסקים בקהילות שלכם כרגע.</p>';
+        }
     }
 
-    // 4. מיכל שבו נצייר את מודול "יזמות קהילתית" שלנו
-    html += `<div id="my-initiatives-container"></div>`;
-    
-    container.innerHTML = html;
+    // ── Initiatives (appended inside join view) ───────────────
+    let initContainer = getEl('my-initiatives-container');
+    if (!initContainer) {
+        initContainer = document.createElement('div');
+        initContainer.id = 'my-initiatives-container';
+        const joinViewEl = getEl('fam-comm-view-join');
+        if (joinViewEl) joinViewEl.appendChild(initContainer);
+        else tabContent.appendChild(initContainer);
+    }
 
-    // קריאה קריטית לרינדור יוזמות כדי שלא ימחקו לעולם!
+    // קריאה קריטית לרינדור יוזמות
     renderMyInitiatives();
+
+    // Auto-switch to benefits tab when connected and there are businesses
+    if (isConnected && myCommunityBusinessesCache.length > 0) {
+        switchFamCommunityTab('benefits');
+    }
+}
+
+async function joinCommunity() {
+    return joinCommunityDyn();
 }
 
 async function joinCommunityDyn() {
-    const code = getEl('community-code-input-dyn').value;
+    const inputEl = getEl('community-code-input-dyn') || getEl('community-code-input');
+    const code = inputEl ? inputEl.value : '';
     if(!code) return showToast('error', 'יש להזין קוד קהילה');
     
     try {
