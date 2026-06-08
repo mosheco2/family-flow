@@ -1219,6 +1219,10 @@ if (!window.originalFinalizePOSOrderOverridden) {
                 </div>
                 <label class="text-xs font-bold text-slate-500 block mb-2">טאבים מורשים למשתמש (התאמה אישית):</label>
                 <div id="perm-tabs-container" class="grid grid-cols-2 gap-2 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
+                <div id="perm-role-type-section" class="mb-4 hidden">
+                    <label class="text-xs font-bold text-slate-500 block mb-2">ממשק תפקיד שטחי (אופציונלי):</label>
+                    <div id="perm-role-type-options" class="grid grid-cols-2 gap-2"></div>
+                </div>
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('permissions-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                     <button id="btn-submit-permissions" onclick="submitPermissions()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הרשאות</button>
@@ -2017,19 +2021,19 @@ window.openPermissionsModal = function(id, name, role, permsStr) {
     const permIdEl = getEl('perm-user-id');
     const permNameEl = getEl('perm-user-name');
     const permRoleEl = getEl('perm-role-select');
-    
+
     if (permIdEl) permIdEl.value = id;
     if (permNameEl) permNameEl.innerText = `הרשאות עבור: ${name}`;
     if (permRoleEl) permRoleEl.value = role;
-    
+
     let perms = { tabs: [] };
     try { if(permsStr) perms = JSON.parse(permsStr.replace(/&quot;/g, '"')); } catch(e) {}
-    
+
     const tabsContainer = getEl('perm-tabs-container');
     if(tabsContainer) {
         tabsContainer.innerHTML = '';
         ALL_TABS.forEach(t => {
-            if(t.id === 'feed') return; // Feed is always accessible
+            if(t.id === 'feed') return;
             const isChecked = perms.tabs && perms.tabs.includes(t.id) ? 'checked' : '';
             tabsContainer.innerHTML += `
                 <label class="flex items-center gap-2 text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition">
@@ -2039,7 +2043,26 @@ window.openPermissionsModal = function(id, name, role, permsStr) {
             `;
         });
     }
-    
+
+    // Role type section — show only if any role dashboards are licensed
+    const roleTypeSection = getEl('perm-role-type-section');
+    const roleTypeOptions = getEl('perm-role-type-options');
+    if (roleTypeSection && roleTypeOptions && typeof EMPLOYEE_ROLE_TYPES !== 'undefined') {
+        const licensedRoles = EMPLOYEE_ROLE_TYPES.filter(r => isFeatureLicensed(r.feature_key));
+        if (licensedRoles.length > 0) {
+            const m = membersCache.find(x => x.id == id);
+            const currentRoleType = m?.employee_role_type || '';
+            roleTypeOptions.innerHTML = `<label class="flex items-center gap-2 text-[10px] text-slate-600 bg-white p-2 rounded-lg border col-span-2 cursor-pointer hover:border-indigo-300 transition ${!currentRoleType?'border-indigo-400 bg-indigo-50':'border-slate-200'}">
+                <input type="radio" name="perm-role-type" value="" class="accent-indigo-600" ${!currentRoleType?'checked':''}> 🚫 ללא ממשק מיוחד
+            </label>` + licensedRoles.map(r => `<label class="flex items-center gap-2 text-[10px] text-slate-600 bg-white p-2 rounded-lg border cursor-pointer hover:border-indigo-300 transition ${currentRoleType===r.id?'border-indigo-400 bg-indigo-50':'border-slate-200'}">
+                <input type="radio" name="perm-role-type" value="${r.id}" class="accent-indigo-600" ${currentRoleType===r.id?'checked':''}> ${r.icon} ${r.name}
+            </label>`).join('');
+            roleTypeSection.classList.remove('hidden');
+        } else {
+            roleTypeSection.classList.add('hidden');
+        }
+    }
+
     const modal = getEl('permissions-modal');
     if(modal) modal.classList.remove('hidden');
 };
@@ -2066,16 +2089,26 @@ window.submitPermissions = async function() {
             body: JSON.stringify({ tabs, role }) 
         });
         if(res.ok) {
+            const roleTypeRadio = document.querySelector('input[name="perm-role-type"]:checked');
+            if (roleTypeRadio !== null) {
+                await fetch(`${API}/users/${uid}/role-type`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ employee_role_type: roleTypeRadio.value || null })
+                });
+                const m = membersCache.find(x => x.id == uid);
+                if (m) m.employee_role_type = roleTypeRadio.value || null;
+            }
             showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
             getEl('permissions-modal').classList.add('hidden');
             if(typeof fetchMembers === 'function') fetchMembers();
-        } else { 
-            showToast('error', 'שגיאה בשמירת הרשאות'); 
+        } else {
+            showToast('error', 'שגיאה בשמירת הרשאות');
         }
-    } catch(e) { 
-        showToast('error', 'שגיאת רשת בשמירת ההרשאות'); 
-    } finally { 
-        if(btn){ btn.disabled = false; btn.innerText = 'שמור הרשאות'; } 
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בשמירת ההרשאות');
+    } finally {
+        if(btn){ btn.disabled = false; btn.innerText = 'שמור הרשאות'; }
     }
 };
 
