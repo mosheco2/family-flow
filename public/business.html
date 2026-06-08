@@ -599,7 +599,7 @@
                 </div>
 
                 <!-- ★ GROUP NAV — 5 קבוצות במקום 20 טאבים -->
-                <div id="group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 relative z-30 overflow-x-auto" style="scrollbar-width:none">
+                <div id="group-nav" class="bg-slate-900 px-2 py-1.5 flex items-center gap-0.5 border-b border-slate-800 border-t border-t-slate-700 relative z-30 overflow-x-auto mt-1" style="scrollbar-width:none">
 
                   <!-- ראשי — direct -->
                   <button id="gnav-btn-feed" onclick="switchTab('feed')"
@@ -1642,10 +1642,11 @@
                             <p class="text-slate-300 text-xs opacity-90">נהלו את הציוד, לוח התחזוקה וספר התקלות של העסק.</p>
                             <i class="fa-solid fa-gears absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
                         </div>
-                        <div class="flex gap-1.5 mb-4 bg-slate-100 rounded-2xl p-1">
+                        <div class="flex gap-1 mb-4 bg-slate-100 rounded-2xl p-1">
                             <button onclick="switchEquipmentTab('items')" id="eqtab-items" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white shadow-sm text-slate-800 transition">ציוד 🔧</button>
                             <button onclick="switchEquipmentTab('maintenance')" id="eqtab-maintenance" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תחזוקה 📋</button>
                             <button onclick="switchEquipmentTab('faults')" id="eqtab-faults" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תקלות ⚠️</button>
+                            <button onclick="switchEquipmentTab('technicians')" id="eqtab-technicians" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">טכנאים 👷</button>
                         </div>
                         <div id="eq-view-items">
                             <div class="flex justify-between items-center mb-3">
@@ -1679,6 +1680,13 @@
                                 <button onclick="filterFaults('resolved')" id="ffilter-resolved" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">נסגר</button>
                             </div>
                             <div id="equipment-faults-list"></div>
+                        </div>
+                        <div id="eq-view-technicians" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">טכנאים וחברות שירות</h3>
+                                <button onclick="openTechnicianModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף טכנאי</button>
+                            </div>
+                            <div id="equipment-technicians-list"></div>
                         </div>
                     </div>
 
@@ -3429,7 +3437,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=78" defer></script>
+    <script src="business-app.js?v=79" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

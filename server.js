@@ -484,6 +484,19 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
 
       // ===== EQUIPMENT MAINTENANCE MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_technicians (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          company_name VARCHAR(100),
+          phone VARCHAR(20),
+          email VARCHAR(100),
+          specialty VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_items ADD COLUMN IF NOT EXISTS technician_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_maintenance ADD COLUMN IF NOT EXISTS interval_days INT DEFAULT NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_items (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -8317,26 +8330,64 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 // --- EQUIPMENT MAINTENANCE MODULE ---
 // ============================================================
 
+// טכנאים
+app.get('/api/equipment/technicians/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM equipment_technicians WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        res.json({ success: true, technicians: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/technicians', async (req, res) => {
+    try {
+        const { id, groupId, name, companyName, phone, email, specialty, notes } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_technicians SET name=$1, company_name=$2, phone=$3, email=$4, specialty=$5, notes=$6 WHERE id=$7 AND group_id=$8 RETURNING *`,
+                [name, companyName||null, phone||null, email||null, specialty||null, notes||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_technicians (group_id, name, company_name, phone, email, specialty, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+                [groupId, name, companyName||null, phone||null, email||null, specialty||null, notes||null]);
+        }
+        res.json({ success: true, technician: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/technicians/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_technicians WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/equipment/items/:groupId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM equipment_items WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        const result = await pool.query(
+            `SELECT ei.*, et.name as technician_name, et.phone as technician_phone, et.email as technician_email
+             FROM equipment_items ei
+             LEFT JOIN equipment_technicians et ON et.id=ei.technician_id
+             WHERE ei.group_id=$1 ORDER BY ei.name ASC`,
+            [req.params.groupId]);
         res.json({ success: true, items: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/equipment/items', async (req, res) => {
     try {
-        const { id, groupId, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes } = req.body;
+        const { id, groupId, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes, technicianId } = req.body;
         if (!groupId || !name) return res.status(400).json({ error: 'שם וקבוצה חובה' });
         let result;
         if (id) {
             result = await pool.query(
-                `UPDATE equipment_items SET name=$1, category=$2, serial_number=$3, purchase_date=$4, warranty_expiry=$5, status=$6, notes=$7 WHERE id=$8 AND group_id=$9 RETURNING *`,
-                [name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, id, groupId]);
+                `UPDATE equipment_items SET name=$1, category=$2, serial_number=$3, purchase_date=$4, warranty_expiry=$5, status=$6, notes=$7, technician_id=$8 WHERE id=$9 AND group_id=$10 RETURNING *`,
+                [name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, technicianId||null, id, groupId]);
         } else {
             result = await pool.query(
-                `INSERT INTO equipment_items (group_id, name, category, serial_number, purchase_date, warranty_expiry, status, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-                [groupId, name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null]);
+                `INSERT INTO equipment_items (group_id, name, category, serial_number, purchase_date, warranty_expiry, status, notes, technician_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [groupId, name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, technicianId||null]);
         }
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -8362,17 +8413,17 @@ app.get('/api/equipment/maintenance/:groupId', async (req, res) => {
 
 app.post('/api/equipment/maintenance', async (req, res) => {
     try {
-        const { id, groupId, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes } = req.body;
+        const { id, groupId, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes, intervalDays } = req.body;
         if (!groupId || !equipmentId) return res.status(400).json({ error: 'ציוד וקבוצה חובה' });
         let result;
         if (id) {
             result = await pool.query(
-                `UPDATE equipment_maintenance SET equipment_id=$1, maintenance_type=$2, description=$3, scheduled_date=$4, cost=$5, technician_name=$6, technician_phone=$7, notes=$8 WHERE id=$9 AND group_id=$10 RETURNING *`,
-                [equipmentId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, id, groupId]);
+                `UPDATE equipment_maintenance SET equipment_id=$1, maintenance_type=$2, description=$3, scheduled_date=$4, cost=$5, technician_name=$6, technician_phone=$7, notes=$8, interval_days=$9 WHERE id=$10 AND group_id=$11 RETURNING *`,
+                [equipmentId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, intervalDays||null, id, groupId]);
         } else {
             result = await pool.query(
-                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, cost, technician_name, technician_phone, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-                [equipmentId, groupId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null]);
+                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, cost, technician_name, technician_phone, notes, interval_days) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+                [equipmentId, groupId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, intervalDays||null]);
         }
         res.json({ success: true, record: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -8381,10 +8432,20 @@ app.post('/api/equipment/maintenance', async (req, res) => {
 app.put('/api/equipment/maintenance/:id/complete', async (req, res) => {
     try {
         const { cost, technicianName, notes } = req.body;
-        await pool.query(
-            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4`,
+        const updated = await pool.query(
+            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4 RETURNING *`,
             [cost||null, technicianName||null, notes||null, req.params.id]);
-        res.json({ success: true });
+        const rec = updated.rows[0];
+        // תזמון אוטומטי — אם הוגדר interval_days, צור רשומה הבאה
+        if (rec && rec.interval_days) {
+            const nextDate = new Date(rec.completed_date || new Date());
+            nextDate.setDate(nextDate.getDate() + rec.interval_days);
+            await pool.query(
+                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, technician_name, technician_phone, notes, interval_days)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [rec.equipment_id, rec.group_id, rec.maintenance_type, rec.description, nextDate.toISOString().split('T')[0], rec.technician_name, rec.technician_phone, rec.notes, rec.interval_days]);
+        }
+        res.json({ success: true, nextScheduled: rec?.interval_days ? true : false });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

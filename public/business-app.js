@@ -21654,11 +21654,12 @@ function closeBizHelp() {
 let equipmentItems = [];
 let equipmentMaintenance = [];
 let equipmentFaults = [];
+let equipmentTechnicians = [];
 let equipmentMaintenanceFilter = 'all';
 let equipmentFaultsFilter = 'all';
 
 function switchEquipmentTab(tab) {
-    ['items','maintenance','faults'].forEach(t => {
+    ['items','maintenance','faults','technicians'].forEach(t => {
         const view = getEl(`eq-view-${t}`);
         if (view) view.classList.toggle('hidden', t !== tab);
         const btn = getEl(`eqtab-${t}`);
@@ -21670,11 +21671,12 @@ function switchEquipmentTab(tab) {
     if (tab === 'items') renderEquipmentItems();
     if (tab === 'maintenance') renderEquipmentMaintenance();
     if (tab === 'faults') renderEquipmentFaults();
+    if (tab === 'technicians') renderEquipmentTechnicians();
 }
 
 async function loadEquipment() {
     if (!currentGroup) return;
-    await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults()]);
+    await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults(), fetchEquipmentTechnicians()]);
     switchEquipmentTab('items');
 }
 
@@ -21868,6 +21870,10 @@ function renderEquipmentFaults() {
                     <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name)} · ${dateStr}</p>
                     ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
                     ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
+                    ${f.status !== 'resolved' ? `<div class="flex gap-2 mt-2">
+                        ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_phone ? `<button onclick="sendFaultWhatsApp(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> וואצאפ לטכנאי</button>` : ''; })()}
+                        ${(() => { const item = equipmentItems.find(i => i.id === f.equipment_id); return item?.technician_email ? `<button onclick="sendFaultEmail(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-100 transition"><i class="fa-solid fa-envelope"></i> מייל לטכנאי</button>` : ''; })()}
+                    </div>` : ''}
                 </div>
                 <div class="flex flex-col gap-2 shrink-0">
                     <button onclick="openFaultModal(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
@@ -21907,6 +21913,7 @@ function openEquipmentItemModal(id = null) {
                             <option value="active">פעיל</option><option value="inactive">לא פעיל</option><option value="disposed">הושלך</option>
                         </select>
                     </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טכנאי / חברת שירות</label><select id="eqitem-technician" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">ללא שיוך</option></select></div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="eqitem-notes" rows="2" placeholder="הערות נוספות..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
                 </div>
                 <div class="p-4 border-t border-slate-100"><button onclick="submitEquipmentItem()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
@@ -21924,6 +21931,9 @@ function openEquipmentItemModal(id = null) {
     getEl('eqitem-warranty').value = item && item.warranty_expiry ? item.warranty_expiry.split('T')[0] : '';
     getEl('eqitem-status').value = item ? item.status : 'active';
     getEl('eqitem-notes').value = item ? (item.notes || '') : '';
+    const techSel = getEl('eqitem-technician');
+    techSel.innerHTML = '<option value="">ללא שיוך</option>' + equipmentTechnicians.map(t => `<option value="${t.id}">${safeStr(t.name)}${t.company_name ? ' — ' + safeStr(t.company_name) : ''}</option>`).join('');
+    techSel.value = item ? (item.technician_id || '') : '';
     modal.classList.remove('hidden');
 }
 
@@ -21937,7 +21947,8 @@ async function submitEquipmentItem() {
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
                 category: getEl('eqitem-category').value, serialNumber: getEl('eqitem-serial').value||null,
                 purchaseDate: getEl('eqitem-purchase').value||null, warrantyExpiry: getEl('eqitem-warranty').value||null,
-                status: getEl('eqitem-status').value, notes: getEl('eqitem-notes').value||null })
+                status: getEl('eqitem-status').value, notes: getEl('eqitem-notes').value||null,
+                technicianId: getEl('eqitem-technician').value||null })
         });
         const data = await res.json();
         if (data.success) { showToast('success', id ? 'ציוד עודכן' : 'ציוד נוסף'); getEl('equipment-item-modal').classList.add('hidden'); await fetchEquipmentItems(); }
@@ -21978,6 +21989,21 @@ function openMaintenanceModal(id = null) {
                         <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון</label><input id="eqmaint-phone" type="tel" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
                     </div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">עלות (₪)</label><input id="eqmaint-cost" type="number" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תזכורת חוזרת</label>
+                        <div class="flex items-center gap-2">
+                            <select id="eqmaint-interval" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="">ללא חזרה</option>
+                                <option value="7">שבועי (7 יום)</option>
+                                <option value="14">כל שבועיים</option>
+                                <option value="30">חודשי (30 יום)</option>
+                                <option value="60">כל חודשיים</option>
+                                <option value="90">רבעוני (90 יום)</option>
+                                <option value="180">חצי שנתי</option>
+                                <option value="365">שנתי</option>
+                            </select>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-rotate ml-1"></i>בסיום הביצוע תיווצר אוטומטית תזכורת הבאה</p>
+                    </div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="eqmaint-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
                 </div>
                 <div class="p-4 border-t border-slate-100"><button onclick="submitMaintenanceRecord()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
@@ -21998,6 +22024,7 @@ function openMaintenanceModal(id = null) {
     getEl('eqmaint-phone').value = record ? (record.technician_phone || '') : '';
     getEl('eqmaint-cost').value = record ? (record.cost || '') : '';
     getEl('eqmaint-notes').value = record ? (record.notes || '') : '';
+    getEl('eqmaint-interval').value = record ? (record.interval_days || '') : '';
     modal.classList.remove('hidden');
 }
 
@@ -22012,7 +22039,8 @@ async function submitMaintenanceRecord() {
                 maintenanceType: getEl('eqmaint-type').value, description: getEl('eqmaint-desc').value||null,
                 scheduledDate: getEl('eqmaint-date').value||null, technicianName: getEl('eqmaint-tech').value||null,
                 technicianPhone: getEl('eqmaint-phone').value||null, cost: getEl('eqmaint-cost').value||null,
-                notes: getEl('eqmaint-notes').value||null })
+                notes: getEl('eqmaint-notes').value||null,
+                intervalDays: getEl('eqmaint-interval').value ? parseInt(getEl('eqmaint-interval').value) : null })
         });
         const data = await res.json();
         if (data.success) { showToast('success', id ? 'תחזוקה עודכנה' : 'תחזוקה נוספה'); getEl('equipment-maintenance-modal').classList.add('hidden'); await fetchEquipmentMaintenance(); }
@@ -22024,7 +22052,10 @@ async function completeMaintenanceRecord(id) {
     try {
         const res = await fetch(`${API}/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
         const data = await res.json();
-        if (data.success) { showToast('success', 'תחזוקה סומנה כבוצעה ✓'); await fetchEquipmentMaintenance(); }
+        if (data.success) {
+            showToast('success', data.nextScheduled ? 'בוצע ✓ — תזכורת הבאה נוצרה אוטומטית 🔄' : 'תחזוקה סומנה כבוצעה ✓');
+            await fetchEquipmentMaintenance();
+        }
     } catch(e) {}
 }
 
@@ -22133,4 +22164,139 @@ async function submitFault() {
 async function deleteFault(id) {
     if (!confirm('למחוק תקלה זו?')) return;
     try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
+}
+
+// --- טכנאים ---
+
+async function fetchEquipmentTechnicians() {
+    try {
+        const res = await fetch(`${API}/equipment/technicians/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) equipmentTechnicians = data.technicians;
+    } catch(e) {}
+}
+
+function renderEquipmentTechnicians() {
+    const list = getEl('equipment-technicians-list');
+    if (!list) return;
+    if (!equipmentTechnicians.length) {
+        list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-user-gear text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין טכנאים רשומים</p><p class="text-xs mt-1">לחץ "הוסף טכנאי" כדי להתחיל</p></div>`;
+        return;
+    }
+    list.innerHTML = equipmentTechnicians.map(t => {
+        const linkedCount = equipmentItems.filter(i => i.technician_id === t.id).length;
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-user-gear text-slate-500"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(t.name)}</h4>
+                            ${t.company_name ? `<p class="text-[11px] text-slate-400">${safeStr(t.company_name)}</p>` : ''}
+                        </div>
+                        ${t.specialty ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-100">${safeStr(t.specialty)}</span>` : ''}
+                    </div>
+                    <div class="flex gap-3 mt-2 flex-wrap">
+                        ${t.phone ? `<a href="tel:${safeStr(t.phone)}" class="flex items-center gap-1 text-[11px] text-emerald-700 font-bold hover:underline"><i class="fa-solid fa-phone text-[10px]"></i> ${safeStr(t.phone)}</a>` : ''}
+                        ${t.email ? `<a href="mailto:${safeStr(t.email)}" class="flex items-center gap-1 text-[11px] text-indigo-700 font-bold hover:underline"><i class="fa-solid fa-envelope text-[10px]"></i> ${safeStr(t.email)}</a>` : ''}
+                        ${t.phone ? `<a href="https://wa.me/972${t.phone.replace(/^0/,'').replace(/\D/g,'')}" target="_blank" class="flex items-center gap-1 text-[11px] text-green-700 font-bold hover:underline"><i class="fa-brands fa-whatsapp text-[10px]"></i> וואצאפ</a>` : ''}
+                    </div>
+                    ${linkedCount > 0 ? `<p class="text-[10px] text-slate-400 mt-1.5"><i class="fa-solid fa-link ml-1"></i>משויך ל-${linkedCount} פריטי ציוד</p>` : ''}
+                </div>
+                <div class="flex gap-2 mr-2 shrink-0">
+                    <button onclick="openTechnicianModal(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteTechnician(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openTechnicianModal(id = null) {
+    let modal = getEl('equipment-technician-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="equipment-technician-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="eqtech-modal-title" class="font-black text-slate-800 text-base">הוספת טכנאי</h3>
+                    <button onclick="getEl('equipment-technician-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="eqtech-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם איש קשר *</label><input id="eqtech-name" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם חברה</label><input id="eqtech-company" type="text" placeholder="חברת השירות" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון</label><input id="eqtech-phone" type="tel" placeholder="05X-XXXXXXX" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">אימייל</label><input id="eqtech-email" type="email" placeholder="email@example.com" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">התמחות</label><input id="eqtech-specialty" type="text" placeholder="למשל: מזגנים, מקררים, חשמל" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="eqtech-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitTechnician()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('equipment-technician-modal');
+    }
+    const tech = id ? equipmentTechnicians.find(x => x.id === id) : null;
+    getEl('eqtech-modal-title').textContent = tech ? 'עריכת טכנאי' : 'הוספת טכנאי';
+    getEl('eqtech-id').value = tech ? tech.id : '';
+    getEl('eqtech-name').value = tech ? tech.name : '';
+    getEl('eqtech-company').value = tech ? (tech.company_name || '') : '';
+    getEl('eqtech-phone').value = tech ? (tech.phone || '') : '';
+    getEl('eqtech-email').value = tech ? (tech.email || '') : '';
+    getEl('eqtech-specialty').value = tech ? (tech.specialty || '') : '';
+    getEl('eqtech-notes').value = tech ? (tech.notes || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitTechnician() {
+    const id = getEl('eqtech-id').value;
+    const name = getEl('eqtech-name').value.trim();
+    if (!name) { showToast('error', 'שם חובה'); return; }
+    try {
+        const res = await fetch(`${API}/equipment/technicians`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                companyName: getEl('eqtech-company').value||null, phone: getEl('eqtech-phone').value||null,
+                email: getEl('eqtech-email').value||null, specialty: getEl('eqtech-specialty').value||null,
+                notes: getEl('eqtech-notes').value||null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', id ? 'טכנאי עודכן' : 'טכנאי נוסף');
+            getEl('equipment-technician-modal').classList.add('hidden');
+            await fetchEquipmentTechnicians();
+            renderEquipmentTechnicians();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteTechnician(id) {
+    if (!confirm('למחוק טכנאי זה?')) return;
+    try { await fetch(`${API}/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentTechnicians(); renderEquipmentTechnicians(); } catch(e) {}
+}
+
+// שליחת קריאת שירות
+function sendFaultWhatsApp(faultId) {
+    const fault = equipmentFaults.find(f => f.id === faultId);
+    if (!fault) return;
+    const item = equipmentItems.find(i => i.id === fault.equipment_id);
+    const techPhone = item?.technician_phone;
+    const bizName = currentGroup?.name || 'העסק';
+    const sevLabel = { low:'נמוכה', medium:'בינונית', high:'גבוהה', critical:'קריטית' }[fault.severity] || fault.severity;
+    const msg = `שלום,\nקריאת שירות מ${bizName}:\n\n📍 ציוד: ${fault.equipment_name}\n⚠️ תקלה: ${fault.title}\n🔴 חומרה: ${sevLabel}\n${fault.description ? '\nפירוט: ' + fault.description : ''}\n\nאנא צרו קשר לתיאום טיפול.\nתודה.`;
+    const phone = techPhone ? `972${techPhone.replace(/^0/,'').replace(/\D/g,'')}` : '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function sendFaultEmail(faultId) {
+    const fault = equipmentFaults.find(f => f.id === faultId);
+    if (!fault) return;
+    const item = equipmentItems.find(i => i.id === fault.equipment_id);
+    const techEmail = item?.technician_email || '';
+    const bizName = currentGroup?.name || 'העסק';
+    const sevLabel = { low:'נמוכה', medium:'בינונית', high:'גבוהה', critical:'קריטית' }[fault.severity] || fault.severity;
+    const subject = `קריאת שירות: ${fault.title} — ${fault.equipment_name}`;
+    const body = `שלום,\n\nקריאת שירות מ${bizName}:\n\nציוד: ${fault.equipment_name}\nתקלה: ${fault.title}\nחומרה: ${sevLabel}\n${fault.description ? 'פירוט: ' + fault.description + '\n' : ''}\nאנא צרו קשר לתיאום טיפול.\n\nתודה,\n${bizName}`;
+    window.location.href = `mailto:${techEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
