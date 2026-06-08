@@ -21976,7 +21976,16 @@ function openMaintenanceModal(id = null) {
                 </div>
                 <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
                     <input type="hidden" id="eqmaint-id">
-                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="eqmaint-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">בחר ציוד...</option></select></div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label>
+                        <select id="eqmaint-equipment" onchange="onEqMaintEquipmentChange(this.value)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">בחר ציוד...</option></select>
+                    </div>
+                    <div id="eqmaint-tech-link-row" class="hidden">
+                        <label class="flex items-center gap-2 cursor-pointer bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                            <input type="checkbox" id="eqmaint-use-linked-tech" onchange="toggleLinkedTech(this.checked)" class="w-4 h-4 accent-indigo-600">
+                            <span id="eqmaint-linked-tech-label" class="text-xs font-bold text-blue-800">שלח לטכנאי המשויך</span>
+                        </label>
+                    </div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג תחזוקה</label>
                         <select id="eqmaint-type" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
                             <option value="periodic">תקופתי</option><option value="repair">תיקון</option><option value="inspection">בדיקה</option>
@@ -22025,7 +22034,56 @@ function openMaintenanceModal(id = null) {
     getEl('eqmaint-cost').value = record ? (record.cost || '') : '';
     getEl('eqmaint-notes').value = record ? (record.notes || '') : '';
     getEl('eqmaint-interval').value = record ? (record.interval_days || '') : '';
+    // הפעל auto-fill טכנאי אם יש ציוד משויך
+    onEqMaintEquipmentChange(record ? record.equipment_id : '');
+    // אם יש טכנאי ידני רשום בשיא, השתמש בו (override)
+    if (record && record.technician_name) {
+        getEl('eqmaint-use-linked-tech').checked = false;
+        toggleLinkedTech(false);
+        getEl('eqmaint-tech').value = record.technician_name;
+        getEl('eqmaint-phone').value = record.technician_phone || '';
+    }
     modal.classList.remove('hidden');
+}
+
+function onEqMaintEquipmentChange(equipmentId) {
+    const linkRow = getEl('eqmaint-tech-link-row');
+    const item = equipmentId ? equipmentItems.find(i => i.id === parseInt(equipmentId)) : null;
+    const tech = item?.technician_id ? equipmentTechnicians.find(t => t.id === item.technician_id) : null;
+    if (tech) {
+        const label = getEl('eqmaint-linked-tech-label');
+        label.textContent = `שלח לטכנאי המשויך: ${tech.name}${tech.company_name ? ' — ' + tech.company_name : ''}`;
+        linkRow.classList.remove('hidden');
+        getEl('eqmaint-use-linked-tech').checked = true;
+        toggleLinkedTech(true);
+    } else {
+        linkRow.classList.add('hidden');
+        getEl('eqmaint-use-linked-tech').checked = false;
+        toggleLinkedTech(false);
+    }
+}
+
+function toggleLinkedTech(useLinked) {
+    const techInput = getEl('eqmaint-tech');
+    const phoneInput = getEl('eqmaint-phone');
+    if (!useLinked) {
+        techInput.readOnly = false;
+        techInput.classList.remove('bg-slate-50');
+        phoneInput.readOnly = false;
+        phoneInput.classList.remove('bg-slate-50');
+        return;
+    }
+    const equipmentId = getEl('eqmaint-equipment').value;
+    const item = equipmentId ? equipmentItems.find(i => i.id === parseInt(equipmentId)) : null;
+    const tech = item?.technician_id ? equipmentTechnicians.find(t => t.id === item.technician_id) : null;
+    if (tech) {
+        techInput.value = tech.name + (tech.company_name ? ' — ' + tech.company_name : '');
+        phoneInput.value = tech.phone || '';
+        techInput.readOnly = true;
+        techInput.classList.add('bg-slate-50');
+        phoneInput.readOnly = true;
+        phoneInput.classList.add('bg-slate-50');
+    }
 }
 
 async function submitMaintenanceRecord() {

@@ -8475,7 +8475,7 @@ app.post('/api/equipment/faults', async (req, res) => {
         if (id) {
             result = await pool.query(
                 `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7,
-                 resolved_date=CASE WHEN $6='resolved' AND resolved_date IS NULL THEN CURRENT_DATE ELSE resolved_date END
+                 resolved_date=CASE WHEN $6::text='resolved' AND resolved_date IS NULL THEN CURRENT_DATE ELSE resolved_date END
                  WHERE id=$8 AND group_id=$9 RETURNING *`,
                 [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, id, groupId]);
         } else {
