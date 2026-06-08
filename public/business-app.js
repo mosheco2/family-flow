@@ -2133,6 +2133,7 @@ const ALL_TABS = [
     { id: 'equipment', name: 'תחזוקת ציוד 🔧' },
     { id: 'academy', name: 'מרכז הכשרות 🎓' },
     { id: 'community', name: 'קהילות מחוברות 🏘️' },
+    { id: 'surveys', name: 'תקשורת ועדכונים 📣' },
     { id: 'members', name: 'ניהול צוות 👥' }
 ];
 
