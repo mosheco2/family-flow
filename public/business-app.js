@@ -5498,6 +5498,17 @@ window.openProfileModal = function() {
 
     const oldPw = document.getElementById('old-password'); if(oldPw) oldPw.value = '';
     const newPw = document.getElementById('new-password'); if(newPw) newPw.value = '';
+
+    // Business settings button - admin only
+    if (currentUser && currentUser.role === 'ADMIN' && !document.getElementById('btn-biz-settings-open')) {
+        const wizBtn = document.getElementById('btn-reopen-wizard-biz');
+        const modalBody = document.getElementById('profile-modal') && document.getElementById('profile-modal').querySelector('.overflow-y-auto, [class*="flex-1"]');
+        const anchor = wizBtn || modalBody;
+        if (anchor) {
+            const insertMethod = wizBtn ? 'afterend' : 'beforeend';
+            anchor.insertAdjacentHTML(insertMethod, '<button id="btn-biz-settings-open" onclick="openBusinessSettingsModal()" class="w-full mt-2 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-sm"><i class=\"fa-solid fa-building-cog ml-1\"></i> \u05d4\u05d2\u05d3\u05e8\u05d5\u05ea \u05e2\u05e1\u05e7 \u05d5\u05de\u05de\u05e9\u05e7\u05d9 \u05ea\u05e4\u05e7\u05d9\u05d3</button>');
+        }
+    }
     document.getElementById('profile-modal').classList.remove('hidden');
     const vatEl = document.getElementById('doc-vat-number'); if (vatEl) vatEl.value = currentGroup.vat_number || '';
     const cntEl = document.getElementById('doc-contact-name'); if (cntEl) cntEl.value = currentGroup.contact_name || '';
