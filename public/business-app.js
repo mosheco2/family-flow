@@ -1432,7 +1432,7 @@ function switchTab(t) {
     if (t === 'equipment') try { loadEquipment(); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
-    if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
+    if (t === 'pos') { try { window.renderPOSCatalog('all'); setTimeout(() => { try { window.initPOSTableSelector(); } catch(e2) {} }, 200); } catch(e) {} }
     if (t === 'shop') try { switchProcurementTab('list'); } catch(e) {}
     if (t === 'calendar') try { window.switchCalendarTab('main'); } catch(e) {}
 }
@@ -19014,11 +19014,96 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
     }).join('');
 };
 
+window.posSelectedTable = null;
+
+window.selectPOSTable = function(tableId, btn) {
+    window.posSelectedTable = tableId;
+    document.querySelectorAll('.pos-table-btn').forEach(b => {
+        b.className = b.className.replace(/bg-amber-100 border-amber-400 text-amber-800/g, 'bg-slate-100 text-slate-600 border border-slate-200');
+        b.className = b.className.replace(/bg-slate-100 text-slate-600 border border-slate-200/g, 'bg-slate-100 text-slate-600 border border-slate-200');
+    });
+    if (btn) {
+        btn.className = btn.className.replace('bg-slate-100 text-slate-600 border border-slate-200', 'bg-amber-100 border-amber-400 text-amber-800');
+        btn.className += ' font-black';
+    }
+    const label = document.getElementById('pos-table-label');
+    if (label) label.textContent = `שולחן ${tableId}`;
+};
+
+window.initPOSTableSelector = function() {
+    if (document.getElementById('pos-table-zone')) return;
+    const isRestaurant = (currentGroup?.business_type === 'restaurant' || currentGroup?.business_type === 'cafe');
+    if (!isRestaurant) return;
+    const phoneInput = document.getElementById('pos-customer-phone');
+    if (!phoneInput) return;
+    const count = parseInt(currentGroup.table_count || 8);
+    const assigns = getTableAssignments ? getTableAssignments() : {};
+    const states = getTableStates ? getTableStates() : {};
+    const tableBtns = Array.from({length:count}, (_, i) => {
+        const tid = i+1;
+        const isFree = (states[tid]||'free') === 'free';
+        const waiter = assigns[tid] ? ` (${assigns[tid]})` : '';
+        return `<button type="button" onclick="selectPOSTable(${tid},this)"
+            class="pos-table-btn bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold transition whitespace-nowrap ${!isFree?'opacity-60':''}"
+            style="touch-action:manipulation;cursor:pointer;">${tid}${waiter}</button>`;
+    }).join('');
+    const zone = document.createElement('div');
+    zone.id = 'pos-table-zone';
+    zone.className = 'px-4 pt-3 pb-2 border-b border-slate-100 bg-slate-50';
+    zone.innerHTML = `<div class="flex items-center gap-2 mb-1.5">
+        <span class="text-xs font-bold text-slate-600 shrink-0">🍽️ שולחן:</span>
+        <span id="pos-table-label" class="text-xs font-black text-amber-600">לא נבחר</span>
+    </div>
+    <div class="flex gap-1.5 flex-wrap">${tableBtns}</div>`;
+    phoneInput.closest('.p-4.border-b') ? phoneInput.closest('.p-4.border-b').before(zone) : phoneInput.closest('div').before(zone);
+};
+
 window.addPOSComplimentary = function(id) {
     const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
-    window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: `🎁 ${p.name}`, price: 0, qty: 1, modifiers: null });
-    window.renderPOSCart();
-    showToast('success', `${p.name} נוסף להזמנה`);
+    // Show table picker for complimentary items (no POS checkout needed)
+    document.getElementById('comp-table-picker')?.remove();
+    const count = parseInt(currentGroup.table_count || 8);
+    const assigns = getTableAssignments ? getTableAssignments() : {};
+    const tableBtns = Array.from({length:count}, (_, i) => {
+        const tid = i+1;
+        const waiter = assigns[tid] ? ` · ${assigns[tid]}` : '';
+        return `<button type="button"
+            ontouchend="event.preventDefault();sendComplimentaryToTable(${id},${tid});"
+            onclick="sendComplimentaryToTable(${id},${tid})"
+            class="bg-amber-50 border border-amber-200 rounded-xl p-3 font-black text-amber-800 text-sm active:bg-amber-200"
+            style="touch-action:manipulation;cursor:pointer;">${tid}<span class="block text-[9px] text-amber-600 font-normal">${waiter}</span></button>`;
+    }).join('');
+    const html = `<div id="comp-table-picker" class="fixed inset-0 bg-black/60 z-[9999] flex items-end justify-center p-4">
+        <div class="bg-white rounded-[2rem] w-full max-w-sm p-5 shadow-2xl">
+            <h3 class="font-black text-slate-800 mb-3 text-center">🎁 ${safeStr(p.name)}<br><span class="text-sm font-normal text-slate-500">לאיזה שולחן?</span></h3>
+            <div class="grid grid-cols-4 gap-2 mb-4">${tableBtns}</div>
+            <button onclick="document.getElementById('comp-table-picker').remove()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600" style="touch-action:manipulation;">ביטול</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.sendComplimentaryToTable = function(productId, tableNumber) {
+    const p = storeCatalogCache.find(x => x.id === productId); if(!p) return;
+    const key = `service_req_${currentGroup.id}`;
+    let reqs = [];
+    try { reqs = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+    reqs.unshift({ id: Date.now(), productId, name: p.name, tableNumber, time: new Date().toISOString(), done: false });
+    reqs = reqs.slice(0, 50); // keep last 50
+    localStorage.setItem(key, JSON.stringify(reqs));
+    document.getElementById('comp-table-picker')?.remove();
+    showToast('success', `${p.name} → שולחן ${tableNumber} 🎁`);
+};
+
+window.markServiceReqDone = function(reqId) {
+    const key = `service_req_${currentGroup.id}`;
+    let reqs = [];
+    try { reqs = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+    const req = reqs.find(r => r.id === reqId);
+    if (req) { req.done = true; localStorage.setItem(key, JSON.stringify(reqs)); }
+    // Re-render cook dashboard
+    const dashEl = document.getElementById('content-role-dashboard');
+    if (dashEl && currentUser?.employee_role_type === 'cook') renderCookDashboard(dashEl);
 };
 
 window.addPOSItem = function(id) {
@@ -19659,7 +19744,7 @@ window.finalizePOSOrder = async function() {
         vatDetails = { enabled: true, rate: rate, subtotal: totalBeforeVat, vatAmount: vatAmount };
     }
     
-    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount };
+    const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment, promoDiscount: promoAmount, tableNumber: window.posSelectedTable || null };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
     const modal = document.getElementById('pos-tender-modal');
@@ -24008,6 +24093,7 @@ async function renderCookDashboard(el) {
                 <span class="bg-orange-100 text-orange-600 text-xs font-black px-2 py-0.5 rounded-full">${kdsTickets.length}</span>
             </div>
             <div id="kds-container" class="p-3 grid grid-cols-2 gap-2">${kdsHtml}</div>
+            ${(()=>{ let reqs=[]; try{reqs=JSON.parse(localStorage.getItem(`service_req_${currentGroup.id}`)||'[]');}catch(e){} const pending=reqs.filter(r=>!r.done); if(!pending.length) return ''; const rows=pending.slice(0,8).map(r=>`<div class="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0"><span class="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-lg shrink-0">שולחן ${r.tableNumber}</span><span class="text-xs text-slate-700 flex-1">${safeStr(r.name)}</span><button onclick="markServiceReqDone(${r.id})" class="text-green-600 text-lg leading-none" style="touch-action:manipulation;">✓</button></div>`).join(''); return `<div class="px-4 py-2 border-t border-amber-50"><div class="text-[10px] font-black text-amber-600 mb-1">🎁 בקשות שירות (${pending.length})</div>${rows}</div>`; })()}
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-red-50 bg-red-50/50 flex justify-between items-center">
