@@ -382,7 +382,10 @@ function renderSAGroups() {
         const proToggleBtn = g.is_premium ? `<button type="button" onclick="window.saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button type="button" onclick="window.saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button type="button" onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button type="button" onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
+        const bizInfo = g.type === 'BUSINESS' ? (BUSINESS_TYPES.find(b => b.id === (g.business_type||'other')) || BUSINESS_TYPES[BUSINESS_TYPES.length-1]) : null;
+        const bizBadge = bizInfo ? `<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200">${bizInfo.icon} ${bizInfo.name}</span>` : '';
+        const bizBtn = g.type === 'BUSINESS' ? `<button type="button" onclick="saChangeBizType(${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${g.business_type||'other'}')" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-store mr-1"></i> מהות עסק</button>` : '';
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}${bizBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2 flex-wrap">${bizBtn}<button type="button" onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button type="button" onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
@@ -446,7 +449,7 @@ window.injectBusinessUI = function() {
     if (custContainer) {
         custContainer.innerHTML = `
             <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
-                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
+                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול ${getBizTerm('customer_pl')} 🤝</h3>
                 <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
                     <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
                     <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
@@ -22966,19 +22969,19 @@ const BUSINESS_TYPES = [
 
 // ─── מינוח מותאם per סוג עסק ───────────────────────────────────────────
 const BUSINESS_CONFIG = {
-    restaurant:         { customer:'אורח',      product:'מנה',           appointment:'שולחן',         supplier:'ספק חומרי גלם',    costing:'תמחור מנות',      order:'הזמנה'    },
-    retail:             { customer:'לקוח',       product:'מוצר',          appointment:'ביקור',         supplier:'ספק/יצרן',         costing:'תמחור מוצרים',    order:'הזמנה'    },
-    services:           { customer:'לקוח',       product:'שירות',         appointment:'פגישה',         supplier:'קבלן חיצוני',      costing:'תמחור שירותים',   order:'פרויקט'   },
-    construction:       { customer:'מזמין',      product:'חומר',          appointment:'פגישת אתר',     supplier:'ספק חומרי בנייה',  costing:'עלות פרויקט',     order:'פרויקט'   },
-    maintenance_repair: { customer:'לקוח',       product:'שירות/חלק',     appointment:'קריאת שירות',   supplier:'ספק חלקים',        costing:'תמחור שירות',     order:'קריאה'    },
-    logistics:          { customer:'לקוח B2B',   product:'פריט',          appointment:'חלון מסירה',    supplier:'ספק/יצרן',         costing:'עלות לוגיסטיקה',  order:'הזמנה'    },
-    healthcare:         { customer:'מטופל',      product:'טיפול',         appointment:'תור',           supplier:'ספק ציוד רפואי',   costing:'תמחור טיפול',     order:'הפניה'    },
-    beauty:             { customer:'לקוחה',      product:'טיפול/מוצר',    appointment:'תור',           supplier:'ספק קוסמטיקה',     costing:'תמחור טיפולים',   order:'הזמנה'    },
-    education:          { customer:'תלמיד',      product:'שיעור/קורס',    appointment:'שיעור',         supplier:'ספק חומרי לימוד',  costing:'תמחור קורסים',    order:'הרשמה'    },
-    sport:              { customer:'חבר',        product:'מנוי/אימון',    appointment:'אימון',         supplier:'ספק ציוד',         costing:'תמחור מנויים',    order:'הרשמה'    },
-    events:             { customer:'מזמין',      product:'שירות הפקה',    appointment:'אירוע',         supplier:'נותן שירות',       costing:'תמחור אירוע',     order:'הזמנה'    },
-    food_production:    { customer:'לקוח B2B',   product:'מוצר',          appointment:'הזמנת ייצור',   supplier:'ספק חומרי גלם',    costing:'עלות ייצור',      order:'הזמנה'    },
-    other:              { customer:'לקוח',       product:'מוצר/שירות',    appointment:'תור/פגישה',     supplier:'ספק',              costing:'תמחור',           order:'הזמנה'    }
+    restaurant:         { customer:'אורח',      customer_pl:'אורחים',      product:'מנה',           appointment:'שולחן',         supplier:'ספק חומרי גלם',    costing:'תמחור מנות',      order:'הזמנה'    },
+    retail:             { customer:'לקוח',       customer_pl:'לקוחות',      product:'מוצר',          appointment:'ביקור',         supplier:'ספק/יצרן',         costing:'תמחור מוצרים',    order:'הזמנה'    },
+    services:           { customer:'לקוח',       customer_pl:'לקוחות',      product:'שירות',         appointment:'פגישה',         supplier:'קבלן חיצוני',      costing:'תמחור שירותים',   order:'פרויקט'   },
+    construction:       { customer:'מזמין',      customer_pl:'מזמינים',     product:'חומר',          appointment:'פגישת אתר',     supplier:'ספק חומרי בנייה',  costing:'עלות פרויקט',     order:'פרויקט'   },
+    maintenance_repair: { customer:'לקוח',       customer_pl:'לקוחות',      product:'שירות/חלק',     appointment:'קריאת שירות',   supplier:'ספק חלקים',        costing:'תמחור שירות',     order:'קריאה'    },
+    logistics:          { customer:'לקוח B2B',   customer_pl:'לקוחות',      product:'פריט',          appointment:'חלון מסירה',    supplier:'ספק/יצרן',         costing:'עלות לוגיסטיקה',  order:'הזמנה'    },
+    healthcare:         { customer:'מטופל',      customer_pl:'מטופלים',     product:'טיפול',         appointment:'תור',           supplier:'ספק ציוד רפואי',   costing:'תמחור טיפול',     order:'הפניה'    },
+    beauty:             { customer:'לקוחה',      customer_pl:'לקוחות',      product:'טיפול/מוצר',    appointment:'תור',           supplier:'ספק קוסמטיקה',     costing:'תמחור טיפולים',   order:'הזמנה'    },
+    education:          { customer:'תלמיד',      customer_pl:'תלמידים',     product:'שיעור/קורס',    appointment:'שיעור',         supplier:'ספק חומרי לימוד',  costing:'תמחור קורסים',    order:'הרשמה'    },
+    sport:              { customer:'חבר',        customer_pl:'חברים',       product:'מנוי/אימון',    appointment:'אימון',         supplier:'ספק ציוד',         costing:'תמחור מנויים',    order:'הרשמה'    },
+    events:             { customer:'מזמין',      customer_pl:'מזמינים',     product:'שירות הפקה',    appointment:'אירוע',         supplier:'נותן שירות',       costing:'תמחור אירוע',     order:'הזמנה'    },
+    food_production:    { customer:'לקוח B2B',   customer_pl:'לקוחות',      product:'מוצר',          appointment:'הזמנת ייצור',   supplier:'ספק חומרי גלם',    costing:'עלות ייצור',      order:'הזמנה'    },
+    other:              { customer:'לקוח',       customer_pl:'לקוחות',      product:'מוצר/שירות',    appointment:'תור/פגישה',     supplier:'ספק',              costing:'תמחור',           order:'הזמנה'    }
 };
 
 function getBizTerm(key) {
@@ -23061,6 +23064,27 @@ function applyBusinessTypeFilter() {
         const groupBtn = getEl(`gnav-btn-${group}`);
         if (groupBtn) groupBtn.style.display = visibleItems.length === 0 ? 'none' : '';
     });
+
+    // Adapt tab & nav labels based on business type
+    const bizType = currentGroup?.business_type;
+    if (bizType && bizType !== 'other') {
+        const TAB_RENAME = {
+            restaurant:     { customers: 'אורחים 🤝', calendar: 'הזמנות שולחנות 📅' },
+            healthcare:     { customers: 'מטופלים 🤝', calendar: 'יומן תורים 📅', members: 'צוות רפואי 👥' },
+            beauty:         { customers: 'לקוחות 🤝', calendar: 'יומן תורים 📅' },
+            sport:          { customers: 'חברים 🤝', members: 'חברי מועדון 👥', calendar: 'לוח אימונים 📅' },
+            logistics:      { customers: 'לקוחות 🤝' },
+            construction:   { customers: 'לקוחות 🤝', calendar: 'לוח פרויקטים 📅' },
+            events:         { customers: 'לקוחות 🤝', calendar: 'יומן אירועים 📅', sales: 'מכירות אירועים 🛍️' },
+        };
+        const renames = TAB_RENAME[bizType] || {};
+        Object.entries(renames).forEach(([tabId, label]) => {
+            const tabBtn = getEl(`tab-${tabId}`);
+            if (tabBtn) tabBtn.textContent = label;
+            const dropBtn = getEl(`gdrop-${tabId}`);
+            if (dropBtn && !dropBtn.querySelector('[id]')) dropBtn.textContent = label;
+        });
+    }
 }
 
 // --- Role dashboard dispatcher ---
