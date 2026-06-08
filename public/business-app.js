@@ -23138,7 +23138,7 @@ async function showRoleDashboard(roleType) {
         }
     } catch(e) {}
 
-    // Buttons use onclick="rdAction(...)" directly — no dynamic listener attachment needed
+    // Buttons use ontouchend="event.preventDefault();event.stopPropagation();rdAction(...);" onclick="rdAction(...)" directly — no dynamic listener attachment needed
 }
 
 function roleTodayWidget() {
@@ -23161,7 +23161,7 @@ function roleTodayWidget() {
     return `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4">
         <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-black text-amber-800">⚡ מה מחכה לי היום${total > 0 ? ` <span class="bg-amber-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full mr-1">${total}</span>` : ''}</span>
-            <button type="button" onclick="rdAction('tasks','')" class="text-amber-600 text-[10px] font-bold underline" style="touch-action:manipulation;cursor:pointer;">לכל המשימות</button>
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="text-amber-600 text-[10px] font-bold underline" style="touch-action:manipulation;cursor:pointer;">לכל המשימות</button>
         </div>
         <div>${body}</div>
     </div>`;
@@ -23176,17 +23176,27 @@ function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
     </div>`;
 }
 
+function rdBtn(tab, action, cls, content) {
+    const t = tab||'', a = action||'';
+    return `<button type="button"
+        ontouchend="event.preventDefault();event.stopPropagation();rdAction('${t}','${a}');"
+        onclick="rdAction('${t}','${a}');"
+        class="${cls}" style="touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);">${content}</button>`;
+}
+
 function roleQuickActions(actions) {
     return `<div class="grid grid-cols-${Math.min(actions.length,3)} gap-3 mb-4">
-        ${actions.map(a => `<button type="button" onclick="rdAction('${a.tab||''}','${a.action||''}')" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
-            <span class="text-2xl">${a.icon}</span>
-            <span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>
-        </button>`).join('')}
+        ${actions.map(a => rdBtn(a.tab||'', a.action||'',
+            'bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5',
+            `<span class="text-2xl">${a.icon}</span><span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>`
+        )).join('')}
     </div>`;
 }
 
 function roleFullMenuBtn() {
-    return `<button type="button" onclick="rdAction('','full-menu')" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2" style="touch-action:manipulation;cursor:pointer;"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
+    return rdBtn('', 'full-menu',
+        'w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2',
+        '<i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא');
 }
 
 // --- 1. Salesperson Dashboard ---
@@ -23217,22 +23227,22 @@ async function renderSalespersonDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">📋 משימות פתוחות</h3>
-                <button type="button" onclick="rdAction('tasks','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
-                <button type="button" onclick="rdAction('customers','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('customers','');" onclick="rdAction('customers','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${custHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('sales','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('sales','');" onclick="rdAction('sales','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🛍️</span><div class="text-right"><div class="text-xs font-black text-indigo-800">מכירות</div><div class="text-[10px] text-indigo-500">הזמנות והצעות</div></div>
             </button>
-            <button type="button" onclick="rdAction('cashflow','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('cashflow','');" onclick="rdAction('cashflow','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">💸</span><div class="text-right"><div class="text-xs font-black text-blue-800">תזרים</div><div class="text-[10px] text-blue-500">מצב כספי</div></div>
             </button>
         </div>
@@ -23271,22 +23281,22 @@ async function renderFieldTechDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">⚠️ תקלות פתוחות</h3>
-                <button type="button" onclick="rdAction('equipment','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('equipment','');" onclick="rdAction('equipment','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${faultsHtml}</div>
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">📋 משימות היום</h3>
-                <button type="button" onclick="rdAction('tasks','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('equipment','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('equipment','');" onclick="rdAction('equipment','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🔧</span><div class="text-right"><div class="text-xs font-black text-orange-800">ציוד</div><div class="text-[10px] text-orange-500">פנקס ציוד מלא</div></div>
             </button>
-            <button type="button" onclick="rdAction('calendar','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('calendar','');" onclick="rdAction('calendar','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-red-800">יומן</div><div class="text-[10px] text-red-500">תורים ופגישות</div></div>
             </button>
         </div>
@@ -23356,10 +23366,10 @@ async function renderWarehouseDashboard(el) {
             <div class="px-4 py-1">${lowHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('pantry','')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('pantry','');" onclick="rdAction('pantry','')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-amber-800">מלאי</div><div class="text-[10px] text-amber-500">כל הפריטים</div></div>
             </button>
-            <button type="button" onclick="rdAction('shop','')" class="bg-yellow-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('shop','');" onclick="rdAction('shop','')" class="bg-yellow-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🛒</span><div class="text-right"><div class="text-xs font-black text-yellow-800">רכש</div><div class="text-[10px] text-yellow-500">הזמן מספק</div></div>
             </button>
         </div>
@@ -23429,15 +23439,15 @@ async function renderSupportDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
-                <button type="button" onclick="rdAction('customers','')" class="text-purple-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('customers','');" onclick="rdAction('customers','')" class="text-purple-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${custHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('tasks','')" class="bg-purple-50 rounded-2xl p-4 shadow-sm border border-purple-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="bg-purple-50 rounded-2xl p-4 shadow-sm border border-purple-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📋</span><div class="text-right"><div class="text-xs font-black text-purple-800">משימות</div><div class="text-[10px] text-purple-500">פניות פתוחות</div></div>
             </button>
-            <button type="button" onclick="rdAction('calendar','')" class="bg-violet-50 rounded-2xl p-4 shadow-sm border border-violet-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('calendar','');" onclick="rdAction('calendar','')" class="bg-violet-50 rounded-2xl p-4 shadow-sm border border-violet-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-violet-800">יומן</div><div class="text-[10px] text-violet-500">פגישות שירות</div></div>
             </button>
         </div>
@@ -23470,7 +23480,7 @@ async function renderCashierDashboard(el) {
                 </div>
             </div>
         </div>
-        <button type="button" onclick="rdAction('pos','')" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3 touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+        <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('pos','');" onclick="rdAction('pos','')" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3 touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
             <i class="fa-solid fa-cash-register text-2xl"></i> פתח קופה
         </button>
         ${roleQuickActions([
@@ -23515,10 +23525,10 @@ async function renderShiftManagerDashboard(el) {
             {icon:'📢', label:'הודעה לצוות', action:'inbox'}
         ])}
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('tasks','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('tasks','');" onclick="rdAction('tasks','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-indigo-800">משימות משמרת</div><div class="text-[10px] text-indigo-500">רשימת פעולות</div></div>
             </button>
-            <button type="button" onclick="rdAction('members','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('members','');" onclick="rdAction('members','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>
             </button>
         </div>
@@ -23541,7 +23551,7 @@ async function renderBranchManagerDashboard(el) {
         {label:'תקלות פתוחות', value:faultsCount, icon:'⚠️', color:faultsCount>0?'red':'green', tab:'equipment'}
     ];
 
-    const kpiHtml = kpis.map(k => `<button type="button" onclick="rdAction('${k.tab}','')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+    const kpiHtml = kpis.map(k => `<button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('${k.tab}','');" onclick="rdAction('${k.tab}','')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
         <span class="text-xl">${k.icon}</span>
         <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
         <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
@@ -23556,10 +23566,10 @@ async function renderBranchManagerDashboard(el) {
             {icon:'✅', label:'משימות', tab:'tasks'}
         ])}
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('budget','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('budget','');" onclick="rdAction('budget','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📈</span><div class="text-right"><div class="text-xs font-black text-slate-800">תקציב</div><div class="text-[10px] text-slate-500">מול ביצוע</div></div>
             </button>
-            <button type="button" onclick="rdAction('forecast','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" ontouchend="event.preventDefault();event.stopPropagation();rdAction('forecast','');" onclick="rdAction('forecast','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🔮</span><div class="text-right"><div class="text-xs font-black text-slate-800">תשקיף</div><div class="text-[10px] text-slate-500">תחזית</div></div>
             </button>
         </div>
@@ -23600,17 +23610,13 @@ async function renderWaiterDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">✅ משימות משמרת</h3>
-                <button type="button" onclick="rdAction('tasks','')" class="text-amber-500 text-xs font-bold underline" style="touch-action:manipulation;cursor:pointer;">הכל</button>
+                ${rdBtn('tasks','','text-amber-500 text-xs font-bold underline','הכל')}
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('calendar','')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-amber-800">הזמנות שולחנות</div><div class="text-[10px] text-amber-500">יומן</div></div>
-            </button>
-            <button type="button" onclick="rdAction('members','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-orange-800">הצוות</div><div class="text-[10px] text-orange-500">צוות משמרת</div></div>
-            </button>
+            ${rdBtn('calendar','','bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3','<span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-amber-800">הזמנות שולחנות</div><div class="text-[10px] text-amber-500">יומן</div></div>')}
+            ${rdBtn('members','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3','<span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-orange-800">הצוות</div><div class="text-[10px] text-orange-500">צוות משמרת</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
 }
@@ -23650,17 +23656,13 @@ async function renderCookDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">✅ משימות מטבח</h3>
-                <button type="button" onclick="rdAction('tasks','')" class="text-red-500 text-xs font-bold underline" style="touch-action:manipulation;cursor:pointer;">הכל</button>
+                ${rdBtn('tasks','','text-red-500 text-xs font-bold underline','הכל')}
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" onclick="rdAction('pantry','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-red-800">מלאי מטבח</div><div class="text-[10px] text-red-500">כל הפריטים</div></div>
-            </button>
-            <button type="button" onclick="rdAction('foodcost','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">🍽️</span><div class="text-right"><div class="text-xs font-black text-orange-800">תמחור מנות</div><div class="text-[10px] text-orange-500">עלות מנה</div></div>
-            </button>
+            ${rdBtn('pantry','','bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3','<span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-red-800">מלאי מטבח</div><div class="text-[10px] text-red-500">כל הפריטים</div></div>')}
+            ${rdBtn('foodcost','','bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3','<span class="text-2xl">🍽️</span><div class="text-right"><div class="text-xs font-black text-orange-800">תמחור מנות</div><div class="text-[10px] text-orange-500">עלות מנה</div></div>')}
         </div>
         ${roleFullMenuBtn()}`;
 }
