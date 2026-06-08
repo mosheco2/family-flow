@@ -5301,6 +5301,66 @@ window.triggerManualTour = function() {
     setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); }, 300);
 };
 
+// Makes floating-pill draggable (touch + mouse)
+(function initFloatingPillDrag() {
+    function tryAttach() {
+        const pill = document.getElementById('floating-pill');
+        if (!pill) { setTimeout(tryAttach, 800); return; }
+        if (pill._dragInit) return;
+        pill._dragInit = true;
+        let startX, startY, origLeft, origBottom, isDragging = false;
+        const LONG_PRESS = 350;
+        let pressTimer = null;
+
+        function onPointerDown(e) {
+            if (e.touches) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }
+            else { startX = e.clientX; startY = e.clientY; }
+            const rect = pill.getBoundingClientRect();
+            origLeft = rect.left;
+            origBottom = window.innerHeight - rect.bottom;
+            pressTimer = setTimeout(() => {
+                isDragging = true;
+                pill.style.transition = 'none';
+                pill.style.cursor = 'grabbing';
+                pill.style.opacity = '0.85';
+                pill.style.left = origLeft + 'px';
+                pill.style.bottom = origBottom + 'px';
+                pill.style.transform = 'none';
+                pill.classList.add('fixed');
+            }, LONG_PRESS);
+        }
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            let cx = e.touches ? e.touches[0].clientX : e.clientX;
+            let cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const dx = cx - startX, dy = cy - startY;
+            let newLeft = Math.max(0, Math.min(window.innerWidth - pill.offsetWidth, origLeft + dx));
+            let newBottom = Math.max(0, Math.min(window.innerHeight - pill.offsetHeight, origBottom - dy));
+            pill.style.left = newLeft + 'px';
+            pill.style.bottom = newBottom + 'px';
+        }
+        function onPointerUp(e) {
+            clearTimeout(pressTimer);
+            if (isDragging) {
+                isDragging = false;
+                pill.style.cursor = '';
+                pill.style.opacity = '';
+                pill.style.transition = '';
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+        pill.addEventListener('mousedown', onPointerDown);
+        pill.addEventListener('touchstart', onPointerDown, { passive: true });
+        document.addEventListener('mousemove', onPointerMove);
+        document.addEventListener('touchmove', onPointerMove, { passive: false });
+        document.addEventListener('mouseup', onPointerUp);
+        document.addEventListener('touchend', onPointerUp);
+    }
+    setTimeout(tryAttach, 1200);
+})();
+
 window.openProfileModal = function() {
     if (!document.getElementById('profile-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
@@ -5333,7 +5393,22 @@ window.openProfileModal = function() {
                     </div>
                 </div>
 
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+<div id="biz-doc-settings-section" class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm mb-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-indigo-200 pb-2"><i class="fa-solid fa-file-invoice text-indigo-500 mr-1"></i> פרטים להזמנות ומסמכים</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / עוסק מורשה:</label>
+                            <input type="text" id="doc-vat-number" class="modern-input py-2 text-sm bg-white w-full dir-ltr text-left" placeholder="123456789">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם איש קשר לרכש:</label>
+                            <input type="text" id="doc-contact-name" class="modern-input py-2 text-sm bg-white w-full" placeholder="שם מלא">
+                        </div>
+                        <button onclick="window.saveDocSettings()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition shadow-sm">שמור פרטים</button>
+                    </div>
+                </div>
+
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
                     <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">שינוי סיסמה</h4>
                     <form onsubmit="window.submitChangePassword(event)" class="space-y-3">
                         <input type="password" id="old-password" class="modern-input py-2 text-sm w-full bg-white border-slate-200" placeholder="סיסמה נוכחית" required>
@@ -5370,6 +5445,25 @@ window.openProfileModal = function() {
     const oldPw = document.getElementById('old-password'); if(oldPw) oldPw.value = '';
     const newPw = document.getElementById('new-password'); if(newPw) newPw.value = '';
     document.getElementById('profile-modal').classList.remove('hidden');
+    const vatEl = document.getElementById('doc-vat-number'); if (vatEl) vatEl.value = currentGroup.vat_number || '';
+    const cntEl = document.getElementById('doc-contact-name'); if (cntEl) cntEl.value = currentGroup.contact_name || '';
+};
+
+window.saveDocSettings = async function() {
+    const vatNum = (document.getElementById('doc-vat-number') || {}).value || '';
+    const contactN = (document.getElementById('doc-contact-name') || {}).value || '';
+    try {
+        const res = await fetch(`${API}/groups/${currentGroup.id}/doc-settings`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ vat_number: vatNum, contact_name: contactN })
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentGroup.vat_number = vatNum;
+            currentGroup.contact_name = contactN;
+            showToast('success', 'הפרטים נשמרו!');
+        } else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.submitChangePassword = async function(e) { 
@@ -11402,7 +11496,7 @@ function renderB2BOrders() {
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
-                    ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
+                    ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')} • ${new Date(o.supplier_confirmed_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span>` : ''}
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
@@ -11468,11 +11562,15 @@ window.sendPurchaseOrderWhatsApp = async function(orderId) {
 
     let msg = `שלום ${supData.name},\n`;
     msg += `הזמנת רכש #${o.id} מ${currentGroup.name}\n`;
+    if (currentGroup.vat_number) msg += `ח.פ / עוסק: ${currentGroup.vat_number}\n`;
     msg += `תאריך: ${dateStr}\n`;
-    if (contactEmail) msg += `איש קשר: ${contactEmail}\n`;
+    const contactPersonName = currentGroup.contact_name || currentUser?.nickname || '';
+    if (contactPersonName) msg += `איש קשר: ${contactPersonName}\n`;
+    if (contactEmail) msg += `מייל: ${contactEmail}\n`;
     msg += `\nפירוט הפריטים:\n`;
     items.forEach(i => {
-        msg += `• ${i.name} — כמות: ${i.quantity} ${i.unit || ''} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
+        const skuPart = i.sku ? ` [מקט: ${i.sku}]` : '';
+        msg += `• ${i.name}${skuPart} — כמות: ${i.quantity} ${i.unit || ''} — ₪${parseFloat(i.row_total || 0).toFixed(2)}\n`;
     });
     msg += `\nסה"כ להזמנה: ₪${parseFloat(o.total_amount || 0).toFixed(2)}\n`;
     if (o.notes) msg += `הערות: ${o.notes}\n`;
@@ -11484,14 +11582,7 @@ window.sendPurchaseOrderWhatsApp = async function(orderId) {
     let phone = supData.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '972' + phone.substring(1);
 
-    // פתיחת חלון PDF להדפסה/שמירה
-    _openPurchaseOrderPrintWindow(o, supData, items, dateStr);
-
-    // המתנה קצרה ואז פתיחת WhatsApp
-    setTimeout(() => {
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-        showToast('info', 'PDF נפתח בחלון נפרד — אפשר לצרפו לוואטסאפ ידנית');
-    }, 300);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
 async function updateB2BOrderStatus(orderId, status) {
@@ -11511,6 +11602,7 @@ function _openPurchaseOrderPrintWindow(o, supData, items, dateStr) {
     const rows = items.map(i => `
         <tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${(i.name||'').replace(/[<>]/g,'')}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:11px" dir="ltr">${(i.sku||'-').replace(/[<>]/g,'')}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">${(i.unit||"יח'").replace(/[<>]/g,'')}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">${parseFloat(i.quantity)||0}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">₪${parseFloat(i.price_per_unit||i.unit_price||0).toFixed(2)}</td>
@@ -11535,13 +11627,14 @@ function _openPurchaseOrderPrintWindow(o, supData, items, dateStr) {
         </div>
         <h2>הזמנת רכש #${o.id}</h2>
         <div class="meta">
-            <strong>מ:</strong> ${businessName.replace(/[<>]/g,'')}${contactEmail ? ` | ${contactEmail}` : ''}<br>
+            <strong>מ:</strong> ${businessName.replace(/[<>]/g,'')}${(currentGroup && currentGroup.vat_number) ? ` | ח.פ: ${currentGroup.vat_number}` : ''}${contactEmail ? ` | ${contactEmail}` : ''}<br>
             <strong>אל:</strong> ${(supData.name||'').replace(/[<>]/g,'')}${supData.phone ? ` | ${supData.phone}` : ''}<br>
             <strong>תאריך:</strong> ${dateStr}
         </div>
         <table>
             <thead><tr>
                 <th style="text-align:right">פריט</th>
+                <th style="text-align:center">מקט</th>
                 <th style="text-align:center">יחידה</th>
                 <th style="text-align:center">כמות</th>
                 <th style="text-align:center">מחיר יח'</th>

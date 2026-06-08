@@ -319,6 +319,8 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS vat_number VARCHAR(50) DEFAULT ''`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100) DEFAULT ''`); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
@@ -1898,6 +1900,14 @@ app.post('/api/groups', async (req, res) => {
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
+app.put('/api/groups/:id/doc-settings', async (req, res) => {
+    try {
+        const { vat_number, contact_name } = req.body;
+        await pool.query('UPDATE family_groups SET vat_number=$1, contact_name=$2 WHERE id=$3', [vat_number || '', contact_name || '', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/groups/onboard', async (req, res) => {
     try {
         const { groupId } = req.body;
