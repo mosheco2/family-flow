@@ -520,28 +520,86 @@ async function fetchMyOrders() {
     }
 }
 
-function renderMyOrders() {
-    const list = getEl('my-orders-list');
-    if (!list) return;
-    
-    if (myOrdersCache.length === 0) {
-        list.innerHTML = `
-        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
-            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
-            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
-            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
-        </div>`;
-        return;
-    }
+window._myOrdersPage = window._myOrdersPage || 0;
+window._myOrdersFilter = window._myOrdersFilter || 'orders';
+window._myOrdersSearch = window._myOrdersSearch || '';
 
-    let html = '';
-    myOrdersCache.forEach(o => {
-        let statusColor = '';
-        let statusText = '';
-        let progressPct = 0;
-        let statusIcon = '';
-        
-        switch(o.status) {
+function renderMyOrders() {
+    const list = getEl('my-orders-list');
+    if (!list) return;
+
+    const PAGE_SIZE = 10;
+    const filter = window._myOrdersFilter || 'orders';
+    const search = (window._myOrdersSearch || '').toLowerCase();
+    const page = window._myOrdersPage || 0;
+
+    let filteredOrders = filter === 'service_calls' ? [] : myOrdersCache.filter(o => {
+        if (!search) return true;
+        return (o.store_name||'').toLowerCase().includes(search) || String(o.id).includes(search) || (o.items_json||o.items||'').toLowerCase().includes(search);
+    });
+
+    let filteredCalls = filter === 'orders' ? [] : (familyServiceCalls||[]).filter(c => {
+        if (!search) return true;
+        return (c.title||'').toLowerCase().includes(search) || (c.business_name||'').toLowerCase().includes(search) || String(c.id).includes(search);
+    });
+
+    const allItems = [...filteredOrders.map(o => ({type:'order', data:o})), ...filteredCalls.map(c => ({type:'call', data:c}))];
+    const totalItems = allItems.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const safePageIdx = Math.min(page, Math.max(0, totalPages - 1));
+    const pageItems = allItems.slice(safePageIdx * PAGE_SIZE, (safePageIdx + 1) * PAGE_SIZE);
+
+    const SC_STATUS_LABELS_FAM = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const SC_STATUS_COLORS_FAM = { new:'border-blue-200 bg-blue-50', seen:'border-indigo-200 bg-indigo-50', in_progress:'border-amber-200 bg-amber-50', pending_parts:'border-purple-200 bg-purple-50', done:'border-green-200 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
+
+    const filterBarHtml = `<div class="mb-3 space-y-2">
+        <div class="flex gap-2">
+            <button onclick="window._myOrdersFilter='orders';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='orders'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">הזמנות</button>
+            <button onclick="window._myOrdersFilter='service_calls';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='service_calls'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">קריאות שירות</button>
+            <button onclick="window._myOrdersFilter='all';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='all'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">הכל</button>
+        </div>
+        <input type="text" placeholder="חיפוש לפי מספר, שם, עסק..." value="${(window._myOrdersSearch||'').replace(/"/g,'&quot;')}" oninput="window._myOrdersSearch=this.value;window._myOrdersPage=0;renderMyOrders();" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300">
+    </div>`;
+
+    if (allItems.length === 0 && myOrdersCache.length === 0 && (!(familyServiceCalls)||familyServiceCalls.length===0)) {
+        list.innerHTML = filterBarHtml + `
+        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
+            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
+        </div>`;
+        return;
+    }
+
+    if (allItems.length === 0) {
+        list.innerHTML = filterBarHtml + `<p class="text-center text-slate-400 text-sm py-6">לא נמצאו תוצאות</p>`;
+        return;
+    }
+
+    let html = filterBarHtml;
+    pageItems.forEach(item => {
+        if (item.type === 'call') {
+            const c = item.data;
+            html += `<div onclick="openFamilyCallModal(${c.id})" class="border rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200 bg-white'}" style="touch-action:manipulation;">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">קריאת שירות</span>
+                        <div class="text-sm font-bold text-slate-800 truncate mt-0.5">${safeStr(c.title)}</div>
+                        <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
+                    </div>
+                    <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-white/60 border border-current/20">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+                </div>
+                ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
+            </div>`;
+            return;
+        }
+        const o = item.data;
+        let statusColor = '';
+        let statusText = '';
+        let progressPct = 0;
+        let statusIcon = '';
+
+        switch(o.status) {
             case 'quote':
                 statusColor = 'border-slate-300 bg-slate-100'; 
                 statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
@@ -1521,6 +1579,15 @@ function renderCashflow() {
         const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeStr(t.description)}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
         html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition"><div class="flex-1 overflow-hidden pr-2"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${safeStr(t.description)}</span> ${userName}</p><p class="text-[10px] text-slate-400 mt-1">${dateStr} ${catBadge}</p></div><div class="flex items-center gap-3 pl-1"><span class="font-bold text-base ${amountClass} whitespace-nowrap" dir="ltr">${prefix}₪${t.amount}</span>${editBtn}</div></div>`;
     });
+
+    if (totalPages > 1) {
+        html += `<div class="flex items-center justify-between mt-3 px-1">
+            <button onclick="window._myOrdersPage=Math.max(0,(window._myOrdersPage||0)-1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===0?'opacity:0.4;pointer-events:none;':''}">→ הקודם</button>
+            <span class="text-[11px] text-slate-500 font-bold">${safePageIdx+1} / ${totalPages}</span>
+            <button onclick="window._myOrdersPage=Math.min(${totalPages-1},(window._myOrdersPage||0)+1);renderMyOrders();" class="text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 bg-white transition" style="touch-action:manipulation;${safePageIdx===totalPages-1?'opacity:0.4;pointer-events:none;':''}">הבא ←</button>
+        </div>`;
+    }
+
     list.innerHTML = html;
 }
 
@@ -7657,6 +7724,19 @@ window.openFamilyCallModal = async function(callId) {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Chat polling every 10s
+    if (window._famScChatInterval) clearInterval(window._famScChatInterval);
+    window._famScChatInterval = setInterval(async () => {
+        const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
+        if (!chatEl || !document.getElementById('fam-sc-modal')) { clearInterval(window._famScChatInterval); return; }
+        try {
+            const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+            const d2 = await r2.json();
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>${safeStr(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
+            chatEl.scrollTop = chatEl.scrollHeight;
+        } catch(e) {}
+    }, 10000);
 };
 
 window.sendFamilyScMessage = async function(callId) {

@@ -3622,6 +3622,35 @@ window.renderDashboard = async function(forceRefresh = false) {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
+    // For admin/owner in maintenance_repair business, show service calls dashboard
+    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair') {
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+            if (container) {
+                dashEl = document.createElement('div');
+                dashEl.id = 'content-role-dashboard';
+                dashEl.className = 'px-2';
+                container.appendChild(dashEl);
+            }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            dashEl.style.position = 'relative';
+            dashEl.style.zIndex = '1';
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            await renderBranchManagerMaintenanceDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden')) renderBranchManagerMaintenanceDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 20000);
+        }
+        return;
+    }
+
     // הצג מחדש כרטיסי מנהל אם עברו ממצב עובד
     ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id);
@@ -23741,6 +23770,7 @@ window.rdAction = function(tab, action) {
     if (action === 'waze') { window.open('https://waze.com', '_blank'); return; }
     if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
+    if (action === 'show-all-sc') { if(typeof showAllServiceCalls === 'function') showAllServiceCalls(); return; }
     if (tab) { switchTab(tab); return; }
 };
 
@@ -23778,6 +23808,16 @@ async function showRoleDashboard(roleType) {
     }
     // Start auto-refresh for operational roles that need real-time updates
     if (['waiter','cook','shift_manager'].includes(roleType)) startRoleAutoRefresh(roleType);
+
+    // Clear previous maintenance interval and start new one for maintenance_repair roles
+    if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+    if (currentGroup?.business_type === 'maintenance_repair' && (roleType === 'field_tech' || roleType === 'branch_manager')) {
+        window._roleDashInterval = setInterval(() => {
+            const dashEl = document.getElementById('content-role-dashboard');
+            if (dashEl && !dashEl.classList.contains('hidden') && window._currentShowingRole === roleType) showRoleDashboard(roleType);
+            else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+        }, 20000);
+    }
 
     // Inject "what's waiting today" widget after the dashboard header
     try {
@@ -23984,10 +24024,21 @@ async function renderFieldTechMaintenanceDashboard(el) {
     try {
         const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
         const d = await r.json();
-        calls = (d.calls||[]).filter(c => c.status !== 'done' && c.status !== 'cancelled' && (!c.assigned_member_id || c.assigned_member_id == currentUser.id));
+        calls = (d.calls||[]).filter(c => !c.assigned_member_id || c.assigned_member_id == currentUser.id);
     } catch(e) {}
 
-    const callsHtml = calls.length ? calls.slice(0,6).map(c => `
+    const myCalls = calls;
+    const myOpen = myCalls.filter(c => !['done','cancelled'].includes(c.status));
+    const myDone = myCalls.filter(c => c.status === 'done');
+    const myUrgent = myCalls.filter(c => c.priority === 'urgent' && !['done','cancelled'].includes(c.status));
+    const kpiHtml = `<div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">🔧</span><div class="text-lg font-black text-orange-600">${myOpen.length}</div><div class="text-[10px] text-slate-500 font-bold">הקריאות שלי</div></div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">✅</span><div class="text-lg font-black text-green-600">${myDone.filter(c => c.updated_at?.startsWith(new Date().toISOString().split('T')[0])).length}</div><div class="text-[10px] text-slate-500 font-bold">הושלמו היום</div></div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">🚨</span><div class="text-lg font-black text-red-600">${myUrgent.length}</div><div class="text-[10px] text-slate-500 font-bold">דחופות</div></div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">⏳</span><div class="text-lg font-black text-amber-600">${myCalls.filter(c=>c.status==='pending_parts').length}</div><div class="text-[10px] text-slate-500 font-bold">ממתין לחלקים</div></div>
+    </div>`;
+
+    const callsHtml = myOpen.length ? myOpen.slice(0,6).map(c => `
         <div onclick="showServiceCallModal(${c.id})" class="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0 cursor-pointer active:bg-slate-50 rounded-xl px-1 transition" style="touch-action:manipulation;">
             <span class="text-xl shrink-0 mt-0.5">${c.status==='in_progress'?'🔄':c.status==='pending_parts'?'⏳':'🔧'}</span>
             <div class="flex-1 min-w-0">
@@ -24003,6 +24054,7 @@ async function renderFieldTechMaintenanceDashboard(el) {
 
     el.innerHTML = `
         ${roleDashboardHeader('🔧','ממשק טכנאי שטח','קריאות שירות ופניות לקוחות','from-orange-500','to-red-600')}
+        ${kpiHtml}
         <button type="button" onclick="showNewServiceCallModal()" class="w-full mb-4 bg-orange-600 text-white rounded-2xl py-3 font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow" style="touch-action:manipulation;cursor:pointer;">
             <i class="fa-solid fa-plus"></i> קריאת שירות חדשה
         </button>
@@ -24013,14 +24065,12 @@ async function renderFieldTechMaintenanceDashboard(el) {
             </div>
             <div class="px-2 py-1">${callsHtml}</div>
         </div>
-        <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" ontouchend="event.preventDefault();rdAction('tasks','');" onclick="rdAction('tasks','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">📋</span><div class="text-right"><div class="text-xs font-black text-orange-800">משימות</div><div class="text-[10px] text-orange-500">רשימת מטלות</div></div>
-            </button>
-            <button type="button" ontouchend="event.preventDefault();rdAction('calendar','');" onclick="rdAction('calendar','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
-                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-red-800">יומן</div><div class="text-[10px] text-red-500">תורים ופגישות</div></div>
-            </button>
-        </div>
+        ${roleQuickActions([
+            {icon:'🔧', label:'כל הקריאות', action:'show-all-sc'},
+            {icon:'👤', label:'לקוחות', tab:'customers'},
+            {icon:'📋', label:'משימות', tab:'tasks'},
+            {icon:'📅', label:'יומן', tab:'calendar'}
+        ])}
         ${roleFullMenuBtn()}`;
 }
 
@@ -24139,9 +24189,23 @@ window.showServiceCallModal = async function(callId) {
                 </div>
             </div>
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
+            <button onclick="createCustomerFromCall(${callId})" class="w-full bg-slate-100 text-slate-700 rounded-2xl py-2.5 font-bold text-sm active:scale-95 transition mt-1">💾 שמור כלקוח</button>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Chat polling every 10s
+    if (window._scChatInterval) clearInterval(window._scChatInterval);
+    window._scChatInterval = setInterval(async () => {
+        const chatEl = document.getElementById(`sc-chat-${callId}`);
+        if (!chatEl || !document.getElementById('sc-modal')) { clearInterval(window._scChatInterval); return; }
+        try {
+            const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+            const d2 = await r2.json();
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='business'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='business'?'bg-slate-100 text-slate-800':'bg-orange-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>${safeStr(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
+            chatEl.scrollTop = chatEl.scrollHeight;
+        } catch(e) {}
+    }, 10000);
 };
 
 window.saveServiceCallUpdates = async function(callId) {
@@ -24187,7 +24251,24 @@ window.markServiceCallDone = async function(callId) {
         document.getElementById('sc-modal')?.remove();
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
         if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+        else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
     } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window.createCustomerFromCall = async function(callId) {
+    try {
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const d = await r.json();
+        const call = (d.calls||[]).find(c => c.id === callId);
+        if (!call) { showToast('error', 'קריאה לא נמצאה'); return; }
+        const name = call.family_name || call.title || 'לקוח חדש';
+        const notes = call.address ? `כתובת: ${call.address}` : '';
+        const res = await fetch('/api/store/customers', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, name, phone:'', email:'', businessId: currentGroup.id, notes }) });
+        const data = await res.json();
+        if (data.success) showToast('success', 'לקוח נוצר בהצלחה');
+        else showToast('error', data.error || 'שגיאה ביצירת לקוח');
+    } catch(e) { showToast('error', 'שגיאה ביצירת לקוח'); }
 };
 
 window.showNewServiceCallModal = function() {
@@ -24199,8 +24280,16 @@ window.showNewServiceCallModal = function() {
                 <button onclick="document.getElementById('sc-new-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
             <div class="p-4 space-y-3 overflow-y-auto max-h-[70vh]">
+                <input type="hidden" id="scn-family-group-id">
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת *</label><input id="scn-title" type="text" placeholder="למשל: תיקון מזגן" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
-                <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם לקוח</label><input id="scn-family" type="text" placeholder="שם הלקוח" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">שם לקוח</label>
+                    <div class="flex gap-2">
+                        <input id="scn-family" type="text" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none">
+                        <button type="button" onclick="scSearchCustomerInOneFlow()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl transition" style="touch-action:manipulation;">🔍 OneFlow</button>
+                    </div>
+                    <div id="scn-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
+                </div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label><input id="scn-address" type="text" placeholder="כתובת הטיפול" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור התקלה</label><textarea id="scn-desc" rows="3" placeholder="פרטים נוספים על הבעיה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none resize-none"></textarea></div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
@@ -24208,6 +24297,14 @@ window.showNewServiceCallModal = function() {
                         <option value="normal">רגיל</option><option value="high">גבוה</option><option value="urgent">דחוף</option><option value="low">נמוך</option>
                     </select>
                 </div>
+                <div id="scn-tech-row" class="hidden">
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">שיוך לטכנאי</label>
+                    <select id="scn-member" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"></select>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                    <input type="checkbox" id="scn-triage" class="rounded">
+                    <span>⚠️ העבר למנהל לסיווג</span>
+                </label>
             </div>
             <div class="p-4 border-t border-slate-100">
                 <button onclick="submitNewServiceCall()" class="w-full bg-orange-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-orange-700 transition shadow-md">פתח קריאה 🔧</button>
@@ -24215,6 +24312,43 @@ window.showNewServiceCallModal = function() {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Show tech assignment for managers/admin
+    const isMgr = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
+    if (isMgr) {
+        document.getElementById('scn-tech-row')?.classList.remove('hidden');
+        fetch(`/api/members/${currentGroup.id}`).then(r=>r.json()).then(d => {
+            const sel = document.getElementById('scn-member');
+            if (sel) sel.innerHTML = '<option value="">ללא שיוך</option>' + (d.members||[]).filter(m=>m.employee_role_type==='field_tech').map(m=>`<option value="${m.id}">${safeStr(m.nickname||m.name)}</option>`).join('');
+        }).catch(()=>{});
+    }
+};
+
+window.scSearchCustomerInOneFlow = async function() {
+    const q = document.getElementById('scn-family')?.value?.trim();
+    if (!q) { showToast('info', 'הקלד שם לקוח לחיפוש'); return; }
+    const resultsEl = document.getElementById('scn-customer-results');
+    if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">מחפש...</p>';
+    try {
+        const r = await fetch(`/api/groups/search-all?q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        const groups = d.groups || d.results || [];
+        if (resultsEl) {
+            if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">לא נמצאו תוצאות</p>'; return; }
+            resultsEl.innerHTML = groups.slice(0,5).map(g => `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${safeStr(g.address||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><span class="truncate">${safeStr(g.name||g.group_name)}</span></button>`).join('');
+        }
+    } catch(e) { if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש</p>'; }
+};
+
+window.scSelectCustomer = function(groupId, name, address) {
+    const familyInput = document.getElementById('scn-family');
+    if (familyInput) familyInput.value = name;
+    const addrInput = document.getElementById('scn-address');
+    if (addrInput && address && !addrInput.value) addrInput.value = address;
+    const hiddenId = document.getElementById('scn-family-group-id');
+    if (hiddenId) hiddenId.value = groupId;
+    const resultsEl = document.getElementById('scn-customer-results');
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
 };
 
 window.submitNewServiceCall = async function() {
@@ -24224,13 +24358,27 @@ window.submitNewServiceCall = async function() {
     const address = document.getElementById('scn-address')?.value?.trim();
     const priority = document.getElementById('scn-priority')?.value || 'normal';
     const familyName = document.getElementById('scn-family')?.value?.trim();
+    const familyGroupIdOverride = document.getElementById('scn-family-group-id')?.value || null;
+    const assignedMemberId = document.getElementById('scn-member')?.value || null;
+    const needsTriage = document.getElementById('scn-triage')?.checked || false;
     try {
         await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: currentGroup.id, title, description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''), address, priority, createdByUserId: currentUser?.id }) });
+            body: JSON.stringify({
+                familyGroupId: familyGroupIdOverride || currentGroup.id,
+                businessGroupId: currentGroup.id,
+                title,
+                description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''),
+                address, priority,
+                createdByUserId: currentUser?.id,
+                assignedMemberId: needsTriage ? null : (assignedMemberId || null),
+                needsTriage: needsTriage || false,
+                familyName: familyName || null
+            }) });
         showToast('success', 'קריאה נפתחה!');
         document.getElementById('sc-new-modal')?.remove();
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
         if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+        else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
     } catch(e) { showToast('error', 'שגיאה ביצירת הקריאה'); }
 };
 

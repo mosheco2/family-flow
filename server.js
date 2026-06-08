@@ -8486,16 +8486,34 @@ app.get('/api/groups/search-business', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Search all groups (businesses + families) for service call customer linking
+app.get('/api/groups/search-all', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json({ groups: [] });
+        const result = await pool.query(
+            `SELECT id, name, type, business_type FROM family_groups WHERE LOWER(name) LIKE LOWER($1) LIMIT 15`,
+            [`%${q}%`]);
+        res.json({ groups: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── SERVICE CALLS ─────────────────────────────────────────────────────────
 
 app.post('/api/service-calls', async (req, res) => {
     try {
-        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, priority, createdByUserId } = req.body;
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, priority, createdByUserId, assignedMemberId, needsTriage, familyName } = req.body;
         if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
+        // Build description with customer name if provided separately
+        let fullDesc = description || null;
+        if (familyName && !fullDesc?.includes(familyName)) {
+            fullDesc = `לקוח: ${familyName}${fullDesc ? '\n' + fullDesc : ''}`;
+        }
+        const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
         const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, priority, created_by_user_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, description||null, address||null, priority||'normal', createdByUserId||null]);
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, priority, created_by_user_id, assigned_member_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, priority||'normal', createdByUserId||null, resolvedMemberId]);
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8525,6 +8543,21 @@ app.get('/api/service-calls/business/:groupId', async (req, res) => {
                CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
                sc.created_at DESC`,
             [req.params.groupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get calls for a specific customer (by family_group_id or name match)
+app.get('/api/service-calls/customer/:businessGroupId/:familyGroupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             WHERE sc.business_group_id=$1 AND sc.family_group_id=$2
+             ORDER BY sc.created_at DESC`,
+            [req.params.businessGroupId, req.params.familyGroupId]);
         res.json({ success: true, calls: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
