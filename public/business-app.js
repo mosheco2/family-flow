@@ -16016,6 +16016,20 @@ window.openStoreProductModal = function(id = null) {
                         <option value="service">✂️ שירות / טיפול</option>
                     </select>
                 </div>
+                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm">
+                    <label class="text-xs font-bold text-orange-800 block mb-2">🍳 פס מטבח (KDS):</label>
+                    <select id="sp-kitchen-station" class="modern-input py-2.5 text-sm bg-white font-bold text-orange-700 shadow-sm">
+                        <option value="hot">🔥 פס חם — מנות חמות</option>
+                        <option value="cold">❄️ פס קר — סלטים / קרים</option>
+                        <option value="drinks">🥤 שתיה</option>
+                        <option value="bread">🍞 לחמים / מאפים</option>
+                        <option value="other">📋 אחר</option>
+                    </select>
+                    <label class="flex items-center gap-2 mt-3 cursor-pointer">
+                        <input type="checkbox" id="sp-is-complimentary" class="w-4 h-4 rounded text-orange-600">
+                        <span class="text-xs font-bold text-orange-700">פריט חינמי פנימי (ללא עלות — גלוי למלצרים בלבד, לא בחנות)</span>
+                    </label>
+                </div>
 
                 <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
                 
@@ -16104,6 +16118,8 @@ window.openStoreProductModal = function(id = null) {
             
             if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
             if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
+            if(document.getElementById('sp-kitchen-station')) document.getElementById('sp-kitchen-station').value = p.kitchen_station || 'other';
+            if(document.getElementById('sp-is-complimentary')) document.getElementById('sp-is-complimentary').checked = !!p.is_complimentary;
             
             document.getElementById('sp-image-base64').value = p.image_url || '';
             if (p.image_url) { 
@@ -16176,7 +16192,9 @@ window.submitStoreProduct = async function() {
             badgeText: document.getElementById('sp-badge-text') ? document.getElementById('sp-badge-text').value : '', 
             badgeColor: document.getElementById('sp-badge-color') ? document.getElementById('sp-badge-color').value : 'red',
             productType: pType, 
-            longDescription: document.getElementById('sp-long-desc') ? document.getElementById('sp-long-desc').value : ''
+            longDescription: document.getElementById('sp-long-desc') ? document.getElementById('sp-long-desc').value : '',
+            kitchenStation: document.getElementById('sp-kitchen-station') ? document.getElementById('sp-kitchen-station').value : 'other',
+            isComplimentary: document.getElementById('sp-is-complimentary') ? document.getElementById('sp-is-complimentary').checked : false
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
@@ -18901,7 +18919,28 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
     const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
     if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
 
-    grid.innerHTML = products.map(p => {
+    // complimentary items — staff only
+    const complimentaryItems = storeCatalogCache.filter(p => p.is_complimentary && p.is_available);
+    const compZone = document.getElementById('pos-complimentary-zone');
+    if (complimentaryItems.length > 0) {
+        const compHtml = complimentaryItems.map(p => `
+            <button type="button" onclick="window.addPOSComplimentary(${p.id})"
+                class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 transition text-right whitespace-nowrap"
+                style="touch-action:manipulation;cursor:pointer;">
+                🎁 ${safeStr(p.name)}
+            </button>`).join('');
+        if (compZone) {
+            compZone.innerHTML = `<div class="flex gap-2 flex-wrap">${compHtml}</div>`;
+            compZone.classList.remove('hidden');
+        } else {
+            grid.insertAdjacentHTML('afterend', `<div id="pos-complimentary-zone" class="mt-3 px-1">
+                <div class="text-[10px] font-black text-amber-600 mb-1.5">🎁 בקשות שירות (ללא חיוב)</div>
+                <div class="flex gap-2 flex-wrap">${compHtml}</div>
+            </div>`);
+        }
+    } else if (compZone) { compZone.classList.add('hidden'); }
+
+    grid.innerHTML = products.filter(p => !p.is_complimentary).map(p => {
         let isComplex = false;
         if (p.options_text && p.options_text.length > 10) {
             try {
@@ -18973,6 +19012,13 @@ window._internalRenderPOSCatalog = function(cat = 'all') {
             </div>
         </div>`;
     }).join('');
+};
+
+window.addPOSComplimentary = function(id) {
+    const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: `🎁 ${p.name}`, price: 0, qty: 1, modifiers: null });
+    window.renderPOSCart();
+    showToast('success', `${p.name} נוסף להזמנה`);
 };
 
 window.addPOSItem = function(id) {
@@ -23764,7 +23810,7 @@ async function renderWaiterDashboard(el) {
         ${renderTableGrid()}
         ${roleQuickActions([
             {icon:'💰', label:'קופה', tab:'pos'},
-            {icon:'📋', label:'תפריט', tab:'sales'},
+            {icon:'📋', label:'מוצרים', tab:'pos'},
             {icon:'✅', label:'משימות', tab:'tasks'}
         ])}
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
@@ -23792,14 +23838,14 @@ async function renderCookDashboard(el) {
     const today = new Date().toISOString().split('T')[0];
     try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
     try {
-        const r = await fetch(`/api/transactions/${currentGroup.id}`);
-        const d = await r.json();
+        const r = await fetch(`/api/store/orders/${currentGroup.id}`);
+        const orders = await r.json();
         const doneKey = `kds_done_${currentGroup.id}`;
         let done = [];
         try { done = JSON.parse(localStorage.getItem(doneKey)||'[]'); } catch(e2) {}
-        kdsTickets = (d.transactions||[])
-            .filter(t => t.created_at?.startsWith(today) && t.amount > 0 && !done.includes(String(t.id)))
-            .slice(0,10);
+        kdsTickets = (Array.isArray(orders) ? orders : [])
+            .filter(t => t.created_at?.startsWith(today) && (t.status === 'new' || t.status === 'completed') && !done.includes(String(t.id)))
+            .slice(0,15);
     } catch(e) {}
 
     const tasksHtml = myTasks.length ? myTasks.map(t => `
@@ -23814,17 +23860,49 @@ async function renderCookDashboard(el) {
             <span class="text-xs font-bold text-red-600">${p.quantity} ${p.unit||'יח'}</span>
         </div>`).join('') : `<p class="text-sm text-slate-400 py-3 text-center">מלאי תקין 🎉</p>`;
 
+    const KDS_STATIONS = [
+        { id:'hot',    label:'🔥 פס חם',    cls:'border-red-300 bg-red-50/40',    hdr:'bg-red-100 text-red-700' },
+        { id:'cold',   label:'❄️ פס קר',    cls:'border-blue-300 bg-blue-50/40',   hdr:'bg-blue-100 text-blue-700' },
+        { id:'drinks', label:'🥤 שתיה',     cls:'border-purple-300 bg-purple-50/40',hdr:'bg-purple-100 text-purple-700' },
+        { id:'bread',  label:'🍞 לחמים',    cls:'border-yellow-300 bg-yellow-50/40',hdr:'bg-yellow-100 text-yellow-700' },
+        { id:'other',  label:'📋 אחר',      cls:'border-slate-300 bg-white',        hdr:'bg-slate-100 text-slate-600' },
+    ];
+
+    function getStationForItem(item) {
+        if (!item.catalogId) return 'other';
+        const cp = (storeCatalogCache||[]).find(p => p.id == item.catalogId);
+        return cp?.kitchen_station || 'other';
+    }
+
     const kdsHtml = kdsTickets.length ? kdsTickets.map(t => {
         const timeStr = t.created_at ? new Date(t.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
-        const items = t.items ? (Array.isArray(t.items) ? t.items : (()=>{try{return JSON.parse(t.items);}catch(e){return[];}})()) : [];
-        const itemsHtml = items.length ? items.map(i => `<div class="text-xs text-slate-700 py-0.5">• ${safeStr(i.name||i)} ${i.qty>1?`×${i.qty}`:''}</div>`).join('') : `<div class="text-xs text-slate-500">הזמנה #${t.id}</div>`;
+        let rawItems = [];
+        try { rawItems = Array.isArray(t.items) ? t.items : JSON.parse(t.items || '[]'); } catch(e2) {}
+        rawItems = rawItems.filter(i => !i.is_quote_metadata);
+
+        // group by station
+        const byStation = {};
+        rawItems.forEach(i => {
+            const s = getStationForItem(i);
+            if (!byStation[s]) byStation[s] = [];
+            byStation[s].push(i);
+        });
+
+        const stationRows = KDS_STATIONS.filter(s => byStation[s.id]?.length).map(s => {
+            const rows = byStation[s.id].map(i => `<div class="text-xs text-slate-700 py-0.5">• ${safeStr(i.name||'')} ${(i.quantity||i.qty||1)>1?`×${i.quantity||i.qty}`:''}${i.note?` <span class="text-slate-400">(${safeStr(i.note)})</span>`:''}</div>`).join('');
+            return `<div class="rounded-xl border mb-1.5 overflow-hidden">
+                <div class="px-2 py-1 text-[10px] font-black ${s.hdr}">${s.label}</div>
+                <div class="px-2 py-1">${rows}</div>
+            </div>`;
+        }).join('') || `<div class="text-xs text-slate-500 py-1">הזמנה #${t.id}</div>`;
+
         return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative">
             <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
                 <span class="text-[10px] text-slate-400">${timeStr}</span>
-                <span class="text-sm font-black text-slate-700">₪${parseFloat(t.amount||0).toFixed(0)}</span>
+                <span class="text-sm font-black text-slate-700">₪${parseFloat(t.total_amount||0).toFixed(0)}</span>
             </div>
-            ${itemsHtml}
+            ${stationRows}
             <button type="button"
                 ontouchend="event.preventDefault();cookDoneOrder(${t.id},this);"
                 onclick="cookDoneOrder(${t.id},this)"
@@ -23918,6 +23996,17 @@ function openBusinessSettingsModal() {
             </label>
         </div>`).join('');
 
+    const isRestaurant = (current === 'restaurant' || current === 'cafe');
+    const tableCountHtml = isRestaurant ? `
+        <div>
+            <h3 class="font-black text-slate-700 text-sm mb-2">🍽️ מספר שולחנות</h3>
+            <div class="flex items-center gap-3 bg-amber-50 px-4 py-3 rounded-2xl border border-amber-200">
+                <input type="number" id="biz-table-count" min="1" max="200" value="${currentGroup.table_count || 8}"
+                    class="w-20 text-center font-black text-lg border border-amber-300 rounded-xl py-1.5 bg-white focus:outline-none focus:border-amber-500">
+                <span class="text-sm text-amber-700 font-bold">שולחנות בסה"כ</span>
+            </div>
+        </div>` : '';
+
     const html = `<div id="biz-settings-modal" class="fixed inset-0 bg-black/60 z-[9999] flex items-end sm:items-center justify-center p-4">
         <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
@@ -23929,14 +24018,16 @@ function openBusinessSettingsModal() {
                     <h3 class="font-black text-slate-700 text-sm mb-3">מהות העסק</h3>
                     ${bizDisplayHtml}
                 </div>
+                ${tableCountHtml}
                 <div>
                     <h3 class="font-black text-slate-700 text-sm mb-1">ממשקי תפקיד (תוספת תשלום)</h3>
                     <p class="text-[10px] text-slate-400 mb-3">ממשקים ייעודיים לתפקידים הרלוונטיים לסוג העסק שלך</p>
                     <div class="space-y-2">${filteredRoleOptionsHtml}</div>
                 </div>
             </div>
-            <div class="px-5 py-4 border-t border-slate-100 shrink-0">
-                <button onclick="document.getElementById('biz-settings-modal').remove()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow hover:bg-indigo-700 transition">סגור</button>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0 flex gap-3">
+                <button onclick="document.getElementById('biz-settings-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold">ביטול</button>
+                <button onclick="saveBusinessSettings()" class="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow hover:bg-indigo-700 transition">שמור</button>
             </div>
         </div>
     </div>`;
@@ -23968,12 +24059,14 @@ async function toggleFeatureLicense(featureKey, isActive) {
 
 async function saveBusinessSettings() {
     const typeId = _pendingBusinessType || currentGroup.business_type || 'other';
+    const tableCount = parseInt(document.getElementById('biz-table-count')?.value || currentGroup.table_count || 8);
     try {
         await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
             method:'PATCH', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ business_type: typeId, licensed_features: currentGroup.licensed_features || {} })
+            body: JSON.stringify({ business_type: typeId, licensed_features: currentGroup.licensed_features || {}, table_count: tableCount })
         });
         currentGroup.business_type = typeId;
+        currentGroup.table_count = tableCount;
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();

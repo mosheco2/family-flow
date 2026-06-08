@@ -553,7 +553,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // ===== BUSINESS TYPES & ROLE DASHBOARDS =====
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS business_type VARCHAR(50) DEFAULT 'other'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS licensed_features JSONB DEFAULT '{}'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS table_count INT DEFAULT 8`); } catch(e) {}
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_role_type VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS kitchen_station VARCHAR(30) DEFAULT 'other'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -3629,16 +3632,16 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 
 app.post('/api/store/catalog', async (req, res) => {
     try {
-        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
-        
+        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         if (parseInt(countRes.rows[0].count) >= 50) {
             return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
         }
 
         const result = await pool.query(
-            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '']
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false]
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -3646,11 +3649,11 @@ app.post('/api/store/catalog', async (req, res) => {
 
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
 
         const result = await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11 WHERE id=$12 RETURNING *',
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', req.params.id]
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13 WHERE id=$14 RETURNING *',
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, req.params.id]
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -7670,7 +7673,7 @@ app.get('/api/store/kiosk-settings/:groupId', async (req, res) => {
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [gId]),
             pool.query(`SELECT id,name,description,price,category,image_url,is_available,
                                badge_text,badge_color,options_text,product_type
-                        FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [gId]),
+                        FROM store_catalog WHERE group_id=$1 AND is_available=TRUE AND (is_complimentary IS NULL OR is_complimentary=FALSE) ORDER BY category,name`, [gId]),
             pool.query('SELECT name FROM family_groups WHERE id=$1', [gId])
         ]);
         res.json({
@@ -8634,10 +8637,10 @@ app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
 
 app.patch('/api/groups/:id/business-settings', async (req, res) => {
     try {
-        const { business_type, licensed_features } = req.body;
+        const { business_type, licensed_features, table_count } = req.body;
         await pool.query(
-            'UPDATE family_groups SET business_type=$1, licensed_features=$2 WHERE id=$3',
-            [business_type || 'other', JSON.stringify(licensed_features || {}), req.params.id]
+            'UPDATE family_groups SET business_type=$1, licensed_features=$2, table_count=$3 WHERE id=$4',
+            [business_type || 'other', JSON.stringify(licensed_features || {}), parseInt(table_count) || 8, req.params.id]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
