@@ -6005,6 +6005,10 @@ app.post('/api/zone-manager/inbox/new', verifyZoneManager, async (req, res) => {
             `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content)
              VALUES ($1,'manager',$2,$3)`,
             [thread.rows[0].id, req.zmSession.managerId, content]);
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'zone_manager',$2,$3,$4)`,
+            [groupId, req.zmSession.name, subject || 'הודעה ממנהל האזור', content]);
         res.json({ success: true, threadId: thread.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -6041,6 +6045,10 @@ app.post('/api/zone-manager/inbox/broadcast', verifyZoneManager, async (req, res
             await pool.query(
                 `INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`,
                 [thread.rows[0].id, managerId, content]);
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+                 VALUES ($1,'zone_manager',$2,$3,$4)`,
+                [t.group_id, req.zmSession.name, subject || 'הודעה ממנהל האזור', content]);
             sent++;
         }
         res.json({ success: true, sent });
@@ -6065,10 +6073,14 @@ app.post('/api/zone-manager/inbox/:threadId/reply', verifyZoneManager, async (re
     try {
         const { content } = req.body;
         if (!content) return res.status(400).json({ error: 'תוכן חובה' });
-        const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [req.params.threadId, req.zmSession.managerId]);
+        const thread = await pool.query('SELECT id, group_id, subject FROM zm_inbox_threads WHERE id=$1 AND zone_manager_id=$2', [req.params.threadId, req.zmSession.managerId]);
         if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
         await pool.query(`INSERT INTO zm_inbox_messages (thread_id, sender_type, sender_id, content) VALUES ($1,'manager',$2,$3)`, [req.params.threadId, req.zmSession.managerId, content]);
         await pool.query('UPDATE zm_inbox_threads SET last_message_at=NOW() WHERE id=$1', [req.params.threadId]);
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'zone_manager',$2,$3,$4)`,
+            [thread.rows[0].group_id, req.zmSession.name, 'תגובה: ' + (thread.rows[0].subject || 'הודעה ממנהל האזור'), content]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

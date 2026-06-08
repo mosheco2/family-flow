@@ -18084,12 +18084,16 @@ window.renderInboxList = function() {
         let bgClass = m.is_read ? 'bg-slate-50 opacity-70 border-slate-100' : 'bg-white border-indigo-200 shadow-sm';
         let typeBadge = '';
         
+        const isZM = m.sender_type === 'zone_manager';
         if (isSys) {
             iconHtml = '<i class="fa-solid fa-tower-cell text-indigo-500"></i>';
             typeBadge = '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-indigo-200">הודעת מערכת</span>';
         } else if (isCustomer) {
             iconHtml = '<i class="fa-solid fa-user text-emerald-500"></i>';
             typeBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-emerald-200">לקוח (חנות)</span>';
+        } else if (isZM) {
+            iconHtml = '<i class="fa-solid fa-map-location-dot text-violet-500"></i>';
+            typeBadge = '<span class="text-[9px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-bold ml-2 shadow-sm border border-violet-200">מנהל האזור</span>';
         }
 
         // זיהוי החתימה הדיגיטלית של הניוזלטר
