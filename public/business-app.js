@@ -22905,6 +22905,14 @@ function applyBusinessTypeFilter() {
 
 // --- Role dashboard dispatcher ---
 
+window.rdAction = function(tab, action) {
+    if (action === 'full-menu') { window._suppressRoleDash = true; switchTab('feed'); return; }
+    if (action === 'waze') { window.open('https://waze.com', '_blank'); return; }
+    if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
+    if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
+    if (tab) { switchTab(tab); return; }
+};
+
 async function showRoleDashboard(roleType) {
     if (!roleType) return;
     const roleInfo = EMPLOYEE_ROLE_TYPES.find(r => r.id === roleType);
@@ -22944,27 +22952,10 @@ async function showRoleDashboard(roleType) {
         }
     } catch(e) {}
 
-    // Attach direct listeners to every interactive button (more reliable than delegation on mobile)
-    function _rdAction(btn) {
-        const tab = btn.dataset.rdtab;
-        const action = btn.dataset.rdaction;
-        if (action === 'full-menu') { window._suppressRoleDash = true; switchTab('feed'); return; }
-        if (action === 'waze') { window.open('https://waze.com', '_blank'); return; }
-        if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
-        if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
-        if (tab) { switchTab(tab); return; }
-    }
-    dashEl.querySelectorAll('[data-rdtab],[data-rdaction]').forEach(btn => {
-        // Remove existing listeners by cloning the button
-        const clone = btn.cloneNode(true);
-        btn.parentNode.replaceChild(clone, btn);
-        clone.addEventListener('click', function(e) { e.stopPropagation(); _rdAction(clone); }, {capture: false, passive: false});
-        clone.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); _rdAction(clone); }, {capture: false, passive: false});
-    });
+    // Buttons use onclick="rdAction(...)" directly — no dynamic listener attachment needed
 }
 
 function roleTodayWidget() {
-    // Use cached allTasks (loaded by fetchData) — no API calls needed
     const today = new Date().toDateString();
     const todayStr = new Date().toISOString().split('T')[0];
     const tasks = (allTasks || []).filter(t =>
@@ -22972,24 +22963,23 @@ function roleTodayWidget() {
         (!t.assigned_to || t.assigned_to == currentUser.id) &&
         t.status !== 'done' && t.status !== 'deleted' &&
         t.due_date && new Date(t.due_date).toDateString() === today
-    ).slice(0, 3);
+    ).slice(0, 4);
     const shifts = (allTasks || []).filter(t =>
         t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) &&
         (!t.assigned_to || t.assigned_to == currentUser.id)
     ).slice(0, 2);
-    if (!tasks.length && !shifts.length) return '';
-    const taskItems = tasks.map(t => `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">✅</span><span class="text-xs text-slate-700 flex-1 truncate">${safeStr(t.title)}</span></div>`).join('');
-    const shiftItems = shifts.map(t => { const parts = t.title.split('|'); return `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">🕐</span><span class="text-xs text-slate-700">${parts[2]||''} - ${parts[3]||''}</span></div>`; }).join('');
     const total = tasks.length + shifts.length;
-    return `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 shadow-sm">
+    const shiftRows = shifts.map(t => { const p = t.title.split('|'); return `<div class="flex items-center gap-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0 mt-0.5"></span><span class="text-xs text-slate-600">משמרת: ${p[2]||''} – ${p[3]||''}</span></div>`; }).join('');
+    const taskRows = tasks.map(t => `<div class="flex items-center gap-2 py-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 mt-0.5"></span><span class="text-xs text-slate-600 truncate">${safeStr(t.title)}</span></div>`).join('');
+    const body = total > 0 ? shiftRows + taskRows : `<p class="text-xs text-slate-400 py-1">אין פריטים ממתינים להיום 🎉</p>`;
+    return `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4">
         <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-black text-amber-800 flex items-center gap-1.5"><span class="w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-[10px] text-white font-black">${total}</span> ⚡ מה מחכה לי היום</span>
-            <button type="button" data-rdtab="tasks" class="text-amber-600 text-[10px] font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+            <span class="text-xs font-black text-amber-800">⚡ מה מחכה לי היום${total > 0 ? ` <span class="bg-amber-400 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full mr-1">${total}</span>` : ''}</span>
+            <button type="button" onclick="rdAction('tasks','')" class="text-amber-600 text-[10px] font-bold underline" style="touch-action:manipulation;cursor:pointer;">לכל המשימות</button>
         </div>
-        ${shiftItems}${taskItems}
+        <div>${body}</div>
     </div>`;
 }
-
 function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
     const today = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
     return `<div class="bg-gradient-to-r ${colorFrom} ${colorTo} rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden mt-3">
@@ -23002,7 +22992,7 @@ function roleDashboardHeader(icon, title, subtitle, colorFrom, colorTo) {
 
 function roleQuickActions(actions) {
     return `<div class="grid grid-cols-${Math.min(actions.length,3)} gap-3 mb-4">
-        ${actions.map(a => `<button type="button" data-rdtab="${a.tab||''}" data-rdaction="${a.action||''}" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+        ${actions.map(a => `<button type="button" onclick="rdAction('${a.tab||''}','${a.action||''}')" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1.5 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
             <span class="text-2xl">${a.icon}</span>
             <span class="text-[11px] font-bold text-slate-700 text-center leading-tight">${a.label}</span>
         </button>`).join('')}
@@ -23010,7 +23000,7 @@ function roleQuickActions(actions) {
 }
 
 function roleFullMenuBtn() {
-    return `<button type="button" data-rdaction="full-menu" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2 touch-manipulation" style="touch-action:manipulation;cursor:pointer;"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
+    return `<button type="button" onclick="rdAction('','full-menu')" class="w-full py-3 text-xs text-slate-400 font-bold hover:text-slate-600 transition mt-2" style="touch-action:manipulation;cursor:pointer;"><i class="fa-solid fa-grid-2 ml-1"></i> לתפריט המלא</button>`;
 }
 
 // --- 1. Salesperson Dashboard ---
@@ -23041,22 +23031,22 @@ async function renderSalespersonDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">📋 משימות פתוחות</h3>
-                <button type="button" data-rdtab="tasks" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" onclick="rdAction('tasks','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
-                <button type="button" data-rdtab="customers" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" onclick="rdAction('customers','')" class="text-blue-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${custHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="sales" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('sales','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🛍️</span><div class="text-right"><div class="text-xs font-black text-indigo-800">מכירות</div><div class="text-[10px] text-indigo-500">הזמנות והצעות</div></div>
             </button>
-            <button type="button" data-rdtab="cashflow" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('cashflow','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">💸</span><div class="text-right"><div class="text-xs font-black text-blue-800">תזרים</div><div class="text-[10px] text-blue-500">מצב כספי</div></div>
             </button>
         </div>
@@ -23095,22 +23085,22 @@ async function renderFieldTechDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">⚠️ תקלות פתוחות</h3>
-                <button type="button" data-rdtab="equipment" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" onclick="rdAction('equipment','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${faultsHtml}</div>
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">📋 משימות היום</h3>
-                <button type="button" data-rdtab="tasks" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" onclick="rdAction('tasks','')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${tasksHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="equipment" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('equipment','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🔧</span><div class="text-right"><div class="text-xs font-black text-orange-800">ציוד</div><div class="text-[10px] text-orange-500">פנקס ציוד מלא</div></div>
             </button>
-            <button type="button" data-rdtab="calendar" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('calendar','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-red-800">יומן</div><div class="text-[10px] text-red-500">תורים ופגישות</div></div>
             </button>
         </div>
@@ -23180,10 +23170,10 @@ async function renderWarehouseDashboard(el) {
             <div class="px-4 py-1">${lowHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="pantry" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('pantry','')" class="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📦</span><div class="text-right"><div class="text-xs font-black text-amber-800">מלאי</div><div class="text-[10px] text-amber-500">כל הפריטים</div></div>
             </button>
-            <button type="button" data-rdtab="shop" class="bg-yellow-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('shop','')" class="bg-yellow-50 rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🛒</span><div class="text-right"><div class="text-xs font-black text-yellow-800">רכש</div><div class="text-[10px] text-yellow-500">הזמן מספק</div></div>
             </button>
         </div>
@@ -23253,15 +23243,15 @@ async function renderSupportDashboard(el) {
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
             <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
                 <h3 class="font-black text-slate-800 text-sm">👥 לקוחות אחרונים</h3>
-                <button type="button" data-rdtab="customers" class="text-purple-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+                <button type="button" onclick="rdAction('customers','')" class="text-purple-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
             </div>
             <div class="px-4 py-1">${custHtml}</div>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="tasks" class="bg-purple-50 rounded-2xl p-4 shadow-sm border border-purple-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('tasks','')" class="bg-purple-50 rounded-2xl p-4 shadow-sm border border-purple-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📋</span><div class="text-right"><div class="text-xs font-black text-purple-800">משימות</div><div class="text-[10px] text-purple-500">פניות פתוחות</div></div>
             </button>
-            <button type="button" data-rdtab="calendar" class="bg-violet-50 rounded-2xl p-4 shadow-sm border border-violet-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('calendar','')" class="bg-violet-50 rounded-2xl p-4 shadow-sm border border-violet-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-violet-800">יומן</div><div class="text-[10px] text-violet-500">פגישות שירות</div></div>
             </button>
         </div>
@@ -23294,7 +23284,7 @@ async function renderCashierDashboard(el) {
                 </div>
             </div>
         </div>
-        <button type="button" data-rdtab="pos" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3 touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+        <button type="button" onclick="rdAction('pos','')" class="w-full bg-emerald-600 text-white rounded-2xl py-5 font-black text-lg shadow-lg active:scale-95 transition mb-4 flex items-center justify-center gap-3 touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
             <i class="fa-solid fa-cash-register text-2xl"></i> פתח קופה
         </button>
         ${roleQuickActions([
@@ -23339,10 +23329,10 @@ async function renderShiftManagerDashboard(el) {
             {icon:'📢', label:'הודעה לצוות', action:'inbox'}
         ])}
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="tasks" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('tasks','')" class="bg-indigo-50 rounded-2xl p-4 shadow-sm border border-indigo-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">✅</span><div class="text-right"><div class="text-xs font-black text-indigo-800">משימות משמרת</div><div class="text-[10px] text-indigo-500">רשימת פעולות</div></div>
             </button>
-            <button type="button" data-rdtab="members" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('members','')" class="bg-blue-50 rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">👥</span><div class="text-right"><div class="text-xs font-black text-blue-800">הצוות</div><div class="text-[10px] text-blue-500">כל העובדים</div></div>
             </button>
         </div>
@@ -23365,7 +23355,7 @@ async function renderBranchManagerDashboard(el) {
         {label:'תקלות פתוחות', value:faultsCount, icon:'⚠️', color:faultsCount>0?'red':'green', tab:'equipment'}
     ];
 
-    const kpiHtml = kpis.map(k => `<button type="button" data-rdtab="${k.tab}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+    const kpiHtml = kpis.map(k => `<button type="button" onclick="rdAction('${k.tab}','')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
         <span class="text-xl">${k.icon}</span>
         <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
         <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
@@ -23380,10 +23370,10 @@ async function renderBranchManagerDashboard(el) {
             {icon:'✅', label:'משימות', tab:'tasks'}
         ])}
         <div class="grid grid-cols-2 gap-3 mb-2">
-            <button type="button" data-rdtab="budget" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('budget','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">📈</span><div class="text-right"><div class="text-xs font-black text-slate-800">תקציב</div><div class="text-[10px] text-slate-500">מול ביצוע</div></div>
             </button>
-            <button type="button" data-rdtab="forecast" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+            <button type="button" onclick="rdAction('forecast','')" class="bg-slate-50 rounded-2xl p-4 shadow-sm border border-slate-200 flex items-center gap-3 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
                 <span class="text-2xl">🔮</span><div class="text-right"><div class="text-xs font-black text-slate-800">תשקיף</div><div class="text-[10px] text-slate-500">תחזית</div></div>
             </button>
         </div>
