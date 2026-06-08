@@ -369,6 +369,7 @@
                       <button onclick="switchTab('myorders');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-myorders">🛍️ הזמנות שלי</button>
                       <button onclick="switchTab('pantry');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-pantry">📦 מזווה</button>
                       <button onclick="switchTab('recipes');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-recipes">👨‍🍳 שף AI</button>
+                      <button onclick="switchTab('home-maintenance');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-home-maintenance">🔧 ניהול הבית</button>
                     </div>
                   </div>
 
@@ -430,6 +431,7 @@
                             <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn shrink-0">שף AI 👨‍🍳</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn shrink-0">הקהילה שלי 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn shrink-0">ניהול 👥</button>
+                            <button onclick="switchTab('home-maintenance')" id="tab-home-maintenance" class="tab-btn shrink-0">ניהול הבית 🔧<span id="tab-home-maintenance-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5"></span></button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
@@ -899,6 +901,61 @@
                         </div>
                     </div>
                     </div>
+            </div>
+
+            <!-- ניהול הבית -->
+            <div id="content-home-maintenance" class="hidden px-2 pb-4">
+                <!-- sub-tabs -->
+                <div class="flex gap-2 overflow-x-auto pb-1 pt-3 mb-3 scrollbar-hide">
+                    <button onclick="switchHomeMaintenanceTab('items')" id="hm-tab-items" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white shadow">🔧 ציוד</button>
+                    <button onclick="switchHomeMaintenanceTab('maintenance')" id="hm-tab-maintenance" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200">📋 תחזוקה</button>
+                    <button onclick="switchHomeMaintenanceTab('faults')" id="hm-tab-faults" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200">⚠️ תקלות</button>
+                    <button onclick="switchHomeMaintenanceTab('contacts')" id="hm-tab-contacts" class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-500 border border-slate-200">👤 אנשי קשר</button>
+                </div>
+                <!-- items view -->
+                <div id="hm-view-items">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-slate-800 text-sm">ציוד ומכשירי הבית</h3>
+                        <button onclick="openHMItemModal()" class="flex items-center gap-1 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                    </div>
+                    <div id="hm-items-list"></div>
+                </div>
+                <!-- maintenance view -->
+                <div id="hm-view-maintenance" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-slate-800 text-sm">לוח תחזוקה</h3>
+                        <button onclick="openHMMaintenanceModal()" class="flex items-center gap-1 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                    </div>
+                    <div class="flex gap-1.5 overflow-x-auto mb-3 scrollbar-hide">
+                        <button onclick="filterHMMaintenance('all')" id="hmf-maint-all" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white">הכל</button>
+                        <button onclick="filterHMMaintenance('pending')" id="hmf-maint-pending" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">ממתין</button>
+                        <button onclick="filterHMMaintenance('overdue')" id="hmf-maint-overdue" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">פג תוקף</button>
+                        <button onclick="filterHMMaintenance('completed')" id="hmf-maint-completed" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">בוצע</button>
+                    </div>
+                    <div id="hm-maintenance-list"></div>
+                </div>
+                <!-- faults view -->
+                <div id="hm-view-faults" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-slate-800 text-sm">תקלות ובעיות בבית</h3>
+                        <button onclick="openHMFaultModal()" class="flex items-center gap-1 bg-red-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-red-700 transition"><i class="fa-solid fa-plus"></i> דווח תקלה</button>
+                    </div>
+                    <div class="flex gap-1.5 overflow-x-auto mb-3 scrollbar-hide">
+                        <button onclick="filterHMFaults('all')" id="hmf-fault-all" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white">הכל</button>
+                        <button onclick="filterHMFaults('open')" id="hmf-fault-open" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">פתוח</button>
+                        <button onclick="filterHMFaults('in_progress')" id="hmf-fault-in_progress" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">בטיפול</button>
+                        <button onclick="filterHMFaults('resolved')" id="hmf-fault-resolved" class="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">טופל</button>
+                    </div>
+                    <div id="hm-faults-list"></div>
+                </div>
+                <!-- contacts view -->
+                <div id="hm-view-contacts" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-slate-800 text-sm">אנשי קשר לתיקונים</h3>
+                        <button onclick="openHMContactModal()" class="flex items-center gap-1 bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף</button>
+                    </div>
+                    <div id="hm-contacts-list"></div>
+                </div>
             </div>
 
 <div class="w-full h-24 sm:h-28 border-t border-slate-100 bg-slate-50 relative overflow-hidden mt-auto shrink-0 z-40">

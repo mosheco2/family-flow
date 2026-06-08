@@ -470,7 +470,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -487,6 +487,7 @@ function switchTab(t) { 
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
     if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
+    if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
 }
 
 let myOrdersCache = [];
@@ -4541,12 +4542,13 @@ const ALL_TABS = [
     { id: 'budget', name: 'ניהול תקציב 📊' },
     { id: 'pantry', name: 'ניהול מזווה 📦' },
     { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
-    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
+    { id: 'forecast', name: 'תשקיף כלכלי 📅' },
+    { id: 'home-maintenance', name: 'ניהול הבית 🔧' }
 ];
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
+    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes', 'home-maintenance'],
     'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
     'MEMBER': ['feed', 'tasks', 'shop', 'academy']
 };
@@ -4731,7 +4733,7 @@ setTimeout(enforcePermissions, 1500);
 // --- FAMILY GROUP NAV ---
 // ============================================================
 const FAMILY_GNAV_GROUPS = {
-    home:   ['shop', 'myorders', 'pantry', 'recipes'],
+    home:   ['shop', 'myorders', 'pantry', 'recipes', 'home-maintenance'],
     money:  ['bank', 'cashflow', 'budget', 'forecast'],
     family: ['tasks', 'academy', 'community', 'members']
 };
@@ -6702,6 +6704,40 @@ async function renderFamilyUrgentItems() {
                 sub: lowPantry.slice(0,3).map(p => p.item_name).join(', '),
                 tab:'pantry', actionLabel:'עדכן' });
 
+        // ─ תחזוקה ותקלות בבית ─
+        try {
+            const [hmMRes, hmFRes] = await Promise.all([
+                fetch(`/api/equipment/maintenance/${currentGroup.id}`),
+                fetch(`/api/equipment/faults/${currentGroup.id}`)
+            ]);
+            const hmMData = await hmMRes.json();
+            const hmFData = await hmFRes.json();
+            if (hmMData.success) {
+                const today2 = new Date(); today2.setHours(0,0,0,0);
+                const in7 = new Date(today2); in7.setDate(today2.getDate() + 7);
+                const urgMaint = hmMData.records.filter(m => {
+                    if (m.status === "completed" || !m.scheduled_date) return false;
+                    const sd = new Date(m.scheduled_date); sd.setHours(0,0,0,0);
+                    return sd <= in7;
+                });
+                if (urgMaint.length > 0) {
+                    const late = urgMaint.filter(m => new Date(m.scheduled_date) < today2);
+                    items.push({ icon:"🔧", urgency: late.length > 0 ? "high" : "medium",
+                        title:`${urgMaint.length} תחזוקות בית ממתינות${late.length > 0 ? " (" + late.length + " באיחור)" : ""}`,
+                        sub: urgMaint[0].description || "", tab:"home-maintenance", actionLabel:"טפל" });
+                }
+            }
+            if (hmFData.success) {
+                const openF = hmFData.faults.filter(f => f.status !== "resolved");
+                if (openF.length > 0) {
+                    const crit = openF.filter(f => f.severity === "critical" || f.severity === "high");
+                    items.push({ icon:"⚠️", urgency: crit.length > 0 ? "high" : "medium",
+                        title:`${openF.length} תקלות בית פתוחות`,
+                        sub: openF[0].title || "", tab:"home-maintenance", actionLabel:"טפל" });
+                }
+            }
+        } catch(e) {}
+
     } else {
         // ─ ילד/חבר משפחה ─
         // משימות אישיות לסגירה
@@ -6923,4 +6959,763 @@ function openFamilyHelp() {
 function closeFamilyHelp() {
     const sheet = document.getElementById('family-help-sheet');
     if (sheet) sheet.classList.add('hidden');
+}
+
+// ============================================================
+// === ניהול הבית — HOME MAINTENANCE MODULE ==================
+// ============================================================
+
+let hmItems = [], hmMaintenance = [], hmFaults = [], hmContacts = [];
+let hmMaintenanceFilter = 'all', hmFaultsFilter = 'all';
+let hmFaultNotes = {};
+
+const HM_CAT_COLORS = { 'מקרר/הקפאה':'bg-blue-100 text-blue-700','תנור/אפייה':'bg-orange-100 text-orange-700','מזגן':'bg-cyan-100 text-cyan-700','חשמל':'bg-yellow-100 text-yellow-700','אינסטלציה':'bg-indigo-100 text-indigo-700','רכב':'bg-violet-100 text-violet-700','כללי':'bg-slate-100 text-slate-600' };
+const HM_STATUS_COLORS = { 'active':'bg-emerald-100 text-emerald-700','inactive':'bg-amber-100 text-amber-700','disposed':'bg-red-100 text-red-700' };
+const HM_STATUS_LABELS = { 'active':'פעיל','inactive':'לא פעיל','disposed':'הושלך' };
+const HM_MTYPE_LABELS = { 'periodic':'תקופתי','repair':'תיקון','inspection':'בדיקה' };
+const HM_MTYPE_COLORS = { 'periodic':'bg-blue-100 text-blue-700','repair':'bg-orange-100 text-orange-700','inspection':'bg-violet-100 text-violet-700' };
+const HM_SEV_COLORS = { 'low':'bg-slate-100 text-slate-600','medium':'bg-amber-100 text-amber-700','high':'bg-orange-100 text-orange-700','critical':'bg-red-100 text-red-700' };
+const HM_SEV_LABELS = { 'low':'נמוכה','medium':'בינונית','high':'גבוהה','critical':'קריטית' };
+const HM_FSTATUS_LABELS = { 'open':'פתוח','in_progress':'בטיפול','resolved':'נסגר' };
+const HM_FSTATUS_COLORS = { 'open':'bg-red-100 text-red-700','in_progress':'bg-blue-100 text-blue-700','resolved':'bg-emerald-100 text-emerald-700' };
+
+async function loadHomeMaintenance() {
+    if (!currentGroup) return;
+    await Promise.all([fetchHMItems(), fetchHMMaintenance(), fetchHMFaults(), fetchHMContacts()]);
+    switchHomeMaintenanceTab('items');
+    checkHMNotifications();
+}
+
+async function checkHMNotifications() {
+    try {
+        const res = await fetch(`/api/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.created > 0) {
+            const badge = document.getElementById('fgnav-bell-badge');
+            if (badge) { badge.textContent = (parseInt(badge.textContent)||0) + data.created; badge.classList.remove('hidden'); }
+        }
+    } catch(e) {}
+}
+
+async function fetchHMItems() {
+    try { const r = await fetch(`/api/equipment/items/${currentGroup.id}`); const d = await r.json(); if (d.success) hmItems = d.items; renderHMItems(); } catch(e) {}
+}
+async function fetchHMMaintenance() {
+    try { const r = await fetch(`/api/equipment/maintenance/${currentGroup.id}`); const d = await r.json(); if (d.success) hmMaintenance = d.records; renderHMMaintenance(); updateHMBadge(); } catch(e) {}
+}
+async function fetchHMFaults() {
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); if (d.success) hmFaults = d.faults; renderHMFaults(); updateHMBadge(); } catch(e) {}
+}
+async function fetchHMContacts() {
+    try { const r = await fetch(`/api/equipment/technicians/${currentGroup.id}`); const d = await r.json(); if (d.success) hmContacts = d.technicians; renderHMContacts(); } catch(e) {}
+}
+
+function updateHMBadge() {
+    const badge = getEl('tab-home-maintenance-badge');
+    if (!badge) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+    const urgMaint = hmMaintenance.filter(m => !m.status === 'completed' && m.scheduled_date && new Date(m.scheduled_date) <= in7).length;
+    const openFaults = hmFaults.filter(f => f.status !== 'resolved').length;
+    const total = urgMaint + openFaults;
+    if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+}
+
+function switchHomeMaintenanceTab(tab) {
+    ['items','maintenance','faults','contacts'].forEach(t => {
+        const v = getEl(`hm-view-${t}`); if (v) v.classList.toggle('hidden', t !== tab);
+        const b = getEl(`hm-tab-${t}`);
+        if (b) b.className = `shrink-0 px-4 py-2 rounded-xl text-xs font-bold ${t === tab ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-500 border border-slate-200'}`;
+    });
+    if (tab === 'items') renderHMItems();
+    if (tab === 'maintenance') renderHMMaintenance();
+    if (tab === 'faults') renderHMFaults();
+    if (tab === 'contacts') renderHMContacts();
+}
+
+// --- ITEMS ---
+function renderHMItems() {
+    const list = getEl('hm-items-list'); if (!list) return;
+    if (!hmItems.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-screwdriver-wrench text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין ציוד רשום עדיין</p></div>`; return; }
+    list.innerHTML = hmItems.map(item => {
+        const catColor = HM_CAT_COLORS[item.category] || 'bg-slate-100 text-slate-600';
+        const stColor = HM_STATUS_COLORS[item.status] || '';
+        const stLabel = HM_STATUS_LABELS[item.status] || item.status;
+        const mCount = hmMaintenance.filter(m => m.equipment_id === item.id && m.status !== 'completed').length;
+        const fCount = hmFaults.filter(f => f.equipment_id === item.id && f.status !== 'resolved').length;
+        let warrantyHtml = '';
+        if (item.warranty_expiry) {
+            const exp = new Date(item.warranty_expiry);
+            const diff = Math.ceil((exp - new Date()) / 86400000);
+            warrantyHtml = `<span class="text-[10px] ${diff < 0 ? 'text-red-500' : diff < 30 ? 'text-amber-500' : 'text-slate-400'}"><i class="fa-regular fa-calendar ml-1"></i>${diff < 0 ? 'אחריות פגה' : 'אחריות עד ' + exp.toLocaleDateString('he-IL')}</span>`;
+        }
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${catColor}">${safeStr(item.category)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    ${item.serial_number ? `<p class="text-[11px] text-slate-400">מ"ס: ${safeStr(item.serial_number)}</p>` : ''}
+                    ${warrantyHtml}
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${mCount > 0 ? `<span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100"><i class="fa-solid fa-wrench ml-1"></i>${mCount} תחזוקה</span>` : ''}
+                        ${fCount > 0 ? `<span class="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-100"><i class="fa-solid fa-triangle-exclamation ml-1"></i>${fCount} תקלות</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-2 mr-2 shrink-0">
+                    <button onclick="openHMHistory(${item.id})" title="היסטוריה" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 transition text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-clock-rotate-left text-xs"></i></button>
+                    <button onclick="openHMItemModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 transition text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openHMItemModal(id = null) {
+    let modal = getEl('hm-item-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmitem-modal-title" class="font-black text-slate-800 text-base">הוספת ציוד</h3>
+                    <button onclick="getEl('hm-item-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmitem-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם הציוד / המכשיר *</label><input id="hmitem-name" type="text" placeholder="למשל: מקרר סמסונג, מזגן ביתי..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">קטגוריה</label>
+                        <select id="hmitem-category" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="מקרר/הקפאה">מקרר/הקפאה</option><option value="תנור/אפייה">תנור/אפייה</option><option value="מזגן">מזגן</option><option value="חשמל">חשמל</option><option value="אינסטלציה">אינסטלציה</option><option value="רכב">רכב</option><option value="כללי" selected>כללי</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מספר סידורי / דגם</label><input id="hmitem-serial" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך רכישה</label><input id="hmitem-purchase" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">פקיעת אחריות</label><input id="hmitem-warranty" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                        <select id="hmitem-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="active">פעיל</option><option value="inactive">לא פעיל</option><option value="disposed">הושלך</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">איש קשר לתיקון</label><select id="hmitem-technician" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">ללא שיוך</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="hmitem-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMItem()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-item-modal');
+    }
+    const item = id ? hmItems.find(x => x.id === id) : null;
+    getEl('hmitem-modal-title').textContent = item ? 'עריכת ציוד' : 'הוספת ציוד';
+    getEl('hmitem-id').value = item ? item.id : '';
+    getEl('hmitem-name').value = item ? item.name : '';
+    getEl('hmitem-category').value = item ? item.category : 'כללי';
+    getEl('hmitem-serial').value = item ? (item.serial_number || '') : '';
+    getEl('hmitem-purchase').value = item?.purchase_date ? item.purchase_date.split('T')[0] : '';
+    getEl('hmitem-warranty').value = item?.warranty_expiry ? item.warranty_expiry.split('T')[0] : '';
+    getEl('hmitem-status').value = item ? item.status : 'active';
+    getEl('hmitem-notes').value = item ? (item.notes || '') : '';
+    const techSel = getEl('hmitem-technician');
+    techSel.innerHTML = '<option value="">ללא שיוך</option>' + hmContacts.map(t => `<option value="${t.id}">${safeStr(t.name)}${t.company_name ? ' — ' + safeStr(t.company_name) : ''}</option>`).join('');
+    techSel.value = item ? (item.technician_id || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMItem() {
+    const id = getEl('hmitem-id').value;
+    const name = getEl('hmitem-name').value.trim();
+    if (!name) { showToast('error', 'שם הציוד חובה'); return; }
+    try {
+        const res = await fetch('/api/equipment/items', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                category: getEl('hmitem-category').value, serialNumber: getEl('hmitem-serial').value||null,
+                purchaseDate: getEl('hmitem-purchase').value||null, warrantyExpiry: getEl('hmitem-warranty').value||null,
+                status: getEl('hmitem-status').value, notes: getEl('hmitem-notes').value||null,
+                technicianId: getEl('hmitem-technician').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-item-modal').classList.add('hidden'); await fetchHMItems(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMItem(id) {
+    if (!confirm('למחוק ציוד זה?')) return;
+    try { await fetch(`/api/equipment/items/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMItems(); } catch(e) {}
+}
+
+// --- MAINTENANCE ---
+function filterHMMaintenance(f) {
+    hmMaintenanceFilter = f;
+    ['all','pending','overdue','completed'].forEach(x => {
+        const btn = getEl(`hmf-maint-${x}`);
+        if (btn) btn.className = `shrink-0 px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderHMMaintenance();
+}
+
+function renderHMMaintenance() {
+    const list = getEl('hm-maintenance-list'); if (!list) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    let filtered = hmMaintenance.map(m => {
+        let cs = m.status;
+        if (m.status === 'pending' && m.scheduled_date && new Date(m.scheduled_date) < today) cs = 'overdue';
+        return { ...m, cs };
+    });
+    if (hmMaintenanceFilter !== 'all') filtered = filtered.filter(m => m.cs === hmMaintenanceFilter);
+    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><p class="text-sm">אין רשומות תחזוקה</p></div>`; return; }
+    list.innerHTML = filtered.map(m => {
+        const tColor = HM_MTYPE_COLORS[m.maintenance_type] || 'bg-slate-100 text-slate-600';
+        const tLabel = HM_MTYPE_LABELS[m.maintenance_type] || m.maintenance_type;
+        let statusBadge;
+        if (m.cs === 'completed') statusBadge = '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">בוצע ✓</span>';
+        else if (m.cs === 'overdue') statusBadge = '<span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">פג תוקף ⚠</span>';
+        else statusBadge = '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">ממתין</span>';
+        const dateStr = m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString('he-IL') : '—';
+        return `<div class="bg-white border ${m.cs === 'overdue' ? 'border-red-200 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(m.equipment_name)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${tColor}">${tLabel}</span>
+                        ${statusBadge}
+                    </div>
+                    ${m.description ? `<p class="text-xs text-slate-500 mb-1">${safeStr(m.description)}</p>` : ''}
+                    <div class="flex items-center gap-3 flex-wrap text-[10px] text-slate-400">
+                        <span><i class="fa-regular fa-calendar ml-1"></i>${dateStr}</span>
+                        ${m.technician_name ? `<span><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(m.technician_name)}</span>` : ''}
+                        ${m.cost ? `<span class="text-slate-600 font-bold">₪${parseFloat(m.cost).toLocaleString()}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 mr-2 shrink-0">
+                    ${m.cs !== 'completed' ? `<button onclick="completeHMMaintenance(${m.id})" class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg font-bold hover:bg-emerald-100 transition">✓ בצע</button>` : ''}
+                    <button onclick="openHMMaintenanceModal(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMMaintenance(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openHMMaintenanceModal(id = null) {
+    let modal = getEl('hm-maint-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-maint-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmmaint-modal-title" class="font-black text-slate-800 text-base">הוספת תחזוקה</h3>
+                    <button onclick="getEl('hm-maint-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmmaint-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="hmmaint-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג</label>
+                        <select id="hmmaint-type" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="periodic">תקופתי</option><option value="repair">תיקון</option><option value="inspection">בדיקה</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור</label><textarea id="hmmaint-desc" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך מתוכנן</label><input id="hmmaint-date" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">עלות</label><input id="hmmaint-cost" type="number" placeholder="₪" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">חזרה אוטומטית (ימים)</label><input id="hmmaint-interval" type="number" placeholder="ריק = ללא חזרה" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div id="hmmaint-tech-row"><label class="text-xs font-bold text-slate-500 mb-1 block">איש קשר לתיקון</label>
+                        <div class="flex gap-2">
+                            <input id="hmmaint-tech-name" type="text" placeholder="שם" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <input id="hmmaint-tech-phone" type="tel" placeholder="טלפון" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMMaintenance()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-maint-modal');
+    }
+    const rec = id ? hmMaintenance.find(x => x.id === id) : null;
+    getEl('hmmaint-modal-title').textContent = rec ? 'עריכת תחזוקה' : 'הוספת תחזוקה';
+    getEl('hmmaint-id').value = rec ? rec.id : '';
+    const eqSel = getEl('hmmaint-equipment');
+    eqSel.innerHTML = '<option value="">בחר ציוד...</option>' + hmItems.map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    eqSel.value = rec ? rec.equipment_id : '';
+    getEl('hmmaint-type').value = rec ? rec.maintenance_type : 'periodic';
+    getEl('hmmaint-desc').value = rec ? (rec.description || '') : '';
+    getEl('hmmaint-date').value = rec?.scheduled_date ? rec.scheduled_date.split('T')[0] : '';
+    getEl('hmmaint-cost').value = rec ? (rec.cost || '') : '';
+    getEl('hmmaint-interval').value = rec ? (rec.interval_days || '') : '';
+    getEl('hmmaint-tech-name').value = rec ? (rec.technician_name || '') : '';
+    getEl('hmmaint-tech-phone').value = rec ? (rec.technician_phone || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMMaintenance() {
+    const id = getEl('hmmaint-id').value;
+    const equipmentId = getEl('hmmaint-equipment').value;
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    try {
+        const res = await fetch('/api/equipment/maintenance', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId,
+                maintenanceType: getEl('hmmaint-type').value, description: getEl('hmmaint-desc').value||null,
+                scheduledDate: getEl('hmmaint-date').value||null, cost: getEl('hmmaint-cost').value||null,
+                technicianName: getEl('hmmaint-tech-name').value||null, technicianPhone: getEl('hmmaint-tech-phone').value||null,
+                intervalDays: getEl('hmmaint-interval').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-maint-modal').classList.add('hidden'); await fetchHMMaintenance(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function completeHMMaintenance(id) {
+    try {
+        const res = await fetch(`/api/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        const data = await res.json();
+        if (data.success) { showToast('success', data.nextScheduled ? 'בוצע! תחזוקה הבאה תוזמנה' : 'בוצע!'); await fetchHMMaintenance(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) {}
+}
+
+async function deleteHMMaintenance(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMMaintenance(); } catch(e) {}
+}
+
+// --- FAULTS ---
+function filterHMFaults(f) {
+    hmFaultsFilter = f;
+    ['all','open','in_progress','resolved'].forEach(x => {
+        const btn = getEl(`hmf-fault-${x}`);
+        if (btn) btn.className = `shrink-0 px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderHMFaults();
+}
+
+function renderHMFaults() {
+    const list = getEl('hm-faults-list'); if (!list) return;
+    let filtered = hmFaultsFilter === 'all' ? hmFaults : hmFaults.filter(f => f.status === hmFaultsFilter);
+    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין תקלות</p></div>`; return; }
+    list.innerHTML = filtered.map(f => {
+        const sColor = HM_SEV_COLORS[f.severity] || 'bg-slate-100 text-slate-600';
+        const sLabel = HM_SEV_LABELS[f.severity] || f.severity;
+        const stColor = HM_FSTATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600';
+        const stLabel = HM_FSTATUS_LABELS[f.status] || f.status;
+        const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        const notesCount = parseInt(f.notes_count) || 0;
+        return `<div class="bg-white border ${f.severity === 'critical' ? 'border-red-200' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start gap-3">
+                ${f.image_url ? `<img src="${f.image_url}" class="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-100 cursor-pointer" onclick="window.open('${f.image_url}','_blank')">` : ''}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sColor}">${sLabel}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-2">${safeStr(f.equipment_name)} · ${dateStr}</p>
+                    <div class="flex gap-1 border-b border-slate-100 mb-2">
+                        <button onclick="showHMFaultTab(${f.id},'details')" id="hmftab-details-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">פרטים</button>
+                        <button onclick="showHMFaultTab(${f.id},'notes')" id="hmftab-notes-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600">הערות${notesCount ? ` <span class="bg-indigo-100 text-indigo-700 rounded-full px-1.5">${notesCount}</span>` : ''}</button>
+                    </div>
+                    <div id="hmftab-content-details-${f.id}">
+                        ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
+                        ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
+                        ${f.status !== 'resolved' ? (() => { const item = hmItems.find(i => i.id === f.equipment_id); return item?.technician_phone ? `<div class="flex gap-2 mt-2"><button onclick="sendHMFaultWhatsApp(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> וואצאפ לאיש קשר</button></div>` : ''; })() : ''}
+                    </div>
+                    <div id="hmftab-content-notes-${f.id}" class="hidden">
+                        <div id="hm-fnotes-list-${f.id}" class="space-y-1.5 mb-2 max-h-40 overflow-y-auto"></div>
+                        <button onclick="openHMAddNote(${f.id})" class="w-full text-[11px] font-bold text-indigo-600 border border-dashed border-indigo-200 rounded-xl py-1.5 hover:bg-indigo-50 transition">+ הוסף הערה</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="openHMFaultStatusPopup(${f.id})" title="שינוי סטטוס" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-arrows-rotate text-xs"></i></button>
+                    <button onclick="openHMFaultModal(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteHMFault(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function showHMFaultTab(faultId, tab) {
+    const dBtn = getEl(`hmftab-details-${faultId}`), nBtn = getEl(`hmftab-notes-${faultId}`);
+    const dDiv = getEl(`hmftab-content-details-${faultId}`), nDiv = getEl(`hmftab-content-notes-${faultId}`);
+    if (!dBtn) return;
+    const active = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
+    const inactive = 'text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+    if (tab === 'details') { dBtn.className = active; nBtn.className = inactive; dDiv.classList.remove('hidden'); nDiv.classList.add('hidden'); }
+    else { nBtn.className = active; dBtn.className = inactive; nDiv.classList.remove('hidden'); dDiv.classList.add('hidden'); await fetchAndRenderHMFaultNotes(faultId); }
+}
+
+async function fetchAndRenderHMFaultNotes(faultId) {
+    const container = getEl(`hm-fnotes-list-${faultId}`); if (!container) return;
+    try {
+        const res = await fetch(`/api/equipment/faults/${faultId}/notes`);
+        const data = await res.json();
+        if (!data.success) return;
+        hmFaultNotes[faultId] = data.notes;
+        const stColors = { open: 'bg-orange-100 text-orange-700', in_progress: 'bg-blue-100 text-blue-700', resolved: 'bg-emerald-100 text-emerald-700' };
+        const stLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+        if (!data.notes.length) { container.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-2">אין הערות עדיין</p>`; return; }
+        container.innerHTML = data.notes.map(n => `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+                <span class="text-slate-400 text-[10px]">${new Date(n.created_at).toLocaleDateString('he-IL')}</span>
+                ${n.status_to ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColors[n.status_to]||''}">${stLabels[n.status_to]||n.status_to}</span>` : ''}
+            </div>
+            <p class="text-slate-600">${safeStr(n.note)}</p>
+        </div>`).join('');
+    } catch(e) {}
+}
+
+function openHMFaultModal(id = null) {
+    let modal = getEl('hm-fault-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-fault-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmfault-modal-title" class="font-black text-slate-800 text-base">דיווח בעיה</h3>
+                    <button onclick="getEl('hm-fault-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="hmfault-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="hmfault-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת הבעיה *</label><input id="hmfault-title" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">פירוט</label><textarea id="hmfault-desc" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">דחיפות</label>
+                            <select id="hmfault-severity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="low">נמוכה</option><option value="medium" selected>בינונית</option><option value="high">גבוהה</option><option value="critical">קריטית</option>
+                            </select>
+                        </div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                            <select id="hmfault-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="open">פתוח</option><option value="in_progress">בטיפול</option><option value="resolved">טופל</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הוספת תמונה</label>
+                        <label class="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl p-3 cursor-pointer hover:bg-slate-50">
+                            <i class="fa-solid fa-camera text-slate-400"></i>
+                            <span id="hmfault-img-label" class="text-xs text-slate-400">לחץ להוספת תמונה</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="handleHMFaultImage(this)">
+                        </label>
+                        <img id="hmfault-img-preview" class="hidden w-full max-h-40 object-contain rounded-xl border border-slate-100 mt-2">
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMFault()" class="w-full bg-red-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-red-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-fault-modal');
+    }
+    const fault = id ? hmFaults.find(x => x.id === id) : null;
+    getEl('hmfault-modal-title').textContent = fault ? 'עריכת בעיה' : 'דיווח בעיה';
+    getEl('hmfault-id').value = fault ? fault.id : '';
+    const eqSel = getEl('hmfault-equipment');
+    eqSel.innerHTML = '<option value="">בחר ציוד...</option>' + hmItems.map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    eqSel.value = fault ? fault.equipment_id : '';
+    getEl('hmfault-title').value = fault ? fault.title : '';
+    getEl('hmfault-desc').value = fault ? (fault.description || '') : '';
+    getEl('hmfault-severity').value = fault ? fault.severity : 'medium';
+    getEl('hmfault-status').value = fault ? fault.status : 'open';
+    window._hmFaultImageData = fault ? (fault.image_url || null) : null;
+    const preview = getEl('hmfault-img-preview');
+    if (fault?.image_url) { preview.src = fault.image_url; preview.classList.remove('hidden'); getEl('hmfault-img-label').textContent = 'תמונה קיימת'; }
+    else { preview.classList.add('hidden'); getEl('hmfault-img-label').textContent = 'לחץ להוספת תמונה'; }
+    modal.classList.remove('hidden');
+}
+
+function handleHMFaultImage(input) {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { window._hmFaultImageData = e.target.result; const p = getEl('hmfault-img-preview'); p.src = e.target.result; p.classList.remove('hidden'); getEl('hmfault-img-label').textContent = file.name; };
+    reader.readAsDataURL(file);
+}
+
+async function submitHMFault() {
+    const id = getEl('hmfault-id').value;
+    const equipmentId = getEl('hmfault-equipment').value;
+    const title = getEl('hmfault-title').value.trim();
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    if (!title) { showToast('error', 'כותרת חובה'); return; }
+    const statusVal = getEl('hmfault-status').value;
+    let resolvedDate = null;
+    if (statusVal === 'resolved') {
+        const existing = id ? hmFaults.find(x => x.id === parseInt(id)) : null;
+        resolvedDate = existing?.resolved_date ? existing.resolved_date.split('T')[0] : new Date().toISOString().split('T')[0];
+    }
+    try {
+        const res = await fetch('/api/equipment/faults', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
+                description: getEl('hmfault-desc').value||null, imageUrl: window._hmFaultImageData||null,
+                severity: getEl('hmfault-severity').value, status: statusVal, resolvedDate }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נרשם'); getEl('hm-fault-modal').classList.add('hidden'); await fetchHMFaults(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMFault(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMFaults(); } catch(e) {}
+}
+
+function openHMFaultStatusPopup(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    let modal = getEl('hm-fault-status-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-fault-status-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">שינוי סטטוס</h3>
+                    <button onclick="getEl('hm-fault-status-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="hmfsp-id">
+                    <p id="hmfsp-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס חדש</label>
+                        <select id="hmfsp-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="open">פתוח</option><option value="in_progress">בטיפול</option><option value="resolved">טופל</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערה</label>
+                        <textarea id="hmfsp-note" rows="3" placeholder="מה עודכן?" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMFaultStatus()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition">עדכן סטטוס</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-fault-status-popup');
+    }
+    getEl('hmfsp-id').value = fault.id;
+    getEl('hmfsp-title').textContent = fault.title;
+    getEl('hmfsp-status').value = fault.status;
+    getEl('hmfsp-note').value = '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMFaultStatus() {
+    const id = getEl('hmfsp-id').value;
+    const status = getEl('hmfsp-status').value;
+    const note = getEl('hmfsp-note').value.trim();
+    try {
+        const res = await fetch(`/api/equipment/faults/${id}/status`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, note, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'סטטוס עודכן'); getEl('hm-fault-status-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(id), 'notes'), 50); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function openHMAddNote(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    let modal = getEl('hm-add-note-popup');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-add-note-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                    <h3 class="font-black text-slate-800 text-sm">הוספת הערה</h3>
+                    <button onclick="getEl('hm-add-note-popup').classList.add('hidden')" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark text-xs"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <input type="hidden" id="hmanp-id">
+                    <p id="hmanp-title" class="text-xs font-bold text-slate-500 truncate"></p>
+                    <textarea id="hmanp-note" rows="4" placeholder="כתוב הערה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMNote()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition">שמור הערה</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-add-note-popup');
+    }
+    getEl('hmanp-id').value = faultId;
+    getEl('hmanp-title').textContent = fault.title;
+    getEl('hmanp-note').value = '';
+    modal.classList.remove('hidden');
+    setTimeout(() => getEl('hmanp-note').focus(), 100);
+}
+
+async function submitHMNote() {
+    const faultId = getEl('hmanp-id').value;
+    const note = getEl('hmanp-note').value.trim();
+    if (!note) { showToast('error', 'יש לכתוב הערה'); return; }
+    try {
+        const res = await fetch(`/api/equipment/faults/${faultId}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ note, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הערה נשמרה'); getEl('hm-add-note-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(faultId), 'notes'), 50); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+function sendHMFaultWhatsApp(faultId) {
+    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
+    const item = hmItems.find(i => i.id === fault.equipment_id); if (!item?.technician_phone) return;
+    const msg = `שלום, יש לנו בעיה בבית:\n*${fault.title}*\nציוד: ${item.name}\n${fault.description ? 'פירוט: ' + fault.description : ''}`;
+    window.open(`https://wa.me/${item.technician_phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// --- CONTACTS (אנשי קשר לתיקונים) ---
+function renderHMContacts() {
+    const list = getEl('hm-contacts-list'); if (!list) return;
+    if (!hmContacts.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-address-book text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין אנשי קשר עדיין</p></div>`; return; }
+    list.innerHTML = hmContacts.map(t => `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+        <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
+                ${t.company_name ? `<p class="text-[11px] text-indigo-600 font-medium">${safeStr(t.company_name)}</p>` : ''}
+                ${t.specialty ? `<p class="text-[11px] text-slate-400">${safeStr(t.specialty)}</p>` : ''}
+                <div class="flex gap-3 mt-2 flex-wrap">
+                    ${t.phone ? `<a href="tel:${safeStr(t.phone)}" class="flex items-center gap-1 text-[10px] text-slate-600 font-bold bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"><i class="fa-solid fa-phone text-emerald-500"></i> ${safeStr(t.phone)}</a>` : ''}
+                    ${t.phone ? `<a href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank" class="flex items-center gap-1 text-[10px] text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>` : ''}
+                    ${t.email ? `<a href="mailto:${safeStr(t.email)}" class="flex items-center gap-1 text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200"><i class="fa-solid fa-envelope"></i> מייל</a>` : ''}
+                </div>
+            </div>
+            <div class="flex gap-2 mr-2 shrink-0">
+                <button onclick="openHMContactModal(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteHMContact(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+        </div>
+    </div>`).join('');
+}
+
+function openHMContactModal(id = null) {
+    let modal = getEl('hm-contact-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-contact-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="hmcontact-modal-title" class="font-black text-slate-800 text-base">הוספת איש קשר לתיקון</h3>
+                    <button onclick="getEl('hm-contact-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3">
+                    <input type="hidden" id="hmcontact-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם *</label><input id="hmcontact-name" type="text" placeholder="למשל: יוסי האינסטלטור" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם חברה</label><input id="hmcontact-company" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">התמחות</label><input id="hmcontact-specialty" type="text" placeholder="למשל: אינסטלציה, חשמל, מזגנים..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון</label><input id="hmcontact-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מייל</label><input id="hmcontact-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="hmcontact-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitHMContact()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-contact-modal');
+    }
+    const contact = id ? hmContacts.find(x => x.id === id) : null;
+    getEl('hmcontact-modal-title').textContent = contact ? 'עריכת איש קשר' : 'הוספת איש קשר לתיקון';
+    getEl('hmcontact-id').value = contact ? contact.id : '';
+    getEl('hmcontact-name').value = contact ? contact.name : '';
+    getEl('hmcontact-company').value = contact ? (contact.company_name || '') : '';
+    getEl('hmcontact-specialty').value = contact ? (contact.specialty || '') : '';
+    getEl('hmcontact-phone').value = contact ? (contact.phone || '') : '';
+    getEl('hmcontact-email').value = contact ? (contact.email || '') : '';
+    getEl('hmcontact-notes').value = contact ? (contact.notes || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitHMContact() {
+    const id = getEl('hmcontact-id').value;
+    const name = getEl('hmcontact-name').value.trim();
+    if (!name) { showToast('error', 'שם חובה'); return; }
+    try {
+        const res = await fetch('/api/equipment/technicians', { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                companyName: getEl('hmcontact-company').value||null, specialty: getEl('hmcontact-specialty').value||null,
+                phone: getEl('hmcontact-phone').value||null, email: getEl('hmcontact-email').value||null,
+                notes: getEl('hmcontact-notes').value||null }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'עודכן' : 'נוסף'); getEl('hm-contact-modal').classList.add('hidden'); await fetchHMContacts(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteHMContact(id) {
+    if (!confirm('למחוק?')) return;
+    try { await fetch(`/api/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMContacts(); } catch(e) {}
+}
+
+// --- HISTORY ---
+let hmHistItemId = null, hmHistData = [], hmHistTypeFilter = 'all', hmHistPeriodFilter = 'all';
+
+async function openHMHistory(itemId) {
+    const item = hmItems.find(x => x.id === itemId); if (!item) return;
+    hmHistItemId = itemId; hmHistTypeFilter = 'all'; hmHistPeriodFilter = 'all';
+    let modal = getEl('hm-history-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="hm-history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height:88vh">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                    <div><h3 id="hmhist-title" class="font-black text-slate-800 text-base">היסטוריה</h3><p id="hmhist-subtitle" class="text-xs text-slate-400 mt-0.5"></p></div>
+                    <button onclick="getEl('hm-history-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 border-b border-slate-100 space-y-2 shrink-0">
+                    <input id="hmhist-search" type="text" placeholder="חיפוש..." oninput="renderHMHistFiltered()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setHMHistFilter('type','all')" id="hmhf-type-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setHMHistFilter('type','maintenance')" id="hmhf-type-maintenance" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">🔧 תחזוקה</button>
+                            <button onclick="setHMHistFilter('type','fault')" id="hmhf-type-fault" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">⚠️ בעיות</button>
+                        </div>
+                        <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1">
+                            <button onclick="setHMHistFilter('period','all')" id="hmhf-period-all" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 shadow-sm">הכל</button>
+                            <button onclick="setHMHistFilter('period','month')" id="hmhf-period-month" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">חודש</button>
+                            <button onclick="setHMHistFilter('period','3months')" id="hmhf-period-3months" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">3 חודשים</button>
+                            <button onclick="setHMHistFilter('period','year')" id="hmhf-period-year" class="text-[11px] px-2.5 py-1 rounded-lg font-bold text-slate-400">שנה</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="hmhist-list" class="overflow-y-auto flex-1 p-4"></div>
+            </div>
+        </div>`);
+        modal = getEl('hm-history-modal');
+    }
+    getEl('hmhist-title').textContent = `היסטוריה: ${item.name}`;
+    getEl('hmhist-subtitle').textContent = 'טוען...';
+    getEl('hmhist-search').value = '';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`/api/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) { hmHistData = data.history; getEl('hmhist-subtitle').textContent = `${hmHistData.length} רשומות`; renderHMHistFiltered(); }
+    } catch(e) { getEl('hmhist-subtitle').textContent = 'שגיאה בטעינה'; }
+}
+
+function setHMHistFilter(filterType, value) {
+    if (filterType === 'type') { hmHistTypeFilter = value; ['all','maintenance','fault'].forEach(v => { const b = getEl(`hmhf-type-${v}`); if (b) b.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`; }); }
+    else { hmHistPeriodFilter = value; ['all','month','3months','year'].forEach(v => { const b = getEl(`hmhf-period-${v}`); if (b) b.className = `text-[11px] px-2.5 py-1 rounded-lg font-bold ${v === value ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400'}`; }); }
+    renderHMHistFiltered();
+}
+
+function renderHMHistFiltered() {
+    const list = getEl('hmhist-list'); if (!list) return;
+    const search = (getEl('hmhist-search')?.value || '').trim().toLowerCase();
+    const periodMs = { month: 30, '3months': 90, year: 365 };
+    const now = new Date();
+    let filtered = hmHistData.filter(r => {
+        if (hmHistTypeFilter !== 'all' && r.type !== hmHistTypeFilter) return false;
+        if (hmHistPeriodFilter !== 'all') { const d = periodMs[hmHistPeriodFilter]; const c = new Date(now); c.setDate(c.getDate() - d); if (!r.event_date || new Date(r.event_date) < c) return false; }
+        if (search) { const h = `${r.title} ${r.description||''} ${r.technician_name||''} ${r.resolution_notes||''}`.toLowerCase(); if (!h.includes(search)) return false; }
+        return true;
+    });
+    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400"><i class="fa-solid fa-magnifying-glass text-2xl mb-2 opacity-30 block"></i><p class="text-sm">אין רשומות התואמות</p></div>`; return; }
+    const mStatusLabels = { pending:'ממתין', completed:'בוצע', overdue:'באיחור' };
+    const mStatusColors = { pending:'bg-amber-100 text-amber-700', completed:'bg-emerald-100 text-emerald-700', overdue:'bg-red-100 text-red-700' };
+    list.innerHTML = filtered.map(r => {
+        const dateStr = r.event_date ? new Date(r.event_date).toLocaleDateString('he-IL') : '';
+        if (r.type === 'maintenance') {
+            const stColor = mStatusColors[r.status] || 'bg-slate-100 text-slate-600';
+            return `<div class="flex gap-3 mb-3"><div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">🔧</div>
+                <div class="flex-1 bg-blue-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5"><span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span>${r.maintenance_type ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">${HM_MTYPE_LABELS[r.maintenance_type]||r.maintenance_type}</span>` : ''}<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${stColor}">${mStatusLabels[r.status]||r.status}</span></div>
+                    <p class="text-[10px] text-slate-400">${dateStr}${r.technician_name ? ' · ' + safeStr(r.technician_name) : ''}${r.cost ? ' · ₪' + r.cost : ''}</p>
+                    ${r.description && r.description !== r.title ? `<p class="text-[11px] text-slate-500 mt-0.5">${safeStr(r.description)}</p>` : ''}
+                </div></div>`;
+        } else {
+            return `<div class="flex gap-3 mb-3"><div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5 text-sm">⚠️</div>
+                <div class="flex-1 bg-red-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5"><span class="font-bold text-xs text-slate-800">${safeStr(r.title)}</span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${HM_SEV_COLORS[r.severity]||''}">${HM_SEV_LABELS[r.severity]||''}</span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${HM_FSTATUS_COLORS[r.status]||''}">${HM_FSTATUS_LABELS[r.status]||r.status}</span></div>
+                    <p class="text-[10px] text-slate-400">${dateStr}</p>
+                    ${r.description ? `<p class="text-[11px] text-slate-500">${safeStr(r.description)}</p>` : ''}
+                    ${r.resolution_notes ? `<p class="text-[11px] text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-lg">${safeStr(r.resolution_notes)}</p>` : ''}
+                </div></div>`;
+        }
+    }).join('');
 }
