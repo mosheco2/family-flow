@@ -6898,8 +6898,9 @@ window.openQuotePreview = function(quoteId) {
             return;
         }
         if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        
-        itemsHtml += `<div class="avoid-break" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+
+        const itemSku = (window.storeCatalogCache || []).find(c => c.id === i.catalogId)?.sku || '';
+        itemsHtml += `<div class="avoid-break" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)}${itemSku ? `<span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-right:6px; direction:ltr;">[${itemSku}]</span>` : ''} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
         if (i.note) itemsHtml += `<div class="avoid-break" style="font-size:12px; color:#64748b; margin-top:4px; padding-right:10px; text-align:right;">הערת שורה: ${safeStr(i.note)}</div>`;
         
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
@@ -8135,7 +8136,7 @@ function renderStoreCatalog() {
         const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
         
-        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
+        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}${p.sku ? `<span class="bg-slate-100 text-slate-500 text-[9px] px-1.5 py-0.5 rounded font-bold dir-ltr inline-block ml-1">${safeStr(p.sku)}</span>` : ''}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
 // ============================================================
@@ -9288,6 +9289,11 @@ window.openStoreProductModal = function(id = null) {
                         </div>
                     </div>
 
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">מקט (SKU):</label>
+                        <input type="text" id="sp-sku" class="modern-input py-2.5 text-sm bg-slate-50 focus:bg-white dir-ltr text-left" placeholder="לדוגמה: ABC-001">
+                    </div>
+
                     <div class="pt-3 border-t border-slate-100 mt-2">
                         <div class="flex justify-between items-center mb-2">
                             <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
@@ -9349,9 +9355,10 @@ window.openStoreProductModal = function(id = null) {
         
         getEl('sp-image-base64').value = p.image_url || '';
         
-        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || '';
         if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
-        
+        if(getEl('sp-sku')) getEl('sp-sku').value = p.sku || '';
+
         if (p.image_url) { 
             getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); 
         } else { 
@@ -9377,6 +9384,7 @@ window.openStoreProductModal = function(id = null) {
 
         getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
+        if(getEl('sp-sku')) getEl('sp-sku').value = '';
     }
     
     window.toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
@@ -9563,11 +9571,12 @@ async function submitStoreProduct() {
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const payload = { 
-            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), 
+        const payload = {
+            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'),
             optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
             badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red',
-            productType: pType, longDescription: val('sp-long-desc') || ''
+            productType: pType, longDescription: val('sp-long-desc') || '',
+            sku: val('sp-sku') || ''
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();

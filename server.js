@@ -395,6 +395,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       
       // --- תוספות פוד-קוסט לחנות ---
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS overhead_details JSONB DEFAULT '[]'::jsonb`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS sku VARCHAR(100)`); } catch(err){}
       try { await client.query(`
           CREATE TABLE IF NOT EXISTS product_ingredients (
               id SERIAL PRIMARY KEY,
@@ -3544,8 +3545,8 @@ app.post('/api/store/catalog', async (req, res) => {
         }
 
         const result = await pool.query(
-            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *', 
-            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '']
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '']
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -3554,10 +3555,10 @@ app.post('/api/store/catalog', async (req, res) => {
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
         const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
-        
+
         const result = await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10 WHERE id=$11 RETURNING *', 
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.params.id]
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11 WHERE id=$12 RETURNING *',
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', req.params.id]
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
