@@ -19129,7 +19129,8 @@ window.markReadyDelivered = function(orderId) {
 };
 
 // ─── WAITER POS (מסך הזמנה מותאם מלצר) ────────────────────────────────────
-window.waiterPOSCart = [];
+// Table bill structure: {tableId: {openedAt, submitted:[{id,name,price,qty,kitchenStation,note,submittedAt,orderId,delivered}], pending:[{id,name,price,qty,kitchenStation,note}]}}
+window.waiterPOSCart = []; // pending items for current table (new, not yet sent)
 window.waiterSelectedTable = null;
 
 function getTableBills() {
@@ -19139,8 +19140,28 @@ function saveTableBills(bills) {
     localStorage.setItem(`table_bills_${currentGroup.id}`, JSON.stringify(bills));
 }
 
-window.showWaiterPOS = function() {
+// Save current pending items before switching table
+function waiterSavePendingForCurrentTable() {
+    const t = window.waiterSelectedTable;
+    if (!t) return;
+    const bills = getTableBills();
+    if (!bills[t]) bills[t] = { openedAt: new Date().toISOString(), submitted: [], pending: [] };
+    bills[t].pending = JSON.parse(JSON.stringify(window.waiterPOSCart));
+    saveTableBills(bills);
+}
+
+window.showWaiterPOS = async function() {
     document.getElementById('waiter-pos-modal')?.remove();
+
+    // Ensure catalog is loaded (fix: products not showing)
+    if (!storeCatalogCache || !storeCatalogCache.length) {
+        try {
+            const r = await fetch(`/api/store/catalog/${currentGroup.id}`);
+            const d = await r.json();
+            if (d.catalog) storeCatalogCache = d.catalog;
+        } catch(e) {}
+    }
+
     const products = (storeCatalogCache||[]).filter(p => p.is_active !== false);
     const count = parseInt(currentGroup.table_count || 8);
     const bills = getTableBills();
@@ -19150,21 +19171,19 @@ window.showWaiterPOS = function() {
     const tableBtns = Array.from({length:count}, (_, i) => {
         const tid = i+1;
         const bill = bills[tid];
-        const billCount = bill ? bill.items.length : 0;
-        const waiter = assigns[tid] ? ` · ${assigns[tid]}` : '';
+        const subCount = bill ? (bill.submitted||[]).length : 0;
+        const pendCount = bill ? (bill.pending||[]).length : 0;
+        const hasBill = subCount > 0 || pendCount > 0;
         const selected = window.waiterSelectedTable === tid;
-        const hasBill = billCount > 0;
-        return `<button type="button"
-            ontouchend="event.preventDefault();waiterSelectTable(${tid},this);"
-            onclick="waiterSelectTable(${tid},this)"
-            class="waiter-table-chip shrink-0 rounded-xl px-3 py-2 font-black text-sm transition ${selected ? 'bg-amber-500 text-white shadow' : hasBill ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200'}"
-            style="touch-action:manipulation;cursor:pointer;">
-            ${tid}${hasBill ? `<span class="text-[9px] block opacity-80">${billCount} פריטים</span>` : `<span class="text-[9px] block opacity-60">${waiter||'פנוי'}</span>`}
-        </button>`;
+        const chipClass = selected ? 'bg-amber-500 text-white shadow' : hasBill ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200';
+        const sub = hasBill ? `<span class="text-[8px] block font-normal opacity-80">${subCount} הוזמן${pendCount?` +${pendCount} חדש`:''}</span>` : `<span class="text-[8px] block opacity-50">${assigns[tid]||'פנוי'}</span>`;
+        return `<button type="button" ontouchend="event.preventDefault();waiterSelectTable(${tid},this);" onclick="waiterSelectTable(${tid},this)"
+            class="waiter-table-chip shrink-0 rounded-xl px-3 py-2 font-black text-sm transition min-w-[52px] text-center ${chipClass}" style="touch-action:manipulation;cursor:pointer;">
+            ${tid}${sub}</button>`;
     }).join('');
 
-    // Product grid (only non-complimentary visible in main grid unless complimentary)
-    const prodHtml = products.map(p => {
+    // Product grid
+    const prodHtml = products.length ? products.map(p => {
         const isComp = !!(p.is_complimentary);
         const handler = isComp ? `waiterAddComplimentary(${p.id})` : `waiterAddItem(${p.id})`;
         const border = isComp ? 'border-amber-200' : 'border-slate-200';
@@ -19179,43 +19198,38 @@ window.showWaiterPOS = function() {
                 ${priceLabel}
             </div>
         </div>`;
-    }).join('');
-
-    // Cart render helper (inline)
-    const cartHtml = window._waiterCartHtml ? window._waiterCartHtml() : '<p class="text-center text-slate-400 text-xs py-4">סל ריק</p>';
+    }).join('') : '<p class="col-span-3 text-center text-slate-400 text-sm py-6">אין מוצרים — הוסף מוצרים בניהול חנות</p>';
 
     const html = `<div id="waiter-pos-modal" class="fixed inset-0 bg-white z-[9990] flex flex-col" style="direction:rtl;">
-        <!-- Header -->
         <div class="flex items-center gap-3 px-4 py-3 bg-amber-600 text-white shrink-0">
-            <button ontouchend="event.preventDefault();document.getElementById('waiter-pos-modal').remove();" onclick="document.getElementById('waiter-pos-modal').remove()" class="text-white text-xl" style="touch-action:manipulation;"><i class="fa-solid fa-xmark"></i></button>
+            <button ontouchend="event.preventDefault();waiterCloseModal();" onclick="waiterCloseModal()" class="text-white text-xl" style="touch-action:manipulation;"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="font-black text-base flex-1">🍽️ הזמנה לשולחן</h2>
             <span id="waiter-pos-table-label" class="text-sm font-black bg-white/20 px-3 py-1 rounded-lg">${window.waiterSelectedTable ? `שולחן ${window.waiterSelectedTable}` : 'בחר שולחן'}</span>
         </div>
-        <!-- Table selector -->
         <div class="bg-amber-50 border-b border-amber-200 px-3 py-2 shrink-0">
             <div id="waiter-table-chips" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width:none;">${tableBtns}</div>
         </div>
-        <!-- Body: split layout for tablet -->
         <div class="flex-1 flex overflow-hidden">
-            <!-- Catalog -->
             <div class="flex-1 overflow-y-auto p-3 bg-slate-50">
                 <div id="waiter-prod-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-2">${prodHtml}</div>
             </div>
-            <!-- Cart -->
-            <div class="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
-                <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                    <span class="font-black text-slate-700 text-sm">🛒 הזמנה</span>
-                    <button ontouchend="event.preventDefault();waiterClearCart();" onclick="waiterClearCart()" class="text-[10px] text-red-400 font-bold" style="touch-action:manipulation;">נקה</button>
+            <div class="w-72 shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
+                <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between shrink-0">
+                    <span class="font-black text-slate-700 text-sm">🛒 חשבון שולחן</span>
+                    <div class="flex gap-2">
+                        <button ontouchend="event.preventDefault();waiterClearPending();" onclick="waiterClearPending()" class="text-[10px] text-red-400 font-bold" style="touch-action:manipulation;">נקה חדש</button>
+                        <button ontouchend="event.preventDefault();waiterCloseBill();" onclick="waiterCloseBill()" class="text-[10px] text-indigo-600 font-bold" style="touch-action:manipulation;">סגור חשבון 💳</button>
+                    </div>
                 </div>
-                <div id="waiter-cart-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">${cartHtml}</div>
+                <div id="waiter-cart-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
                 <div class="p-3 border-t border-slate-100 shrink-0">
                     <div class="flex justify-between mb-2">
-                        <span class="text-xs text-slate-500">סה"כ:</span>
+                        <span class="text-xs text-slate-500">חדש לשליחה:</span>
                         <span id="waiter-cart-total" class="font-black text-slate-800 text-sm">₪0</span>
                     </div>
-                    <button ontouchend="event.preventDefault();waiterSubmitOrder();" onclick="waiterSubmitOrder()"
+                    <button id="waiter-submit-btn" ontouchend="event.preventDefault();waiterSubmitOrder();" onclick="waiterSubmitOrder()"
                         class="w-full bg-green-600 text-white rounded-xl py-3 font-black text-sm active:scale-95 transition shadow"
-                        style="touch-action:manipulation;">שלח הזמנה למטבח ✓</button>
+                        style="touch-action:manipulation;">שלח למטבח ✓</button>
                 </div>
             </div>
         </div>
@@ -19224,19 +19238,23 @@ window.showWaiterPOS = function() {
     window.waiterRenderCart();
 };
 
+window.waiterCloseModal = function() {
+    waiterSavePendingForCurrentTable();
+    document.getElementById('waiter-pos-modal')?.remove();
+};
+
 window.waiterSelectTable = function(tid, btn) {
+    // Save pending items for old table before switching
+    waiterSavePendingForCurrentTable();
     window.waiterSelectedTable = tid;
-    // Load this table's existing bill into cart
+    // Load pending items for new table
     const bills = getTableBills();
-    window.waiterPOSCart = bills[tid] ? JSON.parse(JSON.stringify(bills[tid].items)) : [];
-    // Update chips
+    window.waiterPOSCart = bills[tid]?.pending ? JSON.parse(JSON.stringify(bills[tid].pending)) : [];
     document.querySelectorAll('.waiter-table-chip').forEach(b => {
         b.className = b.className.replace('bg-amber-500 text-white shadow', 'bg-slate-100 text-slate-600 border border-slate-200');
+        b.className = b.className.replace('bg-indigo-100 text-indigo-800 border border-indigo-300', 'bg-slate-100 text-slate-600 border border-slate-200');
     });
-    if (btn) {
-        btn.className = btn.className.replace('bg-slate-100 text-slate-600 border border-slate-200', 'bg-amber-500 text-white shadow');
-        btn.className = btn.className.replace('bg-indigo-100 text-indigo-800 border border-indigo-300', 'bg-amber-500 text-white shadow');
-    }
+    if (btn) btn.className = btn.className.replace('bg-slate-100 text-slate-600 border border-slate-200', 'bg-amber-500 text-white shadow');
     const lbl = document.getElementById('waiter-pos-table-label');
     if (lbl) lbl.textContent = `שולחן ${tid}`;
     window.waiterRenderCart();
@@ -19245,63 +19263,124 @@ window.waiterSelectTable = function(tid, btn) {
 window.waiterAddItem = function(id) {
     if (!window.waiterSelectedTable) { showToast('info', 'בחר שולחן תחילה'); return; }
     const p = (storeCatalogCache||[]).find(x => x.id === id); if (!p) return;
-    const existing = window.waiterPOSCart.find(i => i.id === id);
+    const existing = window.waiterPOSCart.find(i => i.id === id && !i._justAdded);
     if (existing) existing.qty++;
-    else window.waiterPOSCart.push({ id: p.id, name: p.name, price: parseFloat(p.price)||0, qty: 1, kitchenStation: p.kitchen_station || 'other' });
+    else window.waiterPOSCart.push({ id: p.id, name: p.name, price: parseFloat(p.price)||0, qty: 1, kitchenStation: p.kitchen_station || 'other', note: '', category: p.category||'' });
     window.waiterRenderCart();
 };
 
 window.waiterAddComplimentary = function(id) {
-    // Complimentary items don't go to cart — direct table assignment popup
     window.addPOSComplimentary(id);
 };
 
-window.waiterChangeQty = function(id, delta) {
-    const idx = window.waiterPOSCart.findIndex(i => i.id === id);
-    if (idx === -1) return;
+window.waiterChangeQty = function(idx, delta) {
+    if (!window.waiterPOSCart[idx]) return;
     window.waiterPOSCart[idx].qty += delta;
     if (window.waiterPOSCart[idx].qty <= 0) window.waiterPOSCart.splice(idx, 1);
     window.waiterRenderCart();
 };
 
-window.waiterClearCart = function() {
+window.waiterSetNote = function(idx, val) {
+    if (window.waiterPOSCart[idx]) window.waiterPOSCart[idx].note = val;
+};
+
+window.waiterClearPending = function() {
     window.waiterPOSCart = [];
     window.waiterRenderCart();
+};
+
+window.waiterMarkDelivered = function(tableId, subIdx) {
+    const bills = getTableBills();
+    if (bills[tableId]?.submitted?.[subIdx]) {
+        bills[tableId].submitted[subIdx].delivered = true;
+        bills[tableId].submitted[subIdx].deliveredAt = new Date().toISOString();
+        saveTableBills(bills);
+        window.waiterRenderCart();
+    }
 };
 
 window.waiterRenderCart = function() {
     const list = document.getElementById('waiter-cart-list');
     const totalEl = document.getElementById('waiter-cart-total');
     if (!list) return;
-    if (!window.waiterPOSCart.length) {
-        list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">סל ריק</p>';
-        if (totalEl) totalEl.textContent = '₪0';
-        return;
+
+    const table = window.waiterSelectedTable;
+    const bills = getTableBills();
+    const bill = table ? (bills[table] || { submitted: [], pending: [] }) : null;
+    const submitted = bill?.submitted || [];
+
+    let html = '';
+
+    // Section 1: Already submitted items
+    if (submitted.length) {
+        html += `<div class="text-[9px] font-black text-slate-400 uppercase px-1 pt-1 pb-0.5">הוזמן</div>`;
+        html += submitted.map((i, idx) => {
+            const isDelivered = !!i.delivered;
+            const noteStr = i.note ? `<div class="text-[9px] text-slate-400 truncate">${safeStr(i.note)}</div>` : '';
+            return `<div class="rounded-lg p-2 flex items-center gap-1.5 ${isDelivered ? 'bg-green-50 opacity-60' : 'bg-slate-50'}">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-700 truncate">${safeStr(i.name)} ${i.qty>1?`×${i.qty}`:''}</div>
+                    ${noteStr}
+                    <div class="text-[9px] text-slate-400">₪${((i.price||0)*i.qty).toFixed(0)}</div>
+                </div>
+                ${isDelivered
+                    ? `<span class="text-green-500 text-base">✓</span>`
+                    : `<button ontouchend="event.preventDefault();waiterMarkDelivered(${table},${idx});" onclick="waiterMarkDelivered(${table},${idx})" class="bg-green-100 text-green-700 text-[9px] font-black px-1.5 py-1 rounded" style="touch-action:manipulation;">סופק</button>`
+                }
+            </div>`;
+        }).join('');
+        if (html) html += `<div class="border-t border-slate-100 my-1"></div>`;
     }
-    list.innerHTML = window.waiterPOSCart.map(i => `
-        <div class="bg-slate-50 rounded-lg p-2 flex items-center gap-2">
-            <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-slate-800 truncate">${safeStr(i.name)}</div>
-                <div class="text-[10px] text-slate-500">₪${(i.price*i.qty).toFixed(0)}</div>
-            </div>
-            <div class="flex items-center gap-1 shrink-0">
-                <button ontouchend="event.preventDefault();waiterChangeQty(${i.id},-1);" onclick="waiterChangeQty(${i.id},-1)" class="w-6 h-6 bg-slate-200 rounded-full text-slate-600 font-black text-sm flex items-center justify-center" style="touch-action:manipulation;">−</button>
-                <span class="text-sm font-black text-slate-700 w-5 text-center">${i.qty}</span>
-                <button ontouchend="event.preventDefault();waiterChangeQty(${i.id},1);" onclick="waiterChangeQty(${i.id},1)" class="w-6 h-6 bg-amber-500 text-white rounded-full font-black text-sm flex items-center justify-center" style="touch-action:manipulation;">+</button>
-            </div>
-        </div>`).join('');
-    const total = window.waiterPOSCart.reduce((s,i) => s + i.price*i.qty, 0);
-    if (totalEl) totalEl.textContent = `₪${total.toFixed(0)}`;
+
+    // Section 2: Pending (new items to send)
+    if (window.waiterPOSCart.length) {
+        html += `<div class="text-[9px] font-black text-amber-600 uppercase px-1 pb-0.5">חדש — טרם נשלח</div>`;
+        html += window.waiterPOSCart.map((i, idx) => `
+            <div class="bg-amber-50 border border-amber-100 rounded-lg p-2">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-slate-800 truncate">${safeStr(i.name)}</div>
+                        <div class="text-[9px] text-slate-500">₪${(i.price*i.qty).toFixed(0)}</div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button ontouchend="event.preventDefault();waiterChangeQty(${idx},-1);" onclick="waiterChangeQty(${idx},-1)" class="w-5 h-5 bg-slate-200 rounded-full text-slate-600 font-black text-xs flex items-center justify-center" style="touch-action:manipulation;">−</button>
+                        <span class="text-xs font-black w-4 text-center">${i.qty}</span>
+                        <button ontouchend="event.preventDefault();waiterChangeQty(${idx},1);" onclick="waiterChangeQty(${idx},1)" class="w-5 h-5 bg-amber-500 text-white rounded-full font-black text-xs flex items-center justify-center" style="touch-action:manipulation;">+</button>
+                    </div>
+                </div>
+                <input type="text" placeholder="הערה למנה..." value="${safeStr(i.note||'')}"
+                    oninput="waiterSetNote(${idx},this.value)"
+                    class="w-full text-[10px] border border-amber-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-amber-400"
+                    style="touch-action:manipulation;">
+            </div>`).join('');
+    } else if (!submitted.length) {
+        html = '<p class="text-center text-slate-400 text-xs py-6">' + (table ? 'הוסף פריטים מהתפריט' : 'בחר שולחן תחילה') + '</p>';
+    }
+
+    list.innerHTML = html;
+
+    const newTotal = window.waiterPOSCart.reduce((s,i) => s + i.price*i.qty, 0);
+    if (totalEl) totalEl.textContent = `₪${newTotal.toFixed(0)}`;
+
+    const submitBtn = document.getElementById('waiter-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = !window.waiterPOSCart.length;
+        submitBtn.className = `w-full rounded-xl py-3 font-black text-sm active:scale-95 transition shadow ${window.waiterPOSCart.length ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
+    }
 };
 
 window.waiterSubmitOrder = async function() {
     if (!window.waiterSelectedTable) { showToast('info', 'בחר שולחן תחילה'); return; }
-    if (!window.waiterPOSCart.length) { showToast('info', 'ההזמנה ריקה'); return; }
+    if (!window.waiterPOSCart.length) { showToast('info', 'אין פריטים חדשים לשליחה'); return; }
     const table = window.waiterSelectedTable;
-    const total = window.waiterPOSCart.reduce((s,i) => s + i.price*i.qty, 0);
-    const items = window.waiterPOSCart.map(i => ({ catalogId: i.id, name: i.name, quantity: i.qty, price: i.price, note: '', kitchenStation: i.kitchenStation || 'other' }));
+    const cartSnapshot = JSON.parse(JSON.stringify(window.waiterPOSCart)); // snapshot before clear
+    const total = cartSnapshot.reduce((s,i) => s + i.price*i.qty, 0);
+    const items = cartSnapshot.map(i => ({ catalogId: i.id, name: i.name, quantity: i.qty, price: i.price, note: i.note||'', kitchenStation: i.kitchenStation || 'other' }));
     const meta = { tableNumber: table, waiter: currentUser?.nickname || '' };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(meta) });
+
+    const submitBtn = document.getElementById('waiter-submit-btn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'שולח...'; }
     try {
         const res = await fetch(`${API}/store/orders`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -19309,34 +19388,52 @@ window.waiterSubmitOrder = async function() {
         });
         const d = await res.json();
         if (d.success) {
-            // Save open bill to localStorage
             const bills = getTableBills();
-            if (!bills[table]) bills[table] = { openedAt: new Date().toISOString(), items: [] };
-            bills[table].items.push(...window.waiterPOSCart.map(i => ({ ...i, orderedAt: new Date().toISOString() })));
+            if (!bills[table]) bills[table] = { openedAt: new Date().toISOString(), submitted: [], pending: [] };
+            // Move pending → submitted
+            bills[table].submitted = [...(bills[table].submitted||[]), ...cartSnapshot.map(i => ({ ...i, submittedAt: new Date().toISOString(), orderId: d.orderId, delivered: false }))];
+            bills[table].pending = []; // clear pending
             saveTableBills(bills);
-            showToast('success', `הזמנה לשולחן ${table} נשלחה למטבח ✅`);
             window.waiterPOSCart = [];
+            showToast('success', `הזמנה לשולחן ${table} נשלחה למטבח ✅`);
             window.waiterRenderCart();
             // Refresh table chips
-            window.showWaiterPOS();
+            const bills2 = getTableBills();
+            document.querySelectorAll('.waiter-table-chip').forEach((btn, i) => {
+                const tid = i+1;
+                const b2 = bills2[tid];
+                const subC = b2 ? (b2.submitted||[]).length : 0;
+                const penC = b2 ? (b2.pending||[]).length : 0;
+                const hasBill2 = subC > 0 || penC > 0;
+                const isSel = tid === table;
+                btn.className = btn.className.replace(/bg-\w+-\d+ text-\w+-\d+( border border-\w+-\d+)?( shadow)?/g, isSel ? 'bg-amber-500 text-white shadow' : hasBill2 ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' : 'bg-slate-100 text-slate-600 border border-slate-200');
+            });
         } else {
             showToast('error', d.error || 'שגיאה בשליחה');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'שלח למטבח ✓'; }
         }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'שלח למטבח ✓'; }
+    }
 };
 
-window.closeTableBill = function(tableId) {
+window.waiterCloseBill = function() {
+    const table = window.waiterSelectedTable;
+    if (!table) { showToast('info', 'בחר שולחן תחילה'); return; }
     const bills = getTableBills();
-    if (!bills[tableId]) return;
-    const total = bills[tableId].items.reduce((s,i) => s + i.price*i.qty, 0);
-    if (confirm(`סגור חשבון שולחן ${tableId}?\nסה"כ: ₪${total.toFixed(0)}`)) {
-        delete bills[tableId];
+    const bill = bills[table];
+    if (!bill || (!bill.submitted?.length && !bill.pending?.length)) { showToast('info', 'אין חשבון פתוח לשולחן זה'); return; }
+    const total = (bill.submitted||[]).reduce((s,i) => s + (i.price||0)*i.qty, 0) + (bill.pending||[]).reduce((s,i) => s + i.price*i.qty, 0);
+    if (confirm(`סגור חשבון שולחן ${table}?\nסה"כ: ₪${total.toFixed(0)}\nלחץ אישור להעברה לתשלום`)) {
+        delete bills[table];
         saveTableBills(bills);
-        // Mark table as free
         const states = getTableStates();
-        states[tableId] = 'free';
+        states[table] = 'free';
         localStorage.setItem(`tables_${currentGroup.id}`, JSON.stringify(states));
-        showToast('success', `חשבון שולחן ${tableId} נסגר`);
+        window.waiterPOSCart = [];
+        window.waiterSelectedTable = null;
+        showToast('success', `חשבון שולחן ${table} נסגר ✅`);
         window.showWaiterPOS();
     }
 };
@@ -23501,6 +23598,7 @@ window.rdAction = function(tab, action) {
 
 async function showRoleDashboard(roleType) {
     if (!roleType) return;
+    window._currentShowingRole = roleType; // track for re-render on settings save
     const roleInfo = EMPLOYEE_ROLE_TYPES.find(r => r.id === roleType);
     if (!roleInfo) return;
 
@@ -24194,6 +24292,11 @@ window.kdsItemCheck = function(txId, itemIdx, checkbox, totalItems) {
     }
 };
 
+window.kdsToggleExpand = function(txId) {
+    const el = document.getElementById(`kds-expand-${txId}`);
+    if (el) el.classList.toggle('hidden');
+};
+
 window.cookDoneOrder = function(txId, row) {
     const key = `kds_done_${currentGroup.id}`;
     try { const d = JSON.parse(localStorage.getItem(key)||'[]'); d.push(String(txId)); localStorage.setItem(key, JSON.stringify(d)); } catch(e) {}
@@ -24403,6 +24506,16 @@ async function renderCookDashboard(el) {
                 class="mt-2 w-full rounded-xl py-1.5 text-xs font-black active:scale-95 transition ${allDone?'bg-green-500 text-white':'bg-slate-200 text-slate-400 cursor-not-allowed'}"
                 ${allDone?'':'disabled'}
                 style="touch-action:manipulation;cursor:pointer;">✅ הכנה הושלמה</button>
+            <button type="button" ontouchend="event.preventDefault();kdsToggleExpand(${t.id});" onclick="kdsToggleExpand(${t.id})"
+                class="mt-1 w-full rounded-xl py-1 text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-200 active:scale-95 transition"
+                style="touch-action:manipulation;cursor:pointer;">📋 פרטים מלאים</button>
+            <div id="kds-expand-${t.id}" class="hidden mt-1.5 bg-slate-50 rounded-xl p-2 text-[10px] text-slate-600 space-y-1">
+                ${rawItems.map(i => `<div class="border-b border-slate-200 pb-1 last:border-0">
+                    <span class="font-black">${safeStr(i.name||'')} ${(i.quantity||i.qty||1)>1?`×${i.quantity||i.qty}`:''}</span>
+                    ${i.note?`<span class="text-slate-400 mr-1">— ${safeStr(i.note)}</span>`:''}
+                    <span class="text-amber-500 text-[9px] mr-1">[${getStationForItem(i)}]</span>
+                </div>`).join('')}
+            </div>
         </div>`;
     }).join('') : '<p class="text-center text-slate-400 text-sm py-4">אין הזמנות ממתינות 🎉</p>';
 
@@ -24575,11 +24688,11 @@ async function saveBusinessSettings() {
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
         // Re-render role dashboard (always — for table count to refresh)
+        const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
         const dashEl = document.getElementById('content-role-dashboard');
         if (dashEl && !dashEl.classList.contains('hidden')) {
-            const roleType = currentUser?.employee_role_type;
             setTimeout(() => {
-                if (roleType) showRoleDashboard(roleType);
+                if (roleToRefresh) showRoleDashboard(roleToRefresh);
                 else {
                     // Admin: replace visible table grids directly
                     document.querySelectorAll('.table-grid-card').forEach(card => {
