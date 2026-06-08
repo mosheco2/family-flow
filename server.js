@@ -483,6 +483,48 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
 
+      // ===== EQUIPMENT MAINTENANCE MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_items (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          category VARCHAR(50) DEFAULT 'כללי',
+          serial_number VARCHAR(100),
+          purchase_date DATE,
+          warranty_expiry DATE,
+          status VARCHAR(20) DEFAULT 'active',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_maintenance (
+          id SERIAL PRIMARY KEY,
+          equipment_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          maintenance_type VARCHAR(50) DEFAULT 'periodic',
+          description TEXT,
+          scheduled_date DATE,
+          completed_date DATE,
+          status VARCHAR(20) DEFAULT 'pending',
+          cost DECIMAL(10,2),
+          technician_name VARCHAR(100),
+          technician_phone VARCHAR(20),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_faults (
+          id SERIAL PRIMARY KEY,
+          equipment_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          title VARCHAR(200) NOT NULL,
+          description TEXT,
+          image_url TEXT,
+          severity VARCHAR(20) DEFAULT 'medium',
+          status VARCHAR(20) DEFAULT 'open',
+          resolved_date DATE,
+          resolution_notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -8269,6 +8311,126 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 <a href="${campaignUrl}" style="color:#4f46e5;font-weight:bold">לחץ כאן להמשך &rarr;</a>
 </body></html>`);
     } catch(e) { res.redirect('/campaign.html?t=' + req.params.token); }
+});
+
+// ============================================================
+// --- EQUIPMENT MAINTENANCE MODULE ---
+// ============================================================
+
+app.get('/api/equipment/items/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM equipment_items WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        res.json({ success: true, items: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/items', async (req, res) => {
+    try {
+        const { id, groupId, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes } = req.body;
+        if (!groupId || !name) return res.status(400).json({ error: 'שם וקבוצה חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_items SET name=$1, category=$2, serial_number=$3, purchase_date=$4, warranty_expiry=$5, status=$6, notes=$7 WHERE id=$8 AND group_id=$9 RETURNING *`,
+                [name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_items (group_id, name, category, serial_number, purchase_date, warranty_expiry, status, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+                [groupId, name, category||'כללי', serialNumber||null, purchaseDate||null, warrantyExpiry||null, status||'active', notes||null]);
+        }
+        res.json({ success: true, item: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/items/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_items WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/maintenance/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT m.*, e.name as equipment_name, e.category as equipment_category
+             FROM equipment_maintenance m JOIN equipment_items e ON e.id=m.equipment_id
+             WHERE m.group_id=$1 ORDER BY m.scheduled_date ASC NULLS LAST, m.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, records: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/maintenance', async (req, res) => {
+    try {
+        const { id, groupId, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes } = req.body;
+        if (!groupId || !equipmentId) return res.status(400).json({ error: 'ציוד וקבוצה חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_maintenance SET equipment_id=$1, maintenance_type=$2, description=$3, scheduled_date=$4, cost=$5, technician_name=$6, technician_phone=$7, notes=$8 WHERE id=$9 AND group_id=$10 RETURNING *`,
+                [equipmentId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, cost, technician_name, technician_phone, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [equipmentId, groupId, maintenanceType||'periodic', description||null, scheduledDate||null, cost||null, technicianName||null, technicianPhone||null, notes||null]);
+        }
+        res.json({ success: true, record: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/equipment/maintenance/:id/complete', async (req, res) => {
+    try {
+        const { cost, technicianName, notes } = req.body;
+        await pool.query(
+            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4`,
+            [cost||null, technicianName||null, notes||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/maintenance/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_maintenance WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/equipment/faults/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT f.*, e.name as equipment_name, e.category as equipment_category
+             FROM equipment_faults f JOIN equipment_items e ON e.id=f.equipment_id
+             WHERE f.group_id=$1 ORDER BY f.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, faults: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/faults', async (req, res) => {
+    try {
+        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes } = req.body;
+        if (!groupId || !equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
+        let result;
+        if (id) {
+            result = await pool.query(
+                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7,
+                 resolved_date=CASE WHEN $6='resolved' AND resolved_date IS NULL THEN CURRENT_DATE ELSE resolved_date END
+                 WHERE id=$8 AND group_id=$9 RETURNING *`,
+                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, id, groupId]);
+        } else {
+            result = await pool.query(
+                `INSERT INTO equipment_faults (equipment_id, group_id, title, description, image_url, severity, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+                [equipmentId, groupId, title, description||null, imageUrl||null, severity||'medium', status||'open']);
+        }
+        res.json({ success: true, fault: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/equipment/faults/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM equipment_faults WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // הפעלת השרת

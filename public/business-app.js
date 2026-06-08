@@ -1377,8 +1377,8 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
-function switchTab(t) { 
-    ['feed','timeclock','shifts','calendar','shop','pantry','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys'].forEach(x => {
+function switchTab(t) {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -1416,6 +1416,7 @@ function switchTab(t) {
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
     if (t === 'bank') try { fetchLoans(); } catch(e) {}
     if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
+    if (t === 'equipment') try { loadEquipment(); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
     if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
@@ -2090,6 +2091,7 @@ const ALL_TABS = [
     { id: 'budget', name: 'תקציבים 📊' },
     { id: 'forecast', name: 'תשקיף 📅' },
     { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
+    { id: 'equipment', name: 'תחזוקת ציוד 🔧' },
     { id: 'academy', name: 'מרכז הכשרות 🎓' },
     { id: 'community', name: 'קהילות מחוברות 🏘️' },
     { id: 'members', name: 'ניהול צוות 👥' }
@@ -2097,7 +2099,7 @@ const ALL_TABS = [
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'calendar', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'pos', 'customers'],
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'calendar', 'shop', 'pantry', 'equipment', 'tasks', 'academy', 'sales', 'pos', 'customers'],
     'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy', 'pos'],
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
@@ -21643,4 +21645,492 @@ function openBizHelp() {
 function closeBizHelp() {
     const sheet = document.getElementById('biz-help-sheet');
     if (sheet) sheet.classList.add('hidden');
+}
+
+// ============================================================
+// --- EQUIPMENT MAINTENANCE MODULE ---
+// ============================================================
+
+let equipmentItems = [];
+let equipmentMaintenance = [];
+let equipmentFaults = [];
+let equipmentMaintenanceFilter = 'all';
+let equipmentFaultsFilter = 'all';
+
+function switchEquipmentTab(tab) {
+    ['items','maintenance','faults'].forEach(t => {
+        const view = getEl(`eq-view-${t}`);
+        if (view) view.classList.toggle('hidden', t !== tab);
+        const btn = getEl(`eqtab-${t}`);
+        if (btn) {
+            if (t === tab) { btn.classList.add('bg-white','shadow-sm','text-slate-800'); btn.classList.remove('text-slate-500'); }
+            else { btn.classList.remove('bg-white','shadow-sm','text-slate-800'); btn.classList.add('text-slate-500'); }
+        }
+    });
+    if (tab === 'items') renderEquipmentItems();
+    if (tab === 'maintenance') renderEquipmentMaintenance();
+    if (tab === 'faults') renderEquipmentFaults();
+}
+
+async function loadEquipment() {
+    if (!currentGroup) return;
+    await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults()]);
+    switchEquipmentTab('items');
+}
+
+async function fetchEquipmentItems() {
+    try {
+        const res = await fetch(`${API}/equipment/items/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) equipmentItems = data.items;
+        renderEquipmentItems();
+    } catch(e) {}
+}
+
+async function fetchEquipmentMaintenance() {
+    try {
+        const res = await fetch(`${API}/equipment/maintenance/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) equipmentMaintenance = data.records;
+        renderEquipmentMaintenance();
+        updateEquipmentBadge();
+    } catch(e) {}
+}
+
+async function fetchEquipmentFaults() {
+    try {
+        const res = await fetch(`${API}/equipment/faults/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) equipmentFaults = data.faults;
+        renderEquipmentFaults();
+        updateEquipmentBadge();
+    } catch(e) {}
+}
+
+function updateEquipmentBadge() {
+    const badge = getEl('tab-equipment-badge');
+    if (!badge) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+    const urgentMaint = equipmentMaintenance.filter(m => {
+        if (m.status === 'completed') return false;
+        if (!m.scheduled_date) return false;
+        return new Date(m.scheduled_date) <= in7;
+    }).length;
+    const openFaults = equipmentFaults.filter(f => f.status !== 'resolved').length;
+    const total = urgentMaint + openFaults;
+    if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+}
+
+const EQ_CAT_COLORS = { 'קירור':'bg-blue-100 text-blue-700','אפייה':'bg-orange-100 text-orange-700','כלים':'bg-slate-100 text-slate-700','חשמל':'bg-yellow-100 text-yellow-700','רכב':'bg-violet-100 text-violet-700','כללי':'bg-slate-100 text-slate-600' };
+const EQ_STATUS_COLORS = { 'active':'bg-emerald-100 text-emerald-700','inactive':'bg-amber-100 text-amber-700','disposed':'bg-red-100 text-red-700' };
+const EQ_STATUS_LABELS = { 'active':'פעיל','inactive':'לא פעיל','disposed':'הושלך' };
+const MTYPE_LABELS = { 'periodic':'תקופתי','repair':'תיקון','inspection':'בדיקה' };
+const MTYPE_COLORS = { 'periodic':'bg-blue-100 text-blue-700','repair':'bg-orange-100 text-orange-700','inspection':'bg-violet-100 text-violet-700' };
+const SEV_COLORS = { 'low':'bg-slate-100 text-slate-600','medium':'bg-amber-100 text-amber-700','high':'bg-orange-100 text-orange-700','critical':'bg-red-100 text-red-700' };
+const SEV_LABELS = { 'low':'נמוכה','medium':'בינונית','high':'גבוהה','critical':'קריטית' };
+const FSTATUS_LABELS = { 'open':'פתוח','in_progress':'בטיפול','resolved':'נסגר' };
+const FSTATUS_COLORS = { 'open':'bg-red-100 text-red-700','in_progress':'bg-blue-100 text-blue-700','resolved':'bg-emerald-100 text-emerald-700' };
+
+function renderEquipmentItems() {
+    const list = getEl('equipment-items-list');
+    if (!list) return;
+    if (!equipmentItems.length) {
+        list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-screwdriver-wrench text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין ציוד רשום עדיין</p><p class="text-xs mt-1">לחץ "הוסף ציוד" כדי להתחיל</p></div>`;
+        return;
+    }
+    list.innerHTML = equipmentItems.map(item => {
+        const catColor = EQ_CAT_COLORS[item.category] || 'bg-slate-100 text-slate-600';
+        const stColor = EQ_STATUS_COLORS[item.status] || 'bg-slate-100 text-slate-600';
+        const stLabel = EQ_STATUS_LABELS[item.status] || item.status;
+        const mCount = equipmentMaintenance.filter(m => m.equipment_id === item.id && m.status !== 'completed').length;
+        const fCount = equipmentFaults.filter(f => f.equipment_id === item.id && f.status !== 'resolved').length;
+        let warrantyHtml = '';
+        if (item.warranty_expiry) {
+            const exp = new Date(item.warranty_expiry);
+            const diffDays = Math.ceil((exp - new Date()) / 86400000);
+            const color = diffDays < 0 ? 'text-red-500' : diffDays < 30 ? 'text-amber-500' : 'text-slate-400';
+            warrantyHtml = `<span class="text-[10px] ${color}"><i class="fa-regular fa-calendar ml-1"></i>${diffDays < 0 ? 'אחריות פגה' : 'אחריות עד ' + exp.toLocaleDateString('he-IL')}</span>`;
+        }
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${catColor}">${safeStr(item.category)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    ${item.serial_number ? `<p class="text-[11px] text-slate-400">מ"ס: ${safeStr(item.serial_number)}</p>` : ''}
+                    ${warrantyHtml}
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${mCount > 0 ? `<span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100"><i class="fa-solid fa-wrench ml-1"></i>${mCount} תחזוקה</span>` : ''}
+                        ${fCount > 0 ? `<span class="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-100"><i class="fa-solid fa-triangle-exclamation ml-1"></i>${fCount} תקלות</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-2 mr-2 shrink-0">
+                    <button onclick="openEquipmentItemModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteEquipmentItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 transition text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterMaintenance(f) {
+    equipmentMaintenanceFilter = f;
+    ['all','pending','overdue','completed'].forEach(x => {
+        const btn = getEl(`mfilter-${x}`);
+        if (btn) btn.className = `px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderEquipmentMaintenance();
+}
+
+function renderEquipmentMaintenance() {
+    const list = getEl('equipment-maintenance-list');
+    if (!list) return;
+    const today = new Date(); today.setHours(0,0,0,0);
+    let filtered = equipmentMaintenance.map(m => {
+        let cs = m.status;
+        if (m.status === 'pending' && m.scheduled_date && new Date(m.scheduled_date) < today) cs = 'overdue';
+        return { ...m, cs };
+    });
+    if (equipmentMaintenanceFilter !== 'all') filtered = filtered.filter(m => m.cs === equipmentMaintenanceFilter);
+    if (!filtered.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-clipboard-list text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין רשומות תחזוקה</p></div>`;
+        return;
+    }
+    list.innerHTML = filtered.map(m => {
+        const tColor = MTYPE_COLORS[m.maintenance_type] || 'bg-slate-100 text-slate-600';
+        const tLabel = MTYPE_LABELS[m.maintenance_type] || m.maintenance_type;
+        let statusBadge;
+        if (m.cs === 'completed') statusBadge = '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">בוצע ✓</span>';
+        else if (m.cs === 'overdue') statusBadge = '<span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">פג תוקף ⚠</span>';
+        else statusBadge = '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">ממתין</span>';
+        const dateStr = m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString('he-IL') : '—';
+        return `<div class="bg-white border ${m.cs === 'overdue' ? 'border-red-200 bg-red-50/20' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(m.equipment_name)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${tColor}">${tLabel}</span>
+                        ${statusBadge}
+                    </div>
+                    ${m.description ? `<p class="text-xs text-slate-500 mb-1">${safeStr(m.description)}</p>` : ''}
+                    <div class="flex items-center gap-3 flex-wrap text-[10px] text-slate-400">
+                        <span><i class="fa-regular fa-calendar ml-1"></i>${dateStr}</span>
+                        ${m.technician_name ? `<span><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(m.technician_name)}</span>` : ''}
+                        ${m.cost ? `<span class="text-slate-600 font-bold">₪${parseFloat(m.cost).toLocaleString()}</span>` : ''}
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 mr-2 shrink-0">
+                    ${m.cs !== 'completed' ? `<button onclick="completeMaintenanceRecord(${m.id})" class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg font-bold hover:bg-emerald-100 transition">✓ בצע</button>` : ''}
+                    <button onclick="openMaintenanceModal(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteMaintenanceRecord(${m.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterFaults(f) {
+    equipmentFaultsFilter = f;
+    ['all','open','in_progress','resolved'].forEach(x => {
+        const btn = getEl(`ffilter-${x}`);
+        if (btn) btn.className = `px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${x === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    renderEquipmentFaults();
+}
+
+function renderEquipmentFaults() {
+    const list = getEl('equipment-faults-list');
+    if (!list) return;
+    let filtered = equipmentFaultsFilter === 'all' ? equipmentFaults : equipmentFaults.filter(f => f.status === equipmentFaultsFilter);
+    if (!filtered.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין תקלות ${equipmentFaultsFilter !== 'all' ? 'בסטטוס זה' : ''}</p></div>`;
+        return;
+    }
+    list.innerHTML = filtered.map(f => {
+        const sColor = SEV_COLORS[f.severity] || 'bg-slate-100 text-slate-600';
+        const sLabel = SEV_LABELS[f.severity] || f.severity;
+        const stColor = FSTATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600';
+        const stLabel = FSTATUS_LABELS[f.status] || f.status;
+        const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        return `<div class="bg-white border ${f.severity === 'critical' ? 'border-red-200' : 'border-slate-100'} rounded-2xl p-4 mb-3 shadow-sm">
+            <div class="flex items-start gap-3">
+                ${f.image_url ? `<img src="${f.image_url}" class="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100 cursor-pointer" onclick="window.open('${f.image_url}','_blank')">` : ''}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sColor}">${sLabel}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${stColor}">${stLabel}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name)} · ${dateStr}</p>
+                    ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
+                    ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="openFaultModal(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 text-slate-400"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button onclick="deleteFault(${f.id})" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// --- MODALS ---
+
+function openEquipmentItemModal(id = null) {
+    let modal = getEl('equipment-item-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="equipment-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="eqitem-modal-title" class="font-black text-slate-800 text-base">הוספת ציוד</h3>
+                    <button onclick="getEl('equipment-item-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="eqitem-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם הציוד *</label><input id="eqitem-name" type="text" placeholder="למשל: מקרר וולטס 400L" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">קטגוריה</label>
+                        <select id="eqitem-category" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="קירור">קירור</option><option value="אפייה">אפייה</option><option value="כלים">כלים</option><option value="חשמל">חשמל</option><option value="רכב">רכב</option><option value="כללי" selected>כללי</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מספר סידורי / דגם</label><input id="eqitem-serial" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך רכישה</label><input id="eqitem-purchase" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">פקיעת אחריות</label><input id="eqitem-warranty" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                        <select id="eqitem-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="active">פעיל</option><option value="inactive">לא פעיל</option><option value="disposed">הושלך</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="eqitem-notes" rows="2" placeholder="הערות נוספות..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitEquipmentItem()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('equipment-item-modal');
+    }
+    const item = id ? equipmentItems.find(x => x.id === id) : null;
+    getEl('eqitem-modal-title').textContent = item ? 'עריכת ציוד' : 'הוספת ציוד';
+    getEl('eqitem-id').value = item ? item.id : '';
+    getEl('eqitem-name').value = item ? item.name : '';
+    getEl('eqitem-category').value = item ? item.category : 'כללי';
+    getEl('eqitem-serial').value = item ? (item.serial_number || '') : '';
+    getEl('eqitem-purchase').value = item && item.purchase_date ? item.purchase_date.split('T')[0] : '';
+    getEl('eqitem-warranty').value = item && item.warranty_expiry ? item.warranty_expiry.split('T')[0] : '';
+    getEl('eqitem-status').value = item ? item.status : 'active';
+    getEl('eqitem-notes').value = item ? (item.notes || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitEquipmentItem() {
+    const id = getEl('eqitem-id').value;
+    const name = getEl('eqitem-name').value.trim();
+    if (!name) { showToast('error', 'שם הציוד חובה'); return; }
+    try {
+        const res = await fetch(`${API}/equipment/items`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+                category: getEl('eqitem-category').value, serialNumber: getEl('eqitem-serial').value||null,
+                purchaseDate: getEl('eqitem-purchase').value||null, warrantyExpiry: getEl('eqitem-warranty').value||null,
+                status: getEl('eqitem-status').value, notes: getEl('eqitem-notes').value||null })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'ציוד עודכן' : 'ציוד נוסף'); getEl('equipment-item-modal').classList.add('hidden'); await fetchEquipmentItems(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteEquipmentItem(id) {
+    if (!confirm('למחוק ציוד זה? כל נתוני התחזוקה והתקלות שלו יימחקו.')) return;
+    try {
+        await fetch(`${API}/equipment/items/${id}`, { method: 'DELETE' });
+        showToast('info', 'ציוד נמחק');
+        await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults()]);
+    } catch(e) {}
+}
+
+function openMaintenanceModal(id = null) {
+    let modal = getEl('equipment-maintenance-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="equipment-maintenance-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="eqmaint-modal-title" class="font-black text-slate-800 text-base">הוספת תחזוקה</h3>
+                    <button onclick="getEl('equipment-maintenance-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="eqmaint-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="eqmaint-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">בחר ציוד...</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג תחזוקה</label>
+                        <select id="eqmaint-type" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="periodic">תקופתי</option><option value="repair">תיקון</option><option value="inspection">בדיקה</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור</label><textarea id="eqmaint-desc" rows="2" placeholder="תיאור העבודה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך מתוכנן</label><input id="eqmaint-date" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">שם טכנאי</label><input id="eqmaint-tech" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון</label><input id="eqmaint-phone" type="tel" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">עלות (₪)</label><input id="eqmaint-cost" type="number" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הערות</label><textarea id="eqmaint-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitMaintenanceRecord()" class="w-full bg-slate-800 text-white font-black py-3 rounded-2xl text-sm hover:bg-slate-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('equipment-maintenance-modal');
+    }
+    const sel = getEl('eqmaint-equipment');
+    sel.innerHTML = '<option value="">בחר ציוד...</option>' + equipmentItems.filter(i => i.status === 'active').map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    const record = id ? equipmentMaintenance.find(x => x.id === id) : null;
+    getEl('eqmaint-modal-title').textContent = record ? 'עריכת תחזוקה' : 'הוספת תחזוקה';
+    getEl('eqmaint-id').value = record ? record.id : '';
+    getEl('eqmaint-equipment').value = record ? record.equipment_id : '';
+    getEl('eqmaint-type').value = record ? record.maintenance_type : 'periodic';
+    getEl('eqmaint-desc').value = record ? (record.description || '') : '';
+    getEl('eqmaint-date').value = record && record.scheduled_date ? record.scheduled_date.split('T')[0] : '';
+    getEl('eqmaint-tech').value = record ? (record.technician_name || '') : '';
+    getEl('eqmaint-phone').value = record ? (record.technician_phone || '') : '';
+    getEl('eqmaint-cost').value = record ? (record.cost || '') : '';
+    getEl('eqmaint-notes').value = record ? (record.notes || '') : '';
+    modal.classList.remove('hidden');
+}
+
+async function submitMaintenanceRecord() {
+    const id = getEl('eqmaint-id').value;
+    const equipmentId = getEl('eqmaint-equipment').value;
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    try {
+        const res = await fetch(`${API}/equipment/maintenance`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId,
+                maintenanceType: getEl('eqmaint-type').value, description: getEl('eqmaint-desc').value||null,
+                scheduledDate: getEl('eqmaint-date').value||null, technicianName: getEl('eqmaint-tech').value||null,
+                technicianPhone: getEl('eqmaint-phone').value||null, cost: getEl('eqmaint-cost').value||null,
+                notes: getEl('eqmaint-notes').value||null })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'תחזוקה עודכנה' : 'תחזוקה נוספה'); getEl('equipment-maintenance-modal').classList.add('hidden'); await fetchEquipmentMaintenance(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function completeMaintenanceRecord(id) {
+    try {
+        const res = await fetch(`${API}/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'תחזוקה סומנה כבוצעה ✓'); await fetchEquipmentMaintenance(); }
+    } catch(e) {}
+}
+
+async function deleteMaintenanceRecord(id) {
+    if (!confirm('למחוק רשומת תחזוקה זו?')) return;
+    try { await fetch(`${API}/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentMaintenance(); } catch(e) {}
+}
+
+function openFaultModal(id = null) {
+    let modal = getEl('equipment-fault-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `<div id="equipment-fault-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[99] flex items-end justify-center sm:items-center sm:p-4">
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 id="eqfault-modal-title" class="font-black text-slate-800 text-base">דיווח תקלה</h3>
+                    <button onclick="getEl('equipment-fault-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <input type="hidden" id="eqfault-id">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="eqfault-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"><option value="">בחר ציוד...</option></select></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת התקלה *</label><input id="eqfault-title" type="text" placeholder="תיאור קצר" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">פירוט</label><textarea id="eqfault-desc" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div class="flex gap-3">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">חומרה</label>
+                            <select id="eqfault-severity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="low">נמוכה</option><option value="medium" selected>בינונית</option><option value="high">גבוהה</option><option value="critical">קריטית</option>
+                            </select>
+                        </div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">סטטוס</label>
+                            <select id="eqfault-status" onchange="getEl('eqfault-resolution-wrap').classList.toggle('hidden', this.value !== 'resolved')" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                                <option value="open">פתוח</option><option value="in_progress">בטיפול</option><option value="resolved">נסגר</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="eqfault-resolution-wrap" class="hidden"><label class="text-xs font-bold text-slate-500 mb-1 block">פתרון / הערות סגירה</label><textarea id="eqfault-resolution" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">צילום</label>
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="eqfault-img-input" accept="image/*" class="hidden" onchange="handleFaultImageUpload(this)">
+                            <button onclick="getEl('eqfault-img-input').click()" class="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-xl hover:bg-indigo-100 transition"><i class="fa-solid fa-camera"></i> הוסף תמונה</button>
+                            <span id="eqfault-img-label" class="text-xs text-slate-400"></span>
+                        </div>
+                        <img id="eqfault-img-preview" class="hidden w-full max-h-40 object-contain rounded-xl border border-slate-100 mt-2">
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100"><button onclick="submitFault()" class="w-full bg-red-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-red-700 transition shadow-md">שמור</button></div>
+            </div>
+        </div>`);
+        modal = getEl('equipment-fault-modal');
+    }
+    const sel = getEl('eqfault-equipment');
+    sel.innerHTML = '<option value="">בחר ציוד...</option>' + equipmentItems.map(i => `<option value="${i.id}">${safeStr(i.name)}</option>`).join('');
+    const fault = id ? equipmentFaults.find(x => x.id === id) : null;
+    getEl('eqfault-modal-title').textContent = fault ? 'עריכת תקלה' : 'דיווח תקלה';
+    getEl('eqfault-id').value = fault ? fault.id : '';
+    getEl('eqfault-equipment').value = fault ? fault.equipment_id : '';
+    getEl('eqfault-title').value = fault ? fault.title : '';
+    getEl('eqfault-desc').value = fault ? (fault.description || '') : '';
+    getEl('eqfault-severity').value = fault ? fault.severity : 'medium';
+    getEl('eqfault-status').value = fault ? fault.status : 'open';
+    getEl('eqfault-resolution').value = fault ? (fault.resolution_notes || '') : '';
+    getEl('eqfault-resolution-wrap').classList.toggle('hidden', !fault || fault.status !== 'resolved');
+    window._eqFaultImageData = fault ? (fault.image_url || null) : null;
+    const preview = getEl('eqfault-img-preview');
+    if (fault && fault.image_url) { preview.src = fault.image_url; preview.classList.remove('hidden'); getEl('eqfault-img-label').textContent = 'תמונה קיימת'; }
+    else { preview.classList.add('hidden'); getEl('eqfault-img-label').textContent = ''; }
+    modal.classList.remove('hidden');
+}
+
+function handleFaultImageUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        window._eqFaultImageData = e.target.result;
+        const preview = getEl('eqfault-img-preview');
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        getEl('eqfault-img-label').textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function submitFault() {
+    const id = getEl('eqfault-id').value;
+    const equipmentId = getEl('eqfault-equipment').value;
+    const title = getEl('eqfault-title').value.trim();
+    if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
+    if (!title) { showToast('error', 'כותרת חובה'); return; }
+    try {
+        const res = await fetch(`${API}/equipment/faults`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
+                description: getEl('eqfault-desc').value||null, imageUrl: window._eqFaultImageData||null,
+                severity: getEl('eqfault-severity').value, status: getEl('eqfault-status').value,
+                resolutionNotes: getEl('eqfault-resolution').value||null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', id ? 'תקלה עודכנה' : 'תקלה נרשמה');
+            getEl('equipment-fault-modal').classList.add('hidden');
+            await fetchEquipmentFaults();
+        } else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteFault(id) {
+    if (!confirm('למחוק תקלה זו?')) return;
+    try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
 }

@@ -690,6 +690,7 @@
                             <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn">יומן ותורים 📅</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
+                            <button onclick="switchTab('equipment')" id="tab-equipment" class="tab-btn relative">ציוד 🔧<span id="tab-equipment-badge" class="hidden absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] bg-red-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center px-0.5"></span></button>
                             <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn">פוד קוסט 🍽️</button>
                             <button onclick="switchTab('pos')" id="tab-pos" class="tab-btn">קופה 💰</button>
                             <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn">מכירות וחנות 🛍️</button>
@@ -1633,6 +1634,53 @@
                             </div>
                         </div>
                     </div>
+
+                    <div id="content-equipment" class="hidden">
+                        <div class="bg-gradient-to-r from-slate-700 to-slate-900 rounded-[2rem] p-5 text-white shadow-xl mb-4 relative overflow-hidden">
+                            <h3 class="text-lg font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench"></i> תחזוקת ציוד</h3>
+                            <p class="text-slate-300 text-xs opacity-90">נהלו את הציוד, לוח התחזוקה וספר התקלות של העסק.</p>
+                            <i class="fa-solid fa-gears absolute -left-4 -bottom-4 text-8xl text-white opacity-10"></i>
+                        </div>
+                        <div class="flex gap-1.5 mb-4 bg-slate-100 rounded-2xl p-1">
+                            <button onclick="switchEquipmentTab('items')" id="eqtab-items" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white shadow-sm text-slate-800 transition">ציוד 🔧</button>
+                            <button onclick="switchEquipmentTab('maintenance')" id="eqtab-maintenance" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תחזוקה 📋</button>
+                            <button onclick="switchEquipmentTab('faults')" id="eqtab-faults" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">תקלות ⚠️</button>
+                        </div>
+                        <div id="eq-view-items">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">פנקס ציוד</h3>
+                                <button onclick="openEquipmentItemModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף ציוד</button>
+                            </div>
+                            <div id="equipment-items-list"></div>
+                        </div>
+                        <div id="eq-view-maintenance" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">לוח תחזוקה</h3>
+                                <button onclick="openMaintenanceModal()" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus ml-1"></i> הוסף</button>
+                            </div>
+                            <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+                                <button onclick="filterMaintenance('all')" id="mfilter-all" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white whitespace-nowrap">הכל</button>
+                                <button onclick="filterMaintenance('pending')" id="mfilter-pending" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">ממתין</button>
+                                <button onclick="filterMaintenance('overdue')" id="mfilter-overdue" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">פג תוקף</button>
+                                <button onclick="filterMaintenance('completed')" id="mfilter-completed" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">בוצע</button>
+                            </div>
+                            <div id="equipment-maintenance-list"></div>
+                        </div>
+                        <div id="eq-view-faults" class="hidden">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-bold text-slate-800 text-sm">ספר תקלות</h3>
+                                <button onclick="openFaultModal()" class="bg-red-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-700 transition"><i class="fa-solid fa-plus ml-1"></i> דווח תקלה</button>
+                            </div>
+                            <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+                                <button onclick="filterFaults('all')" id="ffilter-all" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white whitespace-nowrap">הכל</button>
+                                <button onclick="filterFaults('open')" id="ffilter-open" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">פתוח</button>
+                                <button onclick="filterFaults('in_progress')" id="ffilter-in_progress" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">בטיפול</button>
+                                <button onclick="filterFaults('resolved')" id="ffilter-resolved" class="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 whitespace-nowrap">נסגר</button>
+                            </div>
+                            <div id="equipment-faults-list"></div>
+                        </div>
+                    </div>
+
                    <div id="content-foodcost" class="hidden">
                         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> ניהול פוד קוסט ורווחיות</h3>
@@ -3380,7 +3428,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=76" defer></script>
+    <script src="business-app.js?v=77" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
