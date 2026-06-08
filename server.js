@@ -299,6 +299,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE sla_configs ADD COLUMN IF NOT EXISTS channels JSONB DEFAULT '["in_app"]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE alert_notifications ADD COLUMN IF NOT EXISTS reference_key VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`DELETE FROM alert_notifications WHERE trigger_type='equipment_maintenance' AND message LIKE '%"undefined"%'`); } catch(e) {}
 
      try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
