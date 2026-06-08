@@ -8559,7 +8559,9 @@ app.get('/api/equipment/items/:id/history', async (req, res) => {
         const { groupId } = req.query;
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
         const maintenance = await pool.query(
-            `SELECT id, 'maintenance' as type, title, description, status,
+            `SELECT id, 'maintenance' as type,
+             COALESCE(description, maintenance_type) as title,
+             description, status,
              COALESCE(completed_date::text, scheduled_date::text) as event_date,
              scheduled_date, completed_date, maintenance_type, technician_name, cost
              FROM equipment_maintenance WHERE equipment_id=$1 AND group_id=$2`,
@@ -8592,12 +8594,13 @@ app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
             const diffDays = Math.round((sDate - today) / 86400000);
             const dateStr = sDate.toLocaleDateString('he-IL');
             const notifications = [];
+            const maintLabel = m.description || m.maintenance_type || 'תחזוקה';
             if (diffDays >= 2 && diffDays <= 7) {
-                notifications.push({ refKey: `eq_maint_${m.id}_7d_${m.scheduled_date}`, message: `🔧 תחזוקה בעוד ${diffDays} ימים: "${m.title}" — ${m.equipment_name} (${dateStr})` });
+                notifications.push({ refKey: `eq_maint_${m.id}_7d_${m.scheduled_date}`, message: `🔧 תחזוקה בעוד ${diffDays} ימים: "${maintLabel}" — ${m.equipment_name} (${dateStr})` });
             }
             if (diffDays <= 1) {
                 const whenStr = diffDays === 0 ? 'היום' : 'מחר';
-                notifications.push({ refKey: `eq_maint_${m.id}_1d_${m.scheduled_date}`, message: `🔧 תחזוקה ${whenStr}: "${m.title}" — ${m.equipment_name} (${dateStr})` });
+                notifications.push({ refKey: `eq_maint_${m.id}_1d_${m.scheduled_date}`, message: `🔧 תחזוקה ${whenStr}: "${maintLabel}" — ${m.equipment_name} (${dateStr})` });
             }
             for (const n of notifications) {
                 const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, n.refKey]);

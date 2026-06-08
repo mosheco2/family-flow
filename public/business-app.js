@@ -3696,6 +3696,42 @@ async function renderUrgentItems() {
                 tab:'tasks', actionLabel:'טפל' });
         }
 
+        // ─ תחזוקת ציוד + תקלות ─
+        try {
+            const [eqMRes, eqFRes] = await Promise.all([
+                fetch(`${API}/equipment/maintenance/${currentGroup.id}`),
+                fetch(`${API}/equipment/faults/${currentGroup.id}`)
+            ]);
+            const eqMData = await eqMRes.json();
+            const eqFData = await eqFRes.json();
+            if (eqMData.success) {
+                const today2 = new Date(); today2.setHours(0,0,0,0);
+                const in7 = new Date(today2); in7.setDate(today2.getDate() + 7);
+                const urgMaint = eqMData.records.filter(m => {
+                    if (m.status === 'completed') return false;
+                    if (!m.scheduled_date) return false;
+                    const sd = new Date(m.scheduled_date); sd.setHours(0,0,0,0);
+                    return sd <= in7;
+                });
+                if (urgMaint.length > 0) {
+                    const lateMaint = urgMaint.filter(m => new Date(m.scheduled_date) < today2);
+                    const firstLabel = urgMaint[0].description || MTYPE_LABELS[urgMaint[0].maintenance_type] || '';
+                    items.push({ icon:'🔧', urgency: lateMaint.length > 0 ? 'high' : 'medium',
+                        title:`${urgMaint.length} תחזוקות ממתינות${lateMaint.length > 0 ? ` (${lateMaint.length} באיחור)` : ''}`,
+                        sub: firstLabel, tab:'equipment', actionLabel:'טפל' });
+                }
+            }
+            if (eqFData.success) {
+                const openFaults = eqFData.faults.filter(f => f.status !== 'resolved');
+                if (openFaults.length > 0) {
+                    const critFaults = openFaults.filter(f => f.severity === 'critical' || f.severity === 'high');
+                    items.push({ icon:'⚠️', urgency: critFaults.length > 0 ? 'high' : 'medium',
+                        title:`${openFaults.length} תקלות ציוד פתוחות`,
+                        sub: openFaults[0].title || '', tab:'equipment', actionLabel:'טפל' });
+                }
+            }
+        } catch(e) {}
+
     } else if (isSenior || isMember) {
         // ─ האם החתמתי כניסה היום ─
         try {
