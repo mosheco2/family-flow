@@ -11394,7 +11394,20 @@ async function fetchB2BOrders() {
 
 function renderB2BOrders() {
     const list = getEl('b2b-orders-list'); if (!list) return;
-    
+
+    // Doc-settings banner (refreshed each render so values stay current)
+    const existingBanner = getEl('b2b-doc-settings-banner');
+    if (existingBanner) existingBanner.remove();
+    const vatDisp = currentGroup?.vat_number || '';
+    const cntDisp = currentGroup?.contact_name || '';
+    const bannerHtml = `<div id="b2b-doc-settings-banner" class="flex items-center justify-between gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2 mb-3 text-xs">
+        <span class="text-slate-600 flex-1 truncate"><i class="fa-solid fa-file-invoice text-indigo-400 mr-1"></i>
+        <strong>ח.פ:</strong> ${vatDisp ? safeStr(vatDisp) : '<span class="text-red-400">לא הוגדר</span>'}
+        &nbsp;|&nbsp;<strong>איש קשר:</strong> ${cntDisp ? safeStr(cntDisp) : '<span class="text-red-400">לא הוגדר</span>'}</span>
+        <button onclick="window.openProfileModal()" class="text-indigo-600 font-bold hover:underline whitespace-nowrap">עדכון פרטים ←</button>
+    </div>`;
+    list.insertAdjacentHTML('beforebegin', bannerHtml);
+
     if (!getEl('b2b-orders-filters-bar')) {
         let supOpts = '<option value="all">כל הספקים</option>';
         suppliersList.forEach(s => supOpts += `<option value="${s.id}">${safeStr(s.name)}</option>`);
@@ -11582,7 +11595,25 @@ window.sendPurchaseOrderWhatsApp = async function(orderId) {
     let phone = supData.phone.replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '972' + phone.substring(1);
 
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    // Generate PDF and trigger download, then open WhatsApp
+    const openWA = () => { window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'); };
+    try {
+        showToast('info', 'מכין PDF...');
+        const orderInfo = {
+            orderId: o.id, supplierName: supData.name, supplierPhone: supData.phone || '',
+            supplierEmail: supData.email || '', branchName: currentGroup.name,
+            customerNumber: supData.customer_number || '', items: items,
+            totalAmount: o.total_amount, notes: o.notes || ''
+        };
+        const pdfBase64 = await generateOrderPDFBase64(orderInfo);
+        if (pdfBase64) {
+            const a = document.createElement('a');
+            a.href = 'data:application/pdf;base64,' + pdfBase64;
+            a.download = `הזמנת_רכש_${o.id}.pdf`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => { openWA(); showToast('success', 'PDF הורד — צרף אותו בהודעת הווצאפ'); }, 600);
+        } else { openWA(); }
+    } catch(e) { openWA(); }
 };
 
 async function updateB2BOrderStatus(orderId, status) {
