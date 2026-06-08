@@ -2627,6 +2627,7 @@ async function fetchData() {
             currentUser.balance = data.user.balance || 0;
             if (data.user.role !== undefined) currentUser.role = data.user.role;
             if (data.user.permissions !== undefined) currentUser.permissions = data.user.permissions;
+            if (data.user.employee_role_type !== undefined) currentUser.employee_role_type = data.user.employee_role_type;
         }
         
 if(data.group) {
@@ -2635,6 +2636,8 @@ if(data.group) {
             currentGroup.community_id = data.group.community_id;
             currentGroup.is_onboarded = data.group.is_onboarded; 
             currentGroup.features = data.group.features; // סנכרון הרשאות מודולים מהשרת!
+            if (data.group.business_type !== undefined) currentGroup.business_type = data.group.business_type;
+            if (data.group.licensed_features !== undefined) currentGroup.licensed_features = data.group.licensed_features;
             
             // תאימות לאחור
             ['has_store','has_b2b','has_academy','has_calendar','has_finance','has_inventory','has_crm','has_deliveries','has_foodcost','has_ai'].forEach(k => {
@@ -2642,7 +2645,7 @@ if(data.group) {
             });
 
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-            setTimeout(enforcePermissions, 100); // אכיפה מיידית של השינויים בממשק!
+            setTimeout(() => { enforcePermissions(); applyBusinessTypeFilter(); }, 100);
             
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
@@ -22857,10 +22860,18 @@ function applyBusinessTypeFilter() {
     const enabled = getEnabledModules();
     if (!enabled) return;
     ALL_TABS.forEach(tab => {
-        if (!enabled.includes(tab.id)) {
-            const tabBtn = getEl(`tab-${tab.id}`);
-            if (tabBtn) tabBtn.classList.add('hidden');
-        }
+        const isEnabled = enabled.includes(tab.id);
+        const tabBtn = getEl(`tab-${tab.id}`);
+        if (tabBtn) { if (!isEnabled) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        const dropBtn = getEl(`gdrop-${tab.id}`);
+        if (dropBtn) { dropBtn.style.display = isEnabled ? '' : 'none'; }
+    });
+    ['team','sales','inventory','finance','more'].forEach(group => {
+        const groupEl = getEl(`gnav-group-${group}`);
+        if (!groupEl) return;
+        const visibleItems = Array.from(groupEl.querySelectorAll('[id^="gdrop-"]')).filter(el => el.style.display !== 'none');
+        const groupBtn = getEl(`gnav-btn-${group}`);
+        if (groupBtn) groupBtn.style.display = visibleItems.length === 0 ? 'none' : '';
     });
 }
 
