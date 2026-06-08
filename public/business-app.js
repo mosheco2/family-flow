@@ -22937,7 +22937,7 @@ async function showRoleDashboard(roleType) {
 
     // Inject "what's waiting today" widget after the dashboard header
     try {
-        const todayHtml = await roleTodayWidget();
+        const todayHtml = roleTodayWidget();
         if (todayHtml) {
             const headerDiv = dashEl.querySelector('[class*="from-"]');
             if (headerDiv) headerDiv.insertAdjacentHTML('afterend', todayHtml);
@@ -22962,13 +22962,23 @@ async function showRoleDashboard(roleType) {
     });
 }
 
-async function roleTodayWidget() {
-    let tasks = [], shifts = [];
-    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json(); tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done' && t.due_date && new Date(t.due_date).toDateString() === new Date().toDateString()); } catch(e) {}
-    try { const r = await fetch(`/api/shifts/${currentGroup.id}`); const d = await r.json(); const today = new Date().toISOString().split('T')[0]; shifts = (d.shifts||[]).filter(s => s.date === today && (!s.user_id || s.user_id == currentUser.id)).slice(0,2); } catch(e) {}
+function roleTodayWidget() {
+    // Use cached allTasks (loaded by fetchData) — no API calls needed
+    const today = new Date().toDateString();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const tasks = (allTasks || []).filter(t =>
+        !t.title?.startsWith('SHIFT|') &&
+        (!t.assigned_to || t.assigned_to == currentUser.id) &&
+        t.status !== 'done' && t.status !== 'deleted' &&
+        t.due_date && new Date(t.due_date).toDateString() === today
+    ).slice(0, 3);
+    const shifts = (allTasks || []).filter(t =>
+        t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) &&
+        (!t.assigned_to || t.assigned_to == currentUser.id)
+    ).slice(0, 2);
     if (!tasks.length && !shifts.length) return '';
-    const taskItems = tasks.slice(0,3).map(t => `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">✅</span><span class="text-xs text-slate-700 flex-1 truncate">${safeStr(t.title)}</span></div>`).join('');
-    const shiftItems = shifts.map(s => `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">🕐</span><span class="text-xs text-slate-700">${s.start_time||''} - ${s.end_time||''}</span></div>`).join('');
+    const taskItems = tasks.map(t => `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">✅</span><span class="text-xs text-slate-700 flex-1 truncate">${safeStr(t.title)}</span></div>`).join('');
+    const shiftItems = shifts.map(t => { const parts = t.title.split('|'); return `<div class="flex items-center gap-2 py-1.5 border-b border-amber-50 last:border-0"><span class="text-amber-500 text-sm">🕐</span><span class="text-xs text-slate-700">${parts[2]||''} - ${parts[3]||''}</span></div>`; }).join('');
     const total = tasks.length + shifts.length;
     return `<div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 shadow-sm">
         <div class="flex items-center justify-between mb-2">
@@ -23005,8 +23015,8 @@ function roleFullMenuBtn() {
 // --- 1. Salesperson Dashboard ---
 async function renderSalespersonDashboard(el) {
     let tasks = [], customers = [];
-    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json(); tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5); } catch(e) {}
-    try { const r = await fetch(`/api/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,3); } catch(e) {}
+    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
+    try { const r = await fetch(`/api/store/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,3); } catch(e) {}
 
     const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
         <button onclick="completeTaskQuick(${t.id},this)" class="w-5 h-5 rounded-full border-2 border-blue-300 shrink-0 hover:bg-blue-100 transition flex items-center justify-center text-blue-500 text-[10px]"></button>
@@ -23056,7 +23066,7 @@ async function renderSalespersonDashboard(el) {
 async function renderFieldTechDashboard(el) {
     let faults = [], tasks = [];
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
-    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json(); tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4); } catch(e) {}
+    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4);
 
     const faultColors = {low:'bg-green-100 text-green-700', medium:'bg-yellow-100 text-yellow-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700'};
     const faultLabels = {open:'פתוחה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים'};
@@ -23109,7 +23119,7 @@ async function renderFieldTechDashboard(el) {
 // --- 3. Delivery Dashboard ---
 async function renderDeliveryDashboard(el) {
     let deliveries = [];
-    try { const r = await fetch(`/api/deliveries/${currentGroup.id}`); const d = await r.json(); deliveries = (d.deliveries||[]).filter(x => x.status !== 'delivered').slice(0,8); } catch(e) {}
+    try { const r = await fetch(`/api/store/orders/${currentGroup.id}`); const d = await r.json(); deliveries = (d.deliveries||[]).filter(x => x.status !== 'delivered').slice(0,8); } catch(e) {}
 
     const total = deliveries.length;
     const stColors = {pending:'bg-yellow-100 text-yellow-700', assigned:'bg-blue-100 text-blue-700', in_transit:'bg-purple-100 text-purple-700', failed:'bg-red-100 text-red-700'};
@@ -23182,8 +23192,7 @@ async function renderWarehouseDashboard(el) {
 // --- 5. Cleaner Dashboard ---
 async function renderCleanerDashboard(el) {
     let tasks = [];
-    try { const r = await fetch(`/api/tasks/${currentGroup.id}`); const d = await r.json();
-        tasks = (d.tasks||[]).filter(t => (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,8); } catch(e) {}
+    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,8);
 
     const done = tasks.filter(t => t.status === 'done').length;
     const total = tasks.length;
@@ -23222,7 +23231,7 @@ async function renderCleanerDashboard(el) {
 // --- 6. Support Dashboard ---
 async function renderSupportDashboard(el) {
     let customers = [];
-    try { const r = await fetch(`/api/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,5); } catch(e) {}
+    try { const r = await fetch(`/api/store/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,5); } catch(e) {}
 
     const custHtml = customers.length ? customers.map(c => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
         <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold text-xs shrink-0">${(c.name||'?')[0]}</div>
@@ -23383,8 +23392,9 @@ async function renderBranchManagerDashboard(el) {
 // Helper: quick task complete from role dashboard
 async function completeTaskQuick(taskId, btn) {
     try {
-        await fetch(`/api/tasks/${currentGroup.id}/${taskId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'done'}) });
-        if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i>'; btn.className = btn.className.replace(/border-\w+-300/,'border-green-500') + ' bg-green-500 border-green-500 text-white'; }
+        await fetch(`/api/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({taskId, status:'done'}) });
+        if (btn) { btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>'; btn.className = 'w-5 h-5 rounded-full bg-green-500 border-2 border-green-500 flex items-center justify-center text-white'; }
+        const t = (allTasks||[]).find(x => x.id == taskId); if (t) t.status = 'done';
     } catch(e) {}
 }
 
