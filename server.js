@@ -568,6 +568,37 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           activated_at TIMESTAMP DEFAULT NOW(),
           UNIQUE(group_id, feature_key)
       )`); } catch(e) {}
+      // ===== SERVICE CALLS (maintenance_repair ↔ family integration) =====
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS oneflow_verified BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_calls (
+          id SERIAL PRIMARY KEY,
+          family_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL,
+          technician_contact_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL,
+          title VARCHAR(200) NOT NULL,
+          description TEXT,
+          address VARCHAR(300),
+          photos JSONB DEFAULT '[]',
+          status VARCHAR(30) DEFAULT 'new',
+          priority VARCHAR(20) DEFAULT 'normal',
+          assigned_member_id INT,
+          scheduled_at TIMESTAMP,
+          price_quote DECIMAL(10,2),
+          discount_pct INT DEFAULT 0,
+          community_discount BOOLEAN DEFAULT false,
+          created_by_user_id INT,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_messages (
+          id SERIAL PRIMARY KEY,
+          call_id INT REFERENCES service_calls(id) ON DELETE CASCADE,
+          sender_type VARCHAR(20) NOT NULL,
+          sender_name VARCHAR(100),
+          message TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       client.release();
@@ -8408,17 +8439,17 @@ app.get('/api/equipment/technicians/:groupId', async (req, res) => {
 
 app.post('/api/equipment/technicians', async (req, res) => {
     try {
-        const { id, groupId, name, companyName, phone, email, specialty, notes } = req.body;
+        const { id, groupId, name, companyName, phone, email, specialty, notes, businessGroupId } = req.body;
         if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
         let result;
         if (id) {
             result = await pool.query(
-                `UPDATE equipment_technicians SET name=$1, company_name=$2, phone=$3, email=$4, specialty=$5, notes=$6 WHERE id=$7 AND group_id=$8 RETURNING *`,
-                [name, companyName||null, phone||null, email||null, specialty||null, notes||null, id, groupId]);
+                `UPDATE equipment_technicians SET name=$1, company_name=$2, phone=$3, email=$4, specialty=$5, notes=$6, business_group_id=$7, oneflow_verified=($7 IS NOT NULL) WHERE id=$8 AND group_id=$9 RETURNING *`,
+                [name, companyName||null, phone||null, email||null, specialty||null, notes||null, businessGroupId||null, id, groupId]);
         } else {
             result = await pool.query(
-                `INSERT INTO equipment_technicians (group_id, name, company_name, phone, email, specialty, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-                [groupId, name, companyName||null, phone||null, email||null, specialty||null, notes||null]);
+                `INSERT INTO equipment_technicians (group_id, name, company_name, phone, email, specialty, notes, business_group_id, oneflow_verified) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [groupId, name, companyName||null, phone||null, email||null, specialty||null, notes||null, businessGroupId||null, !!businessGroupId]);
         }
         res.json({ success: true, technician: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -8428,6 +8459,122 @@ app.delete('/api/equipment/technicians/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_technicians WHERE id=$1', [req.params.id]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Link a technician contact to a OneFlow business group
+app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
+    try {
+        const { businessGroupId } = req.body;
+        const result = await pool.query(
+            'UPDATE equipment_technicians SET business_group_id=$1, oneflow_verified=true WHERE id=$2 RETURNING *',
+            [businessGroupId || null, req.params.id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, technician: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Search for a business group by name (for linking)
+app.get('/api/groups/search-business', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json({ groups: [] });
+        const result = await pool.query(
+            `SELECT id, name, business_type FROM family_groups WHERE type='BUSINESS' AND LOWER(name) LIKE LOWER($1) LIMIT 10`,
+            [`%${q}%`]);
+        res.json({ groups: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SERVICE CALLS ─────────────────────────────────────────────────────────
+
+app.post('/api/service-calls', async (req, res) => {
+    try {
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, priority, createdByUserId } = req.body;
+        if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
+        const result = await pool.query(
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, priority, created_by_user_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, description||null, address||null, priority||'normal', createdByUserId||null]);
+        res.json({ success: true, call: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/family/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as business_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.business_group_id
+             WHERE sc.family_group_id=$1
+             ORDER BY sc.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/business/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             WHERE sc.business_group_id=$1
+             ORDER BY
+               CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+               sc.created_at DESC`,
+            [req.params.groupId]);
+        res.json({ success: true, calls: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/service-calls/:id', async (req, res) => {
+    try {
+        const { status, assignedMemberId, scheduledAt, priceQuote, discountPct, communityDiscount } = req.body;
+        const sets = [], vals = [];
+        let i = 1;
+        if (status !== undefined)           { sets.push(`status=$${i++}`);             vals.push(status); }
+        if (assignedMemberId !== undefined)  { sets.push(`assigned_member_id=$${i++}`); vals.push(assignedMemberId||null); }
+        if (scheduledAt !== undefined)       { sets.push(`scheduled_at=$${i++}`);       vals.push(scheduledAt||null); }
+        if (priceQuote !== undefined)        { sets.push(`price_quote=$${i++}`);         vals.push(priceQuote||null); }
+        if (discountPct !== undefined)       { sets.push(`discount_pct=$${i++}`);        vals.push(discountPct||0); }
+        if (communityDiscount !== undefined) { sets.push(`community_discount=$${i++}`);  vals.push(!!communityDiscount); }
+        if (!sets.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
+        sets.push(`updated_at=NOW()`);
+        vals.push(req.params.id);
+        const result = await pool.query(`UPDATE service_calls SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+        if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, call: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/service-calls/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE service_calls SET status=$1, updated_at=NOW() WHERE id=$2', ['cancelled', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/:id/messages', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM service_call_messages WHERE call_id=$1 ORDER BY created_at ASC', [req.params.id]);
+        res.json({ success: true, messages: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/service-calls/:id/messages', async (req, res) => {
+    try {
+        const { senderType, senderName, message } = req.body;
+        if (!senderType || !message) return res.status(400).json({ error: 'שדות חסרים' });
+        // Mark call as seen by business if family sent
+        if (senderType === 'family') {
+            await pool.query(`UPDATE service_calls SET updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        }
+        const result = await pool.query(
+            'INSERT INTO service_call_messages (call_id, sender_type, sender_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.id, senderType, senderName||null, message]);
+        res.json({ success: true, message: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

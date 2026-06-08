@@ -453,8 +453,17 @@
                             <button onclick="if(typeof fetchMyOrders === 'function') fetchMyOrders()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
                         </div>
                         
-                        <div id="my-orders-list" class="space-y-2 pb-24 px-1 min-h-[300px]">
+                        <div id="my-orders-list" class="space-y-2 pb-4 px-1 min-h-[200px]">
                             <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים...</p>
+                        </div>
+
+                        <!-- קריאות שירות -->
+                        <div class="flex justify-between items-center mb-1.5 px-2 mt-4">
+                            <h3 class="font-bold text-slate-700 text-sm">🔧 קריאות שירות</h3>
+                            <button onclick="if(typeof loadFamilyServiceCalls==='function') loadFamilyServiceCalls()" class="text-orange-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                        </div>
+                        <div id="family-service-calls-list" class="space-y-2 pb-24 px-1 min-h-[80px]">
+                            <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין קריאות שירות פתוחות</p>
                         </div>
                     </div>
                     

@@ -486,7 +486,7 @@ function switchTab(t) { 
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
-    if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
+    if (t === 'myorders') try { fetchMyOrders(); loadFamilyServiceCalls(); } catch(e) {}
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
 }
 
@@ -7556,16 +7556,23 @@ function sendHMFaultWhatsApp(faultId) {
 function renderHMContacts() {
     const list = getEl('hm-contacts-list'); if (!list) return;
     if (!hmContacts.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-address-book text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין אנשי קשר עדיין</p></div>`; return; }
-    list.innerHTML = hmContacts.map(t => `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+    list.innerHTML = hmContacts.map(t => {
+        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> OneFlow</span>` : '';
+        const sendCallBtn = t.business_group_id ? `<button onclick="openServiceCallWizard(${t.id})" class="flex items-center gap-1 text-[10px] text-orange-700 font-black bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-wrench"></i> שלח קריאה</button>` : '';
+        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-OneFlow</button>` : '';
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
         <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
+                <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
+                    ${oneflowBadge}
+                </div>
                 ${t.company_name ? `<p class="text-[11px] text-indigo-600 font-medium">${safeStr(t.company_name)}</p>` : ''}
                 ${t.specialty ? `<p class="text-[11px] text-slate-400">${safeStr(t.specialty)}</p>` : ''}
-                <div class="flex gap-3 mt-2 flex-wrap">
+                <div class="flex gap-2 mt-2 flex-wrap">
                     ${t.phone ? `<a href="tel:${safeStr(t.phone)}" class="flex items-center gap-1 text-[10px] text-slate-600 font-bold bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"><i class="fa-solid fa-phone text-emerald-500"></i> ${safeStr(t.phone)}</a>` : ''}
                     ${t.phone ? `<a href="https://wa.me/${t.phone.replace(/\D/g,'')}" target="_blank" class="flex items-center gap-1 text-[10px] text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>` : ''}
-                    ${t.email ? `<a href="mailto:${safeStr(t.email)}" class="flex items-center gap-1 text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200"><i class="fa-solid fa-envelope"></i> מייל</a>` : ''}
+                    ${sendCallBtn}${linkBtn}
                 </div>
             </div>
             <div class="flex gap-2 mr-2 shrink-0">
@@ -7573,8 +7580,217 @@ function renderHMContacts() {
                 <button onclick="deleteHMContact(${t.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
 }
+
+// ─── SERVICE CALL WIZARD (Family side) ──────────────────────────────────────
+let familyServiceCalls = [];
+
+async function loadFamilyServiceCalls() {
+    try {
+        const r = await fetch(`/api/service-calls/family/${currentGroup.id}`);
+        const d = await r.json();
+        familyServiceCalls = d.calls || [];
+        renderFamilyServiceCalls();
+    } catch(e) {}
+}
+
+function renderFamilyServiceCalls() {
+    const el = getEl('family-service-calls-list');
+    if (!el) return;
+    const SC_STATUS_LABELS_FAM = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const SC_STATUS_COLORS_FAM = { new:'border-blue-200 bg-blue-50', seen:'border-indigo-200 bg-indigo-50', in_progress:'border-amber-200 bg-amber-50', pending_parts:'border-purple-200 bg-purple-50', done:'border-green-200 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
+    if (!familyServiceCalls.length) {
+        el.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5 text-center"><i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2"></i><p class="text-sm text-slate-500">אין קריאות שירות פתוחות</p></div>`;
+        return;
+    }
+    el.innerHTML = familyServiceCalls.map(c => `
+        <div onclick="openFamilyCallModal(${c.id})" class="border rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200 bg-white'}" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
+                </div>
+                <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-white/60 border border-current/20">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+            </div>
+            ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
+        </div>`).join('');
+}
+
+window.openFamilyCallModal = async function(callId) {
+    const call = familyServiceCalls.find(c => c.id === callId);
+    if (!call) return;
+    let messages = [];
+    try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    document.getElementById('fam-sc-modal')?.remove();
+    const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
+        <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+            <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+            ${safeStr(m.message)}
+        </div>
+    </div>`).join('');
+    const html = `<div id="fam-sc-modal" class="fixed inset-0 bg-white z-[9990] flex flex-col" style="direction:rtl;">
+        <div class="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white shrink-0">
+            <button onclick="document.getElementById('fam-sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
+                <div class="text-[10px] opacity-80">${call.business_name ? safeStr(call.business_name) : 'בעל מקצוע'}</div>
+            </div>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS_FAM[call.status]||call.status}</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
+                ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
+                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
+                ${call.price_quote ? `<div class="mt-2 p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
+            </div>
+            <div class="bg-slate-50 rounded-2xl p-3">
+                <div class="text-[10px] font-bold text-slate-500 mb-2">💬 שיחה עם בעל המקצוע</div>
+                <div id="fam-sc-chat-${callId}" class="min-h-[80px] max-h-48 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
+                <div class="flex gap-2">
+                    <input type="text" id="fam-sc-msg-${callId}" placeholder="כתוב הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                    <button onclick="sendFamilyScMessage(${callId})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.sendFamilyScMessage = async function(callId) {
+    const input = document.getElementById(`fam-sc-msg-${callId}`);
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ senderType: 'family', senderName: currentUser?.nickname || 'משפחה', message: msg }) });
+        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const d = await r.json();
+        const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
+        if (chatEl) {
+            chatEl.innerHTML = (d.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
+                <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+                    <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window.openServiceCallWizard = function(technicianId) {
+    const tech = hmContacts.find(t => t.id === technicianId);
+    if (!tech) return;
+    document.getElementById('sc-wizard-modal')?.remove();
+    const html = `<div id="sc-wizard-modal" class="fixed inset-0 bg-slate-900/60 z-[9992] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-gradient-to-l from-indigo-50">
+                <div>
+                    <h3 class="font-black text-slate-800 text-base">🔧 קריאת שירות חדשה</h3>
+                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">OneFlow</span></p>
+                </div>
+                <button onclick="document.getElementById('sc-wizard-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <div class="p-4 space-y-3 overflow-y-auto max-h-[65vh]">
+                <input type="hidden" id="scw-tech-id" value="${technicianId}">
+                <input type="hidden" id="scw-biz-id" value="${tech.business_group_id}">
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור הבעיה *</label>
+                    <textarea id="scw-title" rows="2" placeholder="למשל: המזגן לא מקרר, ברז דולף..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת הטיפול</label>
+                    <input id="scw-address" type="text" placeholder="הרחוב שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">פרטים נוספים (אופציונלי)</label>
+                    <textarea id="scw-desc" rows="2" placeholder="הוסף מידע שיעזור לבעל המקצוע..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
+                </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        ${[['low','נמוכה','🟢'],['normal','רגילה','🔵'],['high','גבוהה','🟠'],['urgent','דחוף','🔴']].map(([v,l,e]) =>
+                            `<button type="button" onclick="scwSetPriority('${v}',this)" id="scwp-${v}" class="scwp-btn border rounded-xl py-2 text-xs font-bold text-slate-600 transition ${v==='normal'?'border-indigo-400 bg-indigo-50 text-indigo-700':'border-slate-200'}" style="touch-action:manipulation;">${e}<br>${l}</button>`).join('')}
+                    </div>
+                    <input type="hidden" id="scw-priority" value="normal">
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100">
+                <button onclick="submitServiceCallWizard()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-indigo-700 transition shadow-md">שלח קריאה → ${safeStr(tech.name)}</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.scwSetPriority = function(val, btn) {
+    document.getElementById('scw-priority').value = val;
+    document.querySelectorAll('.scwp-btn').forEach(b => b.className = b.className.replace('border-indigo-400 bg-indigo-50 text-indigo-700','border-slate-200').replace('border-indigo-400','border-slate-200'));
+    btn.classList.remove('border-slate-200'); btn.classList.add('border-indigo-400','bg-indigo-50','text-indigo-700');
+};
+
+window.submitServiceCallWizard = async function() {
+    const title = document.getElementById('scw-title')?.value?.trim();
+    if (!title) { if(typeof showToast==='function') showToast('error','נא לתאר את הבעיה'); return; }
+    const address = document.getElementById('scw-address')?.value?.trim();
+    const desc = document.getElementById('scw-desc')?.value?.trim();
+    const priority = document.getElementById('scw-priority')?.value || 'normal';
+    const businessGroupId = document.getElementById('scw-biz-id')?.value;
+    const techId = document.getElementById('scw-tech-id')?.value;
+    try {
+        await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: businessGroupId||null, technicianContactId: techId||null, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id }) });
+        document.getElementById('sc-wizard-modal')?.remove();
+        if (typeof showToast === 'function') showToast('success', 'הקריאה נשלחה! 🎉');
+        await loadFamilyServiceCalls();
+        // Switch to myorders tab to show the call
+        if (typeof switchTab === 'function') switchTab('myorders');
+    } catch(e) { if(typeof showToast==='function') showToast('error','שגיאה בשליחת הקריאה'); }
+};
+
+window.openLinkBusinessModal = async function(techId) {
+    document.getElementById('hm-link-biz-modal')?.remove();
+    const html = `<div id="hm-link-biz-modal" class="fixed inset-0 bg-slate-900/60 z-[9993] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+                <h3 class="font-black text-slate-800 text-base">🔗 קשר לעסק OneFlow</h3>
+                <button onclick="document.getElementById('hm-link-biz-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <div class="p-4 space-y-3">
+                <p class="text-xs text-slate-500">חפש את שם העסק של בעל המקצוע ב-OneFlow כדי לאפשר שליחת קריאות ישירות.</p>
+                <input type="hidden" id="hm-link-tech-id" value="${techId}">
+                <input id="hm-link-search" type="text" placeholder="שם העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)">
+                <div id="hm-link-results" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.searchBusinessForLink = async function(q) {
+    const el = document.getElementById('hm-link-results');
+    if (!el || q.length < 2) { if(el) el.innerHTML = ''; return; }
+    try {
+        const r = await fetch(`/api/groups/search-business?q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        if (!d.groups?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו עסקים</p>'; return; }
+        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${document.getElementById('hm-link-tech-id').value}, ${g.id})" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2" style="touch-action:manipulation;">
+            <i class="fa-solid fa-store text-indigo-400 shrink-0"></i>
+            <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-xs">${safeStr(g.name)}</div><div class="text-[10px] text-slate-400">${g.business_type||'עסק'}</div></div>
+            <i class="fa-solid fa-link text-indigo-400 text-xs shrink-0"></i>
+        </button>`).join('');
+    } catch(e) {}
+};
+
+window.linkTechToBusiness = async function(techId, bizGroupId) {
+    try {
+        await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ businessGroupId: bizGroupId }) });
+        if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
+        document.getElementById('hm-link-biz-modal')?.remove();
+        await fetchHMContacts();
+    } catch(e) { if(typeof showToast==='function') showToast('error','שגיאה'); }
+};
 
 function openHMContactModal(id = null) {
     let modal = getEl('hm-contact-modal');

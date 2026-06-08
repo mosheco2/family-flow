@@ -23917,6 +23917,10 @@ async function renderSalespersonDashboard(el) {
 
 // --- 2. Field Technician Dashboard ---
 async function renderFieldTechDashboard(el) {
+    // maintenance_repair: show service calls assigned to this technician
+    if (currentGroup.business_type === 'maintenance_repair') {
+        return renderFieldTechMaintenanceDashboard(el);
+    }
     let faults = [], tasks = [];
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
     tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4);
@@ -23967,6 +23971,319 @@ async function renderFieldTechDashboard(el) {
             </button>
         </div>
         ${roleFullMenuBtn()}`;
+}
+
+// ─── MAINTENANCE_REPAIR: Field Tech Dashboard ───────────────────────────────
+const SC_STATUS_LABELS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+const SC_PRIORITY_COLORS = { urgent:'bg-red-100 text-red-700', high:'bg-orange-100 text-orange-700', normal:'bg-slate-100 text-slate-600', low:'bg-green-100 text-green-700' };
+const SC_PRIORITY_LABELS = { urgent:'דחוף', high:'גבוה', normal:'רגיל', low:'נמוך' };
+const SC_STATUS_COLORS = { new:'bg-blue-100 text-blue-700', seen:'bg-indigo-100 text-indigo-700', in_progress:'bg-amber-100 text-amber-700', pending_parts:'bg-purple-100 text-purple-700', done:'bg-green-100 text-green-700', cancelled:'bg-slate-100 text-slate-400' };
+
+async function renderFieldTechMaintenanceDashboard(el) {
+    let calls = [];
+    try {
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const d = await r.json();
+        calls = (d.calls||[]).filter(c => c.status !== 'done' && c.status !== 'cancelled' && (!c.assigned_member_id || c.assigned_member_id == currentUser.id));
+    } catch(e) {}
+
+    const callsHtml = calls.length ? calls.slice(0,6).map(c => `
+        <div onclick="showServiceCallModal(${c.id})" class="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0 cursor-pointer active:bg-slate-50 rounded-xl px-1 transition" style="touch-action:manipulation;">
+            <span class="text-xl shrink-0 mt-0.5">${c.status==='in_progress'?'🔄':c.status==='pending_parts'?'⏳':'🔧'}</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-bold text-slate-700 truncate">${safeStr(c.title)}</div>
+                <div class="text-[10px] text-slate-500 truncate">${c.family_name ? safeStr(c.family_name) : ''}${c.address ? ' • ' + safeStr(c.address) : ''}</div>
+                <div class="flex gap-1 mt-1 flex-wrap">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100 text-slate-600'}">${SC_STATUS_LABELS[c.status]||c.status}</span>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_PRIORITY_COLORS[c.priority]||''}">${SC_PRIORITY_LABELS[c.priority]||''}</span>
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
+        </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-6">אין קריאות פתוחות 🎉</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🔧','ממשק טכנאי שטח','קריאות שירות ופניות לקוחות','from-orange-500','to-red-600')}
+        <button type="button" onclick="showNewServiceCallModal()" class="w-full mb-4 bg-orange-600 text-white rounded-2xl py-3 font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow" style="touch-action:manipulation;cursor:pointer;">
+            <i class="fa-solid fa-plus"></i> קריאת שירות חדשה
+        </button>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">🔧 קריאות פתוחות</h3>
+                <button type="button" onclick="showAllServiceCalls()" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+            </div>
+            <div class="px-2 py-1">${callsHtml}</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <button type="button" ontouchend="event.preventDefault();rdAction('tasks','');" onclick="rdAction('tasks','')" class="bg-orange-50 rounded-2xl p-4 shadow-sm border border-orange-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">📋</span><div class="text-right"><div class="text-xs font-black text-orange-800">משימות</div><div class="text-[10px] text-orange-500">רשימת מטלות</div></div>
+            </button>
+            <button type="button" ontouchend="event.preventDefault();rdAction('calendar','');" onclick="rdAction('calendar','')" class="bg-red-50 rounded-2xl p-4 shadow-sm border border-red-100 flex items-center gap-3 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+                <span class="text-2xl">📅</span><div class="text-right"><div class="text-xs font-black text-red-800">יומן</div><div class="text-[10px] text-red-500">תורים ופגישות</div></div>
+            </button>
+        </div>
+        ${roleFullMenuBtn()}`;
+}
+
+// ─── MAINTENANCE_REPAIR: Branch Manager Dashboard ───────────────────────────
+async function renderBranchManagerMaintenanceDashboard(el) {
+    let calls = [], members = [];
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
+    try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN' && m.employee_role_type === 'field_tech'); } catch(e) {}
+
+    const open = calls.filter(c => !['done','cancelled'].includes(c.status));
+    const done = calls.filter(c => c.status === 'done');
+    const urgent = calls.filter(c => c.priority === 'urgent' && !['done','cancelled'].includes(c.status));
+
+    const kpis = [
+        { label:'קריאות פתוחות', value: open.length, icon:'🔧', color:'orange', action:"showAllServiceCalls()" },
+        { label:'הושלמו היום', value: done.filter(c => c.updated_at?.startsWith(new Date().toISOString().split('T')[0])).length, icon:'✅', color:'green', action:"showAllServiceCalls('done')" },
+        { label:'דחופות', value: urgent.length, icon:'🚨', color: urgent.length>0?'red':'slate', action:"showAllServiceCalls('urgent')" },
+        { label:'טכנאים', value: members.length, icon:'👷', color:'indigo', action:"rdAction('members','')" }
+    ];
+    const kpiHtml = kpis.map(k => `<button type="button" onclick="${k.action}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition" style="touch-action:manipulation;cursor:pointer;">
+        <span class="text-xl">${k.icon}</span>
+        <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
+        <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+    </button>`).join('');
+
+    const recentHtml = open.slice(0,4).map(c => `
+        <div onclick="showServiceCallModal(${c.id})" class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0 cursor-pointer active:bg-slate-50 rounded-xl px-1 transition" style="touch-action:manipulation;">
+            <span class="text-base shrink-0">${c.status==='in_progress'?'🔄':c.priority==='urgent'?'🚨':'🔧'}</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-700 truncate">${safeStr(c.title)}</div>
+                <div class="text-[10px] text-slate-400 truncate">${c.family_name ? safeStr(c.family_name) : ''} ${c.assigned_member_name ? '· ' + safeStr(c.assigned_member_name) : ''}</div>
+            </div>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'} shrink-0">${SC_STATUS_LABELS[c.status]||c.status}</span>
+        </div>`).join('') || `<p class="text-center text-slate-400 text-xs py-4">אין קריאות פתוחות</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🏢','ממשק מנהל סניף','לוח בקרה — קריאות שירות','from-slate-700','to-slate-900')}
+        <div class="grid grid-cols-2 gap-3 mb-4">${kpiHtml}</div>
+        <button type="button" onclick="showNewServiceCallModal()" class="w-full mb-4 bg-slate-800 text-white rounded-2xl py-3 font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow" style="touch-action:manipulation;cursor:pointer;">
+            <i class="fa-solid fa-plus"></i> קריאת שירות חדשה
+        </button>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-sm">📋 קריאות אחרונות</h3>
+                <button type="button" onclick="showAllServiceCalls()" class="text-slate-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+            </div>
+            <div class="px-2 py-1">${recentHtml}</div>
+        </div>
+        ${roleQuickActions([
+            {icon:'📊', label:'דוחות', tab:'cashflow'},
+            {icon:'👥', label:'הצוות', tab:'members'},
+            {icon:'📅', label:'יומן', tab:'calendar'}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// ─── SERVICE CALL MODAL ──────────────────────────────────────────────────────
+window.showServiceCallModal = async function(callId) {
+    let call = null, messages = [], members = [];
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); call = (d.calls||[]).find(c => c.id === callId); } catch(e) {}
+    if (!call) return;
+    try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.employee_role_type === 'field_tech'); } catch(e) {}
+
+    document.getElementById('sc-modal')?.remove();
+
+    const statusOptions = Object.entries(SC_STATUS_LABELS).filter(([k]) => k !== 'cancelled').map(([k,v]) =>
+        `<option value="${k}" ${call.status===k?'selected':''}>${v}</option>`).join('');
+    const memberOptions = `<option value="">ללא שיוך</option>` + members.map(m =>
+        `<option value="${m.id}" ${call.assigned_member_id==m.id?'selected':''}>${safeStr(m.nickname||m.name)}</option>`).join('');
+    const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='business'?'justify-start':'justify-end'} mb-2">
+        <div class="max-w-[80%] ${m.sender_type==='business'?'bg-slate-100 text-slate-800':'bg-orange-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+            <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+            ${safeStr(m.message)}
+        </div>
+    </div>`).join('');
+
+    const html = `<div id="sc-modal" class="fixed inset-0 bg-white z-[9995] flex flex-col" style="direction:rtl;">
+        <div class="flex items-center gap-3 px-4 py-3 bg-orange-600 text-white shrink-0">
+            <button onclick="document.getElementById('sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
+                <div class="text-[10px] opacity-80">${call.family_name ? safeStr(call.family_name) : ''}</div>
+            </div>
+            <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS[call.status]||call.status}</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
+                ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
+                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-orange-400"></i>${safeStr(call.address)}</p>` : ''}
+                <div class="flex gap-2 flex-wrap mt-2">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${SC_PRIORITY_COLORS[call.priority]||''}">${SC_PRIORITY_LABELS[call.priority]||''}</span>
+                    <span class="text-[10px] text-slate-400">${new Date(call.created_at).toLocaleDateString('he-IL')}</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 block">סטטוס</label>
+                    <select id="sc-status-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${statusOptions}</select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 mb-1 block">שיוך לטכנאי</label>
+                    <select id="sc-member-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${memberOptions}</select>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <input type="number" id="sc-quote-${callId}" placeholder="הצעת מחיר ₪" value="${call.price_quote||''}" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                <button onclick="saveServiceCallUpdates(${callId})" class="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black active:scale-95 transition">שמור</button>
+            </div>
+            <div class="bg-slate-50 rounded-2xl p-3">
+                <div class="text-[10px] font-bold text-slate-500 mb-2">💬 צ׳אט עם הלקוח</div>
+                <div id="sc-chat-${callId}" class="min-h-[80px] max-h-48 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
+                <div class="flex gap-2">
+                    <input type="text" id="sc-msg-${callId}" placeholder="כתוב הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                    <button onclick="sendServiceCallMessage(${callId},'business')" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+            <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveServiceCallUpdates = async function(callId) {
+    const status = document.getElementById(`sc-status-${callId}`)?.value;
+    const assignedMemberId = document.getElementById(`sc-member-${callId}`)?.value || null;
+    const priceQuote = document.getElementById(`sc-quote-${callId}`)?.value || null;
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null }) });
+        showToast('success', 'עודכן בהצלחה');
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window.sendServiceCallMessage = async function(callId, senderType) {
+    const input = document.getElementById(`sc-msg-${callId}`);
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ senderType, senderName: currentUser?.nickname || senderType, message: msg }) });
+        // re-render chat
+        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const d = await r.json();
+        const chatEl = document.getElementById(`sc-chat-${callId}`);
+        if (chatEl) {
+            chatEl.innerHTML = (d.messages||[]).map(m => `<div class="flex ${m.sender_type==='business'?'justify-start':'justify-end'} mb-2">
+                <div class="max-w-[80%] ${m.sender_type==='business'?'bg-slate-100 text-slate-800':'bg-orange-500 text-white'} rounded-2xl px-3 py-2 text-xs">
+                    <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) { showToast('error', 'שגיאה בשליחה'); }
+};
+
+window.markServiceCallDone = async function(callId) {
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ status: 'done' }) });
+        showToast('success', 'הקריאה סומנה כהושלמה');
+        document.getElementById('sc-modal')?.remove();
+        const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
+        if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window.showNewServiceCallModal = function() {
+    document.getElementById('sc-new-modal')?.remove();
+    const html = `<div id="sc-new-modal" class="fixed inset-0 bg-slate-900/60 z-[9996] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+                <h3 class="font-black text-slate-800 text-base">🔧 קריאת שירות חדשה</h3>
+                <button onclick="document.getElementById('sc-new-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <div class="p-4 space-y-3 overflow-y-auto max-h-[70vh]">
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת *</label><input id="scn-title" type="text" placeholder="למשל: תיקון מזגן" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם לקוח</label><input id="scn-family" type="text" placeholder="שם הלקוח" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label><input id="scn-address" type="text" placeholder="כתובת הטיפול" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור התקלה</label><textarea id="scn-desc" rows="3" placeholder="פרטים נוספים על הבעיה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none resize-none"></textarea></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
+                    <select id="scn-priority" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
+                        <option value="normal">רגיל</option><option value="high">גבוה</option><option value="urgent">דחוף</option><option value="low">נמוך</option>
+                    </select>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100">
+                <button onclick="submitNewServiceCall()" class="w-full bg-orange-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-orange-700 transition shadow-md">פתח קריאה 🔧</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.submitNewServiceCall = async function() {
+    const title = document.getElementById('scn-title')?.value?.trim();
+    if (!title) { showToast('error', 'נא להזין כותרת'); return; }
+    const desc = document.getElementById('scn-desc')?.value?.trim();
+    const address = document.getElementById('scn-address')?.value?.trim();
+    const priority = document.getElementById('scn-priority')?.value || 'normal';
+    const familyName = document.getElementById('scn-family')?.value?.trim();
+    try {
+        await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: currentGroup.id, title, description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''), address, priority, createdByUserId: currentUser?.id }) });
+        showToast('success', 'קריאה נפתחה!');
+        document.getElementById('sc-new-modal')?.remove();
+        const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
+        if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+    } catch(e) { showToast('error', 'שגיאה ביצירת הקריאה'); }
+};
+
+window.showAllServiceCalls = async function(filterStatus) {
+    let calls = [];
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
+    if (filterStatus) calls = calls.filter(c => filterStatus === 'urgent' ? c.priority === 'urgent' : c.status === filterStatus);
+
+    document.getElementById('sc-all-modal')?.remove();
+    const html = `<div id="sc-all-modal" class="fixed inset-0 bg-white z-[9994] flex flex-col" style="direction:rtl;">
+        <div class="flex items-center gap-3 px-4 py-3 bg-slate-800 text-white shrink-0">
+            <button onclick="document.getElementById('sc-all-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="font-black text-base flex-1">כל קריאות השירות</h2>
+            <button onclick="showNewServiceCallModal()" class="text-sm bg-white/20 px-3 py-1 rounded-lg font-bold">+ חדשה</button>
+        </div>
+        <div class="flex gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 overflow-x-auto shrink-0" style="scrollbar-width:none;">
+            ${['','new','in_progress','pending_parts','done'].map(s => `<button onclick="filterSCAll('${s}')" id="sc-filter-${s}" class="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${!s?'bg-slate-800 text-white border-slate-800':'bg-white text-slate-600 border-slate-200'}">${s?SC_STATUS_LABELS[s]||s:'הכל'}</button>`).join('')}
+        </div>
+        <div id="sc-all-list" class="flex-1 overflow-y-auto p-3 space-y-2">
+            ${calls.length ? calls.map(c => scCallCard(c)).join('') : '<p class="text-center text-slate-400 text-sm py-10">אין קריאות</p>'}
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.filterSCAll = async function(status) {
+    let calls = [];
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
+    if (status) calls = calls.filter(c => c.status === status);
+    document.querySelectorAll('[id^="sc-filter-"]').forEach(b => {
+        const s = b.id.replace('sc-filter-','');
+        b.className = `shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${s===status?'bg-slate-800 text-white border-slate-800':'bg-white text-slate-600 border-slate-200'}`;
+    });
+    const list = document.getElementById('sc-all-list');
+    if (list) list.innerHTML = calls.length ? calls.map(c => scCallCard(c)).join('') : '<p class="text-center text-slate-400 text-sm py-10">אין קריאות</p>';
+};
+
+function scCallCard(c) {
+    return `<div onclick="showServiceCallModal(${c.id})" class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm cursor-pointer active:bg-slate-50 transition" style="touch-action:manipulation;">
+        <div class="flex items-start gap-3">
+            <span class="text-lg shrink-0 mt-0.5">${c.priority==='urgent'?'🚨':c.status==='in_progress'?'🔄':c.status==='done'?'✅':'🔧'}</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                <div class="text-[10px] text-slate-500 truncate">${c.family_name ? safeStr(c.family_name) : ''}${c.address ? ' • ' + safeStr(c.address) : ''}</div>
+                <div class="flex gap-1 mt-1 flex-wrap">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'}">${SC_STATUS_LABELS[c.status]||c.status}</span>
+                    ${c.priority !== 'normal' ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_PRIORITY_COLORS[c.priority]||''}">${SC_PRIORITY_LABELS[c.priority]||''}</span>` : ''}
+                    ${c.price_quote ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">₪${parseFloat(c.price_quote).toFixed(0)}</span>` : ''}
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
+        </div>
+    </div>`;
 }
 
 // --- 3. Delivery Dashboard ---
@@ -24359,6 +24676,9 @@ async function renderShiftManagerDashboard(el) {
 
 // --- 9. Branch Manager Dashboard ---
 async function renderBranchManagerDashboard(el) {
+    if (currentGroup.business_type === 'maintenance_repair') {
+        return renderBranchManagerMaintenanceDashboard(el);
+    }
     let todaySales = 0, txCount = 0, present = 0, totalMembers = 0, faultsCount = 0;
     const today = new Date().toISOString().split('T')[0];
     try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
