@@ -2166,6 +2166,24 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
+    // הרחב הרשאות אוטומטית לפי תפקיד עובד — מונע חסימת כפתורים בדשבורד התפקיד
+    const ROLE_TYPE_TABS = {
+        salesperson:    ['pos','sales','customers','tasks','calendar','timeclock','shifts'],
+        field_tech:     ['tasks','equipment','calendar','timeclock','shifts'],
+        delivery:       ['deliveries','tasks','timeclock','shifts'],
+        warehouse:      ['pantry','shop','tasks','timeclock','shifts'],
+        cleaner:        ['tasks','timeclock','shifts'],
+        support:        ['customers','tasks','calendar','timeclock'],
+        cashier:        ['pos','sales','tasks','timeclock','shifts'],
+        shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow'],
+        branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry'],
+        waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
+        cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
+    };
+    if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
+        ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userTabs.includes(t)) userTabs.push(t); });
+    }
+
     // קריאת הרשאות הפיצ'רים מהסופר-אדמין כולל משמרות ושאר המודולים
     let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, shifts: true };
     if (currentGroup.features) {
