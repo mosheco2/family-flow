@@ -11877,7 +11877,7 @@ async function submitB2BOrders() {
         btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>';
         getEl('b2b-checkout-modal').classList.add('hidden');
         b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq');
-        if (window._pendingScForPo) { showToast('success', `הזמנת הרכש שויכה לקריאה #${window._pendingScForPo}`); window._pendingScForPo = null; }
+        if (window._pendingScForPo) { showToast('success', `הזמנת הרכש שויכה לקריאה #${window._pendingScForPo}`); window._pendingScForPo = null; document.getElementById('sc-po-pending-bar')?.remove(); }
         fetchB2BOrders();
     }
 }
@@ -24447,6 +24447,9 @@ async function renderFieldTechMaintenanceDashboard(el) {
                 <div class="flex gap-1 mt-1 flex-wrap">
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100 text-slate-600'}">${SC_STATUS_LABELS[c.status]||c.status}</span>
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_PRIORITY_COLORS[c.priority]||''}">${SC_PRIORITY_LABELS[c.priority]||''}</span>
+                    ${!c.scheduled_at && !['done','cancelled'].includes(c.status) ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠️ ללא תאריך</span>` : ''}
+                    ${c.parts_status==='waiting_delivery'?`<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">📦 ממתין לאספקה</span>`:''}
+                    ${c.parts_status==='parts_ready'?`<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">✅ חלקים לאיסוף</span>`:''}
                 </div>
             </div>
             <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
@@ -24503,7 +24506,11 @@ async function renderBranchManagerMaintenanceDashboard(el) {
             <span class="text-base shrink-0">${c.needs_triage?'⚠️':c.status==='in_progress'?'🔄':c.priority==='urgent'?'🚨':'🔧'}</span>
             <div class="flex-1 min-w-0">
                 <div class="text-xs font-bold text-slate-700 truncate">${safeStr(c.title)}${c.needs_triage ? ' <span class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded">ממתין לסיווג</span>' : ''}</div>
-                <div class="text-[10px] text-slate-400 truncate">${c.family_name ? safeStr(c.family_name) : ''} ${c.assigned_member_name ? '· ' + safeStr(c.assigned_member_name) : ''}</div>
+                <div class="flex gap-1 flex-wrap mt-0.5">
+                    ${!c.scheduled_at && !['done','cancelled'].includes(c.status) ? `<span class="text-[9px] font-bold px-1 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠️ ללא תאריך</span>` : ''}
+                    ${c.parts_status==='waiting_delivery'?`<span class="text-[9px] font-bold px-1 py-0.5 rounded-full bg-purple-100 text-purple-700">📦 ממתין לאספקה</span>`:''}
+                    ${c.parts_status==='parts_ready'?`<span class="text-[9px] font-bold px-1 py-0.5 rounded-full bg-green-100 text-green-700">✅ חלקים לאיסוף</span>`:''}
+                </div>
             </div>
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'} shrink-0">${SC_STATUS_LABELS[c.status]||c.status}</span>
         </div>`).join('') || `<p class="text-center text-slate-400 text-xs py-4">אין קריאות פתוחות</p>`;
@@ -24767,7 +24774,7 @@ window.showServiceCallModal = async function(callId) {
                 <div class="text-[10px] font-bold text-purple-700 mb-2">📦 סטטוס חלקים</div>
                 ${call.parts_status === 'waiting_delivery' ? `<div class="flex items-center gap-2 bg-purple-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">📦</span><span class="text-xs font-bold text-purple-800">ממתין לאספקה מהספק</span></div>` : ''}
                 ${call.parts_status === 'parts_ready' ? `<div class="flex items-center gap-2 bg-green-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">✅</span><span class="text-xs font-bold text-green-800">חלקים הגיעו — ממתינים לאיסוף</span></div>` : ''}
-                ${!call.parts_status ? `<button onclick="document.getElementById('sc-modal').remove();if(window._scChatInterval)clearInterval(window._scChatInterval);window._pendingScForPo=${callId};switchTab('shop');setTimeout(()=>switchProcurementTab('list'),400);showToast('info','בחר מוצרים ובסיום ההזמנה תשוייך לקריאה #${callId}');" class="w-full bg-purple-600 text-white rounded-xl py-2 text-xs font-black active:scale-95 transition" style="touch-action:manipulation;">🛒 פתח הזמנת רכש</button>` : ''}
+                ${!call.parts_status ? `<button onclick="openProcurementForSC(${callId})" class="w-full bg-purple-600 text-white rounded-xl py-2 text-xs font-black active:scale-95 transition" style="touch-action:manipulation;">🛒 פתח הזמנת רכש</button>` : ''}
             </div>` : ''}
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
             <button onclick="createCustomerFromCall(${callId})" class="w-full bg-slate-100 text-slate-700 rounded-2xl py-2.5 font-bold text-sm active:scale-95 transition mt-1">💾 שמור כלקוח</button>
@@ -24814,7 +24821,7 @@ window.saveServiceCallUpdates = async function(callId) {
                 <div class="text-base font-black text-slate-800 mb-1">📦 ממתין לחלקים</div>
                 <div class="text-xs text-slate-500 mb-4">רוצה לפתוח הזמנת רכש מהמודול הקיים ולשייך לקריאה זו?</div>
                 <div class="flex gap-2">
-                    <button onclick="document.getElementById('sc-po-dialog').remove();window._pendingScForPo=${callId};if(window._scChatInterval)clearInterval(window._scChatInterval);document.getElementById('sc-modal')?.remove();switchTab('shop');setTimeout(()=>switchProcurementTab('list'),400);showToast('info','בחר מוצרים ובסיום ההזמנה תשוייך לקריאה #${callId}');" class="flex-1 bg-orange-600 text-white rounded-xl py-2.5 text-sm font-black active:scale-95 transition">פתח הזמנת רכש</button>
+                    <button onclick="openProcurementForSC(${callId})" class="flex-1 bg-orange-600 text-white rounded-xl py-2.5 text-sm font-black active:scale-95 transition">פתח הזמנת רכש</button>
                     <button onclick="document.getElementById('sc-po-dialog').remove();setTimeout(()=>showServiceCallModal(${callId}),150);" class="flex-1 bg-slate-100 text-slate-700 rounded-xl py-2.5 text-sm font-bold active:scale-95 transition">לאחר מכן</button>
                 </div>
             </div>`;
@@ -25035,6 +25042,22 @@ window.submitNewServiceCall = async function() {
         if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
         else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
     } catch(e) { showToast('error', 'שגיאה ביצירת הקריאה'); }
+};
+
+window.openProcurementForSC = function(callId) {
+    window._pendingScForPo = callId;
+    if (window._scChatInterval) clearInterval(window._scChatInterval);
+    document.getElementById('sc-modal')?.remove();
+    document.getElementById('sc-all-modal')?.remove();
+    document.getElementById('sc-po-dialog')?.remove();
+    document.getElementById('sc-po-pending-bar')?.remove();
+    const bar = document.createElement('div');
+    bar.id = 'sc-po-pending-bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7c3aed;color:white;padding:10px 16px;display:flex;align-items:center;gap:8px;direction:rtl;font-size:12px;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+    bar.innerHTML = `<span style="flex:1;">🛒 בחר מוצרים — בסיום ההזמנה תשוייך לקריאה #${callId}</span><button onclick="document.getElementById('sc-po-pending-bar').remove();window._pendingScForPo=null;" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">× ביטול</button>`;
+    document.body.appendChild(bar);
+    switchTab('shop');
+    setTimeout(() => switchProcurementTab('list'), 400);
 };
 
 window.showAllServiceCalls = async function(filterStatus) {
