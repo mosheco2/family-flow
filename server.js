@@ -8595,10 +8595,19 @@ app.post('/api/service-calls', async (req, res) => {
         if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
         const fullDesc = description || null;
         const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
-        const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
+        let result;
+        try {
+            result = await pool.query(
+                `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+                [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
+        } catch(colErr) {
+            // Fallback: insert without needs_triage if column doesn't exist yet
+            result = await pool.query(
+                `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+                [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
+        }
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

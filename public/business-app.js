@@ -24982,7 +24982,7 @@ window.submitNewServiceCall = async function() {
     const assignedMemberId = document.getElementById('scn-member')?.value || null;
     const needsTriage = document.getElementById('scn-triage')?.checked || false;
     try {
-        await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+        const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
                 familyGroupId: familyGroupIdOverride || currentGroup.id,
                 businessGroupId: currentGroup.id,
@@ -24994,6 +24994,8 @@ window.submitNewServiceCall = async function() {
                 needsTriage: needsTriage || false,
                 familyName: familyName || null
             }) });
+        const d = await r.json();
+        if (!r.ok) { showToast('error', d.error || 'שגיאה ביצירת הקריאה'); return; }
         showToast('success', 'קריאה נפתחה!');
         document.getElementById('sc-new-modal')?.remove();
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;

@@ -7958,12 +7958,13 @@ window.submitServiceCallWizard = async function() {
     const requestedDate = document.getElementById('scw-requested-date')?.value || null;
     const customerName = currentUser?.nickname || currentUser?.name || null;
     try {
-        await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+        const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId, technicianContactId: techId, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id, customerName, requestedDate }) });
+        const d = await r.json();
+        if (!r.ok) { if(typeof showToast==='function') showToast('error', d.error || 'שגיאה בשליחת הקריאה'); return; }
         document.getElementById('sc-wizard-modal')?.remove();
         if (typeof showToast === 'function') showToast('success', 'הקריאה נשלחה! 🎉');
         await loadFamilyServiceCalls();
-        // Switch to myorders tab to show the call
         if (typeof switchTab === 'function') switchTab('myorders');
     } catch(e) { if(typeof showToast==='function') showToast('error','שגיאה בשליחת הקריאה'); }
 };
