@@ -530,7 +530,7 @@ function switchMyOrdersTab(tab) {
         if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
         if (sec) sec.classList.toggle('hidden', t !== tab);
     });
-    if (tab === 'faults') renderMyFaultsAsServiceCalls();
+    if (tab === 'faults') renderBusinessServiceCallsTab();
 }
 
 async function renderMyFaultsAsServiceCalls() {
@@ -7789,30 +7789,53 @@ async function loadFamilyServiceCalls() {
         const r = await fetch(`/api/service-calls/family/${currentGroup.id}`);
         const d = await r.json();
         familyServiceCalls = d.calls || [];
-        renderFamilyServiceCalls();
+        renderBusinessServiceCallsTab();
+        if (myOrdersCache.length > 0) try { renderMyOrders(); } catch(e) {}
     } catch(e) {}
 }
 
-function renderFamilyServiceCalls() {
-    const el = getEl('family-service-calls-list');
-    if (!el) return;
-    const SC_STATUS_LABELS_FAM = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
-    const SC_STATUS_COLORS_FAM = { new:'border-blue-200 bg-blue-50', seen:'border-indigo-200 bg-indigo-50', in_progress:'border-amber-200 bg-amber-50', pending_parts:'border-purple-200 bg-purple-50', done:'border-green-200 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
-    if (!familyServiceCalls.length) {
-        el.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-5 text-center"><i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2"></i><p class="text-sm text-slate-500">אין קריאות שירות פתוחות</p></div>`;
+function renderBusinessServiceCallsTab() {
+    const list = getEl('my-service-calls-list');
+    if (!list) return;
+    const ST_LABEL = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const ST_COLOR = { new:'border-blue-400', seen:'border-indigo-400', in_progress:'border-amber-400', pending_parts:'border-purple-400', done:'border-green-400', cancelled:'border-slate-300' };
+    const ST_BG   = { new:'bg-blue-50', seen:'bg-indigo-50', in_progress:'bg-amber-50', pending_parts:'bg-purple-50', done:'bg-green-50', cancelled:'bg-slate-50' };
+    const ST_TEXT = { new:'text-blue-700', seen:'text-indigo-700', in_progress:'text-amber-700', pending_parts:'text-purple-700', done:'text-green-700', cancelled:'text-slate-500' };
+    const active = (familyServiceCalls || []).filter(c => c.status !== 'cancelled');
+    if (!active.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+            <i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2 block"></i>
+            <p class="text-sm font-bold text-slate-500">אין קריאות שירות פעילות</p>
+            <p class="text-xs text-slate-400 mt-1">לפתיחת קריאה — כנסו לאיש קשר ובחרו "קריאת שירות"</p>
+        </div>`;
         return;
     }
-    el.innerHTML = familyServiceCalls.map(c => `
-        <div onclick="openFamilyCallModal(${c.id})" class="border rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200 bg-white'}" style="touch-action:manipulation;">
+    list.innerHTML = active.map(c => {
+        const borderCls = ST_COLOR[c.status] || 'border-slate-300';
+        const bgCls = ST_BG[c.status] || 'bg-white';
+        const textCls = ST_TEXT[c.status] || 'text-slate-600';
+        const stLabel = ST_LABEL[c.status] || c.status;
+        const createdStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+        const scheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+        const noDateFlag = (c.status !== 'done' && c.status !== 'cancelled' && !c.scheduled_at) ? `<span class="text-[9px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold">⚠️ ללא תאריך</span>` : '';
+        const partsFlag = c.parts_status === 'parts_ready' ? `<span class="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full font-bold">✅ חלקים מוכנים</span>`
+                        : (c.parts_status === 'pending_parts' || c.parts_status === 'waiting_delivery') ? `<span class="text-[9px] bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold">📦 ממתין לחלקים</span>` : '';
+        return `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 ${borderCls} ${bgCls} rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white shadow-sm" style="touch-action:manipulation;">
             <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
                     <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
-                    <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
+                    <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}${createdStr ? ' · ' + createdStr : ''}</div>
+                    ${scheduledStr ? `<div class="text-[10px] text-blue-600 font-bold mt-0.5">📅 ${scheduledStr}</div>` : ''}
+                    ${(noDateFlag || partsFlag) ? `<div class="flex gap-1 flex-wrap mt-1">${noDateFlag}${partsFlag}</div>` : ''}
                 </div>
-                <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-white/60 border border-current/20">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+                <div class="flex flex-col items-end gap-1 shrink-0">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border ${borderCls} ${textCls}">${stLabel}</span>
+                    ${c.price_quote ? `<span class="text-[9px] text-indigo-700 font-bold">₪${parseFloat(c.price_quote).toFixed(0)}</span>` : ''}
+                    ${c.rating ? `<span class="text-[10px]">${'⭐'.repeat(c.rating)}</span>` : ''}
+                </div>
             </div>
-            ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 window.openFamilyCallModal = async function(callId) {
@@ -7828,6 +7851,29 @@ window.openFamilyCallModal = async function(callId) {
             ${safeStr(m.message)}
         </div>
     </div>`).join('');
+
+    const partsHtml = call.parts_status ? (() => {
+        const partsLabels = { pending_parts:'⏳ ממתין לחלקים', waiting_delivery:'🚚 חלקים בדרך', parts_ready:'✅ חלקים מוכנים' };
+        const partsBgs = { pending_parts:'bg-purple-50 border-purple-200 text-purple-700', waiting_delivery:'bg-blue-50 border-blue-200 text-blue-700', parts_ready:'bg-green-50 border-green-200 text-green-700' };
+        return `<div class="rounded-2xl p-3 border ${partsBgs[call.parts_status]||'bg-slate-50 border-slate-200 text-slate-600'}">
+            <div class="text-[10px] font-bold mb-1">מצב חלקים</div>
+            <div class="text-xs font-bold">${partsLabels[call.parts_status]||call.parts_status}</div>
+        </div>`;
+    })() : '';
+
+    const canCancel = call.status === 'new' || call.status === 'seen';
+    const canRate = call.status === 'done' && !call.rating;
+    const alreadyRated = call.status === 'done' && call.rating;
+
+    const rateHtml = canRate ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+        <div class="text-[10px] font-bold text-amber-700 mb-2">⭐ דרג את השירות</div>
+        <div class="flex gap-2 justify-center" id="fam-sc-stars-${callId}">
+            ${[1,2,3,4,5].map(n => `<button onclick="rateFamilyServiceCall(${callId},${n})" class="text-2xl text-slate-300 hover:text-amber-400 active:scale-90 transition" style="touch-action:manipulation;">★</button>`).join('')}
+        </div>
+    </div>` : alreadyRated ? `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center">
+        <span class="text-sm font-bold text-amber-700">הדירוג שלך: ${'⭐'.repeat(call.rating)}</span>
+    </div>` : '';
+
     const html = `<div id="fam-sc-modal" class="fixed inset-0 bg-white z-[9990] flex flex-col" style="direction:rtl;">
         <div class="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white shrink-0">
             <button onclick="document.getElementById('fam-sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -7838,22 +7884,25 @@ window.openFamilyCallModal = async function(callId) {
             <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS_FAM[call.status]||call.status}</span>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
-            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
+            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1.5">
                 ${call.created_at ? `<p class="text-[10px] text-slate-400">נפתחה: ${new Date(call.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
                 ${call.description ? `<p class="text-slate-700 mt-1">${safeStr(call.description)}</p>` : ''}
                 ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
                 ${call.requested_date ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-calendar ml-1 text-amber-400"></i>תאריך מבוקש: ${new Date(call.requested_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
-                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : `<p class="text-[10px] text-amber-600 font-bold">⚠️ טרם תוזמן תאריך טיפול</p>`}
                 ${call.price_quote ? `<div class="p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
             </div>
+            ${partsHtml}
+            ${rateHtml}
             <div class="bg-slate-50 rounded-2xl p-3">
                 <div class="text-[10px] font-bold text-slate-500 mb-2">💬 שיחה עם בעל המקצוע</div>
                 <div id="fam-sc-chat-${callId}" class="min-h-[80px] max-h-48 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
-                <div class="flex gap-2">
+                ${call.status !== 'done' && call.status !== 'cancelled' ? `<div class="flex gap-2">
                     <input type="text" id="fam-sc-msg-${callId}" placeholder="כתוב הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
                     <button onclick="sendFamilyScMessage(${callId})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition"><i class="fa-solid fa-paper-plane"></i></button>
-                </div>
+                </div>` : ''}
             </div>
+            ${canCancel ? `<button onclick="cancelFamilyServiceCall(${callId})" class="w-full border border-red-200 text-red-500 font-bold py-3 rounded-2xl text-sm hover:bg-red-50 transition active:scale-95" style="touch-action:manipulation;">ביטול קריאה</button>` : ''}
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
@@ -7891,6 +7940,32 @@ window.sendFamilyScMessage = async function(callId) {
                 </div>
             </div>`).join('');
             chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window.cancelFamilyServiceCall = async function(callId) {
+    if (!confirm('לבטל את הקריאה?')) return;
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        if (r.ok) {
+            document.getElementById('fam-sc-modal')?.remove();
+            await loadFamilyServiceCalls();
+            if (typeof showToast === 'function') showToast('success', 'הקריאה בוטלה');
+        }
+    } catch(e) {}
+};
+
+window.rateFamilyServiceCall = async function(callId, rating) {
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        if (r.ok) {
+            const idx = familyServiceCalls.findIndex(c => c.id === callId);
+            if (idx >= 0) familyServiceCalls[idx].rating = rating;
+            const starsEl = document.getElementById(`fam-sc-stars-${callId}`);
+            if (starsEl) starsEl.parentElement.outerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center"><span class="text-sm font-bold text-amber-700">הדירוג שלך: ${'⭐'.repeat(rating)}</span></div>`;
+            renderBusinessServiceCallsTab();
+            if (typeof showToast === 'function') showToast('success', 'תודה על הדירוג!');
         }
     } catch(e) {}
 };

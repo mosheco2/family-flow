@@ -612,6 +612,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS needs_triage BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS parts_status VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS rating SMALLINT`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
@@ -8749,6 +8750,7 @@ app.patch('/api/service-calls/:id', async (req, res) => {
         if (discountPct !== undefined)       { sets.push(`discount_pct=$${i++}`);        vals.push(discountPct||0); }
         if (communityDiscount !== undefined) { sets.push(`community_discount=$${i++}`);  vals.push(!!communityDiscount); }
         if (req.body.partsStatus !== undefined)  { sets.push(`parts_status=$${i++}`);        vals.push(req.body.partsStatus||null); }
+        if (req.body.rating !== undefined)        { sets.push(`rating=$${i++}`);              vals.push(req.body.rating||null); }
         if (!sets.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
         sets.push(`updated_at=NOW()`);
         vals.push(req.params.id);
