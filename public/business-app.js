@@ -6695,7 +6695,7 @@ window.submitTargetDatetime = async function() {
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
-window.openEditQuoteModal = function(quoteId) {
+window.openEditQuoteModal = async function(quoteId) {
     const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
     if (!q) return;
 
@@ -6733,9 +6733,9 @@ window.openEditQuoteModal = function(quoteId) {
         };
     });
 
-    window.openNewQuoteModal(true);
+    await window.openNewQuoteModal(true);
 
-    setTimeout(() => {
+    {
         document.getElementById('quote-cust-name').value = q.customer_name || '';
         document.getElementById('quote-cust-phone').value = q.customer_phone || '';
 
@@ -6784,7 +6784,7 @@ window.openEditQuoteModal = function(quoteId) {
 
         window.calcQuoteTotal();
         window.renderQuoteSelectedItems();
-    }, 100);
+    }
 };
 window.getQuotePresets = function(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }

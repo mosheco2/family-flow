@@ -4009,6 +4009,17 @@ app.post('/api/store/quotes', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- שליפת הצעות מחיר לצד משפחה ---
+app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT so.*, fg.name as business_name
+            FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
+            WHERE so.family_group_id=$1 AND (so.status='quote' OR so.quote_status IS NOT NULL)
+            ORDER BY so.created_at DESC`, [req.params.familyGroupId]);
+        res.json({ success: true, quotes: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/store/quotes/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
@@ -4393,16 +4404,6 @@ app.get('/api/work-orders/:businessGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- שליפת הצעות מחיר לצד משפחה ---
-app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
-    try {
-        const r = await pool.query(`SELECT so.*, fg.name as business_name
-            FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
-            WHERE so.family_group_id=$1 AND (so.status='quote' OR so.quote_status IS NOT NULL)
-            ORDER BY so.created_at DESC`, [req.params.familyGroupId]);
-        res.json({ success: true, quotes: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 // --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
