@@ -442,28 +442,38 @@
                 <div class="px-2 w-full">
 
                     <div id="content-myorders" class="hidden">
-                        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-4 text-white shadow-md mb-2 relative overflow-hidden">
-                            <h3 class="text-lg font-bold mb-0.5 flex items-center gap-2"><i class="fa-solid fa-motorcycle"></i> הזמנות בדרך</h3>
-                            <p class="text-blue-100 text-xs opacity-90">מעקב אחר ההזמנות שלכם מהעסקים המקומיים</p>
+                        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-4 text-white shadow-md mb-3 relative overflow-hidden">
+                            <h3 class="text-lg font-bold mb-0.5 flex items-center gap-2"><i class="fa-solid fa-motorcycle"></i> הזמנות וקריאות שירות</h3>
+                            <p class="text-blue-100 text-xs opacity-90">מעקב הזמנות מעסקים וקריאות שירות פתוחות</p>
                             <i class="fa-solid fa-box-open absolute -left-4 -bottom-4 text-6xl text-white opacity-10 rotate-12"></i>
                         </div>
 
-                        <div class="flex justify-between items-center mb-1.5 px-2">
-                            <h3 class="font-bold text-slate-700 text-sm">הזמנות אחרונות</h3>
-                            <button onclick="if(typeof fetchMyOrders === 'function') fetchMyOrders()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
-                        </div>
-                        
-                        <div id="my-orders-list" class="space-y-2 pb-4 px-1 min-h-[200px]">
-                            <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים...</p>
+                        <!-- טאבים: הזמנות / קריאות שירות -->
+                        <div class="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-3">
+                            <button id="myorders-tab-orders" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-xs font-black rounded-xl bg-white text-slate-700 shadow-sm transition">📦 הזמנות</button>
+                            <button id="myorders-tab-faults" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition">🔧 קריאות שירות</button>
                         </div>
 
-                        <!-- קריאות שירות -->
-                        <div class="flex justify-between items-center mb-1.5 px-2 mt-4">
-                            <h3 class="font-bold text-slate-700 text-sm">🔧 קריאות שירות</h3>
-                            <button onclick="if(typeof loadFamilyServiceCalls==='function') loadFamilyServiceCalls()" class="text-orange-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                        <!-- רשימת הזמנות -->
+                        <div id="myorders-section-orders">
+                            <div class="flex justify-between items-center mb-1.5 px-1">
+                                <h3 class="font-bold text-slate-700 text-sm">הזמנות אחרונות</h3>
+                                <button onclick="if(typeof fetchMyOrders === 'function') fetchMyOrders()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="my-orders-list" class="space-y-2 pb-4 px-1 min-h-[200px]">
+                                <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים...</p>
+                            </div>
                         </div>
-                        <div id="family-service-calls-list" class="space-y-2 pb-24 px-1 min-h-[80px]">
-                            <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">אין קריאות שירות פתוחות</p>
+
+                        <!-- קריאות שירות (תקלות בית עם שיוך לאיש קשר) -->
+                        <div id="myorders-section-faults" class="hidden pb-24">
+                            <div class="flex justify-between items-center mb-1.5 px-1">
+                                <h3 class="font-bold text-slate-700 text-sm">קריאות שירות פתוחות</h3>
+                                <button onclick="if(typeof renderMyFaultsAsServiceCalls === 'function') renderMyFaultsAsServiceCalls()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="my-service-calls-list" class="space-y-2 px-1 min-h-[200px]">
+                                <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קריאות...</p>
+                            </div>
                         </div>
                     </div>
                     

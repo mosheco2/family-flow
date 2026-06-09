@@ -523,6 +523,65 @@ async function fetchMyOrders() {
 window._myOrdersPage = window._myOrdersPage || 0;
 window._myOrdersFilter = window._myOrdersFilter || 'orders';
 window._myOrdersSearch = window._myOrdersSearch || '';
+function switchMyOrdersTab(tab) {
+    ['orders','faults'].forEach(t => {
+        const btn = getEl(`myorders-tab-${t}`);
+        const sec = getEl(`myorders-section-${t}`);
+        if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
+        if (sec) sec.classList.toggle('hidden', t !== tab);
+    });
+    if (tab === 'faults') renderMyFaultsAsServiceCalls();
+}
+
+async function renderMyFaultsAsServiceCalls() {
+    const list = getEl('my-service-calls-list'); if (!list) return;
+    // טען נתוני תקלות אם לא נטענו עדיין
+    if (!hmFaults || !hmFaults.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+        try {
+            const r = await fetch(`/api/equipment/faults/${currentGroup.id}`);
+            const d = await r.json();
+            if (d.success) hmFaults = d.faults || [];
+        } catch(e) {}
+    }
+    const statusColors = { open: 'border-red-200 bg-red-50', in_progress: 'border-orange-200 bg-orange-50', resolved: 'border-green-200 bg-green-50' };
+    const statusLabels = { open: 'פתוח', in_progress: 'בטיפול', resolved: 'טופל' };
+    const sevColors = { low: 'bg-slate-100 text-slate-600', medium: 'bg-amber-100 text-amber-700', high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700' };
+    const sevLabels = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה', critical: 'קריטית' };
+    const activeFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    if (!activeFaults.length) {
+        list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין קריאות שירות פתוחות</p><p class="text-xs mt-1 px-4">לפתיחת קריאה חדשה — נהול הבית ← בעיות ← הוסף בעיה</p></div>`;
+        return;
+    }
+    list.innerHTML = activeFaults.map(f => {
+        const sc = statusColors[f.status] || 'border-slate-200 bg-white';
+        const sl = statusLabels[f.status] || f.status;
+        const sev = sevColors[f.severity] || 'bg-slate-100 text-slate-600';
+        const sevL = sevLabels[f.severity] || f.severity;
+        const dateStr = new Date(f.created_at).toLocaleDateString('he-IL');
+        const phone = f.fault_tech_phone;
+        return `<div class="bg-white border ${sc} rounded-2xl p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                        <span class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sev}">${sevL}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sc.replace('bg-','text-').replace('-50','')}">${sl}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name || '')} · ${dateStr}</p>
+                    ${f.fault_tech_name ? `<p class="text-[11px] text-indigo-600"><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + safeStr(f.fault_tech_company) : ''}</p>` : ''}
+                    ${f.scheduled_date ? `<p class="text-[10px] text-indigo-500 font-bold mt-0.5"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(f.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
+                    ${phone ? `<div class="flex gap-1.5 mt-2 flex-wrap">
+                        <a href="tel:${phone.replace(/\D/g,'')}" class="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg"><i class="fa-solid fa-phone"></i> חייג</a>
+                        <a href="https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent('שלום, בנוגע לקריאה: ' + f.title)}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
+                    </div>` : ''}
+                </div>
+                <button onclick="switchTab('home-maintenance'); setTimeout(()=>switchHomeMaintenanceTab('faults'),100)" class="text-[10px] text-indigo-500 font-bold shrink-0 bg-indigo-50 px-2 py-1 rounded-lg">פרטים →</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 
 function renderMyOrders() {
     const list = getEl('my-orders-list');
@@ -7420,9 +7479,21 @@ function renderHMFaults() {
                         <button onclick="showHMFaultTab(${f.id},'notes')" id="hmftab-notes-${f.id}" class="text-[11px] font-bold px-3 py-1 rounded-t-lg border-b-2 border-transparent text-slate-400 hover:text-slate-600">הערות${notesCount ? ` <span class="bg-indigo-100 text-indigo-700 rounded-full px-1.5">${notesCount}</span>` : ''}</button>
                     </div>
                     <div id="hmftab-content-details-${f.id}">
+                        ${f.scheduled_date ? `<p class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg mb-1.5 flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> מתוזמן ל: ${new Date(f.scheduled_date).toLocaleString('he-IL', {dateStyle:'short',timeStyle:'short'})}</p>` : ''}
                         ${f.description ? `<p class="text-xs text-slate-500">${safeStr(f.description)}</p>` : ''}
                         ${f.resolution_notes ? `<p class="text-xs text-emerald-700 mt-1 bg-emerald-50 px-2 py-1 rounded-lg"><i class="fa-solid fa-check-circle ml-1"></i>${safeStr(f.resolution_notes)}</p>` : ''}
-                        ${f.status !== 'resolved' ? (() => { const item = hmItems.find(i => i.id === f.equipment_id); return item?.technician_phone ? `<div class="flex gap-2 mt-2"><button onclick="sendHMFaultWhatsApp(${f.id})" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> וואצאפ לאיש קשר</button></div>` : ''; })() : ''}
+                        ${f.fault_tech_name ? `<p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-user-gear text-slate-400 ml-1"></i> ${safeStr(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + safeStr(f.fault_tech_company) : ''}</p>` : ''}
+                        ${(() => {
+                            const phone = f.fault_tech_phone || (() => { const item = hmItems.find(i => i.id === f.equipment_id); return item?.technician_phone; })();
+                            if (!phone || f.status === 'resolved') return '';
+                            const techName = f.fault_tech_name || 'איש קשר';
+                            const waMsg = encodeURIComponent(`שלום ${techName}, יש לנו בעיה: "${f.title}"${f.scheduled_date ? '. תאריך מבוקש: ' + new Date(f.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}) : ''}`);
+                            return `<div class="flex gap-1.5 mt-2 flex-wrap">
+                                <a href="tel:${phone.replace(/\D/g,'')}" class="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100"><i class="fa-solid fa-phone"></i> חייג</a>
+                                <a href="https://wa.me/${phone.replace(/\D/g,'')}?text=${waMsg}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
+                                <a href="https://waze.com/ul?q=${encodeURIComponent(techName)}&navigate=yes" target="_blank" class="flex items-center gap-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100"><i class="fa-solid fa-location-arrow"></i> Waze</a>
+                            </div>`;
+                        })()}
                     </div>
                     <div id="hmftab-content-notes-${f.id}" class="hidden">
                         <div id="hm-fnotes-list-${f.id}" class="space-y-1.5 mb-2 max-h-40 overflow-y-auto"></div>
@@ -7483,6 +7554,14 @@ function openHMFaultModal(id = null) {
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">ציוד *</label><select id="hmfault-equipment" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></select></div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">כותרת הבעיה *</label><input id="hmfault-title" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">פירוט</label><textarea id="hmfault-desc" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שלח לאיש קשר (איש מקצוע)</label>
+                        <select id="hmfault-technician" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                            <option value="">ללא שיוך לאיש קשר</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך ושעה מבוקשים (אופציונלי)</label>
+                        <input id="hmfault-scheduled" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    </div>
                     <div class="flex gap-3">
                         <div class="flex-1"><label class="text-xs font-bold text-slate-500 mb-1 block">דחיפות</label>
                             <select id="hmfault-severity" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
@@ -7519,6 +7598,13 @@ function openHMFaultModal(id = null) {
     getEl('hmfault-desc').value = fault ? (fault.description || '') : '';
     getEl('hmfault-severity').value = fault ? fault.severity : 'medium';
     getEl('hmfault-status').value = fault ? fault.status : 'open';
+    // בורר איש קשר
+    const techSel = getEl('hmfault-technician');
+    techSel.innerHTML = '<option value="">ללא שיוך לאיש קשר</option>' + (hmContacts||[]).map(t => `<option value="${t.id}">${safeStr(t.name)}${t.company_name ? ' — ' + safeStr(t.company_name) : ''}</option>`).join('');
+    techSel.value = fault ? (fault.technician_id || '') : '';
+    // תאריך מבוקש
+    const schedEl = getEl('hmfault-scheduled');
+    if (schedEl) schedEl.value = fault?.scheduled_date ? new Date(fault.scheduled_date).toISOString().slice(0,16) : '';
     window._hmFaultImageData = fault ? (fault.image_url || null) : null;
     const preview = getEl('hmfault-img-preview');
     if (fault?.image_url) { preview.src = fault.image_url; preview.classList.remove('hidden'); getEl('hmfault-img-label').textContent = 'תמונה קיימת'; }
@@ -7540,6 +7626,8 @@ async function submitHMFault() {
     if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
     if (!title) { showToast('error', 'כותרת חובה'); return; }
     const statusVal = getEl('hmfault-status').value;
+    const technicianId = getEl('hmfault-technician')?.value || null;
+    const scheduledDate = getEl('hmfault-scheduled')?.value || null;
     let resolvedDate = null;
     if (statusVal === 'resolved') {
         const existing = id ? hmFaults.find(x => x.id === parseInt(id)) : null;
@@ -7549,9 +7637,24 @@ async function submitHMFault() {
         const res = await fetch('/api/equipment/faults', { method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
                 description: getEl('hmfault-desc').value||null, imageUrl: window._hmFaultImageData||null,
-                severity: getEl('hmfault-severity').value, status: statusVal, resolvedDate }) });
+                severity: getEl('hmfault-severity').value, status: statusVal, resolvedDate,
+                technicianId: technicianId||null, scheduledDate: scheduledDate||null }) });
         const data = await res.json();
-        if (data.success) { showToast('success', id ? 'עודכן' : 'נרשם'); getEl('hm-fault-modal').classList.add('hidden'); await fetchHMFaults(); }
+        if (data.success) {
+            showToast('success', id ? 'עודכן' : 'נרשם');
+            getEl('hm-fault-modal').classList.add('hidden');
+            await fetchHMFaults();
+            // אם נבחר איש קשר — הצע שליחת וואצאפ
+            if (!id && technicianId) {
+                const tech = (hmContacts||[]).find(t => t.id == technicianId);
+                if (tech?.phone) {
+                    const msg = `שלום ${safeStr(tech.name)}, יש לנו בעיה ב"${title}". ${getEl('hmfault-desc').value ? 'פירוט: ' + getEl('hmfault-desc').value : ''} ${scheduledDate ? 'תאריך מבוקש: ' + new Date(scheduledDate).toLocaleString('he-IL') : ''}`;
+                    if (confirm(`לשלוח וואצאפ ל-${tech.name}?`)) {
+                        window.open(`https://wa.me/${tech.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }
+                }
+            }
+        }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -7666,8 +7769,7 @@ function renderHMContacts() {
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap mb-0.5">
                     <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
-                    ${oneflowBadge}
-                </div>
+                    ${oneflowBadge}                </div>
                 ${t.company_name ? `<p class="text-[11px] text-indigo-600 font-medium">${safeStr(t.company_name)}</p>` : ''}
                 ${t.specialty ? `<p class="text-[11px] text-slate-400">${safeStr(t.specialty)}</p>` : ''}
                 <div class="flex gap-2 mt-2 flex-wrap">

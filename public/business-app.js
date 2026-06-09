@@ -3740,11 +3740,55 @@ window.renderDashboard = async function(forceRefresh = false) {
         // ★ Urgent items panel
         renderUrgentItems();
 
+        // ★ קריאות שירות ממשפחות (maintenance_repair + שירותים)
+        try { renderFamilyServiceCallsSection(); } catch(e) {}
+
         // ★ Sparklines
         try { renderSparklines(); } catch(e) {}
 
     } catch(err) { console.error('renderDashboard:', err); }
 };
+
+async function renderFamilyServiceCallsSection() {
+    const bizType = currentGroup?.business_type;
+    if (!['maintenance_repair','construction','services','healthcare','beauty'].includes(bizType)) return;
+    const containerId = 'family-service-calls-section';
+    let section = document.getElementById(containerId);
+    if (!section) {
+        const urgentSection = document.getElementById('urgent-items-section');
+        if (!urgentSection) return;
+        section = document.createElement('div');
+        section.id = containerId;
+        section.className = 'mb-4';
+        urgentSection.parentNode.insertBefore(section, urgentSection.nextSibling);
+    }
+    try {
+        const r = await fetch(`/api/service-calls/family/${currentGroup.id}`);
+        const d = await r.json();
+        const calls = d.calls || [];
+        if (!calls.length) { section.innerHTML = ''; return; }
+        const sevColors = { low:'bg-slate-100 text-slate-600', medium:'bg-amber-100 text-amber-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700' };
+        const sevLabels = { low:'נמוכה', medium:'בינונית', high:'גבוהה', critical:'קריטית' };
+        section.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-orange-50 border-b border-orange-100">
+                <h3 class="font-black text-orange-800 text-sm flex items-center gap-2">🔧 קריאות שירות ממשפחות <span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${calls.length}</span></h3>
+            </div>
+            <div class="divide-y divide-slate-50">${calls.slice(0,5).map(c => `
+                <div class="flex items-start gap-3 px-4 py-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-bold text-slate-800 text-sm truncate">${safeStr(c.title)}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${sevColors[c.severity]||'bg-slate-100 text-slate-600'}">${sevLabels[c.severity]||c.severity}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">${safeStr(c.family_name||'')} · ${new Date(c.created_at).toLocaleDateString('he-IL')}</p>
+                        ${c.scheduled_date ? `<p class="text-[10px] text-indigo-500 font-bold"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(c.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
+                        ${c.description ? `<p class="text-[11px] text-slate-500 truncate">${safeStr(c.description)}</p>` : ''}
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    } catch(e) { section.innerHTML = ''; }
+}
 
 // ── URGENT ITEMS — "מה מחכה לך עכשיו" ─────────────────────────
 async function renderUrgentItems() {
@@ -23995,6 +24039,15 @@ function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
     const enabled = getEnabledModules();
+    // גם הרשאות שניתנו מפורשות על ידי הבעלים שומרות על הטאב גלוי
+    let userGrantedTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userGrantedTabs = perms.tabs || [];
+    } catch(e) {}
+    if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
+        ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userGrantedTabs.includes(t)) userGrantedTabs.push(t); });
+    }
     if (!enabled) {
         ALL_TABS.forEach(tab => {
             const tabBtn = getEl(`tab-${tab.id}`);
@@ -24010,16 +24063,16 @@ function applyBusinessTypeFilter() {
     }
     ALL_TABS.forEach(tab => {
         const isEnabled = enabled.includes(tab.id);
+        const hasExplicitPermission = userGrantedTabs.includes(tab.id);
         const tabBtn = getEl(`tab-${tab.id}`);
-        if (tabBtn) { if (!isEnabled && !isAdminOrManager) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        if (tabBtn) { if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
         const dropBtn = getEl(`gdrop-${tab.id}`);
         if (dropBtn) {
-            if (!isEnabled && !isAdminOrManager) {
+            if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) {
                 dropBtn.style.display = 'none';
                 dropBtn.style.opacity = '';
                 dropBtn.title = '';
             } else {
-                // Admin/manager: all modules fully visible regardless of business type
                 dropBtn.style.display = '';
                 dropBtn.style.opacity = '';
                 dropBtn.title = '';

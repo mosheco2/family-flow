@@ -559,6 +559,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS send_order_email BOOLEAN DEFAULT true`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items_ready JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      // ===== SERVICE CALLS (קריאות שירות מצד משפחה) =====
+      try { await client.query(`ALTER TABLE equipment_faults ADD COLUMN IF NOT EXISTS technician_id INT REFERENCES equipment_technicians(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_faults ADD COLUMN IF NOT EXISTS scheduled_date TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE equipment_technicians ADD COLUMN IF NOT EXISTS business_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS group_licenses (
           id SERIAL PRIMARY KEY,
           group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -8882,11 +8886,30 @@ app.get('/api/equipment/faults/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT f.*, e.name as equipment_name, e.category as equipment_category,
-             (SELECT COUNT(*) FROM equipment_fault_notes fn WHERE fn.fault_id=f.id) as notes_count
+             (SELECT COUNT(*) FROM equipment_fault_notes fn WHERE fn.fault_id=f.id) as notes_count,
+             et.name as fault_tech_name, et.phone as fault_tech_phone, et.email as fault_tech_email,
+             et.company_name as fault_tech_company
              FROM equipment_faults f JOIN equipment_items e ON e.id=f.equipment_id
+             LEFT JOIN equipment_technicians et ON et.id=f.technician_id
              WHERE f.group_id=$1 ORDER BY f.created_at DESC`,
             [req.params.groupId]);
         res.json({ success: true, faults: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/family/:businessGroupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT f.*, e.name as equipment_name, fg.name as family_name,
+             et.name as tech_name, et.phone as tech_phone
+             FROM equipment_faults f
+             JOIN equipment_items e ON e.id=f.equipment_id
+             JOIN equipment_technicians et ON et.id=f.technician_id
+             JOIN family_groups fg ON fg.id=f.group_id
+             WHERE et.business_group_id=$1 AND f.status != 'resolved'
+             ORDER BY f.created_at DESC`,
+            [req.params.businessGroupId]);
+        res.json({ success: true, calls: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8912,18 +8935,18 @@ app.post('/api/equipment/faults/:id/notes', async (req, res) => {
 
 app.post('/api/equipment/faults', async (req, res) => {
     try {
-        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate } = req.body;
+        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate, technicianId, scheduledDate } = req.body;
         if (!groupId || !equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
         let result;
         if (id) {
             result = await pool.query(
-                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7, resolved_date=$8
-                 WHERE id=$9 AND group_id=$10 RETURNING *`,
-                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, resolvedDate||null, id, groupId]);
+                `UPDATE equipment_faults SET equipment_id=$1, title=$2, description=$3, image_url=$4, severity=$5, status=$6, resolution_notes=$7, resolved_date=$8, technician_id=$9, scheduled_date=$10
+                 WHERE id=$11 AND group_id=$12 RETURNING *`,
+                [equipmentId, title, description||null, imageUrl||null, severity||'medium', status||'open', resolutionNotes||null, resolvedDate||null, technicianId||null, scheduledDate||null, id, groupId]);
         } else {
             result = await pool.query(
-                `INSERT INTO equipment_faults (equipment_id, group_id, title, description, image_url, severity, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-                [equipmentId, groupId, title, description||null, imageUrl||null, severity||'medium', status||'open']);
+                `INSERT INTO equipment_faults (equipment_id, group_id, title, description, image_url, severity, status, technician_id, scheduled_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                [equipmentId, groupId, title, description||null, imageUrl||null, severity||'medium', status||'open', technicianId||null, scheduledDate||null]);
         }
         res.json({ success: true, fault: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
