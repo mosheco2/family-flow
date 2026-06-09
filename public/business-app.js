@@ -6535,10 +6535,11 @@ window.openEditQuoteModal = function(quoteId) {
                 if(meta.discount !== undefined) document.getElementById('quote-discount').value = meta.discount;
                 if(meta.internalNote) internalNote = meta.internalNote;
                 if(meta.introText) introText = meta.introText;
+                if(meta.title && document.getElementById('quote-title')) document.getElementById('quote-title').value = meta.title;
                 if(meta.validity) validity = meta.validity;
                 if(meta.companyId) companyId = meta.companyId;
                 if(meta.myCompanyId) myCompanyId = meta.myCompanyId;
-                if(meta.notes) userNotes = meta.notes; // התנאים המשפטיים
+                if(meta.notes) userNotes = meta.notes;
             } catch(e) {}
         } else {
             // תאימות לאחור להצעות מחיר ישנות שנוצרו לפני העדכון
@@ -6778,8 +6779,12 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             
             <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6 transition-all">
                 <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300 min-h-[400px]">
-                    
+
                     <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
+                        <div class="col-span-2">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">כותרת ההצעה:</label>
+                            <input type="text" id="quote-title" class="modern-input py-2 text-sm bg-white font-bold text-slate-800" placeholder="למשל: הצעת מחיר לשיפוץ חדר אמבטיה">
+                        </div>
                         <div class="col-span-2 sm:col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח/עסק:</label>
                             <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm bg-white font-bold text-slate-800">
@@ -6887,6 +6892,7 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
     }
 
     if(!skipDataReset) {
+        document.getElementById('quote-title').value = '';
         document.getElementById('quote-cust-name').value = '';
         document.getElementById('quote-cust-phone').value = '';
         document.getElementById('quote-notes').value = '';
@@ -7114,6 +7120,7 @@ window.renderQuoteSelectedItems = function() {
 };
 
 window.submitNewQuote = async function() {
+    const quoteTitle = document.getElementById('quote-title') ? document.getElementById('quote-title').value : '';
     const custName = document.getElementById('quote-cust-name').value;
     const custPhone = document.getElementById('quote-cust-phone').value;
     const companyId = document.getElementById('quote-company-id') ? document.getElementById('quote-company-id').value : '';
@@ -7123,7 +7130,7 @@ window.submitNewQuote = async function() {
     const introText = document.getElementById('quote-intro-text') ? document.getElementById('quote-intro-text').value : '';
     const internalNote = document.getElementById('quote-internal-note') ? document.getElementById('quote-internal-note').value : '';
     const notes = document.getElementById('quote-notes').value;
-    
+
     if (!custName) return showToast('error', 'שם לקוח / עסק הוא שדה חובה');
     if (Object.keys(window.selectedQuoteItems).length === 0) return showToast('error', 'יש לבחור לפחות פריט אחד להצעה מתוך הקטלוג');
 
@@ -7172,6 +7179,7 @@ window.submitNewQuote = async function() {
     totalAmount = totalAmount - (totalAmount * (discountVal / 100));
 
     const metaNotes = {
+        title: quoteTitle,
         companyId: companyId,
         myCompanyId: myCompanyId,
         validity: validity,
@@ -7272,11 +7280,11 @@ window.openQuotePreview = function(quoteId) {
         }
     });
 
-    let userNotes = ''; let introText = ''; let validity = ''; let companyId = ''; let myCompanyId = ''; let discountVal = 0;
+    let userNotes = ''; let introText = ''; let validity = ''; let companyId = ''; let myCompanyId = ''; let discountVal = 0; let quoteTitle = '';
     if (metaData) {
-        userNotes = metaData.notes || ''; introText = metaData.introText || ''; validity = metaData.validity || ''; companyId = metaData.companyId || ''; myCompanyId = metaData.myCompanyId || ''; discountVal = metaData.discount || 0;
+        quoteTitle = metaData.title || ''; userNotes = metaData.notes || ''; introText = metaData.introText || ''; validity = metaData.validity || ''; companyId = metaData.companyId || ''; myCompanyId = metaData.myCompanyId || ''; discountVal = metaData.discount || 0;
     } else {
-        try { const parsedNotes = JSON.parse(q.notes); userNotes = parsedNotes.notes || ''; introText = parsedNotes.introText || ''; validity = parsedNotes.validity || ''; companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || ''; myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || ''; } catch(e) { userNotes = q.notes || ''; }
+        try { const parsedNotes = JSON.parse(q.notes); quoteTitle = parsedNotes.title || ''; userNotes = parsedNotes.notes || ''; introText = parsedNotes.introText || ''; validity = parsedNotes.validity || ''; companyId = parsedNotes.companyId || localStorage.getItem('ofl_company_id') || ''; myCompanyId = parsedNotes.myCompanyId || localStorage.getItem('ofl_my_company_id') || ''; } catch(e) { userNotes = q.notes || ''; }
     }
     userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
 
@@ -7344,6 +7352,7 @@ window.openQuotePreview = function(quoteId) {
                 </div>
                 <div style="text-align:left; font-size:13px; line-height:1.6; color:#475569;">
                     <div style="font-size:20px; font-weight:900; color:#4f46e5; margin-bottom:5px;">הצעת מחיר ${quoteLabel}</div>
+                    ${quoteTitle ? `<div style="font-size:15px; font-weight:bold; color:#1e293b; margin-bottom:5px;">${safeStr(quoteTitle)}</div>` : ''}
                     <div><b>תאריך:</b> ${dateStr}</div>
                     ${myCompanyId ? `<div><b>ח.פ/ע.מ העסק:</b> ${safeStr(myCompanyId)}</div>` : ''}
                     ${phone ? `<div><b>טלפון עסק:</b> <span dir="ltr">${safeStr(phone)}</span></div>` : ''}
@@ -8129,15 +8138,27 @@ window.showCustomerQuoteModal = function(customerId) {
     const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;">
         <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4 bg-amber-500 text-white shrink-0 rounded-t-3xl">
-                <h2 class="font-black text-base">📋 הצעת מחיר ${ref}</h2>
+                <h2 class="font-black text-base">📋 הצעת מחיר מהירה</h2>
                 <button onclick="document.getElementById('cq-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">כותרת ההצעה</label>
+                    <input id="cq-title" type="text" value="" placeholder="למשל: הצעת מחיר לשיפוץ סלון" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח</label>
+                    <div class="flex gap-2">
+                        <input id="cq-customer-name" type="text" value="${c ? (c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <button type="button" onclick="cqSearchCustomer()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl" style="touch-action:manipulation;">🔍 חיפוש</button>
+                    </div>
+                    <div id="cq-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
+                </div>
                 <div class="grid grid-cols-2 gap-2">
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח</label>
-                        <input id="cq-customer-name" type="text" value="${c ? (c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון</label>
                         <input id="cq-customer-phone" type="tel" value="${c?.phone||''}" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ לקוח</label>
+                        <input id="cq-company-id" type="text" placeholder="ח.פ" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך</label>
@@ -8171,8 +8192,12 @@ window.showCustomerQuoteModal = function(customerId) {
                 <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות / תנאי תשלום</label>
                     <textarea id="cq-notes" rows="2" placeholder="תשלום תוך 30 יום. האומדן אינו כולל חלקי חילוף..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
                 </div>
+                <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערה פנימית (לא תופיע ב-PDF)</label>
+                    <textarea id="cq-internal-note" rows="1" placeholder="הערה שתראה רק אתה..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
+                </div>
             </div>
             <div class="px-4 py-3 border-t border-slate-100 shrink-0 space-y-2">
+                <button onclick="window.saveQuickQuote('${customerId||''}','${ref}')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור הצעה במערכת</button>
                 ${hasFamilyGroup ? `<button onclick="window.sendQuoteInternal('${customerId}','${ref}')" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow ללקוח</button>` : ''}
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="window.sendQuoteWhatsApp('${ref}')" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
@@ -8184,6 +8209,53 @@ window.showCustomerQuoteModal = function(customerId) {
     document.body.insertAdjacentHTML('beforeend', html);
     // Add 3 default lines
     window.cqAddLine(); window.cqAddLine(); window.cqAddLine();
+};
+
+// חיפוש לקוח — OneFlow + מאגר לקוחות העסק
+window.cqSearchCustomer = function() {
+    const q = (document.getElementById('cq-customer-name')?.value || '').trim().toLowerCase();
+    const resultsEl = document.getElementById('cq-customer-results');
+    if (!resultsEl) return;
+    if (!q) { resultsEl.innerHTML = ''; return; }
+    const bizCusts = (window.storeCustomersCache || []).filter(c =>
+        (c.name||'').toLowerCase().includes(q) || (c.company_name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)
+    ).slice(0, 5);
+    const bizHtml = bizCusts.map(c => {
+        const name = c.company_name || c.name || '';
+        return `<button type="button" onclick="cqSelectCustomer('${safeStr(name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}','')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-100 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span>🏪</span><div class="flex-1"><div class="truncate">${safeStr(name)}</div>${c.phone?`<div class="text-[10px] text-slate-400">${safeStr(c.phone)}</div>`:''}</div></button>`;
+    }).join('');
+    resultsEl.innerHTML = bizHtml || `<p class="text-xs text-slate-400 py-1">לא נמצאו לקוחות תואמים במאגר</p>`;
+};
+window.cqSelectCustomer = function(name, phone, companyId) {
+    const nameEl = document.getElementById('cq-customer-name');
+    const phoneEl = document.getElementById('cq-customer-phone');
+    const cidEl = document.getElementById('cq-company-id');
+    if (nameEl) nameEl.value = name;
+    if (phoneEl && phone && !phoneEl.value) phoneEl.value = phone;
+    if (cidEl && companyId) cidEl.value = companyId;
+    const resultsEl = document.getElementById('cq-customer-results');
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
+};
+
+window.saveQuickQuote = async function(customerId, ref) {
+    const q = window.cqGetQuoteData(ref);
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
+    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price }));
+    items.push({ is_quote_metadata: true, data: JSON.stringify({
+        title: q.title, companyId: q.companyId, validity: q.validity,
+        notes: q.notes, internalNote: q.internalNote, discount: q.discount, ref
+    }) });
+    try {
+        const r = await fetch(`${API}/store/quotes`, { method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: q.customerName, customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote }) });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', `הצעה נשמרה! ${d.quoteNumber||''}`);
+            document.getElementById('cq-modal')?.remove();
+            if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+        } else showToast('error', d.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.cqAddLine = function() {
@@ -8232,11 +8304,14 @@ window.cqGetQuoteData = function(ref) {
     const { subtotal, discount, total } = window.cqCalcTotal();
     return {
         ref,
+        title: document.getElementById('cq-title')?.value || '',
         customerName: document.getElementById('cq-customer-name')?.value || '',
         customerPhone: document.getElementById('cq-customer-phone')?.value || '',
+        companyId: document.getElementById('cq-company-id')?.value || '',
         date: document.getElementById('cq-date')?.value || '',
         validity: document.getElementById('cq-validity')?.value || '30',
         notes: document.getElementById('cq-notes')?.value || '',
+        internalNote: document.getElementById('cq-internal-note')?.value || '',
         lines, subtotal, discount, total,
         bizName: currentGroup?.name || ''
     };
@@ -8274,36 +8349,76 @@ window.sendQuoteWhatsApp = function(ref) {
     window.open(url, '_blank');
 };
 
+window._getQuoteBizInfo = function() {
+    const logoInput = document.getElementById('store-logo-base64');
+    const dashLogo = document.getElementById('dash-logo-preview');
+    let logoBase64 = '';
+    if (logoInput && logoInput.value && logoInput.value !== 'DELETE' && logoInput.value !== 'null') logoBase64 = logoInput.value;
+    else if (dashLogo && dashLogo.src && (dashLogo.src.includes('data:image') || dashLogo.src.startsWith('http'))) logoBase64 = dashLogo.src;
+    const phone = document.getElementById('store-phone')?.value || currentGroup?.phone || '';
+    const address = document.getElementById('store-address')?.value || currentGroup?.address || '';
+    const slogan = document.getElementById('store-slogan')?.value || '';
+    const email = document.getElementById('store-email')?.value || '';
+    return { logoBase64, phone, address, slogan, email, name: currentGroup?.name || '' };
+};
+
+window._buildQuotePDFHeader = function(biz, quoteTitle, ref, date, validity, custName, custPhone, custCompanyId) {
+    const logoHtml = biz.logoBase64
+        ? `<img src="${biz.logoBase64}" style="max-height:72px;max-width:180px;border-radius:10px;object-fit:contain;">`
+        : `<div style="font-size:22px;font-weight:900;color:#b45309;">${biz.name}</div>`;
+    return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #f59e0b;padding-bottom:16px;margin-bottom:16px;">
+        <div>${logoHtml}
+            <div style="font-size:12px;color:#64748b;margin-top:6px;">${biz.name ? '<strong>' + biz.name + '</strong><br>' : ''}${biz.phone ? '📞 ' + biz.phone + '<br>' : ''}${biz.address ? '📍 ' + biz.address + '<br>' : ''}${biz.email ? '✉️ ' + biz.email : ''}</div>
+            ${biz.slogan ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic;">${biz.slogan}</div>` : ''}
+        </div>
+        <div style="text-align:left;min-width:160px;">
+            <div style="font-size:20px;font-weight:900;color:#b45309;margin-bottom:6px;">הצעת מחיר</div>
+            ${quoteTitle ? `<div style="font-size:14px;font-weight:bold;color:#1e293b;margin-bottom:6px;">${quoteTitle}</div>` : ''}
+            <div style="font-size:11px;color:#64748b;">מס׳: <strong>${ref}</strong></div>
+            <div style="font-size:11px;color:#64748b;">תאריך: ${date}</div>
+            ${validity ? `<div style="font-size:11px;color:#64748b;">תוקף: ${validity} ימים</div>` : ''}
+        </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;background:#fafafa;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;">
+        <div><span style="color:#94a3b8;font-size:10px;display:block;margin-bottom:2px;">מאת</span><strong>${biz.name}</strong></div>
+        <div style="text-align:right;"><span style="color:#94a3b8;font-size:10px;display:block;margin-bottom:2px;">לכבוד</span><strong>${custName}</strong>${custPhone ? '<br>' + custPhone : ''}${custCompanyId ? '<br><span style="color:#94a3b8;">ח.פ: ' + custCompanyId + '</span>' : ''}</div>
+    </div>`;
+};
+
 window.printQuotePDF = function(ref, bizName) {
     const q = window.cqGetQuoteData(ref);
     const lines = q.lines.filter(l => l.desc || l.total > 0);
-    const linesHtml = lines.map(l => `<tr><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">${l.desc}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;">${l.qty}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;">₪${l.price.toFixed(2)}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;">₪${l.total.toFixed(2)}</td></tr>`).join('');
-    const win = window.open('', '_blank', 'width=800,height=900');
+    const biz = window._getQuoteBizInfo();
+    const linesHtml = lines.map(l => `<tr>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right;">${l.desc}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;">${l.qty}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;direction:ltr;">₪${l.price.toFixed(2)}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
+    </tr>`).join('');
+    const headerHtml = window._buildQuotePDFHeader(biz, q.title, ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
+    const win = window.open('', '_blank', 'width=820,height=950');
     win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>הצעת מחיר ${ref}</title>
-    <style>body{font-family:Arial,sans-serif;direction:rtl;padding:24px;color:#1e293b;max-width:700px;margin:0 auto;}
-    h1{color:#f59e0b;font-size:22px;margin-bottom:4px;}
-    .meta{color:#64748b;font-size:12px;margin-bottom:20px;}
-    table{width:100%;border-collapse:collapse;margin:16px 0;}
-    th{background:#f8fafc;padding:8px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0;}
-    td{font-size:13px;} .total-row{font-size:15px;font-weight:bold;color:#f59e0b;}
-    .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px;}
-    @media print{button{display:none}}</style></head>
+    <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
+    table{width:100%;border-collapse:collapse;margin:12px 0;}
+    th{background:#fef3c7;padding:9px;text-align:center;font-size:12px;border-bottom:2px solid #f59e0b;color:#92400e;}
+    td{font-size:13px;}
+    .total-row{font-size:16px;font-weight:900;color:#b45309;}
+    .footer{margin-top:28px;padding-top:12px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:10px;text-align:center;}
+    @media print{.no-print{display:none}}</style></head>
     <body>
-    <button onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:8px 20px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
-    <h1>📋 הצעת מחיר</h1>
-    <div class="meta">מספר: <strong>${ref}</strong> | תאריך: ${q.date} | תוקף: ${q.validity} ימים</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-        <div><strong>מאת:</strong><br>${q.bizName}</div>
-        <div style="text-align:right;"><strong>לכבוד:</strong><br>${q.customerName}<br>${q.customerPhone}</div>
+    <button class="no-print" onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:9px 22px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
+    ${headerHtml}
+    <table><thead><tr>
+        <th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th>
+    </tr></thead><tbody>${linesHtml}</tbody></table>
+    <div style="text-align:left;margin-top:10px;padding-left:8px;">
+        <div style="font-size:12px;color:#64748b;">סכום ביניים: ₪${q.subtotal.toFixed(2)}</div>
+        ${q.discount > 0 ? `<div style="font-size:12px;color:#64748b;">הנחה: ${q.discount}%</div>` : ''}
+        <div class="total-row" style="margin-top:6px;">סה"כ לתשלום: ₪${q.total.toFixed(2)}</div>
     </div>
-    <table><thead><tr><th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th></tr></thead>
-    <tbody>${linesHtml}</tbody></table>
-    <div style="text-align:left;margin-top:8px;">
-        ${q.discount > 0 ? `<div style="font-size:13px;color:#64748b;">הנחה: ${q.discount}%</div>` : ''}
-        <div class="total-row">סה"כ לתשלום: ₪${q.total.toFixed(2)}</div>
-    </div>
-    ${q.notes ? `<div style="margin-top:16px;background:#fffbeb;padding:12px;border-radius:8px;font-size:12px;color:#78350f;"><strong>הערות:</strong><br>${q.notes}</div>` : ''}
-    <div class="footer">מסמך זה הופק ע"י מערכת OneFlow</div>
+    ${q.notes ? `<div style="margin-top:18px;background:#fffbeb;padding:14px;border-radius:10px;font-size:12px;color:#78350f;border:1px solid #fde68a;"><strong>הערות ותנאי תשלום:</strong><br><div style="white-space:pre-line;margin-top:4px;">${q.notes}</div></div>` : ''}
+    <div class="footer">מסמך זה הופק ע"י מערכת OneFlow · ${new Date().toLocaleDateString('he-IL')}</div>
     </body></html>`);
     win.document.close();
 };
@@ -25013,21 +25128,36 @@ window.scSearchCustomerInOneFlow = async function() {
     if (!q) { showToast('info', 'הקלד שם או מספר טלפון לחיפוש'); return; }
     const resultsEl = document.getElementById('scn-customer-results');
     if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">מחפש...</p>';
+
+    // חיפוש במאגר לקוחות העסק
+    const ql = q.toLowerCase();
+    const bizCusts = (window.storeCustomersCache || []).filter(c =>
+        (c.name||'').toLowerCase().includes(ql) || (c.company_name||'').toLowerCase().includes(ql) || (c.phone||'').includes(q)
+    ).slice(0, 5);
+    const bizHtml = bizCusts.map(c => {
+        const name = c.company_name || c.name || '';
+        const phone = c.phone || '';
+        return `<button type="button" onclick="scSelectCustomer(null,'${safeStr(name).replace(/'/g,"\\'")}','${safeStr(c.address||'').replace(/'/g,"\\'")}','${safeStr(phone).replace(/'/g,"\\'")}','','${safeStr(name).replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-100 hover:border-orange-300 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">🏪</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(name)} <span class="text-[9px] text-orange-500 font-bold">לקוח עסק</span></div>${phone?`<div class="text-[10px] text-slate-400">${safeStr(phone)}</div>`:''}</div></button>`;
+    }).join('');
+
     try {
         const r = await fetch(`/api/groups/search-all?q=${encodeURIComponent(q)}`);
         const d = await r.json();
         const groups = d.groups || d.results || [];
+        const oneflowHtml = groups.slice(0,4).map(g => {
+            const addr = g.address || [g.street_address, g.city].filter(Boolean).join(' ') || '';
+            const contactName = g.contact_name || '';
+            const adminNickname = g.admin_nickname || '';
+            const displayPerson = adminNickname || contactName;
+            return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${adminNickname.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${displayPerson ? ' · ' + safeStr(displayPerson) : ''} <span class="text-[9px] text-indigo-500 font-bold">OneFlow</span></div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
+        }).join('');
         if (resultsEl) {
-            if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">לא נמצאו תוצאות</p>'; return; }
-            resultsEl.innerHTML = groups.slice(0,5).map(g => {
-                const addr = g.address || [g.street_address, g.city].filter(Boolean).join(' ') || '';
-                const contactName = g.contact_name || '';
-                const adminNickname = g.admin_nickname || '';
-                const displayPerson = adminNickname || contactName;
-                return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${adminNickname.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${displayPerson ? ' · ' + safeStr(displayPerson) : ''}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
-            }).join('');
+            const combined = bizHtml + oneflowHtml;
+            resultsEl.innerHTML = combined || '<p class="text-xs text-slate-400 py-1">לא נמצאו תוצאות</p>';
         }
-    } catch(e) { if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש</p>'; }
+    } catch(e) {
+        if (resultsEl) resultsEl.innerHTML = bizHtml || '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש OneFlow</p>';
+    }
 };
 
 window.scSelectCustomer = function(groupId, name, address, phone, contactName, adminNickname) {
