@@ -8619,13 +8619,15 @@ app.get('/api/service-calls/family/:groupId', async (req, res) => {
 app.get('/api/service-calls/business/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
+            `SELECT DISTINCT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
              creator.nickname as creator_nickname, creator.name as creator_full_name
              FROM service_calls sc
              LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
              LEFT JOIN users u ON u.id = sc.assigned_member_id
              LEFT JOIN users creator ON creator.id = sc.created_by_user_id
+             LEFT JOIN equipment_technicians et ON et.id = sc.technician_contact_id
              WHERE sc.business_group_id=$1
+                OR (sc.business_group_id IS NULL AND et.business_group_id=$1)
              ORDER BY
                CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
                sc.created_at DESC`,

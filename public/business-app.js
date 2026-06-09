@@ -24419,8 +24419,8 @@ async function renderFieldTechMaintenanceDashboard(el) {
     try {
         const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
         const d = await r.json();
-        // Only show calls explicitly assigned to THIS technician - unassigned calls go to manager only
-        calls = (d.calls||[]).filter(c => c.assigned_member_id == currentUser.id);
+        // Show calls assigned to this tech, OR created by this tech (for needs_triage visibility)
+        calls = (d.calls||[]).filter(c => c.assigned_member_id == currentUser.id || c.created_by_user_id == currentUser.id);
     } catch(e) {}
 
     const myCalls = calls;

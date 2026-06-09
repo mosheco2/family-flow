@@ -611,7 +611,7 @@ function renderMyOrders() {
     const SC_STATUS_LABELS_FAM = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
     const SC_STATUS_COLORS_FAM = { new:'border-blue-200 bg-blue-50', seen:'border-indigo-200 bg-indigo-50', in_progress:'border-amber-200 bg-amber-50', pending_parts:'border-purple-200 bg-purple-50', done:'border-green-200 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
 
-    const filterBarHtml = `<div class="mb-3 space-y-2">
+    const filterBarHtml = `<div class="mb-3 space-y-2 pt-2">
         <div class="flex gap-2">
             <button onclick="window._myOrdersFilter='orders';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='orders'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">הזמנות</button>
             <button onclick="window._myOrdersFilter='service_calls';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='service_calls'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">קריאות שירות</button>
@@ -639,18 +639,22 @@ function renderMyOrders() {
     pageItems.forEach(item => {
         if (item.type === 'call') {
             const c = item.data;
-            const scDateStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+            const scCreatedStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+            const scScheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
             html += `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white border ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200'}" style="touch-action:manipulation;">
                 <div class="flex items-start justify-between gap-2">
                     <div class="flex-1 min-w-0">
-                        <span class="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">קריאת שירות</span>
-                        <div class="text-sm font-bold text-slate-800 truncate mt-0.5">${safeStr(c.title)}</div>
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">קריאת שירות</span>
+                            ${scCreatedStr ? `<span class="text-[9px] text-slate-400">${scCreatedStr}</span>` : ''}
+                        </div>
+                        <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
                         <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
                         ${c.description ? `<div class="text-[10px] text-slate-400 truncate mt-0.5">${safeStr(c.description)}</div>` : ''}
                     </div>
-                    <div class="flex flex-col items-end gap-1">
-                        <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
-                        ${scDateStr ? `<span class="text-[9px] text-slate-400">📅 ${scDateStr}</span>` : ''}
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+                        ${scScheduledStr ? `<span class="text-[9px] text-blue-500 font-bold">📅 ${scScheduledStr}</span>` : ''}
                     </div>
                 </div>
                 ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
@@ -726,7 +730,7 @@ function renderMyOrders() {
             </div>
             <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
                 <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(typeof o.items_json==='object'&&o.items_json!==null?JSON.stringify(o.items_json,null,2):o.items_json||o.items||'ללא פרטים')}</div>
                     ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
                 </div>
             </div>
@@ -7835,10 +7839,12 @@ window.openFamilyCallModal = async function(callId) {
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
             <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
-                ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
+                ${call.created_at ? `<p class="text-[10px] text-slate-400">נפתחה: ${new Date(call.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.description ? `<p class="text-slate-700 mt-1">${safeStr(call.description)}</p>` : ''}
                 ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
-                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1 mt-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
-                ${call.price_quote ? `<div class="mt-2 p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
+                ${call.requested_date ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-calendar ml-1 text-amber-400"></i>תאריך מבוקש: ${new Date(call.requested_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
+                ${call.price_quote ? `<div class="p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
             </div>
             <div class="bg-slate-50 rounded-2xl p-3">
                 <div class="text-[10px] font-bold text-slate-500 mb-2">💬 שיחה עם בעל המקצוע</div>
@@ -7945,13 +7951,15 @@ window.submitServiceCallWizard = async function() {
     const address = document.getElementById('scw-address')?.value?.trim();
     const desc = document.getElementById('scw-desc')?.value?.trim();
     const priority = document.getElementById('scw-priority')?.value || 'normal';
-    const businessGroupId = document.getElementById('scw-biz-id')?.value;
-    const techId = document.getElementById('scw-tech-id')?.value;
+    const bizIdRaw = document.getElementById('scw-biz-id')?.value;
+    const businessGroupId = (bizIdRaw && bizIdRaw !== 'null' && bizIdRaw !== 'undefined') ? parseInt(bizIdRaw) || null : null;
+    const techIdRaw = document.getElementById('scw-tech-id')?.value;
+    const techId = (techIdRaw && techIdRaw !== 'null' && techIdRaw !== 'undefined') ? parseInt(techIdRaw) || null : null;
     const requestedDate = document.getElementById('scw-requested-date')?.value || null;
     const customerName = currentUser?.nickname || currentUser?.name || null;
     try {
         await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: businessGroupId||null, technicianContactId: techId||null, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id, customerName, requestedDate }) });
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId, technicianContactId: techId, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id, customerName, requestedDate }) });
         document.getElementById('sc-wizard-modal')?.remove();
         if (typeof showToast === 'function') showToast('success', 'הקריאה נשלחה! 🎉');
         await loadFamilyServiceCalls();
