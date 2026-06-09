@@ -7924,6 +7924,9 @@ window.openServiceCallWizard = function(technicianId) {
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">פרטים נוספים (אופציונלי)</label>
                     <textarea id="scw-desc" rows="2" placeholder="הוסף מידע שיעזור לבעל המקצוע..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
                 </div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">תאריך מועדף לטיפול (אופציונלי)</label>
+                    <input id="scw-requested-date" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                </div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
                     <div class="grid grid-cols-4 gap-2">
                         ${[['low','נמוכה','🟢'],['normal','רגילה','🔵'],['high','גבוהה','🟠'],['urgent','דחוף','🔴']].map(([v,l,e]) =>
@@ -7954,9 +7957,11 @@ window.submitServiceCallWizard = async function() {
     const priority = document.getElementById('scw-priority')?.value || 'normal';
     const businessGroupId = document.getElementById('scw-biz-id')?.value;
     const techId = document.getElementById('scw-tech-id')?.value;
+    const requestedDate = document.getElementById('scw-requested-date')?.value || null;
+    const customerName = currentUser?.nickname || currentUser?.name || null;
     try {
         await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: businessGroupId||null, technicianContactId: techId||null, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id }) });
+            body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: businessGroupId||null, technicianContactId: techId||null, title, description: desc||null, address: address||null, priority, createdByUserId: currentUser?.id, customerName, requestedDate }) });
         document.getElementById('sc-wizard-modal')?.remove();
         if (typeof showToast === 'function') showToast('success', 'הקריאה נשלחה! 🎉');
         await loadFamilyServiceCalls();

@@ -606,6 +606,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_notes (id SERIAL PRIMARY KEY, call_id INT REFERENCES service_calls(id) ON DELETE CASCADE, author_name VARCHAR(100), note TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS requested_date TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
@@ -8581,17 +8583,14 @@ app.get('/api/groups/search-all', async (req, res) => {
 
 app.post('/api/service-calls', async (req, res) => {
     try {
-        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, priority, createdByUserId, assignedMemberId, needsTriage, familyName, scheduledAt } = req.body;
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, customerName, priority, createdByUserId, assignedMemberId, needsTriage, familyName, scheduledAt, requestedDate } = req.body;
         if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
-        let fullDesc = description || null;
-        if (familyName && !fullDesc?.includes(familyName)) {
-            fullDesc = `לקוח: ${familyName}${fullDesc ? '\n' + fullDesc : ''}`;
-        }
+        const fullDesc = description || null;
         const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
         const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, priority, created_by_user_id, assigned_member_id, scheduled_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null]);
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8612,10 +8611,12 @@ app.get('/api/service-calls/family/:groupId', async (req, res) => {
 app.get('/api/service-calls/business/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
+             creator.nickname as creator_nickname, creator.name as creator_full_name
              FROM service_calls sc
              LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
              LEFT JOIN users u ON u.id = sc.assigned_member_id
+             LEFT JOIN users creator ON creator.id = sc.created_by_user_id
              WHERE sc.business_group_id=$1
              ORDER BY
                CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,

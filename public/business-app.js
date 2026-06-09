@@ -15208,10 +15208,8 @@ window.fetchCalendarData = async function() {
             renderCalendarServices();
         }
     } catch(e) { console.error('Error fetching calendar data', e); }
-    // For maintenance_repair: also show scheduled service calls
-    if (currentGroup?.business_type === 'maintenance_repair') {
-        window.renderScheduledServiceCallsSection();
-    }
+    // Merge scheduled service calls into calendar
+    await window.syncServiceCallsToCalendar();
 };
 
 window.renderScheduledServiceCallsSection = async function() {
@@ -15342,7 +15340,7 @@ window.renderCalendar = function() {
             html += `<div class="flex flex-col bg-slate-50/50 rounded-xl border ${isToday ? 'border-cyan-300 shadow-sm' : 'border-slate-100'} p-2 min-h-[150px]">
                 <h5 class="text-center text-xs font-bold mb-2 pb-2 border-b border-slate-200 ${isToday ? 'text-cyan-700' : 'text-slate-600'}">${day.toLocaleDateString('he-IL', {weekday:'short'})} ${day.getDate()}</h5>
                 <div class="flex-1 space-y-1 overflow-y-auto modal-scroll">
-                    ${daysEvents.map(e => `<div onclick="openCalEventModal(${e.id})" class="text-[10px] bg-white p-1.5 rounded border-l-2 border-cyan-500 shadow-sm cursor-pointer hover:bg-cyan-50 transition truncate font-medium"><span class="font-bold text-cyan-800">${e.start_time.substring(0,5)}</span> ${safeStr(e.title)}</div>`).join('')}
+                    ${daysEvents.map(e => `<div onclick="calEventClick('${e.id}')" class="text-[10px] ${e._isServiceCall?'bg-orange-50 border-orange-400':'bg-white border-cyan-500'} p-1.5 rounded border-l-2 shadow-sm cursor-pointer hover:opacity-80 transition truncate font-medium"><span class="font-bold ${e._isServiceCall?'text-orange-700':'text-cyan-800'}">${e.start_time.substring(0,5)}</span> ${safeStr(e.title)}</div>`).join('')}
                 </div>
             </div>`;
         }
@@ -15374,7 +15372,7 @@ window.renderCalendar = function() {
             let eventsHtml = '';
             if(dayEvents.length > 0) {
                 dayEvents.slice(0, 2).forEach(e => {
-                    eventsHtml += `<div onclick="event.stopPropagation(); openCalEventModal(${e.id})" class="text-[9px] bg-cyan-100 text-cyan-800 rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold shadow-sm" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
+                    eventsHtml += `<div onclick="event.stopPropagation(); calEventClick('${e.id}')" class="text-[9px] ${e._isServiceCall?'bg-orange-100 text-orange-800':'bg-cyan-100 text-cyan-800'} rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold shadow-sm" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
                 });
                 if(dayEvents.length > 2) {
                     eventsHtml += `<div class="text-[9px] text-slate-500 font-bold bg-slate-100 rounded px-1 py-0.5 text-center">+${dayEvents.length - 2} אירועים</div>`;
@@ -15433,7 +15431,30 @@ window.renderCalendar = function() {
     }
 };
 
+function calEventClick(id) {
+    const sId = String(id);
+    if (sId.startsWith('sc_')) { showServiceCallModal(parseInt(sId.replace('sc_',''))); }
+    else { openCalEventModal(id); }
+}
+
 function createEventCardHTML(e) {
+    if (e._isServiceCall) {
+        const dt = new Date(e.event_date + 'T' + e.start_time);
+        return `<div onclick="calEventClick('${e.id}')" class="bg-orange-50 p-3 rounded-xl border-r-4 border-orange-500 shadow-sm flex justify-between items-center hover:shadow-md transition cursor-pointer mb-2">
+            <div class="flex items-start gap-3 w-full">
+                <div class="text-center bg-white p-2 rounded-lg border border-orange-100 min-w-[50px] shrink-0">
+                    <p class="font-black text-orange-700 text-[11px] leading-tight">${e.start_time.substring(0,5)}</p>
+                    <p class="text-[9px] text-slate-400 mt-0.5">${dt.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'})}</p>
+                </div>
+                <div class="flex-1 min-w-0 pr-1">
+                    <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(e.title)}</h4>
+                    <p class="text-[10px] text-orange-600 mt-0.5">קריאת שירות</p>
+                    ${e.customer_phone ? `<p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-phone text-slate-300"></i> ${safeStr(e.customer_phone)}</p>` : ''}
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 ml-2"></i>
+        </div>`;
+    }
     const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
     const hasQuote = e.notes && e.notes.includes('ORDER_REF:');
     let quoteBadge = '';
@@ -15452,7 +15473,7 @@ function createEventCardHTML(e) {
     }
 
     return `
-    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center hover:shadow-md transition group relative overflow-hidden cursor-pointer mb-2">
+    <div onclick="calEventClick('${e.id}')" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center hover:shadow-md transition group relative overflow-hidden cursor-pointer mb-2">
         <div class="flex items-start gap-3 w-full">
             <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
                 <p class="font-black text-cyan-700 text-[11px] leading-tight">${displayTime}</p>
@@ -15731,6 +15752,33 @@ window.renderCalendarServices = function() {
             <button onclick="deleteCalendarService(${s.id})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
         </div>
     `).join('');
+};
+
+window.syncServiceCallsToCalendar = async function() {
+    if (!currentGroup) return;
+    // Remove previous sc_ events from cache
+    calEventsCache = calEventsCache.filter(e => !String(e.id).startsWith('sc_'));
+    try {
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const d = await r.json();
+        const scheduled = (d.calls||[]).filter(c => c.scheduled_at && !['done','cancelled'].includes(c.status));
+        scheduled.forEach(c => {
+            const dt = new Date(c.scheduled_at);
+            const contactName = c.customer_name || c.creator_nickname || c.creator_full_name || c.family_name || '';
+            calEventsCache.push({
+                id: 'sc_' + c.id,
+                _scId: c.id,
+                title: '🔧 ' + c.title + (contactName ? ' — ' + contactName : ''),
+                event_date: dt.toISOString().split('T')[0],
+                start_time: dt.toTimeString().substring(0,5),
+                customer_phone: c.customer_phone || '',
+                notes: '',
+                status: 'approved',
+                _isServiceCall: true
+            });
+        });
+    } catch(e) {}
+    renderCalendar();
 };
 
 window.syncQuotesToCalendar = async function() {
@@ -24599,12 +24647,15 @@ window.showMaintenanceReports = async function(memberId) {
 
 // ─── SERVICE CALL MODAL ──────────────────────────────────────────────────────
 window.showServiceCallModal = async function(callId) {
+    window._latestScModalCallId = callId;
     let call = null, messages = [], members = [], notes = [];
     try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); call = (d.calls||[]).find(c => c.id === callId); } catch(e) {}
     if (!call) return;
+    if (window._latestScModalCallId !== callId) return;
     try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
     try { const r = await fetch(`/api/service-calls/${callId}/notes`); const d = await r.json(); notes = d.notes||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.employee_role_type === 'field_tech'); } catch(e) {}
+    if (window._latestScModalCallId !== callId) return;
 
     document.getElementById('sc-modal')?.remove();
 
@@ -24628,35 +24679,43 @@ window.showServiceCallModal = async function(callId) {
     const scheduledVal = call.scheduled_at ? new Date(call.scheduled_at).toISOString().slice(0,16) : '';
     const phone = call.customer_phone || '';
     const wazeUrl = call.address ? `https://waze.com/ul?q=${encodeURIComponent(call.address)}&navigate=yes` : '';
+    const contactName = call.customer_name || call.creator_nickname || call.creator_full_name || '';
+    const familyLabel = call.family_name || '';
 
     const html = `<div id="sc-modal" class="fixed inset-0 bg-white z-[9995] flex flex-col" style="direction:rtl;">
         <div class="flex items-center gap-3 px-4 py-3 bg-orange-600 text-white shrink-0">
             <button onclick="document.getElementById('sc-modal').remove();if(window._scChatInterval)clearInterval(window._scChatInterval);" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex-1 min-w-0">
                 <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
-                <div class="text-[10px] opacity-80">${call.family_name ? safeStr(call.family_name) : ''}</div>
+                <div class="text-[10px] opacity-80">${contactName ? safeStr(contactName) : familyLabel ? safeStr(familyLabel) : ''}</div>
             </div>
             <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS[call.status]||call.status}</span>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
 
-            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
-                ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
-                ${call.address ? `<div class="flex items-center gap-2 mt-1">
+            <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1.5">
+                ${contactName ? `<div class="flex items-center gap-2"><i class="fa-solid fa-user text-orange-400 text-xs shrink-0"></i><span class="text-xs font-bold text-slate-700">לקוח: ${safeStr(contactName)}</span>${familyLabel ? `<span class="text-[10px] text-slate-400">(${safeStr(familyLabel)})</span>` : ''}</div>` : familyLabel ? `<div class="flex items-center gap-2"><i class="fa-solid fa-users text-orange-400 text-xs shrink-0"></i><span class="text-xs font-bold text-slate-700">${safeStr(familyLabel)}</span></div>` : ''}
+                <div class="bg-white border border-slate-200 rounded-xl p-2.5">
+                    <p class="text-[10px] font-bold text-slate-400 mb-1">תיאור הבעיה</p>
+                    <p class="text-sm font-medium text-slate-800">${safeStr(call.title)}</p>
+                    ${call.description ? `<p class="text-xs text-slate-600 mt-1 border-t border-slate-100 pt-1">${safeStr(call.description)}</p>` : ''}
+                </div>
+                ${call.requested_date ? `<div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-2"><i class="fa-solid fa-calendar-plus text-amber-500 shrink-0 text-xs"></i><span class="text-xs text-amber-800 font-bold">תאריך מבוקש ע"י לקוח: ${new Date(call.requested_date).toLocaleString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></div>` : ''}
+                ${call.address ? `<div class="flex items-center gap-2">
                     <i class="fa-solid fa-location-dot text-orange-400 shrink-0"></i>
                     <span class="text-xs text-slate-500 flex-1">${safeStr(call.address)}</span>
                     ${wazeUrl ? `<a href="${wazeUrl}" target="_blank" class="shrink-0 flex items-center gap-1 text-[10px] font-black bg-blue-600 text-white px-2 py-1 rounded-lg" style="touch-action:manipulation;"><i class="fa-brands fa-waze"></i> Waze</a>` : ''}
                 </div>` : ''}
-                ${phone ? `<div class="flex items-center gap-2 mt-1">
+                ${phone ? `<div class="flex items-center gap-2">
                     <i class="fa-solid fa-phone text-emerald-500 shrink-0 text-xs"></i>
                     <span class="text-xs text-slate-600 flex-1">${safeStr(phone)}</span>
                     <a href="tel:${safeStr(phone)}" class="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200" style="touch-action:manipulation;"><i class="fa-solid fa-phone"></i> התקשר</a>
                     <a href="https://wa.me/${phone.replace(/\D/g,'')}" target="_blank" class="text-[10px] font-black bg-green-100 text-green-700 px-2 py-1 rounded-lg border border-green-200" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
                 </div>` : ''}
-                <div class="flex gap-2 flex-wrap mt-1">
+                <div class="flex gap-2 flex-wrap">
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${SC_PRIORITY_COLORS[call.priority]||''}">${SC_PRIORITY_LABELS[call.priority]||''}</span>
                     <span class="text-[10px] text-slate-400">${new Date(call.created_at).toLocaleDateString('he-IL')}</span>
-                    ${call.scheduled_at ? `<span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">📅 ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+                    ${call.scheduled_at ? `<span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">📅 תואם: ${new Date(call.scheduled_at).toLocaleString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
                 </div>
             </div>
 
@@ -24726,9 +24785,12 @@ window.saveServiceCallUpdates = async function(callId) {
             body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null }) });
         if (!res.ok) throw new Error();
         showToast('success', 'עודכן בהצלחה');
-        // Re-open modal to refresh all displayed data (icons, scheduled date, etc.)
         if (window._scChatInterval) clearInterval(window._scChatInterval);
         document.getElementById('sc-modal')?.remove();
+        // רענן יומן אם יש תזמון חדש
+        if (scheduledAt && typeof window.syncServiceCallsToCalendar === 'function') {
+            window.syncServiceCallsToCalendar();
+        }
         setTimeout(() => showServiceCallModal(callId), 150);
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
