@@ -12006,19 +12006,24 @@ function renderB2BOrders() {
             statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
         }
 
-        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">`;
-        
+        const canReceive = o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'draft';
+        let actionsHtml = `<div class="space-y-2 mt-3 pt-3 border-t border-slate-100">`;
+
         // התמיכה בטיוטה לעריכת חוסרים
         if (o.status === 'draft') {
-            actionsHtml += `<button onclick="editDraftOrder(${o.id})" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-pen"></i> ערוך ומלא חוסרים בעגלה</button>`;
+            actionsHtml += `<button onclick="editDraftOrder(${o.id})" class="w-full bg-indigo-600 text-white hover:bg-indigo-700 py-2.5 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-pen"></i> ערוך ומלא חוסרים בעגלה</button>`;
         } else {
+            // כפתור קבלת סחורה — שורה שלמה, בולטת, לכל בעל גישה לרכש
+            if (canReceive) {
+                actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="w-full bg-green-500 hover:bg-green-600 active:scale-95 text-white py-2.5 rounded-xl text-sm font-black transition shadow-sm flex items-center justify-center gap-2"><i class="fa-solid fa-box-open"></i> קבלת סחורה ועדכון מלאי</button>`;
+            }
+            // כפתורי PDF וווצאפ — שורה שנייה
+            actionsHtml += `<div class="flex gap-2">`;
             actionsHtml += `<button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
             if (supData.phone) {
                 actionsHtml += `<button onclick="sendPurchaseOrderWhatsApp(${o.id})" class="flex-1 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-[#25D366]/20"><i class="fa-brands fa-whatsapp"></i> שלח לווצאפ</button>`;
             }
-            if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
-                actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
-            }
+            actionsHtml += `</div>`;
         }
         actionsHtml += `</div>`;
 
