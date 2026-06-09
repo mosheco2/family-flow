@@ -8627,20 +8627,44 @@ app.get('/api/service-calls/family/:groupId', async (req, res) => {
 
 app.get('/api/service-calls/business/:groupId', async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
-             creator.nickname as creator_nickname, creator.name as creator_full_name
-             FROM service_calls sc
-             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
-             LEFT JOIN users u ON u.id = sc.assigned_member_id
-             LEFT JOIN users creator ON creator.id = sc.created_by_user_id
-             WHERE sc.business_group_id=$1
+        const gid = parseInt(req.params.groupId);
+        if (!gid) return res.json({ success: true, calls: [] });
+        // Step 1: fetch service calls
+        const scResult = await pool.query(
+            `SELECT id, family_group_id, business_group_id, technician_contact_id,
+                    title, description, address, status, priority,
+                    assigned_member_id, scheduled_at, price_quote, discount_pct,
+                    community_discount, created_by_user_id, created_at, updated_at,
+                    customer_phone, customer_name, requested_date
+             FROM service_calls
+             WHERE business_group_id=$1
              ORDER BY
-               CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
-               sc.created_at DESC`,
-            [req.params.groupId]);
-        res.json({ success: true, calls: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+               CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+               created_at DESC`,
+            [gid]);
+        const calls = scResult.rows;
+        if (!calls.length) return res.json({ success: true, calls: [] });
+        // Step 2: enrich with family names and member names
+        const familyIds = [...new Set(calls.map(c => c.family_group_id).filter(Boolean))];
+        const memberIds = [...new Set([
+            ...calls.map(c => c.assigned_member_id),
+            ...calls.map(c => c.created_by_user_id)
+        ].filter(Boolean))];
+        const [fgResult, usersResult] = await Promise.all([
+            familyIds.length ? pool.query('SELECT id, name FROM family_groups WHERE id=ANY($1)', [familyIds]) : Promise.resolve({ rows: [] }),
+            memberIds.length ? pool.query('SELECT id, nickname, name FROM users WHERE id=ANY($1)', [memberIds]) : Promise.resolve({ rows: [] })
+        ]);
+        const fgMap = Object.fromEntries(fgResult.rows.map(r => [r.id, r.name]));
+        const usersMap = Object.fromEntries(usersResult.rows.map(r => [r.id, r]));
+        const enriched = calls.map(c => ({
+            ...c,
+            family_name: fgMap[c.family_group_id] || null,
+            assigned_member_name: c.assigned_member_id ? (usersMap[c.assigned_member_id]?.nickname || usersMap[c.assigned_member_id]?.name || null) : null,
+            creator_nickname: c.created_by_user_id ? (usersMap[c.created_by_user_id]?.nickname || null) : null,
+            creator_full_name: c.created_by_user_id ? (usersMap[c.created_by_user_id]?.name || null) : null,
+        }));
+        res.json({ success: true, calls: enriched });
+    } catch(e) { console.error('SC business error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // Get calls for a specific customer (by family_group_id or name match)
