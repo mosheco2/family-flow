@@ -23771,6 +23771,7 @@ window.rdAction = function(tab, action) {
     if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
     if (action === 'show-all-sc') { if(typeof showAllServiceCalls === 'function') showAllServiceCalls(); return; }
+    if (action === 'show-reports') { if(typeof showMaintenanceReports === 'function') showMaintenanceReports(); return; }
     if (tab) { switchTab(tab); return; }
 };
 
@@ -24067,8 +24068,7 @@ async function renderFieldTechMaintenanceDashboard(el) {
         </div>
         ${roleQuickActions([
             {icon:'🔧', label:'כל הקריאות', action:'show-all-sc'},
-            {icon:'👤', label:'לקוחות', tab:'customers'},
-            {icon:'📋', label:'משימות', tab:'tasks'},
+            {icon:'📊', label:'הביצועים שלי', action:'show-reports'},
             {icon:'📅', label:'יומן', tab:'calendar'}
         ])}
         ${roleFullMenuBtn()}`;
@@ -24120,12 +24120,135 @@ async function renderBranchManagerMaintenanceDashboard(el) {
             <div class="px-2 py-1">${recentHtml}</div>
         </div>
         ${roleQuickActions([
-            {icon:'📊', label:'דוחות', tab:'cashflow'},
+            {icon:'📊', label:'דוחות', tab:'', action:'show-reports'},
             {icon:'👥', label:'הצוות', tab:'members'},
             {icon:'📅', label:'יומן', tab:'calendar'}
         ])}
         ${roleFullMenuBtn()}`;
 }
+
+// ─── MAINTENANCE REPORTS ─────────────────────────────────────────────────────
+window.showMaintenanceReports = async function(memberId) {
+    document.getElementById('sc-reports-modal')?.remove();
+    const isMgr = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
+    const isFieldTech = currentUser?.employee_role_type === 'field_tech';
+    const filterMemberId = isFieldTech ? currentUser.id : (memberId || null);
+
+    const html = `<div id="sc-reports-modal" class="fixed inset-0 bg-slate-50 z-[9994] flex flex-col overflow-hidden" style="direction:rtl;">
+        <div class="flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-slate-700 to-slate-900 text-white shrink-0">
+            <button onclick="document.getElementById('sc-reports-modal').remove()" class="text-xl w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="font-black text-base flex-1">📊 דוחות ואנליטיקות</h2>
+            ${isMgr ? `<select id="sc-rep-filter-member" onchange="showMaintenanceReports(this.value||undefined)" class="text-xs bg-white/20 text-white border border-white/30 rounded-lg px-2 py-1"><option value="">כל הצוות</option></select>` : ''}
+        </div>
+        <div id="sc-reports-content" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-chart-bar text-3xl mb-2 block opacity-40"></i><p class="text-sm">טוען נתונים...</p></div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    // Load members for filter dropdown (managers only)
+    if (isMgr) {
+        try {
+            const mr = await fetch(`/api/members/${currentGroup.id}`);
+            const md = await mr.json();
+            const sel = document.getElementById('sc-rep-filter-member');
+            if (sel) {
+                const techs = (md.members||[]).filter(m => m.employee_role_type === 'field_tech');
+                sel.innerHTML = `<option value="">כל הצוות</option>` + techs.map(m => `<option value="${m.id}" ${filterMemberId==m.id?'selected':''}>${safeStr(m.nickname||'טכנאי')}</option>`).join('');
+            }
+        } catch(e) {}
+    }
+
+    // Fetch analytics
+    try {
+        const url = `/api/service-calls/analytics/${currentGroup.id}${filterMemberId ? '?memberId=' + filterMemberId : ''}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        if (!d.success) throw new Error('שגיאה בטעינה');
+        const s = d.stats;
+        const el = document.getElementById('sc-reports-content');
+        if (!el) return;
+
+        const SC_STATUS_HEB = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+        const PRIORITY_HEB = { urgent:'דחוף', high:'גבוה', normal:'רגיל', low:'נמוך' };
+
+        // KPI cards
+        const kpiData = [
+            { label:'קריאות פתוחות', val: s.open_calls, icon:'🔧', color:'orange' },
+            { label:'הושלמו החודש', val: s.completed_month, icon:'✅', color:'green' },
+            { label:'הושלמו השבוע', val: s.completed_week, icon:'📅', color:'blue' },
+            { label:'הושלמו היום', val: s.completed_today, icon:'⚡', color:'emerald' },
+            { label:'דחופות פתוחות', val: s.urgent_open, icon:'🚨', color: s.urgent_open>0?'red':'slate' },
+            { label:'זמן ממוצע (שע׳)', val: s.avg_completion_hours ? Number(s.avg_completion_hours).toFixed(1) : '-', icon:'⏱️', color:'purple' },
+            { label:'הכנסות החודש', val: s.revenue_this_month > 0 ? '₪' + Number(s.revenue_this_month).toLocaleString() : '-', icon:'💰', color:'amber' },
+            { label:'סה"כ הכנסות', val: s.total_revenue > 0 ? '₪' + Number(s.total_revenue).toLocaleString() : '-', icon:'💵', color:'yellow' }
+        ];
+        const kpiHtml = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            ${kpiData.map(k => `<div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center">
+                <div class="text-xl mb-1">${k.icon}</div>
+                <div class="text-base font-black text-${k.color}-600">${k.val}</div>
+                <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+            </div>`).join('')}
+        </div>`;
+
+        // Trend chart (last 7 days)
+        const trendMax = Math.max(...(d.trend||[]).map(t => parseInt(t.created)), 1);
+        const trendHtml = d.trend?.length ? `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h3 class="font-black text-slate-800 text-sm mb-3">📈 קריאות — 7 ימים אחרונים</h3>
+            <div class="flex items-end gap-1.5 h-20">
+                ${d.trend.map(t => {
+                    const day = new Date(t.day).toLocaleDateString('he-IL',{weekday:'short',day:'numeric'});
+                    const h = Math.max(4, Math.round((parseInt(t.created)/trendMax)*72));
+                    return `<div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bg-orange-400 rounded-t-md" style="height:${h}px" title="${t.created} קריאות"></div>
+                        <div class="text-[8px] text-slate-400 text-center leading-tight">${day}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>` : '';
+
+        // By status
+        const totalForStatus = d.byStatus.reduce((a, b) => a + parseInt(b.count), 0) || 1;
+        const statusHtml = `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h3 class="font-black text-slate-800 text-sm mb-3">📋 לפי סטטוס</h3>
+            <div class="space-y-2">
+                ${d.byStatus.map(r => {
+                    const pct = Math.round((parseInt(r.count)/totalForStatus)*100);
+                    const colors = {new:'bg-blue-400',seen:'bg-indigo-400',in_progress:'bg-amber-400',pending_parts:'bg-purple-400',done:'bg-green-400',cancelled:'bg-slate-300'};
+                    return `<div class="flex items-center gap-2">
+                        <div class="text-xs text-slate-600 w-28 font-medium shrink-0">${SC_STATUS_HEB[r.status]||r.status}</div>
+                        <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                            <div class="${colors[r.status]||'bg-slate-400'} h-full rounded-full" style="width:${pct}%"></div>
+                        </div>
+                        <div class="text-xs font-black text-slate-700 w-8 text-left">${r.count}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+
+        // By technician (managers only)
+        const techHtml = (isMgr && !filterMemberId && d.byTech?.length) ? `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h3 class="font-black text-slate-800 text-sm mb-3">👷 ביצועי טכנאים</h3>
+            <div class="space-y-2">
+                ${d.byTech.map((t,i) => `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                    <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">${i+1}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-bold text-slate-800 truncate">${safeStr(t.name||'טכנאי')}</div>
+                        <div class="text-[10px] text-slate-400">${t.open_c} פתוחות · ${t.done_c} הושלמו</div>
+                    </div>
+                    <div class="text-xs font-black text-green-600">${t.revenue>0?'₪'+Number(t.revenue).toLocaleString():''}</div>
+                    <button onclick="showMaintenanceReports(${t.member_id})" class="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100" style="touch-action:manipulation;">פירוט</button>
+                </div>`).join('')}
+            </div>
+        </div>` : '';
+
+        el.innerHTML = kpiHtml + trendHtml + statusHtml + techHtml;
+
+    } catch(e) {
+        const el = document.getElementById('sc-reports-content');
+        if (el) el.innerHTML = `<div class="text-center py-8 text-red-400"><i class="fa-solid fa-triangle-exclamation text-3xl mb-2 block"></i><p class="text-sm">שגיאה בטעינת הנתונים</p></div>`;
+    }
+};
 
 // ─── SERVICE CALL MODAL ──────────────────────────────────────────────────────
 window.showServiceCallModal = async function(callId) {
@@ -24290,7 +24413,10 @@ window.showNewServiceCallModal = function() {
                     </div>
                     <div id="scn-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
                 </div>
-                <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label><input id="scn-address" type="text" placeholder="כתובת הטיפול" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון לקוח</label><input id="scn-phone" type="tel" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת</label><input id="scn-address" type="text" placeholder="כתובת הטיפול" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none"></div>
+                </div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">תיאור התקלה</label><textarea id="scn-desc" rows="3" placeholder="פרטים נוספים על הבעיה..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none resize-none"></textarea></div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות</label>
                     <select id="scn-priority" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
@@ -24326,7 +24452,7 @@ window.showNewServiceCallModal = function() {
 
 window.scSearchCustomerInOneFlow = async function() {
     const q = document.getElementById('scn-family')?.value?.trim();
-    if (!q) { showToast('info', 'הקלד שם לקוח לחיפוש'); return; }
+    if (!q) { showToast('info', 'הקלד שם או מספר טלפון לחיפוש'); return; }
     const resultsEl = document.getElementById('scn-customer-results');
     if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">מחפש...</p>';
     try {
@@ -24335,20 +24461,22 @@ window.scSearchCustomerInOneFlow = async function() {
         const groups = d.groups || d.results || [];
         if (resultsEl) {
             if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">לא נמצאו תוצאות</p>'; return; }
-            resultsEl.innerHTML = groups.slice(0,5).map(g => `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${safeStr(g.address||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><span class="truncate">${safeStr(g.name||g.group_name)}</span></button>`).join('');
+            resultsEl.innerHTML = groups.slice(0,5).map(g => `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${safeStr(g.address||'').replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}</div>`:''}</div></button>`).join('');
         }
     } catch(e) { if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש</p>'; }
 };
 
-window.scSelectCustomer = function(groupId, name, address) {
+window.scSelectCustomer = function(groupId, name, address, phone) {
     const familyInput = document.getElementById('scn-family');
     if (familyInput) familyInput.value = name;
     const addrInput = document.getElementById('scn-address');
     if (addrInput && address && !addrInput.value) addrInput.value = address;
+    const phoneInput = document.getElementById('scn-phone');
+    if (phoneInput && phone && !phoneInput.value) phoneInput.value = phone;
     const hiddenId = document.getElementById('scn-family-group-id');
     if (hiddenId) hiddenId.value = groupId;
     const resultsEl = document.getElementById('scn-customer-results');
-    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר${phone ? ' · ' + safeStr(phone) : ''}</p>`;
 };
 
 window.submitNewServiceCall = async function() {
@@ -24356,6 +24484,7 @@ window.submitNewServiceCall = async function() {
     if (!title) { showToast('error', 'נא להזין כותרת'); return; }
     const desc = document.getElementById('scn-desc')?.value?.trim();
     const address = document.getElementById('scn-address')?.value?.trim();
+    const customerPhone = document.getElementById('scn-phone')?.value?.trim();
     const priority = document.getElementById('scn-priority')?.value || 'normal';
     const familyName = document.getElementById('scn-family')?.value?.trim();
     const familyGroupIdOverride = document.getElementById('scn-family-group-id')?.value || null;
@@ -24368,7 +24497,7 @@ window.submitNewServiceCall = async function() {
                 businessGroupId: currentGroup.id,
                 title,
                 description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''),
-                address, priority,
+                address, customerPhone: customerPhone || null, priority,
                 createdByUserId: currentUser?.id,
                 assignedMemberId: needsTriage ? null : (assignedMemberId || null),
                 needsTriage: needsTriage || false,

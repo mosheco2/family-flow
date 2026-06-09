@@ -599,6 +599,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           message TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       client.release();
@@ -8425,6 +8426,17 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
     } catch(e) { res.redirect('/campaign.html?t=' + req.params.token); }
 });
 
+// Members by groupId path param (used by role dashboards for tech assignment)
+app.get('/api/members/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, nickname, role, employee_role_type, phone, status
+             FROM users WHERE group_id=$1 AND status='active' ORDER BY employee_role_type, nickname`,
+            [req.params.groupId]);
+        res.json({ members: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ============================================================
 // --- EQUIPMENT MAINTENANCE MODULE ---
 // ============================================================
@@ -8474,14 +8486,20 @@ app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Search for a business group by name (for linking)
+// Search for a business group by name OR phone (for linking from family side)
 app.get('/api/groups/search-business', async (req, res) => {
     try {
         const { q } = req.query;
         if (!q || q.length < 2) return res.json({ groups: [] });
+        const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
-            `SELECT id, name, business_type FROM family_groups WHERE type='BUSINESS' AND LOWER(name) LIKE LOWER($1) LIMIT 10`,
-            [`%${q}%`]);
+            `SELECT DISTINCT fg.id, fg.name, fg.business_type, u.phone
+             FROM family_groups fg
+             LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             WHERE fg.type='BUSINESS'
+               AND (LOWER(fg.name) LIKE LOWER($1) OR (LENGTH($2) >= 7 AND u.phone LIKE $3))
+             LIMIT 10`,
+            [`%${q}%`, phoneQ, `%${phoneQ}%`]);
         res.json({ groups: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8491,9 +8509,14 @@ app.get('/api/groups/search-all', async (req, res) => {
     try {
         const { q } = req.query;
         if (!q || q.length < 2) return res.json({ groups: [] });
+        const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
-            `SELECT id, name, type, business_type FROM family_groups WHERE LOWER(name) LIKE LOWER($1) LIMIT 15`,
-            [`%${q}%`]);
+            `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone
+             FROM family_groups fg
+             LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             WHERE (LOWER(fg.name) LIKE LOWER($1) OR (LENGTH($2) >= 7 AND u.phone LIKE $3))
+             LIMIT 15`,
+            [`%${q}%`, phoneQ, `%${phoneQ}%`]);
         res.json({ groups: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8502,18 +8525,17 @@ app.get('/api/groups/search-all', async (req, res) => {
 
 app.post('/api/service-calls', async (req, res) => {
     try {
-        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, priority, createdByUserId, assignedMemberId, needsTriage, familyName } = req.body;
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, priority, createdByUserId, assignedMemberId, needsTriage, familyName } = req.body;
         if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
-        // Build description with customer name if provided separately
         let fullDesc = description || null;
         if (familyName && !fullDesc?.includes(familyName)) {
             fullDesc = `לקוח: ${familyName}${fullDesc ? '\n' + fullDesc : ''}`;
         }
         const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
         const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, priority, created_by_user_id, assigned_member_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, priority||'normal', createdByUserId||null, resolvedMemberId]);
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, priority, created_by_user_id, assigned_member_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, priority||'normal', createdByUserId||null, resolvedMemberId]);
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8600,7 +8622,6 @@ app.post('/api/service-calls/:id/messages', async (req, res) => {
     try {
         const { senderType, senderName, message } = req.body;
         if (!senderType || !message) return res.status(400).json({ error: 'שדות חסרים' });
-        // Mark call as seen by business if family sent
         if (senderType === 'family') {
             await pool.query(`UPDATE service_calls SET updated_at=NOW() WHERE id=$1`, [req.params.id]);
         }
@@ -8608,6 +8629,71 @@ app.post('/api/service-calls/:id/messages', async (req, res) => {
             'INSERT INTO service_call_messages (call_id, sender_type, sender_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.id, senderType, senderName||null, message]);
         res.json({ success: true, message: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Service calls analytics for reports page
+app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
+    try {
+        const gid = req.params.businessGroupId;
+        const memberFilter = req.query.memberId ? `AND assigned_member_id=$2` : '';
+        const params = req.query.memberId ? [gid, req.query.memberId] : [gid];
+
+        // Main aggregation
+        const agg = await pool.query(`
+            SELECT
+              COUNT(*) as total_calls,
+              COUNT(*) FILTER (WHERE status NOT IN ('done','cancelled')) as open_calls,
+              COUNT(*) FILTER (WHERE status='done') as done_calls,
+              COUNT(*) FILTER (WHERE status='cancelled') as cancelled_calls,
+              COUNT(*) FILTER (WHERE priority='urgent' AND status NOT IN ('done','cancelled')) as urgent_open,
+              COUNT(*) FILTER (WHERE status='done' AND DATE(updated_at)=CURRENT_DATE) as completed_today,
+              COUNT(*) FILTER (WHERE status='done' AND updated_at >= CURRENT_DATE - INTERVAL '7 days') as completed_week,
+              COUNT(*) FILTER (WHERE status='done' AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)) as completed_month,
+              COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as created_this_month,
+              ROUND(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) FILTER (WHERE status='done'), 1) as avg_completion_hours,
+              COALESCE(SUM(price_quote) FILTER (WHERE status='done'), 0) as total_revenue,
+              COALESCE(SUM(price_quote) FILTER (WHERE status='done' AND updated_at >= DATE_TRUNC('month', CURRENT_DATE)), 0) as revenue_this_month
+            FROM service_calls WHERE business_group_id=$1 ${memberFilter}`, params);
+
+        // By status
+        const byStatus = await pool.query(`
+            SELECT status, COUNT(*) as count FROM service_calls
+            WHERE business_group_id=$1 ${memberFilter} GROUP BY status`, params);
+
+        // By priority (open only)
+        const byPriority = await pool.query(`
+            SELECT priority, COUNT(*) as count FROM service_calls
+            WHERE business_group_id=$1 AND status NOT IN ('done','cancelled') ${memberFilter} GROUP BY priority`, params);
+
+        // By technician
+        const byTech = await pool.query(`
+            SELECT u.nickname as name, u.id as member_id,
+              COUNT(*) as total,
+              COUNT(*) FILTER (WHERE sc.status NOT IN ('done','cancelled')) as open_c,
+              COUNT(*) FILTER (WHERE sc.status='done') as done_c,
+              COALESCE(SUM(sc.price_quote) FILTER (WHERE sc.status='done'), 0) as revenue
+            FROM service_calls sc
+            JOIN users u ON u.id = sc.assigned_member_id
+            WHERE sc.business_group_id=$1 AND sc.assigned_member_id IS NOT NULL
+            GROUP BY u.id, u.nickname ORDER BY done_c DESC LIMIT 10`, [gid]);
+
+        // Last 7 days trend
+        const trend = await pool.query(`
+            SELECT DATE(created_at) as day, COUNT(*) as created,
+              COUNT(*) FILTER (WHERE status='done') as done_c
+            FROM service_calls
+            WHERE business_group_id=$1 AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+            GROUP BY DATE(created_at) ORDER BY day ASC`, [gid]);
+
+        res.json({
+            success: true,
+            stats: agg.rows[0],
+            byStatus: byStatus.rows,
+            byPriority: byPriority.rows,
+            byTech: byTech.rows,
+            trend: trend.rows
+        });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

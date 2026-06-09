@@ -7865,19 +7865,19 @@ window.searchBusinessForLink = async function(q) {
         const d = await r.json();
         if (!d.groups?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו עסקים</p>'; return; }
         const techIdVal = document.getElementById('hm-link-tech-id')?.value || '';
-        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${techIdVal||'null'}, ${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}')" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2 active:scale-[0.98]" style="touch-action:manipulation;">
+        el.innerHTML = d.groups.map(g => `<button onclick="linkTechToBusiness(${techIdVal||'null'}, ${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${safeStr(g.phone||'').replace(/'/g,"\\'")}')" class="w-full text-right border border-slate-200 rounded-xl px-3 py-2.5 text-sm hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-2 active:scale-[0.98]" style="touch-action:manipulation;">
             <i class="fa-solid fa-store text-indigo-400 shrink-0"></i>
-            <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-xs">${safeStr(g.name)}</div><div class="text-[10px] text-slate-400">${g.business_type||'עסק'}</div></div>
+            <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-xs">${safeStr(g.name)}</div><div class="text-[10px] text-slate-400">${g.business_type||'עסק'}${g.phone ? ' · ' + safeStr(g.phone) : ''}</div></div>
             <i class="fa-solid fa-link text-indigo-400 text-xs shrink-0"></i>
         </button>`).join('');
     } catch(e) {}
 };
 
-window.linkTechToBusiness = async function(techId, bizGroupId, bizName) {
+window.linkTechToBusiness = async function(techId, bizGroupId, bizName, bizPhone) {
     try {
         if (!techId) {
             const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', businessGroupId: bizGroupId }) });
+                body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', phone: bizPhone || null, businessGroupId: bizGroupId }) });
             const d = await r.json();
             if (!d.success) throw new Error(d.error || 'שגיאת שרת');
         } else {
