@@ -3623,7 +3623,7 @@ window.renderDashboard = async function(forceRefresh = false) {
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
     // For admin/owner in maintenance_repair business, show service calls dashboard
-    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair') {
+    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair' && !window._inProcurementMode) {
         let dashEl = document.getElementById('content-role-dashboard');
         if (!dashEl) {
             const container = document.querySelector('[class*="px-2"][class*="w-full"]');
@@ -11877,7 +11877,7 @@ async function submitB2BOrders() {
         btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>';
         getEl('b2b-checkout-modal').classList.add('hidden');
         b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq');
-        if (window._pendingScForPo) { showToast('success', `הזמנת הרכש שויכה לקריאה #${window._pendingScForPo}`); window._pendingScForPo = null; document.getElementById('sc-po-pending-bar')?.remove(); }
+        if (window._pendingScForPo) { showToast('success', `הזמנת הרכש שויכה לקריאה #${window._pendingScForPo}`); window._pendingScForPo = null; window._inProcurementMode = false; document.getElementById('sc-po-pending-bar')?.remove(); }
         fetchB2BOrders();
     }
 }
@@ -24175,6 +24175,7 @@ window.rdAction = function(tab, action) {
 
 async function showRoleDashboard(roleType) {
     if (!roleType) return;
+    if (window._inProcurementMode) return;
     window._currentShowingRole = roleType; // track for re-render on settings save
     const roleInfo = EMPLOYEE_ROLE_TYPES.find(r => r.id === roleType);
     if (!roleInfo) return;
@@ -25046,29 +25047,29 @@ window.submitNewServiceCall = async function() {
 
 window.openProcurementForSC = function(callId) {
     window._pendingScForPo = callId;
+    window._inProcurementMode = true;
     if (window._scChatInterval) clearInterval(window._scChatInterval);
     if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+    if (window._roleRefreshInterval) { clearInterval(window._roleRefreshInterval); window._roleRefreshInterval = null; }
     document.getElementById('sc-modal')?.remove();
     document.getElementById('sc-all-modal')?.remove();
     document.getElementById('sc-po-dialog')?.remove();
     document.getElementById('sc-po-pending-bar')?.remove();
-    // Show persistent banner
     const bar = document.createElement('div');
     bar.id = 'sc-po-pending-bar';
     bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7c3aed;color:white;padding:10px 16px;display:flex;align-items:center;gap:8px;direction:rtl;font-size:12px;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
-    bar.innerHTML = `<span style="flex:1;">🛒 בחר מוצרים — בסיום ההזמנה תשוייך לקריאה #${callId}</span><button onclick="document.getElementById('sc-po-pending-bar').remove();window._pendingScForPo=null;" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">× ביטול</button>`;
+    bar.innerHTML = `<span style="flex:1;">🛒 בחר מוצרים — בסיום ההזמנה תשוייך לקריאה #${callId}</span><button onclick="document.getElementById('sc-po-pending-bar').remove();window._pendingScForPo=null;window._inProcurementMode=false;" style="background:rgba(255,255,255,0.2);border:none;color:white;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">× ביטול</button>`;
     document.body.appendChild(bar);
-    // Force-hide role dashboard to prevent re-show after switchTab
-    const rdEl = document.getElementById('content-role-dashboard');
-    if (rdEl) rdEl.classList.add('hidden');
-    // Navigate to shop tab — use click on the tab button to ensure proper navigation
-    const shopTabBtn = document.getElementById('tab-shop');
-    if (shopTabBtn) {
-        shopTabBtn.click();
-    } else {
-        switchTab('shop');
-    }
-    setTimeout(() => { try { switchProcurementTab('list'); } catch(e) {} }, 500);
+    // Hide ALL content divs and show only shop — bypass click() on hidden button
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard'].forEach(x => {
+        const el = document.getElementById(`content-${x}`); if (el) el.classList.add('hidden');
+    });
+    const shopEl = document.getElementById('content-shop');
+    if (shopEl) { shopEl.classList.remove('hidden'); }
+    window._currentBizTab = 'shop';
+    try { switchProcurementTab('list'); } catch(e) {}
+    try { renderShopList(); } catch(e) {}
+    setTimeout(() => { try { switchProcurementTab('list'); } catch(e) {} }, 300);
 };
 
 window.showAllServiceCalls = async function(filterStatus) {
