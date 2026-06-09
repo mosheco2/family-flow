@@ -604,6 +604,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_notes (id SERIAL PRIMARY KEY, call_id INT REFERENCES service_calls(id) ON DELETE CASCADE, author_name VARCHAR(100), note TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       client.release();
@@ -4291,11 +4293,11 @@ app.get('/api/store/customers/:groupId', async (req, res) => {
 
 app.post('/api/store/customers', async (req, res) => {
     try {
-        const { groupId, name, phone, email, businessId, notes } = req.body;
+        const { groupId, name, companyName, phone, email, businessId, notes, familyGroupId } = req.body;
         const result = await pool.query(
-            `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
-             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
-            [groupId, name, phone || '', email || '', businessId || '', notes || '']
+            `INSERT INTO store_customers (group_id, name, company_name, phone, email, business_id, notes, family_group_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null]
         );
         res.json({ success: true, customerId: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4303,10 +4305,10 @@ app.post('/api/store/customers', async (req, res) => {
 
 app.put('/api/store/customers/:id', async (req, res) => {
     try {
-        const { name, phone, email, businessId, notes } = req.body;
+        const { name, companyName, phone, email, businessId, notes, familyGroupId } = req.body;
         await pool.query(
-            `UPDATE store_customers SET name=$1, phone=$2, email=$3, business_id=$4, notes=$5 WHERE id=$6`,
-            [name, phone || '', email || '', businessId || '', notes || '', req.params.id]
+            `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
+            [name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null, req.params.id]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4315,6 +4317,38 @@ app.put('/api/store/customers/:id', async (req, res) => {
 app.delete('/api/store/customers/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM store_customers WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Send price quote internally via OneFlow service call message
+app.post('/api/store/customers/:id/send-quote', async (req, res) => {
+    try {
+        const { quoteHtml, quoteText, businessGroupId, quoteRef } = req.body;
+        const custRes = await pool.query('SELECT * FROM store_customers WHERE id=$1', [req.params.id]);
+        if (!custRes.rows.length) return res.status(404).json({ error: 'לקוח לא נמצא' });
+        const customer = custRes.rows[0];
+        if (!customer.family_group_id) return res.status(400).json({ error: 'לקוח לא מקושר למשפחת OneFlow' });
+        // Find the most recent open service call between this business and family
+        const scRes = await pool.query(
+            `SELECT id FROM service_calls WHERE business_group_id=$1 AND family_group_id=$2 AND status NOT IN ('done','cancelled') ORDER BY created_at DESC LIMIT 1`,
+            [businessGroupId, customer.family_group_id]);
+        if (scRes.rows.length) {
+            const callId = scRes.rows[0].id;
+            await pool.query(
+                `INSERT INTO service_call_messages (call_id, sender_type, sender_name, message, created_at) VALUES ($1,'business',$2,$3,NOW())`,
+                [callId, 'הצעת מחיר', quoteText]);
+        } else {
+            // Create a new service call for the quote
+            const newCall = await pool.query(
+                `INSERT INTO service_calls (business_group_id, family_group_id, title, description, status, priority, created_at)
+                 VALUES ($1,$2,$3,$4,'new','normal',NOW()) RETURNING id`,
+                [businessGroupId, customer.family_group_id, `הצעת מחיר ${quoteRef||''}`, quoteText]);
+            const callId = newCall.rows[0].id;
+            await pool.query(
+                `INSERT INTO service_call_messages (call_id, sender_type, sender_name, message, created_at) VALUES ($1,'business',$2,$3,NOW())`,
+                [callId, 'הצעת מחיר', quoteText]);
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
