@@ -1720,6 +1720,17 @@
                     <button onclick="saveUserPhone()" class="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition">שמור</button>
                 </div>
             </div>
+
+            <div class="bg-emerald-50 rounded-2xl p-4 mb-4 text-right border border-emerald-100">
+                <p class="text-xs font-bold text-emerald-700 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-location-dot"></i> כתובת המשפחה (לחיפוש בעלי מקצוע)</p>
+                <div class="flex gap-2 mb-2">
+                    <input type="text" id="family-city-input" placeholder="עיר" class="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 transition" dir="rtl">
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="family-address-input" placeholder="רחוב ומספר בית" class="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 transition" dir="rtl">
+                    <button onclick="saveFamilyAddress()" class="bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition">שמור</button>
+                </div>
+            </div>
             <form onsubmit="submitChangePassword(event)" class="space-y-3">
                 <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
                 <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">

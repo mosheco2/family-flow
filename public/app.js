@@ -2549,6 +2549,7 @@ async function openProfileModal() {
     getEl('old-password').value = '';
     getEl('new-password').value = '';
     getEl('profile-modal').classList.remove('hidden');
+    loadFamilyAddress();
     // Load phone
     try {
         const r = await fetch(`${API}/users/${currentUser.id}/phone`);
@@ -2568,6 +2569,29 @@ async function saveUserPhone() {
         if (data.success) showToast('success', 'מספר הטלפון נשמר!');
         else showToast('error', 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saveFamilyAddress() {
+    const city = (getEl('family-city-input')?.value || '').trim();
+    const streetAddress = (getEl('family-address-input')?.value || '').trim();
+    if (!city && !streetAddress) { showToast('error', 'יש למלא לפחות עיר או כתובת'); return; }
+    try {
+        const res = await fetch(`/api/groups/${currentGroup.id}/address`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ city, streetAddress })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הכתובת נשמרה!');
+            if (currentGroup) { currentGroup.city = city; currentGroup.street_address = streetAddress; }
+        } else showToast('error', 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function loadFamilyAddress() {
+    if (!currentGroup) return;
+    if (getEl('family-city-input')) getEl('family-city-input').value = currentGroup.city || '';
+    if (getEl('family-address-input')) getEl('family-address-input').value = currentGroup.street_address || '';
 }
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
@@ -7875,21 +7899,29 @@ window.searchBusinessForLink = async function(q) {
 
 window.linkTechToBusiness = async function(techId, bizGroupId, bizName, bizPhone) {
     try {
+        let newTech = null;
         if (!techId) {
             const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', phone: bizPhone || null, businessGroupId: bizGroupId }) });
             const d = await r.json();
             if (!d.success) throw new Error(d.error || 'שגיאת שרת');
+            newTech = d.technician;
         } else {
             const r = await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ businessGroupId: bizGroupId }) });
             const d = await r.json();
             if (!d.success) throw new Error(d.error || 'שגיאה בקישור');
+            newTech = d.technician;
+        }
+        // Immediately update local cache so contact appears even if fetchHMContacts is slow
+        if (newTech && typeof hmContacts !== 'undefined') {
+            hmContacts = [...(hmContacts||[]).filter(c => c.id !== newTech.id), newTech];
+            if (typeof renderHMContacts === 'function') renderHMContacts();
         }
         document.getElementById('hm-link-biz-modal')?.remove();
-        await fetchHMContacts();
         switchHomeMaintenanceTab('contacts');
         if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
+        fetchHMContacts(); // refresh in background without awaiting
     } catch(e) { console.error('linkTechToBusiness error:', e); if(typeof showToast==='function') showToast('error', e.message || 'שגיאה'); }
 };
 

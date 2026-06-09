@@ -7919,6 +7919,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto whitespace-nowrap shrink-0">
                 <button id="btn-cust-tab-details" onclick="window.switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים ומאזן</button>
                 <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
+                ${currentGroup?.business_type === 'maintenance_repair' ? `<button id="btn-cust-tab-calls" onclick="window.switchCustomerTab('calls')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">🔧 קריאות</button>` : ''}
             </div>
             
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
@@ -7943,7 +7944,12 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 </div>
                 <div id="cust-history-list" class="space-y-2 pb-2 flex-1 overflow-y-auto min-h-[100px] modal-scroll"></div>
             </div>
-            
+
+            ${currentGroup?.business_type === 'maintenance_repair' ? `
+            <div id="cust-view-calls" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
+                <div id="cust-calls-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
+            </div>` : ''}
+
             <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0">
                 <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                 <button id="btn-submit-customer" onclick="window.submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
@@ -7980,25 +7986,65 @@ window.openCustomerModal = function(id = null, tab = 'details') {
 window.switchCustomerTab = function(tab) {
     const btnDetails = document.getElementById('btn-cust-tab-details');
     const btnHistory = document.getElementById('btn-cust-tab-history');
+    const btnCalls = document.getElementById('btn-cust-tab-calls');
     const viewDetails = document.getElementById('cust-view-details');
     const viewHistory = document.getElementById('cust-view-history');
-    
+    const viewCalls = document.getElementById('cust-view-calls');
+
     if (!viewDetails || !viewHistory) return;
 
+    const activeClass = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const inactiveClass = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+
     if (tab === 'details') {
-        if(btnDetails) btnDetails.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        if(btnHistory) btnHistory.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        if(btnDetails) btnDetails.className = activeClass;
+        if(btnHistory) btnHistory.className = inactiveClass;
+        if(btnCalls) btnCalls.className = inactiveClass;
         viewDetails.classList.remove('hidden');
         viewHistory.classList.add('hidden');
+        if(viewCalls) viewCalls.classList.add('hidden');
+    } else if (tab === 'calls') {
+        if(btnCalls) btnCalls.className = activeClass;
+        if(btnDetails) btnDetails.className = inactiveClass;
+        if(btnHistory) btnHistory.className = inactiveClass;
+        viewDetails.classList.add('hidden');
+        viewHistory.classList.add('hidden');
+        if(viewCalls) viewCalls.classList.remove('hidden');
+        const custName = document.getElementById('cust-name')?.value?.trim();
+        window.loadCustomerServiceCalls(custName);
     } else {
-        if(btnHistory) btnHistory.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        if(btnDetails) btnDetails.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        if(btnHistory) btnHistory.className = activeClass;
+        if(btnDetails) btnDetails.className = inactiveClass;
+        if(btnCalls) btnCalls.className = inactiveClass;
         viewDetails.classList.add('hidden');
         viewHistory.classList.remove('hidden');
+        if(viewCalls) viewCalls.classList.add('hidden');
         if (typeof window.renderCustomerHistory === 'function') {
             window.renderCustomerHistory(false, 'modal');
         }
     }
+};
+
+window.loadCustomerServiceCalls = async function(customerName) {
+    const listEl = document.getElementById('cust-calls-list');
+    if (!listEl || currentGroup?.business_type !== 'maintenance_repair') return;
+    listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">טוען...</p>';
+    try {
+        const r = await fetch(`/api/service-calls/by-customer/${currentGroup.id}?name=${encodeURIComponent(customerName||'')}`);
+        const d = await r.json();
+        const calls = d.calls || [];
+        if (!calls.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין קריאות שירות ללקוח זה</p>'; return; }
+        listEl.innerHTML = calls.map(c => `<div onclick="showServiceCallModal(${c.id})" class="bg-white border border-slate-100 rounded-xl p-3 cursor-pointer active:bg-slate-50 transition" style="touch-action:manipulation;">
+            <div class="flex items-center gap-2">
+                <span class="text-sm shrink-0">${c.status==='done'?'✅':c.priority==='urgent'?'🚨':'🔧'}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    <div class="text-[10px] text-slate-400">${new Date(c.created_at).toLocaleDateString('he-IL')} · <span class="font-bold">${SC_STATUS_LABELS[c.status]||c.status}</span></div>
+                </div>
+                ${c.price_quote ? `<span class="text-[10px] font-black text-indigo-600">₪${parseFloat(c.price_quote).toFixed(0)}</span>` : ''}
+            </div>
+        </div>`).join('');
+    } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
 };
 
 window.generateStoreAliasLink = function() {
@@ -24252,14 +24298,17 @@ window.showMaintenanceReports = async function(memberId) {
 
 // ─── SERVICE CALL MODAL ──────────────────────────────────────────────────────
 window.showServiceCallModal = async function(callId) {
-    let call = null, messages = [], members = [];
+    let call = null, messages = [], members = [], notes = [];
     try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); call = (d.calls||[]).find(c => c.id === callId); } catch(e) {}
     if (!call) return;
     try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/${callId}/notes`); const d = await r.json(); notes = d.notes||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.employee_role_type === 'field_tech'); } catch(e) {}
 
     document.getElementById('sc-modal')?.remove();
 
+    const isMgr = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
+    const isFieldTech = currentUser?.employee_role_type === 'field_tech';
     const statusOptions = Object.entries(SC_STATUS_LABELS).filter(([k]) => k !== 'cancelled').map(([k,v]) =>
         `<option value="${k}" ${call.status===k?'selected':''}>${v}</option>`).join('');
     const memberOptions = `<option value="">ללא שיוך</option>` + members.map(m =>
@@ -24270,10 +24319,18 @@ window.showServiceCallModal = async function(callId) {
             ${safeStr(m.message)}
         </div>
     </div>`).join('');
+    const notesHtml = notes.map(n => `<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs mb-1.5">
+        <div class="font-bold text-[10px] text-amber-600 mb-0.5">${safeStr(n.author_name)} · ${new Date(n.created_at).toLocaleDateString('he-IL')}</div>
+        <div class="text-slate-700">${safeStr(n.note)}</div>
+    </div>`).join('');
+
+    const scheduledVal = call.scheduled_at ? new Date(call.scheduled_at).toISOString().slice(0,16) : '';
+    const phone = call.customer_phone || '';
+    const wazeUrl = call.address ? `https://waze.com/ul?q=${encodeURIComponent(call.address)}&navigate=yes` : '';
 
     const html = `<div id="sc-modal" class="fixed inset-0 bg-white z-[9995] flex flex-col" style="direction:rtl;">
         <div class="flex items-center gap-3 px-4 py-3 bg-orange-600 text-white shrink-0">
-            <button onclick="document.getElementById('sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="document.getElementById('sc-modal').remove();if(window._scChatInterval)clearInterval(window._scChatInterval);" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex-1 min-w-0">
                 <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
                 <div class="text-[10px] opacity-80">${call.family_name ? safeStr(call.family_name) : ''}</div>
@@ -24281,43 +24338,70 @@ window.showServiceCallModal = async function(callId) {
             <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS[call.status]||call.status}</span>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
+
             <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
                 ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
-                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-orange-400"></i>${safeStr(call.address)}</p>` : ''}
-                <div class="flex gap-2 flex-wrap mt-2">
+                ${call.address ? `<div class="flex items-center gap-2 mt-1">
+                    <i class="fa-solid fa-location-dot text-orange-400 shrink-0"></i>
+                    <span class="text-xs text-slate-500 flex-1">${safeStr(call.address)}</span>
+                    ${wazeUrl ? `<a href="${wazeUrl}" target="_blank" class="shrink-0 flex items-center gap-1 text-[10px] font-black bg-blue-600 text-white px-2 py-1 rounded-lg" style="touch-action:manipulation;"><i class="fa-brands fa-waze"></i> Waze</a>` : ''}
+                </div>` : ''}
+                ${phone ? `<div class="flex items-center gap-2 mt-1">
+                    <i class="fa-solid fa-phone text-emerald-500 shrink-0 text-xs"></i>
+                    <span class="text-xs text-slate-600 flex-1">${safeStr(phone)}</span>
+                    <a href="tel:${safeStr(phone)}" class="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200" style="touch-action:manipulation;"><i class="fa-solid fa-phone"></i> התקשר</a>
+                    <a href="https://wa.me/${phone.replace(/\D/g,'')}" target="_blank" class="text-[10px] font-black bg-green-100 text-green-700 px-2 py-1 rounded-lg border border-green-200" style="touch-action:manipulation;"><i class="fa-brands fa-whatsapp"></i> וואצאפ</a>
+                </div>` : ''}
+                <div class="flex gap-2 flex-wrap mt-1">
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${SC_PRIORITY_COLORS[call.priority]||''}">${SC_PRIORITY_LABELS[call.priority]||''}</span>
                     <span class="text-[10px] text-slate-400">${new Date(call.created_at).toLocaleDateString('he-IL')}</span>
+                    ${call.scheduled_at ? `<span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">📅 ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
                 </div>
             </div>
+
+            ${isMgr ? `<div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">סטטוס</label>
+                    <select id="sc-status-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${statusOptions}</select></div>
+                <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">שיוך לטכנאי</label>
+                    <select id="sc-member-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${memberOptions}</select></div>
+            </div>` : isFieldTech ? `<div class="grid grid-cols-2 gap-2">
+                <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">סטטוס</label>
+                    <select id="sc-status-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${statusOptions}</select></div>
+                <div class="flex items-end"><button onclick="returnCallToManager(${callId})" class="w-full bg-slate-100 text-slate-700 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold active:scale-95 transition" style="touch-action:manipulation;">↩ החזר למנהל</button></div>
+            </div>` : ''}
+
             <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-[10px] font-bold text-slate-500 mb-1 block">סטטוס</label>
-                    <select id="sc-status-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${statusOptions}</select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-slate-500 mb-1 block">שיוך לטכנאי</label>
-                    <select id="sc-member-${callId}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs">${memberOptions}</select>
+                <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">📅 תזמון</label>
+                    <input type="datetime-local" id="sc-scheduled-${callId}" value="${scheduledVal}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs"></div>
+                <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">הצעת מחיר ₪</label>
+                    <input type="number" id="sc-quote-${callId}" placeholder="₪" value="${call.price_quote||''}" class="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs"></div>
+            </div>
+            <button onclick="saveServiceCallUpdates(${callId})" class="w-full bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black active:scale-95 transition shadow-sm">שמור עדכון</button>
+
+            <div class="bg-amber-50 rounded-2xl p-3 border border-amber-100">
+                <div class="text-[10px] font-bold text-amber-700 mb-2">📝 יומן טיפול</div>
+                <div id="sc-notes-${callId}" class="mb-2 max-h-32 overflow-y-auto">${notesHtml || '<p class="text-center text-slate-400 text-xs py-2">אין הערות עדיין</p>'}</div>
+                <div class="flex gap-2">
+                    <input type="text" id="sc-note-input-${callId}" placeholder="הוסף הערת טיפול..." class="flex-1 border border-amber-200 rounded-xl px-3 py-2 text-xs bg-white">
+                    <button onclick="addServiceCallNote(${callId})" class="bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-plus"></i></button>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <input type="number" id="sc-quote-${callId}" placeholder="הצעת מחיר ₪" value="${call.price_quote||''}" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
-                <button onclick="saveServiceCallUpdates(${callId})" class="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-black active:scale-95 transition">שמור</button>
-            </div>
+
             <div class="bg-slate-50 rounded-2xl p-3">
                 <div class="text-[10px] font-bold text-slate-500 mb-2">💬 צ׳אט עם הלקוח</div>
-                <div id="sc-chat-${callId}" class="min-h-[80px] max-h-48 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
+                <div id="sc-chat-${callId}" class="min-h-[60px] max-h-40 overflow-y-auto mb-2">${msgHtml || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>'}</div>
                 <div class="flex gap-2">
                     <input type="text" id="sc-msg-${callId}" placeholder="כתוב הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-xs">
                     <button onclick="sendServiceCallMessage(${callId},'business')" class="bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
+
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
             <button onclick="createCustomerFromCall(${callId})" class="w-full bg-slate-100 text-slate-700 rounded-2xl py-2.5 font-bold text-sm active:scale-95 transition mt-1">💾 שמור כלקוח</button>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 
-    // Chat polling every 10s
     if (window._scChatInterval) clearInterval(window._scChatInterval);
     window._scChatInterval = setInterval(async () => {
         const chatEl = document.getElementById(`sc-chat-${callId}`);
@@ -24335,11 +24419,44 @@ window.saveServiceCallUpdates = async function(callId) {
     const status = document.getElementById(`sc-status-${callId}`)?.value;
     const assignedMemberId = document.getElementById(`sc-member-${callId}`)?.value || null;
     const priceQuote = document.getElementById(`sc-quote-${callId}`)?.value || null;
+    const scheduledAt = document.getElementById(`sc-scheduled-${callId}`)?.value || null;
     try {
         await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null }) });
+            body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null }) });
         showToast('success', 'עודכן בהצלחה');
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window.returnCallToManager = async function(callId) {
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ assignedMemberId: null, status: 'seen' }) });
+        showToast('info', 'הקריאה הוחזרה למנהל');
+        document.getElementById('sc-modal')?.remove();
+        if(window._scChatInterval) clearInterval(window._scChatInterval);
+        const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
+        if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+window.addServiceCallNote = async function(callId) {
+    const input = document.getElementById(`sc-note-input-${callId}`);
+    const note = input?.value?.trim();
+    if (!note) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/notes`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ authorName: currentUser?.nickname || 'טכנאי', note }) });
+        const r = await fetch(`/api/service-calls/${callId}/notes`);
+        const d = await r.json();
+        const notesEl = document.getElementById(`sc-notes-${callId}`);
+        if (notesEl) {
+            notesEl.innerHTML = (d.notes||[]).map(n => `<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs mb-1.5">
+                <div class="font-bold text-[10px] text-amber-600 mb-0.5">${safeStr(n.author_name)} · ${new Date(n.created_at).toLocaleDateString('he-IL')}</div>
+                <div class="text-slate-700">${safeStr(n.note)}</div>
+            </div>`).join('') || '<p class="text-center text-slate-400 text-xs py-2">אין הערות עדיין</p>';
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירת הערה'); }
 };
 
 window.sendServiceCallMessage = async function(callId, senderType) {
@@ -24512,9 +24629,9 @@ window.submitNewServiceCall = async function() {
 };
 
 window.showAllServiceCalls = async function(filterStatus) {
-    let calls = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
-    if (filterStatus) calls = calls.filter(c => filterStatus === 'urgent' ? c.priority === 'urgent' : c.status === filterStatus);
+    let allCalls = [];
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); allCalls = d.calls||[]; } catch(e) {}
+    let calls = filterStatus ? allCalls.filter(c => filterStatus === 'urgent' ? c.priority === 'urgent' : c.status === filterStatus) : allCalls;
 
     document.getElementById('sc-all-modal')?.remove();
     const html = `<div id="sc-all-modal" class="fixed inset-0 bg-white z-[9994] flex flex-col" style="direction:rtl;">
@@ -24523,14 +24640,37 @@ window.showAllServiceCalls = async function(filterStatus) {
             <h2 class="font-black text-base flex-1">כל קריאות השירות</h2>
             <button onclick="showNewServiceCallModal()" class="text-sm bg-white/20 px-3 py-1 rounded-lg font-bold">+ חדשה</button>
         </div>
-        <div class="flex gap-2 px-3 py-2 bg-slate-50 border-b border-slate-200 overflow-x-auto shrink-0" style="scrollbar-width:none;">
-            ${['','new','in_progress','pending_parts','done'].map(s => `<button onclick="filterSCAll('${s}')" id="sc-filter-${s}" class="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${!s?'bg-slate-800 text-white border-slate-800':'bg-white text-slate-600 border-slate-200'}">${s?SC_STATUS_LABELS[s]||s:'הכל'}</button>`).join('')}
+        <div class="px-3 pt-2 bg-slate-50 border-b border-slate-200 shrink-0">
+            <div class="relative mb-2">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="sc-all-search" oninput="filterSCAllSearch()" placeholder="חיפוש לפי כותרת, לקוח, כתובת, טכנאי..." class="w-full border border-slate-200 rounded-xl pr-8 pl-3 py-2 text-xs bg-white outline-none focus:ring-2 focus:ring-slate-300">
+            </div>
+            <div class="flex gap-2 overflow-x-auto pb-2" style="scrollbar-width:none;">
+                ${['','new','in_progress','pending_parts','done'].map(s => `<button onclick="filterSCAll('${s}')" id="sc-filter-${s}" class="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${!filterStatus&&!s||filterStatus===s?'bg-slate-800 text-white border-slate-800':'bg-white text-slate-600 border-slate-200'}">${s?SC_STATUS_LABELS[s]||s:'הכל'}</button>`).join('')}
+            </div>
         </div>
         <div id="sc-all-list" class="flex-1 overflow-y-auto p-3 space-y-2">
             ${calls.length ? calls.map(c => scCallCard(c)).join('') : '<p class="text-center text-slate-400 text-sm py-10">אין קריאות</p>'}
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    window._scAllCalls = allCalls;
+};
+
+window.filterSCAllSearch = function() {
+    const q = document.getElementById('sc-all-search')?.value?.toLowerCase().trim() || '';
+    const list = document.getElementById('sc-all-list');
+    if (!list) return;
+    const filtered = (window._scAllCalls||[]).filter(c =>
+        !q ||
+        (c.title||'').toLowerCase().includes(q) ||
+        (c.family_name||'').toLowerCase().includes(q) ||
+        (c.address||'').toLowerCase().includes(q) ||
+        (c.assigned_member_name||'').toLowerCase().includes(q) ||
+        (c.customer_phone||'').includes(q) ||
+        (c.description||'').toLowerCase().includes(q)
+    );
+    list.innerHTML = filtered.length ? filtered.map(c => scCallCard(c)).join('') : '<p class="text-center text-slate-400 text-sm py-10">לא נמצאו קריאות</p>';
 };
 
 window.filterSCAll = async function(status) {

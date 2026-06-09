@@ -600,6 +600,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS service_call_notes (id SERIAL PRIMARY KEY, call_id INT REFERENCES service_calls(id) ON DELETE CASCADE, author_name VARCHAR(100), note TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       client.release();
@@ -8426,6 +8430,16 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
     } catch(e) { res.redirect('/campaign.html?t=' + req.params.token); }
 });
 
+// Save family/group address
+app.put('/api/groups/:id/address', async (req, res) => {
+    try {
+        const { streetAddress, city } = req.body;
+        await pool.query('UPDATE family_groups SET street_address=$1, city=$2 WHERE id=$3',
+            [streetAddress || null, city || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Members by groupId path param (used by role dashboards for tech assignment)
 app.get('/api/members/:groupId', async (req, res) => {
     try {
@@ -8511,10 +8525,14 @@ app.get('/api/groups/search-all', async (req, res) => {
         if (!q || q.length < 2) return res.json({ groups: [] });
         const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
-            `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone
+            `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone,
+                    fg.street_address, fg.city
              FROM family_groups fg
              LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
-             WHERE (LOWER(fg.name) LIKE LOWER($1) OR (LENGTH($2) >= 7 AND u.phone LIKE $3))
+             WHERE (LOWER(fg.name) LIKE LOWER($1)
+                OR (LENGTH($2) >= 7 AND u.phone LIKE $3)
+                OR LOWER(COALESCE(fg.city,'')) LIKE LOWER($1)
+                OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1))
              LIMIT 15`,
             [`%${q}%`, phoneQ, `%${phoneQ}%`]);
         res.json({ groups: result.rows });
@@ -8525,7 +8543,7 @@ app.get('/api/groups/search-all', async (req, res) => {
 
 app.post('/api/service-calls', async (req, res) => {
     try {
-        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, priority, createdByUserId, assignedMemberId, needsTriage, familyName } = req.body;
+        const { familyGroupId, businessGroupId, technicianContactId, title, description, address, customerPhone, priority, createdByUserId, assignedMemberId, needsTriage, familyName, scheduledAt } = req.body;
         if (!familyGroupId || !title) return res.status(400).json({ error: 'שדות חסרים' });
         let fullDesc = description || null;
         if (familyName && !fullDesc?.includes(familyName)) {
@@ -8533,9 +8551,9 @@ app.post('/api/service-calls', async (req, res) => {
         }
         const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
         const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, priority, created_by_user_id, assigned_member_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, priority||'normal', createdByUserId||null, resolvedMemberId]);
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, priority, created_by_user_id, assigned_member_id, scheduled_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null]);
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8629,6 +8647,42 @@ app.post('/api/service-calls/:id/messages', async (req, res) => {
             'INSERT INTO service_call_messages (call_id, sender_type, sender_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.id, senderType, senderName||null, message]);
         res.json({ success: true, message: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/service-calls/:id/notes', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM service_call_notes WHERE call_id=$1 ORDER BY created_at ASC', [req.params.id]);
+        res.json({ success: true, notes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/service-calls/:id/notes', async (req, res) => {
+    try {
+        const { authorName, note } = req.body;
+        if (!note) return res.status(400).json({ error: 'הערה ריקה' });
+        const result = await pool.query(
+            'INSERT INTO service_call_notes (call_id, author_name, note) VALUES ($1,$2,$3) RETURNING *',
+            [req.params.id, authorName || 'טכנאי', note]);
+        res.json({ success: true, note: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Service calls by customer name (for customer history tab)
+app.get('/api/service-calls/by-customer/:businessGroupId', async (req, res) => {
+    try {
+        const { name } = req.query;
+        if (!name) return res.json({ success: true, calls: [] });
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             WHERE sc.business_group_id=$1
+               AND (LOWER(fg.name) LIKE LOWER($2) OR LOWER(sc.description) LIKE LOWER($2))
+             ORDER BY sc.created_at DESC LIMIT 20`,
+            [req.params.businessGroupId, `%${name}%`]);
+        res.json({ success: true, calls: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -8932,6 +8986,22 @@ app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
                     [groupId, 'equipment_maintenance', n.message, n.refKey]);
                 created++;
             }
+        }
+        // Also check service calls scheduled for tomorrow
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const scheduledCalls = await pool.query(
+            `SELECT id, title FROM service_calls
+             WHERE family_group_id IN (SELECT id FROM family_groups WHERE community_id IN (SELECT community_id FROM family_groups WHERE id=$1))
+                OR business_group_id=$1
+             AND scheduled_at IS NOT NULL AND DATE(scheduled_at)=$2 AND status NOT IN ('done','cancelled')`,
+            [groupId, tomorrow.toISOString().split('T')[0]]);
+        for (const sc of scheduledCalls.rows) {
+            const refKey = `sc_scheduled_${sc.id}_${tomorrow.toISOString().split('T')[0]}`;
+            const exists2 = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (exists2.rows.length > 0) continue;
+            await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                [groupId, 'service_call_scheduled', `📅 קריאת שירות מחר: "${sc.title}"`, refKey]);
+            created++;
         }
         res.json({ success: true, created });
     } catch(e) { res.status(500).json({ error: e.message }); }
