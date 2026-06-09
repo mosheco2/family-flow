@@ -523,6 +523,44 @@ async function fetchMyOrders() {
 window._myOrdersPage = window._myOrdersPage || 0;
 window._myOrdersFilter = window._myOrdersFilter || 'orders';
 window._myOrdersSearch = window._myOrdersSearch || '';
+window._ordersFilter = window._ordersFilter || { search: '', period: 'all', sort: 'desc' };
+window._scTypeFilter = window._scTypeFilter || 'all';
+
+function _renderOrderItems(items) {
+    let arr = items;
+    if (!arr) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return `<span class="text-slate-500 text-[11px]">${safeStr(arr)}</span>`; } }
+    if (!Array.isArray(arr)) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    const visible = arr.filter(i => !i.is_quote_metadata && (i.name || i.item_name));
+    if (!visible.length) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
+    return visible.map(i => {
+        const name = i.name || i.item_name || '';
+        const qty = parseFloat(i.quantity || i.qty || 1);
+        const price = parseFloat(i.price || i.price_per_unit || 0);
+        const lineTotal = qty * price;
+        return `<div class="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 gap-2">
+            <span class="text-slate-700 text-[11px] flex-1 min-w-0">${safeStr(name)}</span>
+            <span class="text-slate-400 text-[10px] shrink-0 dir-ltr">×${qty}${lineTotal > 0 ? ' · ₪' + lineTotal.toFixed(0) : ''}</span>
+        </div>`;
+    }).join('');
+}
+
+function applyOrdersFilter(orders) {
+    const f = window._ordersFilter;
+    let result = [...orders];
+    if (f.search) {
+        const q = f.search.toLowerCase();
+        result = result.filter(o => (o.store_name||'').toLowerCase().includes(q) || (o.customer_name||'').toLowerCase().includes(q) || (o.notes||'').toLowerCase().includes(q));
+    }
+    if (f.period !== 'all') {
+        const now = Date.now();
+        const ms = { week: 7*864e5, month: 30*864e5, quarter: 90*864e5 }[f.period] || 0;
+        if (ms) result = result.filter(o => now - new Date(o.created_at).getTime() <= ms);
+    }
+    if (f.sort === 'asc') result.sort((a,b) => new Date(a.created_at)-new Date(b.created_at));
+    else result.sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+    return result;
+}
 function switchMyOrdersTab(tab) {
     ['orders','faults'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
@@ -587,26 +625,41 @@ function renderMyOrders() {
     const list = getEl('my-orders-list');
     if (!list) return;
 
-    if (!myOrdersCache.length) {
+    // עדכון פאנל סינון
+    const filterEl = getEl('orders-filter-panel');
+    if (filterEl) {
+        const f = window._ordersFilter;
+        filterEl.querySelector('#orders-search-input').value = f.search || '';
+        ['all','week','month','quarter'].forEach(p => {
+            const btn = filterEl.querySelector(`[data-period="${p}"]`);
+            if (btn) btn.className = `text-[10px] px-2.5 py-1 rounded-lg font-bold transition ${p === f.period ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
+        });
+        const sortBtn = filterEl.querySelector('#orders-sort-btn');
+        if (sortBtn) sortBtn.innerHTML = f.sort === 'asc' ? '<i class="fa-solid fa-arrow-up-short-wide ml-1"></i>ישן→חדש' : '<i class="fa-solid fa-arrow-down-wide-short ml-1"></i>חדש→ישן';
+    }
+
+    const filtered = applyOrdersFilter(myOrdersCache);
+
+    if (!filtered.length) {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
             <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
-            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
-            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
+            <p class="text-sm font-bold text-slate-500">${myOrdersCache.length ? 'אין הזמנות התואמות את הסינון.' : 'אין לכם הזמנות מעסקים מקומיים.'}</p>
+            <p class="text-xs text-slate-400 mt-1">${myOrdersCache.length ? 'נסו לשנות את הסינון.' : 'כנסו לקהילה והתחילו להנות ממשלוחים והטבות!'}</p>
         </div>`;
         return;
     }
 
     let html = '';
-    myOrdersCache.forEach(o => {
-        let statusColor = '', statusText = '', progressPct = 0, statusIcon = '';
+    filtered.forEach(o => {
+        let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
-            case 'quote':   statusColor='border-slate-300 bg-slate-100'; statusText=o.quote_status==='approved'?'הצעת מחיר אושרה':'הצעת מחיר'; progressPct=10; statusIcon='fa-file-invoice'; break;
-            case 'new':     statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; progressPct=25; statusIcon='fa-clock'; break;
-            case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; progressPct=50; statusIcon='fa-box'; break;
-            case 'ready':   statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; progressPct=75; statusIcon='fa-bag-shopping'; break;
-            case 'shipped': statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; progressPct=90; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
-            case 'completed': statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; progressPct=100; statusIcon='fa-check-double'; break;
-            default: statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; progressPct=10; statusIcon='fa-spinner fa-spin';
+            case 'quote':      statusColor='border-slate-300 bg-slate-100'; statusText=o.quote_status==='approved'?'הצעת מחיר אושרה':'הצעת מחיר'; statusIcon='fa-file-invoice'; break;
+            case 'new':        statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; statusIcon='fa-clock'; break;
+            case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; statusIcon='fa-box'; break;
+            case 'ready':      statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; statusIcon='fa-bag-shopping'; break;
+            case 'shipped':    statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
+            case 'completed':  statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; statusIcon='fa-check-double'; break;
+            default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-spinner fa-spin';
         }
         const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         const borderCls = statusColor.split(' ')[0];
@@ -617,19 +670,36 @@ function renderMyOrders() {
                     <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
                 </div>
                 <div class="flex flex-col items-end shrink-0">
-                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(0)}</span>
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
                     <span class="text-[9px] text-slate-400 font-mono">#${o.id}</span>
                 </div>
             </div>
             <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
                 <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(typeof o.items_json==='object'&&o.items_json!==null?JSON.stringify(o.items_json,null,2):o.items_json||o.items||'ללא פרטים')}</div>
+                    ${_renderOrderItems(o.items)}
                     ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
                 </div>
             </div>
         </div>`;
     });
     list.innerHTML = html;
+}
+
+function setOrdersSearch(val) {
+    window._ordersFilter.search = val;
+    renderMyOrders();
+}
+function setOrdersPeriod(p) {
+    window._ordersFilter.period = p;
+    renderMyOrders();
+}
+function toggleOrdersSort() {
+    window._ordersFilter.sort = window._ordersFilter.sort === 'desc' ? 'asc' : 'desc';
+    renderMyOrders();
+}
+function setScTypeFilter(t) {
+    window._scTypeFilter = t;
+    renderBusinessServiceCallsTab();
 }
 
 function updateBatteryUI() {
@@ -7718,13 +7788,21 @@ function renderBusinessServiceCallsTab() {
     const ST_COLOR = { new:'border-blue-400', seen:'border-indigo-400', in_progress:'border-amber-400', pending_parts:'border-purple-400', done:'border-green-400', cancelled:'border-slate-300' };
     const ST_BG   = { new:'bg-blue-50', seen:'bg-indigo-50', in_progress:'bg-amber-50', pending_parts:'bg-purple-50', done:'bg-green-50', cancelled:'bg-slate-50' };
     const ST_TEXT = { new:'text-blue-700', seen:'text-indigo-700', in_progress:'text-amber-700', pending_parts:'text-purple-700', done:'text-green-700', cancelled:'text-slate-500' };
-    const active = (familyServiceCalls || []).filter(c => c.status !== 'cancelled');
-    const openFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    const typeFilter = window._scTypeFilter || 'all';
+    // עדכן כפתורי סינון
+    ['all','external','internal'].forEach(t => {
+        const btn = getEl(`sc-type-filter-${t}`);
+        if (btn) btn.className = `text-[10px] px-2.5 py-1 rounded-lg font-bold transition ${t === typeFilter ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'}`;
+    });
+    const allActive = (familyServiceCalls || []).filter(c => c.status !== 'cancelled');
+    const allFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    const active = typeFilter === 'internal' ? [] : allActive;
+    const openFaults = typeFilter === 'external' ? [] : allFaults;
     if (!active.length && !openFaults.length) {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
             <i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2 block"></i>
-            <p class="text-sm font-bold text-slate-500">אין קריאות שירות פעילות</p>
-            <p class="text-xs text-slate-400 mt-1">לפתיחת קריאה — כנסו לאיש קשר ובחרו "קריאת שירות"</p>
+            <p class="text-sm font-bold text-slate-500">${(allActive.length || allFaults.length) ? 'אין קריאות התואמות את הסינון.' : 'אין קריאות שירות פעילות'}</p>
+            <p class="text-xs text-slate-400 mt-1">${(allActive.length || allFaults.length) ? '' : 'לפתיחת קריאה — כנסו לאיש קשר ובחרו "קריאת שירות"'}</p>
         </div>`;
         return;
     }

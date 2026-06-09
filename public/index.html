@@ -441,7 +441,7 @@
 
                 <div class="px-2 w-full">
 
-                    <div id="content-myorders" class="hidden">
+                    <div id="content-myorders" class="hidden pt-2">
                         <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-4 text-white shadow-md mb-3 relative overflow-hidden">
                             <h3 class="text-lg font-bold mb-0.5 flex items-center gap-2"><i class="fa-solid fa-motorcycle"></i> הזמנות וקריאות שירות</h3>
                             <p class="text-blue-100 text-xs opacity-90">מעקב הזמנות מעסקים וקריאות שירות פתוחות</p>
@@ -460,6 +460,23 @@
                                 <h3 class="font-bold text-slate-700 text-sm">הזמנות אחרונות</h3>
                                 <button onclick="if(typeof fetchMyOrders === 'function') fetchMyOrders()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
                             </div>
+                            <!-- פאנל סינון הזמנות -->
+                            <div id="orders-filter-panel" class="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 mb-2 space-y-2">
+                                <div class="flex gap-2 items-center">
+                                    <div class="flex-1 flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5">
+                                        <i class="fa-solid fa-magnifying-glass text-slate-300 text-[10px]"></i>
+                                        <input id="orders-search-input" type="text" placeholder="חיפוש לפי שם עסק..." class="flex-1 text-xs bg-transparent outline-none text-slate-700 placeholder-slate-300" oninput="setOrdersSearch(this.value)" style="min-width:0;" />
+                                    </div>
+                                    <button id="orders-sort-btn" onclick="toggleOrdersSort()" class="text-[10px] font-bold bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-500 shrink-0 whitespace-nowrap" style="touch-action:manipulation;"><i class="fa-solid fa-arrow-down-wide-short ml-1"></i>חדש→ישן</button>
+                                </div>
+                                <div class="flex gap-1.5 flex-wrap">
+                                    <span class="text-[10px] text-slate-400 font-bold self-center ml-1">תקופה:</span>
+                                    <button data-period="all" onclick="setOrdersPeriod('all')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-blue-500 text-white" style="touch-action:manipulation;">הכל</button>
+                                    <button data-period="week" onclick="setOrdersPeriod('week')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-slate-100 text-slate-500" style="touch-action:manipulation;">שבוע</button>
+                                    <button data-period="month" onclick="setOrdersPeriod('month')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-slate-100 text-slate-500" style="touch-action:manipulation;">חודש</button>
+                                    <button data-period="quarter" onclick="setOrdersPeriod('quarter')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-slate-100 text-slate-500" style="touch-action:manipulation;">3 חודשים</button>
+                                </div>
+                            </div>
                             <div id="my-orders-list" class="space-y-2 pb-4 px-1 min-h-[200px]">
                                 <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים...</p>
                             </div>
@@ -470,6 +487,13 @@
                             <div class="flex justify-between items-center mb-1.5 px-1">
                                 <h3 class="font-bold text-slate-700 text-sm">קריאות שירות פתוחות</h3>
                                 <button onclick="if(typeof loadFamilyServiceCalls === 'function') loadFamilyServiceCalls()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <!-- סינון סוג קריאה -->
+                            <div class="flex gap-1.5 mb-2 px-1 flex-wrap">
+                                <span class="text-[10px] text-slate-400 font-bold self-center ml-1">סוג:</span>
+                                <button id="sc-type-filter-all" onclick="setScTypeFilter('all')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-indigo-500 text-white" style="touch-action:manipulation;">הכל</button>
+                                <button id="sc-type-filter-external" onclick="setScTypeFilter('external')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-slate-100 text-slate-500" style="touch-action:manipulation;">🏢 מעסק</button>
+                                <button id="sc-type-filter-internal" onclick="setScTypeFilter('internal')" class="text-[10px] px-2.5 py-1 rounded-lg font-bold transition bg-slate-100 text-slate-500" style="touch-action:manipulation;">🏠 פנימיות</button>
                             </div>
                             <div id="my-service-calls-list" class="space-y-2 px-1 min-h-[200px]">
                                 <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קריאות...</p>
