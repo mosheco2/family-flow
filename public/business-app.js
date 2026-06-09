@@ -3476,15 +3476,27 @@ function updateGroupNavActiveState(tabId) {
 
 function updateGroupNavVisibility() {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
+    let userTabs = [];
+    if (isEmployee) {
+        try {
+            const perms = typeof currentUser?.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser?.permissions || {});
+            userTabs = perms.tabs || ROLE_DEFAULTS[currentUser?.role] || ROLE_DEFAULTS['MEMBER'];
+        } catch(e) { userTabs = ROLE_DEFAULTS[currentUser?.role] || ROLE_DEFAULTS['MEMBER']; }
+        if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
+            ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userTabs.includes(t)) userTabs.push(t); });
+        }
+    }
     Object.entries(GNAV_GROUPS).forEach(([g, tabs]) => {
         const groupEl = document.getElementById(`gnav-group-${g}`);
         if (!groupEl) return;
-        // עובדים לא רואים כספים ומלאי
+        // עובדים לא רואים כספים ומלאי אלא אם יש להם הרשאה מפורשת לאחד הטאבים
         if (isEmployee && (g === 'finance' || g === 'inventory')) {
-            groupEl.style.display = 'none';
-            return;
+            const hasPermittedTab = tabs.some(id => userTabs.includes(id));
+            if (!hasPermittedTab) { groupEl.style.display = 'none'; return; }
         }
         const hasVisible = tabs.some(id => {
+            const dropBtn = document.getElementById(`gdrop-${id}`);
+            if (dropBtn) return !dropBtn.classList.contains('tab-perm-locked');
             const btn = document.getElementById(`tab-${id}`);
             return btn && btn.style.display !== 'none';
         });
@@ -24697,6 +24709,23 @@ window.showServiceCallModal = async function(callId) {
     const contactName = call.customer_name || call.creator_nickname || call.creator_full_name || '';
     const familyLabel = call.family_name || '';
 
+    // מוצרי הזמנת רכש מקושרת
+    let linkedPoItemsHtml = '';
+    if (call.parts_status) {
+        try {
+            const linkedPO = (window.b2bOrdersHistory || []).find(o => String(o.service_call_id) === String(callId));
+            if (linkedPO) {
+                const items = typeof linkedPO.items === 'string' ? JSON.parse(linkedPO.items) : (linkedPO.items || []);
+                if (items.length) {
+                    linkedPoItemsHtml = `<div class="bg-white rounded-xl px-3 py-2 mt-2 border border-purple-100">
+                        <div class="text-[9px] font-bold text-purple-600 mb-1.5">מוצרים שהוזמנו (הזמנה #${linkedPO.id}):</div>
+                        ${items.map(it => `<div class="flex justify-between text-xs text-slate-700 py-0.5 border-b border-slate-50 last:border-0"><span class="truncate">${safeStr(it.name)}</span><span class="font-bold text-slate-500 shrink-0 mr-2">×${it.quantity} ${safeStr(it.unit||'')}</span></div>`).join('')}
+                    </div>`;
+                }
+            }
+        } catch(e) {}
+    }
+
     const html = `<div id="sc-modal" class="fixed inset-0 bg-white z-[9995] flex flex-col" style="direction:rtl;">
         <div class="flex items-center gap-3 px-4 py-3 bg-orange-600 text-white shrink-0">
             <button onclick="document.getElementById('sc-modal').remove();if(window._scChatInterval)clearInterval(window._scChatInterval);" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
@@ -24775,6 +24804,7 @@ window.showServiceCallModal = async function(callId) {
                 <div class="text-[10px] font-bold text-purple-700 mb-2">📦 סטטוס חלקים</div>
                 ${call.parts_status === 'waiting_delivery' ? `<div class="flex items-center gap-2 bg-purple-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">📦</span><span class="text-xs font-bold text-purple-800">ממתין לאספקה מהספק</span></div>` : ''}
                 ${call.parts_status === 'parts_ready' ? `<div class="flex items-center gap-2 bg-green-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">✅</span><span class="text-xs font-bold text-green-800">חלקים הגיעו — ממתינים לאיסוף</span></div>` : ''}
+                ${linkedPoItemsHtml}
                 ${!call.parts_status ? `<button onclick="openProcurementForSC(${callId})" class="w-full bg-purple-600 text-white rounded-xl py-2 text-xs font-black active:scale-95 transition" style="touch-action:manipulation;">🛒 פתח הזמנת רכש</button>` : ''}
             </div>` : ''}
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
