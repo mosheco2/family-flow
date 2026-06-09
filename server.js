@@ -298,6 +298,12 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS sla_configs (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE, module VARCHAR(30) NOT NULL, status VARCHAR(50) NOT NULL, status_label VARCHAR(100), max_hours DECIMAL(6,2) NOT NULL DEFAULT 24, is_active BOOLEAN DEFAULT TRUE, UNIQUE(group_id, module, status))`); } catch(e) {}
       try { await client.query(`ALTER TABLE sla_configs ADD COLUMN IF NOT EXISTS channels JSONB DEFAULT '["in_app"]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_type VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_title TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS call_type VARCHAR(20) DEFAULT 'service'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS source_quote_id INT`); } catch(e) {}
       try { await client.query(`ALTER TABLE alert_notifications ADD COLUMN IF NOT EXISTS reference_key VARCHAR(100)`); } catch(e) {}
       try { await client.query(`DELETE FROM alert_notifications WHERE trigger_type='equipment_maintenance' AND message LIKE '%"undefined"%'`); } catch(e) {}
 
@@ -4284,6 +4290,120 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
         res.json({ success: true, orderId: quote.id });
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
+
+// --- שליחת הצעת מחיר ב-OneFlow ללקוח משפחה ---
+app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
+    try {
+        const { familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // קשר ל-family_group_id ועדכון סטטוס
+        await pool.query(`UPDATE store_orders SET family_group_id=$1, quote_status='waiting_customer' WHERE id=$2`, [familyGroupId, quoteId]);
+        // שלח התראה ללקוח
+        try {
+            await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                VALUES ($1, 'quote_received', 'הצעת מחיר חדשה', $2, $3, 'quote', NOW())`,
+                [familyGroupId, `קיבלת הצעת מחיר מ-${quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1',[quote.group_id])).rows[0]?.name || 'עסק' : 'עסק'}: ${quote.customer_name || ''}`, quoteId]);
+        } catch(e) { console.error('notification err:', e.message); }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- תגובת לקוח להצעת מחיר ---
+app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
+    try {
+        const { responseType, responseText, familyGroupId } = req.body;
+        const quoteId = req.params.id;
+        // וידוא שהקריאה מגיעה מה-family_group_id הנכון
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        if (familyGroupId && String(quote.family_group_id) !== String(familyGroupId))
+            return res.status(403).json({ error: 'אין הרשאה' });
+
+        const newStatus = responseType === 'approved' ? 'customer_approved'
+            : responseType === 'rejected' ? 'cancelled'
+            : 'waiting_customer';
+        await pool.query(`UPDATE store_orders SET customer_response=$1, customer_response_type=$2, customer_response_at=NOW(), quote_status=$3 WHERE id=$4`,
+            [responseText || null, responseType, newStatus, quoteId]);
+        // התראה לעסק
+        try {
+            const typeLabel = {approved:'✅ אישר את ההצעה', rejected:'❌ סירב להצעה', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:'💬 שלח הודעה'}[responseType] || responseType;
+            await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                VALUES ($1, 'quote_response', 'תגובת לקוח להצעה', $2, $3, 'quote', NOW())`,
+                [quote.group_id, `${quote.customer_name || 'לקוח'} ${typeLabel}${responseText ? ': ' + responseText : ''}`, quoteId]);
+        } catch(e) {}
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- המרת הצעת מחיר לפקודת עבודה ---
+app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
+    try {
+        const quoteId = req.params.id;
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        const quote = q.rows[0];
+        // חלץ כותרת מ-metaData אם יש
+        let title = quote.quote_title || '';
+        let notes = '';
+        try {
+            const items = typeof quote.items === 'string' ? JSON.parse(quote.items || '[]') : (quote.items || []);
+            const meta = items.find(i => i.is_quote_metadata);
+            if (meta) {
+                const m = JSON.parse(meta.data);
+                if (!title && m.title) title = m.title;
+                if (m.notes) notes = m.notes;
+            }
+        } catch(e) {}
+        if (!title) title = `פקודת עבודה — ${quote.customer_name || quote.quote_number || `#${quoteId}`}`;
+        // צור service call עם call_type='work_order'
+        const wo = await pool.query(`INSERT INTO service_calls
+            (business_group_id, family_group_id, title, description, customer_name, customer_phone, address, status, priority, price_quote, call_type, source_quote_id, created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,'new','normal',$8,'work_order',$9,NOW()) RETURNING id`,
+            [quote.group_id, quote.family_group_id, title,
+             `הצעה ${quote.quote_number||'#'+quoteId}${notes ? '\n'+notes : ''}`,
+             quote.customer_name, quote.customer_phone, null,
+             parseFloat(quote.total_amount||0), quoteId]);
+        const workOrderId = wo.rows[0].id;
+        // עדכן הצעת מחיר כ-approved + קישור
+        await pool.query(`UPDATE store_orders SET quote_status='approved', status='new' WHERE id=$1`, [quoteId]);
+        // שלח התראה ללקוח אם יש family_group_id
+        if (quote.family_group_id) {
+            try {
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1, 'work_order_created', 'הצעת מחיר אושרה', $2, $3, 'service_call', NOW())`,
+                    [quote.family_group_id, `ההצעה אושרה ונפתחה פקודת עבודה: ${title}`, workOrderId]);
+            } catch(e) {}
+        }
+        res.json({ success: true, workOrderId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליפת פקודות עבודה לעסק ---
+app.get('/api/work-orders/:businessGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT sc.*, fg.name as family_name
+            FROM service_calls sc LEFT JOIN family_groups fg ON sc.family_group_id=fg.id
+            WHERE sc.business_group_id=$1 AND sc.call_type='work_order'
+            ORDER BY sc.created_at DESC`, [req.params.businessGroupId]);
+        res.json({ success: true, workOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שליפת הצעות מחיר לצד משפחה ---
+app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT so.*, fg.name as business_name
+            FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
+            WHERE so.family_group_id=$1 AND (so.status='quote' OR so.quote_status IS NOT NULL)
+            ORDER BY so.created_at DESC`, [req.params.familyGroupId]);
+        res.json({ success: true, quotes: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {

@@ -543,6 +543,7 @@ window.injectBusinessUI = function() {
                     <div class="grid grid-cols-3 gap-2 mb-6">
                         <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition"><i class="fa-solid fa-bag-shopping text-sm"></i>הזמנות</button>
                         <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר</button>
+                        <button id="btn-sales-work-orders" onclick="window.switchSalesTab('work-orders')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-hammer text-sm"></i>פקודות עבודה</button>
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-book-open text-sm"></i>קטלוג</button>
                         <button id="btn-sales-complex" onclick="window.switchSalesTab('complex')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-utensils text-sm"></i>תפריטים ופרויקטים</button>
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
@@ -580,6 +581,20 @@ window.injectBusinessUI = function() {
                         <div id="store-quotes-list" class="space-y-3 pb-8"></div>
                     </div>
                     
+                    <div id="sales-view-work-orders" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">🔨 פקודות עבודה פעילות</h4>
+                            <button onclick="window.fetchWorkOrders()" class="text-emerald-600 text-[10px] font-bold flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                        </div>
+                        <div class="flex gap-2 mb-3 flex-wrap">
+                            <button id="wo-filter-all" onclick="window.setWOFilter('all')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-emerald-500 text-white" style="touch-action:manipulation;">הכל</button>
+                            <button id="wo-filter-new" onclick="window.setWOFilter('new')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">חדש</button>
+                            <button id="wo-filter-in_progress" onclick="window.setWOFilter('in_progress')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">בטיפול</button>
+                            <button id="wo-filter-done" onclick="window.setWOFilter('done')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">הושלם</button>
+                        </div>
+                        <div id="work-orders-list" class="space-y-3 pb-8"></div>
+                    </div>
+
                    <div id="sales-view-catalog" class="hidden space-y-4">
                         <div class="flex justify-between items-center mb-4 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
@@ -6205,15 +6220,41 @@ window.renderStoreQuotes = function() {
                 displayNote += `<div class="mt-2 bg-indigo-50 p-2.5 rounded-lg text-xs font-bold text-indigo-800 border border-indigo-200 shadow-sm"><i class="fa-regular fa-comment-dots mr-1"></i> לקוח: ${safeStr(customerNote)}</div>`;
             }
 
+            // תגובת לקוח
+            const crType = q.customer_response_type;
+            const crText = q.customer_response;
+            const crBadge = {
+                approved: '✅ אישר את ההצעה', rejected: '❌ סירב להצעה',
+                discount_request: '💬 ביקש הנחה', items_request: '📋 ביקש שינויים', message: '💬 הודעה'
+            }[crType] || '';
+            const crColor = crType === 'approved' ? 'bg-green-50 border-green-300 text-green-800'
+                : crType === 'rejected' ? 'bg-red-50 border-red-300 text-red-800'
+                : 'bg-blue-50 border-blue-300 text-blue-800';
+            const crHtml = crType ? `<div class="mt-1.5 text-[11px] font-bold px-2 py-1.5 rounded-lg border ${crColor}">
+                <i class="fa-solid fa-user mr-1"></i>${crBadge}${crText ? `: ${safeStr(crText)}` : ''}
+                ${q.customer_response_at ? `<span class="text-[9px] opacity-60 mr-1">${new Date(q.customer_response_at).toLocaleDateString('he-IL')}</span>` : ''}
+            </div>` : '';
+            const isCustomerApproved = crType === 'approved' || currentStatus === 'customer_approved';
+            const isWorkOrder = q.quote_status === 'approved' && q.status === 'new' && q.call_type !== 'service';
+
             let approveBtnHtml = '';
             let cardStyle = 'border-slate-200 shadow-sm bg-white hover:shadow-md hover:border-indigo-300';
-            
-            if (isApproved) {
+
+            if (isApproved && !isCustomerApproved) {
                  cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
                  approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
-            } else {
+            } else if (isCustomerApproved && !isApproved) {
+                 cardStyle = 'border-2 border-emerald-400 bg-emerald-50/40 shadow-md';
+                 approveBtnHtml = `<button onclick="window.convertQuoteToWorkOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> המר לפקודת עבודה</button>`;
+            } else if (!isApproved) {
                  approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
             }
+
+            // כפתור שלח ב-OneFlow
+            const hasFamilyLink = !!q.family_group_id;
+            const sendOneflowBtn = hasFamilyLink
+                ? `<button onclick="window.sendQuoteToOneflow(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`
+                : `<button onclick="window.pickOneFlowCustomerForQuote(${q.id})" class="flex-[1.5] bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-solid fa-paper-plane text-xs"></i> שלח ב-OneFlow</button>`;
 
             html += `
             <div class="p-4 rounded-2xl border ${cardStyle} flex flex-col mb-3 transition-all">
@@ -6223,6 +6264,7 @@ window.renderStoreQuotes = function() {
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
                         ${q.customer_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הלקוח • ${new Date(q.customer_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
+                        ${crHtml}
                         ${displayNote}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
@@ -6234,7 +6276,8 @@ window.renderStoreQuotes = function() {
                 </div>
                 <div class="flex gap-2 border-t ${isApproved ? 'border-green-200' : 'border-slate-100'} pt-3 mt-1">
                     <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-pen"></i> ערוך</button>
-                    <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-[1.5] bg-[#25D366] text-white hover:bg-[#1ebd58] py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> שליחה לאישור</button>
+                    ${sendOneflowBtn}
+                    <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-1 bg-[#25D366] text-white hover:bg-[#1ebd58] py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-xs"></i> WA</button>
                     <button onclick="window.openQuotePreview(${q.id})" class="flex-[0.5] bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200" title="מסמך PDF"><i class="fa-solid fa-file-pdf"></i></button>
                 </div>
             </div>`;
@@ -6286,6 +6329,182 @@ window.updateQuoteStatus = async function(id, status) {
         window.renderStoreQuotes();
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 };
+
+// שלח הצעת מחיר ב-OneFlow ללקוח שכבר משויך
+window.sendQuoteToOneflow = async function(id) {
+    const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
+    if (!q || !q.family_group_id) return showToast('error', 'הצעה אינה משויכת ללקוח OneFlow');
+    try {
+        const r = await fetch(`${API}/store/quotes/${id}/send-to-oneflow`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ familyGroupId: q.family_group_id }) });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'ההצעה נשלחה ב-OneFlow!'); q.quote_status = 'waiting_customer'; window.renderStoreQuotes(); }
+        else showToast('error', d.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// בחר לקוח OneFlow לפני שליחה
+window.pickOneFlowCustomerForQuote = function(quoteId) {
+    document.getElementById('ofl-pick-modal')?.remove();
+    const html = `<div id="ofl-pick-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-slate-800">🔗 בחר לקוח OneFlow</h3>
+                <button onclick="document.getElementById('ofl-pick-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-slate-500"></i></button>
+            </div>
+            <input id="ofl-pick-search" type="text" placeholder="חפש לקוח..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3 outline-none" oninput="window.oflPickSearch(${quoteId}, this.value)">
+            <div id="ofl-pick-results" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    window.oflPickSearch(quoteId, '');
+};
+window.oflPickSearch = async function(quoteId, q) {
+    const resultsEl = document.getElementById('ofl-pick-results');
+    if (!resultsEl) return;
+    if (!q || q.length < 1) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">הקלד לחיפוש...</p>'; return; }
+    try {
+        const r = await fetch(`/api/groups/search-all?q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        const groups = (d.groups || d.results || []).slice(0,6);
+        if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו תוצאות</p>'; return; }
+        resultsEl.innerHTML = groups.map(g => `<button type="button" onclick="window.assignAndSendQuote(${quoteId},${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2"><span>👤</span><div class="flex-1 truncate">${safeStr(g.name||'')}${g.admin_nickname?' · '+safeStr(g.admin_nickname):''}</div></button>`).join('');
+    } catch(e) { resultsEl.innerHTML = '<p class="text-xs text-red-400 py-2">שגיאה בחיפוש</p>'; }
+};
+window.assignAndSendQuote = async function(quoteId, familyGroupId, familyName) {
+    try {
+        const r = await fetch(`${API}/store/quotes/${quoteId}/send-to-oneflow`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ familyGroupId }) });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', `ההצעה נשלחה ל-${familyName} ב-OneFlow!`);
+            document.getElementById('ofl-pick-modal')?.remove();
+            const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
+            if (q) { q.family_group_id = familyGroupId; q.quote_status = 'waiting_customer'; }
+            window.renderStoreQuotes();
+        } else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// המרה לפקודת עבודה
+window.convertQuoteToWorkOrder = async function(quoteId) {
+    if (!confirm('להמיר הצעת מחיר זו לפקודת עבודה?')) return;
+    try {
+        const r = await fetch(`${API}/store/quotes/${quoteId}/to-work-order`, { method:'POST', headers:{'Content-Type':'application/json'} });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', `פקודת עבודה נפתחה! #${d.workOrderId}`);
+            window.fetchStoreQuotes();
+            if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
+        } else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// =================== ניהול פקודות עבודה ===================
+let workOrdersCache = [];
+window._woFilter = 'all';
+
+window.setWOFilter = function(f) {
+    window._woFilter = f;
+    ['all','new','in_progress','done'].forEach(t => {
+        const btn = document.getElementById(`wo-filter-${t}`);
+        if (btn) btn.className = `text-[10px] px-3 py-1.5 rounded-xl font-bold transition ${t===f?'bg-emerald-500 text-white':'bg-slate-100 text-slate-500'}`;
+    });
+    window.renderWorkOrders();
+};
+
+window.fetchWorkOrders = async function() {
+    const list = document.getElementById('work-orders-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
+    try {
+        const r = await fetch(`${API}/work-orders/${currentGroup.id}`);
+        const d = await r.json();
+        workOrdersCache = d.workOrders || [];
+        window.renderWorkOrders();
+    } catch(e) { list.innerHTML = '<p class="text-center text-red-400 py-6 text-xs">שגיאה בטעינה</p>'; }
+};
+
+window.renderWorkOrders = function() {
+    const list = document.getElementById('work-orders-list');
+    if (!list) return;
+    const f = window._woFilter;
+    const filtered = f === 'all' ? workOrdersCache : workOrdersCache.filter(w => w.status === f);
+    if (!filtered.length) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין פקודות עבודה' + (f!=='all'?' בסינון זה':'') + '.</p>';
+        return;
+    }
+    const ST = { new:'חדש', in_progress:'בטיפול', scheduled:'מתוזמן', done:'הושלם', cancelled:'בוטל' };
+    const SC = { new:'border-blue-300 bg-blue-50', in_progress:'border-amber-300 bg-amber-50', scheduled:'border-indigo-300 bg-indigo-50', done:'border-green-300 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
+    list.innerHTML = filtered.map(w => {
+        const bdr = SC[w.status] || 'border-slate-200 bg-white';
+        const dateStr = w.created_at ? new Date(w.created_at).toLocaleDateString('he-IL') : '';
+        const scheduled = w.scheduled_at ? `<div class="text-[10px] text-indigo-600 font-bold mt-0.5">📅 ${new Date(w.scheduled_at).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</div>` : '';
+        const price = w.price_quote ? `<span class="text-[10px] font-bold text-indigo-700">₪${parseFloat(w.price_quote).toFixed(0)}</span>` : '';
+        return `<div class="border-r-4 ${bdr} rounded-2xl p-3 shadow-sm">
+            <div class="flex justify-between items-start gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800 text-sm truncate">${safeStr(w.title)}</div>
+                    <div class="text-[10px] text-slate-500">${safeStr(w.customer_name||w.family_name||'')} · ${dateStr}</div>
+                    ${scheduled}
+                    ${price}
+                </div>
+                <div class="flex flex-col items-end gap-1 shrink-0">
+                    <select onchange="window.updateWorkOrderStatus(${w.id},this.value)" class="text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                        ${Object.entries(ST).map(([v,l])=>`<option value="${v}" ${w.status===v?'selected':''}>${l}</option>`).join('')}
+                    </select>
+                    <button onclick="window.openWorkOrderSchedule(${w.id})" class="text-[10px] text-indigo-500 font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg mt-0.5">📅 תזמן</button>
+                </div>
+            </div>
+            ${w.description ? `<div class="text-[10px] text-slate-500 mt-1 truncate">${safeStr(w.description)}</div>` : ''}
+        </div>`;
+    }).join('');
+};
+
+window.updateWorkOrderStatus = async function(woId, status) {
+    try {
+        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+        const d = await r.json();
+        if (d.success || r.ok) {
+            const wo = workOrdersCache.find(x=>x.id===woId);
+            if (wo) wo.status = status;
+            window.renderWorkOrders();
+        }
+    } catch(e) { showToast('error', 'שגיאה בעדכון'); }
+};
+
+window.openWorkOrderSchedule = function(woId) {
+    const wo = workOrdersCache.find(x=>x.id===woId);
+    const current = wo?.scheduled_at ? new Date(wo.scheduled_at).toISOString().slice(0,16) : '';
+    document.getElementById('wo-sched-modal')?.remove();
+    const html = `<div id="wo-sched-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
+            <h3 class="font-black text-slate-800 mb-3">📅 תזמון פקודת עבודה</h3>
+            <p class="text-xs text-slate-500 mb-2">${safeStr(wo?.title||'')}</p>
+            <input id="wo-sched-dt" type="datetime-local" value="${current}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
+            <textarea id="wo-sched-note" rows="2" placeholder="הערת תזמון (אופציונלי)..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs mb-3"></textarea>
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('wo-sched-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-sm">ביטול</button>
+                <button onclick="window.saveWorkOrderSchedule(${woId})" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm">שמור תזמון</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveWorkOrderSchedule = async function(woId) {
+    const dt = document.getElementById('wo-sched-dt')?.value;
+    if (!dt) { showToast('error', 'נא לבחור תאריך ושעה'); return; }
+    try {
+        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scheduledAt: dt }) });
+        if (r.ok) {
+            showToast('success', 'תזמון נשמר!');
+            document.getElementById('wo-sched-modal')?.remove();
+            const wo = workOrdersCache.find(x=>x.id===woId);
+            if (wo) wo.scheduled_at = dt;
+            window.renderWorkOrders();
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+// =================== סוף פקודות עבודה ===================
 
 window.sendQuoteToCustomer = async function(id) {
     const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
@@ -15093,7 +15312,7 @@ setInterval(() => {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'work-orders'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
@@ -15110,6 +15329,9 @@ window.switchSalesTab = function(subTab) {
         const list = document.getElementById('store-quotes-list');
         if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
         if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+    }
+    if (subTab === 'work-orders') {
+        if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
     }
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);

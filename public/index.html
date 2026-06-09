@@ -452,6 +452,7 @@
                         <div class="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-3">
                             <button id="myorders-tab-orders" ontouchend="event.preventDefault();switchMyOrdersTab('orders')" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-xs font-black rounded-xl bg-white text-slate-700 shadow-sm transition" style="touch-action:manipulation;">📦 הזמנות</button>
                             <button id="myorders-tab-faults" ontouchend="event.preventDefault();switchMyOrdersTab('faults')" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🔧 קריאות שירות</button>
+                            <button id="myorders-tab-quotes" ontouchend="event.preventDefault();switchMyOrdersTab('quotes')" onclick="switchMyOrdersTab('quotes')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">📋 הצעות מחיר</button>
                         </div>
 
                         <!-- רשימת הזמנות -->
@@ -497,6 +498,52 @@
                             </div>
                             <div id="my-service-calls-list" class="space-y-2 px-1 min-h-[200px]">
                                 <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קריאות...</p>
+                        <!-- הצעות מחיר -->
+                        <div id="myorders-section-quotes" class="hidden pb-24">
+                            <div class="flex justify-between items-center mb-1.5 px-1">
+                                <h3 class="font-bold text-slate-700 text-sm">הצעות מחיר</h3>
+                                <button onclick="loadFamilyQuotes()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="family-quotes-list" class="space-y-2 px-1 min-h-[200px]">
+                                <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">לחץ רענן לטעינת הצעות מחיר</p>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- modal: תגובה להצעת מחיר -->
+                    <div id="quote-response-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm p-4">
+                        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5 overflow-y-auto max-h-[90vh]">
+                            <input type="hidden" id="qrm-quote-id">
+                            <h3 class="font-black text-slate-800 text-base mb-4 flex items-center gap-2"><i class="fa-solid fa-reply text-indigo-500"></i> השב להצעת מחיר</h3>
+                            <div class="space-y-2 mb-4">
+                                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-green-50 has-[:checked]:border-green-400 has-[:checked]:bg-green-50">
+                                    <input type="radio" name="qrm-type" value="approved" class="accent-green-600">
+                                    <div><p class="font-bold text-sm text-slate-800">✅ אני מאשר/ת את ההצעה</p><p class="text-[11px] text-slate-500">הבנתי ואני מסכים/ה למחיר</p></div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-red-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
+                                    <input type="radio" name="qrm-type" value="rejected" class="accent-red-600">
+                                    <div><p class="font-bold text-sm text-slate-800">❌ אני מסרב/ת להצעה</p><p class="text-[11px] text-slate-500">ההצעה לא מתאימה לי</p></div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-blue-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+                                    <input type="radio" name="qrm-type" value="discount_request" class="accent-blue-600">
+                                    <div><p class="font-bold text-sm text-slate-800">💬 בקשת הנחה</p><p class="text-[11px] text-slate-500">ציין את ההנחה המבוקשת בהודעה</p></div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-purple-50 has-[:checked]:border-purple-400 has-[:checked]:bg-purple-50">
+                                    <input type="radio" name="qrm-type" value="items_request" class="accent-purple-600">
+                                    <div><p class="font-bold text-sm text-slate-800">📋 בקשת שינויים בפריטים</p><p class="text-[11px] text-slate-500">פרט אילו פריטים להוסיף / להסיר</p></div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 has-[:checked]:border-slate-400 has-[:checked]:bg-slate-50">
+                                    <input type="radio" name="qrm-type" value="message" class="accent-slate-600">
+                                    <div><p class="font-bold text-sm text-slate-800">✉️ הודעה חופשית</p><p class="text-[11px] text-slate-500">שלח שאלה או הערה לעסק</p></div>
+                                </label>
+                            </div>
+                            <textarea id="qrm-message" rows="2" placeholder="הודעה / פירוט הבקשה (אם נדרש)..."
+                                class="w-full border border-slate-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 mb-3"></textarea>
+                            <div class="flex gap-2">
+                                <button onclick="closeQuoteResponseModal()" class="flex-1 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl py-3 hover:bg-slate-200 transition">ביטול</button>
+                                <button id="qrm-submit-btn" onclick="submitQuoteResponse()" class="flex-1 bg-indigo-600 text-white text-sm font-bold rounded-xl py-3 hover:bg-indigo-700 transition"><i class="fa-solid fa-paper-plane ml-1"></i> שלח תשובה</button>
                             </div>
                         </div>
                     </div>

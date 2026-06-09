@@ -562,13 +562,14 @@ function applyOrdersFilter(orders) {
     return result;
 }
 function switchMyOrdersTab(tab) {
-    ['orders','faults'].forEach(t => {
+    ['orders','faults','quotes'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
         const sec = getEl(`myorders-section-${t}`);
         if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
         if (sec) sec.classList.toggle('hidden', t !== tab);
     });
     if (tab === 'faults') renderBusinessServiceCallsTab();
+    if (tab === 'quotes') loadFamilyQuotes();
 }
 
 async function renderMyFaultsAsServiceCalls() {
@@ -701,6 +702,142 @@ function setScTypeFilter(t) {
     window._scTypeFilter = t;
     renderBusinessServiceCallsTab();
 }
+
+function _renderOrderItems(items) {
+    let arr = items;
+    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return '<span>' + safeStr(arr) + '</span>'; } }
+    if (!Array.isArray(arr) || arr.length === 0) return '<span class="text-slate-400">אין פריטים</span>';
+    return arr.filter(i => !i.is_quote_metadata).map(i => {
+        const name = i.name || i.product_name || i.item || '';
+        const qty = i.quantity || i.qty || 1;
+        const price = i.price != null ? '&#8362;' + parseFloat(i.price).toFixed(2) : '';
+        return '<div class="flex justify-between gap-2"><span>' + safeStr(name) + ' × ' + qty + '</span><span class="font-mono text-slate-700">' + price + '</span></div>';
+    }).join('');
+}
+
+let familyQuotesCache = [];
+
+async function loadFamilyQuotes() {
+    const list = getEl('family-quotes-list');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הצעות מחיר...</p>';
+    try {
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) { familyQuotesCache = data.quotes || []; renderFamilyQuotesTab(); }
+        else list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה'}</p>`;
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת</p>'; }
+}
+
+function renderFamilyQuotesTab() {
+    const list = getEl('family-quotes-list');
+    if (!list) return;
+    if (!familyQuotesCache.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+            <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">אין הצעות מחיר פתוחות.</p></div>`;
+        return;
+    }
+    const statusMap = {
+        draft: {label:'טיוטא', color:'bg-slate-100 text-slate-600'},
+        waiting_customer: {label:'ממתין לתשובתך', color:'bg-amber-100 text-amber-700'},
+        customer_approved: {label:'אישרת', color:'bg-green-100 text-green-700'},
+        approved: {label:'אושרה', color:'bg-blue-100 text-blue-700'},
+        cancelled: {label:'סורבה', color:'bg-red-100 text-red-700'}
+    };
+    const responseMap = {
+        approved: {label:'אישרת', color:'text-green-600'},
+        rejected: {label:'סירבת', color:'text-red-600'},
+        discount_request: {label:'ביקשת הנחה', color:'text-blue-600'},
+        items_request: {label:'ביקשת שינויים', color:'text-purple-600'},
+        message: {label:'שלחת הודעה', color:'text-slate-600'}
+    };
+    let html = '';
+    familyQuotesCache.forEach(q => {
+        const qs = q.quote_status || 'draft';
+        const st = statusMap[qs] || {label: qs, color: 'bg-slate-100 text-slate-600'};
+        const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
+        let metaTitle = ''; let metaNotes = ''; let metaValidity = '';
+        try {
+            const items = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
+            const meta = items.find(i => i.is_quote_metadata);
+            if (meta) { const m = JSON.parse(meta.data||'{}'); metaTitle=m.title||''; metaNotes=m.notes||''; metaValidity=m.validity||''; }
+        } catch(e) {}
+        const title = q.quote_title || metaTitle || `הצעה #${q.id}`;
+        const bizName = q.business_name || 'עסק';
+        const canRespond = qs === 'waiting_customer';
+        const responseInfo = q.customer_response_type ? responseMap[q.customer_response_type] || {label:q.customer_response_type, color:'text-slate-600'} : null;
+        html += `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 flex justify-between items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.color}">${st.label}</span>
+                        ${responseInfo ? `<span class="text-[10px] font-semibold ${responseInfo.color}">${responseInfo.label}</span>` : ''}
+                    </div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(title)}</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(bizName)} • ${dateStr}</p>
+                    ${metaValidity ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${safeStr(metaValidity)}</p>` : ''}
+                </div>
+                <div class="text-left shrink-0">
+                    <span class="font-black text-slate-800 text-sm" dir="ltr">₪${parseFloat(q.total_amount||0).toFixed(2)}</span>
+                    <p class="text-[9px] text-slate-400 font-mono mt-0.5">#${q.id}</p>
+                </div>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50/50 p-3 text-xs text-slate-600">
+                <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
+                ${metaNotes ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
+                ${q.customer_response ? `<div class="mt-2 pt-2 border-t border-slate-100 bg-white rounded-xl p-2 text-[11px]"><span class="font-bold">ההודעה שלך: </span>${safeStr(q.customer_response)}</div>` : ''}
+            </div>
+            ${canRespond ? `<div class="px-3 pb-3">
+                <button onclick="openQuoteResponseModal(${q.id})" class="w-full bg-indigo-600 text-white text-xs font-bold rounded-xl py-2.5 hover:bg-indigo-700 transition"><i class="fa-solid fa-reply ml-1"></i>השב להצעה</button>
+            </div>` : ''}
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+window.openQuoteResponseModal = function(quoteId) {
+    getEl('qrm-quote-id').value = quoteId;
+    getEl('qrm-message').value = '';
+    const radios = document.querySelectorAll('input[name="qrm-type"]');
+    radios.forEach(r => r.checked = false);
+    getEl('quote-response-modal').classList.remove('hidden');
+};
+
+window.closeQuoteResponseModal = function() {
+    getEl('quote-response-modal').classList.add('hidden');
+};
+
+window.submitQuoteResponse = async function() {
+    const quoteId = getEl('qrm-quote-id').value;
+    const message = getEl('qrm-message').value.trim();
+    const typeEl = document.querySelector('input[name="qrm-type"]:checked');
+    if (!typeEl) { showToast('error','בחר סוג תשובה'); return; }
+    const responseType = typeEl.value;
+    if ((responseType === 'discount_request' || responseType === 'items_request' || responseType === 'message') && !message) {
+        showToast('error','הוסף הודעה / פירוט הבקשה');
+        return;
+    }
+    const btn = getEl('qrm-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> שולח...'; }
+    try {
+        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ responseType, responseText: message, familyGroupId: currentGroup ? currentGroup.id : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeQuoteResponseModal();
+            showToast('success','התשובה נשלחה לעסק');
+            await loadFamilyQuotes();
+        } else showToast('error', data.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1"></i> שלח תשובה'; } }
+};
+
+
+
 
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
