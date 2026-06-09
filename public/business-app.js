@@ -15164,6 +15164,48 @@ window.fetchCalendarData = async function() {
             renderCalendarServices();
         }
     } catch(e) { console.error('Error fetching calendar data', e); }
+    // For maintenance_repair: also show scheduled service calls
+    if (currentGroup?.business_type === 'maintenance_repair') {
+        window.renderScheduledServiceCallsSection();
+    }
+};
+
+window.renderScheduledServiceCallsSection = async function() {
+    const calContainer = getEl('cal-main-container');
+    if (!calContainer) return;
+    document.getElementById('sc-scheduled-section')?.remove();
+
+    let calls = [];
+    try {
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const d = await r.json();
+        const now = new Date();
+        calls = (d.calls||[])
+            .filter(c => c.scheduled_at && !['done','cancelled'].includes(c.status))
+            .sort((a,b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+    } catch(e) {}
+
+    const isTech = currentUser?.employee_role_type === 'field_tech';
+    const myFilter = isTech ? calls.filter(c => c.assigned_member_id == currentUser.id) : calls;
+
+    if (!myFilter.length) return;
+
+    const html = `<div id="sc-scheduled-section" class="mb-4 bg-blue-50 rounded-2xl p-3 border border-blue-100">
+        <div class="text-xs font-black text-blue-800 mb-2 flex items-center gap-1.5">📅 קריאות מתוזמנות (${myFilter.length})</div>
+        <div class="space-y-1.5">
+            ${myFilter.map(c => `
+            <div onclick="showServiceCallModal(${c.id})" class="bg-white rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer active:bg-blue-50 transition border border-blue-100" style="touch-action:manipulation;">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    <div class="text-[10px] text-blue-600 font-bold">${new Date(c.scheduled_at).toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                    ${c.address ? `<div class="text-[10px] text-slate-400 truncate">${safeStr(c.address)}</div>` : ''}
+                </div>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'} shrink-0">${SC_STATUS_LABELS[c.status]||c.status}</span>
+            </div>`).join('')}
+        </div>
+    </div>`;
+
+    calContainer.insertAdjacentHTML('beforebegin', html);
 };
 
 window.setCalMode = function(mode) {
@@ -24276,7 +24318,8 @@ async function renderFieldTechMaintenanceDashboard(el) {
     try {
         const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
         const d = await r.json();
-        calls = (d.calls||[]).filter(c => !c.assigned_member_id || c.assigned_member_id == currentUser.id);
+        // Only show calls explicitly assigned to THIS technician - unassigned calls go to manager only
+        calls = (d.calls||[]).filter(c => c.assigned_member_id == currentUser.id);
     } catch(e) {}
 
     const myCalls = calls;
@@ -24284,10 +24327,10 @@ async function renderFieldTechMaintenanceDashboard(el) {
     const myDone = myCalls.filter(c => c.status === 'done');
     const myUrgent = myCalls.filter(c => c.priority === 'urgent' && !['done','cancelled'].includes(c.status));
     const kpiHtml = `<div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">🔧</span><div class="text-lg font-black text-orange-600">${myOpen.length}</div><div class="text-[10px] text-slate-500 font-bold">הקריאות שלי</div></div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">✅</span><div class="text-lg font-black text-green-600">${myDone.filter(c => c.updated_at?.startsWith(new Date().toISOString().split('T')[0])).length}</div><div class="text-[10px] text-slate-500 font-bold">הושלמו היום</div></div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">🚨</span><div class="text-lg font-black text-red-600">${myUrgent.length}</div><div class="text-[10px] text-slate-500 font-bold">דחופות</div></div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1"><span class="text-xl">⏳</span><div class="text-lg font-black text-amber-600">${myCalls.filter(c=>c.status==='pending_parts').length}</div><div class="text-[10px] text-slate-500 font-bold">ממתין לחלקים</div></div>
+        <button type="button" onclick="showAllServiceCalls()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition text-right" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">🔧</span><div class="text-lg font-black text-orange-600">${myOpen.length}</div><div class="text-[10px] text-slate-500 font-bold">הקריאות שלי</div></button>
+        <button type="button" onclick="showAllServiceCalls('done')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition text-right" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">✅</span><div class="text-lg font-black text-green-600">${myDone.filter(c => c.updated_at?.startsWith(new Date().toISOString().split('T')[0])).length}</div><div class="text-[10px] text-slate-500 font-bold">הושלמו היום</div></button>
+        <button type="button" onclick="showAllServiceCalls('urgent')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition text-right" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">🚨</span><div class="text-lg font-black text-red-600">${myUrgent.length}</div><div class="text-[10px] text-slate-500 font-bold">דחופות</div></button>
+        <button type="button" onclick="showAllServiceCalls('pending_parts')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition text-right" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">⏳</span><div class="text-lg font-black text-amber-600">${myCalls.filter(c=>c.status==='pending_parts').length}</div><div class="text-[10px] text-slate-500 font-bold">ממתין לחלקים</div></button>
     </div>`;
 
     const callsHtml = myOpen.length ? myOpen.slice(0,6).map(c => `
@@ -24626,9 +24669,14 @@ window.saveServiceCallUpdates = async function(callId) {
     const priceQuote = document.getElementById(`sc-quote-${callId}`)?.value || null;
     const scheduledAt = document.getElementById(`sc-scheduled-${callId}`)?.value || null;
     try {
-        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        const res = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null }) });
+        if (!res.ok) throw new Error();
         showToast('success', 'עודכן בהצלחה');
+        // Re-open modal to refresh all displayed data (icons, scheduled date, etc.)
+        if (window._scChatInterval) clearInterval(window._scChatInterval);
+        document.getElementById('sc-modal')?.remove();
+        setTimeout(() => showServiceCallModal(callId), 150);
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 

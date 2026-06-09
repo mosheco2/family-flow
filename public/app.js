@@ -2584,6 +2584,11 @@ async function saveFamilyAddress() {
         if (data.success) {
             showToast('success', 'הכתובת נשמרה!');
             if (currentGroup) { currentGroup.city = city; currentGroup.street_address = streetAddress; }
+            // Persist to localStorage so address survives page refresh
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+                if (session.group) { session.group.city = city; session.group.street_address = streetAddress; localStorage.setItem('ofl_session', JSON.stringify(session)); }
+            } catch(e) {}
         } else showToast('error', 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -7740,6 +7745,7 @@ window.openFamilyCallModal = async function(callId) {
             <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1">
                 ${call.description ? `<p class="text-slate-700">${safeStr(call.description)}</p>` : ''}
                 ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
+                ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1 mt-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
                 ${call.price_quote ? `<div class="mt-2 p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
             </div>
             <div class="bg-slate-50 rounded-2xl p-3">
@@ -7811,7 +7817,7 @@ window.openServiceCallWizard = function(technicianId) {
                     <textarea id="scw-title" rows="2" placeholder="למשל: המזגן לא מקרר, ברז דולף..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
                 </div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">כתובת הטיפול</label>
-                    <input id="scw-address" type="text" placeholder="הרחוב שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
+                    <input id="scw-address" type="text" value="${[currentGroup?.city, currentGroup?.street_address].filter(Boolean).join(', ')}" placeholder="הרחוב שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
                 </div>
                 <div><label class="text-xs font-bold text-slate-500 mb-1 block">פרטים נוספים (אופציונלי)</label>
                     <textarea id="scw-desc" rows="2" placeholder="הוסף מידע שיעזור לבעל המקצוע..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none resize-none"></textarea>
