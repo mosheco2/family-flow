@@ -7756,6 +7756,8 @@ window.submitNewCustomer = async function() {
     const email = document.getElementById('cust-email').value;
     const businessId = document.getElementById('cust-business-id').value;
     const notes = document.getElementById('cust-notes').value;
+    const companyName = document.getElementById('cust-company-name')?.value?.trim() || '';
+    const familyGroupId = document.getElementById('cust-family-group-id')?.value ? parseInt(document.getElementById('cust-family-group-id').value) : null;
     
     if (!name) return showToast('error', 'שם לקוח הוא שדה חובה');
     
@@ -7766,7 +7768,7 @@ window.submitNewCustomer = async function() {
         const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
         const method = id ? 'PUT' : 'POST';
         
-        const payload = { groupId: currentGroup.id, name, phone, email, businessId, notes };
+        const payload = { groupId: currentGroup.id, name, companyName, phone, email, businessId, notes, familyGroupId };
         
         const res = await fetch(url, {
             method: method, headers: {'Content-Type': 'application/json'},
@@ -7925,7 +7927,13 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
                 ${debtHtml}
                 <div class="space-y-3 pb-2">
-                    <div><label class="text-xs font-bold text-slate-500">שם לקוח / עסק (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
+                    <div><label class="text-xs font-bold text-slate-500">שם איש קשר / מנהל (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
+                    <div><label class="text-xs font-bold text-slate-500">שם משפחה / חברה במערכת:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="cust-company-name" class="modern-input py-2 text-sm bg-white flex-1" placeholder="כפי שמופיע ב-OneFlow">
+                            <input type="hidden" id="cust-family-group-id">
+                        </div>
+                    </div>
                     <div><label class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')"></div>
                     <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
@@ -7950,9 +7958,12 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <div id="cust-calls-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
             </div>` : ''}
 
-            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0">
-                <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button id="btn-submit-customer" onclick="window.submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
+            <div class="space-y-2 mt-4 pt-4 border-t border-slate-100 shrink-0">
+                <div class="flex gap-3">
+                    <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-customer" onclick="window.submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
+                </div>
+                <button id="btn-open-quote" onclick="window.showCustomerQuoteModal(document.getElementById('cust-id')?.value)" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-amber-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-invoice-dollar"></i> צור הצעת מחיר</button>
             </div>
         </div>
     </div>
@@ -7967,7 +7978,9 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         document.getElementById('cust-email').value = c.email || '';
         document.getElementById('cust-business-id').value = c.business_id || '';
         document.getElementById('cust-notes').value = c.notes || '';
-        document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
+        if(document.getElementById('cust-company-name')) document.getElementById('cust-company-name').value = c.company_name || '';
+        if(document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = c.family_group_id || '';
+        document.getElementById('btn-cust-tab-history').classList.remove('hidden');
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
         document.getElementById('cust-name').value = '';
@@ -7975,6 +7988,8 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         document.getElementById('cust-email').value = '';
         document.getElementById('cust-business-id').value = '';
         document.getElementById('cust-notes').value = '';
+        if(document.getElementById('cust-company-name')) document.getElementById('cust-company-name').value = '';
+        if(document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = '';
         document.getElementById('btn-cust-tab-history').classList.add('hidden');
         tab = 'details';
     }
@@ -8047,11 +8062,201 @@ window.loadCustomerServiceCalls = async function(customerName) {
     } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
 };
 
+window.showCustomerQuoteModal = function(customerId) {
+    document.getElementById('cq-modal')?.remove();
+    const c = customerId ? storeCustomersCache.find(x => String(x.id) === String(customerId)) : null;
+    const bizName = currentGroup?.name || '';
+    const today = new Date().toLocaleDateString('he-IL');
+    const ref = 'HZ-' + Date.now().toString().slice(-6);
+    const hasFamilyGroup = c?.family_group_id;
+
+    const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 bg-amber-500 text-white shrink-0 rounded-t-3xl">
+                <h2 class="font-black text-base">📋 הצעת מחיר ${ref}</h2>
+                <button onclick="document.getElementById('cq-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח</label>
+                        <input id="cq-customer-name" type="text" value="${c ? (c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון</label>
+                        <input id="cq-customer-phone" type="tel" value="${c?.phone||''}" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך</label>
+                        <input id="cq-date" type="text" value="${today}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50" readonly></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (ימים)</label>
+                        <input id="cq-validity" type="number" value="30" min="1" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></div>
+                </div>
+
+                <div class="bg-slate-50 rounded-2xl p-3 border border-slate-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-black text-slate-700">פירוט עבודות / שירותים</span>
+                        <button onclick="window.cqAddLine()" class="text-[10px] bg-amber-500 text-white px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-plus"></i> שורה</button>
+                    </div>
+                    <div class="grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-400 mb-1 px-1">
+                        <span class="col-span-5">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span><span class="col-span-1"></span>
+                    </div>
+                    <div id="cq-lines" class="space-y-1.5"></div>
+                    <div class="border-t border-slate-200 mt-3 pt-2 space-y-1">
+                        <div class="flex justify-between text-xs"><span class="text-slate-500">סכום ביניים:</span><span id="cq-subtotal" class="font-bold dir-ltr">₪0.00</span></div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500">הנחה:</span>
+                            <input id="cq-discount" type="number" value="0" min="0" max="100" oninput="window.cqCalcTotal()" class="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs text-center">
+                            <span class="text-slate-400 text-[10px]">%</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-1 mt-1">
+                            <span>סה"כ לתשלום:</span><span id="cq-total" class="text-amber-600 dir-ltr">₪0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות / תנאי תשלום</label>
+                    <textarea id="cq-notes" rows="2" placeholder="תשלום תוך 30 יום. האומדן אינו כולל חלקי חילוף..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
+                </div>
+            </div>
+            <div class="px-4 py-3 border-t border-slate-100 shrink-0 space-y-2">
+                ${hasFamilyGroup ? `<button onclick="window.sendQuoteInternal('${customerId}','${ref}')" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow ללקוח</button>` : ''}
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="window.sendQuoteWhatsApp('${ref}')" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                    <button onclick="window.printQuotePDF('${ref}','${bizName}')" class="bg-slate-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-print"></i> PDF / הדפסה</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    // Add 3 default lines
+    window.cqAddLine(); window.cqAddLine(); window.cqAddLine();
+};
+
+window.cqAddLine = function() {
+    const container = document.getElementById('cq-lines');
+    if (!container) return;
+    const idx = container.children.length;
+    const div = document.createElement('div');
+    div.className = 'grid grid-cols-12 gap-1 items-center';
+    div.innerHTML = `
+        <input type="text" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
+        <input type="number" value="1" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
+        <input type="number" value="0" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
+        <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪0</span>
+        <button onclick="this.parentNode.remove();window.cqCalcTotal()" class="col-span-1 text-slate-300 hover:text-red-400 text-center text-xs"><i class="fa-solid fa-xmark"></i></button>`;
+    container.appendChild(div);
+};
+
+window.cqCalcTotal = function() {
+    const lines = document.querySelectorAll('#cq-lines > div');
+    let subtotal = 0;
+    lines.forEach(line => {
+        const qty = parseFloat(line.querySelector('.cq-qty')?.value || 0);
+        const price = parseFloat(line.querySelector('.cq-price')?.value || 0);
+        const lineTotal = qty * price;
+        const totalEl = line.querySelector('.cq-line-total');
+        if (totalEl) totalEl.textContent = '₪' + lineTotal.toFixed(0);
+        subtotal += lineTotal;
+    });
+    const discount = parseFloat(document.getElementById('cq-discount')?.value || 0);
+    const total = subtotal * (1 - discount / 100);
+    const sub = document.getElementById('cq-subtotal');
+    const tot = document.getElementById('cq-total');
+    if (sub) sub.textContent = '₪' + subtotal.toFixed(2);
+    if (tot) tot.textContent = '₪' + total.toFixed(2);
+    return { subtotal, discount, total };
+};
+
+window.cqGetQuoteData = function(ref) {
+    const lines = [];
+    document.querySelectorAll('#cq-lines > div').forEach(line => {
+        const desc = line.querySelector('.cq-desc')?.value?.trim();
+        const qty = parseFloat(line.querySelector('.cq-qty')?.value || 0);
+        const price = parseFloat(line.querySelector('.cq-price')?.value || 0);
+        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price });
+    });
+    const { subtotal, discount, total } = window.cqCalcTotal();
+    return {
+        ref,
+        customerName: document.getElementById('cq-customer-name')?.value || '',
+        customerPhone: document.getElementById('cq-customer-phone')?.value || '',
+        date: document.getElementById('cq-date')?.value || '',
+        validity: document.getElementById('cq-validity')?.value || '30',
+        notes: document.getElementById('cq-notes')?.value || '',
+        lines, subtotal, discount, total,
+        bizName: currentGroup?.name || ''
+    };
+};
+
+window.sendQuoteInternal = async function(customerId, ref) {
+    const q = window.cqGetQuoteData(ref);
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
+    const text = `📋 הצעת מחיר ${q.ref}\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
+        lines.map(l => `• ${l.desc}: ${l.qty} × ₪${l.price.toFixed(0)} = ₪${l.total.toFixed(0)}`).join('\n') +
+        `\n\nסה"כ: ₪${q.total.toFixed(2)}` +
+        (q.notes ? `\n\nהערות: ${q.notes}` : '');
+    try {
+        const r = await fetch(`/api/store/customers/${customerId}/send-quote`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ quoteText: text, businessGroupId: currentGroup.id, quoteRef: q.ref })
+        });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'הצעת המחיר נשלחה ב-OneFlow!'); document.getElementById('cq-modal')?.remove(); }
+        else showToast('error', d.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.sendQuoteWhatsApp = function(ref) {
+    const q = window.cqGetQuoteData(ref);
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    const text = `📋 *הצעת מחיר ${q.ref}*\n*${q.bizName}*\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
+        lines.map(l => `• ${l.desc}: ${l.qty} × ₪${l.price.toFixed(0)} = ₪${l.total.toFixed(0)}`).join('\n') +
+        (q.discount > 0 ? `\n\nהנחה: ${q.discount}%` : '') +
+        `\n\n*סה"כ לתשלום: ₪${q.total.toFixed(2)}*` +
+        (q.notes ? `\n\n${q.notes}` : '');
+    const phone = (q.customerPhone || '').replace(/\D/g, '');
+    const url = phone ? `https://wa.me/972${phone.replace(/^0/,'')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+};
+
+window.printQuotePDF = function(ref, bizName) {
+    const q = window.cqGetQuoteData(ref);
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    const linesHtml = lines.map(l => `<tr><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;">${l.desc}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;">${l.qty}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;">₪${l.price.toFixed(2)}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;">₪${l.total.toFixed(2)}</td></tr>`).join('');
+    const win = window.open('', '_blank', 'width=800,height=900');
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>הצעת מחיר ${ref}</title>
+    <style>body{font-family:Arial,sans-serif;direction:rtl;padding:24px;color:#1e293b;max-width:700px;margin:0 auto;}
+    h1{color:#f59e0b;font-size:22px;margin-bottom:4px;}
+    .meta{color:#64748b;font-size:12px;margin-bottom:20px;}
+    table{width:100%;border-collapse:collapse;margin:16px 0;}
+    th{background:#f8fafc;padding:8px;text-align:center;font-size:12px;border-bottom:2px solid #e2e8f0;}
+    td{font-size:13px;} .total-row{font-size:15px;font-weight:bold;color:#f59e0b;}
+    .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px;}
+    @media print{button{display:none}}</style></head>
+    <body>
+    <button onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:8px 20px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
+    <h1>📋 הצעת מחיר</h1>
+    <div class="meta">מספר: <strong>${ref}</strong> | תאריך: ${q.date} | תוקף: ${q.validity} ימים</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
+        <div><strong>מאת:</strong><br>${q.bizName}</div>
+        <div style="text-align:right;"><strong>לכבוד:</strong><br>${q.customerName}<br>${q.customerPhone}</div>
+    </div>
+    <table><thead><tr><th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th></tr></thead>
+    <tbody>${linesHtml}</tbody></table>
+    <div style="text-align:left;margin-top:8px;">
+        ${q.discount > 0 ? `<div style="font-size:13px;color:#64748b;">הנחה: ${q.discount}%</div>` : ''}
+        <div class="total-row">סה"כ לתשלום: ₪${q.total.toFixed(2)}</div>
+    </div>
+    ${q.notes ? `<div style="margin-top:16px;background:#fffbeb;padding:12px;border-radius:8px;font-size:12px;color:#78350f;"><strong>הערות:</strong><br>${q.notes}</div>` : ''}
+    <div class="footer">מסמך זה הופק ע"י מערכת OneFlow</div>
+    </body></html>`);
+    win.document.close();
+};
+
 window.generateStoreAliasLink = function() {
     const aliasInput = document.getElementById('store-alias-input');
     const linkInput = document.getElementById('store-public-link');
     if (!aliasInput || !linkInput) return;
-    
+
     // ניקוי אוטומטי של תווים לא חוקיים (רק אנגלית ומספרים מותרים)
     let val = aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (val.length > 10) val = val.substring(0, 10);
