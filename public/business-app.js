@@ -24478,10 +24478,11 @@ async function renderBranchManagerMaintenanceDashboard(el) {
     const open = calls.filter(c => !['done','cancelled'].includes(c.status));
     const done = calls.filter(c => c.status === 'done');
     const urgent = calls.filter(c => c.priority === 'urgent' && !['done','cancelled'].includes(c.status));
+    const needsTriage = calls.filter(c => c.needs_triage && !['done','cancelled'].includes(c.status));
 
     const kpis = [
         { label:'קריאות פתוחות', value: open.length, icon:'🔧', color:'orange', action:"showAllServiceCalls()" },
-        { label:'הושלמו היום', value: done.filter(c => c.updated_at?.startsWith(new Date().toISOString().split('T')[0])).length, icon:'✅', color:'green', action:"showAllServiceCalls('done')" },
+        { label:'ממתין לסיווג', value: needsTriage.length, icon:'⚠️', color: needsTriage.length>0?'amber':'slate', action:"showAllServiceCalls()" },
         { label:'דחופות', value: urgent.length, icon:'🚨', color: urgent.length>0?'red':'slate', action:"showAllServiceCalls('urgent')" },
         { label:'טכנאים', value: members.length, icon:'👷', color:'indigo', action:"rdAction('members','')" }
     ];
@@ -24493,9 +24494,9 @@ async function renderBranchManagerMaintenanceDashboard(el) {
 
     const recentHtml = open.slice(0,4).map(c => `
         <div onclick="showServiceCallModal(${c.id})" class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0 cursor-pointer active:bg-slate-50 rounded-xl px-1 transition" style="touch-action:manipulation;">
-            <span class="text-base shrink-0">${c.status==='in_progress'?'🔄':c.priority==='urgent'?'🚨':'🔧'}</span>
+            <span class="text-base shrink-0">${c.needs_triage?'⚠️':c.status==='in_progress'?'🔄':c.priority==='urgent'?'🚨':'🔧'}</span>
             <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-slate-700 truncate">${safeStr(c.title)}</div>
+                <div class="text-xs font-bold text-slate-700 truncate">${safeStr(c.title)}${c.needs_triage ? ' <span class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded">ממתין לסיווג</span>' : ''}</div>
                 <div class="text-[10px] text-slate-400 truncate">${c.family_name ? safeStr(c.family_name) : ''} ${c.assigned_member_name ? '· ' + safeStr(c.assigned_member_name) : ''}</div>
             </div>
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'} shrink-0">${SC_STATUS_LABELS[c.status]||c.status}</span>
@@ -24894,7 +24895,7 @@ window.showNewServiceCallModal = function() {
                     <label class="text-xs font-bold text-slate-500 mb-1 block">שם לקוח</label>
                     <div class="flex gap-2">
                         <input id="scn-family" type="text" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-300 outline-none">
-                        <button type="button" onclick="scSearchCustomerInOneFlow()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl transition" style="touch-action:manipulation;">🔍 OneFlow</button>
+                        <button type="button" onclick="scSearchCustomerInOneFlow()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl transition" style="touch-action:manipulation;">🔍 ONEFLOW LIFE</button>
                     </div>
                     <div id="scn-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
                 </div>
@@ -24946,14 +24947,18 @@ window.scSearchCustomerInOneFlow = async function() {
         const groups = d.groups || d.results || [];
         if (resultsEl) {
             if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 py-1">לא נמצאו תוצאות</p>'; return; }
-            resultsEl.innerHTML = groups.slice(0,5).map(g => `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${safeStr(g.address||'').replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}</div>`:''}</div></button>`).join('');
+            resultsEl.innerHTML = groups.slice(0,5).map(g => {
+                const addr = g.address || [g.street_address, g.city].filter(Boolean).join(' ') || '';
+                const contactName = g.contact_name || '';
+                return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${contactName ? ' · ' + safeStr(contactName) : ''}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
+            }).join('');
         }
     } catch(e) { if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש</p>'; }
 };
 
-window.scSelectCustomer = function(groupId, name, address, phone) {
+window.scSelectCustomer = function(groupId, name, address, phone, contactName) {
     const familyInput = document.getElementById('scn-family');
-    if (familyInput) familyInput.value = name;
+    if (familyInput) familyInput.value = contactName || name;
     const addrInput = document.getElementById('scn-address');
     if (addrInput && address && !addrInput.value) addrInput.value = address;
     const phoneInput = document.getElementById('scn-phone');
@@ -24961,7 +24966,8 @@ window.scSelectCustomer = function(groupId, name, address, phone) {
     const hiddenId = document.getElementById('scn-family-group-id');
     if (hiddenId) hiddenId.value = groupId;
     const resultsEl = document.getElementById('scn-customer-results');
-    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר${phone ? ' · ' + safeStr(phone) : ''}</p>`;
+    const displayName = contactName || name;
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(displayName)} נבחר${phone ? ' · ' + safeStr(phone) : ''}${address ? ' · ' + safeStr(address) : ''}</p>`;
 };
 
 window.submitNewServiceCall = async function() {

@@ -639,14 +639,19 @@ function renderMyOrders() {
     pageItems.forEach(item => {
         if (item.type === 'call') {
             const c = item.data;
-            html += `<div onclick="openFamilyCallModal(${c.id})" class="border rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200 bg-white'}" style="touch-action:manipulation;">
+            const scDateStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+            html += `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white border ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200'}" style="touch-action:manipulation;">
                 <div class="flex items-start justify-between gap-2">
                     <div class="flex-1 min-w-0">
                         <span class="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">קריאת שירות</span>
                         <div class="text-sm font-bold text-slate-800 truncate mt-0.5">${safeStr(c.title)}</div>
                         <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
+                        ${c.description ? `<div class="text-[10px] text-slate-400 truncate mt-0.5">${safeStr(c.description)}</div>` : ''}
                     </div>
-                    <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-white/60 border border-current/20">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
+                        ${scDateStr ? `<span class="text-[9px] text-slate-400">📅 ${scDateStr}</span>` : ''}
+                    </div>
                 </div>
                 ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
             </div>`;
@@ -702,44 +707,29 @@ function renderMyOrders() {
                 statusIcon = 'fa-spinner fa-spin';
         }
 
-        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {hour: '2-digit', minute:'2-digit'});
-        
+        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const orderBorderColor = statusColor.split(' ')[0];
         html += `
-        <div class="bg-white rounded-2xl shadow-sm border ${statusColor} overflow-hidden transition-all hover:shadow-md cursor-pointer" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')">
-            <div class="p-4 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0 border border-slate-100">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(o.store_name || 'עסק מקומי')}</h4>
-                        <p class="text-[10px] text-slate-500"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} • ${dateStr}</p>
-                    </div>
-                </div>
-                <div class="flex flex-col items-end">
-                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[9px] text-slate-400 font-mono tracking-widest mt-0.5">#${o.id}</span>
-                </div>
-            </div>
-            
-            <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
-                <div class="mb-4 ${o.status === 'quote' ? 'hidden' : ''}">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                        <span>התקבל</span>
-                        <span>בהכנה</span>
-                        <span>במשלוח</span>
-                        <span>נמסר</span>
-                    </div>
-                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
-                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
-                    </div>
-                </div>
-                <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p class="font-bold mb-2">פירוט ההזמנה/ההצעה:</p>
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
-                    ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
-                </div>
-            </div>
+        <div class="bg-white rounded-2xl border ${orderBorderColor} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
+            <div class="p-3 flex justify-between items-center gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i>
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
+                </div>
+                <div class="flex flex-col items-end shrink-0">
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(0)}</span>
+                    <span class="text-[9px] text-slate-400 font-mono">#${o.id}</span>
+                </div>
+            </div>
+            <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
+                <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
+                    ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
+                </div>
+            </div>
         </div>
         `;
     });
@@ -7761,9 +7751,9 @@ function renderHMContacts() {
     const list = getEl('hm-contacts-list'); if (!list) return;
     if (!hmContacts.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-address-book text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין אנשי קשר עדיין</p></div>`; return; }
     list.innerHTML = hmContacts.map(t => {
-        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> OneFlow</span>` : '';
+        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> ONEFLOW LIFE</span>` : '';
         const sendCallBtn = t.business_group_id ? `<button onclick="openServiceCallWizard(${t.id})" class="flex items-center gap-1 text-[10px] text-orange-700 font-black bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-wrench"></i> שלח קריאה</button>` : '';
-        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-OneFlow</button>` : '';
+        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-ONEFLOW LIFE</button>` : '';
         return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
         <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
@@ -7908,7 +7898,7 @@ window.openServiceCallWizard = function(technicianId) {
             <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-gradient-to-l from-indigo-50">
                 <div>
                     <h3 class="font-black text-slate-800 text-base">🔧 קריאת שירות חדשה</h3>
-                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">OneFlow</span></p>
+                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">ONEFLOW LIFE</span></p>
                 </div>
                 <button onclick="document.getElementById('sc-wizard-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
@@ -7974,18 +7964,30 @@ window.openLinkBusinessModal = async function(techId) {
     document.getElementById('hm-link-biz-modal')?.remove();
     const isNew = (techId === null || techId === undefined);
     const subtitle = isNew
-        ? 'חפש עסק OneFlow — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
-        : 'חפש את שם העסק של בעל המקצוע ב-OneFlow כדי לאפשר שליחת קריאות ישירות.';
+        ? 'חפש עסק ONEFLOW LIFE — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
+        : 'חפש את שם העסק של בעל המקצוע ב-ONEFLOW LIFE כדי לאפשר שליחת קריאות ישירות.';
     const html = `<div id="hm-link-biz-modal" class="fixed inset-0 bg-slate-900/60 z-[9993] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
         <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
             <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
-                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק OneFlow</h3>
+                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק ONEFLOW LIFE</h3>
                 <button onclick="document.getElementById('hm-link-biz-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
             <div class="p-4 space-y-3">
                 <p class="text-xs text-slate-500">${subtitle}</p>
                 <input type="hidden" id="hm-link-tech-id" value="${techId ?? ''}">
-                <input id="hm-link-search" type="text" placeholder="שם העסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)" autofocus>
+                <select id="hm-link-type" onchange="searchBusinessForLink(document.getElementById('hm-link-search').value)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none mb-1">
+                    <option value="">כל סוגי העסקים</option>
+                    <option value="electrician">חשמלאי</option>
+                    <option value="plumber">אינסטלטור</option>
+                    <option value="ac_tech">מיזוג אוויר</option>
+                    <option value="carpenter">נגר</option>
+                    <option value="painter">צבעי</option>
+                    <option value="locksmith">מנעולן</option>
+                    <option value="cleaner">ניקיון</option>
+                    <option value="restaurant">מסעדה</option>
+                    <option value="other">אחר</option>
+                </select>
+                <input id="hm-link-search" type="text" placeholder="שם עסק, טלפון..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none" oninput="searchBusinessForLink(this.value)" autofocus>
                 <div id="hm-link-results" class="space-y-2 max-h-48 overflow-y-auto"></div>
             </div>
         </div>
@@ -7998,7 +8000,9 @@ window.searchBusinessForLink = async function(q) {
     const el = document.getElementById('hm-link-results');
     if (!el || q.length < 2) { if(el) el.innerHTML = ''; return; }
     try {
-        const r = await fetch(`/api/groups/search-business?q=${encodeURIComponent(q)}`);
+        const bizType = document.getElementById('hm-link-type')?.value || '';
+        const typeParam = bizType ? `&type=${encodeURIComponent(bizType)}` : '';
+        const r = await fetch(`/api/groups/search-business?q=${encodeURIComponent(q)}${typeParam}`);
         const d = await r.json();
         if (!d.groups?.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו עסקים</p>'; return; }
         const techIdVal = document.getElementById('hm-link-tech-id')?.value || '';

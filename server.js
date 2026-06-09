@@ -610,6 +610,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS needs_triage BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
@@ -8543,17 +8545,21 @@ app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
 // Search for a business group by name OR phone (for linking from family side)
 app.get('/api/groups/search-business', async (req, res) => {
     try {
-        const { q } = req.query;
+        const { q, type } = req.query;
         if (!q || q.length < 2) return res.json({ groups: [] });
         const phoneQ = q.replace(/\D/g,'');
+        const typeFilter = type ? ` AND fg.business_type = $4` : '';
+        const params = [`%${q}%`, phoneQ, `%${phoneQ}%`];
+        if (type) params.push(type);
         const result = await pool.query(
             `SELECT DISTINCT fg.id, fg.name, fg.business_type, u.phone
              FROM family_groups fg
              LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
              WHERE fg.type='BUSINESS'
                AND (LOWER(fg.name) LIKE LOWER($1) OR (LENGTH($2) >= 7 AND u.phone LIKE $3))
+               ${typeFilter}
              LIMIT 10`,
-            [`%${q}%`, phoneQ, `%${phoneQ}%`]);
+            params);
         res.json({ groups: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8566,13 +8572,15 @@ app.get('/api/groups/search-all', async (req, res) => {
         const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
             `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone,
-                    fg.street_address, fg.city
+                    fg.street_address, fg.city, fg.contact_name,
+                    TRIM(CONCAT(COALESCE(fg.street_address,''), ' ', COALESCE(fg.city,''))) as address
              FROM family_groups fg
              LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
              WHERE (LOWER(fg.name) LIKE LOWER($1)
                 OR (LENGTH($2) >= 7 AND u.phone LIKE $3)
                 OR LOWER(COALESCE(fg.city,'')) LIKE LOWER($1)
-                OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1))
+                OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1)
+                OR LOWER(COALESCE(fg.contact_name,'')) LIKE LOWER($1))
              LIMIT 15`,
             [`%${q}%`, phoneQ, `%${phoneQ}%`]);
         res.json({ groups: result.rows });
@@ -8588,9 +8596,9 @@ app.post('/api/service-calls', async (req, res) => {
         const fullDesc = description || null;
         const resolvedMemberId = needsTriage ? null : (assignedMemberId || null);
         const result = await pool.query(
-            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
+            `INSERT INTO service_calls (family_group_id, business_group_id, technician_contact_id, title, description, address, customer_phone, customer_name, priority, created_by_user_id, assigned_member_id, scheduled_at, requested_date, needs_triage)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+            [familyGroupId, businessGroupId||null, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null, needsTriage ? true : false]);
         res.json({ success: true, call: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
