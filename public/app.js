@@ -7074,7 +7074,12 @@ async function fetchHMFaults() {
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); if (d.success) hmFaults = d.faults; renderHMFaults(); updateHMBadge(); } catch(e) {}
 }
 async function fetchHMContacts() {
-    try { const r = await fetch(`/api/equipment/technicians/${currentGroup.id}`); const d = await r.json(); if (d.success) hmContacts = d.technicians; renderHMContacts(); } catch(e) {}
+    try {
+        const r = await fetch(`/api/equipment/technicians/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success) hmContacts = d.technicians || [];
+        renderHMContacts();
+    } catch(e) { console.error('fetchHMContacts error:', e); }
 }
 
 function updateHMBadge() {
@@ -7871,19 +7876,21 @@ window.searchBusinessForLink = async function(q) {
 window.linkTechToBusiness = async function(techId, bizGroupId, bizName) {
     try {
         if (!techId) {
-            // Create a new contact from the business and link it
             const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', businessGroupId: bizGroupId }) });
             const d = await r.json();
-            if (!d.success) throw new Error(d.error);
+            if (!d.success) throw new Error(d.error || 'שגיאת שרת');
         } else {
-            await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
+            const r = await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ businessGroupId: bizGroupId }) });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || 'שגיאה בקישור');
         }
-        if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
         document.getElementById('hm-link-biz-modal')?.remove();
         await fetchHMContacts();
-    } catch(e) { if(typeof showToast==='function') showToast('error','שגיאה'); }
+        switchHomeMaintenanceTab('contacts');
+        if(typeof showToast==='function') showToast('success', 'הוקשר בהצלחה! 🎉');
+    } catch(e) { console.error('linkTechToBusiness error:', e); if(typeof showToast==='function') showToast('error', e.message || 'שגיאה'); }
 };
 
 function openHMContactModal(id = null) {
