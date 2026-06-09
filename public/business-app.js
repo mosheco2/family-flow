@@ -24950,15 +24950,19 @@ window.scSearchCustomerInOneFlow = async function() {
             resultsEl.innerHTML = groups.slice(0,5).map(g => {
                 const addr = g.address || [g.street_address, g.city].filter(Boolean).join(' ') || '';
                 const contactName = g.contact_name || '';
-                return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${contactName ? ' · ' + safeStr(contactName) : ''}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
+                const adminNickname = g.admin_nickname || '';
+                const displayPerson = adminNickname || contactName;
+                return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${adminNickname.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${displayPerson ? ' · ' + safeStr(displayPerson) : ''}</div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
             }).join('');
         }
     } catch(e) { if (resultsEl) resultsEl.innerHTML = '<p class="text-xs text-red-400 py-1">שגיאה בחיפוש</p>'; }
 };
 
-window.scSelectCustomer = function(groupId, name, address, phone, contactName) {
+window.scSelectCustomer = function(groupId, name, address, phone, contactName, adminNickname) {
     const familyInput = document.getElementById('scn-family');
-    if (familyInput) familyInput.value = contactName || name;
+    const personName = adminNickname || contactName || '';
+    const customerLabel = personName ? `${personName} (${name})` : name;
+    if (familyInput) familyInput.value = customerLabel;
     const addrInput = document.getElementById('scn-address');
     if (addrInput && address && !addrInput.value) addrInput.value = address;
     const phoneInput = document.getElementById('scn-phone');
@@ -24966,8 +24970,7 @@ window.scSelectCustomer = function(groupId, name, address, phone, contactName) {
     const hiddenId = document.getElementById('scn-family-group-id');
     if (hiddenId) hiddenId.value = groupId;
     const resultsEl = document.getElementById('scn-customer-results');
-    const displayName = contactName || name;
-    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(displayName)} נבחר${phone ? ' · ' + safeStr(phone) : ''}${address ? ' · ' + safeStr(address) : ''}</p>`;
+    if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(customerLabel)} נבחר${phone ? ' · ' + safeStr(phone) : ''}${address ? ' · ' + safeStr(address) : ''}</p>`;
 };
 
 window.submitNewServiceCall = async function() {
@@ -24989,6 +24992,7 @@ window.submitNewServiceCall = async function() {
                 title,
                 description: (familyName ? `לקוח: ${familyName}\n` : '') + (desc||''),
                 address, customerPhone: customerPhone || null, priority,
+                customerName: familyName || null,
                 createdByUserId: currentUser?.id,
                 assignedMemberId: needsTriage ? null : (assignedMemberId || null),
                 needsTriage: needsTriage || false,

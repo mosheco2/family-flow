@@ -8572,7 +8572,7 @@ app.get('/api/groups/search-all', async (req, res) => {
         const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
             `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone,
-                    fg.street_address, fg.city, fg.contact_name,
+                    fg.street_address, fg.city, fg.contact_name, u.nickname as admin_nickname,
                     TRIM(CONCAT(COALESCE(fg.street_address,''), ' ', COALESCE(fg.city,''))) as address
              FROM family_groups fg
              LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
