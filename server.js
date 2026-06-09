@@ -8643,6 +8643,16 @@ app.get('/api/service-calls/business/:groupId', async (req, res) => {
     } catch(e) { console.error('SC business query error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
+// Diagnostic endpoint - remove after debugging
+app.get('/api/debug/sc-columns', async (req, res) => {
+    try {
+        const cols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='service_calls' ORDER BY ordinal_position`);
+        const count = await pool.query(`SELECT COUNT(*) FROM service_calls`);
+        const sample = await pool.query(`SELECT * FROM service_calls LIMIT 1`);
+        res.json({ columns: cols.rows.map(r=>r.column_name), total: count.rows[0].count, sample: sample.rows[0] || null });
+    } catch(e) { res.json({ error: e.message }); }
+});
+
 // Get calls for a specific customer (by family_group_id or name match)
 app.get('/api/service-calls/customer/:businessGroupId/:familyGroupId', async (req, res) => {
     try {
