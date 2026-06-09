@@ -611,6 +611,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS street_address VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS city VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS needs_triage BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS parts_status VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS service_call_id INT REFERENCES service_calls(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
@@ -4877,6 +4879,17 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
         // עדכון סטטוס הזמנה לסופק
         await dbClient.query("UPDATE purchase_orders SET status = 'delivered' WHERE id = $1", [orderId]);
 
+        // עדכון קריאת שירות מקושרת — חלקים מוכנים
+        try {
+            const scLink = await dbClient.query('SELECT service_call_id FROM purchase_orders WHERE id=$1', [orderId]);
+            if (scLink.rows[0]?.service_call_id) {
+                await dbClient.query("UPDATE service_calls SET parts_status='parts_ready', updated_at=NOW() WHERE id=$1", [scLink.rows[0].service_call_id]);
+                await dbClient.query(`INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key)
+                    SELECT business_group_id, 'sc_parts_ready', CONCAT('✅ חלקים הגיעו לקריאה: "', title, '" — מוכן לאיסוף'), CONCAT('sc_parts_ready_', id, '_', TO_CHAR(NOW(),'YYYY-MM-DD'))
+                    FROM service_calls WHERE id=$1`, [scLink.rows[0].service_call_id]);
+            }
+        } catch(scErr) { console.warn('SC parts_ready update skipped:', scErr.message); }
+
         // 1. הוספת מה שהתקבל למלאי (Pantry)
         for (let item of receivedItems) {
             const pRes = await dbClient.query(`SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
@@ -5192,6 +5205,14 @@ app.post('/api/b2b/orders', async (req, res) => {
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
 
             const newOrderId = result.rows[0].id;
+
+            // קישור לקריאת שירות אם סופקה
+            if (order.serviceCallId) {
+                try {
+                    await dbClient.query('UPDATE purchase_orders SET service_call_id=$1 WHERE id=$2', [order.serviceCallId, newOrderId]);
+                    await dbClient.query("UPDATE service_calls SET parts_status='waiting_delivery', updated_at=NOW() WHERE id=$1", [order.serviceCallId]);
+                } catch(linkErr) { console.warn('SC-PO link skipped:', linkErr.message); }
+            }
 
             // 1b. אסימון אישור — UPDATE נפרד כדי שכשל כאן לא יפיל את ההזמנה
             let poConfirmUrl = '';
@@ -8635,12 +8656,45 @@ app.get('/api/service-calls/business/:groupId', async (req, res) => {
              LEFT JOIN users u ON u.id = sc.assigned_member_id
              LEFT JOIN users creator ON creator.id = sc.created_by_user_id
              WHERE sc.business_group_id=$1
-             ORDER BY
-               CASE sc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
-               sc.created_at DESC`,
+             ORDER BY sc.created_at DESC`,
             [req.params.groupId]);
         res.json({ success: true, calls: result.rows });
     } catch(e) { console.error('SC business query error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// התראות תזמון קריאות שירות — יום לפני ועבר מועד
+app.post('/api/service-calls/check-schedule-notifications/:groupId', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        const now = new Date();
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+        const dayAfterTomorrow = new Date(today); dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+        const todayStr = today.toISOString().slice(0,10);
+
+        const [dueTomorrow, overdue] = await Promise.all([
+            pool.query(`SELECT id, title FROM service_calls WHERE business_group_id=$1 AND scheduled_at >= $2 AND scheduled_at < $3 AND status NOT IN ('done','cancelled')`, [groupId, tomorrow, dayAfterTomorrow]),
+            pool.query(`SELECT id, title FROM service_calls WHERE business_group_id=$1 AND scheduled_at < $2 AND status NOT IN ('done','cancelled')`, [groupId, today])
+        ]);
+
+        for (const call of dueTomorrow.rows) {
+            const refKey = `sc_due_tomorrow_${call.id}_${todayStr}`;
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (!exists.rows.length) {
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'sc_due_soon', `⏰ קריאת שירות מתוכננת למחר: "${call.title}"`, refKey]);
+            }
+        }
+        for (const call of overdue.rows) {
+            const refKey = `sc_overdue_${call.id}_${todayStr}`;
+            const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [groupId, refKey]);
+            if (!exists.rows.length) {
+                await pool.query('INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,$2,$3,$4)',
+                    [groupId, 'sc_overdue', `🚨 קריאת שירות עברה את מועד הביצוע: "${call.title}"`, refKey]);
+            }
+        }
+        res.json({ success: true, checked: dueTomorrow.rows.length + overdue.rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Diagnostic endpoint - remove after debugging
@@ -8694,6 +8748,7 @@ app.patch('/api/service-calls/:id', async (req, res) => {
         if (priceQuote !== undefined)        { sets.push(`price_quote=$${i++}`);         vals.push(priceQuote||null); }
         if (discountPct !== undefined)       { sets.push(`discount_pct=$${i++}`);        vals.push(discountPct||0); }
         if (communityDiscount !== undefined) { sets.push(`community_discount=$${i++}`);  vals.push(!!communityDiscount); }
+        if (req.body.partsStatus !== undefined)  { sets.push(`parts_status=$${i++}`);        vals.push(req.body.partsStatus||null); }
         if (!sets.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
         sets.push(`updated_at=NOW()`);
         vals.push(req.params.id);

@@ -11859,6 +11859,9 @@ async function submitB2BOrders() {
             try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; }
         }
 
+        if (window._pendingScForPo) {
+            splitOrders.forEach(o => { o.serviceCallId = window._pendingScForPo; });
+        }
         const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
         const data = await res.json();
         submitted = true;
@@ -11874,6 +11877,7 @@ async function submitB2BOrders() {
         btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>';
         getEl('b2b-checkout-modal').classList.add('hidden');
         b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq');
+        if (window._pendingScForPo) { showToast('success', `הזמנת הרכש שויכה לקריאה #${window._pendingScForPo}`); window._pendingScForPo = null; }
         fetchB2BOrders();
     }
 }
@@ -24474,6 +24478,8 @@ async function renderBranchManagerMaintenanceDashboard(el) {
     let calls = [], members = [];
     try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN' && m.employee_role_type === 'field_tech'); } catch(e) {}
+    // בדיקת התראות תאריכים (אחרי טעינה, לא חוסם)
+    fetch(`/api/service-calls/check-schedule-notifications/${currentGroup.id}`, {method:'POST'}).catch(()=>{});
 
     const open = calls.filter(c => !['done','cancelled'].includes(c.status));
     const done = calls.filter(c => c.status === 'done');
@@ -24757,6 +24763,12 @@ window.showServiceCallModal = async function(callId) {
                 </div>
             </div>
 
+            ${call.status === 'pending_parts' ? `<div class="bg-purple-50 border border-purple-200 rounded-2xl p-3">
+                <div class="text-[10px] font-bold text-purple-700 mb-2">📦 סטטוס חלקים</div>
+                ${call.parts_status === 'waiting_delivery' ? `<div class="flex items-center gap-2 bg-purple-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">📦</span><span class="text-xs font-bold text-purple-800">ממתין לאספקה מהספק</span></div>` : ''}
+                ${call.parts_status === 'parts_ready' ? `<div class="flex items-center gap-2 bg-green-100 rounded-xl px-3 py-2 mb-2"><span class="text-sm">✅</span><span class="text-xs font-bold text-green-800">חלקים הגיעו — ממתינים לאיסוף</span></div>` : ''}
+                ${!call.parts_status ? `<button onclick="document.getElementById('sc-modal').remove();if(window._scChatInterval)clearInterval(window._scChatInterval);window._pendingScForPo=${callId};switchTab('shop');setTimeout(()=>switchProcurementTab('list'),400);showToast('info','בחר מוצרים ובסיום ההזמנה תשוייך לקריאה #${callId}');" class="w-full bg-purple-600 text-white rounded-xl py-2 text-xs font-black active:scale-95 transition" style="touch-action:manipulation;">🛒 פתח הזמנת רכש</button>` : ''}
+            </div>` : ''}
             <button onclick="markServiceCallDone(${callId})" class="w-full bg-green-600 text-white rounded-2xl py-3 font-black text-sm active:scale-95 transition shadow">✅ סמן כהושלם</button>
             <button onclick="createCustomerFromCall(${callId})" class="w-full bg-slate-100 text-slate-700 rounded-2xl py-2.5 font-bold text-sm active:scale-95 transition mt-1">💾 שמור כלקוח</button>
         </div>
@@ -24788,11 +24800,28 @@ window.saveServiceCallUpdates = async function(callId) {
         showToast('success', 'עודכן בהצלחה');
         if (window._scChatInterval) clearInterval(window._scChatInterval);
         document.getElementById('sc-modal')?.remove();
-        // רענן יומן אם יש תזמון חדש
         if (scheduledAt && typeof window.syncServiceCallsToCalendar === 'function') {
             window.syncServiceCallsToCalendar();
         }
-        setTimeout(() => showServiceCallModal(callId), 150);
+        if (status === 'pending_parts') {
+            // הצע יצירת הזמנת רכש
+            const existingDialog = document.getElementById('sc-po-dialog');
+            if (existingDialog) existingDialog.remove();
+            const dlg = document.createElement('div');
+            dlg.id = 'sc-po-dialog';
+            dlg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;display:flex;align-items:flex-end;padding:16px;direction:rtl;';
+            dlg.innerHTML = `<div class="w-full bg-white rounded-2xl p-5 shadow-2xl">
+                <div class="text-base font-black text-slate-800 mb-1">📦 ממתין לחלקים</div>
+                <div class="text-xs text-slate-500 mb-4">רוצה לפתוח הזמנת רכש מהמודול הקיים ולשייך לקריאה זו?</div>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('sc-po-dialog').remove();window._pendingScForPo=${callId};if(window._scChatInterval)clearInterval(window._scChatInterval);document.getElementById('sc-modal')?.remove();switchTab('shop');setTimeout(()=>switchProcurementTab('list'),400);showToast('info','בחר מוצרים ובסיום ההזמנה תשוייך לקריאה #${callId}');" class="flex-1 bg-orange-600 text-white rounded-xl py-2.5 text-sm font-black active:scale-95 transition">פתח הזמנת רכש</button>
+                    <button onclick="document.getElementById('sc-po-dialog').remove();setTimeout(()=>showServiceCallModal(${callId}),150);" class="flex-1 bg-slate-100 text-slate-700 rounded-xl py-2.5 text-sm font-bold active:scale-95 transition">לאחר מכן</button>
+                </div>
+            </div>`;
+            document.body.appendChild(dlg);
+        } else {
+            setTimeout(() => showServiceCallModal(callId), 150);
+        }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
@@ -25066,6 +25095,10 @@ window.filterSCAll = async function(status) {
 };
 
 function scCallCard(c) {
+    const isActive = !['done','cancelled'].includes(c.status);
+    const noScheduleWarn = isActive && !c.scheduled_at;
+    const partsWaitDelivery = c.parts_status === 'waiting_delivery';
+    const partsReady = c.parts_status === 'parts_ready';
     return `<div onclick="showServiceCallModal(${c.id})" class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm cursor-pointer active:bg-slate-50 transition" style="touch-action:manipulation;">
         <div class="flex items-start gap-3">
             <span class="text-lg shrink-0 mt-0.5">${c.priority==='urgent'?'🚨':c.status==='in_progress'?'🔄':c.status==='done'?'✅':'🔧'}</span>
@@ -25076,6 +25109,9 @@ function scCallCard(c) {
                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_STATUS_COLORS[c.status]||'bg-slate-100'}">${SC_STATUS_LABELS[c.status]||c.status}</span>
                     ${c.priority !== 'normal' ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${SC_PRIORITY_COLORS[c.priority]||''}">${SC_PRIORITY_LABELS[c.priority]||''}</span>` : ''}
                     ${c.price_quote ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700">₪${parseFloat(c.price_quote).toFixed(0)}</span>` : ''}
+                    ${noScheduleWarn ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠️ ללא תאריך</span>` : ''}
+                    ${partsWaitDelivery ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">📦 ממתין לאספקה</span>` : ''}
+                    ${partsReady ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">✅ חלקים לאיסוף</span>` : ''}
                 </div>
             </div>
             <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
