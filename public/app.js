@@ -587,42 +587,8 @@ function renderMyOrders() {
     const list = getEl('my-orders-list');
     if (!list) return;
 
-    const PAGE_SIZE = 10;
-    const filter = window._myOrdersFilter || 'orders';
-    const search = (window._myOrdersSearch || '').toLowerCase();
-    const page = window._myOrdersPage || 0;
-
-    let filteredOrders = filter === 'service_calls' ? [] : myOrdersCache.filter(o => {
-        if (!search) return true;
-        return (o.store_name||'').toLowerCase().includes(search) || String(o.id).includes(search) || (o.items_json||o.items||'').toLowerCase().includes(search);
-    });
-
-    let filteredCalls = filter === 'orders' ? [] : (familyServiceCalls||[]).filter(c => {
-        if (!search) return true;
-        return (c.title||'').toLowerCase().includes(search) || (c.business_name||'').toLowerCase().includes(search) || String(c.id).includes(search);
-    });
-
-    const allItems = [...filteredOrders.map(o => ({type:'order', data:o})), ...filteredCalls.map(c => ({type:'call', data:c}))];
-    const totalItems = allItems.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-    const safePageIdx = Math.min(page, Math.max(0, totalPages - 1));
-    const pageItems = allItems.slice(safePageIdx * PAGE_SIZE, (safePageIdx + 1) * PAGE_SIZE);
-
-    const SC_STATUS_LABELS_FAM = { new:'ממתינה לטיפול', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
-    const SC_STATUS_COLORS_FAM = { new:'border-blue-200 bg-blue-50', seen:'border-indigo-200 bg-indigo-50', in_progress:'border-amber-200 bg-amber-50', pending_parts:'border-purple-200 bg-purple-50', done:'border-green-200 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
-
-    const filterBarHtml = `<div class="mb-3 space-y-2 pt-2">
-        <div class="flex gap-2">
-            <button onclick="window._myOrdersFilter='orders';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='orders'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">הזמנות</button>
-            <button onclick="window._myOrdersFilter='service_calls';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='service_calls'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">קריאות שירות</button>
-            <button onclick="window._myOrdersFilter='all';window._myOrdersPage=0;renderMyOrders();" class="flex-1 text-xs font-black py-2 rounded-xl border transition ${filter==='all'?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}" style="touch-action:manipulation;">הכל</button>
-        </div>
-        <input type="text" placeholder="חיפוש לפי מספר, שם, עסק..." value="${(window._myOrdersSearch||'').replace(/"/g,'&quot;')}" oninput="window._myOrdersSearch=this.value;window._myOrdersPage=0;renderMyOrders();" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300">
-    </div>`;
-
-    if (allItems.length === 0 && myOrdersCache.length === 0 && (!(familyServiceCalls)||familyServiceCalls.length===0)) {
-        list.innerHTML = filterBarHtml + `
-        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+    if (!myOrdersCache.length) {
+        list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
             <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
             <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
             <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
@@ -630,114 +596,40 @@ function renderMyOrders() {
         return;
     }
 
-    if (allItems.length === 0) {
-        list.innerHTML = filterBarHtml + `<p class="text-center text-slate-400 text-sm py-6">לא נמצאו תוצאות</p>`;
-        return;
-    }
-
-    let html = filterBarHtml;
-    pageItems.forEach(item => {
-        if (item.type === 'call') {
-            const c = item.data;
-            const scCreatedStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-            const scScheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
-            html += `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white border ${SC_STATUS_COLORS_FAM[c.status]||'border-slate-200'}" style="touch-action:manipulation;">
-                <div class="flex items-start justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 mb-0.5">
-                            <span class="text-[9px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">קריאת שירות</span>
-                            ${scCreatedStr ? `<span class="text-[9px] text-slate-400">${scCreatedStr}</span>` : ''}
-                        </div>
-                        <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
-                        <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}</div>
-                        ${c.description ? `<div class="text-[10px] text-slate-400 truncate mt-0.5">${safeStr(c.description)}</div>` : ''}
-                    </div>
-                    <div class="flex flex-col items-end gap-1 shrink-0">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${SC_STATUS_LABELS_FAM[c.status]||c.status}</span>
-                        ${scScheduledStr ? `<span class="text-[9px] text-blue-500 font-bold">📅 ${scScheduledStr}</span>` : ''}
-                    </div>
-                </div>
-                ${c.price_quote ? `<div class="mt-1 text-[10px] text-indigo-700 font-bold">הצעת מחיר: ₪${parseFloat(c.price_quote).toFixed(0)}</div>` : ''}
-            </div>`;
-            return;
-        }
-        const o = item.data;
-        let statusColor = '';
-        let statusText = '';
-        let progressPct = 0;
-        let statusIcon = '';
-
+    let html = '';
+    myOrdersCache.forEach(o => {
+        let statusColor = '', statusText = '', progressPct = 0, statusIcon = '';
         switch(o.status) {
-            case 'quote':
-                statusColor = 'border-slate-300 bg-slate-100'; 
-                statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
-                progressPct = 10; 
-                statusIcon = 'fa-file-invoice';
-                break;
-            case 'new': 
-                statusColor = 'border-blue-200 bg-blue-50'; 
-                statusText = 'התקבל בעסק'; 
-                progressPct = 25; 
-                statusIcon = 'fa-clock';
-                break;
-            case 'processing': 
-                statusColor = 'border-orange-200 bg-orange-50'; 
-                statusText = 'באריזה / הכנה'; 
-                progressPct = 50; 
-                statusIcon = 'fa-box';
-                break;
-            case 'ready': 
-                statusColor = 'border-purple-200 bg-purple-50'; 
-                statusText = 'מוכן לאיסוף'; 
-                progressPct = 75; 
-                statusIcon = 'fa-bag-shopping';
-                break;
-            case 'shipped': 
-                statusColor = 'border-indigo-200 bg-indigo-50'; 
-                statusText = o.is_delivery ? 'בדרך אליך! 🛵' : 'בדרך אלייך!'; 
-                progressPct = 90; 
-                statusIcon = o.is_delivery ? 'fa-motorcycle' : 'fa-truck-fast';
-                break;
-            case 'completed': 
-                statusColor = 'border-green-200 bg-green-50'; 
-                statusText = 'הושלם ונמסר'; 
-                progressPct = 100; 
-                statusIcon = 'fa-check-double';
-                break;
-            default: 
-                statusColor = 'border-slate-200 bg-slate-50'; 
-                statusText = 'בטיפול'; 
-                progressPct = 10;
-                statusIcon = 'fa-spinner fa-spin';
-        }
-
-        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        const orderBorderColor = statusColor.split(' ')[0];
-        html += `
-        <div class="bg-white rounded-2xl border ${orderBorderColor} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
-            <div class="p-3 flex justify-between items-center gap-2">
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i>
-                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
-                </div>
-                <div class="flex flex-col items-end shrink-0">
-                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(0)}</span>
-                    <span class="text-[9px] text-slate-400 font-mono">#${o.id}</span>
-                </div>
-            </div>
-            <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
-                <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(typeof o.items_json==='object'&&o.items_json!==null?JSON.stringify(o.items_json,null,2):o.items_json||o.items||'ללא פרטים')}</div>
+            case 'quote':   statusColor='border-slate-300 bg-slate-100'; statusText=o.quote_status==='approved'?'הצעת מחיר אושרה':'הצעת מחיר'; progressPct=10; statusIcon='fa-file-invoice'; break;
+            case 'new':     statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; progressPct=25; statusIcon='fa-clock'; break;
+            case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; progressPct=50; statusIcon='fa-box'; break;
+            case 'ready':   statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; progressPct=75; statusIcon='fa-bag-shopping'; break;
+            case 'shipped': statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; progressPct=90; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
+            case 'completed': statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; progressPct=100; statusIcon='fa-check-double'; break;
+            default: statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; progressPct=10; statusIcon='fa-spinner fa-spin';
+        }
+        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const borderCls = statusColor.split(' ')[0];
+        html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
+            <div class="p-3 flex justify-between items-center gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4></div>
+                    <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
+                </div>
+                <div class="flex flex-col items-end shrink-0">
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(0)}</span>
+                    <span class="text-[9px] text-slate-400 font-mono">#${o.id}</span>
+                </div>
+            </div>
+            <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
+                <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(typeof o.items_json==='object'&&o.items_json!==null?JSON.stringify(o.items_json,null,2):o.items_json||o.items||'ללא פרטים')}</div>
                     ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
-                </div>
-            </div>
-        </div>
-        `;
-    });
-    list.innerHTML = html;
+                </div>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
 }
 
 function updateBatteryUI() {
@@ -7130,6 +7022,7 @@ const HM_FSTATUS_COLORS = { 'open':'bg-red-100 text-red-700','in_progress':'bg-b
 
 async function loadHomeMaintenance() {
     if (!currentGroup) return;
+    loadFamilyServiceCalls().catch(()=>{});
     await Promise.all([fetchHMItems(), fetchHMMaintenance(), fetchHMFaults(), fetchHMContacts()]);
     switchHomeMaintenanceTab('items');
     checkHMNotifications();
@@ -7450,8 +7343,32 @@ function filterHMFaults(f) {
 function renderHMFaults() {
     const list = getEl('hm-faults-list'); if (!list) return;
     let filtered = hmFaultsFilter === 'all' ? hmFaults : hmFaults.filter(f => f.status === hmFaultsFilter);
-    if (!filtered.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין תקלות</p></div>`; return; }
-    list.innerHTML = filtered.map(f => {
+    // קריאות שירות מהעסק — מוצגות תמיד בראש הרשימה
+    const activeSC = (familyServiceCalls || []).filter(c => c.status !== 'cancelled' && c.status !== 'done');
+    const scHtml = activeSC.map(c => {
+        const SC_ST = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים' };
+        const sc_bg = { new:'border-blue-300 bg-blue-50', seen:'border-indigo-300 bg-indigo-50', in_progress:'border-amber-300 bg-amber-50', pending_parts:'border-purple-300 bg-purple-50' };
+        const createdStr = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) : '';
+        const scheduledStr = c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : null;
+        const borderBg = sc_bg[c.status] || 'border-slate-200 bg-white';
+        return `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 ${borderBg} rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition shadow-sm" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <span class="text-[9px] font-black text-indigo-600 bg-white border border-indigo-200 px-1.5 py-0.5 rounded-full">🏢 קריאת שירות מהעסק</span>
+                        ${c.business_name ? `<span class="text-[9px] text-slate-500">${safeStr(c.business_name)}</span>` : ''}
+                    </div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
+                    ${createdStr ? `<div class="text-[10px] text-slate-400">${createdStr}</div>` : ''}
+                    ${scheduledStr ? `<div class="text-[10px] text-blue-600 font-bold">📅 ${scheduledStr}</div>` : '<div class="text-[10px] text-amber-600 font-bold">⚠️ ללא תאריך טיפול</div>'}
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 border border-current shrink-0">${SC_ST[c.status]||c.status}</span>
+            </div>
+        </div>`;
+    }).join('');
+    if (!filtered.length && !activeSC.length) { list.innerHTML = `<div class="text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-circle-check text-3xl mb-2 opacity-30 block"></i><p class="text-sm">אין תקלות</p></div>`; return; }
+    if (!filtered.length) { list.innerHTML = scHtml; return; }
+    list.innerHTML = scHtml + filtered.map(f => {
         const sColor = HM_SEV_COLORS[f.severity] || 'bg-slate-100 text-slate-600';
         const sLabel = HM_SEV_LABELS[f.severity] || f.severity;
         const stColor = HM_FSTATUS_COLORS[f.status] || 'bg-slate-100 text-slate-600';
@@ -7790,7 +7707,7 @@ async function loadFamilyServiceCalls() {
         const d = await r.json();
         familyServiceCalls = d.calls || [];
         renderBusinessServiceCallsTab();
-        if (myOrdersCache.length > 0) try { renderMyOrders(); } catch(e) {}
+        try { renderHMFaults(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -7802,7 +7719,8 @@ function renderBusinessServiceCallsTab() {
     const ST_BG   = { new:'bg-blue-50', seen:'bg-indigo-50', in_progress:'bg-amber-50', pending_parts:'bg-purple-50', done:'bg-green-50', cancelled:'bg-slate-50' };
     const ST_TEXT = { new:'text-blue-700', seen:'text-indigo-700', in_progress:'text-amber-700', pending_parts:'text-purple-700', done:'text-green-700', cancelled:'text-slate-500' };
     const active = (familyServiceCalls || []).filter(c => c.status !== 'cancelled');
-    if (!active.length) {
+    const openFaults = (hmFaults || []).filter(f => f.status !== 'resolved');
+    if (!active.length && !openFaults.length) {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
             <i class="fa-solid fa-wrench text-3xl text-slate-300 mb-2 block"></i>
             <p class="text-sm font-bold text-slate-500">אין קריאות שירות פעילות</p>
@@ -7810,7 +7728,23 @@ function renderBusinessServiceCallsTab() {
         </div>`;
         return;
     }
-    list.innerHTML = active.map(c => {
+    const faultsHtml = openFaults.map(f => {
+        const sev = { low:'🟢', normal:'🔵', medium:'🟠', high:'🔴', critical:'🚨' }[f.severity] || '⚠️';
+        const stF = { open:'פתוחה', in_progress:'בטיפול' }[f.status] || f.status;
+        return `<div onclick="switchTab('home-maintenance');setTimeout(()=>{switchHomeMaintenanceTab('faults')},150)" class="border-r-4 border-orange-300 bg-orange-50 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition shadow-sm" style="touch-action:manipulation;">
+            <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[9px] font-black text-orange-700 bg-white border border-orange-200 px-1.5 py-0.5 rounded-full">🏠 תקלה בבית</span>
+                    </div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${sev} ${safeStr(f.title)}</div>
+                    <div class="text-[10px] text-slate-500">${safeStr(f.equipment_name||'')} · ${stF}</div>
+                </div>
+                <span class="text-[9px] font-bold text-orange-600 bg-white border border-orange-200 px-2 py-0.5 rounded-full shrink-0">פרטים →</span>
+            </div>
+        </div>`;
+    }).join('');
+    const scHtml = active.map(c => {
         const borderCls = ST_COLOR[c.status] || 'border-slate-300';
         const bgCls = ST_BG[c.status] || 'bg-white';
         const textCls = ST_TEXT[c.status] || 'text-slate-600';
@@ -7836,6 +7770,7 @@ function renderBusinessServiceCallsTab() {
             </div>
         </div>`;
     }).join('');
+    list.innerHTML = scHtml + faultsHtml;
 }
 
 window.openFamilyCallModal = async function(callId) {
