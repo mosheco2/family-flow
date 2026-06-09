@@ -8652,6 +8652,21 @@ app.get('/api/debug/sc-columns', async (req, res) => {
         res.json({ columns: cols.rows.map(r=>r.column_name), total: count.rows[0].count, sample: sample.rows[0] || null });
     } catch(e) { res.json({ error: e.message }); }
 });
+app.get('/api/debug/sc-business-test/:gid', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
+             creator.nickname as creator_nickname, creator.name as creator_full_name
+             FROM service_calls sc
+             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+             LEFT JOIN users u ON u.id = sc.assigned_member_id
+             LEFT JOIN users creator ON creator.id = sc.created_by_user_id
+             WHERE sc.business_group_id=$1
+             ORDER BY sc.created_at DESC`,
+            [req.params.gid]);
+        res.json({ success: true, count: result.rows.length, first: result.rows[0] || null });
+    } catch(e) { res.json({ error: e.message, stack: e.stack }); }
+});
 
 // Get calls for a specific customer (by family_group_id or name match)
 app.get('/api/service-calls/customer/:businessGroupId/:familyGroupId', async (req, res) => {
