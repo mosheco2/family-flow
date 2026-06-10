@@ -26431,6 +26431,9 @@ async function renderBranchManagerDashboard(el) {
     if (currentGroup.business_type === 'maintenance_repair') {
         return renderBranchManagerMaintenanceDashboard(el);
     }
+    if (currentGroup.business_type === 'sport') {
+        return renderSportDashboard(el);
+    }
     let todaySales = 0, txCount = 0, present = 0, totalMembers = 0, faultsCount = 0;
     const today = new Date().toISOString().split('T')[0];
     try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
@@ -27890,3 +27893,432 @@ window.createWoCalendarEvent = async function() {
 };
 
 // ===== END WORK ORDERS MODULE =====
+
+// ===== SPORT / FITNESS MODULE =====
+
+// ─── Sport Dashboard ──────────────────────────────────────────────────────────
+async function renderSportDashboard(el) {
+    let stats = { active_members: 0, expiring_soon: 0, checkins_today: 0, currently_in: 0, at_risk: 0, revenue_month: 0 };
+    try {
+        const r = await fetch(`${API}/sport/dashboard/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.stats) stats = d.stats;
+    } catch(e) {}
+
+    const kpis = [
+        { label: 'מנויים פעילים', value: stats.active_members, icon: '🏃', color: 'indigo', action: () => window.showSportMembers('active') },
+        { label: 'פג תוקף בקרוב', value: stats.expiring_soon, icon: '⏳', color: stats.expiring_soon > 0 ? 'orange' : 'slate', action: () => window.showSportMembers('expiring') },
+        { label: 'כניסות היום', value: stats.checkins_today, icon: '✅', color: 'emerald', action: () => window.showSportCheckins() },
+        { label: 'בפנים כרגע', value: stats.currently_in, icon: '🔴', color: stats.currently_in > 0 ? 'red' : 'slate', action: () => window.showSportCheckins() },
+        { label: 'לא אימנו 30 יום', value: stats.at_risk, icon: '⚠️', color: stats.at_risk > 0 ? 'red' : 'green', action: () => window.showSportMembers('at_risk') },
+        { label: 'הכנסה החודש', value: `₪${Number(stats.revenue_month||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon: '💰', color: 'emerald', action: () => rdAction('cashflow','') }
+    ];
+
+    const kpiHtml = kpis.map(k => `<button type="button" onclick="(${k.action.toString()})()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
+        <span class="text-xl">${k.icon}</span>
+        <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
+        <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+    </button>`).join('');
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🏋️','ממשק מנהל מועדון','מנויים, כניסות ו-KPIs יומיים','from-indigo-600','to-violet-700')}
+        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
+        ${roleQuickActions([
+            {icon:'🚪', label:'צ\'ק-אין', tab:'', action:'sport-checkin'},
+            {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
+            {icon:'➕', label:'מנוי חדש', tab:'', action:'sport-add-member'},
+            {icon:'📅', label:'יומן', tab:'calendar'},
+            {icon:'💰', label:'קופה', tab:'cashflow'}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// rdAction handlers for sport
+const _origRdAction = window.rdAction || null;
+
+// ─── Sport Check-in Screen ────────────────────────────────────────────────────
+window.showSportCheckIn = function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `
+    <div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">כניסה למועדון 🚪</h2>
+            <span></span>
+        </div>
+        <div class="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
+            <div class="relative">
+                <input id="sport-checkin-search" type="text" placeholder="חפש שם / טלפון..." oninput="window._sportSearchCheckin(this.value)"
+                    class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" autocomplete="off"/>
+                <span class="absolute left-3 top-3 text-slate-300 text-lg">🔍</span>
+            </div>
+            <div id="sport-checkin-results" class="flex flex-col gap-2"></div>
+            <div id="sport-checkin-today" class="mt-2"></div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadCheckinToday();
+    document.getElementById('sport-checkin-search').focus();
+};
+
+window._sportSearchCheckin = async function(q) {
+    const el = document.getElementById('sport-checkin-results');
+    if (!q || q.length < 2) { el.innerHTML = ''; return; }
+    try {
+        const r = await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}&status=active`);
+        const d = await r.json();
+        const members = d.members || [];
+        if (!members.length) { el.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">לא נמצאו חברים</p>`; return; }
+        el.innerHTML = members.map(m => {
+            const statusColor = m.status === 'active' ? 'emerald' : m.status === 'frozen' ? 'blue' : 'red';
+            const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[m.status] || m.status;
+            const sessions = m.sessions_total != null ? `<span class="text-xs text-slate-500">${m.sessions_total - (m.sessions_used||0)} כניסות נותרו</span>` : '';
+            return `<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')"
+                class="w-full bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 active:scale-95 transition text-right touch-manipulation">
+                <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-black text-indigo-600">${(m.member_name||'?')[0]}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800 text-sm">${m.member_name||''}</div>
+                    <div class="text-[11px] text-slate-500">${m.member_phone||''} ${m.type_name ? '· '+m.type_name : ''}</div>
+                    ${sessions}
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${statusColor}-100 text-${statusColor}-700">${statusLabel}</span>
+            </button>`;
+        }).join('');
+    } catch(e) { el.innerHTML = ''; }
+};
+
+window._sportDoCheckin = async function(memberId, memberName, status) {
+    if (status !== 'active') {
+        showToast('error', `לא ניתן לרשום כניסה — מנוי ${status === 'frozen' ? 'מוקפא' : 'לא פעיל'}`);
+        return;
+    }
+    try {
+        const r = await fetch(`${API}/sport/checkin`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, membershipId: memberId, memberName })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', `✅ ${memberName} נרשם/ה בהצלחה!`);
+        document.getElementById('sport-checkin-search').value = '';
+        document.getElementById('sport-checkin-results').innerHTML = '';
+        window._sportLoadCheckinToday();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportLoadCheckinToday = async function() {
+    const el = document.getElementById('sport-checkin-today');
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/sport/checkins/${currentGroup.id}`);
+        const d = await r.json();
+        const list = d.checkins || [];
+        if (!list.length) { el.innerHTML = `<p class="text-center text-slate-400 text-xs py-2">אין כניסות היום עדיין</p>`; return; }
+        el.innerHTML = `<div class="text-xs font-bold text-slate-500 mb-2">כניסות היום (${list.length})</div>` +
+            list.map(c => {
+                const t = c.checked_in_at ? new Date(c.checked_in_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                return `<div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 text-sm">
+                    <span class="text-slate-400 text-xs">${t}</span>
+                    <span class="font-bold text-slate-700">${c.member_name||''}</span>
+                </div>`;
+            }).join('');
+    } catch(e) {}
+};
+
+window.showSportCheckins = window._sportLoadCheckinToday;
+
+// ─── Sport Members Screen ─────────────────────────────────────────────────────
+window.showSportMembers = async function(filterParam) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `
+    <div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">מנויים 👥</h2>
+            <button onclick="window.showSportAddMember()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ חדש</button>
+        </div>
+        <div class="p-3 flex gap-2 border-b border-slate-100 overflow-x-auto">
+            ${['all','active','expiring','frozen','expired'].map(s => {
+                const labels = {all:'הכל',active:'פעיל',expiring:'פג בקרוב',frozen:'מוקפא',expired:'פג'};
+                return `<button onclick="window._sportLoadMembers('${s}')" id="sport-filter-${s}"
+                    class="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${s==(filterParam||'all')?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}">${labels[s]||s}</button>`;
+            }).join('')}
+        </div>
+        <div class="px-3 pt-3 pb-1">
+            <input id="sport-members-search" type="text" placeholder="חפש שם / טלפון..." oninput="window._sportLoadMembers(window._sportCurrentFilter||'all',this.value)"
+                class="w-full border border-slate-200 rounded-xl px-4 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+        </div>
+        <div id="sport-members-list" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportCurrentFilter = filterParam || 'all';
+    window._sportLoadMembers(filterParam || 'all');
+};
+
+window._sportCurrentFilter = 'all';
+
+window._sportLoadMembers = async function(filter, q) {
+    window._sportCurrentFilter = filter;
+    // update filter buttons
+    ['all','active','expiring','frozen','expired'].forEach(s => {
+        const btn = document.getElementById(`sport-filter-${s}`);
+        if (!btn) return;
+        btn.className = `flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border transition ${s===filter?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-600 border-slate-200'}`;
+    });
+    const el = document.getElementById('sport-members-list');
+    if (!el) return;
+    el.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm">טוען...</div>`;
+    try {
+        let url = `${API}/sport/members/${currentGroup.id}?status=${filter}`;
+        if (q) url += `&q=${encodeURIComponent(q)}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const members = d.members || [];
+        if (!members.length) { el.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm">אין חברים</div>`; return; }
+        el.innerHTML = members.map(m => _sportMemberCard(m)).join('');
+    } catch(e) { el.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">שגיאה בטעינה</div>`; }
+};
+
+function _sportMemberCard(m) {
+    const statusColor = { active:'emerald', frozen:'blue', expired:'red', cancelled:'slate' }[m.status] || 'slate';
+    const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[m.status] || m.status;
+    const endDate = m.end_date ? new Date(m.end_date).toLocaleDateString('he-IL') : '—';
+    const sessions = m.sessions_total != null ? `<span class="text-xs text-slate-500">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total} כניסות</span>` : '';
+    const frozenNote = m.status === 'frozen' ? `<div class="text-[11px] text-blue-500 mt-0.5">מוקפא: ${m.frozen_reason||''}</div>` : '';
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-black text-indigo-600 flex-shrink-0">${(m.member_name||'?')[0]}</div>
+            <div class="flex-1 min-w-0 text-right">
+                <div class="font-bold text-slate-800 text-sm">${m.member_name||''}</div>
+                <div class="text-[11px] text-slate-500">${m.member_phone||''} ${m.type_name ? '· '+m.type_name : ''}</div>
+                ${frozenNote}
+            </div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${statusColor}-100 text-${statusColor}-700 flex-shrink-0">${statusLabel}</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-50 pt-2">
+            <div class="flex gap-2">
+                ${m.status === 'active' ? `<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')" class="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>` : ''}
+                ${m.status === 'active' ? `<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')}" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">הקפא ❄️</button>` : ''}
+                ${m.status === 'frozen' ? `<button onclick="window.sportUnfreeze(${m.id})" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>` : ''}
+            </div>
+            <div class="text-right">${sessions} ${sessions?'·':''} עד ${endDate}</div>
+        </div>
+    </div>`;
+}
+
+window.showSportFreeze = function(memberId, memberName) {
+    const reason = prompt(`סיבת הקפאה עבור ${memberName}:`);
+    if (reason === null) return;
+    window.sportFreeze(memberId, reason);
+};
+
+window.sportFreeze = async function(memberId, reason) {
+    try {
+        const r = await fetch(`${API}/sport/members/${memberId}/freeze`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'המנוי הוקפא ❄️');
+        window._sportLoadMembers(window._sportCurrentFilter || 'all');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.sportUnfreeze = async function(memberId) {
+    try {
+        const r = await fetch(`${API}/sport/members/${memberId}/unfreeze`, { method: 'POST' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'המנוי הופשר ☀️');
+        window._sportLoadMembers(window._sportCurrentFilter || 'all');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── Add Member Screen ────────────────────────────────────────────────────────
+window.showSportAddMember = async function() {
+    _ensureSportModal();
+    let types = [];
+    try {
+        const r = await fetch(`${API}/sport/membership-types/${currentGroup.id}`);
+        const d = await r.json();
+        types = d.types || [];
+    } catch(e) {}
+
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `
+    <div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">מנוי חדש ➕</h2>
+            <span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם מלא *</label>
+                <input id="sport-new-name" type="text" placeholder="שם החבר/ה" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label>
+                <input id="sport-new-phone" type="tel" placeholder="05X-XXXXXXX" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">אימייל</label>
+                <input id="sport-new-email" type="email" placeholder="name@email.com" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" dir="ltr"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג מנוי *</label>
+                ${types.length ? `<select id="sport-new-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">-- בחר סוג מנוי --</option>
+                    ${types.map(t => `<option value="${t.id}">₪${t.price} — ${t.name} (${t.type})</option>`).join('')}
+                </select>` : `<div class="text-sm text-orange-500 bg-orange-50 rounded-xl p-3 text-right">
+                    אין סוגי מנויים מוגדרים. <button onclick="window.showSportMembershipTypes()" class="underline font-bold">הוסף סוג מנוי</button>
+                </div>`}
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך התחלה</label>
+                <input id="sport-new-start" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות</label>
+                <textarea id="sport-new-notes" rows="2" placeholder="הערות נוספות..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="window._sportSubmitNewMember()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition">שמור מנוי ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitNewMember = async function() {
+    const name = document.getElementById('sport-new-name')?.value?.trim();
+    const phone = document.getElementById('sport-new-phone')?.value?.trim();
+    const email = document.getElementById('sport-new-email')?.value?.trim();
+    const typeId = document.getElementById('sport-new-type')?.value;
+    const startDate = document.getElementById('sport-new-start')?.value;
+    const notes = document.getElementById('sport-new-notes')?.value?.trim();
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    if (!typeId) { showToast('error', 'יש לבחור סוג מנוי'); return; }
+    try {
+        const r = await fetch(`${API}/sport/members`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', `${name} נוסף/ה בהצלחה 🎉`);
+        document.getElementById('sport-modal').classList.add('hidden');
+        // refresh dashboard
+        const dashEl = document.getElementById('role-dashboard');
+        if (dashEl) renderSportDashboard(dashEl);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── Membership Types Management ──────────────────────────────────────────────
+window.showSportMembershipTypes = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">סוגי מנויים</h2>
+            <span></span>
+        </div>
+        <div id="sport-types-list" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"><div class="text-center py-6 text-slate-400 text-sm">טוען...</div></div>
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-slate-50 rounded-2xl p-4 flex flex-col gap-3">
+                <div class="text-sm font-black text-slate-700 text-right">הוסף סוג מנוי</div>
+                <input id="sport-type-name" type="text" placeholder="שם המנוי (למשל: מנוי חודשי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                <select id="sport-type-kind" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                    <option value="monthly">חודשי</option>
+                    <option value="yearly">שנתי</option>
+                    <option value="punch_card">כרטיסייה</option>
+                    <option value="day_pass">כניסה יומית</option>
+                    <option value="pt_sessions">אימונים אישיים</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="sport-type-price" type="number" placeholder="מחיר ₪" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                    <input id="sport-type-sessions" type="number" placeholder="כניסות (כרטיסייה)" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                </div>
+                <button onclick="window._sportAddMembershipType()" class="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm">הוסף ➕</button>
+            </div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadMembershipTypes();
+};
+
+window._sportLoadMembershipTypes = async function() {
+    const el = document.getElementById('sport-types-list');
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/sport/membership-types/${currentGroup.id}`);
+        const d = await r.json();
+        const types = d.types || [];
+        const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
+        if (!types.length) { el.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">אין סוגי מנויים עדיין</p>`; return; }
+        el.innerHTML = types.map(t => `<div class="bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+            <button onclick="window._sportDeleteType(${t.id})" class="text-red-400 hover:text-red-600 text-lg px-2">🗑️</button>
+            <div class="text-right">
+                <div class="font-bold text-slate-800 text-sm">${t.name}</div>
+                <div class="text-[11px] text-slate-500">₪${t.price} · ${kindLabel[t.type]||t.type}${t.sessions?' · '+t.sessions+' כניסות':''}</div>
+            </div>
+        </div>`).join('');
+    } catch(e) { el.innerHTML = `<p class="text-center text-red-400 text-sm py-4">שגיאה בטעינה</p>`; }
+};
+
+window._sportAddMembershipType = async function() {
+    const name = document.getElementById('sport-type-name')?.value?.trim();
+    const type = document.getElementById('sport-type-kind')?.value;
+    const price = parseFloat(document.getElementById('sport-type-price')?.value) || 0;
+    const sessions = parseInt(document.getElementById('sport-type-sessions')?.value) || null;
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    const durationMap = { monthly:30, yearly:365, punch_card: null, day_pass:1, pt_sessions: null };
+    try {
+        const r = await fetch(`${API}/sport/membership-types`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, name, type, price, durationDays: durationMap[type], sessions })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'נוסף בהצלחה ✅');
+        document.getElementById('sport-type-name').value = '';
+        document.getElementById('sport-type-price').value = '';
+        document.getElementById('sport-type-sessions').value = '';
+        window._sportLoadMembershipTypes();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportDeleteType = async function(typeId) {
+    if (!confirm('למחוק סוג מנוי זה?')) return;
+    try {
+        await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
+        showToast('success', 'נמחק ✅');
+        window._sportLoadMembershipTypes();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── rdAction routing for sport ───────────────────────────────────────────────
+(function() {
+    const orig = rdAction;
+    window.rdAction = function(tab, action) {
+        if (action === 'sport-checkin') { window.showSportCheckIn(); return; }
+        if (action === 'sport-members') { window.showSportMembers(); return; }
+        if (action === 'sport-add-member') { window.showSportAddMember(); return; }
+        orig(tab, action);
+    };
+})();
+
+// ─── Modal container ──────────────────────────────────────────────────────────
+function _ensureSportModal() {
+    if (document.getElementById('sport-modal')) return;
+    const div = document.createElement('div');
+    div.id = 'sport-modal';
+    div.className = 'fixed inset-0 z-[9999] bg-white flex flex-col hidden';
+    document.body.appendChild(div);
+}
+
+// ===== END SPORT / FITNESS MODULE =====

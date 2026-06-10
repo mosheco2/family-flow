@@ -683,6 +683,49 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END WORK ORDERS MODULE =====
 
+      // ===== SPORT / FITNESS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_membership_types (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          name VARCHAR(100),
+          type VARCHAR(30) DEFAULT 'monthly',
+          price DECIMAL(10,2) DEFAULT 0,
+          duration_days INT,
+          sessions INT,
+          color VARCHAR(20) DEFAULT 'indigo',
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_memberships (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          member_name VARCHAR(100),
+          member_phone VARCHAR(30),
+          member_email VARCHAR(100),
+          member_photo TEXT,
+          membership_type_id INT REFERENCES sport_membership_types(id) ON DELETE SET NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          start_date DATE,
+          end_date DATE,
+          sessions_total INT,
+          sessions_used INT DEFAULT 0,
+          frozen_at DATE,
+          frozen_reason VARCHAR(200),
+          frozen_days_banked INT DEFAULT 0,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_checkins (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE SET NULL,
+          member_name VARCHAR(100),
+          checked_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          checked_out_at TIMESTAMP
+      )`); } catch(e) {}
+      // ===== END SPORT / FITNESS MODULE =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -9735,6 +9778,156 @@ app.post('/api/work-orders/:id/calendar', async (req, res) => {
 });
 
 // ===== END WORK ORDERS API =====
+
+// ===== SPORT / FITNESS API =====
+
+// Dashboard stats
+app.get('/api/sport/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = req.params.groupId;
+        const today = new Date().toISOString().split('T')[0];
+        const [activeRes, expiringRes, checkinsTodayRes, currentlyInRes, atRiskRes] = await Promise.all([
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active'`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+30`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2`, [gid, today]),
+            pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2 AND checked_out_at IS NULL`, [gid, today]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30 AND membership_id IS NOT NULL)`, [gid])
+        ]);
+        const revenueRes = await pool.query(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t WHERE t.group_id=$1 AND t.type='income' AND DATE_TRUNC('month',t.created_at)=DATE_TRUNC('month',CURRENT_DATE)`, [gid]);
+        res.json({ success: true, stats: {
+            active_members: parseInt(activeRes.rows[0].count),
+            expiring_soon: parseInt(expiringRes.rows[0].count),
+            checkins_today: parseInt(checkinsTodayRes.rows[0].count),
+            currently_in: parseInt(currentlyInRes.rows[0].count),
+            at_risk: parseInt(atRiskRes.rows[0].count),
+            revenue_month: parseFloat(revenueRes.rows[0].total) || 0
+        }});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Membership types
+app.get('/api/sport/membership-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_membership_types WHERE group_id=$1 ORDER BY price ASC', [req.params.groupId]);
+        res.json({ success: true, types: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/membership-types', async (req, res) => {
+    try {
+        const { groupId, name, type, price, durationDays, sessions, color } = req.body;
+        const r = await pool.query(
+            `INSERT INTO sport_membership_types (group_id,name,type,price,duration_days,sessions,color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [groupId, name, type||'monthly', parseFloat(price)||0, durationDays||null, sessions||null, color||'indigo']
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/membership-types/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sport_membership_types WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Members
+app.get('/api/sport/members/:groupId', async (req, res) => {
+    try {
+        const { search, status } = req.query;
+        let q = `SELECT sm.*, smt.name as type_name, smt.color as type_color, smt.type as type_kind
+                 FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                 WHERE sm.group_id=$1`;
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ` AND sm.status=$${params.length+1}`; params.push(status); }
+        if (search) { q += ` AND (sm.member_name ILIKE $${params.length+1} OR sm.member_phone ILIKE $${params.length+1})`; params.push(`%${search}%`); }
+        q += ' ORDER BY sm.created_at DESC';
+        const r = await pool.query(q, params);
+        // auto-expire memberships past end_date
+        const toExpire = r.rows.filter(m => m.status === 'active' && m.end_date && new Date(m.end_date) < new Date());
+        for (const m of toExpire) { await pool.query(`UPDATE sport_memberships SET status='expired' WHERE id=$1`, [m.id]); m.status = 'expired'; }
+        res.json({ success: true, members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members', async (req, res) => {
+    try {
+        const { groupId, name, phone, email, membershipTypeId, startDate, notes } = req.body;
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1', [membershipTypeId]);
+        const mtype = typeRes.rows[0];
+        let endDate = null, sessionsTotal = null;
+        if (mtype) {
+            if (mtype.duration_days) endDate = new Date(new Date(startDate||Date.now()).getTime() + mtype.duration_days * 86400000).toISOString().split('T')[0];
+            if (mtype.sessions) sessionsTotal = mtype.sessions;
+        }
+        const r = await pool.query(
+            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [groupId, name, phone||'', email||'', membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'']
+        );
+        res.json({ success: true, member: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/members/:id', async (req, res) => {
+    try {
+        const { name, phone, email, notes, status } = req.body;
+        await pool.query(`UPDATE sport_memberships SET member_name=$1,member_phone=$2,member_email=$3,notes=$4,status=COALESCE($5,status),updated_at=NOW() WHERE id=$6`,
+            [name, phone||'', email||'', notes||'', status||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/freeze', async (req, res) => {
+    try {
+        const { reason } = req.body;
+        await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2`, [reason||'', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
+    try {
+        const m = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [req.params.id]);
+        if (!m.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const mem = m.rows[0];
+        let newEndDate = mem.end_date;
+        if (mem.frozen_at && mem.end_date) {
+            const frozenDays = Math.floor((Date.now() - new Date(mem.frozen_at).getTime()) / 86400000);
+            const current = new Date(mem.end_date);
+            current.setDate(current.getDate() + frozenDays);
+            newEndDate = current.toISOString().split('T')[0];
+        }
+        await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Check-in
+app.post('/api/sport/checkin', async (req, res) => {
+    try {
+        const { groupId, membershipId, memberName } = req.body;
+        // validate active membership
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [membershipId]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'חבר לא נמצא' });
+        const m = mem.rows[0];
+        if (m.status === 'expired') return res.status(400).json({ error: 'המנוי פג תוקף', status: 'expired' });
+        if (m.status === 'frozen') return res.status(400).json({ error: 'המנוי מוקפא', status: 'frozen' });
+        if (m.status === 'cancelled') return res.status(400).json({ error: 'המנוי בוטל', status: 'cancelled' });
+        if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום', status: 'no_sessions' });
+        await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [groupId, membershipId, memberName || m.member_name]);
+        if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [membershipId]);
+        res.json({ success: true, member: m });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sport/checkins/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT sc.*, sm.member_phone FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 AND DATE(sc.checked_in_at)=CURRENT_DATE ORDER BY sc.checked_in_at DESC`, [req.params.groupId]);
+        res.json({ success: true, checkins: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END SPORT / FITNESS API =====
 
 // הפעלת השרת
 app.listen(port, () => {
