@@ -651,8 +651,8 @@ function renderMyOrders() {
     }
 
     let html = '';
-    // הצעות מחיר (status='quote') אינן מוצגות כאן — יש להן טאב "הצעות מחיר" ייעודי
-    filtered.filter(o => o.status !== 'quote').forEach(o => {
+    // הצעות מחיר אינן מוצגות כאן — status='quote' או quote_status פעיל (לא approved)
+    filtered.filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')).forEach(o => {
         let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
             case 'new':        statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; statusIcon='fa-clock'; break;
