@@ -9569,7 +9569,7 @@ app.get('/api/work-orders/list/:groupId', async (req, res) => {
 app.get('/api/work-orders/detail/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes] = await Promise.all([
+        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
             pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
             pool.query(`SELECT wi.*, sc.stock_quantity as total_stock, COALESCE(sc.reserved_qty,0) as catalog_reserved
@@ -9577,10 +9577,11 @@ app.get('/api/work-orders/detail/:id', async (req, res) => {
                         LEFT JOIN store_catalog sc ON wi.catalog_id=sc.id
                         WHERE wi.work_order_id=$1 ORDER BY wi.reserved_at`, [id]),
             pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
-            pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id])
+            pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id]),
+            pool.query('SELECT * FROM calendar_events WHERE work_order_id=$1 ORDER BY event_date ASC, start_time ASC', [id])
         ]);
         if (!woRes.rows.length) return res.status(404).json({ error: 'פקודה לא נמצאה' });
-        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows });
+        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

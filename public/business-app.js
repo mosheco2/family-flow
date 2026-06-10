@@ -27497,7 +27497,19 @@ window.openWorkOrderModal = async function(woId) {
         const wo = data.workOrder;
         document.getElementById('wo-notes-textarea').value = wo.wo_notes || '';
         document.getElementById('wo-notes-meta').textContent = wo.wo_notes_updated_by ? `עודכן ע"י ${wo.wo_notes_updated_by}` : '';
-        document.getElementById('wo-cal-title').value = wo.customer_name ? `עבודה עבור ${wo.customer_name}` : '';
+        // calendar tab — pre-fill from existing event if present
+        const existingCal = (data.calendarEvents || [])[0];
+        if (existingCal) {
+            document.getElementById('wo-cal-title').value = existingCal.title || (wo.customer_name ? `עבודה עבור ${wo.customer_name}` : '');
+            document.getElementById('wo-cal-date').value = existingCal.event_date ? existingCal.event_date.split('T')[0] : '';
+            document.getElementById('wo-cal-time').value = existingCal.start_time ? existingCal.start_time.substring(0,5) : '';
+            const addrEl = document.getElementById('wo-cal-address');
+            if (addrEl) addrEl.value = existingCal.address || '';
+            const notesEl = document.getElementById('wo-cal-notes');
+            if (notesEl) notesEl.value = existingCal.notes || '';
+        } else {
+            document.getElementById('wo-cal-title').value = wo.customer_name ? `עבודה עבור ${wo.customer_name}` : '';
+        }
         const statusSel = document.getElementById('wo-status-select');
         if (statusSel) statusSel.value = wo.status || 'processing';
         // load business users for assignee dropdown
