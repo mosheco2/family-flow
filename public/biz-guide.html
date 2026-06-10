@@ -1836,7 +1836,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
 
         <!-- ניהול שולחנות -->
         <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">🪑 ניהול שולחנות — הלב של המסעדה</div>
-        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:1rem">מפת השולחנות מוצגת בכל ממשקי המסעדה (מנהל, מנהל משמרת, מלצר). המצב נשמר ב-localStorage לפי קבוצה.</p>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:1rem">מפת השולחנות מוצגת בכל ממשקי המסעדה — מנהל, מנהל משמרת ומלצר. כולם רואים את אותה תמונה בזמן אמת.</p>
         <div class="steps">
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
@@ -1845,7 +1845,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
               <div class="step-desc">
                 <span style="background:#dcfce7;color:#166534;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.72rem;font-weight:700;margin-left:4px">ירוק — פנוי</span>
                 <span style="background:#fef2f2;color:#991b1b;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.72rem;font-weight:700;margin-left:4px">אדום — תפוס</span>
-                — לחיצה על שולחן בקופה מסמן אותו כ"תפוס" ושומר את מספר השולחן בהזמנה (ב-notes כ-JSON).
+                — לחיצה על שולחן בקופה מסמנת אותו כ"תפוס" ומקשרת אותו להזמנה. מספר השולחן מוצג על ההזמנה לאורך כל הטיפול בה.
               </div>
             </div>
           </div>
@@ -1853,14 +1853,14 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
               <div class="step-title">שיוך מלצר לשולחן (מנהל משמרת)</div>
-              <div class="step-desc">מנהל המשמרת מציג dropdown לכל שולחן — בוחר מלצר מרשימת העובדים. השיוך נשמר לפי יום (<code>table_assign_[groupId]_[today]</code>) ומוצג בממשק המלצר מתחת למספר השולחן.</div>
+              <div class="step-desc">מנהל המשמרת בוחר מלצר לכל שולחן מרשימת נפתחת. השיוך תקף ליום המשמרת ומוצג מתחת למספר השולחן בממשקי המלצר ומנהל המשמרת.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
               <div class="step-title">קופה עם בחירת שולחן</div>
-              <div class="step-desc">בקופה מופיעה רצועת כפתורי שולחנות מעל שדה הלקוח. לחיצה בוחרת שולחן (<code>window.posSelectedTable</code>). הכפתור מציג: מספר שולחן + שם מלצר משויך (אם קיים).</div>
+              <div class="step-desc">בקופה מופיעה רצועת כפתורי שולחנות מעל שדה הלקוח. לחיצה על שולחן בוחרת אותו לסל הנוכחי. הכפתור מציג: מספר שולחן + שם המלצר המשויך (אם הוגדר).</div>
             </div>
           </div>
         </div>
@@ -1911,29 +1911,29 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">מפת שולחנות + בקשות שירות (שומר בלוקל סטורג')</div>
-              <div class="step-desc">המלצר רואה את כל השולחנות עם מצב (פנוי/תפוס) ושמו על השולחנות ששויכו לו. בקשות שירות (service_req) מופיעות עם שם הבקשה ומספר השולחן.</div>
+              <div class="step-title">מפת שולחנות + בקשות שירות</div>
+              <div class="step-desc">המלצר רואה את כל השולחנות עם מצב (פנוי/תפוס) ושמו על השולחנות ששויכו לו. בקשות שירות מאורחים (כגון בקשת חשבון, קרח נוסף וכד') מופיעות עם שם הבקשה ומספר השולחן.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">מנות מוכנות (item-ready) — לאיסוף מהמטבח</div>
-              <div class="step-desc">כשטבח/ית מסמן/ת מנה כ"מוכנה" — מופיעה למלצר ברשימה <em>"מנות מוכנות"</em>: שם המנה, מספר שולחן, שעת הכנה. לחיצת "הוגש ✓" מסמנת שהמנה הוגשה לשולחן.</div>
+              <div class="step-title">מנות מוכנות — לאיסוף מהמטבח</div>
+              <div class="step-desc">כשהטבח מסמן מנה כ"מוכנה" — מופיעה למלצר ברשימה "מנות מוכנות": שם המנה, מספר שולחן, שעת הכנה. לחיצת "הוגש ✓" מסמנת שהמנה הוגשה לשולחן.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
               <div class="step-title">הזמנות מוכנות לאיסוף מלא</div>
-              <div class="step-desc">כשכל פריטי הזמנה מסומנים — ההזמנה עוברת ל<em>"ממתין לאיסוף"</em>: מוצגות כל המנות בהזמנה, מספר שולחן. לחיצת "סופק ✓" (markReadyDelivered) מסמנת כסופקה.</div>
+              <div class="step-desc">כשכל מנות ההזמנה מוכנות — ההזמנה עוברת ל"ממתין לאיסוף": מוצגות כל המנות, מספר שולחן. לחיצת "סופק ✓" מסמנת שההזמנה הועברה לשולחן.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">כפתור "הזמנה לשולחן 🍽️" — POS מלצר</div>
-              <div class="step-desc">פותח מודאל POS מלא. בראש — chips לבחירת שולחן. גריד מוצרים (3 עמודות מובייל / 4 דסקטופ). לכל פריט: כמות + הערה. כפתורים: "נקה חדש", "סגור חשבון 💳", "שמור הזמנה 💾". ההזמנה נשמרת כ-cart בלוקל סטורג' עם pending/submitted per שולחן.</div>
+              <div class="step-title">כפתור "הזמנה לשולחן 🍽️" — קופה מלצר</div>
+              <div class="step-desc">פותח קופה ייעודית. בראש — בחר שולחן. גריד מנות לבחירה. לכל פריט: כמות + הערה. כפתורים: "נקה חדש", "סגור חשבון 💳" (גבייה), "שמור הזמנה 💾" (שמור לטיפול מאוחר). ניתן לשמור הזמנה פתוחה ולחזור אליה בכל עת.</div>
             </div>
           </div>
         </div>
@@ -1945,7 +1945,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
 
         <!-- ממשק טבח -->
         <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">👨‍🍳 ממשק טבח/ית — KDS (Kitchen Display System)</div>
-        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">תפקיד "טבח/ית" קיים במסעדה ובייצור מזון. הממשק מציג tickets של הזמנות מהיום לפי סטטוס (חדש/בביצוע/מוכן).</p>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">תפקיד "טבח/ית" קיים במסעדה ובייצור מזון. הממשק מציג כרטיסי הזמנות של היום לפי סטטוס (חדש/בביצוע/מוכן).</p>
         <div class="steps">
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
@@ -1958,15 +1958,15 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
                 <span style="background:#f5f3ff;color:#7c3aed;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">🥤 שתיה</span>
                 <span style="background:#fefce8;color:#92400e;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">🍞 לחמים</span>
                 <span style="background:#f8fafc;color:#475569;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.72rem;font-weight:600">📋 אחר</span>
-                — ה-KDS מסנן tickets לפי תחנה.
+                — ה-KDS מסנן כרטיסי הזמנות לפי תחנה.
               </div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">סימון פריטים כמוכנים (item-ready)</div>
-              <div class="step-desc">לכל מנה ב-ticket — checkbox. סימון מנה → הודעה למלצר האחראי על השולחן ("<em>מנות מוכנות</em>"). כשכל הפריטים מסומנים → כל ההזמנה מסומנת כ-ready.</div>
+              <div class="step-title">סימון מנות כמוכנות</div>
+              <div class="step-desc">לכל מנה בכרטיס — checkbox. סימון מנה שולח הודעה למלצר האחראי על השולחן (מופיע אצלו תחת "מנות מוכנות"). כשכל המנות בהזמנה מסומנות — ההזמנה כולה עוברת ל"מוכן לאיסוף".</div>
             </div>
           </div>
           <div class="step">
@@ -2018,7 +2018,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
               </div>
             </div>
           </div>
-          <div class="mockup-caption">KDS — תצוגת מטבח עם tickets לפי תחנה, סימון מנות וסטטוס</div>
+          <div class="mockup-caption">KDS — תצוגת מטבח עם כרטיסי הזמנות לפי תחנה, סימון מנות וסטטוס</div>
         </div>
 
         <!-- פוד קוסט -->
@@ -2035,7 +2035,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
               <div class="step-title">דוחות רווחיות</div>
-              <div class="step-desc">טאב פוד קוסט מציג: רשימת מנות עם עלות/מחיר/רווח, מנות עם פוד קוסט גבוה, ומדד כולל לחודש. נגיש גם לטבח (הרשאות: pantry, tasks, shifts, foodcost, timeclock).</div>
+              <div class="step-desc">טאב פוד קוסט מציג: רשימת מנות עם עלות/מחיר/רווח, מנות עם פוד קוסט גבוה, ומדד כולל לחודש. נגיש גם לטבח — שיכול לראות עלויות ולדווח על שינויי מחיר של חומרי גלם.</div>
             </div>
           </div>
         </div>
@@ -2061,20 +2061,20 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
               <tr style="border-bottom:1px solid #f1f5f9">
                 <td style="padding:0.5rem 0.75rem;font-weight:700">🍽️ מלצר/ית</td>
                 <td style="padding:0.5rem 0.75rem;color:#64748b">₪15/חודש</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">pos, sales, tasks, calendar, members, shifts, timeclock</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">מפת שולחנות, מנות מוכנות, בקשות שירות, POS שולחן</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, משימות, יומן, עובדים, משמרות, נוכחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">מפת שולחנות, מנות מוכנות מהמטבח, בקשות שירות, קופה לשולחן</td>
               </tr>
               <tr style="border-bottom:1px solid #f1f5f9">
                 <td style="padding:0.5rem 0.75rem;font-weight:700">👨‍🍳 טבח/ית</td>
                 <td style="padding:0.5rem 0.75rem;color:#64748b">₪15/חודש</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">pantry, tasks, shifts, foodcost, timeclock</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">KDS לפי תחנות, item-ready, התראת מלאי נמוך</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">מזווה, משימות, משמרות, פוד קוסט, נוכחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">תצוגת מטבח (KDS) לפי תחנות, סימון מנות מוכנות, התראת מלאי נמוך</td>
               </tr>
               <tr>
                 <td style="padding:0.5rem 0.75rem;font-weight:700">📋 מנהל משמרת</td>
                 <td style="padding:0.5rem 0.75rem;color:#64748b">₪29/חודש</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">pos, sales, tasks, members, shifts, timeclock, cashflow, customers</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">KPI מכירות+נוכחות, שיוך מלצרים לשולחנות, הזמנות מוכנות, בקשות שירות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, משימות, עובדים, משמרות, נוכחות, תזרים, לקוחות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">KPI מכירות + נוכחות, שיוך מלצרים לשולחנות, הזמנות מוכנות, בקשות שירות</td>
               </tr>
             </tbody>
           </table>
@@ -2086,7 +2086,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         </div>
         <div class="callout callout-warn">
           <span class="callout-icon">⚠️</span>
-          <div><strong>שים לב:</strong> מצב שולחנות ושיוך מלצרים נשמרים ב-localStorage בדפדפן (לא בשרת). ניקוי localStorage מאפס את המצב.</div>
+          <div><strong>שים לב:</strong> מצב שולחנות ושיוך מלצרים מתאפס בתחילת כל יום עבודה — יש לשייך מחדש את המלצרים לשולחנות בכל בוקר/משמרת.</div>
         </div>
         <div class="callout callout-info">
           <span class="callout-icon">📊</span>
@@ -2154,29 +2154,29 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <div class="step">
             <div class="step-num">2</div>
             <div>
-              <div class="step-title">הגדר שירותים ביומן (calendar_services)</div>
-              <div class="step-desc">יומן ← כרטיסייה "שירותים" ← "+ שירות חדש". שדות: שם שירות, משך (דקות), מחיר. השירות מקושר לאירועי יומן ולהצעות מחיר. ניתן למחוק שירות רק אם אין אירועים מקושרים.</div>
+              <div class="step-title">הגדר רשימת שירותים ביומן</div>
+              <div class="step-desc">יומן ← כרטיסייה "שירותים" ← "+ שירות חדש". שדות: שם שירות, משך (דקות), מחיר. השירות מקושר לאירועי יומן ולהצעות מחיר. ניתן למחוק שירות רק אם אין פגישות מקושרות אליו.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num">3</div>
             <div>
-              <div class="step-title">הגדר שעות עבודה (calendar_settings)</div>
-              <div class="step-desc">יומן ← "הגדרות זמינות". לכל יום בשבוע: is_active (פעיל/סגור), open_time, close_time, interval_mins (מרווח בין תורים). נשמר בטבלת calendar_settings.</div>
+              <div class="step-title">הגדר שעות עבודה וזמינות</div>
+              <div class="step-desc">יומן ← "הגדרות זמינות". לכל יום בשבוע: האם פעיל, שעת פתיחה וסגירה, מרווח בין תורים (לדוגמה: כל 30 דקות). שינוי ההגדרות משפיע על הצגת חלונות הזמן הזמינים בקביעת פגישות.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num">4</div>
             <div>
               <div class="step-title">הוסף לקוחות ל-CRM</div>
-              <div class="step-desc">לקוחות ← "+ לקוח". שדות: שם, טלפון, אימייל. כל הצעת מחיר ואירוע יומן מקושרים ללקוח ע"י customer_phone. ניתן לחייג ישירות מרשימת הלקוחות.</div>
+              <div class="step-desc">לקוחות ← "+ לקוח". שדות: שם, טלפון, אימייל. כל הצעת מחיר ופגישה ביומן מקושרות ללקוח לפי מספר טלפון. ניתן לחייג ישירות מרשימת הלקוחות.</div>
             </div>
           </div>
         </div>
 
         <!-- יומן -->
         <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">📅 יומן פגישות — 4 תצוגות</div>
-        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">טבלת <code>calendar_events</code> — שדות: service_id, title, customer_phone, notes, event_date, start_time, status (pending / approved).</p>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">כל פגישה כוללת: סוג שירות, כותרת, פרטי לקוח, הערות, תאריך ושעה, וסטטוס (ממתין / אושר).</p>
         <div class="steps">
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
@@ -2210,7 +2210,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
               <div class="step-title">הוספת פגישה</div>
-              <div class="step-desc">לחץ על יום/שעה ← מודאל: בחר שירות מהרשימה (service_id), הוסף כותרת, טלפון לקוח, הערות, תאריך ושעת התחלה. סטטוס ברירת מחדל: "ממתין" → ניתן לשנות ל-"אושר".</div>
+              <div class="step-desc">לחץ על יום/שעה ← בחר שירות מהרשימה, הוסף כותרת, טלפון לקוח, הערות, תאריך ושעת התחלה. הפגישה נשמרת בסטטוס "ממתין" — ניתן לשנות ל-"אושר" לאחר אישור עם הלקוח.</div>
             </div>
           </div>
         </div>
@@ -2268,7 +2268,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
 
         <!-- הצעות מחיר -->
         <div style="font-weight:700;color:#1e293b;margin:1.5rem 0 0.75rem;font-size:0.95rem">📄 הצעות מחיר — מחזור חיים מלא</div>
-        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">הצעות מחיר נשמרות בטבלת <code>store_quotes</code> (לא store_orders). כל הצעה כוללת: פריטים + מחירים + שדה <code>quote_history</code> JSONB שתועד כל שלב.</p>
+        <p style="color:#475569;font-size:0.875rem;line-height:1.7;margin-bottom:0.875rem">כל הצעה כוללת: פריטי שירות + מחירים + ציר זמן מלא של כל השלבים — מהשליחה ועד האישור הסופי.</p>
 
         <!-- מחזור חיים מלא -->
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:1.25rem;margin-bottom:1.25rem">
@@ -2276,27 +2276,27 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <div style="display:flex;flex-direction:column;gap:0.625rem">
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#94a3b8;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">1</span>
-              <div><strong>draft</strong> — העסק יוצר הצעה: בוחר לקוח, מוסיף פריטי שירות + מחירים, הערות ותנאי תשלום. נשמרת כטיוטה.</div>
+              <div><strong>טיוטה</strong> — העסק יוצר הצעה: בוחר לקוח, מוסיף פריטי שירות + מחירים, הערות ותנאי תשלום. נשמרת כטיוטה עד לשליחה.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#4f46e5;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">2</span>
-              <div><strong>waiting_customer</strong> — לוחצים "שלח ב-OneFlow" → הלקוח מקבל <strong>פעמון 🔔 + הודעה</strong>. בכרטיס הצעה בצד העסק: שינוי כחול "נשלחה ללקוח". היסטוריה: <code>sent_to_customer</code>.</div>
+              <div><strong>נשלחה ללקוח</strong> — לוחצים "שלח ב-OneFlow" → הלקוח מקבל <strong>פעמון 🔔 + הודעה</strong>. בכרטיס ההצעה בצד העסק: תג כחול "נשלחה ללקוח".</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#7c3aed;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">3</span>
-              <div><strong>תגובת לקוח</strong> — 4 אפשרויות: ✅ אשר / 💬 בקש הנחה / 📋 בקש שינויים / 💬 שלח הודעה · 5: ❌ סרב. העסק מקבל פעמון. בכרטיס: <span style="background:#f97316;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.7rem">נדרש עדכון — כרטיס כתום</span>.</div>
+              <div><strong>תגובת לקוח</strong> — 4 אפשרויות: ✅ אשר / 💬 בקש הנחה / 📋 בקש שינויים / 💬 שלח הודעה · ❌ סרב. העסק מקבל פעמון. בכרטיס ההצעה: <span style="background:#f97316;color:white;padding:0.1rem 0.35rem;border-radius:4px;font-size:0.7rem">נדרש עדכון — כרטיס כתום</span>.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#4f46e5;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">4</span>
-              <div><strong>עדכון עסק</strong> — העסק עורך ושולח מחדש → הלקוח מקבל פעמון "גרסה מעודכנת". quote_history: <code>resent_updated</code>. הכפתורים חוזרים ללקוח גם אם כבר הגיב (תגובה קודמת מוצגת כהקשר כחול מעל הכפתורים).</div>
+              <div><strong>עדכון ושליחה מחדש</strong> — העסק עורך ושולח מחדש → הלקוח מקבל פעמון "גרסה מעודכנת". כפתורי האישור/דחייה מוצגים ללקוח מחדש, גם אם כבר הגיב — עם תגובתו הקודמת כהקשר כחול מעל הכפתורים.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#16a34a;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">5</span>
-              <div><strong>customer_approved → approved</strong> — לקוח אישר ← העסק לוחץ "המר לפקודת עבודה" ← נוצרת הזמנה בטבלת store_orders עם badge "הומרה מהצעה #X" ← הלקוח מקבל פעמון <code>quote_approved</code>.</div>
+              <div><strong>אושרה ← המרה לפרויקט</strong> — לקוח אישר ← העסק לוחץ "המר לפקודת עבודה" ← נוצר פרויקט חדש עם תג "הומרה מהצעת מחיר" ← הלקוח מקבל פעמון שהפרויקט נפתח.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:0.875rem;font-size:0.825rem">
               <span style="background:#ef4444;color:white;border-radius:9999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;flex-shrink:0">✕</span>
-              <div><strong>cancelled</strong> — לקוח סרב ← כרטיס מקבל banner אדום "ההצעה בוטלה" + strikethrough. לא ניתן לשלוח תגובה נוספת.</div>
+              <div><strong>בוטלה</strong> — לקוח סרב ← כרטיס ההצעה מקבל באנר אדום "ההצעה בוטלה" עם מחיקה ויזואלית. לא ניתן להמשיך לתקשר דרך הצעה זו.</div>
             </div>
           </div>
         </div>
@@ -2306,29 +2306,29 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">ציר זמן (quote_history JSONB)</div>
-              <div class="step-desc">כל שלב נרשם: <code>{type, actor, ts, text?, responseType?}</code>. סוגי אירועים: <code>sent_to_customer, resent_updated, customer_response, converted_to_work_order, approved, business_message</code>. הציר מוצג ב-accordion בכל כרטיס הצעה — בצד עסק ובצד לקוח.</div>
+              <div class="step-title">ציר זמן מלא של ההצעה</div>
+              <div class="step-desc">כל שלב נרשם ומוצג בציר זמן: שליחה ללקוח, גרסה מעודכנת, תגובת לקוח, המרה לפרויקט, אישור, הודעות עסק. הציר מוצג בכרטיס ההצעה — גם בצד העסק וגם אצל הלקוח.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">תגובת עסק ישירה (business_message)</div>
-              <div class="step-desc">כשהלקוח מחכה לתגובה — העסק יכול לשלוח הודעה ישירה מכרטיס ההצעה (שדה + כפתור שלח). מתווסף ל-quote_history ולקוח מקבל פעמון.</div>
+              <div class="step-title">שליחת הודעה ישירה מכרטיס ההצעה</div>
+              <div class="step-desc">העסק יכול לשלוח הודעה ישירה ללקוח מתוך כרטיס ההצעה עצמו — ללא צורך ב-WhatsApp. ההודעה מופיעה בציר הזמן ולקוח מקבל פעמון.</div>
             </div>
           </div>
           <div class="step">
             <div class="step-num"><i class="fa-solid fa-circle" style="font-size:0.6rem"></i></div>
             <div>
-              <div class="step-title">Auto-refresh 20 שניות</div>
-              <div class="step-desc">בצד עסק — רענון שקט של רשימת ההצעות כל 20 שניות (IIFE). בצד לקוח — רענון שקט כשטאב ה-quotes גלוי. לא צריך לרענן ידנית.</div>
+              <div class="step-title">עדכון אוטומטי כל 20 שניות</div>
+              <div class="step-desc">רשימת ההצעות מתרעננת ברקע כל 20 שניות — גם בצד העסק וגם בצד הלקוח. לא צריך לרענן ידנית כדי לראות שינויים חדשים.</div>
             </div>
           </div>
         </div>
 
         <div class="screenshot-wrap">
           <img src="guide-screens/sales.png" alt="הצעות מחיר" class="screenshot-img" loading="lazy">
-          <div class="screenshot-caption">📱 מכירות — רשימת הצעות מחיר: draft / נשלחה / נדרש עדכון (כתום) / אושרה</div>
+          <div class="screenshot-caption">📱 מכירות — רשימת הצעות מחיר: טיוטה / נשלחה / נדרש עדכון (כתום) / אושרה</div>
         </div>
 
         <!-- תפקידים ייחודיים -->
@@ -2348,14 +2348,14 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
               <tr style="border-bottom:1px solid #f1f5f9">
                 <td style="padding:0.5rem 0.75rem;font-weight:700">🎧 נציג שירות</td>
                 <td style="padding:0.5rem 0.75rem;color:#64748b">₪19/חודש</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">customers, tasks, calendar, timeclock</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">לקוחות, משימות, יומן, נוכחות</td>
                 <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">חיפוש לקוח, 5 לקוחות אחרונים עם חיוג מהיר, פניות חדשות, תורים היום</td>
               </tr>
               <tr>
                 <td style="padding:0.5rem 0.75rem;font-weight:700">💼 איש מכירות</td>
                 <td style="padding:0.5rem 0.75rem;color:#64748b">₪29/חודש</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">pos, sales, customers, tasks, calendar, timeclock, shifts</td>
-                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">לקוח חדש, הצעת מחיר, קבוע פגישה — פעולות מהירות; 3 לקוחות אחרונים; ניווט לתזרים ומכירות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">קופה, מכירות, לקוחות, משימות, יומן, נוכחות, משמרות</td>
+                <td style="padding:0.5rem 0.75rem;color:#475569;font-size:0.75rem">לקוח חדש, הצעת מחיר, קביעת פגישה — פעולות מהירות; 3 לקוחות אחרונים; ניווט לתזרים ומכירות</td>
               </tr>
             </tbody>
           </table>
@@ -2415,7 +2415,7 @@ mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
         </div>
         <div class="callout callout-info">
           <span class="callout-icon">📅</span>
-          <div><strong>יומן + הצעה:</strong> ניתן לקשר הצעת מחיר לאירוע יומן — הכנס ORDER_REF בשדה הערות של האירוע. שימושי כשפגישה ראשונה מובילה לשירות קבוע.</div>
+          <div><strong>יומן + הצעה:</strong> ניתן לקשר הצעת מחיר לפגישה ביומן על ידי ציון מספר ההצעה בשדה הערות של הפגישה. שימושי כשפגישה ראשונה מובילה לשירות קבוע.</div>
         </div>
         <div class="callout callout-warn">
           <span class="callout-icon">⚠️</span>
