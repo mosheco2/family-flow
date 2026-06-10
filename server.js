@@ -4012,10 +4012,10 @@ app.post('/api/store/quotes', async (req, res) => {
 // --- שליפת הצעות מחיר לצד משפחה ---
 app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
     try {
-        // מחפש לפי family_group_id וגם לפי phone של חברי הקבוצה
+        // מחפש רק הצעות מחיר (status='quote') לפי family_group_id או phone של חברי הקבוצה
         const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
             FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
-            WHERE (so.status='quote' OR so.quote_status IS NOT NULL)
+            WHERE so.status='quote'
               AND (so.family_group_id=$1
                 OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
             ORDER BY so.created_at DESC`, [req.params.familyGroupId]);

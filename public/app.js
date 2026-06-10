@@ -651,25 +651,27 @@ function renderMyOrders() {
     }
 
     let html = '';
-    // לא מציגים הצעות מחיר בטאב הזמנות (יש להן טאב ייעודי)
+    // הצעות מחיר (status='quote') אינן מוצגות כאן — יש להן טאב "הצעות מחיר" ייעודי
     filtered.filter(o => o.status !== 'quote').forEach(o => {
         let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
-            case 'quote':      statusColor='border-slate-300 bg-slate-100'; statusText=o.quote_status==='approved'?'הצעת מחיר אושרה':'הצעת מחיר'; statusIcon='fa-file-invoice'; break;
             case 'new':        statusColor='border-blue-200 bg-blue-50'; statusText='התקבל בעסק'; statusIcon='fa-clock'; break;
             case 'processing': statusColor='border-orange-200 bg-orange-50'; statusText='באריזה / הכנה'; statusIcon='fa-box'; break;
             case 'ready':      statusColor='border-purple-200 bg-purple-50'; statusText='מוכן לאיסוף'; statusIcon='fa-bag-shopping'; break;
             case 'shipped':    statusColor='border-indigo-200 bg-indigo-50'; statusText=o.is_delivery?'בדרך אליך! 🛵':'בדרך אלייך!'; statusIcon=o.is_delivery?'fa-motorcycle':'fa-truck-fast'; break;
             case 'completed':  statusColor='border-green-200 bg-green-50'; statusText='הושלם ונמסר'; statusIcon='fa-check-double'; break;
-            default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-spinner fa-spin';
+            default:           statusColor='border-slate-200 bg-slate-50'; statusText='בטיפול'; statusIcon='fa-hourglass-half';
         }
         const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         const borderCls = statusColor.split(' ')[0];
+        // כאשר ההזמנה הומרה מהצעת מחיר — נציג מזהה הצעה מקורית
+        const fromQuote = o.quote_status === 'approved' && o.quote_number ? `<span class="text-[9px] text-indigo-500 font-mono bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 mt-0.5 inline-block"><i class="fa-solid fa-file-invoice ml-0.5"></i>מ-${o.quote_number}</span>` : '';
         html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
             <div class="p-3 flex justify-between items-center gap-2">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4></div>
                     <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
+                    ${fromQuote}
                 </div>
                 <div class="flex flex-col items-end shrink-0">
                     <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
@@ -782,11 +784,10 @@ function renderFamilyQuotesTab() {
                 ${metaNotes ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
                 ${q.customer_response ? `<div class="mt-2 pt-2 border-t border-slate-100 bg-white rounded-xl p-2 text-[11px]"><span class="font-bold">ההודעה שלך: </span>${safeStr(q.customer_response)}</div>` : ''}
             </div>
-            <div class="border-t border-slate-100 px-3 pb-3 pt-2 flex gap-2">
-                <button onclick="window.openFamilyQuoteView(${q.id})" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl py-2 hover:bg-slate-200 transition">
-                    <i class="fa-solid fa-eye ml-1"></i>צפה בהצעה
+            <div class="border-t border-slate-100 px-3 pb-3 pt-2">
+                <button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
+                    ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
                 </button>
-                ${canRespond ? `<button onclick="openQuoteResponseModal(${q.id})" class="flex-1 bg-indigo-600 text-white text-xs font-bold rounded-xl py-2.5 hover:bg-indigo-700 transition"><i class="fa-solid fa-reply ml-1"></i>השב</button>` : ''}
             </div>
         </div>`;
     });
