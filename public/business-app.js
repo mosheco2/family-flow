@@ -27260,6 +27260,18 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">טלפון</p><p id="wo-info-phone" class="font-bold text-slate-800 text-sm">—</p></div>
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">נוצר</p><p id="wo-info-date" class="font-bold text-slate-800 text-sm">—</p></div>
       </div>
+      <div id="wo-items-section" class="hidden mb-4">
+        <p class="text-[10px] text-slate-500 font-bold mb-2 px-1">פריטים ושירותים</p>
+        <div id="wo-items-list" class="space-y-1"></div>
+        <div id="wo-items-total" class="mt-2 flex justify-between items-center bg-indigo-50 rounded-xl px-3 py-2 border border-indigo-100 hidden">
+          <span class="text-[11px] font-bold text-slate-600">סה"כ</span>
+          <span id="wo-items-total-val" class="text-sm font-black text-indigo-700"></span>
+        </div>
+      </div>
+      <div id="wo-overview-notes-section" class="hidden mb-3 space-y-2"></div>
+      <div id="wo-overview-address" class="hidden bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-700 font-bold mb-3">
+        <i class="fa-solid fa-location-dot text-slate-400 mr-1.5"></i><span id="wo-overview-address-text"></span>
+      </div>
       <div id="wo-assignees-preview" class="mb-3"></div>
       <div id="wo-inventory-preview" class="mb-3"></div>
     </div>
@@ -27468,23 +27480,93 @@ window.renderWoOverview = function(data) {
     document.getElementById('wo-info-phone').textContent = safeStr(wo.customer_phone || '—');
     document.getElementById('wo-info-date').textContent = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '—';
 
-    // הצגת שירות/עבודה — quote_title או פריטים ראשונים
+    // פריטים ושירותים
+    let parsedItems = [];
+    try {
+        parsedItems = (typeof wo.items === 'string' ? JSON.parse(wo.items || '[]') : (wo.items || []))
+            .filter(i => !i.is_quote_metadata && !i.is_delivery_metadata && i.catalogId !== 999999 && !(i.name && i.name.startsWith('DELIVERY_META|')));
+    } catch(e) {}
+
     const serviceRow = document.getElementById('wo-info-service-row');
     const serviceEl = document.getElementById('wo-info-service');
     if (serviceEl) {
-        let serviceText = wo.quote_title || '';
-        if (!serviceText) {
-            try {
-                const items = typeof wo.items === 'string' ? JSON.parse(wo.items || '[]') : (wo.items || []);
-                serviceText = items.slice(0, 3).map(i => i.name || i.item_name || '').filter(Boolean).join(' • ');
-            } catch(e) {}
-        }
+        const serviceText = wo.quote_title || parsedItems.slice(0, 3).map(i => i.name || i.item_name || '').filter(Boolean).join(' • ');
         if (serviceText) {
             serviceEl.textContent = serviceText;
             if (serviceRow) serviceRow.classList.remove('hidden');
         } else if (serviceRow) {
             serviceRow.classList.add('hidden');
         }
+    }
+
+    const itemsSection = document.getElementById('wo-items-section');
+    const itemsList = document.getElementById('wo-items-list');
+    if (itemsList && parsedItems.length) {
+        let totalCalc = 0;
+        itemsList.innerHTML = parsedItems.map(i => {
+            const name = i.name || i.item_name || '—';
+            const qty = parseFloat(i.quantity) || 1;
+            const price = parseFloat(i.price_at_order || i.price) || 0;
+            const rowTotal = qty * price;
+            totalCalc += rowTotal;
+            const hasChildren = Array.isArray(i.children) && i.children.length;
+            let childrenHtml = '';
+            if (hasChildren) {
+                i.children.forEach(step => {
+                    (step.options || []).filter(o => o.selected).forEach(o => {
+                        const oQty = (qty) * (parseFloat(o.qty) || 1);
+                        const oPrice = parseFloat(o.price_at_order || o.price) || 0;
+                        childrenHtml += `<div class="flex justify-between text-[10px] text-slate-500 pr-4 py-0.5 border-r-2 border-slate-200"><span>${safeStr(o.name || step.name)}</span><span>${oQty} × ₪${oPrice.toFixed(2)}</span></div>`;
+                    });
+                });
+            }
+            return `<div class="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-slate-800 text-sm truncate flex-1">${safeStr(name)}</span>
+                    <div class="shrink-0 text-right mr-3">
+                        <span class="text-[10px] text-slate-500">${qty} × ₪${price.toFixed(2)}</span>
+                        <span class="block font-black text-indigo-700 text-sm">₪${rowTotal.toFixed(2)}</span>
+                    </div>
+                </div>
+                ${childrenHtml}
+            </div>`;
+        }).join('');
+        if (itemsSection) itemsSection.classList.remove('hidden');
+        const totalEl = document.getElementById('wo-items-total');
+        const totalValEl = document.getElementById('wo-items-total-val');
+        if (totalEl && totalValEl && parsedItems.length > 1) {
+            totalValEl.textContent = `₪${totalCalc.toFixed(2)}`;
+            totalEl.classList.remove('hidden');
+        }
+    } else if (itemsSection) { itemsSection.classList.add('hidden'); }
+
+    // הערות (לקוח + פנימיות)
+    const notesSection = document.getElementById('wo-overview-notes-section');
+    if (notesSection) {
+        let notesHtml = '';
+        let internalNote = '', customerNote = '';
+        try {
+            const meta = typeof wo.notes === 'string' && wo.notes.startsWith('{') ? JSON.parse(wo.notes) : null;
+            if (meta) { internalNote = meta.internalNote || ''; customerNote = meta.customerNote || meta.notes || ''; }
+            else if (wo.notes) {
+                if (wo.notes.includes('הערות לקוח:')) customerNote = wo.notes.replace('הערות לקוח:', '').trim();
+                else internalNote = wo.notes;
+            }
+        } catch(e) { internalNote = wo.notes || ''; }
+        if (internalNote) notesHtml += `<div class="bg-amber-50 rounded-xl p-3 border border-amber-200 text-xs font-bold text-amber-800"><i class="fa-solid fa-lock mr-1.5"></i>עסק: ${safeStr(internalNote)}</div>`;
+        if (customerNote) notesHtml += `<div class="bg-indigo-50 rounded-xl p-3 border border-indigo-200 text-xs font-bold text-indigo-800"><i class="fa-regular fa-comment-dots mr-1.5"></i>לקוח: ${safeStr(customerNote)}</div>`;
+        if (wo.wo_notes) notesHtml += `<div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-700"><i class="fa-solid fa-note-sticky mr-1.5 text-slate-400"></i>${safeStr(wo.wo_notes)}</div>`;
+        if (notesHtml) { notesSection.innerHTML = notesHtml; notesSection.classList.remove('hidden'); }
+        else notesSection.classList.add('hidden');
+    }
+
+    // כתובת
+    const addrSection = document.getElementById('wo-overview-address');
+    const addrText = document.getElementById('wo-overview-address-text');
+    if (addrSection && addrText) {
+        const addr = wo.delivery_details || wo.address || '';
+        if (addr) { addrText.textContent = addr; addrSection.classList.remove('hidden'); }
+        else addrSection.classList.add('hidden');
     }
 
     const ap = document.getElementById('wo-assignees-preview');
