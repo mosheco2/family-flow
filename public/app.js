@@ -717,7 +717,8 @@ async function loadFamilyQuotes() {
     }
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הצעות מחיר...</p>';
     try {
-        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}`);
+        const uid = currentUser ? currentUser.id : '';
+        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
         const data = await res.json();
         if (data.success) { familyQuotesCache = data.quotes || []; renderFamilyQuotesTab(); }
         else list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה'}</p>`;

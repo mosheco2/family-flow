@@ -4012,13 +4012,22 @@ app.post('/api/store/quotes', async (req, res) => {
 // --- שליפת הצעות מחיר לצד משפחה ---
 app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
     try {
-        // מחפש הצעות מחיר: status='quote' או quote_status פעיל (לא approved) — לפי family_group_id או phone
+        const familyGroupId = req.params.familyGroupId;
+        const userId = req.query.userId;
+        // שליפת טלפון המשתמש לצורך matching ישיר (כמו ב-orders/my)
+        let userPhone = null;
+        if (userId) {
+            const uRow = await pool.query('SELECT phone FROM users WHERE id=$1', [userId]);
+            if (uRow.rows.length) userPhone = uRow.rows[0].phone || null;
+        }
+        // מחפש הצעות מחיר: status='quote' או quote_status פעיל — לפי family_group_id, phone ישיר, או phone מ-group
         const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
             FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
             WHERE (so.status='quote' OR (so.quote_status IS NOT NULL AND so.quote_status != 'approved'))
               AND (so.family_group_id=$1
+                OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
                 OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
-            ORDER BY so.created_at DESC`, [req.params.familyGroupId]);
+            ORDER BY so.created_at DESC`, [familyGroupId, userPhone || null]);
         res.json({ success: true, quotes: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
