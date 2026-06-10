@@ -549,6 +549,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
+                        <button id="btn-sales-work-orders" onclick="window.switchSalesTab('work-orders')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-hammer text-sm"></i>פקודות עבודה</button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -579,6 +580,22 @@ window.injectBusinessUI = function() {
                             <button onclick="window.openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
                         </div>
                         <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-work-orders" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-2 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">פקודות עבודה 🔨</h4>
+                            <select id="wo-list-filter" onchange="window.fetchWorkOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 rounded-xl outline-none focus:border-indigo-400">
+                                <option value="all">כל הפקודות</option>
+                                <option value="processing">בתהליך</option>
+                                <option value="scheduled">מתוזמנות</option>
+                                <option value="completed">הושלמו</option>
+                                <option value="cancelled">בוטלו</option>
+                            </select>
+                        </div>
+                        <div id="work-orders-list" class="space-y-3 pb-8">
+                            <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה</p>
+                        </div>
                     </div>
                     
                     <div id="sales-view-work-orders" class="hidden space-y-4">
@@ -6238,11 +6255,12 @@ window.renderStoreQuotes = function() {
             if (currentStatus === 'waiting_customer') currentStatus = 'sent';
             
             const isApproved = currentStatus === 'approved';
+            const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare'].includes(currentGroup?.business_type);
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
-            
+
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
             const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'}) : "תאריך לא ידוע";
-            
+
             let internalNote = '';
             let customerNote = '';
             let quoteTitle = q.quote_title || '';
@@ -6271,7 +6289,7 @@ window.renderStoreQuotes = function() {
                 }
             }
             internalNote = internalNote.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
-            
+
             let displayNote = '';
             if(internalNote) {
                 displayNote += `<div class="mt-2 bg-amber-50 p-2.5 rounded-lg text-xs font-bold text-amber-800 border border-amber-200 shadow-sm"><i class="fa-solid fa-lock mr-1"></i> עסק: ${safeStr(internalNote)}</div>`;
@@ -6306,8 +6324,12 @@ window.renderStoreQuotes = function() {
                  cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
                  approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
             } else if (isCustomerApproved && !isApproved) {
-                 cardStyle = 'border-2 border-emerald-400 bg-emerald-50/40 shadow-md';
-                 approveBtnHtml = `<button onclick="window.convertQuoteToWorkOrder(${q.id})" class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-emerald-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> המר לפקודת עבודה</button>`;
+                 cardStyle = 'border-2 border-blue-400 bg-blue-50/40 shadow-md';
+                 if (isWoBusinessType) {
+                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1">העבר להזמנה רגילה</button>`;
+                 } else {
+                     approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
+                 }
             } else if (needsBusinessAction) {
                  cardStyle = 'border-2 border-orange-400 bg-orange-50/40 shadow-md';
                  approveBtnHtml = `<div class="flex items-center gap-1.5 mt-2 w-full bg-orange-100 border border-orange-300 py-2 px-3 rounded-lg text-[10px] font-bold text-orange-800"><i class="fa-solid fa-triangle-exclamation"></i> נדרש עדכון — ערוך ושלח מחדש ב-OneFlow</div>`;
@@ -6340,18 +6362,19 @@ window.renderStoreQuotes = function() {
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
                         ${q.customer_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הלקוח • ${new Date(q.customer_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
                         ${crHtml}
+                        ${(isCustomerApproved && !crType) ? `<span class="inline-flex items-center gap-1 mt-1 bg-blue-100 text-blue-700 border border-blue-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-user-check text-xs"></i> ממתין לפעולת העסק</span>` : ''}
                         ${displayNote}
                         ${timelineHtml}
                         ${bizReplyHtml}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
-                        <select id="quote-sel-${q.id}" onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${needsBusinessAction ? 'bg-orange-100 text-orange-800 border-orange-300' : isApproved ? 'bg-green-100 text-green-800 border-green-300' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
+                        <select id="quote-sel-${q.id}" onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${needsBusinessAction ? 'bg-orange-100 text-orange-800 border-orange-300' : isApproved ? 'bg-green-100 text-green-800 border-green-300' : isCustomerApproved ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
                             ${optionsHtml}
                         </select>
                         ${approveBtnHtml}
                     </div>
                 </div>
-                <div class="flex gap-2 border-t ${isApproved ? 'border-green-200' : needsBusinessAction ? 'border-orange-200' : 'border-slate-100'} pt-3 mt-1">
+                <div class="flex gap-2 border-t ${isApproved ? 'border-green-200' : needsBusinessAction ? 'border-orange-200' : isCustomerApproved ? 'border-blue-200' : 'border-slate-100'} pt-3 mt-1">
                     <button onclick="window.openEditQuoteModal(${q.id})" class="flex-1 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-pen"></i> ערוך</button>
                     ${sendOneflowBtn}
                     <button onclick="window.sendQuoteToCustomer(${q.id})" class="flex-1 bg-[#25D366] text-white hover:bg-[#1ebd58] py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp text-xs"></i> WA</button>
@@ -15798,6 +15821,15 @@ window.switchSalesTab = function(subTab) {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
+
+    // show work-orders button only for relevant business types
+    const woBtn = document.getElementById('btn-sales-work-orders');
+    if (woBtn) {
+        const isWoBizType = ['services','construction','maintenance_repair','events','healthcare'].includes(currentGroup?.business_type);
+        if (isWoBizType) { woBtn.classList.remove('hidden'); woBtn.classList.add('flex'); }
+        else { woBtn.classList.add('hidden'); woBtn.classList.remove('flex'); }
+    }
+
     
     const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
     const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition';
@@ -15822,12 +15854,12 @@ window.switchSalesTab = function(subTab) {
         if (typeof window.fetchStorePromotions === 'function') {
             window.fetchStorePromotions(); 
         } else {
-            // גיבוי קריטי במקרה שהפונקציה לא נטענה מסיבה כלשהי (תצוגה ריקה אך פעילה)
             const list = document.getElementById('store-promotions-list');
             if (list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא הוגדרו מבצעים פעילים לחנות.</p>';
             if(typeof window.fetchStoreCoupons === 'function') window.fetchStoreCoupons();
         }
-    } 
+    }
+    if(subTab === 'work-orders') { if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders(); }
 };
 
 // עדכון טאב נבחר אוטומטית ברקע
@@ -27246,3 +27278,502 @@ async function saToggleLicense(groupId, featureKey, isActive) {
 
 
 // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
+
+// ===== WORK ORDERS MODULE =====
+
+// inject work order modal HTML once
+(function injectWorkOrderModal() {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('work-order-modal')) return;
+        const modal = document.createElement('div');
+        modal.id = 'work-order-modal';
+        modal.className = 'fixed inset-0 z-50 hidden bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4';
+        modal.innerHTML = `
+<div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+  <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
+    <div class="flex-1 min-w-0">
+      <h2 id="wo-modal-title" class="font-black text-slate-800 text-base truncate">פקודת עבודה</h2>
+      <p id="wo-modal-subtitle" class="text-slate-500 text-xs mt-0.5 truncate"></p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0 mr-2">
+      <select id="wo-status-select" onchange="window.updateWorkOrderStatus(this.value)" class="modern-input py-1 px-2 text-xs font-bold bg-slate-50 border-slate-200 rounded-lg outline-none focus:border-indigo-400">
+        <option value="processing">בתהליך</option>
+        <option value="scheduled">מתוזמן</option>
+        <option value="completed">הושלם</option>
+        <option value="cancelled">בוטל</option>
+      </select>
+      <button onclick="document.getElementById('work-order-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition text-sm font-black">✕</button>
+    </div>
+  </div>
+  <div class="flex gap-1 px-4 pt-3 pb-0 border-b border-slate-100 overflow-x-auto shrink-0" id="wo-tabs-bar">
+    <button onclick="window.switchWoTab('overview')" id="wo-tab-overview" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">סקירה</button>
+    <button onclick="window.switchWoTab('team')" id="wo-tab-team" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">צוות</button>
+    <button onclick="window.switchWoTab('inventory')" id="wo-tab-inventory" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציוד</button>
+    <button onclick="window.switchWoTab('chat')" id="wo-tab-chat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">שיח</button>
+    <button onclick="window.switchWoTab('notes')" id="wo-tab-notes" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">הערות</button>
+    <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
+    <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">יומן</button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
+    <div id="wo-view-overview">
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">לקוח</p><p id="wo-info-customer" class="font-bold text-slate-800 text-sm">—</p></div>
+        <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">סכום</p><p id="wo-info-amount" class="font-black text-indigo-600 text-sm">—</p></div>
+        <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">טלפון</p><p id="wo-info-phone" class="font-bold text-slate-800 text-sm">—</p></div>
+        <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">נוצר</p><p id="wo-info-date" class="font-bold text-slate-800 text-sm">—</p></div>
+      </div>
+      <div id="wo-assignees-preview" class="mb-3"></div>
+      <div id="wo-inventory-preview" class="mb-3"></div>
+    </div>
+    <div id="wo-view-team" class="hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">צוות משויך</h4>
+        <button onclick="window.openAddAssigneePanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שייך עובד</button>
+      </div>
+      <div id="wo-assignees-list" class="space-y-2"></div>
+      <div id="wo-add-assignee-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
+        <p class="text-xs font-bold text-slate-600 mb-2">בחר עובד לשיוך:</p>
+        <select id="wo-assignee-select" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
+        <div class="flex gap-2">
+          <button onclick="window.addAssigneeToWo()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שייך</button>
+          <button onclick="document.getElementById('wo-add-assignee-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        </div>
+      </div>
+    </div>
+    <div id="wo-view-inventory" class="hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">ציוד ומלאי</h4>
+        <button onclick="window.openAddInventoryPanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף ציוד</button>
+      </div>
+      <div id="wo-inventory-list" class="space-y-2"></div>
+      <div id="wo-add-inventory-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
+        <p class="text-xs font-bold text-slate-600 mb-2">בחר פריט ממלאי:</p>
+        <select id="wo-inventory-item-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
+        <input type="number" id="wo-inventory-qty" min="1" step="1" value="1" placeholder="כמות" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <div class="flex gap-2">
+          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שרן ציוד</button>
+          <button onclick="document.getElementById('wo-add-inventory-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        </div>
+      </div>
+    </div>
+    <div id="wo-view-chat" class="hidden flex flex-col" style="min-height:320px;">
+      <div id="wo-messages-list" class="flex-1 space-y-2 mb-3 overflow-y-auto max-h-64"></div>
+      <div class="flex gap-2 mt-auto">
+        <input type="text" id="wo-chat-input" placeholder="כתוב הודעה לצוות..." class="flex-1 modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400" onkeydown="if(event.key==='Enter') window.sendWoMessage()">
+        <button onclick="window.sendWoMessage()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+    <div id="wo-view-notes" class="hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">הערות פקודה</h4>
+        <button onclick="window.saveWoNotes()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור</button>
+      </div>
+      <textarea id="wo-notes-textarea" rows="7" placeholder="הערות לביצוע, פרטים חשובים, הנחיות..." class="w-full modern-input py-3 px-4 text-sm rounded-2xl border border-slate-200 outline-none focus:border-indigo-400 resize-none leading-relaxed"></textarea>
+      <p id="wo-notes-meta" class="text-[10px] text-slate-400 mt-1.5"></p>
+    </div>
+    <div id="wo-view-timeline" class="hidden">
+      <h4 class="font-bold text-slate-700 text-sm mb-3">ציר זמן</h4>
+      <div id="wo-timeline-list" class="space-y-2"></div>
+    </div>
+    <div id="wo-view-calendar" class="hidden">
+      <h4 class="font-bold text-slate-700 text-sm mb-3">קביעת זימון</h4>
+      <div class="space-y-3">
+        <input type="text" id="wo-cal-title" placeholder="נושא הזימון" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <div class="grid grid-cols-2 gap-2">
+          <input type="date" id="wo-cal-date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          <input type="time" id="wo-cal-time" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        </div>
+        <input type="text" id="wo-cal-address" placeholder="כתובת (אופציונלי)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <input type="text" id="wo-cal-notes" placeholder="הערות לזימון" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+        <div class="bg-blue-50 rounded-xl p-3 border border-blue-100 text-xs text-blue-700">
+          <i class="fa-solid fa-info-circle mr-1"></i> הזימון יישמר ביומן העסקי ויופיע גם אצל כל העובדים המשויכים לפקודה
+        </div>
+        <button onclick="window.createWoCalendarEvent()" class="w-full bg-indigo-600 text-white py-3 rounded-2xl text-sm font-bold hover:bg-indigo-700 transition shadow-md"><i class="fa-solid fa-calendar-plus mr-2"></i> צור זימון ביומן</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+        document.body.appendChild(modal);
+    });
+})();
+
+window._currentWoId = null;
+window._currentWoData = null;
+
+window.switchWoTab = function(tab) {
+    ['overview','team','inventory','chat','notes','timeline','calendar'].forEach(t => {
+        const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
+        const b = document.getElementById(`wo-tab-${t}`);
+        if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
+    });
+    const v = document.getElementById(`wo-view-${tab}`); if(v) v.classList.remove('hidden');
+    const b = document.getElementById(`wo-tab-${tab}`);
+    if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
+    if(tab === 'chat') setTimeout(() => { const msgs = document.getElementById('wo-messages-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100);
+    if(tab === 'timeline') window.loadWoTimeline();
+};
+
+window.convertToWorkOrder = async function(quoteId) {
+    if (!confirm('להמיר את הצעת המחיר לפקודת עבודה? ניתן לנהל ממנה צוות, ציוד, יומן ושיח פנימי.')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/convert/${quoteId}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה בהמרה');
+        showToast('success', 'פקודת העבודה נוצרה בהצלחה!');
+        if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+        if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
+        window.openWorkOrderModal(quoteId);
+        window.switchSalesTab('work-orders');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.fetchWorkOrders = async function() {
+    if (!currentGroup) return;
+    const filter = document.getElementById('wo-list-filter')?.value || 'all';
+    try {
+        const url = `${API}/work-orders/list/${currentGroup.id}${filter !== 'all' ? '?status=' + filter : ''}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        window.renderWorkOrdersList(data.workOrders || []);
+    } catch(e) { console.error('fetchWorkOrders', e); }
+};
+
+window.renderWorkOrdersList = function(workOrders) {
+    const list = document.getElementById('work-orders-list');
+    if (!list) return;
+    if (!workOrders.length) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה. המר הצעת מחיר מאושרת לפקודת עבודה.</p>';
+        return;
+    }
+    const statusLabels = { processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' } };
+    list.innerHTML = workOrders.map(wo => {
+        const st = statusLabels[wo.status] || statusLabels.new;
+        const amount = wo.total_amount ? parseFloat(wo.total_amount).toFixed(2) : '0.00';
+        const dateStr = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '';
+        const assignCount = parseInt(wo.assignee_count) || 0;
+        const invCount = parseInt(wo.inventory_count) || 0;
+        return `<div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition cursor-pointer" onclick="window.openWorkOrderModal(${wo.id})">
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `פקודה #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
+                    <p class="text-lg font-black text-indigo-600 mt-0.5">₪${amount}</p>
+                    <p class="text-[10px] text-slate-500 mt-1">${dateStr} | ${safeStr(wo.customer_phone || 'ללא טלפון')}</p>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-full border ${st.cls}">${st.label}</span>
+            </div>
+            <div class="flex gap-2 text-[10px] text-slate-500 mt-2">
+                ${assignCount ? `<span class="bg-slate-100 px-2 py-0.5 rounded-full"><i class="fa-solid fa-users mr-1"></i>${assignCount} משויכים</span>` : ''}
+                ${invCount ? `<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-boxes-stacked mr-1"></i>${invCount} פריטי ציוד</span>` : ''}
+                <span class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 mr-auto"><i class="fa-solid fa-arrow-left mr-1"></i>פתח</span>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.openWorkOrderModal = async function(woId) {
+    const modal = document.getElementById('work-order-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    window._currentWoId = woId;
+    document.getElementById('wo-modal-title').textContent = 'טוען...';
+    try {
+        const res = await fetch(`${API}/work-orders/detail/${woId}`);
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        window._currentWoData = data;
+        window.renderWoOverview(data);
+        window.renderWoTeam(data.assignees || []);
+        window.renderWoInventory(data.inventory || []);
+        window.renderWoMessages(data.messages || []);
+        window.renderWoTimeline(data.timeline || []);
+        const wo = data.workOrder;
+        document.getElementById('wo-notes-textarea').value = wo.wo_notes || '';
+        document.getElementById('wo-notes-meta').textContent = wo.wo_notes_updated_by ? `עודכן ע"י ${wo.wo_notes_updated_by}` : '';
+        document.getElementById('wo-cal-title').value = wo.customer_name ? `עבודה עבור ${wo.customer_name}` : '';
+        const statusSel = document.getElementById('wo-status-select');
+        if (statusSel) statusSel.value = wo.status || 'processing';
+        // load business users for assignee dropdown
+        const uRes = await fetch(`${API}/work-orders/users/${currentGroup.id}`);
+        const uData = await uRes.json();
+        const sel = document.getElementById('wo-assignee-select');
+        if (sel && uData.users) {
+            sel.innerHTML = '<option value="">בחר עובד</option>' + uData.users.map(u => `<option value="${u.id}" data-name="${safeStr(u.name)}">${safeStr(u.name)} (${u.employee_role_type || u.role})</option>`).join('');
+        }
+        // load catalog for inventory dropdown
+        const cRes = await fetch(`${API}/work-orders/catalog/${currentGroup.id}`);
+        const cData = await cRes.json();
+        const cSel = document.getElementById('wo-inventory-item-select');
+        if (cSel && cData.items) {
+            cSel.innerHTML = '<option value="">בחר פריט</option>' + cData.items.map(i => `<option value="${i.id}" data-name="${safeStr(i.name)}" data-avail="${i.available_qty}">${safeStr(i.name)} (זמין: ${i.available_qty})</option>`).join('');
+        }
+        window.switchWoTab('overview');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); console.error(e); }
+};
+
+window.renderWoOverview = function(data) {
+    const wo = data.workOrder;
+    document.getElementById('wo-modal-title').textContent = wo.quote_number || `פקודה #${wo.id}`;
+    document.getElementById('wo-modal-subtitle').textContent = safeStr(wo.customer_name || '');
+    document.getElementById('wo-info-customer').textContent = safeStr(wo.customer_name || '—');
+    document.getElementById('wo-info-amount').textContent = wo.total_amount ? `₪${parseFloat(wo.total_amount).toFixed(2)}` : '—';
+    document.getElementById('wo-info-phone').textContent = safeStr(wo.customer_phone || '—');
+    document.getElementById('wo-info-date').textContent = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '—';
+    const ap = document.getElementById('wo-assignees-preview');
+    if (ap) ap.innerHTML = data.assignees?.length ? `<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600"><i class="fa-solid fa-users mr-1.5"></i>${data.assignees.map(a => safeStr(a.user_name)).join(' • ')}</div>` : '';
+    const ip = document.getElementById('wo-inventory-preview');
+    const reserved = (data.inventory || []).filter(i => i.status === 'reserved');
+    if (ip) ip.innerHTML = reserved.length ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
+};
+
+window.renderWoTeam = function(assignees) {
+    const list = document.getElementById('wo-assignees-list');
+    if (!list) return;
+    if (!assignees.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">טרם שויכו עובדים לפקודה זו</p>'; return; }
+    list.innerHTML = assignees.map(a => `<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">${(a.user_name || '?')[0]}</div>
+            <span class="font-bold text-slate-700 text-sm">${safeStr(a.user_name)}</span>
+        </div>
+        <button onclick="window.removeWoAssignee(${a.user_id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
+    </div>`).join('');
+};
+
+window.renderWoInventory = function(inventory) {
+    const list = document.getElementById('wo-inventory-list');
+    if (!list) return;
+    if (!inventory.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">לא שורין ציוד לפקודה זו</p>'; return; }
+    const statusInfo = { reserved: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'משורין' }, used: { cls: 'bg-green-100 text-green-700 border-green-200', label: 'נוצל' }, released: { cls: 'bg-slate-100 text-slate-500 border-slate-200', label: 'שוחרר' } };
+    list.innerHTML = inventory.map(item => {
+        const st = statusInfo[item.status] || statusInfo.reserved;
+        const usedQtyVal = item.used_qty || item.reserved_qty;
+        return `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-bold text-slate-700 text-sm">${safeStr(item.item_name)}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
+            </div>
+            <p class="text-xs text-slate-500 mb-2">כמות: ${item.reserved_qty} יח' | זמין במלאי: ${item.available_qty ?? (item.total_stock - item.catalog_reserved)}</p>
+            ${item.status === 'reserved' ? `<div class="flex gap-2">
+                <button onclick="window.confirmInventoryUse(${item.id}, ${usedQtyVal})" class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-700 transition">✓ אשר שימוש</button>
+                <button onclick="window.releaseInventory(${item.id})" class="flex-1 bg-slate-200 text-slate-600 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition">שחרר</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+};
+
+window.renderWoMessages = function(messages) {
+    const list = document.getElementById('wo-messages-list');
+    if (!list) return;
+    if (!messages.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין הודעות עדיין</p>'; return; }
+    const myName = currentUser?.nickname || '';
+    list.innerHTML = messages.map(m => {
+        const isMine = m.user_name === myName;
+        const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'}) : '';
+        return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-[75%] ${isMine ? 'bg-indigo-600 text-white rounded-t-2xl rounded-bl-2xl' : 'bg-slate-100 text-slate-800 rounded-t-2xl rounded-br-2xl'} px-3 py-2">
+                ${!isMine ? `<p class="text-[10px] font-bold mb-0.5 ${isMine ? 'text-indigo-200' : 'text-indigo-600'}">${safeStr(m.user_name)}</p>` : ''}
+                <p class="text-sm">${safeStr(m.message_text)}</p>
+                <p class="text-[9px] mt-0.5 ${isMine ? 'text-indigo-200' : 'text-slate-400'} text-left">${timeStr}</p>
+            </div>
+        </div>`;
+    }).join('');
+    setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+};
+
+window.renderWoTimeline = function(timeline) {
+    const list = document.getElementById('wo-timeline-list');
+    if (!list) return;
+    if (!timeline.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין אירועים בציר הזמן</p>'; return; }
+    const icons = { created: '🔨', status_change: '🔄', assignee_added: '👤', assignee_removed: '👤', inventory_reserved: '📦', inventory_used: '✅', inventory_released: '↩️', notes_updated: '📝', calendar_event: '📅', default: '•' };
+    list.innerHTML = timeline.map(t => {
+        const d = t.created_at ? new Date(t.created_at).toLocaleString('he-IL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+        const icon = icons[t.event_type] || icons.default;
+        return `<div class="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0">
+            <span class="text-base mt-0.5">${icon}</span>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-700 font-medium">${safeStr(t.description)}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${safeStr(t.user_name || 'מערכת')} • ${d}</p>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.updateWorkOrderStatus = async function(newStatus) {
+    if (!window._currentWoId) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/status`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ status: newStatus, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'סטטוס עודכן'); window.fetchWorkOrders(); }
+        else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.openAddAssigneePanel = function() {
+    document.getElementById('wo-add-assignee-panel').classList.remove('hidden');
+};
+
+window.addAssigneeToWo = async function() {
+    const sel = document.getElementById('wo-assignee-select');
+    if (!sel || !sel.value) return showToast('error', 'בחר עובד');
+    const userId = sel.value;
+    const userName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text || '';
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId, userName, assignedBy: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        document.getElementById('wo-add-assignee-panel').classList.add('hidden');
+        showToast('success', 'עובד שויך בהצלחה');
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoTeam(dData.assignees || []); window.renderWoOverview(dData); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.removeWoAssignee = async function(userId) {
+    if (!confirm('להסיר עובד זה מהפקודה?')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'עובד הוסר');
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoTeam(dData.assignees || []); window.renderWoOverview(dData); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.openAddInventoryPanel = function() {
+    document.getElementById('wo-add-inventory-panel').classList.remove('hidden');
+};
+
+window.addInventoryReservation = async function() {
+    const sel = document.getElementById('wo-inventory-item-select');
+    const qtyInput = document.getElementById('wo-inventory-qty');
+    if (!sel || !sel.value) return showToast('error', 'בחר פריט');
+    const catalogId = sel.value;
+    const itemName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+    const qty = parseFloat(qtyInput?.value) || 1;
+    const available = parseFloat(sel.options[sel.selectedIndex]?.dataset?.avail) || 0;
+    if (qty > available) return showToast('error', `רק ${available} יחידות זמינות`);
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ catalogId, itemName, qty, reservedBy: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        document.getElementById('wo-add-inventory-panel').classList.add('hidden');
+        if (qtyInput) qtyInput.value = 1;
+        showToast('success', 'ציוד שורין בהצלחה');
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.confirmInventoryUse = async function(resId, suggestedQty) {
+    const usedQty = parseFloat(prompt(`כמה יחידות נוצלו בפועל?`, suggestedQty));
+    if (isNaN(usedQty) || usedQty <= 0) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}/use`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ usedQty, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'שימוש אושר — המלאי עודכן');
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.releaseInventory = async function(resId) {
+    if (!confirm('לשחרר את השריון ולהחזיר הכמות למלאי?')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'שריון שוחרר');
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.sendWoMessage = async function() {
+    const input = document.getElementById('wo-chat-input');
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/messages`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId: currentUser?.id, userName: currentUser?.nickname || 'משתמש', message: msg })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        input.value = '';
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dData = await dRes.json();
+        if (dData.success) window.renderWoMessages(dData.messages || []);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saveWoNotes = async function() {
+    const notes = document.getElementById('wo-notes-textarea')?.value || '';
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/notes`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ notes, updatedBy: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'הערות נשמרו');
+        document.getElementById('wo-notes-meta').textContent = `עודכן ע"י ${currentUser?.nickname || 'מנהל'}`;
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.loadWoTimeline = async function() {
+    if (!window._currentWoId) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/timeline`);
+        const data = await res.json();
+        if (data.success) window.renderWoTimeline(data.timeline || []);
+    } catch(e) {}
+};
+
+window.createWoCalendarEvent = async function() {
+    const title = document.getElementById('wo-cal-title')?.value?.trim();
+    const date = document.getElementById('wo-cal-date')?.value;
+    const time = document.getElementById('wo-cal-time')?.value;
+    const address = document.getElementById('wo-cal-address')?.value || '';
+    const notes = document.getElementById('wo-cal-notes')?.value || '';
+    if (!title || !date || !time) return showToast('error', 'נא למלא נושא, תאריך ושעה');
+    const wo = window._currentWoData?.workOrder;
+    const assignees = window._currentWoData?.assignees || [];
+    const assigneeIds = assignees.map(a => a.user_id);
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/calendar`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, title, eventDate: date, startTime: time, customerName: wo?.customer_name || '', address, notes, assigneeIds })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', `זימון נקבע ל-${date} ${time} ✅`);
+        document.getElementById('wo-cal-date').value = '';
+        document.getElementById('wo-cal-time').value = '';
+        document.getElementById('wo-cal-notes').value = '';
+        window.loadWoTimeline();
+        window.switchWoTab('timeline');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ===== END WORK ORDERS MODULE =====

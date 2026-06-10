@@ -626,6 +626,63 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
+      // ===== WORK ORDERS MODULE =====
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS call_type VARCHAR(30) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_by VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS address TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS attendees_user_ids JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_name VARCHAR(200)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE CASCADE,
+          user_name VARCHAR(100),
+          assigned_at TIMESTAMP DEFAULT NOW(),
+          assigned_by VARCHAR(100),
+          UNIQUE(work_order_id, user_id)
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_inventory (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+          item_name VARCHAR(200),
+          reserved_qty DECIMAL(10,2) NOT NULL,
+          used_qty DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'reserved',
+          reserved_at TIMESTAMP DEFAULT NOW(),
+          used_at TIMESTAMP,
+          reserved_by VARCHAR(100)
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_messages (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          user_id INT,
+          user_name VARCHAR(100),
+          message_text TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_timeline (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          event_type VARCHAR(50) NOT NULL,
+          description TEXT,
+          user_name VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW(),
+          metadata JSONB DEFAULT '{}'
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_notes_history (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          note_text TEXT,
+          created_by VARCHAR(100),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END WORK ORDERS MODULE =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -9466,6 +9523,217 @@ app.post('/api/groups/:id/licenses', async (req, res) => {
 });
 
 // ===== END BUSINESS TYPE & LICENSING =====
+
+// ===== WORK ORDERS API =====
+
+async function addWorkOrderTimeline(workOrderId, eventType, description, userName, metadata) {
+    try {
+        await pool.query(
+            'INSERT INTO work_order_timeline (work_order_id, event_type, description, user_name, metadata) VALUES ($1,$2,$3,$4,$5)',
+            [workOrderId, eventType, description, userName || 'מערכת', JSON.stringify(metadata || {})]
+        );
+    } catch(e) {}
+}
+
+app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
+    try {
+        const { userName } = req.body;
+        const quoteId = req.params.quoteId;
+        const r = await pool.query(
+            `UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'
+             WHERE id=$1 AND status='quote' RETURNING *`,
+            [quoteId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        await addWorkOrderTimeline(quoteId, 'created', 'פקודת עבודה נוצרה מהצעת מחיר', userName || 'מנהל');
+        res.json({ success: true, workOrderId: quoteId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/list/:groupId', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = `SELECT so.*,
+            (SELECT COUNT(*) FROM work_order_assignees WHERE work_order_id=so.id) as assignee_count,
+            (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count
+            FROM store_orders so
+            WHERE so.group_id=$1 AND so.call_type='work_order'`;
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ` AND so.status=$2`; params.push(status); }
+        q += ' ORDER BY so.created_at DESC';
+        const r = await pool.query(q, params);
+        res.json({ success: true, workOrders: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/detail/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes] = await Promise.all([
+            pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
+            pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
+            pool.query(`SELECT wi.*, sc.stock_quantity as total_stock, COALESCE(sc.reserved_qty,0) as catalog_reserved
+                        FROM work_order_inventory wi
+                        LEFT JOIN store_catalog sc ON wi.catalog_id=sc.id
+                        WHERE wi.work_order_id=$1 ORDER BY wi.reserved_at`, [id]),
+            pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
+            pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id])
+        ]);
+        if (!woRes.rows.length) return res.status(404).json({ error: 'פקודה לא נמצאה' });
+        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:id/status', async (req, res) => {
+    try {
+        const { status, userName } = req.body;
+        await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
+        const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
+        await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
+        if (status === 'cancelled') {
+            const resItems = await pool.query(`SELECT * FROM work_order_inventory WHERE work_order_id=$1 AND status='reserved'`, [req.params.id]);
+            for (const item of resItems.rows) {
+                await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+                await pool.query(`UPDATE work_order_inventory SET status='released' WHERE id=$1`, [item.id]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/users/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id, nickname as name, employee_role_type, role FROM users WHERE group_id=$1 ORDER BY nickname`, [req.params.groupId]);
+        res.json({ success: true, users: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/assignees', async (req, res) => {
+    try {
+        const { userId, userName, assignedBy } = req.body;
+        await pool.query(
+            'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by) VALUES ($1,$2,$3,$4) ON CONFLICT (work_order_id, user_id) DO NOTHING',
+            [req.params.id, userId, userName, assignedBy]
+        );
+        await addWorkOrderTimeline(req.params.id, 'assignee_added', `שויך עובד: ${userName}`, assignedBy);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
+    try {
+        const aRes = await pool.query('SELECT user_name FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
+        await pool.query('DELETE FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
+        if (aRes.rows.length) await addWorkOrderTimeline(req.params.id, 'assignee_removed', `הוסר עובד: ${aRes.rows[0].user_name}`, 'מנהל');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, name, COALESCE(stock_quantity,0) as stock_quantity, COALESCE(reserved_qty,0) as reserved_qty,
+             GREATEST(0, COALESCE(stock_quantity,0) - COALESCE(reserved_qty,0)) as available_qty
+             FROM store_catalog WHERE group_id=$1 AND COALESCE(stock_quantity,0) > 0 ORDER BY name`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/inventory', async (req, res) => {
+    try {
+        const { catalogId, itemName, qty, reservedBy } = req.body;
+        const catRes = await pool.query('SELECT stock_quantity, COALESCE(reserved_qty,0) as reserved_qty FROM store_catalog WHERE id=$1', [catalogId]);
+        if (!catRes.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        const { stock_quantity, reserved_qty } = catRes.rows[0];
+        const available = (stock_quantity || 0) - (reserved_qty || 0);
+        if (available < qty) return res.status(400).json({ error: `רק ${available} יחידות זמינות` });
+        const r = await pool.query(
+            'INSERT INTO work_order_inventory (work_order_id, catalog_id, item_name, reserved_qty, reserved_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [req.params.id, catalogId, itemName, qty, reservedBy]
+        );
+        await pool.query('UPDATE store_catalog SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [qty, catalogId]);
+        await addWorkOrderTimeline(req.params.id, 'inventory_reserved', `שורין ציוד: ${itemName} (${qty} יח')`, reservedBy);
+        res.json({ success: true, reservationId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
+    try {
+        const { usedQty, userName } = req.body;
+        const resRes = await pool.query('SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2', [req.params.resId, req.params.id]);
+        if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא' });
+        const item = resRes.rows[0];
+        const actualUsed = Math.min(parseFloat(usedQty) || item.reserved_qty, item.reserved_qty);
+        await pool.query(`UPDATE work_order_inventory SET status='used', used_qty=$1, used_at=NOW() WHERE id=$2`, [actualUsed, item.id]);
+        await pool.query('UPDATE store_catalog SET stock_quantity = GREATEST(0, COALESCE(stock_quantity,0) - $1), reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $2) WHERE id=$3', [actualUsed, item.reserved_qty, item.catalog_id]);
+        await addWorkOrderTimeline(req.params.id, 'inventory_used', `אושר שימוש בציוד: ${item.item_name} (${actualUsed} יח')`, userName);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
+    try {
+        const resRes = await pool.query(`SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2 AND status='reserved'`, [req.params.resId, req.params.id]);
+        if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא או כבר בשימוש' });
+        const item = resRes.rows[0];
+        await pool.query(`UPDATE work_order_inventory SET status='released' WHERE id=$1`, [item.id]);
+        await pool.query('UPDATE store_catalog SET reserved_qty = GREATEST(0, COALESCE(reserved_qty,0) - $1) WHERE id=$2', [item.reserved_qty, item.catalog_id]);
+        await addWorkOrderTimeline(req.params.id, 'inventory_released', `שריון שוחרר: ${item.item_name}`, 'מנהל');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/:id/messages', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [req.params.id]);
+        res.json({ success: true, messages: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/messages', async (req, res) => {
+    try {
+        const { userId, userName, message } = req.body;
+        const r = await pool.query(
+            'INSERT INTO work_order_messages (work_order_id, user_id, user_name, message_text) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.id, userId || null, userName, message]
+        );
+        res.json({ success: true, msg: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/work-orders/:id/notes', async (req, res) => {
+    try {
+        const { notes, updatedBy } = req.body;
+        await pool.query('UPDATE store_orders SET wo_notes=$1, wo_notes_updated_at=NOW(), wo_notes_updated_by=$2 WHERE id=$3', [notes, updatedBy, req.params.id]);
+        await pool.query('INSERT INTO work_order_notes_history (work_order_id, note_text, created_by) VALUES ($1,$2,$3)', [req.params.id, notes, updatedBy]);
+        await addWorkOrderTimeline(req.params.id, 'notes_updated', 'הערות הפקודה עודכנו', updatedBy);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/:id/timeline', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, timeline: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/calendar', async (req, res) => {
+    try {
+        const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes } = req.body;
+        const r = await pool.query(
+            `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10) RETURNING id`,
+            [groupId, title, eventDate, startTime, customerName || '', customerName || '', notes || '', req.params.id, address || '', JSON.stringify(assigneeIds || [])]
+        );
+        await addWorkOrderTimeline(req.params.id, 'calendar_event', `זימון נקבע ל-${eventDate} ${startTime}`, 'מנהל');
+        res.json({ success: true, eventId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END WORK ORDERS API =====
 
 // הפעלת השרת
 app.listen(port, () => {
