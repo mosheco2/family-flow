@@ -6298,14 +6298,17 @@ window.renderStoreQuotes = function() {
                 ${q.customer_response_at ? `<span class="text-[9px] opacity-60 mr-1">${new Date(q.customer_response_at).toLocaleDateString('he-IL')}</span>` : ''}
             </div>` : '';
             const isCustomerApproved = crType === 'approved' || currentStatus === 'customer_approved';
-            const isWorkOrder = q.quote_status === 'approved' && q.status === 'new' && q.call_type !== 'service';
+            const isAlreadyWorkOrder = q.call_type === 'work_order';
             // כדור אצלנו — לקוח ביקש שינויים ומחכה לעדכון
             const needsBusinessAction = crType && ['discount_request','items_request','message'].includes(crType) && currentStatus === 'sent';
 
             let approveBtnHtml = '';
             let cardStyle = 'border-slate-200 shadow-sm bg-white hover:shadow-md hover:border-indigo-300';
 
-            if (isApproved && !isCustomerApproved) {
+            if (isAlreadyWorkOrder) {
+                cardStyle = 'border-2 border-teal-400 bg-teal-50/40 shadow-md';
+                approveBtnHtml = `<span class="text-[11px] font-black text-teal-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-teal-100 py-2 rounded-lg border border-teal-300 shadow-sm"><i class="fa-solid fa-hammer text-sm"></i> פקודת עבודה פעילה</span><button onclick="window.openWorkOrderModal(${q.id}); window.switchSalesTab('work-orders')" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-arrow-left"></i> פתח פקודת עבודה</button>`;
+            } else if (isApproved && !isCustomerApproved) {
                  cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
                  if (isWoBusinessType) {
                      approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span><button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
@@ -27240,6 +27243,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
   </div>
   <div class="flex-1 overflow-y-auto p-4" id="wo-modal-body">
     <div id="wo-view-overview">
+      <div id="wo-info-service-row" class="bg-indigo-50 rounded-2xl p-3 border border-indigo-100 mb-3 hidden">
+        <p class="text-[10px] text-slate-500 mb-1">שירות / עבודה</p>
+        <p id="wo-info-service" class="font-bold text-indigo-700 text-sm leading-snug"></p>
+      </div>
       <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">לקוח</p><p id="wo-info-customer" class="font-bold text-slate-800 text-sm">—</p></div>
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">סכום</p><p id="wo-info-amount" class="font-black text-indigo-600 text-sm">—</p></div>
@@ -27379,10 +27386,18 @@ window.renderWorkOrdersList = function(workOrders) {
         const dateStr = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '';
         const assignCount = parseInt(wo.assignee_count) || 0;
         const invCount = parseInt(wo.inventory_count) || 0;
+        let serviceTitle = wo.quote_title || '';
+        if (!serviceTitle) {
+            try {
+                const items = typeof wo.items === 'string' ? JSON.parse(wo.items || '[]') : (wo.items || []);
+                serviceTitle = items.slice(0, 2).map(i => i.name || i.item_name || '').filter(Boolean).join(' • ');
+            } catch(e) {}
+        }
         return `<div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition cursor-pointer" onclick="window.openWorkOrderModal(${wo.id})">
             <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `פקודה #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
+                    ${serviceTitle ? `<p class="text-[11px] text-indigo-700 font-bold mt-0.5 truncate">${safeStr(serviceTitle)}</p>` : ''}
                     <p class="text-lg font-black text-indigo-600 mt-0.5">₪${amount}</p>
                     <p class="text-[10px] text-slate-500 mt-1">${dateStr} | ${safeStr(wo.customer_phone || 'ללא טלפון')}</p>
                 </div>
@@ -27445,6 +27460,26 @@ window.renderWoOverview = function(data) {
     document.getElementById('wo-info-amount').textContent = wo.total_amount ? `₪${parseFloat(wo.total_amount).toFixed(2)}` : '—';
     document.getElementById('wo-info-phone').textContent = safeStr(wo.customer_phone || '—');
     document.getElementById('wo-info-date').textContent = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '—';
+
+    // הצגת שירות/עבודה — quote_title או פריטים ראשונים
+    const serviceRow = document.getElementById('wo-info-service-row');
+    const serviceEl = document.getElementById('wo-info-service');
+    if (serviceEl) {
+        let serviceText = wo.quote_title || '';
+        if (!serviceText) {
+            try {
+                const items = typeof wo.items === 'string' ? JSON.parse(wo.items || '[]') : (wo.items || []);
+                serviceText = items.slice(0, 3).map(i => i.name || i.item_name || '').filter(Boolean).join(' • ');
+            } catch(e) {}
+        }
+        if (serviceText) {
+            serviceEl.textContent = serviceText;
+            if (serviceRow) serviceRow.classList.remove('hidden');
+        } else if (serviceRow) {
+            serviceRow.classList.add('hidden');
+        }
+    }
+
     const ap = document.getElementById('wo-assignees-preview');
     if (ap) ap.innerHTML = data.assignees?.length ? `<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600"><i class="fa-solid fa-users mr-1.5"></i>${data.assignees.map(a => safeStr(a.user_name)).join(' • ')}</div>` : '';
     const ip = document.getElementById('wo-inventory-preview');
