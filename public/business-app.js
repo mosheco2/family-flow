@@ -8359,7 +8359,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
     const isEdit = !!editingQuoteId;
     const savedMyCompanyId = localStorage.getItem('ofl_my_company_id') || '';
 
-    const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;" data-ref="${ref}" data-edit-id="${editingQuoteId||''}" data-customer-id="${customerId||''}">
+    const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;" data-ref="${ref}" data-edit-id="${editingQuoteId||''}" data-customer-id="${customerId||''}" data-family-group-id="${hasFamilyGroup||''}">
         <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4 ${isEdit ? 'bg-indigo-600' : 'bg-amber-500'} text-white shrink-0 rounded-t-3xl">
                 <h2 class="font-black text-base">${isEdit ? '✏️ עריכת הצעת מחיר' : '📋 הצעת מחיר'}</h2>
@@ -8380,10 +8380,11 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון</label>
-                        <input id="cq-customer-phone" type="tel" value="${safeStr(c?.phone||'')}" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
+                        <input id="cq-customer-phone" type="tel" value="${safeStr(c?.phone||'')}" placeholder="050-0000000" oninput="window.cqOnPhoneEmailChange()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ לקוח</label>
                         <input id="cq-company-id" type="text" placeholder="ח.פ" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
                 </div>
+                <div id="cq-oneflow-status" class="text-xs min-h-[18px]"></div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך</label>
                         <input id="cq-date" type="text" value="${today}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50" readonly></div>
@@ -8397,7 +8398,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
                     </div>
                     <div>
                         <label class="text-[10px] font-bold text-slate-500 block mb-1">מייל לקוח</label>
-                        <input id="cq-customer-email" type="email" value="${safeStr(c?.email||'')}" placeholder="email@example.com" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left">
+                        <input id="cq-customer-email" type="email" value="${safeStr(c?.email||'')}" placeholder="email@example.com" oninput="window.cqOnPhoneEmailChange()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left">
                     </div>
                 </div>
                 <div>
@@ -8457,7 +8458,7 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
             </div>
             <div class="px-4 py-3 border-t border-slate-100 shrink-0 space-y-2">
                 <button id="cq-save-btn" onclick="window.saveQuickQuote()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'עדכן הצעה' : 'שמור הצעה במערכת'}</button>
-                <button onclick="window.sendQuoteInternal()" ${hasFamilyGroup ? '' : 'disabled title="הלקוח לא מקושר ל-OneFlow Life"'} class="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${hasFamilyGroup ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life${hasFamilyGroup ? '' : ' <span class="text-[10px] font-normal">(לקוח לא מקושר)</span>'}</button>
+                <button id="cq-oneflow-btn" onclick="window.sendQuoteInternal()" ${hasFamilyGroup ? '' : 'disabled title="הלקוח לא מקושר ל-OneFlow Life"'} class="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${hasFamilyGroup ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life${hasFamilyGroup ? '' : ' <span class="text-[10px] font-normal">(לקוח לא מקושר)</span>'}</button>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="window.sendQuoteWhatsApp()" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
                     <button onclick="window.printQuotePDF()" class="bg-slate-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-print"></i> PDF / הדפסה</button>
@@ -8469,6 +8470,13 @@ window.showCustomerQuoteModal = function(customerId, options = {}) {
     // Add 3 default lines only for new quotes
     if (!isEdit) {
         window.cqAddLine(); window.cqAddLine(); window.cqAddLine();
+    }
+    // Auto-lookup OneFlow if customer has phone/email but no pre-linked family_group_id
+    if (!hasFamilyGroup && (c?.phone || c?.email)) {
+        setTimeout(() => window.cqLookupOneflow(), 300);
+    } else if (hasFamilyGroup) {
+        // Already linked — show status immediately
+        setTimeout(() => window.cqUpdateOneflowBtn(true, c?.company_name || c?.name || ''), 100);
     }
 };
 
@@ -8509,6 +8517,15 @@ window.cqSelectCustomerObj = function(custId) {
     set('cq-company-id', c.business_id || '');
     const resultsEl = document.getElementById('cq-customer-results');
     if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(c.company_name||c.name)} נבחר${c.family_group_id ? ' · <span class="text-indigo-600">OneFlow</span>' : ''}</p>`;
+    // If customer already has a family_group_id, set it on modal
+    const modal = document.getElementById('cq-modal');
+    if (modal && c.family_group_id) {
+        modal.dataset.familyGroupId = c.family_group_id;
+        window.cqUpdateOneflowBtn(true, c.name || c.company_name || '');
+    } else {
+        // Trigger auto-lookup by phone/email
+        window.cqOnPhoneEmailChange(true);
+    }
 };
 window.cqSelectCustomer = function(name, phone, companyId) {
     const nameEl = document.getElementById('cq-customer-name');
@@ -8521,17 +8538,10 @@ window.cqSelectCustomer = function(name, phone, companyId) {
     if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
 };
 
-window.saveQuickQuote = async function() {
+window._cqBuildSavePayload = function() {
     const q = window.cqGetQuoteData();
-    const editId = q.editId;
-    window.editingQuoteId = editId || null;
     const lines = q.lines.filter(l => l.desc || l.total > 0);
-    if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
-    if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
-
-    // Save myCompanyId to localStorage for future use
     if (q.myCompanyId) localStorage.setItem('ofl_my_company_id', q.myCompanyId);
-
     const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price, catalogId: l.catalogId || null }));
     items.push({ is_quote_metadata: true, data: JSON.stringify({
         title: q.title, companyId: q.companyId, myCompanyId: q.myCompanyId,
@@ -8539,10 +8549,16 @@ window.saveQuickQuote = async function() {
         discount: q.discount, introText: q.introText, ref: q.ref,
         vatRate: q.vatRate, noVat: q.noVat, customerEmail: q.customerEmail
     }) });
-    const payload = {
-        groupId: currentGroup.id, customerName: q.customerName,
-        customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote
-    };
+    return { q, lines, payload: { groupId: currentGroup.id, customerName: q.customerName, customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote } };
+};
+
+window.saveQuickQuote = async function() {
+    const q = window.cqGetQuoteData();
+    const editId = q.editId;
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
+    if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
+    const { payload } = window._cqBuildSavePayload();
     const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
     const method = editId ? 'PUT' : 'POST';
     try {
@@ -8550,12 +8566,38 @@ window.saveQuickQuote = async function() {
         const d = await r.json();
         if (d.success) {
             showToast('success', editId ? 'הצעה עודכנה!' : `הצעה נשמרה! ${d.quoteNumber||''}`);
-            window.editingQuoteId = null;
+            // Update modal's edit-id so subsequent sends use the saved id
+            const modal = document.getElementById('cq-modal');
+            if (modal && !editId && d.orderId) modal.dataset.editId = d.orderId;
             document.getElementById('cq-modal')?.remove();
             document.getElementById('cq-catalog-picker')?.remove();
             if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
         } else showToast('error', d.error || 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// Saves quote silently and returns the new quote ID (used before sending to OneFlow)
+window.saveQuickQuoteAndGetId = async function() {
+    const q = window.cqGetQuoteData();
+    const editId = q.editId;
+    const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!q.customerName || !lines.length) return null;
+    const { payload } = window._cqBuildSavePayload();
+    const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
+    const method = editId ? 'PUT' : 'POST';
+    try {
+        const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (d.success) {
+            const savedId = editId || d.quoteId || d.orderId;
+            // Update modal so the edit-id is set for this session
+            const modal = document.getElementById('cq-modal');
+            if (modal && savedId) modal.dataset.editId = String(savedId);
+            return savedId;
+        }
+        showToast('error', d.error || 'שגיאה בשמירה');
+        return null;
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); return null; }
 };
 
 window.cqAddLine = function(prefill = {}) {
@@ -8633,26 +8675,112 @@ window.cqGetQuoteData = function() {
     };
 };
 
+let _cqLookupTimer = null;
+window.cqOnPhoneEmailChange = function(immediate) {
+    clearTimeout(_cqLookupTimer);
+    const delay = immediate ? 0 : 800;
+    _cqLookupTimer = setTimeout(() => window.cqLookupOneflow(), delay);
+};
+
+window.cqUpdateOneflowBtn = function(found, name) {
+    const btn = document.getElementById('cq-oneflow-btn');
+    const status = document.getElementById('cq-oneflow-status');
+    if (btn) {
+        if (found) {
+            btn.disabled = false;
+            btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-indigo-600 text-white hover:bg-indigo-700';
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life';
+        } else {
+            btn.disabled = true;
+            btn.className = 'w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition bg-slate-200 text-slate-400 cursor-not-allowed';
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow Life <span class="text-[10px] font-normal">(לקוח לא מקושר)</span>';
+        }
+    }
+    if (status) {
+        if (found) {
+            status.innerHTML = `<span class="text-green-600 font-bold">✅ נמצא ב-OneFlow Life: ${safeStr(name)}</span>`;
+        } else if (found === false) {
+            status.innerHTML = `<span class="text-slate-400">לא נמצא ב-OneFlow Life</span>`;
+        } else {
+            status.innerHTML = '';
+        }
+    }
+};
+
+window.cqLookupOneflow = async function() {
+    const phone = (document.getElementById('cq-customer-phone')?.value || '').trim();
+    const email = (document.getElementById('cq-customer-email')?.value || '').trim();
+    const modal = document.getElementById('cq-modal');
+    if (!modal) return;
+    if (!phone && !email) {
+        modal.dataset.familyGroupId = '';
+        window.cqUpdateOneflowBtn(null);
+        return;
+    }
+    try {
+        const params = new URLSearchParams();
+        if (phone) params.set('phone', phone);
+        if (email) params.set('email', email);
+        if (currentGroup?.id) params.set('groupId', currentGroup.id);
+        const r = await fetch(`/api/store/lookup-oneflow?${params}`);
+        const d = await r.json();
+        if (d.found) {
+            modal.dataset.familyGroupId = d.familyGroupId;
+            window.cqUpdateOneflowBtn(true, d.familyName);
+        } else {
+            modal.dataset.familyGroupId = '';
+            window.cqUpdateOneflowBtn(false);
+        }
+    } catch(e) { /* ignore network error */ }
+};
+
 window.sendQuoteInternal = async function() {
     const modal = document.getElementById('cq-modal');
-    const customerId = modal?.dataset?.customerId;
-    if (!customerId) { showToast('error', 'שלח דרך OneFlow זמין רק ללקוחות מקושרים'); return; }
+    if (!modal) return;
+    const familyGroupId = modal.dataset.familyGroupId;
+    if (!familyGroupId) {
+        // Try one last lookup before failing
+        await window.cqLookupOneflow();
+        const refreshedId = document.getElementById('cq-modal')?.dataset?.familyGroupId;
+        if (!refreshedId) { showToast('error', 'לא נמצאה משפחה/עסק מקושר ב-OneFlow Life. ודא שהטלפון או המייל נכונים.'); return; }
+    }
     const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
+    if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
     if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
-    const text = `📋 הצעת מחיר ${q.ref}\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
-        lines.map(l => `• ${l.desc}: ${l.qty} × ₪${l.price.toFixed(0)} = ₪${l.total.toFixed(0)}`).join('\n') +
-        `\n\nסה"כ: ₪${q.total.toFixed(2)}` +
-        (q.notes ? `\n\nהערות: ${q.notes}` : '');
+
+    const btn = document.getElementById('cq-oneflow-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
+
     try {
-        const r = await fetch(`/api/store/customers/${customerId}/send-quote`, {
+        // Save the quote first (if not already saved)
+        let quoteId = q.editId;
+        if (!quoteId) {
+            const saved = await window.saveQuickQuoteAndGetId();
+            if (!saved) { if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); } return; }
+            quoteId = saved;
+        }
+        // Re-read familyGroupId (in case lookup ran above)
+        const finalFamilyGroupId = document.getElementById('cq-modal')?.dataset?.familyGroupId;
+        if (!finalFamilyGroupId) { showToast('error', 'לא נמצאה משפחה מקושרת'); if (btn) btn.disabled = false; return; }
+        const r = await fetch(`/api/store/quotes/${quoteId}/send-to-oneflow`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ quoteText: text, businessGroupId: currentGroup.id, quoteRef: q.ref })
+            body: JSON.stringify({ familyGroupId: finalFamilyGroupId })
         });
         const d = await r.json();
-        if (d.success) { showToast('success', 'הצעת המחיר נשלחה ב-OneFlow!'); document.getElementById('cq-modal')?.remove(); }
-        else showToast('error', d.error || 'שגיאה בשליחה');
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+        if (d.success) {
+            showToast('success', 'הצעת המחיר נשלחה ב-OneFlow Life! ✅');
+            document.getElementById('cq-modal')?.remove();
+            document.getElementById('cq-catalog-picker')?.remove();
+            if (typeof loadQuotesTab === 'function') loadQuotesTab();
+        } else {
+            showToast('error', d.error || 'שגיאה בשליחה');
+            if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+        if (btn) { btn.disabled = false; window.cqUpdateOneflowBtn(true, ''); }
+    }
 };
 
 window.sendQuoteWhatsApp = function() {
