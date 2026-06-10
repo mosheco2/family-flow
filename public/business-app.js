@@ -6699,94 +6699,60 @@ window.openEditQuoteModal = async function(quoteId) {
     const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
     if (!q) return;
 
-    window.editingQuoteId = quoteId;
-    window.selectedQuoteItems = {};
+    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items||'[]') : []);
 
-    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
+    // Load catalog if needed (for catalog items)
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
+    }
 
+    // Open unified modal in edit mode
+    window.showCustomerQuoteModal(null, { editingQuoteId: quoteId });
+
+    // Populate fields
+    const nameEl = document.getElementById('cq-customer-name');
+    const phoneEl = document.getElementById('cq-customer-phone');
+    if (nameEl) nameEl.value = q.customer_name || '';
+    if (phoneEl) phoneEl.value = q.customer_phone || '';
+
+    // Parse metadata
+    const metaItem = rawItems.find(i => i.is_quote_metadata);
+    let meta = {};
+    if (metaItem) { try { meta = JSON.parse(metaItem.data||'{}'); } catch(e) {} }
+
+    // Backwards compatibility: try parsing from notes JSON
+    if (!metaItem && q.notes) {
+        try {
+            const parsedNotes = JSON.parse(q.notes);
+            if (parsedNotes && typeof parsedNotes === 'object') {
+                meta = parsedNotes;
+                meta.notes = parsedNotes.notes || '';
+            }
+        } catch(e) {}
+    }
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = val; };
+    set('cq-title', q.quote_title || meta.title || '');
+    set('cq-validity', meta.validity || '30');
+    set('cq-company-id', meta.companyId || '');
+    set('cq-my-company-id', meta.myCompanyId || localStorage.getItem('ofl_my_company_id') || '');
+    set('cq-intro-text', meta.introText || '');
+    set('cq-notes', (meta.notes || q.notes || '').replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim());
+    set('cq-internal-note', meta.internalNote || '');
+    set('cq-discount', meta.discount !== undefined ? meta.discount : 0);
+
+    // Load items as DOM lines
     rawItems.forEach(i => {
-        if (i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-
-        let isComplex = false;
-        if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
-            try {
-                const p = JSON.parse(i.options_text);
-                if (p && p.isComplex) isComplex = true;
-            } catch(e) {}
-        }
-
-        let strId = (i.catalogId && i.catalogId !== 0)
-            ? String(i.catalogId)
-            : 'custom_' + Math.random().toString(36).substr(2, 8);
-        if (isComplex) {
-            strId = strId + '_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        }
-
-        window.selectedQuoteItems[strId] = {
-            id: strId,
-            real_id: i.catalogId,
-            name: i.item_name || i.name,
-            image_url: i.image_url || '',
-            price_at_order: parseFloat(i.price_at_order || i.price || 0),
-            quantity: parseFloat(i.quantity) || 1,
-            note: i.note || '',
-            complex_data: i.options_text || null,
-            isComplex: isComplex
-        };
+        if (i.is_quote_metadata || i.is_delivery_metadata || i.catalogId === 999999 || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        window.cqAddLine({
+            desc: i.item_name || i.name || '',
+            qty: parseFloat(i.quantity) || 1,
+            price: parseFloat(i.price_at_order || i.price) || 0,
+            catalogId: (i.catalogId && i.catalogId !== 0) ? i.catalogId : null
+        });
     });
 
-    await window.openNewQuoteModal(true);
-
-    {
-        document.getElementById('quote-cust-name').value = q.customer_name || '';
-        document.getElementById('quote-cust-phone').value = q.customer_phone || '';
-
-        let userNotes = q.notes || '';
-        let introText = '';
-        let validity = '14 יום';
-        let companyId = localStorage.getItem('ofl_company_id') || '';
-        let myCompanyId = localStorage.getItem('ofl_my_company_id') || '';
-        let internalNote = '';
-
-        // חיפוש המידע בפורמט החדש (מתוך המטא-דאטה של הפריטים)
-        const metaItem = rawItems.find(i => i.is_quote_metadata);
-        if (metaItem) {
-            try {
-                const meta = JSON.parse(metaItem.data);
-                if(meta.discount !== undefined) document.getElementById('quote-discount').value = meta.discount;
-                if(meta.internalNote) internalNote = meta.internalNote;
-                if(meta.introText) introText = meta.introText;
-                if(meta.title && document.getElementById('quote-title')) document.getElementById('quote-title').value = meta.title;
-                if(meta.validity) validity = meta.validity;
-                if(meta.companyId) companyId = meta.companyId;
-                if(meta.myCompanyId) myCompanyId = meta.myCompanyId;
-                if(meta.notes) userNotes = meta.notes;
-            } catch(e) {}
-        } else {
-            // תאימות לאחור להצעות מחיר ישנות שנוצרו לפני העדכון
-            try {
-                const parsedNotes = JSON.parse(q.notes);
-                userNotes = parsedNotes.notes || '';
-                introText = parsedNotes.introText || '';
-                validity = parsedNotes.validity || '';
-                companyId = parsedNotes.companyId || companyId;
-                myCompanyId = parsedNotes.myCompanyId || myCompanyId;
-                internalNote = parsedNotes.internalNote || '';
-            } catch(e) {}
-        }
-
-        userNotes = userNotes.replace('[הצעת מחיר] - הוגשה בקשה לאירוע/פרויקט.', '').trim();
-
-        document.getElementById('quote-notes').value = userNotes;
-        if(document.getElementById('quote-intro-text')) document.getElementById('quote-intro-text').value = introText;
-        if(document.getElementById('quote-validity')) document.getElementById('quote-validity').value = validity;
-        if(document.getElementById('quote-company-id')) document.getElementById('quote-company-id').value = companyId;
-        if(document.getElementById('quote-my-company-id')) document.getElementById('quote-my-company-id').value = myCompanyId;
-        if(document.getElementById('quote-internal-note')) document.getElementById('quote-internal-note').value = internalNote;
-
-        window.calcQuoteTotal();
-        window.renderQuoteSelectedItems();
-    }
+    window.cqCalcTotal();
 };
 window.getQuotePresets = function(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
@@ -6981,12 +6947,15 @@ window.toggleQuoteExpandedView = function() {
 };
 
 window.openNewQuoteModal = async function(skipDataReset = false) {
-    if(!skipDataReset) { window.selectedQuoteItems = {}; window.editingQuoteId = null; }
-    
+    if (!skipDataReset) {
+        window.showCustomerQuoteModal(null);
+        return;
+    }
+    // skipDataReset=true means called from openEditQuoteModal which handles its own flow
     if(!window.storeCatalogCache || window.storeCatalogCache.length === 0) {
         try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); window.storeCatalogCache = await res.json(); } catch(e) {}
     }
-    
+
     const existingModal = document.getElementById('quote-modal');
     if (existingModal) existingModal.remove();
     const existingSubModal = document.getElementById('quote-complex-modal');
@@ -8375,19 +8344,23 @@ window.loadCustomerServiceCalls = async function(customerName) {
     } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
 };
 
-window.showCustomerQuoteModal = function(customerId) {
+window.showCustomerQuoteModal = function(customerId, options = {}) {
     document.getElementById('cq-modal')?.remove();
+    document.getElementById('cq-catalog-picker')?.remove();
     const c = customerId ? storeCustomersCache.find(x => String(x.id) === String(customerId)) : null;
     const bizName = currentGroup?.name || '';
     const today = new Date().toLocaleDateString('he-IL');
     const ref = 'HZ-' + Date.now().toString().slice(-6);
     const hasFamilyGroup = c?.family_group_id;
+    const editingQuoteId = options.editingQuoteId || null;
+    const isEdit = !!editingQuoteId;
+    const savedMyCompanyId = localStorage.getItem('ofl_my_company_id') || '';
 
-    const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;">
+    const html = `<div id="cq-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-center justify-center p-3" style="direction:rtl;" data-ref="${ref}" data-edit-id="${editingQuoteId||''}" data-customer-id="${customerId||''}">
         <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-4 bg-amber-500 text-white shrink-0 rounded-t-3xl">
-                <h2 class="font-black text-base">📋 הצעת מחיר מהירה</h2>
-                <button onclick="document.getElementById('cq-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center justify-between px-5 py-4 ${isEdit ? 'bg-indigo-600' : 'bg-amber-500'} text-white shrink-0 rounded-t-3xl">
+                <h2 class="font-black text-base">${isEdit ? '✏️ עריכת הצעת מחיר' : '📋 הצעת מחיר'}</h2>
+                <button onclick="document.getElementById('cq-modal').remove();document.getElementById('cq-catalog-picker')?.remove();" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
                 <div>
@@ -8397,14 +8370,14 @@ window.showCustomerQuoteModal = function(customerId) {
                 <div>
                     <label class="text-[10px] font-bold text-slate-500 block mb-1">שם לקוח</label>
                     <div class="flex gap-2">
-                        <input id="cq-customer-name" type="text" value="${c ? (c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <input id="cq-customer-name" type="text" value="${c ? safeStr(c.company_name||c.name||'') : ''}" placeholder="שם הלקוח" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm">
                         <button type="button" onclick="cqSearchCustomer()" class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl" style="touch-action:manipulation;">🔍 חיפוש</button>
                     </div>
                     <div id="cq-customer-results" class="space-y-1 max-h-32 overflow-y-auto mt-1"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון</label>
-                        <input id="cq-customer-phone" type="tel" value="${c?.phone||''}" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
+                        <input id="cq-customer-phone" type="tel" value="${safeStr(c?.phone||'')}" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ לקוח</label>
                         <input id="cq-company-id" type="text" placeholder="ח.פ" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left"></div>
                 </div>
@@ -8414,11 +8387,22 @@ window.showCustomerQuoteModal = function(customerId) {
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (ימים)</label>
                         <input id="cq-validity" type="number" value="30" min="1" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"></div>
                 </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ מפיק ההצעה (העסק שלך)</label>
+                    <input id="cq-my-company-id" type="text" value="${safeStr(savedMyCompanyId)}" placeholder="ח.פ שלך" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (יופיע בראש המסמך)</label>
+                    <textarea id="cq-intro-text" rows="2" placeholder="לכבוד הלקוח הנכבד, אנו שמחים להציע לכם..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
+                </div>
 
                 <div class="bg-slate-50 rounded-2xl p-3 border border-slate-200">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-black text-slate-700">פירוט עבודות / שירותים</span>
-                        <button onclick="window.cqAddLine()" class="text-[10px] bg-amber-500 text-white px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-plus"></i> שורה</button>
+                        <span class="text-xs font-black text-slate-700">פירוט פריטים / שירותים</span>
+                        <div class="flex gap-1">
+                            <button onclick="window.cqAddLine()" class="text-[10px] bg-amber-500 text-white px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-plus"></i> שורה ידנית</button>
+                            <button onclick="window.openCqCatalogPicker()" class="text-[10px] bg-indigo-500 text-white px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-box"></i> טען מקטלוג</button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-400 mb-1 px-1">
                         <span class="col-span-5">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span><span class="col-span-1"></span>
@@ -8437,7 +8421,7 @@ window.showCustomerQuoteModal = function(customerId) {
                     </div>
                 </div>
 
-                <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות / תנאי תשלום</label>
+                <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותנאי תשלום (יופיעו בתחתית ה-PDF)</label>
                     <textarea id="cq-notes" rows="2" placeholder="תשלום תוך 30 יום. האומדן אינו כולל חלקי חילוף..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs"></textarea>
                 </div>
                 <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערה פנימית (לא תופיע ב-PDF)</label>
@@ -8445,18 +8429,20 @@ window.showCustomerQuoteModal = function(customerId) {
                 </div>
             </div>
             <div class="px-4 py-3 border-t border-slate-100 shrink-0 space-y-2">
-                <button onclick="window.saveQuickQuote('${customerId||''}','${ref}')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור הצעה במערכת</button>
-                ${hasFamilyGroup ? `<button onclick="window.sendQuoteInternal('${customerId}','${ref}')" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow ללקוח</button>` : ''}
+                <button id="cq-save-btn" onclick="window.saveQuickQuote()" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> ${isEdit ? 'עדכן הצעה' : 'שמור הצעה במערכת'}</button>
+                ${hasFamilyGroup ? `<button onclick="window.sendQuoteInternal()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> שלח ב-OneFlow ללקוח</button>` : ''}
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="window.sendQuoteWhatsApp('${ref}')" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
-                    <button onclick="window.printQuotePDF('${ref}','${bizName}')" class="bg-slate-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-print"></i> PDF / הדפסה</button>
+                    <button onclick="window.sendQuoteWhatsApp()" class="bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+                    <button onclick="window.printQuotePDF()" class="bg-slate-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-print"></i> PDF / הדפסה</button>
                 </div>
             </div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    // Add 3 default lines
-    window.cqAddLine(); window.cqAddLine(); window.cqAddLine();
+    // Add 3 default lines only for new quotes
+    if (!isEdit) {
+        window.cqAddLine(); window.cqAddLine(); window.cqAddLine();
+    }
 };
 
 // חיפוש לקוח — OneFlow + מאגר לקוחות העסק
@@ -8485,40 +8471,56 @@ window.cqSelectCustomer = function(name, phone, companyId) {
     if (resultsEl) resultsEl.innerHTML = `<p class="text-xs text-green-600 font-bold py-1">✅ ${safeStr(name)} נבחר</p>`;
 };
 
-window.saveQuickQuote = async function(customerId, ref) {
-    const q = window.cqGetQuoteData(ref);
+window.saveQuickQuote = async function() {
+    const q = window.cqGetQuoteData();
+    const editId = q.editId;
+    window.editingQuoteId = editId || null;
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     if (!q.customerName) { showToast('error', 'נא להזין שם לקוח'); return; }
-    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price }));
+    if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
+
+    // Save myCompanyId to localStorage for future use
+    if (q.myCompanyId) localStorage.setItem('ofl_my_company_id', q.myCompanyId);
+
+    const items = lines.map(l => ({ name: l.desc, quantity: l.qty, price: l.price, catalogId: l.catalogId || null }));
     items.push({ is_quote_metadata: true, data: JSON.stringify({
-        title: q.title, companyId: q.companyId, validity: q.validity,
-        notes: q.notes, internalNote: q.internalNote, discount: q.discount, ref
+        title: q.title, companyId: q.companyId, myCompanyId: q.myCompanyId,
+        validity: q.validity, notes: q.notes, internalNote: q.internalNote,
+        discount: q.discount, introText: q.introText, ref: q.ref
     }) });
+    const payload = {
+        groupId: currentGroup.id, customerName: q.customerName,
+        customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote
+    };
+    const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
+    const method = editId ? 'PUT' : 'POST';
     try {
-        const r = await fetch(`${API}/store/quotes`, { method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: q.customerName, customerPhone: q.customerPhone, items, totalAmount: q.total, notes: q.internalNote }) });
+        const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const d = await r.json();
         if (d.success) {
-            showToast('success', `הצעה נשמרה! ${d.quoteNumber||''}`);
+            showToast('success', editId ? 'הצעה עודכנה!' : `הצעה נשמרה! ${d.quoteNumber||''}`);
+            window.editingQuoteId = null;
             document.getElementById('cq-modal')?.remove();
+            document.getElementById('cq-catalog-picker')?.remove();
             if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
         } else showToast('error', d.error || 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window.cqAddLine = function() {
+window.cqAddLine = function(prefill = {}) {
     const container = document.getElementById('cq-lines');
     if (!container) return;
-    const idx = container.children.length;
     const div = document.createElement('div');
     div.className = 'grid grid-cols-12 gap-1 items-center';
+    div.dataset.catalogId = prefill.catalogId || '';
     div.innerHTML = `
-        <input type="text" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
-        <input type="number" value="1" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
-        <input type="number" value="0" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
-        <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪0</span>
+        <input type="text" value="${safeStr(prefill.desc||'')}" placeholder="תיאור עבודה..." class="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs cq-desc">
+        <input type="number" value="${prefill.qty||1}" min="0" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center cq-qty">
+        <input type="number" value="${prefill.price||0}" min="0" step="0.01" oninput="window.cqCalcTotal()" class="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center dir-ltr cq-price">
+        <span class="col-span-2 text-xs font-bold text-slate-700 text-center cq-line-total">₪${((prefill.qty||1)*(prefill.price||0)).toFixed(0)}</span>
         <button onclick="this.parentNode.remove();window.cqCalcTotal()" class="col-span-1 text-slate-300 hover:text-red-400 text-center text-xs"><i class="fa-solid fa-xmark"></i></button>`;
     container.appendChild(div);
+    window.cqCalcTotal();
 };
 
 window.cqCalcTotal = function() {
@@ -8541,23 +8543,28 @@ window.cqCalcTotal = function() {
     return { subtotal, discount, total };
 };
 
-window.cqGetQuoteData = function(ref) {
+window.cqGetQuoteData = function() {
+    const modal = document.getElementById('cq-modal');
+    const ref = modal?.dataset?.ref || '';
+    const editId = modal?.dataset?.editId || null;
     const lines = [];
     document.querySelectorAll('#cq-lines > div').forEach(line => {
         const desc = line.querySelector('.cq-desc')?.value?.trim();
         const qty = parseFloat(line.querySelector('.cq-qty')?.value || 0);
         const price = parseFloat(line.querySelector('.cq-price')?.value || 0);
-        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price });
+        if (desc || qty || price) lines.push({ desc: desc||'', qty, price, total: qty*price, catalogId: line.dataset?.catalogId || null });
     });
     const { subtotal, discount, total } = window.cqCalcTotal();
     return {
-        ref,
+        ref, editId,
         title: document.getElementById('cq-title')?.value || '',
         customerName: document.getElementById('cq-customer-name')?.value || '',
         customerPhone: document.getElementById('cq-customer-phone')?.value || '',
         companyId: document.getElementById('cq-company-id')?.value || '',
+        myCompanyId: document.getElementById('cq-my-company-id')?.value || '',
         date: document.getElementById('cq-date')?.value || '',
         validity: document.getElementById('cq-validity')?.value || '30',
+        introText: document.getElementById('cq-intro-text')?.value || '',
         notes: document.getElementById('cq-notes')?.value || '',
         internalNote: document.getElementById('cq-internal-note')?.value || '',
         lines, subtotal, discount, total,
@@ -8565,8 +8572,11 @@ window.cqGetQuoteData = function(ref) {
     };
 };
 
-window.sendQuoteInternal = async function(customerId, ref) {
-    const q = window.cqGetQuoteData(ref);
+window.sendQuoteInternal = async function() {
+    const modal = document.getElementById('cq-modal');
+    const customerId = modal?.dataset?.customerId;
+    if (!customerId) { showToast('error', 'שלח דרך OneFlow זמין רק ללקוחות מקושרים'); return; }
+    const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     if (!lines.length) { showToast('error', 'יש להוסיף לפחות שורה אחת'); return; }
     const text = `📋 הצעת מחיר ${q.ref}\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
@@ -8584,8 +8594,8 @@ window.sendQuoteInternal = async function(customerId, ref) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window.sendQuoteWhatsApp = function(ref) {
-    const q = window.cqGetQuoteData(ref);
+window.sendQuoteWhatsApp = function() {
+    const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     const text = `📋 *הצעת מחיר ${q.ref}*\n*${q.bizName}*\nלכבוד: ${q.customerName}\nתאריך: ${q.date} | תוקף: ${q.validity} יום\n\n` +
         lines.map(l => `• ${l.desc}: ${l.qty} × ₪${l.price.toFixed(0)} = ₪${l.total.toFixed(0)}`).join('\n') +
@@ -8634,8 +8644,8 @@ window._buildQuotePDFHeader = function(biz, quoteTitle, ref, date, validity, cus
     </div>`;
 };
 
-window.printQuotePDF = function(ref, bizName) {
-    const q = window.cqGetQuoteData(ref);
+window.printQuotePDF = function() {
+    const q = window.cqGetQuoteData();
     const lines = q.lines.filter(l => l.desc || l.total > 0);
     const biz = window._getQuoteBizInfo();
     const linesHtml = lines.map(l => `<tr>
@@ -8644,9 +8654,9 @@ window.printQuotePDF = function(ref, bizName) {
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;direction:ltr;">₪${l.price.toFixed(2)}</td>
         <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:bold;direction:ltr;">₪${l.total.toFixed(2)}</td>
     </tr>`).join('');
-    const headerHtml = window._buildQuotePDFHeader(biz, q.title, ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
+    const headerHtml = window._buildQuotePDFHeader(biz, q.title, q.ref, q.date, q.validity, q.customerName, q.customerPhone, q.companyId);
     const win = window.open('', '_blank', 'width=820,height=950');
-    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>הצעת מחיר ${ref}</title>
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>הצעת מחיר ${q.ref}</title>
     <style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;direction:rtl;padding:28px;color:#1e293b;max-width:720px;margin:0 auto;}
     table{width:100%;border-collapse:collapse;margin:12px 0;}
     th{background:#fef3c7;padding:9px;text-align:center;font-size:12px;border-bottom:2px solid #f59e0b;color:#92400e;}
@@ -8657,6 +8667,7 @@ window.printQuotePDF = function(ref, bizName) {
     <body>
     <button class="no-print" onclick="window.print()" style="background:#f59e0b;color:white;border:none;padding:9px 22px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:20px;font-size:14px;">🖨️ הדפס / שמור PDF</button>
     ${headerHtml}
+    ${q.introText ? `<div style="margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:10px;font-size:13px;color:#334155;white-space:pre-line;border-right:4px solid #f59e0b;">${q.introText}</div>` : ''}
     <table><thead><tr>
         <th style="text-align:right;">תיאור</th><th>כמות</th><th>מחיר יחידה</th><th>סה"כ</th>
     </tr></thead><tbody>${linesHtml}</tbody></table>
@@ -8669,6 +8680,77 @@ window.printQuotePDF = function(ref, bizName) {
     <div class="footer">מסמך זה הופק ע"י מערכת OneFlow · ${new Date().toLocaleDateString('he-IL')}</div>
     </body></html>`);
     win.document.close();
+};
+
+window.openCqCatalogPicker = async function() {
+    document.getElementById('cq-catalog-picker')?.remove();
+    if (!window.storeCatalogCache || !window.storeCatalogCache.length) {
+        try {
+            const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+            window.storeCatalogCache = await res.json();
+        } catch(e) {}
+    }
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="cq-catalog-picker" class="fixed inset-0 bg-slate-900/80 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] p-5 shadow-2xl flex flex-col" style="height:80vh;">
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-box text-amber-500 mr-2"></i> בחירת מוצר מהקטלוג</h3>
+                <button onclick="document.getElementById('cq-catalog-picker').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex gap-2 mb-3 shrink-0">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
+                    <input type="text" id="cq-picker-search" oninput="window.renderCqCatalogGrid()" placeholder="חיפוש מוצר..." class="w-full border border-slate-200 rounded-xl py-2.5 pr-10 pl-3 text-sm font-bold bg-slate-50">
+                </div>
+                <select id="cq-picker-cat" onchange="window.renderCqCatalogGrid()" class="border border-slate-200 rounded-xl py-2 px-2 text-xs w-32 bg-slate-50 font-bold text-indigo-700">
+                    <option value="all">כל הקטגוריות</option>
+                </select>
+            </div>
+            <div id="cq-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-y-auto pr-1 content-start"></div>
+            <div class="pt-3 border-t border-slate-100 shrink-0 mt-2">
+                <button onclick="document.getElementById('cq-catalog-picker').remove()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סגור</button>
+            </div>
+        </div>
+    </div>`);
+
+    const catSelect = document.getElementById('cq-picker-cat');
+    if (catSelect && window.storeCatalogCache) {
+        const cats = [...new Set(window.storeCatalogCache.map(p => p.category || 'כללי'))];
+        catSelect.innerHTML = '<option value="all">כל הקטגוריות</option>' + cats.map(c => `<option value="${safeStr(c)}">${safeStr(c)}</option>`).join('');
+    }
+    window.renderCqCatalogGrid();
+};
+
+window.renderCqCatalogGrid = function() {
+    const grid = document.getElementById('cq-catalog-grid');
+    if (!grid || !window.storeCatalogCache) return;
+    const search = (document.getElementById('cq-picker-search')?.value || '').toLowerCase();
+    const cat = document.getElementById('cq-picker-cat')?.value || 'all';
+    let items = window.storeCatalogCache.filter(p => p.is_available);
+    if (search) items = items.filter(p => (p.name||'').toLowerCase().includes(search) || (p.description||'').toLowerCase().includes(search));
+    else if (cat !== 'all') items = items.filter(p => (p.category||'כללי') === cat);
+    if (!items.length) { grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs">לא נמצאו מוצרים.</div>'; return; }
+    grid.innerHTML = items.map(p => {
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl border-b border-slate-100 shrink-0">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl border-b border-slate-100 shrink-0"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
+        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden group">
+            ${imgHtml}
+            <div class="p-2 flex-1 flex flex-col justify-between">
+                <h5 class="font-bold text-slate-700 text-xs leading-tight mb-1 line-clamp-2">${safeStr(p.name)}</h5>
+                <div class="flex justify-between items-center">
+                    <span class="text-amber-600 font-black text-sm dir-ltr">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
+                    <span class="bg-amber-50 group-hover:bg-amber-500 group-hover:text-white text-amber-600 w-5 h-5 rounded flex items-center justify-center transition"><i class="fa-solid fa-plus text-[10px]"></i></span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.cqAddCatalogLine = function(catalogId) {
+    if (!window.storeCatalogCache) return;
+    const p = window.storeCatalogCache.find(x => String(x.id) === String(catalogId));
+    if (!p) return;
+    window.cqAddLine({ desc: p.name, price: parseFloat(p.price||0), qty: 1, catalogId: p.id });
+    showToast('success', `${p.name} נוסף`);
 };
 
 window.generateStoreAliasLink = function() {
