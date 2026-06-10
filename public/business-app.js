@@ -11476,12 +11476,21 @@ async function submitGlobalAI() {
     const btn = getEl('btn-global-ai-submit'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
     
     // הזרקת קונטקסט עשיר והוראות הפעלה לעוזרת הווירטואלית האקטיבית
-    const systemContext = { 
-        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'), 
-        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})), 
-        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})), 
+    const systemContext = {
+        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'),
+        work_orders: workOrdersCache.map(wo => ({
+            id: wo.id,
+            quote_number: wo.quote_number,
+            customer_name: wo.customer_name,
+            status: wo.status,
+            total_amount: wo.total_amount,
+            created_at: wo.created_at,
+            assignee_count: wo.assignee_count
+        })),
+        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})),
+        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})),
         recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount})),
-        instructions: "You are the business AI assistant. You have full access to the business data. If the user asks to create a task for an employee or a project, output exactly [ACTION:ADD_TASK|Task Title] at the very end of your answer. If they ask to buy, order or add an item to the procurement/shopping list, output exactly [ACTION:ADD_SHOP|Item Name] at the very end. Keep your answers brief and in Hebrew."
+        instructions: "You are the business AI assistant. You have full access to the business data. Work order statuses: processing=בתהליך, scheduled=מתוזמן, completed=הושלם, cancelled=בוטל, new=חדש. If the user asks to create a task for an employee or a project, output exactly [ACTION:ADD_TASK|Task Title] at the very end of your answer. If they ask to buy, order or add an item to the procurement/shopping list, output exactly [ACTION:ADD_SHOP|Item Name] at the very end. Keep your answers brief and in Hebrew."
     };
     
     try {
