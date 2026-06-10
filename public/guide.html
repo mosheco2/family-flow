@@ -69,6 +69,9 @@
                     <a href="#tab-tasks" class="sidebar-link"><i class="fa-solid fa-list-check w-6 text-center text-blue-400"></i> משימות (Tasks)</a>
                     <a href="#tab-recipes" class="sidebar-link"><i class="fa-solid fa-utensils w-6 text-center text-orange-400"></i> שף AI (Recipes)</a>
                     <a href="#tab-members" class="sidebar-link"><i class="fa-solid fa-user-group w-6 text-center text-indigo-400"></i> ניהול (Members)</a>
+                    <div class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">עסקים ושירותים</div>
+                    <a href="#tab-biz-orders" class="sidebar-link"><i class="fa-solid fa-store w-6 text-center text-orange-500"></i> הזמנות מעסקים 🍕</a>
+                    <a href="#tab-biz-quotes" class="sidebar-link"><i class="fa-solid fa-file-invoice w-6 text-center text-indigo-500"></i> הצעות מחיר 📄</a>
                 </nav>
             </div>
         </aside>
@@ -370,6 +373,144 @@
                             <li><strong>שליחת סיסמאות:</strong> כפתור ששולח למייל של מנהל המשפחה הראשי את רשימת כל המשתמשים והסיסמאות של הילדים במקרה שמישהו שכח.</li>
                         </ul>
                     </div>
+                </div>
+            </section>
+
+            <!-- ====== הזמנות מעסקים ====== -->
+            <section id="tab-biz-orders" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-store text-orange-500"></i> הזמנות מעסקים 🍕</h2>
+                <p class="text-slate-600 mb-4">כאשר עסק שמשתמש ב-OneFlow BIZ (מסעדה, חנות, שירות) שולח לכם קישור — תוכלו להזמין ישירות מתוך הארנק המשפחתי, ולעקוב אחרי כל הזמנה ממקום אחד.</p>
+
+                <div class="screenshot-placeholder">
+                    <img src="myorders.png" alt="הזמנות שלי" onerror="this.style.display='none'">
+                </div>
+
+                <!-- מוקאפ הזמנות -->
+                <div style="background:white;border-radius:1rem;border:1px solid #e2e8f0;overflow:hidden;margin:1.5rem 0;box-shadow:0 4px 16px rgba(0,0,0,0.07)">
+                    <div style="background:#f97316;padding:0.875rem 1.25rem;color:white">
+                        <div style="font-weight:800;font-size:0.9rem">🍕 ההזמנות שלי</div>
+                        <div style="font-size:0.72rem;opacity:0.85;margin-top:2px">הזמנות · תקלות · הצעות מחיר</div>
+                    </div>
+                    <div style="padding:1rem;display:flex;flex-direction:column;gap:0.625rem">
+                        <!-- הזמנה 1 -->
+                        <div style="border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.75rem;background:#f8fafc">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.375rem">
+                                <div>
+                                    <div style="font-weight:700;font-size:0.825rem;color:#1e293b">🍕 פיצה ראנר</div>
+                                    <div style="font-size:0.7rem;color:#64748b">2 × פיצה מרגריטה · 1 × קולה</div>
+                                </div>
+                                <span style="background:#dcfce7;color:#166534;padding:0.2rem 0.5rem;border-radius:9999px;font-size:0.65rem;font-weight:700">בדרך ✅</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#94a3b8">
+                                <span>הזמנה #1042</span>
+                                <span style="font-weight:700;color:#f97316">₪89</span>
+                            </div>
+                        </div>
+                        <!-- הזמנה 2 -->
+                        <div style="border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.75rem;background:#f8fafc">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.375rem">
+                                <div>
+                                    <div style="font-weight:700;font-size:0.825rem;color:#1e293b">☕ קפה אורבן</div>
+                                    <div style="font-size:0.7rem;color:#64748b">1 × לאטה · 2 × קרואסון</div>
+                                </div>
+                                <span style="background:#dbeafe;color:#1e40af;padding:0.2rem 0.5rem;border-radius:9999px;font-size:0.65rem;font-weight:700">מוכנה 🔔</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#94a3b8">
+                                <span>הזמנה #1041</span>
+                                <span style="font-weight:700;color:#f97316">₪42</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>הזמנה מהחנות:</strong> לחצו על קישור החנות שקיבלתם מהעסק → בחרו פריטים → ההזמנה נרשמת ישירות בטאב "הזמנות שלי".</li>
+                            <li><strong>מעקב סטטוס:</strong> ראו בזמן אמת: ממתינה → מאושרת → בביצוע → מוכנה → נמסרה. כל שינוי מגיע עם פעמון.</li>
+                            <li><strong>היסטוריה מלאה:</strong> כל הזמנה נשמרת לנצח בהיסטוריה — תאריך, פריטים, מחיר ושם העסק.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>צפייה בהזמנות:</strong> ילדים יכולים לראות הזמנות שההורה ביצע עבור המשפחה.</li>
+                            <li><strong>הגשת תקלה:</strong> אם מוצר הגיע פגום — לחיצה על "דווח תקלה" שולחת בקשה לעסק ישירות מהאפליקציה.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== הצעות מחיר ====== -->
+            <section id="tab-biz-quotes" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-file-invoice text-indigo-500"></i> הצעות מחיר מעסקים 📄</h2>
+                <p class="text-slate-600 mb-4">עסקי שירותים (רואה חשבון, עורך דין, שיפוצניק וכד') שולחים לכם הצעות מחיר ישירות לאפליקציה. אפשר לאשר, לבקש שינויים או להגיב — הכל בלי WhatsApp.</p>
+
+                <div class="screenshot-placeholder">
+                    <img src="quotes.png" alt="הצעות מחיר" onerror="this.style.display='none'">
+                </div>
+
+                <!-- מוקאפ הצעת מחיר -->
+                <div style="background:white;border-radius:1rem;border:1px solid #e2e8f0;overflow:hidden;margin:1.5rem 0;box-shadow:0 4px 16px rgba(0,0,0,0.07)">
+                    <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:0.875rem 1.25rem;color:white">
+                        <div style="font-weight:800;font-size:0.9rem">שיפוצי ישראל בע"מ</div>
+                        <div style="font-size:0.72rem;opacity:0.85;margin-top:2px"><i class="fa-solid fa-store" style="margin-left:4px"></i> oneflowlife · 09/06/2026 · תוקף 7 ימים</div>
+                    </div>
+                    <div style="padding:1rem">
+                        <!-- פריטים -->
+                        <div style="border:1px solid #e2e8f0;border-radius:0.75rem;overflow:hidden;margin-bottom:0.875rem">
+                            <div style="background:#f8fafc;padding:0.5rem 0.875rem;font-size:0.7rem;font-weight:700;color:#64748b;display:grid;grid-template-columns:1fr auto auto auto">
+                                <span>תיאור</span><span style="text-align:center;margin:0 0.5rem">כמות</span><span style="text-align:center;margin:0 0.5rem">מחיר</span><span style="text-align:center">סה"כ</span>
+                            </div>
+                            <div style="padding:0.625rem 0.875rem;font-size:0.8rem;display:grid;grid-template-columns:1fr auto auto auto;border-top:1px solid #f1f5f9">
+                                <span style="color:#1e293b;font-weight:500">צביעת סלון + שני חדרים</span><span style="text-align:center;color:#64748b;margin:0 0.5rem">1</span><span style="text-align:center;color:#64748b;margin:0 0.5rem">₪2,800</span><span style="text-align:center;font-weight:700">₪2,800</span>
+                            </div>
+                            <div style="padding:0.625rem 0.875rem;font-size:0.8rem;display:grid;grid-template-columns:1fr auto auto auto;border-top:1px solid #f1f5f9">
+                                <span style="color:#1e293b;font-weight:500">חומרי גלם + צבע</span><span style="text-align:center;color:#64748b;margin:0 0.5rem">1</span><span style="text-align:center;color:#64748b;margin:0 0.5rem">₪600</span><span style="text-align:center;font-weight:700">₪600</span>
+                            </div>
+                            <div style="padding:0.5rem 0.875rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:0.85rem;font-weight:800;color:#4f46e5">
+                                <span>סה"כ כולל מע"מ:</span><span>₪4,088</span>
+                            </div>
+                        </div>
+                        <!-- כפתורי תגובה -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem">
+                            <div style="background:#22c55e;color:white;border-radius:0.75rem;padding:0.625rem;text-align:center;font-size:0.75rem;font-weight:700">✅ אשר הצעה</div>
+                            <div style="background:#3b82f6;color:white;border-radius:0.75rem;padding:0.625rem;text-align:center;font-size:0.75rem;font-weight:700">💬 בקש הנחה</div>
+                            <div style="background:#a855f7;color:white;border-radius:0.75rem;padding:0.625rem;text-align:center;font-size:0.75rem;font-weight:700">📋 בקש שינויים</div>
+                            <div style="background:#64748b;color:white;border-radius:0.75rem;padding:0.625rem;text-align:center;font-size:0.75rem;font-weight:700">💬 שלח הודעה</div>
+                        </div>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.75rem;padding:0.5rem;text-align:center;font-size:0.75rem;font-weight:700;color:#dc2626">❌ סרב להצעה</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <span class="role-badge role-admin">מה אפשר לעשות עם הצעה?</span>
+                        <ul class="feature-list">
+                            <li><strong>אשר:</strong> ההצעה הופכת לפקודת עבודה בצד העסק — הם מתחילים לפעול.</li>
+                            <li><strong>בקש הנחה:</strong> כתבו הסכום/אחוז ההנחה המבוקש — העסק יקבל הודעה ויעדכן.</li>
+                            <li><strong>בקש שינויים:</strong> פרטו אילו פריטים להסיר/לשנות — ההצעה חוזרת אליכם מעודכנת.</li>
+                            <li><strong>שלח הודעה:</strong> שאלה קצרה לעסק בלי לשנות את ההצעה.</li>
+                            <li><strong>סרב:</strong> ההצעה נסגרת ומסומנת כ-"בוטלה".</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">מה קורה אחרי שמגיבים?</span>
+                        <ul class="feature-list">
+                            <li><strong>פעמון לעסק:</strong> העסק מקבל התראה מיידית על תגובתכם.</li>
+                            <li><strong>ציר זמן:</strong> כל שלב בהצעה מוצג בציר זמן — מי שלח מה ומתי.</li>
+                            <li><strong>גרסה מעודכנת:</strong> כשהעסק שולח הצעה מעודכנת — תקבלו פעמון חדש עם אפשרות לנסות שוב.</li>
+                            <li><strong>המרה להזמנה:</strong> לאחר אישור — מופיעה הזמנה בטאב "הזמנות שלי" עם הסימון "הומרה מהצעה".</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl mt-4">
+                    <p class="text-indigo-900 text-sm leading-relaxed">
+                        <strong>📌 איך מגיעה הצעה אלי?</strong><br>
+                        העסק שולח את ההצעה ב-OneFlow ← אתם מקבלים פעמון 🔔 באפליקציה + הודעת Push ← לחצו על הפעמון ← נפתחת ההצעה המלאה עם כל הכפתורים. אין צורך לחפש מיילים או WhatsApp.
+                    </p>
                 </div>
             </section>
 
