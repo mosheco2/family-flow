@@ -302,6 +302,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_type VARCHAR(30)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_response_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_title TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_history JSONB DEFAULT '[]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS call_type VARCHAR(20) DEFAULT 'service'`); } catch(e) {}
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS source_quote_id INT`); } catch(e) {}
       try { await client.query(`ALTER TABLE alert_notifications ADD COLUMN IF NOT EXISTS reference_key VARCHAR(100)`); } catch(e) {}
@@ -4364,8 +4365,13 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
         const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
         if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
         const quote = q.rows[0];
-        // קשר ל-family_group_id ועדכון סטטוס
-        await pool.query(`UPDATE store_orders SET family_group_id=$1, quote_status='waiting_customer' WHERE id=$2`, [familyGroupId, quoteId]);
+        // קשר ל-family_group_id, עדכון סטטוס, אפס תגובת לקוח קיימת (שליחה מחדש), הוסף אירוע היסטוריה
+        const isResend = !!(quote.customer_response_type);
+        const histEvent = JSON.stringify({ type: isResend ? 'resent_updated' : 'sent_to_customer', actor: 'business', ts: new Date().toISOString() });
+        await pool.query(`UPDATE store_orders SET family_group_id=$1, quote_status='waiting_customer',
+            customer_response_type=NULL, customer_response=NULL, customer_response_at=NULL,
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $3::jsonb
+            WHERE id=$2`, [familyGroupId, quoteId, `[${histEvent}]`]);
         // שלח התראה ללקוח
         try {
             await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
@@ -4391,8 +4397,11 @@ app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
         const newStatus = responseType === 'approved' ? 'customer_approved'
             : responseType === 'rejected' ? 'cancelled'
             : 'waiting_customer';
-        await pool.query(`UPDATE store_orders SET customer_response=$1, customer_response_type=$2, customer_response_at=NOW(), quote_status=$3 WHERE id=$4`,
-            [responseText || null, responseType, newStatus, quoteId]);
+        const custHistEvent = JSON.stringify({ type: 'customer_response', actor: 'customer', ts: new Date().toISOString(), responseType, text: responseText || null });
+        await pool.query(`UPDATE store_orders SET customer_response=$1, customer_response_type=$2, customer_response_at=NOW(), quote_status=$3,
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $5::jsonb
+            WHERE id=$4`,
+            [responseText || null, responseType, newStatus, quoteId, `[${custHistEvent}]`]);
         // התראה לעסק
         try {
             const typeLabel = {approved:'✅ אישר את ההצעה', rejected:'❌ סירב להצעה', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:'💬 שלח הודעה'}[responseType] || responseType;
@@ -4433,8 +4442,11 @@ app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
              quote.customer_name, quote.customer_phone, null,
              parseFloat(quote.total_amount||0), quoteId]);
         const workOrderId = wo.rows[0].id;
-        // עדכן הצעת מחיר כ-approved + קישור
-        await pool.query(`UPDATE store_orders SET quote_status='approved', status='new' WHERE id=$1`, [quoteId]);
+        // עדכן הצעת מחיר כ-approved + קישור + היסטוריה
+        const woHistEvent = JSON.stringify({ type: 'converted_to_work_order', actor: 'business', ts: new Date().toISOString() });
+        await pool.query(`UPDATE store_orders SET quote_status='approved', status='new',
+            quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb
+            WHERE id=$1`, [quoteId, `[${woHistEvent}]`]);
         // שלח התראה ללקוח אם יש family_group_id
         if (quote.family_group_id) {
             try {

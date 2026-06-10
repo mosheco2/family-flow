@@ -664,8 +664,13 @@ function renderMyOrders() {
         }
         const dateStr = new Date(o.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         const borderCls = statusColor.split(' ')[0];
-        // כאשר ההזמנה הומרה מהצעת מחיר — נציג מזהה הצעה מקורית
-        const fromQuote = o.quote_status === 'approved' && o.quote_number ? `<span class="text-[9px] text-indigo-500 font-mono bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 mt-0.5 inline-block"><i class="fa-solid fa-file-invoice ml-0.5"></i>מ-${o.quote_number}</span>` : '';
+        // כאשר ההזמנה הומרה מהצעת מחיר — badge בולט עם קישור למקור
+        const fromQuote = o.quote_status === 'approved' && o.quote_number
+            ? `<div class="flex items-center gap-1.5 mt-1 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 w-fit">
+                <i class="fa-solid fa-file-invoice text-indigo-500 text-[10px]"></i>
+                <span class="text-[10px] font-bold text-indigo-700">הומרה מהצעת מחיר ${o.quote_number}</span>
+               </div>`
+            : '';
         html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-2 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
             <div class="p-3 flex justify-between items-center gap-2">
                 <div class="flex-1 min-w-0">
@@ -725,6 +730,41 @@ async function loadFamilyQuotes() {
     } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת</p>'; }
 }
 
+function _renderQuoteTimeline(historyRaw) {
+    const history = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : (historyRaw || []);
+    if (!history.length) return '';
+    const evMap = {
+        sent_to_customer:       {icon:'fa-paper-plane',       label:'נשלחה אליך',              color:'indigo'},
+        resent_updated:         {icon:'fa-rotate-right',      label:'גרסה מעודכנת נשלחה אליך', color:'indigo'},
+        customer_response:      {icon:'fa-reply',             label:'שלחת תגובה',              color:'blue'},
+        converted_to_work_order:{icon:'fa-hammer',            label:'הומרה לפקודת עבודה',       color:'emerald'},
+        approved:               {icon:'fa-check-circle',      label:'אושרה',                   color:'green'},
+    };
+    const respLabels = {approved:'אישרת', rejected:'סירבת', discount_request:'ביקשת הנחה', items_request:'ביקשת שינויים', message:'שלחת הודעה'};
+    const sorted = [...history].sort((a,b) => new Date(a.ts)-new Date(b.ts));
+    const items = sorted.map((ev,i) => {
+        const e = evMap[ev.type] || {icon:'fa-circle-dot', label:ev.type, color:'slate'};
+        const label = ev.type === 'customer_response' ? (respLabels[ev.responseType] || ev.responseType) : e.label;
+        const dateStr = new Date(ev.ts).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        const textSnip = ev.text ? `<span class="text-slate-400 mr-1">: ${safeStr(ev.text.substring(0,40))}${ev.text.length>40?'…':''}</span>` : '';
+        const isLast = i === sorted.length-1;
+        return `<div class="flex items-start gap-2 ${isLast?'':'pb-2'} relative">
+            ${isLast?'':'<div class="absolute right-[5px] top-4 bottom-0 w-px bg-slate-200"></div>'}
+            <div class="shrink-0 w-2.5 h-2.5 rounded-full bg-${e.color}-400 border-2 border-white shadow-sm mt-0.5 z-10"></div>
+            <div class="flex-1 min-w-0 leading-tight">
+                <span class="text-[10px] font-bold text-${e.color}-700">${label}</span>${textSnip}
+                <span class="text-[9px] text-slate-400 block">${dateStr}</span>
+            </div>
+        </div>`;
+    }).join('');
+    return `<details class="mt-2 pt-2 border-t border-slate-100">
+        <summary class="text-[10px] text-slate-400 font-bold cursor-pointer flex items-center gap-1 select-none list-none">
+            <i class="fa-solid fa-clock-rotate-left"></i> היסטוריה (${sorted.length})
+        </summary>
+        <div class="mt-2 space-y-0.5 pr-1">${items}</div>
+    </details>`;
+}
+
 function renderFamilyQuotesTab() {
     const list = getEl('family-quotes-list');
     if (!list) return;
@@ -736,59 +776,95 @@ function renderFamilyQuotesTab() {
         return;
     }
     const statusMap = {
-        draft: {label:'טיוטא', color:'bg-slate-100 text-slate-600'},
-        waiting_customer: {label:'ממתין לתשובתך', color:'bg-amber-100 text-amber-700'},
-        customer_approved: {label:'אישרת', color:'bg-green-100 text-green-700'},
-        approved: {label:'אושרה', color:'bg-blue-100 text-blue-700'},
-        cancelled: {label:'סורבה', color:'bg-red-100 text-red-700'}
-    };
-    const responseMap = {
-        approved: {label:'אישרת', color:'text-green-600'},
-        rejected: {label:'סירבת', color:'text-red-600'},
-        discount_request: {label:'ביקשת הנחה', color:'text-blue-600'},
-        items_request: {label:'ביקשת שינויים', color:'text-purple-600'},
-        message: {label:'שלחת הודעה', color:'text-slate-600'}
+        draft:             {label:'טיוטא',                    color:'bg-slate-100 text-slate-600'},
+        waiting_customer:  {label:'ממתין לתשובתך',            color:'bg-amber-100 text-amber-700'},
+        waiting_business:  {label:'ממתין לתגובת העסק',        color:'bg-blue-100 text-blue-700'},
+        customer_approved: {label:'אישרת',                    color:'bg-green-100 text-green-700'},
+        approved:          {label:'אושרה',                    color:'bg-blue-100 text-blue-700'},
+        cancelled:         {label:'בוטלה',                    color:'bg-red-100 text-red-700'}
     };
     let html = '';
     familyQuotesCache.forEach(q => {
         const qs = q.quote_status || 'draft';
-        const st = statusMap[qs] || {label: qs, color: 'bg-slate-100 text-slate-600'};
+        const isCancelled = qs === 'cancelled';
+        // כדור אצל העסק — לקוח כבר הגיב אך ממתין לעדכון
+        const customerWaiting = qs === 'waiting_customer' && q.customer_response_type &&
+            ['discount_request','items_request','message'].includes(q.customer_response_type);
+        const effectiveStatus = isCancelled ? 'cancelled' : customerWaiting ? 'waiting_business' : qs;
+        const st = statusMap[effectiveStatus] || {label:qs, color:'bg-slate-100 text-slate-600'};
+        const canRespond = qs === 'waiting_customer' && !customerWaiting;
+
         const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
-        let metaTitle = ''; let metaNotes = ''; let metaValidity = '';
+        let metaTitle='', metaNotes='', metaValidity='';
         try {
             const items = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
             const meta = items.find(i => i.is_quote_metadata);
-            if (meta) { const m = JSON.parse(meta.data||'{}'); metaTitle=m.title||''; metaNotes=m.notes||''; metaValidity=m.validity||''; }
+            if (meta) { const m=JSON.parse(meta.data||'{}'); metaTitle=m.title||''; metaNotes=m.notes||''; metaValidity=m.validity||''; }
         } catch(e) {}
         const title = q.quote_title || metaTitle || `הצעה #${q.id}`;
         const bizName = q.business_name || 'עסק';
-        const canRespond = qs === 'waiting_customer';
-        const responseInfo = q.customer_response_type ? responseMap[q.customer_response_type] || {label:q.customer_response_type, color:'text-slate-600'} : null;
-        html += `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+
+        // עיצוב כרטיסיה לפי מצב
+        const cardStyle = isCancelled
+            ? 'border-red-200 bg-red-50/40 opacity-80'
+            : customerWaiting
+                ? 'border-blue-200 bg-blue-50/30'
+                : canRespond
+                    ? 'border-amber-300 bg-white shadow-md'
+                    : 'border-slate-200 bg-white shadow-sm';
+
+        // חיווי "כדור אצל העסק"
+        const waitingBizBanner = customerWaiting ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[11px] font-bold text-blue-700 flex items-center gap-2">
+                <i class="fa-solid fa-hourglass-half fa-spin text-blue-400"></i>
+                תגובתך נשלחה — ממתין לעדכון מהעסק
+            </div>` : '';
+
+        // באנר בוטלה
+        const cancelledBanner = isCancelled ? `
+            <div class="mx-3 mb-2 px-3 py-2 bg-red-100 border border-red-200 rounded-xl text-[11px] font-bold text-red-700 flex items-center gap-2">
+                <i class="fa-solid fa-ban"></i> הצעה זו בוטלה
+            </div>` : '';
+
+        // תגובה קודמת שנשלחה (אם יש ועדיין רלוונטית)
+        const prevRespHtml = q.customer_response && customerWaiting
+            ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${safeStr(q.customer_response)}</div>`
+            : '';
+
+        const timelineHtml = _renderQuoteTimeline(q.quote_history);
+
+        html += `<div class="rounded-2xl border ${cardStyle} overflow-hidden mb-3">
             <div class="p-4 flex justify-between items-start gap-3">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.color}">${st.label}</span>
-                        ${responseInfo ? `<span class="text-[10px] font-semibold ${responseInfo.color}">${responseInfo.label}</span>` : ''}
+                        ${isCancelled ? '<span class="text-[10px] font-bold text-red-500"><i class="fa-solid fa-ban ml-0.5"></i>בוטלה</span>' : ''}
                     </div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(title)}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm ${isCancelled?'line-through opacity-60':''}">${safeStr(title)}</h4>
                     <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(bizName)} • ${dateStr}</p>
-                    ${metaValidity ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${safeStr(metaValidity)}</p>` : ''}
+                    ${metaValidity && !isCancelled ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${safeStr(metaValidity)}</p>` : ''}
                 </div>
                 <div class="text-left shrink-0">
-                    <span class="font-black text-slate-800 text-sm" dir="ltr">₪${parseFloat(q.total_amount||0).toFixed(2)}</span>
+                    <span class="font-black text-slate-800 text-sm ${isCancelled?'line-through opacity-50':''}" dir="ltr">₪${parseFloat(q.total_amount||0).toFixed(2)}</span>
                     <p class="text-[9px] text-slate-400 font-mono mt-0.5">#${q.id}</p>
                 </div>
             </div>
+            ${cancelledBanner}${waitingBizBanner}
             <div class="border-t border-slate-100 bg-slate-50/50 p-3 text-xs text-slate-600">
                 <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
-                ${metaNotes ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
-                ${q.customer_response ? `<div class="mt-2 pt-2 border-t border-slate-100 bg-white rounded-xl p-2 text-[11px]"><span class="font-bold">ההודעה שלך: </span>${safeStr(q.customer_response)}</div>` : ''}
+                ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
+                ${prevRespHtml}
+                ${timelineHtml}
             </div>
             <div class="border-t border-slate-100 px-3 pb-3 pt-2">
-                <button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
-                    ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
-                </button>
+                ${isCancelled
+                    ? `<div class="w-full bg-red-50 border border-red-200 text-red-400 text-xs font-bold rounded-xl py-2.5 text-center"><i class="fa-solid fa-ban ml-1"></i>הצעה בוטלה</div>`
+                    : customerWaiting
+                        ? `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full bg-slate-100 text-slate-600 text-xs font-bold rounded-xl py-2.5 transition hover:bg-slate-200"><i class="fa-solid fa-eye ml-1"></i>צפה בהצעה</button>`
+                        : `<button onclick="window.openFamilyQuoteView(${q.id})" class="w-full ${canRespond ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} text-xs font-bold rounded-xl py-2.5 transition">
+                            ${canRespond ? '<i class="fa-solid fa-reply ml-1"></i>פתח הצעה ↙ נדרשת תגובה' : '<i class="fa-solid fa-eye ml-1"></i>צפה בהצעה'}
+                        </button>`
+                }
             </div>
         </div>`;
     });
