@@ -651,7 +651,8 @@ function renderMyOrders() {
     }
 
     let html = '';
-    filtered.forEach(o => {
+    // לא מציגים הצעות מחיר בטאב הזמנות (יש להן טאב ייעודי)
+    filtered.filter(o => o.status !== 'quote').forEach(o => {
         let statusColor = '', statusText = '', statusIcon = '';
         switch(o.status) {
             case 'quote':      statusColor='border-slate-300 bg-slate-100'; statusText=o.quote_status==='approved'?'הצעת מחיר אושרה':'הצעת מחיר'; statusIcon='fa-file-invoice'; break;
@@ -678,7 +679,7 @@ function renderMyOrders() {
             <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
                 <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
                     ${_renderOrderItems(o.items)}
-                    ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
+                    ${(o.notes && !o.quote_status) ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
                 </div>
             </div>
         </div>`;
@@ -809,41 +810,105 @@ window.openFamilyQuoteView = function(quoteId) {
     const vatAmt = noVat ? 0 : beforeVat * vatRate / 100;
     const total = beforeVat + vatAmt;
     const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
+    const canRespond = (q.quote_status === 'waiting_customer');
+    const alreadyResponded = !!q.customer_response_type;
     const itemsHtml = visibleItems.map(i => {
         const n = i.name||i.item_name||''; const qty = parseFloat(i.quantity||i.qty||1); const price = parseFloat(i.price||0);
-        return `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0 text-sm">
-            <span class="flex-1 text-slate-700 font-medium">${safeStr(n)}</span>
-            <span class="text-slate-500 text-xs mx-3">×${qty} · ₪${price.toFixed(0)}</span>
-            <span class="font-bold text-slate-800 dir-ltr">₪${(qty*price).toFixed(2)}</span>
+        return `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+            <span class="flex-1 text-slate-700 text-sm font-medium">${safeStr(n)}</span>
+            <span class="text-slate-500 text-xs mx-3 shrink-0">×${qty}</span>
+            <span class="text-slate-500 text-xs mx-2 shrink-0 dir-ltr">₪${price.toFixed(0)}</span>
+            <span class="font-bold text-slate-800 text-sm dir-ltr shrink-0">₪${(qty*price).toFixed(2)}</span>
         </div>`;
-    }).join('') || '<p class="text-slate-400 text-sm text-center py-2">ללא פריטים</p>';
+    }).join('') || '<p class="text-slate-400 text-sm text-center py-3">ללא פריטים</p>';
+
+    // כפתורי תגובה
+    const responseMap = { approved:'✅ אישרת', rejected:'❌ סירבת', discount_request:'💬 ביקשת הנחה', items_request:'📋 ביקשת שינויים', message:'💬 שלחת הודעה' };
+    const responseLabel = alreadyResponded ? (responseMap[q.customer_response_type]||q.customer_response_type) : '';
+    let actionHtml = '';
+    if (canRespond && !alreadyResponded) {
+        actionHtml = `<div class="border-t border-slate-100 p-4 space-y-2 shrink-0 bg-white">
+            <p class="text-[10px] font-bold text-slate-500 mb-2 text-center">מה תרצה לעשות עם ההצעה?</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="window._fqvRespond(${quoteId},'approved','')" class="bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר הצעה</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'discount_request')" class="bg-blue-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-600 transition"><i class="fa-solid fa-percent"></i> בקש הנחה</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'items_request')" class="bg-purple-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-purple-600 transition"><i class="fa-solid fa-list-check"></i> בקש שינויים</button>
+                <button onclick="window._fqvOpenRequest(${quoteId},'message')" class="bg-slate-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-slate-600 transition"><i class="fa-solid fa-comment"></i> שלח הודעה</button>
+            </div>
+            <button onclick="window._fqvRespond(${quoteId},'rejected','')" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fa-solid fa-xmark ml-1"></i>סרב להצעה</button>
+        </div>`;
+    } else if (alreadyResponded) {
+        actionHtml = `<div class="border-t border-slate-100 p-3 shrink-0 bg-slate-50">
+            <p class="text-xs text-center font-bold text-slate-500">${responseLabel}${q.customer_response ? `: ${safeStr(q.customer_response)}` : ''}</p>
+        </div>`;
+    }
+
     const html = `<div id="fqv-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" style="direction:rtl;">
-        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-4 bg-indigo-600 text-white shrink-0 rounded-t-3xl sm:rounded-t-3xl">
-                <h2 class="font-black text-base">${safeStr(title||'הצעת מחיר')}</h2>
-                <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[93vh] overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 bg-indigo-600 text-white shrink-0">
+                <div>
+                    <h2 class="font-black text-base">${safeStr(title||'הצעת מחיר')}</h2>
+                    <p class="text-[11px] text-indigo-200 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(q.business_name||'')} · ${dateStr}${validity ? ` · תוקף ${validity} יום` : ''}</p>
+                </div>
+                <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
-                <div class="flex justify-between text-xs text-slate-500">
-                    <span><i class="fa-solid fa-store ml-1"></i>${safeStr(q.business_name||'')}</span>
-                    <span>${dateStr}${validity ? ` · תוקף: ${validity} יום` : ''}</span>
-                </div>
                 ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200">פירוט הצעה</div>
-                    <div class="p-3">${itemsHtml}</div>
-                    <div class="px-3 pb-3 space-y-1 border-t border-slate-100 pt-2">
+                    <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200 grid grid-cols-12 gap-1">
+                        <span class="col-span-6">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span>
+                    </div>
+                    <div class="px-3">${itemsHtml}</div>
+                    <div class="px-3 pb-3 space-y-1.5 border-t border-slate-100 pt-2">
                         <div class="flex justify-between text-xs text-slate-500"><span>סכום ביניים:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>
-                        ${discount > 0 ? `<div class="flex justify-between text-xs text-red-500"><span>הנחה (${discount}%):</span><span dir="ltr">-₪${discountAmt.toFixed(2)}</span></div>` : ''}
+                        ${discount > 0 ? `<div class="flex justify-between text-xs text-red-500 font-bold"><span>הנחה (${discount}%):</span><span dir="ltr">-₪${discountAmt.toFixed(2)}</span></div>` : ''}
+                        ${discount > 0 ? `<div class="flex justify-between text-xs text-slate-500"><span>לפני מע"מ:</span><span dir="ltr">₪${beforeVat.toFixed(2)}</span></div>` : ''}
                         ${!noVat && vatRate > 0 ? `<div class="flex justify-between text-xs text-slate-500"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmt.toFixed(2)}</span></div>` : ''}
-                        <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-2"><span>סה"כ לתשלום:</span><span dir="ltr" class="text-indigo-700">₪${total.toFixed(2)}</span></div>
+                        <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-2 mt-1"><span>סה"כ לתשלום:</span><span dir="ltr" class="text-indigo-700">₪${total.toFixed(2)}</span></div>
                     </div>
                 </div>
-                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line">${safeStr(notes)}</span></div>` : ''}
+                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line mt-1 block">${safeStr(notes)}</span></div>` : ''}
+            </div>
+            ${actionHtml}
+            <div id="fqv-request-panel" class="hidden border-t border-slate-100 p-4 bg-white shrink-0">
+                <p id="fqv-request-label" class="text-xs font-bold text-slate-700 mb-2"></p>
+                <textarea id="fqv-request-text" rows="3" placeholder="פרט את הבקשה שלך..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none resize-none"></textarea>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window._fqvSubmitRequest(${quoteId})" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שלח</button>
+                    <button onclick="document.getElementById('fqv-request-panel').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold">ביטול</button>
+                </div>
             </div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._fqvCurrentType = '';
+window._fqvOpenRequest = function(quoteId, type) {
+    const labels = { discount_request: 'פרט את הבקשה להנחה (סכום / אחוז / סיבה):', items_request: 'פרט אילו שינויים / תוספות תרצה:', message: 'כתוב הודעה לעסק:' };
+    window._fqvCurrentType = type;
+    const panel = document.getElementById('fqv-request-panel');
+    const label = document.getElementById('fqv-request-label');
+    if (panel && label) { label.textContent = labels[type] || 'פרט:'; panel.classList.remove('hidden'); document.getElementById('fqv-request-text')?.focus(); }
+};
+window._fqvSubmitRequest = function(quoteId) {
+    const text = document.getElementById('fqv-request-text')?.value?.trim() || '';
+    if (!text) { showToast('error','הוסף פירוט לבקשה'); return; }
+    window._fqvRespond(quoteId, window._fqvCurrentType, text);
+};
+window._fqvRespond = async function(quoteId, responseType, responseText) {
+    try {
+        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ responseType, responseText, familyGroupId: currentGroup ? currentGroup.id : null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('fqv-modal')?.remove();
+            showToast('success', responseType === 'approved' ? '✅ ההצעה אושרה!' : '📩 הבקשה נשלחה לעסק');
+            await loadFamilyQuotes();
+        } else showToast('error', data.error || 'שגיאה בשליחה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
 };
 
 window.openQuoteResponseModal = function(quoteId) {

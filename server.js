@@ -4012,9 +4012,12 @@ app.post('/api/store/quotes', async (req, res) => {
 // --- שליפת הצעות מחיר לצד משפחה ---
 app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
     try {
-        const r = await pool.query(`SELECT so.*, fg.name as business_name
+        // מחפש לפי family_group_id וגם לפי phone של חברי הקבוצה
+        const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
             FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
-            WHERE so.family_group_id=$1 AND (so.status='quote' OR so.quote_status IS NOT NULL)
+            WHERE (so.status='quote' OR so.quote_status IS NOT NULL)
+              AND (so.family_group_id=$1
+                OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
             ORDER BY so.created_at DESC`, [req.params.familyGroupId]);
         res.json({ success: true, quotes: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -4235,13 +4238,14 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
         if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
         const { group_id: familyGroupId, phone: userPhone } = uRes.rows[0];
 
-        // שולפים הזמנות לפי family_group_id או לפי phone של המשתמש (קיוסק)
+        // שולפים הזמנות לפי family_group_id או לפי phone — לא כולל הצעות מחיר (status='quote')
         const orders = await pool.query(`
             SELECT so.*, fg.name as store_name
             FROM store_orders so
             JOIN family_groups fg ON so.group_id = fg.id
-            WHERE so.family_group_id = $1
-               OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
+            WHERE so.status != 'quote'
+              AND (so.family_group_id = $1
+               OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text))
             ORDER BY so.created_at DESC
         `, [familyGroupId, userPhone || null]);
 

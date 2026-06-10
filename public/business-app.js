@@ -7865,10 +7865,28 @@ window.renderStoreCustomers = function() {
             <div class="flex items-center gap-2">
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
                 <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm z-50 relative" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="event.stopPropagation(); window.deleteStoreCustomer(${c.id}, '${safeStr(c.name)}')" class="text-slate-400 hover:text-red-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm z-50 relative" title="מחיקת לקוח"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         </div>
         `;
     }).join('');
+};
+
+window.deleteStoreCustomer = async function(customerId, customerName) {
+    if (!confirm(`למחוק את הלקוח "${customerName}"?\nפעולה זו אינה ניתנת לביטול.`)) return;
+    try {
+        const r = await fetch(`/api/store/customers/${customerId}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (data.success) {
+            storeCustomersCache = (storeCustomersCache || []).filter(c => c.id !== customerId);
+            window.renderStoreCustomers();
+            if (typeof showToast === 'function') showToast('success', 'הלקוח נמחק בהצלחה');
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה במחיקת הלקוח');
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('error', 'שגיאת רשת במחיקת הלקוח');
+    }
 };
 
 window.switchCustomerMainTab = function(tab) {
