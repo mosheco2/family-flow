@@ -6187,6 +6187,7 @@ window.renderStoreQuotes = function() {
             
             let internalNote = '';
             let customerNote = '';
+            let quoteTitle = q.quote_title || '';
             try {
                 const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
                 const metaItem = rawItems.find(i => i.is_quote_metadata);
@@ -6194,6 +6195,7 @@ window.renderStoreQuotes = function() {
                     const parsedMeta = JSON.parse(metaItem.data);
                     if (parsedMeta.internalNote) internalNote = parsedMeta.internalNote;
                     if (parsedMeta.customerNote) customerNote = parsedMeta.customerNote;
+                    if (parsedMeta.title) quoteTitle = parsedMeta.title;
                 }
             } catch(e){}
 
@@ -6261,6 +6263,7 @@ window.renderStoreQuotes = function() {
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-slate-800 text-sm truncate">${q.quote_number || `הצעה #${q.id}`} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
+                        ${quoteTitle ? `<p class="text-[11px] text-indigo-700 font-bold mt-0.5 truncate">${safeStr(quoteTitle)}</p>` : ''}
                         <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
                         <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
                         ${q.customer_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1.5 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הלקוח • ${new Date(q.customer_confirmed_at).toLocaleDateString('he-IL')}</span>` : ''}
@@ -6300,25 +6303,10 @@ window.updateQuoteStatus = async function(id, status) {
 
     try {
         const q = window.storeQuotesCache.find(x => String(x.id) === String(id));
-        let isEmbeddedOrder = false;
-        
-        if (q) {
-            if (q.status === 'new' || q.status === 'quote' || q.orderType === 'quote' || q.order_type === 'quote' || (q.notes && q.notes.includes('[הצעת מחיר]'))) {
-                isEmbeddedOrder = true;
-            }
-        }
-
-        if (isEmbeddedOrder) {
-            await fetch(`${API}/store/orders/status`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ orderId: id, status: status })
-            });
-        } else {
-            await fetch(`${API}/store/quotes/${id}/status`, {
-                method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ quoteStatus: status })
-            });
-        }
+        await fetch(`${API}/store/quotes/${id}/status`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ quoteStatus: status })
+        });
 
         if (q) {
             q.quote_status = status;
@@ -7460,7 +7448,7 @@ window.openQuotePreview = function(quoteId) {
             try { metaData = JSON.parse(i.data); } catch(e){}
             return;
         }
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        if (i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')) || i.catalogId === 999999) return;
 
         const itemSku = (window.storeCatalogCache || []).find(c => c.id === i.catalogId)?.sku || '';
         itemsHtml += `<div class="avoid-break" style="display:flex; justify-content:space-between; margin-top:12px; font-weight:bold; font-size:15px; color:#1e293b; border-bottom:1px solid #e2e8f0; padding-bottom:4px;"><span style="text-align:right;">${safeStr(i.item_name || i.name)}${itemSku ? `<span style="font-size:10px; color:#94a3b8; font-weight:normal; margin-right:6px; direction:ltr;">[${itemSku}]</span>` : ''} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
@@ -7643,7 +7631,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
     
     rawItems.forEach(i => {
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        if (i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')) || i.catalogId === 999999) return;
         itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
         if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
     });
@@ -7839,10 +7827,11 @@ window.renderStoreCustomers = function() {
     });
 
     if (filterType === 'order') {
-        filtered = filtered.filter(c => (storeOrdersCache || []).some(o => 
-            (o.customer_name === c.name || (c.phone && o.customer_phone === c.phone)) && 
-            o.status !== 'quote' && 
-            (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft')
+        filtered = filtered.filter(c => (storeOrdersCache || []).some(o =>
+            (o.customer_name === c.name || (c.phone && o.customer_phone === c.phone)) &&
+            o.status !== 'quote' &&
+            (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft') &&
+            o.quote_status !== 'approved'
         ));
     } else if (filterType === 'quote') {
         filtered = filtered.filter(c =>
@@ -7969,10 +7958,11 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
 
     let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-2">הזמנות חנות:</h4>';
     
-    const orders = (storeOrdersCache || []).filter(o => 
-        match(o) && 
-        o.status !== 'quote' && 
-        (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft')
+    const orders = (storeOrdersCache || []).filter(o =>
+        match(o) &&
+        o.status !== 'quote' &&
+        (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === 'draft') &&
+        o.quote_status !== 'approved'
     );
     
     if (orders.length > 0) {
@@ -8002,10 +7992,17 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
         pendingQuotes.forEach(q => {
             const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
             const sTxt = sMap[q.quote_status] || 'ממתינה';
+            let quoteItemTitle = q.quote_title || '';
+            try {
+                const qItems = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
+                const qMeta = qItems.find(i => i.is_quote_metadata);
+                if (qMeta) { const qm = JSON.parse(qMeta.data||'{}'); if(qm.title) quoteItemTitle = qm.title; }
+            } catch(e) {}
             historyHtml += `
             <div onclick="if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
                 <div>
-                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id}</span>
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> ${q.quote_number || `הצעה #${q.id}`}</span>
+                    ${quoteItemTitle ? `<p class="text-[11px] text-indigo-700 font-semibold truncate">${safeStr(quoteItemTitle)}</p>` : ''}
                     <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${safeStr(q.customer_name)} | ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -8874,6 +8871,14 @@ window.printQuotePDF = function() {
 };
 
 // ---- ניהול תבניות טקסט להצעות מחיר ----
+window.cqApplyTemplate = function(type, targetId, idx) {
+    const saved = JSON.parse(localStorage.getItem('ofl_quote_tpl_' + type) || '[]');
+    const tpl = saved[idx];
+    if (tpl === undefined) return;
+    const el = document.getElementById(targetId);
+    if (el) el.value = tpl;
+    document.getElementById('cq-template-menu')?.remove();
+};
 window.cqShowTemplateMenu = function(type, targetId, btn) {
     document.getElementById('cq-template-menu')?.remove();
     const saved = JSON.parse(localStorage.getItem('ofl_quote_tpl_' + type) || '[]');
@@ -8894,7 +8899,7 @@ window.cqShowTemplateMenu = function(type, targetId, btn) {
         saved.forEach((tpl, i) => {
             const preview = tpl.length > 40 ? tpl.substring(0, 40) + '...' : tpl;
             html += `<div class="flex items-center gap-1 px-1">
-                <button onclick="document.getElementById('${targetId}').value=${JSON.stringify(tpl)};document.getElementById('cq-template-menu').remove()" class="flex-1 text-right px-2 py-1.5 text-xs hover:bg-amber-50 rounded-lg text-slate-700 truncate">${safeStr(preview)}</button>
+                <button onclick="window.cqApplyTemplate('${type}','${targetId}',${i})" class="flex-1 text-right px-2 py-1.5 text-xs hover:bg-amber-50 rounded-lg text-slate-700 truncate">${safeStr(preview)}</button>
                 <button onclick="window.cqDeleteTemplate('${type}',${i})" class="text-slate-300 hover:text-red-400 px-1 text-xs shrink-0"><i class="fa-solid fa-xmark"></i></button>
             </div>`;
         });
@@ -21415,8 +21420,8 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
     
     rawItems.forEach(i => {
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        
+        if (i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|')) || i.catalogId === 999999) return;
+
         itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span dir="ltr">₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
         if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:4px; padding-right:10px;">${safeStr(i.note)}</div>`;
         

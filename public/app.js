@@ -781,13 +781,70 @@ function renderFamilyQuotesTab() {
                 ${metaNotes ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
                 ${q.customer_response ? `<div class="mt-2 pt-2 border-t border-slate-100 bg-white rounded-xl p-2 text-[11px]"><span class="font-bold">ההודעה שלך: </span>${safeStr(q.customer_response)}</div>` : ''}
             </div>
-            ${canRespond ? `<div class="px-3 pb-3">
-                <button onclick="openQuoteResponseModal(${q.id})" class="w-full bg-indigo-600 text-white text-xs font-bold rounded-xl py-2.5 hover:bg-indigo-700 transition"><i class="fa-solid fa-reply ml-1"></i>השב להצעה</button>
-            </div>` : ''}
+            <div class="border-t border-slate-100 px-3 pb-3 pt-2 flex gap-2">
+                <button onclick="window.openFamilyQuoteView(${q.id})" class="flex-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl py-2 hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-eye ml-1"></i>צפה בהצעה
+                </button>
+                ${canRespond ? `<button onclick="openQuoteResponseModal(${q.id})" class="flex-1 bg-indigo-600 text-white text-xs font-bold rounded-xl py-2.5 hover:bg-indigo-700 transition"><i class="fa-solid fa-reply ml-1"></i>השב</button>` : ''}
+            </div>
         </div>`;
     });
     list.innerHTML = html;
 }
+
+window.openFamilyQuoteView = function(quoteId) {
+    const q = familyQuotesCache.find(x => String(x.id) === String(quoteId));
+    if (!q) return;
+    document.getElementById('fqv-modal')?.remove();
+    const items = typeof q.items === 'string' ? JSON.parse(q.items||'[]') : (q.items||[]);
+    let title='', notes='', validity='', discount=0, vatRate=18, noVat=false, introText='';
+    try {
+        const meta = items.find(i => i.is_quote_metadata);
+        if (meta) { const m = JSON.parse(meta.data||'{}'); title=m.title||''; notes=m.notes||''; validity=m.validity||''; discount=parseFloat(m.discount||0); vatRate=parseFloat(m.vatRate||18); noVat=!!m.noVat; introText=m.introText||''; }
+    } catch(e) {}
+    const visibleItems = items.filter(i => !i.is_quote_metadata && !i.is_delivery_metadata && (i.name||i.item_name));
+    let subtotal = visibleItems.reduce((s,i) => s + (parseFloat(i.price||0)*parseFloat(i.quantity||i.qty||1)), 0);
+    const discountAmt = subtotal * discount / 100;
+    const beforeVat = subtotal - discountAmt;
+    const vatAmt = noVat ? 0 : beforeVat * vatRate / 100;
+    const total = beforeVat + vatAmt;
+    const dateStr = new Date(q.created_at).toLocaleDateString('he-IL');
+    const itemsHtml = visibleItems.map(i => {
+        const n = i.name||i.item_name||''; const qty = parseFloat(i.quantity||i.qty||1); const price = parseFloat(i.price||0);
+        return `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0 text-sm">
+            <span class="flex-1 text-slate-700 font-medium">${safeStr(n)}</span>
+            <span class="text-slate-500 text-xs mx-3">×${qty} · ₪${price.toFixed(0)}</span>
+            <span class="font-bold text-slate-800 dir-ltr">₪${(qty*price).toFixed(2)}</span>
+        </div>`;
+    }).join('') || '<p class="text-slate-400 text-sm text-center py-2">ללא פריטים</p>';
+    const html = `<div id="fqv-modal" class="fixed inset-0 bg-slate-900/70 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" style="direction:rtl;">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 bg-indigo-600 text-white shrink-0 rounded-t-3xl sm:rounded-t-3xl">
+                <h2 class="font-black text-base">${safeStr(title||'הצעת מחיר')}</h2>
+                <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div class="flex justify-between text-xs text-slate-500">
+                    <span><i class="fa-solid fa-store ml-1"></i>${safeStr(q.business_name||'')}</span>
+                    <span>${dateStr}${validity ? ` · תוקף: ${validity} יום` : ''}</span>
+                </div>
+                ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200">פירוט הצעה</div>
+                    <div class="p-3">${itemsHtml}</div>
+                    <div class="px-3 pb-3 space-y-1 border-t border-slate-100 pt-2">
+                        <div class="flex justify-between text-xs text-slate-500"><span>סכום ביניים:</span><span dir="ltr">₪${subtotal.toFixed(2)}</span></div>
+                        ${discount > 0 ? `<div class="flex justify-between text-xs text-red-500"><span>הנחה (${discount}%):</span><span dir="ltr">-₪${discountAmt.toFixed(2)}</span></div>` : ''}
+                        ${!noVat && vatRate > 0 ? `<div class="flex justify-between text-xs text-slate-500"><span>מע"מ (${vatRate}%):</span><span dir="ltr">₪${vatAmt.toFixed(2)}</span></div>` : ''}
+                        <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-2"><span>סה"כ לתשלום:</span><span dir="ltr" class="text-indigo-700">₪${total.toFixed(2)}</span></div>
+                    </div>
+                </div>
+                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line">${safeStr(notes)}</span></div>` : ''}
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
 
 window.openQuoteResponseModal = function(quoteId) {
     getEl('qrm-quote-id').value = quoteId;
