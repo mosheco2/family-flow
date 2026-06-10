@@ -549,7 +549,6 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
-                        <button id="btn-sales-work-orders" onclick="window.switchSalesTab('work-orders')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-hammer text-sm"></i>פקודות עבודה</button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -598,20 +597,6 @@ window.injectBusinessUI = function() {
                         </div>
                     </div>
                     
-                    <div id="sales-view-work-orders" class="hidden space-y-4">
-                        <div class="flex justify-between items-center mb-4 px-1">
-                            <h4 class="font-bold text-slate-700 text-sm">🔨 פקודות עבודה פעילות</h4>
-                            <button onclick="window.fetchWorkOrders()" class="text-emerald-600 text-[10px] font-bold flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
-                        </div>
-                        <div class="flex gap-2 mb-3 flex-wrap">
-                            <button id="wo-filter-all" onclick="window.setWOFilter('all')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-emerald-500 text-white" style="touch-action:manipulation;">הכל</button>
-                            <button id="wo-filter-new" onclick="window.setWOFilter('new')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">חדש</button>
-                            <button id="wo-filter-in_progress" onclick="window.setWOFilter('in_progress')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">בטיפול</button>
-                            <button id="wo-filter-done" onclick="window.setWOFilter('done')" class="text-[10px] px-3 py-1.5 rounded-xl font-bold bg-slate-100 text-slate-500" style="touch-action:manipulation;">הושלם</button>
-                        </div>
-                        <div id="work-orders-list" class="space-y-3 pb-8"></div>
-                    </div>
-
                    <div id="sales-view-catalog" class="hidden space-y-4">
                         <div class="flex justify-between items-center mb-4 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">קטלוג מנות ומוצרים</h4>
@@ -6322,7 +6307,11 @@ window.renderStoreQuotes = function() {
 
             if (isApproved && !isCustomerApproved) {
                  cardStyle = 'border-2 border-green-500 bg-green-50/40 shadow-md';
-                 approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
+                 if (isWoBusinessType) {
+                     approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span><button onclick="window.convertToWorkOrder(${q.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
+                 } else {
+                     approveBtnHtml = `<span class="text-[11px] font-black text-green-700 flex items-center gap-1.5 mt-2 w-full justify-center bg-green-100 py-2 rounded-lg border border-green-300 shadow-sm"><i class="fa-solid fa-check-circle text-sm"></i> עברה לתור הזמנות</span>`;
+                 }
             } else if (isCustomerApproved && !isApproved) {
                  cardStyle = 'border-2 border-blue-400 bg-blue-50/40 shadow-md';
                  if (isWoBusinessType) {
@@ -6521,72 +6510,9 @@ window._woFilter = 'all';
 
 window.setWOFilter = function(f) {
     window._woFilter = f;
-    ['all','new','in_progress','done'].forEach(t => {
-        const btn = document.getElementById(`wo-filter-${t}`);
-        if (btn) btn.className = `text-[10px] px-3 py-1.5 rounded-xl font-bold transition ${t===f?'bg-emerald-500 text-white':'bg-slate-100 text-slate-500'}`;
-    });
-    window.renderWorkOrders();
+    window.fetchWorkOrders();
 };
 
-window.fetchWorkOrders = async function() {
-    const list = document.getElementById('work-orders-list');
-    if (!list) return;
-    list.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
-    try {
-        const r = await fetch(`${API}/work-orders/${currentGroup.id}`);
-        const d = await r.json();
-        workOrdersCache = d.workOrders || [];
-        window.renderWorkOrders();
-    } catch(e) { list.innerHTML = '<p class="text-center text-red-400 py-6 text-xs">שגיאה בטעינה</p>'; }
-};
-
-window.renderWorkOrders = function() {
-    const list = document.getElementById('work-orders-list');
-    if (!list) return;
-    const f = window._woFilter;
-    const filtered = f === 'all' ? workOrdersCache : workOrdersCache.filter(w => w.status === f);
-    if (!filtered.length) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין פקודות עבודה' + (f!=='all'?' בסינון זה':'') + '.</p>';
-        return;
-    }
-    const ST = { new:'חדש', in_progress:'בטיפול', scheduled:'מתוזמן', done:'הושלם', cancelled:'בוטל' };
-    const SC = { new:'border-blue-300 bg-blue-50', in_progress:'border-amber-300 bg-amber-50', scheduled:'border-indigo-300 bg-indigo-50', done:'border-green-300 bg-green-50', cancelled:'border-slate-200 bg-slate-50' };
-    list.innerHTML = filtered.map(w => {
-        const bdr = SC[w.status] || 'border-slate-200 bg-white';
-        const dateStr = w.created_at ? new Date(w.created_at).toLocaleDateString('he-IL') : '';
-        const scheduled = w.scheduled_at ? `<div class="text-[10px] text-indigo-600 font-bold mt-0.5">📅 ${new Date(w.scheduled_at).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</div>` : '';
-        const price = w.price_quote ? `<span class="text-[10px] font-bold text-indigo-700">₪${parseFloat(w.price_quote).toFixed(0)}</span>` : '';
-        return `<div class="border-r-4 ${bdr} rounded-2xl p-3 shadow-sm">
-            <div class="flex justify-between items-start gap-2">
-                <div class="flex-1 min-w-0">
-                    <div class="font-bold text-slate-800 text-sm truncate">${safeStr(w.title)}</div>
-                    <div class="text-[10px] text-slate-500">${safeStr(w.customer_name||w.family_name||'')} · ${dateStr}</div>
-                    ${scheduled}
-                    ${price}
-                </div>
-                <div class="flex flex-col items-end gap-1 shrink-0">
-                    <select onchange="window.updateWorkOrderStatus(${w.id},this.value)" class="text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                        ${Object.entries(ST).map(([v,l])=>`<option value="${v}" ${w.status===v?'selected':''}>${l}</option>`).join('')}
-                    </select>
-                    <button onclick="window.openWorkOrderSchedule(${w.id})" class="text-[10px] text-indigo-500 font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg mt-0.5">📅 תזמן</button>
-                </div>
-            </div>
-            ${w.description ? `<div class="text-[10px] text-slate-500 mt-1 truncate">${safeStr(w.description)}</div>` : ''}
-        </div>`;
-    }).join('');
-};
-
-window.updateWorkOrderStatus = async function(woId, status) {
-    try {
-        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
-        const d = await r.json();
-        if (d.success || r.ok) {
-            const wo = workOrdersCache.find(x=>x.id===woId);
-            if (wo) wo.status = status;
-            window.renderWorkOrders();
-        }
-    } catch(e) { showToast('error', 'שגיאה בעדכון'); }
-};
 
 window.openWorkOrderSchedule = function(woId) {
     const wo = workOrdersCache.find(x=>x.id===woId);
@@ -6615,9 +6541,7 @@ window.saveWorkOrderSchedule = async function(woId) {
         if (r.ok) {
             showToast('success', 'תזמון נשמר!');
             document.getElementById('wo-sched-modal')?.remove();
-            const wo = workOrdersCache.find(x=>x.id===woId);
-            if (wo) wo.scheduled_at = dt;
-            window.renderWorkOrders();
+            window.fetchWorkOrders();
         }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };

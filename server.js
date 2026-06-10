@@ -9541,7 +9541,7 @@ app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
         const quoteId = req.params.quoteId;
         const r = await pool.query(
             `UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'
-             WHERE id=$1 AND status='quote' RETURNING *`,
+             WHERE id=$1 AND (call_type IS NULL OR call_type <> 'work_order') RETURNING *`,
             [quoteId]
         );
         if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
