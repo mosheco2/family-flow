@@ -16146,7 +16146,11 @@ window.renderCalendar = function() {
             html += `<div class="flex flex-col bg-slate-50/50 rounded-xl border ${isToday ? 'border-cyan-300 shadow-sm' : 'border-slate-100'} p-2 min-h-[150px]">
                 <h5 class="text-center text-xs font-bold mb-2 pb-2 border-b border-slate-200 ${isToday ? 'text-cyan-700' : 'text-slate-600'}">${day.toLocaleDateString('he-IL', {weekday:'short'})} ${day.getDate()}</h5>
                 <div class="flex-1 space-y-1 overflow-y-auto modal-scroll">
-                    ${daysEvents.map(e => `<div onclick="calEventClick('${e.id}')" class="text-[10px] ${e._isServiceCall?'bg-orange-50 border-orange-400':'bg-white border-cyan-500'} p-1.5 rounded border-l-2 shadow-sm cursor-pointer hover:opacity-80 transition truncate font-medium"><span class="font-bold ${e._isServiceCall?'text-orange-700':'text-cyan-800'}">${e.start_time.substring(0,5)}</span> ${safeStr(e.title)}</div>`).join('')}
+                    ${daysEvents.map(e => {
+                        const wBg = e._isServiceCall ? 'bg-orange-50 border-orange-400' : e.work_order_id ? 'bg-teal-50 border-teal-500' : 'bg-white border-cyan-500';
+                        const wTxt = e._isServiceCall ? 'text-orange-700' : e.work_order_id ? 'text-teal-700' : 'text-cyan-800';
+                        return `<div onclick="calEventClick('${e.id}')" class="text-[10px] ${wBg} p-1.5 rounded border-l-2 shadow-sm cursor-pointer hover:opacity-80 transition truncate font-medium"><span class="font-bold ${wTxt}">${e.start_time.substring(0,5)}</span> ${safeStr(e.title)}</div>`;
+                    }).join('')}
                 </div>
             </div>`;
         }
@@ -16178,7 +16182,8 @@ window.renderCalendar = function() {
             let eventsHtml = '';
             if(dayEvents.length > 0) {
                 dayEvents.slice(0, 2).forEach(e => {
-                    eventsHtml += `<div onclick="event.stopPropagation(); calEventClick('${e.id}')" class="text-[9px] ${e._isServiceCall?'bg-orange-100 text-orange-800':'bg-cyan-100 text-cyan-800'} rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold shadow-sm" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
+                    const evColor = e._isServiceCall ? 'bg-orange-100 text-orange-800' : e.work_order_id ? 'bg-teal-100 text-teal-800' : 'bg-cyan-100 text-cyan-800';
+                    eventsHtml += `<div onclick="event.stopPropagation(); calEventClick('${e.id}')" class="text-[9px] ${evColor} rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold shadow-sm" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
                 });
                 if(dayEvents.length > 2) {
                     eventsHtml += `<div class="text-[9px] text-slate-500 font-bold bg-slate-100 rounded px-1 py-0.5 text-center">+${dayEvents.length - 2} אירועים</div>`;
@@ -16239,8 +16244,16 @@ window.renderCalendar = function() {
 
 function calEventClick(id) {
     const sId = String(id);
-    if (sId.startsWith('sc_')) { showServiceCallModal(parseInt(sId.replace('sc_',''))); }
-    else { openCalEventModal(id); }
+    if (sId.startsWith('sc_')) {
+        showServiceCallModal(parseInt(sId.replace('sc_','')));
+    } else {
+        const ev = calEventsCache.find(e => String(e.id) === sId);
+        if (ev && ev.work_order_id) {
+            window.openWorkOrderModal(ev.work_order_id);
+        } else {
+            openCalEventModal(id);
+        }
+    }
 }
 
 function createEventCardHTML(e) {
@@ -16261,11 +16274,29 @@ function createEventCardHTML(e) {
             <i class="fa-solid fa-chevron-left text-slate-300 ml-2"></i>
         </div>`;
     }
+    if (e.work_order_id) {
+        const displayTime = e.start_time.substring(0,5);
+        return `
+        <div onclick="calEventClick('${e.id}')" class="bg-teal-50 p-3 rounded-xl border-r-4 border-teal-500 shadow-sm flex justify-between items-center hover:shadow-md transition cursor-pointer mb-2">
+            <div class="flex items-start gap-3 w-full">
+                <div class="text-center bg-white p-2 rounded-lg border border-teal-100 min-w-[50px] shrink-0">
+                    <p class="font-black text-teal-700 text-[11px] leading-tight">${displayTime}</p>
+                    <p class="text-[9px] text-slate-400 mt-0.5">${new Date(window.getCleanDate(e.event_date)).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'})}</p>
+                </div>
+                <div class="flex-1 min-w-0 pr-1">
+                    <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(e.title)}</h4>
+                    <p class="text-[10px] text-teal-600 mt-0.5"><i class="fa-solid fa-hammer mr-1"></i> פקודת עבודה</p>
+                    ${e.customer_phone ? `<p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-phone text-slate-300"></i> ${safeStr(e.customer_phone)}</p>` : ''}
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 ml-2"></i>
+        </div>`;
+    }
     const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
     const hasQuote = e.notes && e.notes.includes('ORDER_REF:');
     let quoteBadge = '';
     let displayTime = e.start_time.substring(0,5);
-    
+
     // זיהוי תגיות זמן בתוך ההערות
     if (e.notes && e.notes.includes('[ALL_DAY]')) {
         displayTime = 'יום שלם';
@@ -16323,7 +16354,7 @@ window.openCalEventModal = function(id = null) {
     }
 
 if (id) {
-        const ev = calEventsCache.find(e => e.id === id);
+        const ev = calEventsCache.find(e => String(e.id) === String(id));
         if (!ev) return;
         getEl('cal-event-id').value = ev.id;
         getEl('cal-event-title').value = ev.title;
