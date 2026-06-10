@@ -25017,6 +25017,8 @@ window.rdAction = function(tab, action) {
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
     if (action === 'show-all-sc') { if(typeof showAllServiceCalls === 'function') showAllServiceCalls(); return; }
     if (action === 'show-reports') { if(typeof showMaintenanceReports === 'function') showMaintenanceReports(); return; }
+    if (action === 'nav-work-orders') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('work-orders'); }, 150); return; }
+    if (action === 'nav-quotes') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes'); }, 150); return; }
     if (tab) { switchTab(tab); return; }
 };
 
@@ -25377,6 +25379,8 @@ async function renderBranchManagerMaintenanceDashboard(el) {
             <div class="px-2 py-1">${recentHtml}</div>
         </div>
         ${roleQuickActions([
+            {icon:'🔨', label:'פקודות עבודה', tab:'', action:'nav-work-orders'},
+            {icon:'📋', label:'הצעות מחיר', tab:'', action:'nav-quotes'},
             {icon:'📊', label:'דוחות', tab:'', action:'show-reports'},
             {icon:'👥', label:'הצוות', tab:'members'},
             {icon:'📅', label:'יומן', tab:'calendar'}
@@ -26451,6 +26455,8 @@ async function renderBranchManagerDashboard(el) {
         ${roleDashboardHeader('🏢','ממשק מנהל סניף','KPIs יומיים ואירועים חריגים','from-slate-700','to-slate-900')}
         <div class="grid grid-cols-2 gap-3 mb-4">${kpiHtml}</div>
         ${roleQuickActions([
+            {icon:'🔨', label:'פקודות עבודה', tab:'', action:'nav-work-orders'},
+            {icon:'📋', label:'הצעות מחיר', tab:'', action:'nav-quotes'},
             {icon:'📊', label:'דוחות', tab:'cashflow'},
             {icon:'👥', label:'הצוות', tab:'members'},
             {icon:'✅', label:'משימות', tab:'tasks'}
