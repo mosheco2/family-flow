@@ -6237,7 +6237,7 @@ window.renderStoreQuotes = function() {
             if (currentStatus === 'new' || currentStatus === 'quote') currentStatus = 'draft';
             if (currentStatus === 'waiting_customer') currentStatus = 'sent';
             
-            const isApproved = (currentStatus === 'approved' || currentStatus === 'customer_approved');
+            const isApproved = currentStatus === 'approved';
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
             
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
