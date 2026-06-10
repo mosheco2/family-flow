@@ -11474,7 +11474,12 @@ async function submitGlobalAI() {
     const inputEl = getEl('global-ai-input'); const query = inputEl.value.trim(); if (!query) return;
     const chatBox = getEl('global-ai-chat'); chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`; inputEl.value = '';
     const btn = getEl('btn-global-ai-submit'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
-    
+
+    // ודא שפקודות עבודה נטענו לפני בניית הקשר
+    if (workOrdersCache.length === 0 && typeof window.fetchWorkOrders === 'function') {
+        try { await window.fetchWorkOrders(); } catch(e) {}
+    }
+
     // הזרקת קונטקסט עשיר והוראות הפעלה לעוזרת הווירטואלית האקטיבית
     const systemContext = {
         active_orders: storeOrdersCache.filter(o => o.status !== 'completed'),
