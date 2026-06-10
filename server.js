@@ -4020,11 +4020,18 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
             const uRow = await pool.query('SELECT phone FROM users WHERE id=$1', [userId]);
             if (uRow.rows.length) userPhone = uRow.rows[0].phone || null;
         }
-        // מחפש הצעות מחיר: status='quote' או quote_status פעיל — לפי family_group_id, phone ישיר, או phone מ-group
+        // מחפש הצעות מחיר אמיתיות בלבד:
+        // 1. status='quote' (הצעה רגילה) — כולל טיוטות שנשלחו לפי family_group_id/phone
+        // 2. status NOT IN הזמנות-רגילות + quote_status פעיל + קשורות ל-family (לא draft בלבד)
         const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
             FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
-            WHERE (so.status='quote' OR (so.quote_status IS NOT NULL AND so.quote_status != 'approved'))
-              AND (so.family_group_id=$1
+            WHERE (
+              so.status='quote'
+              OR (so.status NOT IN ('new','processing','ready','shipped','completed','cancelled')
+                  AND so.quote_status IN ('waiting_customer','customer_approved')
+                  AND so.family_group_id IS NOT NULL)
+            )
+            AND (so.family_group_id=$1
                 OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
                 OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
             ORDER BY so.created_at DESC`, [familyGroupId, userPhone || null]);
