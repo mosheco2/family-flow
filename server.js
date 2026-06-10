@@ -4320,6 +4320,15 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
             } catch(e) { console.error('Customer Creation Error:', e.message); }
         }, 100);
 
+        // התראה ללקוח OneFlow אם הצעה קשורה למשפחה
+        if (quote.family_group_id) {
+            try {
+                const bizName = quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id])).rows[0]?.name || 'עסק' : 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1,'quote_approved','הצעת מחיר אושרה',$2,$3,'quote',NOW())`,
+                    [quote.family_group_id, `${bizName} אישר את הצעת המחיר שלך — היא עברה לתור ההזמנות`, quoteId]);
+            } catch(e) {}
+        }
         res.json({ success: true, orderId: quote.id });
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
@@ -4372,11 +4381,16 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
             customer_response_type=NULL, customer_response=NULL, customer_response_at=NULL,
             quote_history = COALESCE(quote_history, '[]'::jsonb) || $3::jsonb
             WHERE id=$2`, [familyGroupId, quoteId, `[${histEvent}]`]);
-        // שלח התראה ללקוח
+        // שלח התראה ללקוח (כותרת שונה לשליחה מחדש)
         try {
+            const bizName = quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1',[quote.group_id])).rows[0]?.name || 'עסק' : 'עסק';
+            const notifTitle = isResend ? 'הצעת מחיר עודכנה' : 'הצעת מחיר חדשה';
+            const notifMsg = isResend
+                ? `${bizName} עדכן את הצעת המחיר עבורך — נא לבדוק ולאשר`
+                : `קיבלת הצעת מחיר מ-${bizName}: ${quote.customer_name || ''}`;
             await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
-                VALUES ($1, 'quote_received', 'הצעת מחיר חדשה', $2, $3, 'quote', NOW())`,
-                [familyGroupId, `קיבלת הצעת מחיר מ-${quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1',[quote.group_id])).rows[0]?.name || 'עסק' : 'עסק'}: ${quote.customer_name || ''}`, quoteId]);
+                VALUES ($1, 'quote_received', $4, $2, $3, 'quote', NOW())`,
+                [familyGroupId, notifMsg, quoteId, notifTitle]);
         } catch(e) { console.error('notification err:', e.message); }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
