@@ -724,6 +724,36 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           checked_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           checked_out_at TIMESTAMP
       )`); } catch(e) {}
+      // Sport Phase 2 — Group Classes
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_types (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          name VARCHAR(100) NOT NULL, color VARCHAR(20) DEFAULT 'indigo',
+          default_duration_min INT DEFAULT 60, is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_classes (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          class_type_id INT REFERENCES sport_class_types(id) ON DELETE SET NULL,
+          class_name VARCHAR(100), trainer_name VARCHAR(100),
+          class_date DATE NOT NULL, start_time TIME, end_time TIME,
+          capacity INT DEFAULT 20, status VARCHAR(20) DEFAULT 'scheduled',
+          notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_registrations (
+          id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), attended BOOLEAN DEFAULT false,
+          registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(class_id, membership_id)
+      )`); } catch(e) {}
+      // Sport Phase 3 — Payments
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_payments (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE SET NULL,
+          member_name VARCHAR(100), amount DECIMAL(10,2) NOT NULL,
+          payment_method VARCHAR(30) DEFAULT 'cash', notes TEXT,
+          paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -9924,6 +9954,206 @@ app.get('/api/sport/checkins/:groupId', async (req, res) => {
     try {
         const r = await pool.query(`SELECT sc.*, sm.member_phone FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 AND DATE(sc.checked_in_at)=CURRENT_DATE ORDER BY sc.checked_in_at DESC`, [req.params.groupId]);
         res.json({ success: true, checkins: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Alerts ────────────────────────────────────────────────────────────
+app.get('/api/sport/alerts/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    try {
+        const [expiring, atRisk, frozen] = await Promise.all([
+            pool.query(`SELECT id,member_name,member_phone,end_date,membership_type_id,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name
+                FROM sport_memberships sm WHERE group_id=$1 AND status='active'
+                AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+14
+                ORDER BY end_date ASC`, [gid]),
+            pool.query(`SELECT id,member_name,member_phone,end_date,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name,
+                (SELECT MAX(checked_in_at) FROM sport_checkins WHERE membership_id=sm.id) as last_checkin
+                FROM sport_memberships sm WHERE group_id=$1 AND status='active'
+                AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE-30 AND membership_id IS NOT NULL)
+                ORDER BY member_name`, [gid]),
+            pool.query(`SELECT id,member_name,member_phone,frozen_at,frozen_reason,
+                (SELECT name FROM sport_membership_types WHERE id=sm.membership_type_id) as type_name
+                FROM sport_memberships sm WHERE group_id=$1 AND status='frozen' ORDER BY frozen_at DESC`, [gid])
+        ]);
+        res.json({ expiring: expiring.rows, atRisk: atRisk.rows, frozen: frozen.rows });
+    } catch(e) { res.json({ expiring:[], atRisk:[], frozen:[] }); }
+});
+
+// ─── Sport Reports ────────────────────────────────────────────────────────────
+app.get('/api/sport/reports/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    const { period } = req.query; // month, year
+    const dateFilter = period === 'year' ? `paid_at >= date_trunc('year', CURRENT_DATE)` : `paid_at >= date_trunc('month', CURRENT_DATE)`;
+    try {
+        const [revenueByType, revenueByMonth, checkinsByDay, membersByStatus, classStats] = await Promise.all([
+            pool.query(`SELECT smt.name as type_name, COUNT(*) as count, SUM(sp.amount) as total
+                FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id
+                LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                WHERE sp.group_id=$1 AND ${dateFilter}
+                GROUP BY smt.name ORDER BY total DESC`, [gid]),
+            pool.query(`SELECT TO_CHAR(paid_at,'YYYY-MM') as month, SUM(amount) as total, COUNT(*) as count
+                FROM sport_payments WHERE group_id=$1 AND paid_at >= CURRENT_DATE - INTERVAL '6 months'
+                GROUP BY month ORDER BY month`, [gid]),
+            pool.query(`SELECT TO_CHAR(checked_in_at,'YYYY-MM-DD') as day, COUNT(*) as count
+                FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30
+                GROUP BY day ORDER BY day`, [gid]),
+            pool.query(`SELECT status, COUNT(*) as count FROM sport_memberships WHERE group_id=$1 GROUP BY status`, [gid]),
+            pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, COUNT(scr.id) as registered, sc2.capacity
+                FROM sport_classes sc2 LEFT JOIN sport_class_registrations scr ON sc2.id=scr.class_id
+                WHERE sc2.group_id=$1 AND sc2.class_date >= CURRENT_DATE-30
+                GROUP BY sc2.id ORDER BY sc2.class_date DESC LIMIT 20`, [gid])
+        ]);
+        res.json({
+            revenueByType: revenueByType.rows, revenueByMonth: revenueByMonth.rows,
+            checkinsByDay: checkinsByDay.rows, membersByStatus: membersByStatus.rows,
+            classStats: classStats.rows
+        });
+    } catch(e) { res.json({ revenueByType:[], revenueByMonth:[], checkinsByDay:[], membersByStatus:[], classStats:[] }); }
+});
+
+// ─── Sport Member Detail & Renewal ───────────────────────────────────────────
+app.get('/api/sport/member-detail/:id', async (req, res) => {
+    try {
+        const [mem, checkins, classes, payments] = await Promise.all([
+            pool.query(`SELECT sm.*, smt.name as type_name, smt.type as type_kind, smt.price as type_price
+                FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+                WHERE sm.id=$1`, [req.params.id]),
+            pool.query(`SELECT * FROM sport_checkins WHERE membership_id=$1 ORDER BY checked_in_at DESC LIMIT 30`, [req.params.id]),
+            pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, scr.attended
+                FROM sport_class_registrations scr JOIN sport_classes sc2 ON scr.class_id=sc2.id
+                WHERE scr.membership_id=$1 ORDER BY sc2.class_date DESC LIMIT 20`, [req.params.id]),
+            pool.query(`SELECT * FROM sport_payments WHERE membership_id=$1 ORDER BY paid_at DESC LIMIT 10`, [req.params.id])
+        ]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ member: mem.rows[0], checkins: checkins.rows, classes: classes.rows, payments: payments.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/members/:id/renew', async (req, res) => {
+    const { membershipTypeId, startDate, paymentAmount, paymentMethod, notes } = req.body;
+    try {
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1', [membershipTypeId]);
+        if (!typeRes.rows.length) return res.status(404).json({ error: 'סוג מנוי לא נמצא' });
+        const t = typeRes.rows[0];
+        const sd = startDate || new Date().toISOString().split('T')[0];
+        let endDate = null;
+        if (t.duration_days) { const d = new Date(sd); d.setDate(d.getDate() + t.duration_days); endDate = d.toISOString().split('T')[0]; }
+        const memRes = await pool.query(`UPDATE sport_memberships
+            SET membership_type_id=$1, start_date=$2, end_date=$3,
+            sessions_total=$4, sessions_used=0, status='active', frozen_at=NULL, frozen_reason=NULL, updated_at=NOW()
+            WHERE id=$5 RETURNING *`, [membershipTypeId, sd, endDate, t.sessions || null, req.params.id]);
+        if (!memRes.rows.length) return res.status(404).json({ error: 'חבר לא נמצא' });
+        const m = memRes.rows[0];
+        if (paymentAmount && parseFloat(paymentAmount) > 0) {
+            await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+                [m.group_id, m.id, m.member_name, paymentAmount, paymentMethod || 'cash', notes || '']);
+        }
+        res.json({ success: true, member: m });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Payments ───────────────────────────────────────────────────────────
+app.post('/api/sport/payments', async (req, res) => {
+    const { groupId, membershipId, memberName, amount, paymentMethod, notes } = req.body;
+    try {
+        const r = await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [groupId, membershipId, memberName, amount, paymentMethod || 'cash', notes || '']);
+        res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Class Types ────────────────────────────────────────────────────────
+app.get('/api/sport/class-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_class_types WHERE group_id=$1 AND is_active=true ORDER BY name', [req.params.groupId]);
+        res.json({ types: r.rows });
+    } catch(e) { res.json({ types: [] }); }
+});
+
+app.post('/api/sport/class-types', async (req, res) => {
+    const { groupId, name, color, defaultDurationMin } = req.body;
+    try {
+        const r = await pool.query(`INSERT INTO sport_class_types (group_id,name,color,default_duration_min) VALUES ($1,$2,$3,$4) RETURNING *`,
+            [groupId, name, color || 'indigo', defaultDurationMin || 60]);
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/class-types/:id', async (req, res) => {
+    try { await pool.query('UPDATE sport_class_types SET is_active=false WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Classes (Schedule) ─────────────────────────────────────────────────
+app.get('/api/sport/classes/:groupId', async (req, res) => {
+    const { from, to } = req.query;
+    const fromDate = from || new Date().toISOString().split('T')[0];
+    const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
+    try {
+        const r = await pool.query(`SELECT sc2.*, sct.name as type_name, sct.color,
+            (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc2.id) as registered_count
+            FROM sport_classes sc2 LEFT JOIN sport_class_types sct ON sc2.class_type_id=sct.id
+            WHERE sc2.group_id=$1 AND sc2.class_date BETWEEN $2 AND $3 ORDER BY sc2.class_date, sc2.start_time`, [req.params.groupId, fromDate, toDate]);
+        res.json({ classes: r.rows });
+    } catch(e) { res.json({ classes: [] }); }
+});
+
+app.post('/api/sport/classes', async (req, res) => {
+    const { groupId, classTypeId, className, trainerName, classDate, startTime, endTime, capacity, notes } = req.body;
+    try {
+        const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,class_date,start_time,end_time,capacity,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [groupId, classTypeId || null, className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, notes || '']);
+        res.json({ success: true, class: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/classes/:id', async (req, res) => {
+    const { className, trainerName, classDate, startTime, endTime, capacity, status, notes } = req.body;
+    try {
+        await pool.query(`UPDATE sport_classes SET class_name=$1,trainer_name=$2,class_date=$3,start_time=$4,end_time=$5,capacity=$6,status=$7,notes=$8 WHERE id=$9`,
+            [className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, status || 'scheduled', notes || '', req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/classes/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sport_classes WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sport/classes/:id/registrations', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT scr.*, sm.member_phone FROM sport_class_registrations scr
+            LEFT JOIN sport_memberships sm ON scr.membership_id=sm.id WHERE scr.class_id=$1 ORDER BY scr.registered_at`, [req.params.id]);
+        res.json({ registrations: r.rows });
+    } catch(e) { res.json({ registrations: [] }); }
+});
+
+app.post('/api/sport/classes/:id/register', async (req, res) => {
+    const { membershipId, memberName } = req.body;
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [req.params.id]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+        const count = await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [req.params.id]);
+        if (parseInt(count.rows[0].count) >= (c.capacity || 20)) return res.status(400).json({ error: 'השיעור מלא' });
+        await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+            [req.params.id, membershipId, memberName]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/classes/:id/attendance', async (req, res) => {
+    const { presentIds } = req.body; // array of membership ids that attended
+    try {
+        await pool.query('UPDATE sport_class_registrations SET attended=false WHERE class_id=$1', [req.params.id]);
+        if (presentIds?.length) {
+            await pool.query(`UPDATE sport_class_registrations SET attended=true WHERE class_id=$1 AND membership_id=ANY($2)`,
+                [req.params.id, presentIds]);
+        }
+        await pool.query(`UPDATE sport_classes SET status='completed' WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

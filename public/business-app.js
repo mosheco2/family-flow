@@ -28322,3 +28322,552 @@ function _ensureSportModal() {
 }
 
 // ===== END SPORT / FITNESS MODULE =====
+
+// ===== SPORT PHASE 2+ — CLASSES, MEMBER DETAIL, ALERTS, REPORTS =====
+
+// ─── Enhanced Dashboard (replaces Phase 1 version) ────────────────────────────
+async function renderSportDashboard(el) {
+    let stats = { active_members: 0, expiring_soon: 0, checkins_today: 0, currently_in: 0, at_risk: 0, revenue_month: 0 };
+    let alertsData = { expiring: [], atRisk: [], frozen: [] };
+    try {
+        const [sr, ar] = await Promise.all([
+            fetch(`${API}/sport/dashboard/${currentGroup.id}`).then(r=>r.json()),
+            fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json())
+        ]);
+        if (sr.stats) stats = sr.stats;
+        alertsData = ar;
+    } catch(e) {}
+
+    const urgentAlerts = (alertsData.expiring||[]).filter(a => Math.ceil((new Date(a.end_date)-new Date())/86400000) <= 7);
+
+    const alertBanner = urgentAlerts.length ? `
+        <div onclick="window.showSportAlerts()" class="bg-orange-50 border border-orange-200 rounded-2xl p-3 mb-3 flex items-center gap-3 cursor-pointer active:scale-95 transition">
+            <span class="text-2xl">🔔</span>
+            <div class="flex-1 text-right">
+                <div class="text-sm font-black text-orange-700">${urgentAlerts.length} מנויים פגים תוך 7 ימים</div>
+                <div class="text-[11px] text-orange-500">${urgentAlerts.slice(0,2).map(a=>a.member_name).join(', ')}${urgentAlerts.length>2?` ועוד ${urgentAlerts.length-2}`:''} — לחץ לפרטים</div>
+            </div>
+        </div>` : '';
+
+    const kpis = [
+        { label:'מנויים פעילים', value:stats.active_members, icon:'🏃', color:'indigo', cb:`window.showSportMembers('active')` },
+        { label:'פג תוקף בקרוב', value:stats.expiring_soon, icon:'⏳', color:stats.expiring_soon>0?'orange':'slate', cb:`window.showSportAlerts()` },
+        { label:'כניסות היום', value:stats.checkins_today, icon:'✅', color:'emerald', cb:`window.showSportCheckIn()` },
+        { label:'בפנים כרגע', value:stats.currently_in, icon:'🔴', color:stats.currently_in>0?'red':'slate', cb:`window.showSportCheckIn()` },
+        { label:'לא אימנו 30 יום', value:stats.at_risk, icon:'⚠️', color:stats.at_risk>0?'red':'green', cb:`window.showSportAlerts()` },
+        { label:'הכנסה החודש', value:`₪${Number(stats.revenue_month||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`window.showSportReports()` }
+    ];
+    const kpiHtml = kpis.map(k=>`<button type="button" onclick="${k.cb}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">${k.icon}</span><div class="text-lg font-black text-${k.color}-600">${k.value}</div><div class="text-[10px] text-slate-500 font-bold">${k.label}</div></button>`).join('');
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🏋️','ממשק מנהל מועדון','מנויים, כניסות ו-KPIs יומיים','from-indigo-600','to-violet-700')}
+        ${alertBanner}
+        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
+        ${roleQuickActions([
+            {icon:'🚪', label:"צ'ק-אין", tab:'', action:'sport-checkin'},
+            {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
+            {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
+            {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
+            {icon:'📊', label:'דוחות', tab:'', action:'sport-reports'}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// ─── Alerts Screen ────────────────────────────────────────────────────────────
+window.showSportAlerts = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">התראות 🔔</h2><span></span>
+        </div>
+        <div id="sport-alerts-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    try {
+        const d = await fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json());
+        const el = document.getElementById('sport-alerts-content');
+        let html = '';
+        if (d.expiring?.length) {
+            html += `<div class="text-xs font-black text-orange-600 mb-2 text-right">⏳ פגים בקרוב (${d.expiring.length})</div>`;
+            html += d.expiring.map(m => {
+                const days = Math.ceil((new Date(m.end_date)-new Date())/86400000);
+                return `<div class="bg-orange-50 border border-orange-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="text-[11px] font-bold text-white bg-indigo-600 px-2 py-1 rounded-lg">חדש</button>
+                        ${m.member_phone?`<a href="tel:${m.member_phone}" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">📞</a>`:''}
+                    </div>
+                    <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
+                    <div class="text-[11px] text-orange-600">${days<=0?'פג!':'עוד '+days+' ימים'} · ${new Date(m.end_date).toLocaleDateString('he-IL')}</div></div>
+                </div>`;
+            }).join('');
+        }
+        if (d.atRisk?.length) {
+            html += `<div class="text-xs font-black text-red-600 mt-4 mb-2 text-right">⚠️ לא אימנו 30 יום+ (${d.atRisk.length})</div>`;
+            html += d.atRisk.map(m => `<div class="bg-red-50 border border-red-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                <div>${m.member_phone?`<a href="tel:${m.member_phone}" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">📞</a>`:''}</div>
+                <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
+                <div class="text-[11px] text-red-500">ביקור אחרון: ${m.last_checkin?new Date(m.last_checkin).toLocaleDateString('he-IL'):'מעולם לא'}</div></div>
+            </div>`).join('');
+        }
+        if (d.frozen?.length) {
+            html += `<div class="text-xs font-black text-blue-600 mt-4 mb-2 text-right">❄️ מוקפאים (${d.frozen.length})</div>`;
+            html += d.frozen.map(m => `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                <button onclick="window.sportUnfreeze(${m.id});document.getElementById('sport-modal').classList.add('hidden')" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר</button>
+                <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
+                <div class="text-[11px] text-blue-500">הוקפא: ${m.frozen_at?new Date(m.frozen_at).toLocaleDateString('he-IL'):''} ${m.frozen_reason?'· '+m.frozen_reason:''}</div></div>
+            </div>`).join('');
+        }
+        if (!html) html = `<div class="text-center py-8 text-slate-400 text-sm">אין התראות כרגע 🎉</div>`;
+        el.innerHTML = html;
+    } catch(e) { document.getElementById('sport-alerts-content').innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>`; }
+};
+
+// ─── Renew Member ─────────────────────────────────────────────────────────────
+window.showSportRenewMember = async function(memberId, memberName, currentTypeId) {
+    let types = [];
+    try { types = (await fetch(`${API}/sport/membership-types/${currentGroup.id}`).then(r=>r.json())).types||[]; } catch(e) {}
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportAlerts()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">חידוש מנוי 🔄</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div class="bg-indigo-50 rounded-xl p-3 text-right"><div class="font-black text-indigo-800">${memberName}</div></div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג מנוי *</label>
+                <select id="sport-renew-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="">-- בחר --</option>
+                    ${types.map(t=>`<option value="${t.id}" ${t.id==currentTypeId?'selected':''}>${t.name} — ₪${t.price}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך התחלה</label>
+                <input id="sport-renew-start" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/>
+            </div>
+            <div class="border-t pt-4">
+                <div class="text-xs font-black text-slate-600 mb-2 text-right">תשלום (אופציונלי)</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="sport-renew-pay-method" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                        <option value="cash">מזומן</option><option value="credit">אשראי</option>
+                        <option value="transfer">העברה</option><option value="app">אפליקציה</option>
+                    </select>
+                    <input id="sport-renew-pay-amount" type="number" placeholder="סכום ₪" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t">
+            <button onclick="window._sportSubmitRenew(${memberId},'${(memberName||'').replace(/'/g,"\\'")}')" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">חדש מנוי ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitRenew = async function(memberId, memberName) {
+    const typeId = document.getElementById('sport-renew-type')?.value;
+    const startDate = document.getElementById('sport-renew-start')?.value;
+    const payAmount = document.getElementById('sport-renew-pay-amount')?.value;
+    const payMethod = document.getElementById('sport-renew-pay-method')?.value;
+    if (!typeId) { showToast('error','יש לבחור סוג מנוי'); return; }
+    try {
+        const d = await fetch(`${API}/sport/members/${memberId}/renew`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({membershipTypeId:parseInt(typeId),startDate,paymentAmount:payAmount?parseFloat(payAmount):null,paymentMethod:payMethod})
+        }).then(r=>r.json());
+        if (!d.success){showToast('error',d.error||'שגיאה');return;}
+        showToast('success',`מנויו של ${memberName} חודש 🎉`);
+        document.getElementById('sport-modal').classList.add('hidden');
+        const dashEl=document.getElementById('role-dashboard');
+        if(dashEl) renderSportDashboard(dashEl);
+    } catch(e){showToast('error','שגיאת תקשורת');}
+};
+
+// ─── Member Detail Screen ─────────────────────────────────────────────────────
+window.showSportMemberDetail = async function(memberId) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportMembers()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">פרופיל חבר</h2><span></span>
+        </div>
+        <div id="sport-member-detail-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    try {
+        const d = await fetch(`${API}/sport/member-detail/${memberId}`).then(r=>r.json());
+        if (!d.member){document.getElementById('sport-member-detail-content').innerHTML='<div class="text-center py-8 text-red-400">לא נמצא</div>';return;}
+        const m = d.member;
+        const sc = {active:'emerald',frozen:'blue',expired:'red',cancelled:'slate'}[m.status]||'slate';
+        const sl = {active:'פעיל',frozen:'מוקפא',expired:'פג תוקף',cancelled:'בוטל'}[m.status]||m.status;
+        const endFmt = m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'—';
+        const startFmt = m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'—';
+        const sessions = m.sessions_total!=null?`<div class="text-sm text-slate-600 text-right mt-1">כניסות: <span class="font-bold">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total}</span> נותרו</div>`:'';
+        const totalPaid = (d.payments||[]).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        const checkinRows = (d.checkins||[]).slice(0,10).map(c=>{
+            const t=c.checked_in_at?new Date(c.checked_in_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+            return `<div class="flex justify-between text-xs py-1 border-b border-slate-50"><span class="text-slate-400">${t}</span><span class="text-slate-600">כניסה</span></div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-2">אין כניסות</div>';
+        const classRows = (d.classes||[]).slice(0,10).map(c=>`<div class="flex justify-between text-xs py-1 border-b border-slate-50">
+            <span class="${c.attended?'text-emerald-500':'text-slate-400'}">${c.attended?'✅':'❌'}</span>
+            <span class="text-slate-600">${c.class_name||''} · ${c.class_date?new Date(c.class_date).toLocaleDateString('he-IL'):''}</span>
+        </div>`).join('');
+        const payRows = (d.payments||[]).map(p=>{
+            const mt={cash:'מזומן',credit:'אשראי',transfer:'העברה',app:'אפליקציה'}[p.payment_method]||p.payment_method;
+            return `<div class="flex justify-between text-xs py-1 border-b border-slate-50">
+                <span class="text-slate-400">${p.paid_at?new Date(p.paid_at).toLocaleDateString('he-IL'):''} · ${mt}</span>
+                <span class="font-bold text-emerald-600">₪${parseFloat(p.amount).toLocaleString('he-IL')}</span>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-2">אין תשלומים</div>';
+
+        document.getElementById('sport-member-detail-content').innerHTML = `
+            <div class="bg-indigo-50 rounded-2xl p-4 mb-4 text-right">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${sc}-100 text-${sc}-700">${sl}</span>
+                    <div><div class="text-lg font-black text-indigo-800">${m.member_name}</div>
+                    ${m.member_phone?`<div class="text-xs text-slate-500">${m.member_phone}</div>`:''}
+                    ${m.member_email?`<div class="text-xs text-slate-400">${m.member_email}</div>`:''}
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs text-right mt-2">
+                    <div><span class="text-slate-500">מנוי:</span> <span class="font-bold">${m.type_name||'—'}</span></div>
+                    <div><span class="text-slate-500">סה"כ שילם:</span> <span class="font-bold text-emerald-600">₪${totalPaid.toLocaleString('he-IL')}</span></div>
+                    <div><span class="text-slate-500">התחלה:</span> <span class="font-bold">${startFmt}</span></div>
+                    <div><span class="text-slate-500">סיום:</span> <span class="font-bold">${endFmt}</span></div>
+                </div>${sessions}
+            </div>
+            <div class="flex gap-2 mb-4 flex-wrap">
+                <button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="flex-1 min-w-[80px] bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">חדש 🔄</button>
+                ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}');window.showSportMembers()" class="flex-1 min-w-[80px] bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-xs">הקפא ❄️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id});window.showSportMembers()" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
+                <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
+            </div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
+            ${d.classes?.length?`<div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">שיעורים</div>${classRows}</div>`:''}
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תשלומים</div>${payRows}</div>`;
+    } catch(e){document.getElementById('sport-member-detail-content').innerHTML='<div class="text-center py-8 text-red-400">שגיאה</div>';}
+};
+
+window._sportAddPayment = function(memberId, memberName, suggestedAmount) {
+    const amount = prompt(`תשלום עבור ${memberName}\nסכום:`, suggestedAmount||'');
+    if (!amount||isNaN(parseFloat(amount))) return;
+    const method = prompt('אמצעי תשלום: cash / credit / transfer / app','cash')||'cash';
+    fetch(`${API}/sport/payments`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({groupId:currentGroup.id,membershipId:memberId,memberName,amount:parseFloat(amount),paymentMethod:method})
+    }).then(r=>r.json()).then(d=>{
+        if(d.success){showToast('success',`תשלום ₪${amount} נרשם ✅`);window.showSportMemberDetail(memberId);}
+        else showToast('error',d.error||'שגיאה');
+    }).catch(()=>showToast('error','שגיאת תקשורת'));
+};
+
+// ─── Updated Member Card (with detail tap + expiry warning) ──────────────────
+function _sportMemberCard(m) {
+    const sc={active:'emerald',frozen:'blue',expired:'red',cancelled:'slate'}[m.status]||'slate';
+    const sl={active:'פעיל',frozen:'מוקפא',expired:'פג תוקף',cancelled:'בוטל'}[m.status]||m.status;
+    const endDate=m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'—';
+    const sessions=m.sessions_total!=null?`<span class="text-xs text-slate-500">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total}</span>`:'';
+    const frozen=m.status==='frozen'?`<div class="text-[11px] text-blue-500 mt-0.5">מוקפא: ${m.frozen_reason||''}</div>`:'';
+    const days=m.end_date?Math.ceil((new Date(m.end_date)-new Date())/86400000):null;
+    const warn=days!==null&&days<=14&&m.status==='active'?`<span class="text-[10px] text-orange-500 font-bold">⏳ עוד ${days} ימים</span>`:'';
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+        <div class="flex items-center gap-3 mb-2 cursor-pointer" onclick="window.showSportMemberDetail(${m.id})">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-black text-indigo-600 flex-shrink-0">${(m.member_name||'?')[0]}</div>
+            <div class="flex-1 min-w-0 text-right">
+                <div class="font-bold text-slate-800 text-sm">${m.member_name||''}</div>
+                <div class="text-[11px] text-slate-500">${m.member_phone||''} ${m.type_name?'· '+m.type_name:''}</div>${frozen}
+            </div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${sc}-100 text-${sc}-700 flex-shrink-0">${sl}</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] border-t border-slate-50 pt-2">
+            <div class="flex gap-1.5">
+                ${m.status==='active'?`<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>`:''}
+                ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')}" class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">❄️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>`:''}
+                ${(m.status==='expired'||(days!==null&&days<=7))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
+            </div>
+            <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
+        </div>
+    </div>`;
+}
+
+// ─── Group Classes Schedule ───────────────────────────────────────────────────
+window.showSportSchedule = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const today = new Date().toISOString().split('T')[0];
+    const toD = new Date(); toD.setDate(toD.getDate()+14);
+    const toDate = toD.toISOString().split('T')[0];
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">לוח שיעורים 🗓️</h2>
+            <button onclick="window.showSportAddClass()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ שיעור</button>
+        </div>
+        <div id="sport-schedule-list" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadSchedule(today, toDate);
+};
+
+window._sportLoadSchedule = async function(from, to) {
+    const el = document.getElementById('sport-schedule-list');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/classes/${currentGroup.id}?from=${from}&to=${to}`).then(r=>r.json());
+        const classes = d.classes||[];
+        if (!classes.length){el.innerHTML=`<div class="text-center py-8 text-slate-400 text-sm">אין שיעורים מתוכננים<br><button onclick="window.showSportAddClass()" class="mt-3 text-indigo-600 font-bold text-sm underline">הוסף שיעור ראשון</button></div>`;return;}
+        const byDate={};
+        classes.forEach(c=>{if(!byDate[c.class_date])byDate[c.class_date]=[];byDate[c.class_date].push(c);});
+        const days=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const colorMap={indigo:'bg-indigo-50 border-indigo-200 text-indigo-700',violet:'bg-violet-50 border-violet-200 text-violet-700',emerald:'bg-emerald-50 border-emerald-200 text-emerald-700',orange:'bg-orange-50 border-orange-200 text-orange-700',red:'bg-red-50 border-red-200 text-red-700',blue:'bg-blue-50 border-blue-200 text-blue-700',teal:'bg-teal-50 border-teal-200 text-teal-700'};
+        el.innerHTML = Object.keys(byDate).sort().map(date=>{
+            const d2=new Date(date);
+            const isToday=date===new Date().toISOString().split('T')[0];
+            return `<div class="mb-4">
+                <div class="text-xs font-black ${isToday?'text-indigo-600':'text-slate-500'} mb-2 text-right">${isToday?'📍 היום — ':''}${days[d2.getDay()]} ${d2.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})}</div>
+                ${byDate[date].map(c=>{
+                    const cls=colorMap[c.color]||colorMap.indigo;
+                    const fill=Math.min(100,Math.round((c.registered_count/(c.capacity||20))*100));
+                    const full=parseInt(c.registered_count)>=(c.capacity||20);
+                    return `<div class="border rounded-2xl p-3 mb-2 ${cls}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex gap-1.5">
+                                <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
+                                <button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-black text-sm">${c.class_name||c.type_name||'שיעור'}</div>
+                                <div class="text-[11px]">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[11px] font-bold ${full?'text-red-600':''}">${c.registered_count}/${c.capacity} ${full?'🔴 מלא':''}</span>
+                            <div class="w-24 h-1.5 bg-white/50 rounded-full overflow-hidden"><div class="h-full rounded-full ${full?'bg-red-500':'bg-current opacity-60'}" style="width:${fill}%"></div></div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }).join('');
+    } catch(e){el.innerHTML=`<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>`;}
+};
+
+window.showSportAddClass = async function() {
+    let types=[];
+    try{types=(await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types||[];}catch(e){}
+    _ensureSportModal();
+    const modal=document.getElementById('sport-modal');
+    modal.innerHTML=`<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">שיעור חדש</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם השיעור *</label>
+                <input id="sport-cls-name" type="text" placeholder="לדוג׳ יוגה, ספינינג..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            ${types.length?`<div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג שיעור</label>
+                <select id="sport-cls-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="">-- ללא --</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+                </select></div>`:''}
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
+                <input id="sport-cls-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
+                <input id="sport-cls-date" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת סיום</label>
+                    <input id="sport-cls-end" type="time" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת התחלה</label>
+                    <input id="sport-cls-start" type="time" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">קיבולת</label>
+                <input id="sport-cls-cap" type="number" value="20" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div class="p-4 border-t">
+            <button onclick="window._sportSubmitClass()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור שיעור ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitClass = async function() {
+    const name=document.getElementById('sport-cls-name')?.value?.trim();
+    const date=document.getElementById('sport-cls-date')?.value;
+    if(!name||!date){showToast('error','שם ותאריך הם שדות חובה');return;}
+    try{
+        const d=await fetch(`${API}/sport/classes`,{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({groupId:currentGroup.id,classTypeId:document.getElementById('sport-cls-type')?.value||null,
+            className:name,trainerName:document.getElementById('sport-cls-trainer')?.value?.trim()||'',
+            classDate:date,startTime:document.getElementById('sport-cls-start')?.value||null,
+            endTime:document.getElementById('sport-cls-end')?.value||null,
+            capacity:parseInt(document.getElementById('sport-cls-cap')?.value)||20})
+        }).then(r=>r.json());
+        if(!d.success){showToast('error',d.error||'שגיאה');return;}
+        showToast('success','שיעור נוסף ✅');
+        window.showSportSchedule();
+    }catch(e){showToast('error','שגיאת תקשורת');}
+};
+
+window._sportDeleteClass = async function(classId) {
+    if(!confirm('למחוק שיעור זה?'))return;
+    try{await fetch(`${API}/sport/classes/${classId}`,{method:'DELETE'});showToast('success','נמחק');window.showSportSchedule();}
+    catch(e){showToast('error','שגיאת תקשורת');}
+};
+
+// ─── Class Detail & Attendance ────────────────────────────────────────────────
+window.showSportClassDetail = async function(classId) {
+    _ensureSportModal();
+    const modal=document.getElementById('sport-modal');
+    modal.innerHTML=`<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">נוכחות בשיעור</h2><span></span>
+        </div>
+        <div id="sport-class-detail-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    try{
+        const d=await fetch(`${API}/sport/classes/${classId}/registrations`).then(r=>r.json());
+        const regs=d.registrations||[];
+        const el=document.getElementById('sport-class-detail-content');
+        if(!regs.length){
+            el.innerHTML=`<div class="text-center py-8 text-slate-400 text-sm">אין נרשמים לשיעור זה</div>
+                <div class="p-4"><button onclick="window._sportRegisterToClass(${classId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">הוסף נרשם ➕</button></div>`;
+            return;
+        }
+        el.innerHTML=`<div class="text-xs font-black text-slate-500 mb-3 text-right">סמן נוכחות (${regs.length} נרשמים)</div>
+            ${regs.map(r2=>`<label class="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-2 cursor-pointer">
+                <input type="checkbox" id="att-${r2.membership_id}" ${r2.attended?'checked':''} class="w-5 h-5 accent-indigo-600"/>
+                <span class="font-bold text-slate-800 text-sm">${r2.member_name||''}</span>
+            </label>`).join('')}
+            <div class="mt-4 flex gap-2">
+                <button onclick="window._sportSaveAttendance(${classId},[${regs.map(r2=>r2.membership_id).join(',')}])" class="flex-1 bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור נוכחות ✅</button>
+                <button onclick="window._sportRegisterToClass(${classId})" class="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-2xl text-sm">+ הוסף</button>
+            </div>`;
+    }catch(e){document.getElementById('sport-class-detail-content').innerHTML='<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>';}
+};
+
+window._sportSaveAttendance = async function(classId, memberIds) {
+    const presentIds=memberIds.filter(id=>document.getElementById(`att-${id}`)?.checked);
+    try{
+        const d=await fetch(`${API}/sport/classes/${classId}/attendance`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({presentIds})}).then(r=>r.json());
+        if(!d.success){showToast('error',d.error||'שגיאה');return;}
+        showToast('success',`נוכחות נשמרה ✅ (${presentIds.length} נוכחים)`);
+        window.showSportSchedule();
+    }catch(e){showToast('error','שגיאת תקשורת');}
+};
+
+window._sportRegisterToClass = async function(classId) {
+    const q=prompt('שם חבר לרישום:');
+    if(!q)return;
+    try{
+        const members=(await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}`).then(r=>r.json())).members||[];
+        if(!members.length){showToast('error','חבר לא נמצא');return;}
+        const m=members[0];
+        const d=await fetch(`${API}/sport/classes/${classId}/register`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membershipId:m.id,memberName:m.member_name})}).then(r=>r.json());
+        if(!d.success){showToast('error',d.error||'שגיאה');return;}
+        showToast('success',`${m.member_name} נרשם/ה ✅`);
+        window.showSportClassDetail(classId);
+    }catch(e){showToast('error','שגיאת תקשורת');}
+};
+
+// ─── Reports Screen ───────────────────────────────────────────────────────────
+window.showSportReports = async function() {
+    _ensureSportModal();
+    const modal=document.getElementById('sport-modal');
+    modal.innerHTML=`<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">דוחות 📊</h2>
+            <select id="sport-report-period" onchange="window._sportLoadReports(this.value)" class="text-xs border border-slate-200 rounded-lg px-2 py-1">
+                <option value="month">החודש</option><option value="year">השנה</option>
+            </select>
+        </div>
+        <div id="sport-reports-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadReports('month');
+};
+
+window._sportLoadReports = async function(period) {
+    const el=document.getElementById('sport-reports-content');
+    if(!el)return;
+    try{
+        const d=await fetch(`${API}/sport/reports/${currentGroup.id}?period=${period}`).then(r=>r.json());
+        const sl={active:'פעיל',frozen:'מוקפא',expired:'פג',cancelled:'בוטל'};
+        const totalRev=(d.revenueByType||[]).reduce((s,t)=>s+parseFloat(t.total||0),0);
+        const totalMem=(d.membersByStatus||[]).reduce((s,m)=>s+parseInt(m.count||0),0);
+        const revRows=(d.revenueByType||[]).map(t=>`<div class="flex items-center justify-between py-2 border-b border-slate-50">
+            <span class="font-bold text-emerald-600">₪${parseFloat(t.total||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+            <div class="text-right"><div class="text-sm font-bold text-slate-700">${t.type_name||'לא מוגדר'}</div><div class="text-xs text-slate-400">${t.count} מנויים</div></div>
+        </div>`).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
+        const memRows=(d.membersByStatus||[]).map(m=>`<div class="flex items-center justify-between py-2 border-b border-slate-50">
+            <span class="font-bold text-slate-700">${m.count}</span>
+            <span class="text-sm text-slate-600">${sl[m.status]||m.status}</span>
+        </div>`).join('');
+        const maxCheckins=Math.max(1,...(d.checkinsByDay||[]).map(c=>parseInt(c.count)));
+        const checkinRows=(d.checkinsByDay||[]).slice(-14).map(c=>{
+            const dt=new Date(c.day).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});
+            const pct=Math.round((parseInt(c.count)/maxCheckins)*100);
+            return `<div class="flex items-center gap-2 py-1">
+                <span class="text-xs text-slate-400 w-12 text-left">${dt}</span>
+                <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-400 rounded-full" style="width:${pct}%"></div></div>
+                <span class="text-xs font-bold text-indigo-600 w-6">${c.count}</span>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
+        const monthRows=(d.revenueByMonth||[]).map(m=>{
+            const[y,mo]=m.month.split('-');
+            return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50">
+                <span class="font-bold text-emerald-600">₪${parseFloat(m.total||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
+                <span class="text-xs text-slate-500">${mo}/${y} · ${m.count} עסקאות</span>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
+        el.innerHTML=`
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-emerald-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-emerald-700">₪${totalRev.toLocaleString('he-IL',{maximumFractionDigits:0})}</div><div class="text-[11px] text-emerald-500">${period==='year'?'הכנסות השנה':'הכנסות החודש'}</div></div>
+                <div class="bg-indigo-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-indigo-700">${totalMem}</div><div class="text-[11px] text-indigo-500">סה"כ חברים</div></div>
+            </div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי סוג מנוי</div>${revRows}</div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">סטטוס חברים</div>${memRows}</div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות יומיות (14 ימים)</div>${checkinRows}</div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי חודש</div>${monthRows}</div>`;
+    }catch(e){el.innerHTML='<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>';}
+};
+
+// ─── rdAction routing — sport Phase 2 ────────────────────────────────────────
+(function(){
+    const prev=window.rdAction;
+    window.rdAction=function(tab,action){
+        if(action==='sport-schedule'){window.showSportSchedule();return;}
+        if(action==='sport-alerts')  {window.showSportAlerts();return;}
+        if(action==='sport-reports') {window.showSportReports();return;}
+        prev(tab,action);
+    };
+})();
+
+// ─── FamliAI sport context hook ───────────────────────────────────────────────
+(function(){
+    const origSubmit = window.submitGlobalAI;
+    if (origSubmit) {
+        window.submitGlobalAI = async function() {
+            if (currentGroup?.business_type === 'sport') {
+                try {
+                    const [sr,ar] = await Promise.all([
+                        fetch(`${API}/sport/dashboard/${currentGroup.id}`).then(r=>r.json()),
+                        fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json())
+                    ]);
+                    window._sportContextForAI = {
+                        sport_kpis: sr.stats||{},
+                        expiring_soon: (ar.expiring||[]).map(m=>({name:m.member_name,phone:m.member_phone,days_left:Math.ceil((new Date(m.end_date)-new Date())/86400000)})),
+                        at_risk: (ar.atRisk||[]).map(m=>({name:m.member_name,last_visit:m.last_checkin})),
+                        frozen: (ar.frozen||[]).map(m=>({name:m.member_name,reason:m.frozen_reason}))
+                    };
+                } catch(e) {}
+            }
+            return origSubmit.apply(this, arguments);
+        };
+    }
+})();
+
+// ===== END SPORT PHASE 2+ =====
