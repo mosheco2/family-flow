@@ -27429,10 +27429,12 @@ window.fetchWorkOrders = async function() {
     if (!currentGroup) return;
     const filter = document.getElementById('wo-list-filter')?.value || 'all';
     try {
-        const url = `${API}/work-orders/list/${currentGroup.id}${filter !== 'all' ? '?status=' + filter : ''}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        window.renderWorkOrdersList(data.workOrders || []);
+        // always fetch all for the cache, then render with filter
+        const allRes = await fetch(`${API}/work-orders/list/${currentGroup.id}`);
+        const allData = await allRes.json();
+        workOrdersCache = allData.workOrders || [];
+        const toRender = filter !== 'all' ? workOrdersCache.filter(wo => wo.status === filter) : workOrdersCache;
+        window.renderWorkOrdersList(toRender);
     } catch(e) { console.error('fetchWorkOrders', e); }
 };
 
