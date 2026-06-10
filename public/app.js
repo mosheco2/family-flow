@@ -486,11 +486,41 @@ function switchTab(t) { 
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
-    if (t === 'myorders') try { fetchMyOrders(); loadFamilyServiceCalls(); } catch(e) {}
+    if (t === 'myorders') {
+        try {
+            const lastSubTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
+            switchMyOrdersTab(lastSubTab);
+            fetchMyOrders();
+            loadFamilyServiceCalls();
+        } catch(e) {}
+    }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
 }
 
 let myOrdersCache = [];
+
+// --- Auto-refresh כל 20 שניות כשב-myorders ---
+let _myordersRefreshInterval = null;
+function startMyOrdersAutoRefresh() {
+    if (_myordersRefreshInterval) return;
+    _myordersRefreshInterval = setInterval(async () => {
+        if (window._currentFamilyTab !== 'myorders') return;
+        try {
+            const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+            const d = await res.json();
+            if (d.success) { myOrdersCache = d.orders || []; renderMyOrders(); }
+        } catch(e) {}
+        const quotesSection = getEl('myorders-section-quotes');
+        if (quotesSection && !quotesSection.classList.contains('hidden') && currentGroup) {
+            try {
+                const uid = currentUser ? currentUser.id : '';
+                const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
+                const d = await res.json();
+                if (d.success) { familyQuotesCache = d.quotes || []; renderFamilyQuotesTab(); }
+            } catch(e) {}
+        }
+    }, 20000);
+}
 
 async function fetchMyOrders() {
     const list = getEl('my-orders-list');
@@ -562,6 +592,7 @@ function applyOrdersFilter(orders) {
     return result;
 }
 function switchMyOrdersTab(tab) {
+    try { sessionStorage.setItem('myorders_sub_tab', tab); } catch(e) {}
     ['orders','faults','quotes'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
         const sec = getEl(`myorders-section-${t}`);
@@ -739,6 +770,7 @@ function _renderQuoteTimeline(historyRaw) {
         customer_response:      {icon:'fa-reply',             label:'שלחת תגובה',              color:'blue'},
         converted_to_work_order:{icon:'fa-hammer',            label:'הומרה לפקודת עבודה',       color:'emerald'},
         approved:               {icon:'fa-check-circle',      label:'אושרה',                   color:'green'},
+        business_message:       {icon:'fa-comment',           label:'הודעה מהעסק',              color:'purple'},
     };
     const respLabels = {approved:'אישרת', rejected:'סירבת', discount_request:'ביקשת הנחה', items_request:'ביקשת שינויים', message:'שלחת הודעה'};
     const sorted = [...history].sort((a,b) => new Date(a.ts)-new Date(b.ts));
@@ -816,7 +848,7 @@ function renderFamilyQuotesTab() {
         // חיווי "כדור אצל העסק"
         const waitingBizBanner = customerWaiting ? `
             <div class="mx-3 mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[11px] font-bold text-blue-700 flex items-center gap-2">
-                <i class="fa-solid fa-hourglass-half fa-spin text-blue-400"></i>
+                <i class="fa-solid fa-hourglass-half text-blue-400"></i>
                 תגובתך נשלחה — ממתין לעדכון מהעסק
             </div>` : '';
 
@@ -1167,6 +1199,7 @@ async function loadDashboard() {
     try {
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
         setInterval(refreshBellBadge, 30000); refreshBellBadge();
+        startMyOrdersAutoRefresh();
         try { fetchBanners(); } catch(e){}
         try { await fetchMembers(); } catch(e){}
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }

@@ -4459,6 +4459,31 @@ app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- הודעת עסק ללקוח בהצעת מחיר ---
+app.post('/api/store/quotes/:id/business-message', async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!text || !text.trim()) return res.status(400).json({ error: 'הודעה ריקה' });
+        const histEvent = JSON.stringify({ type: 'business_message', actor: 'business', ts: new Date().toISOString(), text: text.trim() });
+        const r = await pool.query(
+            `UPDATE store_orders SET quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb WHERE id=$1 RETURNING id`,
+            [req.params.id, `[${histEvent}]`]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        // התראה ללקוח
+        const q = await pool.query('SELECT family_group_id, customer_name, group_id FROM store_orders WHERE id=$1', [req.params.id]);
+        if (q.rows.length && q.rows[0].family_group_id) {
+            try {
+                const bizName = (await pool.query('SELECT name FROM family_groups WHERE id=$1', [q.rows[0].group_id])).rows[0]?.name || 'עסק';
+                await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
+                    VALUES ($1,'quote_business_message','הודעה מהעסק',$2,$3,'quote',NOW())`,
+                    [q.rows[0].family_group_id, `${bizName} שלח הודעה על הצעת מחיר: ${text.trim().substring(0,80)}`, req.params.id]);
+            } catch(e) {}
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- שליפת פקודות עבודה לעסק ---
 app.get('/api/work-orders/:businessGroupId', async (req, res) => {
     try {

@@ -6113,6 +6113,27 @@ window.fetchStoreQuotes = async function() {
     }
 };
 
+// Auto-refresh הצעות מחיר כל 20 שניות כשהטאב פתוח
+(function startBizQuotesAutoRefresh() {
+    setInterval(async () => {
+        if (!currentGroup) return;
+        const quotesSection = document.getElementById('store-quotes-section') || document.getElementById('biz-quotes-tab') || (() => {
+            const el = document.getElementById('store-quotes-list'); return el ? el.closest('[class*="hidden"]') || el.parentElement : null;
+        })();
+        // בדוק אם הסקציה גלויה
+        const listEl = document.getElementById('store-quotes-list');
+        if (!listEl || listEl.offsetParent === null) return;
+        try {
+            const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
+            const data = await res.json();
+            if (data.success && data.quotes) {
+                window.storeQuotesCache = data.quotes;
+                window.renderStoreQuotes();
+            }
+        } catch(e) {}
+    }, 20000);
+})();
+
 function _renderBizQuoteTimeline(historyRaw) {
     const history = typeof historyRaw === 'string' ? JSON.parse(historyRaw || '[]') : (historyRaw || []);
     if (!history.length) return '';
@@ -6122,6 +6143,7 @@ function _renderBizQuoteTimeline(historyRaw) {
         customer_response:       {icon:'fa-reply',        label:'תגובת לקוח',               actorColor:'text-amber-600'},
         converted_to_work_order: {icon:'fa-hammer',       label:'הומרה לפקודת עבודה',       actorColor:'text-emerald-600'},
         approved:                {icon:'fa-check-circle', label:'אושרה',                    actorColor:'text-green-600'},
+        business_message:        {icon:'fa-comment',      label:'שלחת הודעה ללקוח',         actorColor:'text-purple-600'},
     };
     const respLabels = {approved:'✅ אישר', rejected:'❌ סירב', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:'💬 הודעה'};
     const sorted = [...history].sort((a,b) => new Date(a.ts)-new Date(b.ts));
@@ -6293,6 +6315,14 @@ window.renderStoreQuotes = function() {
                  approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
             }
 
+            // תיבת הגב ללקוח (מוצגת כשיש תגובת לקוח ולא עדיין אושר)
+            const bizReplyHtml = (crType && q.family_group_id && !isApproved)
+                ? `<div class="mt-2 flex gap-1.5 items-center">
+                    <input type="text" id="biz-reply-${q.id}" placeholder="הגב ללקוח..." class="flex-1 text-xs border border-slate-200 rounded-xl px-2.5 py-1.5 bg-white outline-none focus:border-indigo-300" style="direction:rtl;">
+                    <button onclick="window.sendBizReply(${q.id})" class="text-[10px] font-bold bg-purple-600 text-white px-3 py-1.5 rounded-xl hover:bg-purple-700 transition whitespace-nowrap"><i class="fa-solid fa-reply ml-0.5"></i> שלח</button>
+                   </div>`
+                : '';
+
             // כפתור שלח ב-OneFlow
             const hasFamilyLink = !!q.family_group_id;
             const sendOneflowBtn = hasFamilyLink
@@ -6312,6 +6342,7 @@ window.renderStoreQuotes = function() {
                         ${crHtml}
                         ${displayNote}
                         ${timelineHtml}
+                        ${bizReplyHtml}
                     </div>
                     <div class="flex flex-col items-end gap-1 shrink-0">
                         <select id="quote-sel-${q.id}" onchange="window.updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold ${needsBusinessAction ? 'bg-orange-100 text-orange-800 border-orange-300' : isApproved ? 'bg-green-100 text-green-800 border-green-300' : 'bg-slate-50 border-slate-200 text-slate-600'} rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;" ${isApproved ? 'disabled' : ''}>
@@ -6359,6 +6390,31 @@ window.updateQuoteStatus = async function(id, status) {
         showToast('success', 'סטטוס הצעת המחיר עודכן');
         window.renderStoreQuotes();
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+};
+
+// הגב ללקוח בתוך הצעת מחיר
+window.sendBizReply = async function(quoteId) {
+    const input = document.getElementById(`biz-reply-${quoteId}`);
+    if (!input || !input.value.trim()) return;
+    const text = input.value.trim();
+    try {
+        const r = await fetch(`${API}/store/quotes/${quoteId}/business-message`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', 'ההודעה נשלחה ללקוח');
+            input.value = '';
+            const q = window.storeQuotesCache.find(x => String(x.id) === String(quoteId));
+            if (q) {
+                const hist = typeof q.quote_history === 'string' ? JSON.parse(q.quote_history || '[]') : (q.quote_history || []);
+                hist.push({ type: 'business_message', actor: 'business', ts: new Date().toISOString(), text });
+                q.quote_history = hist;
+            }
+            window.renderStoreQuotes();
+        } else { showToast('error', d.error || 'שגיאה בשליחה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 // שלח הצעת מחיר ב-OneFlow ללקוח שכבר משויך
