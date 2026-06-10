@@ -6705,7 +6705,7 @@ window.openEditQuoteModal = async function(quoteId) {
     const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items) : []);
 
     rawItems.forEach(i => {
-        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        if (i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
 
         let isComplex = false;
         if (i.options_text && i.options_text !== 'null' && i.options_text !== 'undefined') {
@@ -6715,7 +6715,9 @@ window.openEditQuoteModal = async function(quoteId) {
             } catch(e) {}
         }
 
-        let strId = String(i.catalogId || i.id || Date.now());
+        let strId = (i.catalogId && i.catalogId !== 0)
+            ? String(i.catalogId)
+            : 'custom_' + Math.random().toString(36).substr(2, 8);
         if (isComplex) {
             strId = strId + '_' + Date.now() + Math.random().toString(36).substr(2, 5);
         }
@@ -6996,8 +6998,8 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
             <button onclick="document.getElementById('quote-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-file-invoice text-indigo-500 mr-2"></i> ${window.editingQuoteId ? 'עריכת הצעת מחיר' : 'יצירת הצעת מחיר'}</h3>
             
-            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col lg:flex-row gap-6 transition-all">
-                <div id="quote-items-col" class="w-full lg:w-1/2 flex flex-col transition-all duration-300 min-h-[400px]">
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 flex flex-col gap-6 transition-all">
+                <div id="quote-items-col" class="w-full flex flex-col transition-all duration-300 min-h-[400px]">
 
                     <div class="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
                         <div class="col-span-2">
@@ -7044,22 +7046,15 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
 
                     <div class="flex justify-between items-center mb-2 border-b border-slate-100 pb-2 shrink-0">
                         <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-cart-arrow-down text-indigo-400 mr-1"></i> פריטים שנבחרו:</h4>
-                        <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> תצוגה מורחבת</button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="window.openQuoteItemPicker()" class="text-xs bg-indigo-600 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> הוסף פריט</button>
+                            <button id="btn-quote-expand" type="button" onclick="window.toggleQuoteExpandedView()" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-expand"></i> מורחב</button>
+                        </div>
                     </div>
                     
                     <div id="quote-selected-items" class="space-y-2 flex-1 overflow-y-auto modal-scroll pr-1 min-h-[150px]"></div>
                 </div>
 
-                <div id="quote-catalog-col" class="w-full lg:w-1/2 bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col transition-all duration-300">
-                    <h4 class="font-bold text-slate-700 text-sm mb-3"><i class="fa-solid fa-magnifying-glass text-indigo-400 mr-1"></i> קטלוג מוצרים להוספה:</h4>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="quote-search-item" oninput="window.renderQuoteCatalogGrid()" placeholder="חיפוש מוצר חופשי..." class="modern-input py-2 px-3 text-sm w-full bg-white font-bold shadow-sm">
-                        <select id="quote-cat-filter" onchange="window.renderQuoteCatalogGrid()" class="modern-input py-2 px-2 text-xs w-1/2 bg-white font-bold text-indigo-700 shadow-sm">
-                            <option value="all">כל הקטגוריות</option>
-                        </select>
-                    </div>
-                    <div id="quote-catalog-grid" class="grid grid-cols-2 gap-3 flex-1 overflow-y-auto modal-scroll pr-1 content-start"></div>
-                </div>
             </div>
             
             <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
@@ -7100,6 +7095,26 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
              </div>
         </div>
     </div>
+
+    <div id="quote-picker-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4 fade-in">
+        <div class="bg-white w-full sm:max-w-4xl rounded-t-[2rem] sm:rounded-[2rem] p-5 shadow-2xl relative flex flex-col" style="height:85vh; max-height:85vh;">
+            <button onclick="window.closeQuoteItemPicker()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-lg font-black text-slate-800 mb-3 shrink-0"><i class="fa-solid fa-magnifying-glass text-indigo-500 mr-2"></i> בחירת פריט להצעה</h3>
+            <div class="flex gap-2 mb-3 shrink-0">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
+                    <input type="text" id="quote-search-item" oninput="window.renderQuoteCatalogGrid()" placeholder="חיפוש מוצר..." class="modern-input py-2.5 pr-10 pl-3 text-sm w-full bg-slate-50 font-bold">
+                </div>
+                <select id="quote-cat-filter" onchange="window.renderQuoteCatalogGrid()" class="modern-input py-2 px-2 text-xs w-36 bg-slate-50 font-bold text-indigo-700">
+                    <option value="all">כל הקטגוריות</option>
+                </select>
+            </div>
+            <div id="quote-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 flex-1 overflow-y-auto modal-scroll pr-1 content-start"></div>
+            <div class="pt-3 border-t border-slate-100 shrink-0 mt-3">
+                <button onclick="window.closeQuoteItemPicker()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">סגור בחירה</button>
+            </div>
+        </div>
+    </div>
     `);
 
     const catSelect = document.getElementById('quote-cat-filter');
@@ -7126,9 +7141,20 @@ window.openNewQuoteModal = async function(skipDataReset = false) {
     }
     
     window.ensureQuoteHeaders();
-    window.renderQuoteCatalogGrid();
     window.renderQuoteSelectedItems();
     document.getElementById('quote-modal').classList.remove('hidden');
+};
+
+window.openQuoteItemPicker = function() {
+    const picker = document.getElementById('quote-picker-modal');
+    if (!picker) return;
+    picker.classList.remove('hidden');
+    window.renderQuoteCatalogGrid();
+};
+
+window.closeQuoteItemPicker = function() {
+    const picker = document.getElementById('quote-picker-modal');
+    if (picker) picker.classList.add('hidden');
 };
 
 window.renderQuoteCatalogGrid = function() {
@@ -7258,7 +7284,7 @@ window.renderQuoteSelectedItems = function() {
     });
 
     if (flattenedItems.length === 0) {
-        list.innerHTML = '<div class="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl"><i class="fa-solid fa-file-invoice text-3xl text-slate-200 mb-2"></i><p class="text-[11px] font-bold text-slate-500">סל ההצעה ריק.<br>בחרו מוצרים מהקטלוג משמאל.</p></div>';
+        list.innerHTML = '<div class="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl"><i class="fa-solid fa-file-invoice text-3xl text-slate-200 mb-2"></i><p class="text-[11px] font-bold text-slate-500 mt-2">סל ההצעה ריק.<br>לחצו על <strong>+ הוסף פריט</strong> לבחירת מוצרים.</p></div>';
         return;
     }
 
@@ -8010,7 +8036,10 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id}</span>
                     <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${safeStr(q.customer_name)} | ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
+                    <button onclick="event.stopPropagation(); window.openEditQuoteModal(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="ערוך הצעה"><i class="fa-solid fa-pen text-xs"></i></button>
+                </div>
             </div>`;
         });
         approvedQuotes.forEach(o => {

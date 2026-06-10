@@ -703,23 +703,15 @@ function setScTypeFilter(t) {
     renderBusinessServiceCallsTab();
 }
 
-function _renderOrderItems(items) {
-    let arr = items;
-    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return '<span>' + safeStr(arr) + '</span>'; } }
-    if (!Array.isArray(arr) || arr.length === 0) return '<span class="text-slate-400">אין פריטים</span>';
-    return arr.filter(i => !i.is_quote_metadata).map(i => {
-        const name = i.name || i.product_name || i.item || '';
-        const qty = i.quantity || i.qty || 1;
-        const price = i.price != null ? '&#8362;' + parseFloat(i.price).toFixed(2) : '';
-        return '<div class="flex justify-between gap-2"><span>' + safeStr(name) + ' × ' + qty + '</span><span class="font-mono text-slate-700">' + price + '</span></div>';
-    }).join('');
-}
-
 let familyQuotesCache = [];
 
 async function loadFamilyQuotes() {
     const list = getEl('family-quotes-list');
-    if (!list || !currentGroup) return;
+    if (!list) return;
+    if (!currentGroup) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">יש להתחבר תחילה לצפייה בהצעות מחיר.</p>';
+        return;
+    }
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הצעות מחיר...</p>';
     try {
         const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}`);
@@ -735,7 +727,8 @@ function renderFamilyQuotesTab() {
     if (!familyQuotesCache.length) {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
             <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-300 mb-3"></i>
-            <p class="text-sm font-bold text-slate-500">אין הצעות מחיר פתוחות.</p></div>`;
+            <p class="text-sm font-bold text-slate-500">אין הצעות מחיר עדיין.</p>
+            <p class="text-[11px] text-slate-400 mt-1">כאשר עסק ישלח לך הצעת מחיר דרך OneFlow, היא תופיע כאן.</p></div>`;
         return;
     }
     const statusMap = {
