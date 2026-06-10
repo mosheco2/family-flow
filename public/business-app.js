@@ -6325,8 +6325,15 @@ window.renderStoreQuotes = function() {
             } else if (needsBusinessAction) {
                  cardStyle = 'border-2 border-orange-400 bg-orange-50/40 shadow-md';
                  approveBtnHtml = `<div class="flex items-center gap-1.5 mt-2 w-full bg-orange-100 border border-orange-300 py-2 px-3 rounded-lg text-[10px] font-bold text-orange-800"><i class="fa-solid fa-triangle-exclamation"></i> נדרש עדכון — ערוך ושלח מחדש ב-OneFlow</div>`;
+                 if (isWoBusinessType) {
+                     approveBtnHtml += `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button>`;
+                 }
             } else if (!isApproved) {
-                 approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
+                 if (isWoBusinessType) {
+                     approveBtnHtml = `<button onclick="window.convertToWorkOrder(${q.id})" class="bg-teal-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-teal-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-hammer"></i> 🔨 המר לפקודת עבודה</button><button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-300 transition flex items-center gap-1.5 w-full justify-center mt-1"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
+                 } else {
+                     approveBtnHtml = `<button onclick="window.approveQuoteToOrder(${q.id})" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-[10px] font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1.5 w-full justify-center mt-2"><i class="fa-solid fa-check"></i> אישור והעברה להזמנות</button>`;
+                 }
             }
 
             // תיבת הגב ללקוח (מוצגת כשיש תגובת לקוח ולא עדיין אושר)
@@ -27376,7 +27383,7 @@ window.renderWorkOrdersList = function(workOrders) {
     const list = document.getElementById('work-orders-list');
     if (!list) return;
     if (!workOrders.length) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה. המר הצעת מחיר מאושרת לפקודת עבודה.</p>';
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.</p>';
         return;
     }
     const statusLabels = { processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' } };
