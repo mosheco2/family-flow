@@ -936,8 +936,12 @@ window.openFamilyQuoteView = function(quoteId) {
     const responseMap = { approved:'✅ אישרת', rejected:'❌ סירבת', discount_request:'💬 ביקשת הנחה', items_request:'📋 ביקשת שינויים', message:'💬 שלחת הודעה' };
     const responseLabel = alreadyResponded ? (responseMap[q.customer_response_type]||q.customer_response_type) : '';
     let actionHtml = '';
-    if (canRespond && !alreadyResponded) {
+    if (canRespond) {
+        const prevResponseHtml = alreadyResponded
+            ? `<div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2 text-xs text-blue-700 text-center"><i class="fa-solid fa-clock-rotate-left ml-1"></i><strong>תגובתך הקודמת:</strong> ${responseLabel}${q.customer_response ? ` — ${safeStr(q.customer_response)}` : ''}</div>`
+            : '';
         actionHtml = `<div class="border-t border-slate-100 p-4 space-y-2 shrink-0 bg-white">
+            ${prevResponseHtml}
             <p class="text-[10px] font-bold text-slate-500 mb-2 text-center">מה תרצה לעשות עם ההצעה?</p>
             <div class="grid grid-cols-2 gap-2">
                 <button onclick="window._fqvRespond(${quoteId},'approved','')" class="bg-green-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר הצעה</button>
