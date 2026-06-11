@@ -11258,7 +11258,7 @@ app.post('/api/member/create-for-business', async (req, res) => {
             linkStatus = 'pending'; // existing account → needs member approval
         } else {
             isNew = true;
-            linkStatus = 'active'; // new account created by this business → trusted
+            linkStatus = 'pending'; // new account still needs member approval on first login
             const groupName = `${name} - ONEFLOW`;
             const groupCode = 'M' + Date.now().toString().slice(-6);
             const groupR = await client.query(
