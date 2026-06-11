@@ -3653,9 +3653,18 @@ window.renderDashboard = async function(forceRefresh = false) {
 
     // For admin/owner in sport business, render sport dashboard into content-feed
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'sport') {
-        if (window._sportScreenActive) return; // sport sub-screen is open — don't overwrite
-        switchTab('feed');
+        if (window._sportScreenActive || window._sportDashRendering) return;
+        window._sportDashRendering = true;
+        // Show content-feed directly — avoid calling switchTab which re-triggers renderDashboard
+        ['timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost',
+         'customers','bank','cashflow','budget','forecast','tasks','deliveries','academy',
+         'community','members','surveys','role-dashboard'].forEach(x => {
+            const el = document.getElementById(`content-${x}`); if (el) el.classList.add('hidden');
+        });
         const feedEl = document.getElementById('content-feed');
+        if (feedEl) feedEl.classList.remove('hidden');
+        const feedBtn = document.getElementById('tab-feed');
+        if (feedBtn) { document.querySelectorAll('[id^="tab-"]').forEach(b => b.classList.remove('tab-active')); feedBtn.classList.add('tab-active'); }
         ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
             const el = document.getElementById(id); if (el) el.classList.add('hidden');
         });
@@ -3670,6 +3679,7 @@ window.renderDashboard = async function(forceRefresh = false) {
                 } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
+        window._sportDashRendering = false;
         return;
     }
 
@@ -28298,7 +28308,16 @@ window._sportDeleteType = async function(typeId) {
 // ─── Sport screen navigation (within app shell) ───────────────────────────────
 function _ensureSportModal() {
     window._sportScreenActive = true;
-    switchTab('feed'); // shows content-feed; renderDashboard is blocked by flag above
+    // Show content-feed directly without calling switchTab (avoids renderDashboard recursion)
+    ['timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost',
+     'customers','bank','cashflow','budget','forecast','tasks','deliveries','academy',
+     'community','members','surveys','role-dashboard'].forEach(x => {
+        const el = document.getElementById(`content-${x}`); if (el) el.classList.add('hidden');
+    });
+    const _f = document.getElementById('content-feed');
+    if (_f) _f.classList.remove('hidden');
+    const _fb = document.getElementById('tab-feed');
+    if (_fb) { document.querySelectorAll('[id^="tab-"]').forEach(b=>b.classList.remove('tab-active')); _fb.classList.add('tab-active'); }
     ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id); if (el) el.classList.add('hidden');
     });
