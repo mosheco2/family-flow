@@ -418,7 +418,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
         <div class="step-num">2</div>
         <div>
           <div class="step-title">הגדר סוגי מנויים</div>
-          <div class="step-desc">עבור לתפריט תחתון → <strong>מכירות</strong> → טאב <strong>"מנויים"</strong> (הטאב הראשון). לחץ <strong>"+ מנוי חדש"</strong> והוסף לפחות סוג מנוי אחד: שם (לדוג' "מנוי חודשי"), מחיר, מספר כניסות (אם רלוונטי), משך בחודשים. ללא סוגי מנויים לא ניתן לרשום חברים.</div>
+          <div class="step-desc">עבור לתפריט הניווט → <strong>מכירות</strong> → מהתפריט הנפתח בחר <strong>"מכירות וחנות"</strong> → טאב <strong>"מנויים"</strong> (נפתח כברירת מחדל). לחץ <strong>"+ מנוי חדש"</strong> והוסף לפחות סוג מנוי אחד: שם, סוג (חודשי/שנתי/כרטיסייה/PT), מחיר. ללא סוגי מנויים לא ניתן לרשום חברים.</div>
         </div>
       </div>
       <div class="step">
@@ -581,7 +581,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
       <span class="callout-icon">🧭</span>
       <div>
         <strong>מבנה הניווט — שתי שכבות:</strong><br>
-        <strong>1. תפריט תחתון קבוע</strong> — ראשי | צוות | מכירות | מלאי | כספים | עוד<br>
+        <strong>1. תפריט ניווט קבוע</strong> — ראשי | צוות | מכירות (dropdown) | מלאי | כספים | עוד<br>
         <strong>2. פעולות מהירות בדשבורד (ראשי)</strong> — כפתורים שפותחים מסכי ניהול ספורט: צ'ק-אין, מנויים, שיעורים, מאמנים, לידים, התראות, הצהרות, דוחות, ONEFLOW, הודעות, AI<br><br>
         <strong>כלל מנחה:</strong> ניהול <em>חברי המועדון ופעילות יומיומית</em> → דרך פעולות מהירות בדשבורד (ראשי). ניהול <em>מכירות, כספים, הגדרות</em> → דרך התפריט התחתון.
       </div>
@@ -653,25 +653,35 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
 
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">תפריט תחתון → <strong>מכירות</strong> → טאב <strong>"מנויים"</strong> (הטאב הראשון — נפתח כברירת מחדל)</p>
-      <p style="font-size:0.82rem;color:#64748b;margin-top:0.4rem">במסך זה תראה: <strong>מנוי חדש +</strong> | <strong>תבניות הרכבה</strong> — ומתחת, רשימת כל סוגי המנויים הקיימים ומוצרים נוספים</p>
+      <div style="font-size:0.85rem;color:#475569">
+        <div>תפריט ניווט → <strong>מכירות</strong> (לחץ לפתיחת dropdown)</div>
+        <div style="margin-top:0.4rem;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:0.5rem;border:1px solid #e2e8f0;font-size:0.82rem">
+          <div style="color:#64748b;font-weight:700;margin-bottom:0.3rem">אפשרויות ב-dropdown "מכירות":</div>
+          <div>🛒 <strong>קופה</strong> — מסך POS לביצוע מכירות</div>
+          <div>🛍️ <strong>מכירות וחנות</strong> ← <strong>כאן נמצאים סוגי המנויים</strong></div>
+          <div>🤝 <strong>חברים</strong> — רשימת לקוחות/חברים (שונה ממסך "מנויים" בדשבורד)</div>
+          <div>🛵 <strong>שליחויות</strong> — ניהול משלוחים</div>
+        </div>
+        <div style="margin-top:0.5rem">אחרי לחיצה על <strong>"מכירות וחנות"</strong> — תראה טאבים: <strong>מנויים | הצעות מחיר | הזמנות | אנליטיקה | גדרות | שיווק</strong></div>
+        <div style="margin-top:0.3rem">הטאב <strong>"מנויים"</strong> נפתח כברירת מחדל</div>
+      </div>
     </div>
 
     <div class="screen-section">
       <div class="screen-section-title">➕ הוספת סוג מנוי חדש — שלבים</div>
       <div class="steps">
-        <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ "+ מנוי חדש"</div><div class="step-desc">הכפתור נמצא בחלק העליון של הרשימה, משמאל ל"תבניות הרכבה"</div></div></div>
-        <div class="step"><div class="step-num">2</div><div><div class="step-title">מלא את הפרטים ושמור</div><div class="step-desc">שדות הטופס מפורטים בסקשן הבא</div></div></div>
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">מכירות → מכירות וחנות → טאב "מנויים"</div><div class="step-desc">בראש הטאב מוצג כפתור קיצור <strong>"כללי הרשמה לשיעורים ↗"</strong> — זהו קישור נפרד לניהול סוגי שיעורים, לא שייך לטופס המנוי</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">לחץ "+ מנוי חדש"</div><div class="step-desc">נפתח טופס inline ברשימה</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">מלא את הפרטים ושמור</div><div class="step-desc">שדות הטופס מפורטים בסקשן הבא</div></div></div>
       </div>
     </div>
 
     <div class="screen-section">
       <div class="screen-section-title">📋 שדות סוג מנוי חדש</div>
       <div class="field-row"><div class="field-name">שם המנוי</div><div class="field-desc">שם שיוצג לחברים בחנות הציבורית. לדוג' "מנוי חודשי", "כרטיסיה 10 כניסות", "מנוי שנתי VIP"</div></div>
+      <div class="field-row"><div class="field-name">סוג מנוי</div><div class="field-desc">dropdown עם 5 אפשרויות: <strong>חודשי | שנתי | כרטיסייה | כניסה יומית | אימונים אישיים (PT)</strong>. הסוג קובע את התנהגות המנוי (לפי זמן / לפי כמות)</div></div>
       <div class="field-row"><div class="field-name">מחיר (₪)</div><div class="field-desc">המחיר שישולם בעת רכישה. ניתן לשנות בכל עת — לא משפיע על מנויים קיימים</div></div>
-      <div class="field-row"><div class="field-name">מספר כניסות</div><div class="field-desc">אם המנוי הוא כרטיסיה — הכנס מספר. אם מנוי לפי זמן בלבד — השאר ריק</div></div>
-      <div class="field-row"><div class="field-name">משך (חודשים)</div><div class="field-desc">תקפות המנוי. 1 = חודשי, 12 = שנתי. משמש לחישוב תאריך סיום אוטומטי</div></div>
-      <div class="field-row"><div class="field-name">תיאור</div><div class="field-desc">טקסט שיוצג בחנות הציבורית — מה כלול במנוי, מגבלות וכו'</div></div>
+      <div class="field-row"><div class="field-name">מספר מפגשים</div><div class="field-desc">רלוונטי לכרטיסייה ו-PT בלבד — מספר הכניסות/אימונים הכלולים. שאר הסוגים — אין צורך</div></div>
     </div>
 
     <div class="screen-section">
@@ -898,7 +908,11 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
 
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">דשבורד → <strong>"שיעורים 🗓️"</strong> → כפתור <strong>"🎽 סוגים"</strong> בראש המסך<br>— או — תפריט תחתון → מכירות → טאב "מנויים" → קישור <strong>"כללי הרשמה לשיעורים ↗"</strong></p>
+      <p style="font-size:0.85rem;color:#475569">דשבורד (ראשי) → כפתור <strong>"שיעורים 🗓️"</strong> → כפתור <strong>"🎽 סוגים"</strong> בראש המסך<br>— קיצור דרך — מכירות → מכירות וחנות → מעל רשימת המנויים מוצג <strong>"כללי הרשמה לשיעורים ↗"</strong></p>
+      <div class="callout callout-info" style="margin-top:0.75rem">
+        <span class="callout-icon">ℹ️</span>
+        <div><strong>"כללי הרשמה לשיעורים"</strong> הוא קיצור דרך לניהול <em>סוגי שיעורים</em> — לא חלק מטופס "מנוי חדש". ההגדרה היא: אילו <strong>סוגי מנויים</strong> רשאים להירשם לאיזה <strong>סוג שיעור</strong>. ההגדרה מבוצעת בצד סוג השיעור.</div>
+      </div>
     </div>
 
     <div class="screen-section">
@@ -1193,7 +1207,8 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
   <div class="card-body">
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">תפריט תחתון → <strong>"מכירות"</strong>. הטאבים הזמינים תחת מכירות: <strong>מנויים | הצעות מחיר | הזמנות | אנליטיקה | גדרות | שיווק</strong></p>
+      <p style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>"מכירות"</strong> (dropdown) → <strong>"מכירות וחנות"</strong><br>
+      לאחר כניסה: טאבים פנימיים — <strong>מנויים | הצעות מחיר | הזמנות | אנליטיקה | גדרות | שיווק</strong></p>
     </div>
 
     <div class="screen-section">
