@@ -9924,7 +9924,10 @@ app.get('/api/sport/dashboard/:groupId', async (req, res) => {
             pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2 AND checked_out_at IS NULL`, [gid, today]),
             pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30 AND membership_id IS NOT NULL)`, [gid])
         ]);
-        const revenueRes = await pool.query(`SELECT COALESCE(SUM(t.amount),0) as total FROM transactions t WHERE t.group_id=$1 AND t.type='income' AND DATE_TRUNC('month',t.created_at)=DATE_TRUNC('month',CURRENT_DATE)`, [gid]);
+        const revenueRes = await pool.query(
+            `SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE group_id=$1 AND type='income' AND date >= DATE_TRUNC('month',CURRENT_DATE)`,
+            [gid]
+        );
         res.json({ success: true, stats: {
             active_members: parseInt(activeRes.rows[0].count),
             expiring_soon: parseInt(expiringRes.rows[0].count),
