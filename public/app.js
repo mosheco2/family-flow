@@ -8791,8 +8791,9 @@ async function _memberLoadOrders(bizGroupId, bizType) {
         const d = await r.json();
         const orders = d.orders || [];
         if (!orders.length) { el.innerHTML = `<div style="color:#94a3b8;font-size:12px;text-align:center;padding:8px;">אין היסטוריה עדיין</div>`; return; }
+        const resolvedType = d.type || bizType;
         el.innerHTML = orders.map(o => {
-            if (bizType === 'sport') {
+            if (resolvedType === 'sport') {
                 const statusColor = { active:'#10b981', frozen:'#3b82f6', expired:'#ef4444', cancelled:'#94a3b8' }[o.status] || '#94a3b8';
                 const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[o.status] || o.status;
                 const end = o.end_date ? new Date(o.end_date).toLocaleDateString('he-IL') : '—';
@@ -8803,6 +8804,41 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                         <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.type_name||'מנוי')}</span>
                     </div>
                     <div style="font-size:10px;color:#94a3b8;">${sess}${sess?' · ':''}עד ${end}</div>
+                </div>`;
+            } else if (resolvedType === 'maintenance_repair') {
+                const SC_STATUS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+                const SC_COLOR = { new:'#6366f1', seen:'#3b82f6', in_progress:'#f59e0b', pending_parts:'#f97316', done:'#10b981', cancelled:'#94a3b8' };
+                const statusLabel = SC_STATUS[o.status] || o.status;
+                const statusColor = SC_COLOR[o.status] || '#94a3b8';
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                const scheduled = o.scheduled_at ? ` · תור: ${new Date(o.scheduled_at).toLocaleDateString('he-IL')}` : '';
+                const price = o.price_quote ? ` · ₪${parseFloat(o.price_quote).toFixed(0)}` : '';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.title||'קריאת שירות')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${date}${scheduled}${price}</div>
+                </div>`;
+            } else if (resolvedType === 'restaurant') {
+                const REST_STATUS = { new:'חדשה', preparing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטל' };
+                const REST_COLOR = { new:'#6366f1', preparing:'#f59e0b', ready:'#10b981', delivered:'#64748b', cancelled:'#94a3b8' };
+                const statusLabel = REST_STATUS[o.status] || o.status;
+                const statusColor = REST_COLOR[o.status] || '#94a3b8';
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                const deliveryTag = o.is_delivery ? ' · 🛵 משלוח' : ' · 🥡 איסוף';
+                let itemsSummary = '';
+                try {
+                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+                    if (items.length) itemsSummary = items.slice(0,3).map(it => safeStr(it.name||it.title||'')).filter(Boolean).join(', ');
+                } catch(e2) {}
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.order_number||'הזמנה')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${date}${deliveryTag}${o.total_amount?' · ₪'+parseFloat(o.total_amount).toFixed(0):''}</div>
+                    ${itemsSummary ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${itemsSummary}</div>` : ''}
                 </div>`;
             } else {
                 const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';

@@ -11371,6 +11371,25 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
                      WHERE sm.group_id=$1 AND sm.member_phone=$2
                      ORDER BY sm.created_at DESC`, [businessGroupId, phone]);
             orders = r.rows.map(o => ({ ...o, category: 'מנוי' }));
+        } else if (bizType === 'maintenance_repair') {
+            const r = await pool.query(
+                `SELECT id, title, status, priority, price_quote, scheduled_at, created_at, description
+                 FROM service_calls
+                 WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_name=$3)
+                 ORDER BY created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname]
+            );
+            orders = r.rows.map(o => ({ ...o, category: 'קריאת שירות' }));
+        } else if (bizType === 'restaurant') {
+            const r = await pool.query(
+                `SELECT o.id, o.customer_name, o.status, o.total_amount, o.created_at,
+                        o.items, o.is_delivery, o.delivery_details
+                 FROM store_orders o
+                 WHERE o.group_id=$1 AND (o.customer_phone=$2 OR o.customer_name=$3)
+                 ORDER BY o.created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname]
+            );
+            orders = r.rows.map(o => ({ ...o, order_number: `#${o.id}`, category: 'הזמנה' }));
         } else {
             const r = await pool.query(
                 `SELECT o.id, o.customer_name, o.status, o.total_amount, o.created_at
