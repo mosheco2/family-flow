@@ -30041,6 +30041,7 @@ window.showSportMemberDetail = async function(memberId) {
                 ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}');window.showSportMembers()" class="flex-1 min-w-[72px] bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-xs">הקפא ❄️</button>`:''}
                 ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
                 <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
+                <button onclick="window.showAddToOneflow('${(m.member_name||'').replace(/'/g,"\\'")}','${(m.member_phone||'').replace(/'/g,"\\'")}',${m.id})" class="flex-1 min-w-[72px] bg-violet-100 text-violet-700 font-bold py-2 rounded-xl text-xs">🔗 ONEFLOW</button>
             </div>
             <div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
             ${d.classes?.length?`<div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">שיעורים</div>${classRows}</div>`:''}
