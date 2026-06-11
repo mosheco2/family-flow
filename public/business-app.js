@@ -28367,7 +28367,7 @@ window.renderSportSalesCatalogView = async function() {
     const catalogHeader = document.querySelector('#sales-view-catalog .flex.justify-between.items-center');
     if (catalogHeader) {
         const title = catalogHeader.querySelector('h4');
-        if (title) title.textContent = 'סוגי מנויים';
+        if (title) title.textContent = 'מנויים ומוצרים';
         const addBtn = catalogHeader.querySelector('button');
         if (addBtn) {
             addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> מנוי חדש';
@@ -28377,10 +28377,21 @@ window.renderSportSalesCatalogView = async function() {
     const list = document.getElementById('store-catalog-list');
     if (!list) return;
 
-    // inject add-form if not present
-    let addForm = document.getElementById('sport-inline-add-type-form');
-    if (!addForm) {
-        const formHtml = `<div id="sport-inline-add-type-form" class="hidden bg-slate-50 rounded-2xl p-4 mb-4 space-y-3 border border-slate-200">
+    // inject add-membership-form + class-types shortcut if not present
+    if (!document.getElementById('sport-inline-add-type-form')) {
+        const injectHtml = `
+        <!-- Booking rules shortcut -->
+        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 mb-4 flex items-center justify-between">
+            <button onclick="window._openSportClassTypesFromSales()" class="text-xs font-bold text-indigo-700 flex items-center gap-1.5 bg-indigo-100 px-3 py-2 rounded-xl hover:bg-indigo-200 transition">
+                <i class="fa-solid fa-sliders"></i> כללי הרשמה לשיעורים ↗
+            </button>
+            <div class="text-right">
+                <div class="text-xs font-black text-indigo-800">הגדרות שיעורים</div>
+                <div class="text-[10px] text-indigo-500">איזה מנוי מאפשר הרשמה, מתי נפתח/נסגר</div>
+            </div>
+        </div>
+        <!-- Add membership form -->
+        <div id="sport-inline-add-type-form" class="hidden bg-slate-50 rounded-2xl p-4 mb-4 space-y-3 border border-slate-200">
             <div class="text-sm font-black text-slate-700">הוסף סוג מנוי</div>
             <input id="sport-inline-type-name" type="text" placeholder="שם המנוי (למשל: מנוי חודשי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
             <select id="sport-inline-type-kind" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
@@ -28399,20 +28410,20 @@ window.renderSportSalesCatalogView = async function() {
                 <button onclick="window._sportToggleInlineAddType()" class="px-4 bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm">ביטול</button>
             </div>
         </div>`;
-        list.insertAdjacentHTML('beforebegin', formHtml);
+        list.insertAdjacentHTML('beforebegin', injectHtml);
     }
 
     list.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
     try {
-        const r = await fetch(`${API}/sport/membership-types/${currentGroup.id}`);
-        const d = await r.json();
-        const types = d.types || [];
+        const [memRes, catalogRes] = await Promise.all([
+            fetch(`${API}/sport/membership-types/${currentGroup.id}`).then(r=>r.json()),
+            fetch(`${API}/store/catalog/${currentGroup.id}`).then(r=>r.json()).catch(()=>[])
+        ]);
+        const memTypes = memRes.types || [];
+        const catalogItems = Array.isArray(catalogRes) ? catalogRes : [];
         const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
-        if (!types.length) {
-            list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין סוגי מנויים עדיין. לחץ "מנוי חדש" להוספה.</p>`;
-            return;
-        }
-        list.innerHTML = types.map(t => `
+
+        const memHtml = memTypes.length ? memTypes.map(t => `
             <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 mb-2">
                 <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0">
@@ -28426,8 +28437,45 @@ window.renderSportSalesCatalogView = async function() {
                 <button onclick="window._sportDeleteTypeInline(${t.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100 transition shrink-0">
                     <i class="fa-solid fa-trash text-xs"></i>
                 </button>
-            </div>`).join('');
+            </div>`).join('')
+            : `<p class="text-center text-slate-400 py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-sm">אין מנויים עדיין. לחץ "מנוי חדש" להוספה.</p>`;
+
+        const productsHtml = catalogItems.length ? `
+            <div class="mt-5 mb-2">
+                <div class="flex justify-between items-center mb-3">
+                    <button onclick="window.openStoreProductModal()" class="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
+                    <h4 class="font-bold text-slate-600 text-sm">מוצרים נוספים 🛍️</h4>
+                </div>
+                ${catalogItems.map(p => `
+                <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 mb-2">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="toggleStoreProduct(${p.id},${!p.is_available})" class="text-[10px] font-bold px-2 py-1 rounded-lg border ${p.is_available?'text-green-600 bg-green-50 border-green-200':'text-slate-500 bg-slate-100 border-slate-200'}">${p.is_available?'זמין':'מוסתר'}</button>
+                        <button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </div>
+                    <div class="min-w-0 text-right flex-1">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.name)}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">₪${p.price} · ${safeStr(p.category||'כללי')}</p>
+                    </div>
+                </div>`).join('')}
+            </div>` : `
+            <div class="mt-5">
+                <div class="flex justify-between items-center mb-2">
+                    <button onclick="window.openStoreProductModal()" class="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
+                    <h4 class="font-bold text-slate-600 text-sm">מוצרים נוספים 🛍️</h4>
+                </div>
+                <p class="text-center text-slate-400 py-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-xs">אין מוצרים נוספים. הוסף כניסה חד-פעמית, ציוד וכד׳</p>
+            </div>`;
+
+        list.innerHTML = memHtml + productsHtml;
     } catch(e) { list.innerHTML = `<p class="text-center text-red-400 text-sm py-4">שגיאה בטעינה</p>`; }
+};
+
+// Navigate to class-types booking rules from within the sales tab
+window._openSportClassTypesFromSales = function() {
+    if (typeof window.showSportClassTypes === 'function') {
+        window.showSportClassTypes();
+    }
 };
 
 window._sportToggleInlineAddType = function() {
