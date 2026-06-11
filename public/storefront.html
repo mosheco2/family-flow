@@ -2205,5 +2205,300 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
         initStore();
     </script>
+
+    <!-- ===== SPORT / FITNESS PUBLIC MODULE ===== -->
+    <script>
+    (function() {
+        // Runs after initStore loads storeData
+        const _origInitStore = window.initStore;
+        window.initStore = async function() {
+            await _origInitStore.apply(this, arguments);
+            if (storeData && storeData.businessType === 'sport') {
+                await window.initSportStore();
+            }
+        };
+    })();
+
+    window.initSportStore = async function() {
+        // Load sport data
+        const gId = storeData.groupId;
+        let sportTypes = [], sportSchedule = [];
+        try {
+            const [tRes, sRes] = await Promise.all([
+                fetch(`${API}/sport/public-types/${gId}`).then(r=>r.json()),
+                fetch(`${API}/sport/public-schedule/${gId}`).then(r=>r.json())
+            ]);
+            sportTypes = tRes.types || [];
+            sportSchedule = sRes.classes || [];
+        } catch(e) {}
+
+        // Hide regular catalog, show sport layout
+        const catalogEl = document.getElementById('catalog-section');
+        if (catalogEl) catalogEl.classList.add('hidden');
+        const filterEl = document.getElementById('category-filter-section');
+        if (filterEl) filterEl.classList.add('hidden');
+
+        // Inject sport container after catalog
+        const storeApp = document.getElementById('store-app');
+        const sportDiv = document.createElement('div');
+        sportDiv.id = 'sport-public-section';
+        sportDiv.className = 'pb-32';
+        storeApp.appendChild(sportDiv);
+
+        window.renderSportPublic(sportTypes, sportSchedule);
+        window.setupSportModals(gId, sportTypes);
+    };
+
+    window.renderSportPublic = function(types, schedule) {
+        const el = document.getElementById('sport-public-section');
+        if (!el) return;
+
+        const typeKindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'כניסה יומית', pt_sessions:'אימונים אישיים' };
+        const colorBorder = { indigo:'border-indigo-400', violet:'border-violet-400', emerald:'border-emerald-400', orange:'border-orange-400', red:'border-red-400', blue:'border-blue-400', teal:'border-teal-400', pink:'border-pink-400' };
+        const colorBg = { indigo:'bg-indigo-600', violet:'bg-violet-600', emerald:'bg-emerald-600', orange:'bg-orange-500', red:'bg-red-600', blue:'bg-blue-600', teal:'bg-teal-600', pink:'bg-pink-500' };
+
+        const typesHtml = types.length ? types.map(t => `
+            <div class="bg-white rounded-2xl shadow-sm border-r-4 ${colorBorder[t.color]||colorBorder.indigo} p-4 flex flex-col gap-2">
+                <div class="flex items-start justify-between">
+                    <div class="text-xl font-black text-slate-800">₪${parseFloat(t.price).toLocaleString('he-IL',{maximumFractionDigits:0})}</div>
+                    <div class="text-right">
+                        <div class="font-black text-slate-800 text-base">${t.name}</div>
+                        <div class="text-xs text-slate-500">${typeKindLabel[t.type]||t.type}${t.duration_days?' · '+t.duration_days+' ימים':''}${t.sessions?' · '+t.sessions+' כניסות':''}</div>
+                    </div>
+                </div>
+                <button onclick="window.openSportPurchaseModal(${t.id},'${(t.name||'').replace(/'/g,"\\'")}',${t.price})"
+                    class="${colorBg[t.color]||colorBg.indigo} text-white font-black py-2.5 rounded-xl text-sm w-full active:scale-95 transition mt-1">
+                    הצטרף עכשיו 🏃
+                </button>
+            </div>`).join('')
+            : `<div class="text-center text-slate-400 text-sm py-4">אין מנויים להצגה כרגע</div>`;
+
+        // Build schedule grouped by date
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const byDate = {};
+        schedule.forEach(c => { if (!byDate[c.class_date]) byDate[c.class_date] = []; byDate[c.class_date].push(c); });
+        const schedHtml = Object.keys(byDate).sort().slice(0,7).map(date => {
+            const d = new Date(date);
+            const isToday = date === new Date().toISOString().split('T')[0];
+            const dateFmt = d.toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit'});
+            return `<div class="mb-3">
+                <div class="text-xs font-black text-slate-500 mb-1.5 text-right ${isToday?'text-indigo-600':''}">
+                    ${isToday?'📍 היום — ':''}${dayNames[d.getDay()]} ${dateFmt}
+                </div>
+                ${byDate[date].map(c => {
+                    const isFull = parseInt(c.registered_count) >= (c.capacity||20);
+                    const spotsLeft = (c.capacity||20) - parseInt(c.registered_count);
+                    const cb = c.color || 'indigo';
+                    const clsColor = {indigo:'bg-indigo-50 border-indigo-200',violet:'bg-violet-50 border-violet-200',emerald:'bg-emerald-50 border-emerald-200',orange:'bg-orange-50 border-orange-200',red:'bg-red-50 border-red-200',blue:'bg-blue-50 border-blue-200',teal:'bg-teal-50 border-teal-200'}[cb]||'bg-indigo-50 border-indigo-200';
+                    return `<div class="border rounded-xl p-3 mb-1.5 ${clsColor}">
+                        <div class="flex items-center justify-between">
+                            <button ${isFull?'':''}onclick="window.openSportClassRegister(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}','${c.class_date}','${c.start_time||''}')"
+                                class="text-xs font-bold px-3 py-1.5 rounded-lg ${isFull?'bg-slate-200 text-slate-500':'bg-white text-indigo-600 border border-indigo-300'} ${isFull?'cursor-not-allowed':''}">
+                                ${isFull ? 'מלא' : 'הרשם'}
+                            </button>
+                            <div class="text-right">
+                                <div class="font-black text-slate-800 text-sm">${c.class_name||c.type_name||'שיעור'}</div>
+                                <div class="text-[11px] text-slate-500">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''} · ${isFull?'🔴 מלא':''+spotsLeft+' מקומות'}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }).join('') || `<div class="text-center text-slate-400 text-sm py-4">אין שיעורים מתוכננים</div>`;
+
+        el.innerHTML = `
+            <div class="px-4 pt-2 pb-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="window._sportPublicTab('memberships')" id="spt-tab-memberships"
+                        class="flex-1 py-2.5 text-sm font-black rounded-xl bg-indigo-600 text-white">🏃 מנויים</button>
+                    <button onclick="window._sportPublicTab('schedule')" id="spt-tab-schedule"
+                        class="flex-1 py-2.5 text-sm font-black rounded-xl bg-slate-100 text-slate-600">🗓️ לוח שיעורים</button>
+                    <button onclick="window._sportPublicTab('checkin')" id="spt-tab-checkin"
+                        class="flex-1 py-2.5 text-sm font-black rounded-xl bg-slate-100 text-slate-600">📱 כרטיס כניסה</button>
+                </div>
+                <div id="spt-content-memberships">${typesHtml}</div>
+                <div id="spt-content-schedule" class="hidden">${schedHtml}</div>
+                <div id="spt-content-checkin" class="hidden">
+                    <div class="bg-slate-50 rounded-2xl p-6 text-center">
+                        <div class="text-4xl mb-3">📱</div>
+                        <div class="font-black text-slate-800 mb-2">כרטיס כניסה דיגיטלי</div>
+                        <div class="text-sm text-slate-500 mb-4">הזן את מספר הטלפון שלך לקבלת קוד כניסה</div>
+                        <input id="spt-qr-phone" type="tel" placeholder="05X-XXXXXXX" dir="ltr"
+                            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-center text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                        <button onclick="window._sportSelfCheckin()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl text-sm">כניסה ✅</button>
+                        <div id="spt-checkin-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>`;
+    };
+
+    window._sportPublicTab = function(tab) {
+        ['memberships','schedule','checkin'].forEach(t => {
+            const content = document.getElementById(`spt-content-${t}`);
+            const btn = document.getElementById(`spt-tab-${t}`);
+            if (!content || !btn) return;
+            if (t === tab) {
+                content.classList.remove('hidden');
+                btn.className = 'flex-1 py-2.5 text-sm font-black rounded-xl bg-indigo-600 text-white';
+            } else {
+                content.classList.add('hidden');
+                btn.className = 'flex-1 py-2.5 text-sm font-black rounded-xl bg-slate-100 text-slate-600';
+            }
+        });
+    };
+
+    window._sportSelfCheckin = async function() {
+        const phone = document.getElementById('spt-qr-phone')?.value?.trim();
+        const resultEl = document.getElementById('spt-checkin-result');
+        if (!phone) { resultEl.innerHTML = '<div class="text-red-500 text-sm">יש להזין מספר טלפון</div>'; return; }
+        try {
+            // Find member by phone and do checkin
+            const r = await fetch(`${API}/sport/members/${storeData.groupId}?q=${encodeURIComponent(phone)}&status=active`).then(r=>r.json());
+            const members = r.members||[];
+            if (!members.length) { resultEl.innerHTML = '<div class="text-red-500 text-sm">לא נמצא מנוי פעיל עם מספר זה</div>'; return; }
+            const m = members[0];
+            const cin = await fetch(`${API}/sport/checkin`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groupId:storeData.groupId,membershipId:m.id,memberName:m.member_name})}).then(r=>r.json());
+            if (!cin.success) { resultEl.innerHTML = `<div class="text-red-500 text-sm">${cin.error||'שגיאה'}</div>`; return; }
+            const remaining = m.sessions_total!=null ? `<div class="text-xs text-indigo-500 mt-1">${m.sessions_total-(m.sessions_used||0)-1} כניסות נותרו</div>` : '';
+            resultEl.innerHTML = `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                <div class="text-3xl mb-1">✅</div>
+                <div class="font-black text-emerald-700">ברוך הבא, ${m.member_name}!</div>
+                <div class="text-xs text-emerald-600 mt-0.5">כניסה נרשמה בהצלחה</div>
+                ${remaining}
+            </div>`;
+            document.getElementById('spt-qr-phone').value = '';
+        } catch(e) { resultEl.innerHTML = '<div class="text-red-500 text-sm">שגיאת תקשורת</div>'; }
+    };
+
+    let _sportPurchaseTypeId = null;
+
+    window.setupSportModals = function(gId, types) {
+        // Inject purchase modal and class register modal
+        const modal1 = document.createElement('div');
+        modal1.id = 'sport-purchase-modal';
+        modal1.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] hidden flex items-end sm:items-center justify-center p-0 sm:p-4';
+        modal1.innerHTML = `<div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <button onclick="document.getElementById('sport-purchase-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+                <div class="text-right"><div id="spm-title" class="font-black text-slate-800 text-lg"></div>
+                <div id="spm-price" class="text-indigo-600 font-black text-xl"></div></div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <input id="spm-name" type="text" placeholder="שם מלא *" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>
+                <input id="spm-phone" type="tel" placeholder="טלפון *" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>
+                <input id="spm-email" type="email" placeholder="אימייל" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/>
+                <details class="text-xs text-slate-400 cursor-pointer">
+                    <summary class="text-right font-bold">פרטים רפואיים / איש קשר לחירום (אופציונלי)</summary>
+                    <div class="mt-2 flex flex-col gap-2">
+                        <input id="spm-emergency-name" type="text" placeholder="שם איש קשר לחירום" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                        <input id="spm-emergency-phone" type="tel" placeholder="טלפון איש קשר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                        <textarea id="spm-health" rows="2" placeholder="הערות בריאות / מצבים רפואיים..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm resize-none"></textarea>
+                    </div>
+                </details>
+            </div>
+            <button onclick="window._submitSportPurchase(${gId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition">
+                שלח בקשת הצטרפות 🏃
+            </button>
+            <p class="text-[11px] text-slate-400 text-center">הצוות יצור איתך קשר לאישור ותיאום תשלום</p>
+        </div>`;
+        document.body.appendChild(modal1);
+
+        const modal2 = document.createElement('div');
+        modal2.id = 'sport-class-modal';
+        modal2.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] hidden flex items-end sm:items-center justify-center p-0 sm:p-4';
+        modal2.innerHTML = `<div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <button onclick="document.getElementById('sport-class-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+                <div class="text-right">
+                    <div id="scm-title" class="font-black text-slate-800 text-lg"></div>
+                    <div id="scm-info" class="text-xs text-slate-500"></div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <input id="scm-phone" type="tel" placeholder="מספר טלפון שלך *" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>
+                <input id="scm-name" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>
+            </div>
+            <button id="scm-submit" onclick="window._submitSportClassRegister(${gId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition">הרשם לשיעור ✅</button>
+            <div id="scm-result"></div>
+        </div>`;
+        document.body.appendChild(modal2);
+    };
+
+    window.openSportPurchaseModal = function(typeId, typeName, price) {
+        _sportPurchaseTypeId = typeId;
+        document.getElementById('spm-title').textContent = typeName;
+        document.getElementById('spm-price').textContent = `₪${price}`;
+        ['spm-name','spm-phone','spm-email','spm-emergency-name','spm-emergency-phone','spm-health'].forEach(id=>{
+            const el = document.getElementById(id); if(el) el.value='';
+        });
+        document.getElementById('sport-purchase-modal').classList.remove('hidden');
+    };
+
+    window._submitSportPurchase = async function(gId) {
+        const name = document.getElementById('spm-name')?.value?.trim();
+        const phone = document.getElementById('spm-phone')?.value?.trim();
+        if (!name || !phone) { alert('שם וטלפון הם שדות חובה'); return; }
+        const btn = document.querySelector('#sport-purchase-modal button[onclick*="_submitSportPurchase"]');
+        if (btn) { btn.disabled=true; btn.textContent='שולח...'; }
+        try {
+            const r = await fetch(`${API}/sport/public-membership-purchase`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    groupId: gId, memberName: name, memberPhone: phone,
+                    memberEmail: document.getElementById('spm-email')?.value?.trim()||'',
+                    membershipTypeId: _sportPurchaseTypeId,
+                    emergencyContact: document.getElementById('spm-emergency-name')?.value?.trim()||'',
+                    emergencyPhone: document.getElementById('spm-emergency-phone')?.value?.trim()||'',
+                    healthNotes: document.getElementById('spm-health')?.value?.trim()||''
+                })
+            }).then(r=>r.json());
+            if (!r.success) { alert(r.error||'שגיאה'); if(btn){btn.disabled=false;btn.textContent='שלח בקשת הצטרפות 🏃';} return; }
+            document.getElementById('sport-purchase-modal').classList.add('hidden');
+            // Show success
+            const succ = document.createElement('div');
+            succ.className = 'fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4';
+            succ.innerHTML = `<div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+                <div class="text-5xl mb-4">🎉</div>
+                <div class="font-black text-2xl text-slate-800 mb-2">ברוך הבא, ${name}!</div>
+                <div class="text-slate-600 text-sm mb-4">הצטרפת בהצלחה! הצוות יצור איתך קשר בקרוב לאישור תשלום.</div>
+                <div class="text-xs text-slate-400 mb-4">סוג מנוי: ${r.membershipType}${r.endDate?' · בתוקף עד '+new Date(r.endDate).toLocaleDateString('he-IL'):''}</div>
+                <button onclick="this.closest('.fixed').remove()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl">סגור</button>
+            </div>`;
+            document.body.appendChild(succ);
+        } catch(e) { alert('שגיאת תקשורת'); if(btn){btn.disabled=false;btn.textContent='שלח בקשת הצטרפות 🏃';} }
+    };
+
+    let _sportCurrentClassId = null;
+    window.openSportClassRegister = function(classId, className, classDate, startTime) {
+        _sportCurrentClassId = classId;
+        document.getElementById('scm-title').textContent = className;
+        document.getElementById('scm-info').textContent = `${new Date(classDate).toLocaleDateString('he-IL')} ${startTime?startTime.substring(0,5):''}`;
+        ['scm-phone','scm-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+        document.getElementById('scm-result').innerHTML = '';
+        const btn = document.getElementById('scm-submit');
+        if(btn){btn.disabled=false;btn.textContent='הרשם לשיעור ✅';}
+        document.getElementById('sport-class-modal').classList.remove('hidden');
+    };
+
+    window._submitSportClassRegister = async function(gId) {
+        const phone = document.getElementById('scm-phone')?.value?.trim();
+        const name = document.getElementById('scm-name')?.value?.trim();
+        if (!phone) { document.getElementById('scm-result').innerHTML='<div class="text-red-500 text-sm text-center">יש להזין מספר טלפון</div>'; return; }
+        const btn = document.getElementById('scm-submit');
+        if(btn){btn.disabled=true;btn.textContent='שולח...';}
+        try {
+            const r = await fetch(`${API}/sport/public-class-register`,{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({groupId:gId,classId:_sportCurrentClassId,memberPhone:phone,memberName:name||phone})
+            }).then(r=>r.json());
+            if (!r.success) { document.getElementById('scm-result').innerHTML=`<div class="text-red-500 text-sm text-center">${r.error||'שגיאה'}</div>`; if(btn){btn.disabled=false;btn.textContent='הרשם לשיעור ✅';} return; }
+            const msg = r.status==='waitlisted'
+                ? `<div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center"><div class="font-bold text-orange-700">נרשמת לרשימת המתנה</div><div class="text-xs text-orange-500">מקום #${r.position} — נעדכן אם יתפנה מקום</div></div>`
+                : `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center"><div class="font-bold text-emerald-700">✅ ${r.memberName} — נרשמת בהצלחה!</div>${r.warning?'<div class="text-xs text-orange-500 mt-1">שים לב: אין לך מנוי פעיל</div>':''}</div>`;
+            document.getElementById('scm-result').innerHTML = msg;
+            if(btn){btn.disabled=true;btn.textContent='נרשמת ✅';}
+        } catch(e) { document.getElementById('scm-result').innerHTML='<div class="text-red-500 text-sm text-center">שגיאת תקשורת</div>'; if(btn){btn.disabled=false;btn.textContent='הרשם לשיעור ✅';} }
+    };
+    </script>
+    <!-- ===== END SPORT PUBLIC MODULE ===== -->
 </body>
 </html>

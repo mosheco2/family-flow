@@ -754,6 +754,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           payment_method VARCHAR(30) DEFAULT 'cash', notes TEXT,
           paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      // Sport extended fields
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS emergency_contact VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS emergency_phone VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS health_notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS is_trial BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS qr_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_membership_types ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`); } catch(e) {}
       // Sport Waitlist
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_waitlist (
           id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
@@ -4744,7 +4751,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const codeOrAlias = req.params.code;
         
         const gRes = await pool.query(`
-            SELECT f.id, f.name 
+            SELECT f.id, f.name, f.business_type
             FROM family_groups f
             LEFT JOIN store_settings s ON f.id = s.group_id
             WHERE f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
@@ -4754,6 +4761,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         
         const groupId = gRes.rows[0].id;
         const groupName = gRes.rows[0].name;
+        const businessType = gRes.rows[0].business_type || 'other';
 
         const sRes = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]);
         const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
@@ -4784,7 +4792,7 @@ app.get('/api/storefront/:code', async (req, res) => {
             }
         }
 
-        res.json({ success: true, groupId, groupName, settings, catalog: cRes.rows, communityData });
+        res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10234,6 +10242,129 @@ app.post('/api/sport/classes/recurring', async (req, res) => {
             cur.setDate(cur.getDate()+1);
         }
         res.json({ success: true, count: created.length, classIds: created });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Public API (External Customers via Storefront) ────────────────────
+
+// Public membership types
+app.get('/api/sport/public-types/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id,name,type,price,duration_days,sessions,color,is_active
+            FROM sport_membership_types WHERE group_id=$1 AND is_active=true AND is_public=true ORDER BY price ASC`, [req.params.groupId]);
+        res.json({ types: r.rows });
+    } catch(e) { res.json({ types: [] }); }
+});
+
+// Public class schedule
+app.get('/api/sport/public-schedule/:groupId', async (req, res) => {
+    const { from, to } = req.query;
+    const fromDate = from || new Date().toISOString().split('T')[0];
+    const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
+    try {
+        const r = await pool.query(`SELECT sc.id, sc.class_name, sc.trainer_name, sc.class_date, sc.start_time, sc.end_time,
+            sc.capacity, sc.status, sct.name as type_name, sct.color,
+            (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc.id) as registered_count
+            FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
+            WHERE sc.group_id=$1 AND sc.class_date BETWEEN $2 AND $3 AND sc.status != 'cancelled'
+            ORDER BY sc.class_date, sc.start_time`, [req.params.groupId, fromDate, toDate]);
+        res.json({ classes: r.rows });
+    } catch(e) { res.json({ classes: [] }); }
+});
+
+// External customer purchases membership (creates pending member)
+app.post('/api/sport/public-membership-purchase', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, membershipTypeId, startDate, healthNotes, emergencyContact, emergencyPhone } = req.body;
+    if (!groupId || !memberName || !membershipTypeId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1 AND group_id=$2', [membershipTypeId, groupId]);
+        if (!typeRes.rows.length) return res.status(404).json({ error: 'סוג מנוי לא נמצא' });
+        const t = typeRes.rows[0];
+        const sd = startDate || new Date().toISOString().split('T')[0];
+        let endDate = null;
+        if (t.duration_days) { const d = new Date(sd); d.setDate(d.getDate()+t.duration_days); endDate = d.toISOString().split('T')[0]; }
+        const crypto = require('crypto');
+        const qrToken = crypto.randomBytes(16).toString('hex');
+        const r = await pool.query(`INSERT INTO sport_memberships
+            (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,health_notes,emergency_contact,emergency_phone,qr_token,status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active') RETURNING id,member_name,qr_token`,
+            [groupId, memberName, memberPhone||'', memberEmail||'', membershipTypeId, sd, endDate, t.sessions||null, healthNotes||'', emergencyContact||'', emergencyPhone||'', qrToken]);
+        res.json({ success: true, memberId: r.rows[0].id, memberName: r.rows[0].member_name, qrToken, membershipType: t.name, endDate, price: t.price });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// External class registration (requires phone for identity)
+app.post('/api/sport/public-class-register', async (req, res) => {
+    const { groupId, classId, memberPhone, memberName } = req.body;
+    if (!groupId || !classId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1 AND group_id=$2', [classId, groupId]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+        // Find member by phone
+        const mem = await pool.query(`SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 AND status='active' LIMIT 1`, [groupId, memberPhone]);
+        const count = await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [classId]);
+        const registered = parseInt(count.rows[0].count);
+        if (mem.rows.length) {
+            const m = mem.rows[0];
+            if (registered < (c.capacity||20)) {
+                await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [classId, m.id, m.member_name]);
+                res.json({ success: true, status: 'registered', memberName: m.member_name });
+            } else {
+                const pos = await pool.query('SELECT COALESCE(MAX(position),0)+1 as next FROM sport_class_waitlist WHERE class_id=$1', [classId]);
+                await pool.query(`INSERT INTO sport_class_waitlist (class_id,group_id,membership_id,member_name,position) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [classId, groupId, m.id, m.member_name, pos.rows[0].next]);
+                res.json({ success: true, status: 'waitlisted', position: pos.rows[0].next, memberName: m.member_name });
+            }
+        } else {
+            // No active membership — just add to waitlist by name/phone
+            if (registered < (c.capacity||20)) {
+                await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,NULL,$2) ON CONFLICT DO NOTHING`, [classId, memberName||memberPhone]);
+                res.json({ success: true, status: 'registered', memberName: memberName||memberPhone, warning: 'no_active_membership' });
+            } else {
+                res.json({ success: false, status: 'full', error: 'השיעור מלא ואין לך מנוי פעיל' });
+            }
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// QR Check-in endpoint (public — used from member's QR code)
+app.post('/api/sport/qr-checkin', async (req, res) => {
+    const { qrToken, groupId } = req.body;
+    if (!qrToken) return res.status(400).json({ error: 'לא תקין' });
+    try {
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE qr_token=$1', [qrToken]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'כרטיס לא נמצא' });
+        const m = mem.rows[0];
+        if (m.status !== 'active') return res.status(400).json({ error: `מנוי ${m.status === 'frozen' ? 'מוקפא' : 'לא פעיל'}`, memberName: m.member_name });
+        await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [m.group_id, m.id, m.member_name]);
+        if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [m.id]);
+        const remaining = m.sessions_total !== null ? m.sessions_total - (m.sessions_used + 1) : null;
+        res.json({ success: true, memberName: m.member_name, remaining, endDate: m.end_date });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Generate / get QR token for a member
+app.get('/api/sport/member-qr/:id', async (req, res) => {
+    try {
+        let mem = await pool.query('SELECT id,member_name,qr_token FROM sport_memberships WHERE id=$1', [req.params.id]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        let token = mem.rows[0].qr_token;
+        if (!token) {
+            const crypto = require('crypto');
+            token = crypto.randomBytes(16).toString('hex');
+            await pool.query('UPDATE sport_memberships SET qr_token=$1 WHERE id=$2', [token, req.params.id]);
+        }
+        res.json({ success: true, qrToken: token, memberName: mem.rows[0].member_name });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update member with extended fields
+app.put('/api/sport/members/:id/extended', async (req, res) => {
+    const { emergencyContact, emergencyPhone, healthNotes, isTrial } = req.body;
+    try {
+        await pool.query(`UPDATE sport_memberships SET emergency_contact=$1, emergency_phone=$2, health_notes=$3, is_trial=$4, updated_at=NOW() WHERE id=$5`,
+            [emergencyContact||'', emergencyPhone||'', healthNotes||'', isTrial||false, req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

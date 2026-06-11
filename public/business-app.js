@@ -29186,3 +29186,233 @@ window.showSportSchedule = async function() {
 };
 
 // ===== END SPORT PHASE 3 EXTRAS =====
+
+// ===== SPORT PHASE 4 — QR, HEALTH FIELDS, TRIAL =====
+
+// ─── QR Check-in Card for Member ─────────────────────────────────────────────
+window.showSportMemberQR = async function(memberId, memberName) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportMemberDetail(${memberId})" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">כרטיס כניסה 📱</h2><span></span>
+        </div>
+        <div id="sport-qr-content" class="flex-1 flex flex-col items-center justify-center p-6 gap-4">
+            <div class="text-slate-400 text-sm">טוען...</div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+
+    try {
+        const d = await fetch(`${API}/sport/member-qr/${memberId}`).then(r=>r.json());
+        if (!d.success) { document.getElementById('sport-qr-content').innerHTML = '<div class="text-red-400 text-sm">שגיאה בטעינת QR</div>'; return; }
+
+        // Build QR check-in URL (points to storefront checkin tab)
+        const qrData = `${window.location.origin}/api/sport/qr-checkin-page?token=${d.qrToken}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}&format=png&qzone=1`;
+
+        document.getElementById('sport-qr-content').innerHTML = `
+            <div class="bg-indigo-50 rounded-2xl p-6 flex flex-col items-center gap-4 w-full max-w-xs">
+                <div class="text-center">
+                    <div class="font-black text-indigo-800 text-xl">${d.memberName}</div>
+                    <div class="text-xs text-indigo-500">כרטיס כניסה דיגיטלי</div>
+                </div>
+                <img src="${qrUrl}" alt="QR Code" class="rounded-xl shadow-md w-48 h-48"/>
+                <div class="text-[11px] text-slate-400 text-center">הצג קוד זה בכניסה לסריקה</div>
+                <button onclick="window._sportShareQR('${qrData}','${(d.memberName||'').replace(/'/g,"\\'")}')" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-sm">
+                    שתף / שלח ל-WhatsApp 📤
+                </button>
+            </div>`;
+    } catch(e) { document.getElementById('sport-qr-content').innerHTML = '<div class="text-red-400 text-sm">שגיאת תקשורת</div>'; }
+};
+
+window._sportShareQR = function(url, memberName) {
+    const text = `כרטיס הכניסה הדיגיטלי שלך למועדון 🏋️\n${memberName}\nלחץ לצ'ק-אין: ${url}`;
+    if (navigator.share) {
+        navigator.share({ title: 'כרטיס כניסה', text, url }).catch(()=>{});
+    } else {
+        const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(wa, '_blank');
+    }
+};
+
+// ─── Extended Member Edit (health, emergency, trial) ─────────────────────────
+window.showSportMemberEdit = async function(memberId) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportMemberDetail(${memberId})" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">עריכת חבר</h2><span></span>
+        </div>
+        <div id="sport-edit-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+
+    try {
+        const d = await fetch(`${API}/sport/member-detail/${memberId}`).then(r=>r.json());
+        if (!d.member) { document.getElementById('sport-edit-content').innerHTML = '<div class="text-center py-8 text-red-400">לא נמצא</div>'; return; }
+        const m = d.member;
+        document.getElementById('sport-edit-content').innerHTML = `
+            <div class="flex flex-col gap-4">
+                <div class="text-xs font-black text-slate-500 text-right border-b pb-2 mb-1">פרטים בסיסיים</div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם מלא</label>
+                    <input id="sedit-name" type="text" value="${m.member_name||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label>
+                    <input id="sedit-phone" type="tel" value="${m.member_phone||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">אימייל</label>
+                    <input id="sedit-email" type="email" value="${m.member_email||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/></div>
+                <div class="text-xs font-black text-slate-500 text-right border-b pb-2 mt-2 mb-1">איש קשר לחירום</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label>
+                        <input id="sedit-emerg-phone" type="tel" value="${m.emergency_phone||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                    <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם</label>
+                        <input id="sedit-emerg-name" type="text" value="${m.emergency_contact||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/></div>
+                </div>
+                <div class="text-xs font-black text-slate-500 text-right border-b pb-2 mt-2 mb-1">פרטים בריאותיים</div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות בריאות / מצבים רפואיים</label>
+                    <textarea id="sedit-health" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none">${m.health_notes||''}</textarea></div>
+                <label class="flex items-center gap-3 justify-end bg-amber-50 rounded-xl px-4 py-3 cursor-pointer">
+                    <span class="text-sm font-bold text-amber-700">מנוי ניסיון 🆓</span>
+                    <input id="sedit-trial" type="checkbox" ${m.is_trial?'checked':''} class="w-5 h-5 accent-amber-500"/>
+                </label>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות כלליות</label>
+                    <textarea id="sedit-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none">${m.notes||''}</textarea></div>
+                <button onclick="window._sportSubmitEdit(${memberId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition mt-2">שמור ✅</button>
+            </div>`;
+    } catch(e) { document.getElementById('sport-edit-content').innerHTML = '<div class="text-center py-8 text-red-400">שגיאה</div>'; }
+};
+
+window._sportSubmitEdit = async function(memberId) {
+    const name = document.getElementById('sedit-name')?.value?.trim();
+    const phone = document.getElementById('sedit-phone')?.value?.trim();
+    const email = document.getElementById('sedit-email')?.value?.trim();
+    const emergName = document.getElementById('sedit-emerg-name')?.value?.trim();
+    const emergPhone = document.getElementById('sedit-emerg-phone')?.value?.trim();
+    const health = document.getElementById('sedit-health')?.value?.trim();
+    const trial = document.getElementById('sedit-trial')?.checked;
+    const notes = document.getElementById('sedit-notes')?.value?.trim();
+    try {
+        await Promise.all([
+            fetch(`${API}/sport/members/${memberId}`, {
+                method:'PUT', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({memberName:name, memberPhone:phone, memberEmail:email, notes})
+            }),
+            fetch(`${API}/sport/members/${memberId}/extended`, {
+                method:'PUT', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({emergencyContact:emergName, emergencyPhone:emergPhone, healthNotes:health, isTrial:trial})
+            })
+        ]);
+        showToast('success', 'נשמר ✅');
+        window.showSportMemberDetail(memberId);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── Enhanced Member Detail — add QR and Edit buttons ────────────────────────
+window.showSportMemberDetail = async function(memberId) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportMembers()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">פרופיל חבר</h2>
+            <button onclick="window.showSportMemberEdit(${memberId})" class="text-slate-400 text-sm font-bold">✏️ ערוך</button>
+        </div>
+        <div id="sport-member-detail-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    try {
+        const d = await fetch(`${API}/sport/member-detail/${memberId}`).then(r=>r.json());
+        if (!d.member) { document.getElementById('sport-member-detail-content').innerHTML='<div class="text-center py-8 text-red-400">לא נמצא</div>'; return; }
+        const m = d.member;
+        const sc={active:'emerald',frozen:'blue',expired:'red',cancelled:'slate'}[m.status]||'slate';
+        const sl={active:'פעיל',frozen:'מוקפא',expired:'פג תוקף',cancelled:'בוטל'}[m.status]||m.status;
+        const endFmt=m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'—';
+        const startFmt=m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'—';
+        const sessions=m.sessions_total!=null?`<div class="text-sm text-slate-600 text-right mt-1">כניסות: <span class="font-bold">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total}</span> נותרו</div>`:'';
+        const totalPaid=(d.payments||[]).reduce((s,p)=>s+parseFloat(p.amount||0),0);
+        const trialBadge=m.is_trial?`<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 ml-1">ניסיון</span>`:'';
+        const healthSection=(m.health_notes||m.emergency_contact)?`
+            <div class="bg-red-50 border border-red-100 rounded-xl p-3 mb-3 text-right">
+                ${m.emergency_contact?`<div class="text-xs font-bold text-red-700 mb-0.5">🆘 איש קשר: ${m.emergency_contact} ${m.emergency_phone||''}</div>`:''}
+                ${m.health_notes?`<div class="text-xs text-red-600">⚕️ ${m.health_notes}</div>`:''}
+            </div>`:'' ;
+        const checkinRows=(d.checkins||[]).slice(0,10).map(c=>{
+            const t=c.checked_in_at?new Date(c.checked_in_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+            return `<div class="flex justify-between text-xs py-1 border-b border-slate-50"><span class="text-slate-400">${t}</span><span class="text-slate-600">כניסה</span></div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-2">אין כניסות</div>';
+        const classRows=(d.classes||[]).slice(0,10).map(c=>`<div class="flex justify-between text-xs py-1 border-b border-slate-50">
+            <span class="${c.attended?'text-emerald-500':'text-slate-400'}">${c.attended?'✅':'❌'}</span>
+            <span class="text-slate-600">${c.class_name||''} · ${c.class_date?new Date(c.class_date).toLocaleDateString('he-IL'):''}</span>
+        </div>`).join('');
+        const payRows=(d.payments||[]).map(p=>{
+            const mt={cash:'מזומן',credit:'אשראי',transfer:'העברה',app:'אפליקציה'}[p.payment_method]||p.payment_method;
+            return `<div class="flex justify-between text-xs py-1 border-b border-slate-50">
+                <span class="text-slate-400">${p.paid_at?new Date(p.paid_at).toLocaleDateString('he-IL'):''} · ${mt}</span>
+                <span class="font-bold text-emerald-600">₪${parseFloat(p.amount).toLocaleString('he-IL')}</span>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-2">אין תשלומים</div>';
+
+        document.getElementById('sport-member-detail-content').innerHTML=`
+            <div class="bg-indigo-50 rounded-2xl p-4 mb-3 text-right">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex gap-1">${trialBadge}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${sc}-100 text-${sc}-700">${sl}</span></div>
+                    <div><div class="text-lg font-black text-indigo-800">${m.member_name}</div>
+                    ${m.member_phone?`<div class="text-xs text-slate-500">${m.member_phone}</div>`:''}
+                    ${m.member_email?`<div class="text-xs text-slate-400">${m.member_email}</div>`:''}
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs text-right mt-2">
+                    <div><span class="text-slate-500">מנוי:</span> <span class="font-bold">${m.type_name||'—'}</span></div>
+                    <div><span class="text-slate-500">סה"כ שילם:</span> <span class="font-bold text-emerald-600">₪${totalPaid.toLocaleString('he-IL')}</span></div>
+                    <div><span class="text-slate-500">התחלה:</span> <span class="font-bold">${startFmt}</span></div>
+                    <div><span class="text-slate-500">סיום:</span> <span class="font-bold">${endFmt}</span></div>
+                </div>${sessions}
+            </div>
+            ${healthSection}
+            <div class="flex gap-2 mb-3 flex-wrap">
+                <button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="flex-1 min-w-[72px] bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">חדש 🔄</button>
+                <button onclick="window.showSportMemberQR(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')" class="flex-1 min-w-[72px] bg-slate-100 text-slate-700 font-bold py-2 rounded-xl text-xs">QR 📱</button>
+                ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}');window.showSportMembers()" class="flex-1 min-w-[72px] bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-xs">הקפא ❄️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id});window.showSportMembers()" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
+                <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
+            </div>
+            <div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
+            ${d.classes?.length?`<div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">שיעורים</div>${classRows}</div>`:''}
+            <div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">תשלומים</div>${payRows}</div>`;
+    } catch(e){document.getElementById('sport-member-detail-content').innerHTML='<div class="text-center py-8 text-red-400">שגיאה</div>';}
+};
+
+// ─── Trial badge in member card ───────────────────────────────────────────────
+function _sportMemberCard(m) {
+    const sc={active:'emerald',frozen:'blue',expired:'red',cancelled:'slate'}[m.status]||'slate';
+    const sl={active:'פעיל',frozen:'מוקפא',expired:'פג תוקף',cancelled:'בוטל'}[m.status]||m.status;
+    const endDate=m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'—';
+    const sessions=m.sessions_total!=null?`<span class="text-[11px] text-slate-500">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total}</span>`:'';
+    const frozen=m.status==='frozen'?`<div class="text-[11px] text-blue-500 mt-0.5">מוקפא: ${m.frozen_reason||''}</div>`:'';
+    const days=m.end_date?Math.ceil((new Date(m.end_date)-new Date())/86400000):null;
+    const warn=days!==null&&days<=14&&m.status==='active'?`<span class="text-[10px] text-orange-500 font-bold">⏳${days}י׳</span>`:'';
+    const trialBadge=m.is_trial?`<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">ניסיון</span>`:'';
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+        <div class="flex items-center gap-3 mb-2 cursor-pointer" onclick="window.showSportMemberDetail(${m.id})">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-black text-indigo-600 flex-shrink-0">${(m.member_name||'?')[0]}</div>
+            <div class="flex-1 min-w-0 text-right">
+                <div class="flex items-center gap-1 justify-end">${trialBadge}<span class="font-bold text-slate-800 text-sm">${m.member_name||''}</span></div>
+                <div class="text-[11px] text-slate-500">${m.member_phone||''} ${m.type_name?'· '+m.type_name:''}</div>${frozen}
+            </div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${sc}-100 text-${sc}-700 flex-shrink-0">${sl}</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] border-t border-slate-50 pt-2">
+            <div class="flex gap-1.5">
+                ${m.status==='active'?`<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>`:''}
+                ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')}" class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">❄️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>`:''}
+                ${(m.status==='expired'||(days!==null&&days<=7))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
+            </div>
+            <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
+        </div>
+    </div>`;
+}
+
+// ===== END SPORT PHASE 4 =====
