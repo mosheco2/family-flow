@@ -9965,6 +9965,22 @@ app.delete('/api/sport/membership-types/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Sport store settings (trial, cancellation policy, freeze policy, waiver)
+app.post('/api/sport/store-settings', async (req, res) => {
+    try {
+        const { groupId, sportSettings } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'Missing groupId' });
+        await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS sport_settings JSONB`);
+        await pool.query(
+            `INSERT INTO store_settings (group_id, sport_settings)
+             VALUES ($1, $2)
+             ON CONFLICT (group_id) DO UPDATE SET sport_settings = EXCLUDED.sport_settings`,
+            [groupId, JSON.stringify(sportSettings || {})]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Members
 app.get('/api/sport/members/:groupId', async (req, res) => {
     try {

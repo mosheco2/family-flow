@@ -703,6 +703,7 @@ window.injectBusinessUI = function() {
                                     </div>
                                 </div>
 
+                                <div id="modifiers-section-wrapper">
                                 <h4 class="font-black text-slate-800 mb-4 mt-8">תבניות הרכבה (Modifiers)</h4>
                                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
                                     <div class="flex justify-between items-center mb-3">
@@ -712,6 +713,40 @@ window.injectBusinessUI = function() {
                                     <div id="modifiers-builder-container" class="space-y-3"></div>
                                     <button onclick="window.addModifierGroup()" class="mt-3 bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm w-full"><i class="fa-solid fa-plus mr-1"></i> הוסף קבוצת בחירה חדשה (תוספות / הרכבה)</button>
                                 </div>
+                                </div>
+
+                                <div id="sport-store-settings-block" class="hidden space-y-4">
+                                    <h4 class="font-black text-slate-800 mb-4 mt-8">הגדרות ספורט</h4>
+                                    <div class="space-y-4">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded">
+                                            <span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span>
+                                        </label>
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי:</label>
+                                            <textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו, ללא עלות..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי:</label>
+                                            <textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור:</label>
+                                            <textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות:</label>
+                                                <input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16">
+                                            </div>
+                                            <div>
+                                                <label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול:</label>
+                                                <input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
                         </div>
@@ -15810,15 +15845,47 @@ window.switchSalesTab = function(subTab) {
         else { woBtn.classList.add('hidden'); woBtn.classList.remove('flex'); }
     }
 
-    
-    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    // Sport business: adapt tab bar and views
+    const isSport = currentGroup?.business_type === 'sport';
+    const complexBtn = document.getElementById('btn-sales-complex');
+    if (complexBtn) {
+        if (isSport) { complexBtn.classList.add('hidden'); complexBtn.classList.remove('flex'); }
+        else { complexBtn.classList.remove('hidden'); }
+    }
+    if (isSport) {
+        const catalogBtn = document.getElementById('btn-sales-catalog');
+        if (catalogBtn) {
+            const icon = catalogBtn.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-id-card text-sm';
+            const textNodes = Array.from(catalogBtn.childNodes).filter(n => n.nodeType === 3);
+            if (textNodes.length) textNodes[textNodes.length - 1].textContent = 'מנויים';
+        }
+        const storeTitle = document.querySelector('#content-sales h3');
+        if (storeTitle && storeTitle.textContent.includes('חנות')) storeTitle.textContent = 'ניהול מנויים ומכירות 🏋️';
+    }
+
+    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
     const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md shadow-indigo-200 transition';
 
-    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
-    if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
-    if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
+    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
+    if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
+    if(subTab === 'catalog') {
+        if (isSport) { window.renderSportSalesCatalogView(); }
+        else if (typeof window.fetchStoreCatalog === 'function') { window.fetchStoreCatalog(); }
+    }
     if(subTab === 'complex') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); setTimeout(window.renderComplexList, 100); }
-    if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
+    if(subTab === 'settings') {
+        if (typeof fetchStoreSettings === 'function') fetchStoreSettings();
+        const modWrap = document.getElementById('modifiers-section-wrapper');
+        const sportBlock = document.getElementById('sport-store-settings-block');
+        if (isSport) {
+            if (modWrap) modWrap.classList.add('hidden');
+            if (sportBlock) { sportBlock.classList.remove('hidden'); window._loadSportStoreSettings(); }
+        } else {
+            if (modWrap) modWrap.classList.remove('hidden');
+            if (sportBlock) sportBlock.classList.add('hidden');
+        }
+    }
     if(subTab === 'quotes') {
         const list = document.getElementById('store-quotes-list');
         if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
@@ -28293,6 +28360,162 @@ window._sportDeleteType = async function(typeId) {
         window._sportLoadMembershipTypes();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+// ─── Sport admin: inline catalog (membership types) in sales tab ─────────────
+
+window.renderSportSalesCatalogView = async function() {
+    const catalogHeader = document.querySelector('#sales-view-catalog .flex.justify-between.items-center');
+    if (catalogHeader) {
+        const title = catalogHeader.querySelector('h4');
+        if (title) title.textContent = 'סוגי מנויים';
+        const addBtn = catalogHeader.querySelector('button');
+        if (addBtn) {
+            addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> מנוי חדש';
+            addBtn.onclick = () => window._sportToggleInlineAddType();
+        }
+    }
+    const list = document.getElementById('store-catalog-list');
+    if (!list) return;
+
+    // inject add-form if not present
+    let addForm = document.getElementById('sport-inline-add-type-form');
+    if (!addForm) {
+        const formHtml = `<div id="sport-inline-add-type-form" class="hidden bg-slate-50 rounded-2xl p-4 mb-4 space-y-3 border border-slate-200">
+            <div class="text-sm font-black text-slate-700">הוסף סוג מנוי</div>
+            <input id="sport-inline-type-name" type="text" placeholder="שם המנוי (למשל: מנוי חודשי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            <select id="sport-inline-type-kind" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                <option value="monthly">חודשי</option>
+                <option value="yearly">שנתי</option>
+                <option value="punch_card">כרטיסייה</option>
+                <option value="day_pass">כניסה יומית</option>
+                <option value="pt_sessions">אימונים אישיים (PT)</option>
+            </select>
+            <div class="grid grid-cols-2 gap-2">
+                <input id="sport-inline-type-price" type="number" placeholder="מחיר ₪" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                <input id="sport-inline-type-sessions" type="number" placeholder="כניסות (לכרטיסייה)" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window._sportSaveInlineType()" class="flex-1 bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm">שמור ➕</button>
+                <button onclick="window._sportToggleInlineAddType()" class="px-4 bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm">ביטול</button>
+            </div>
+        </div>`;
+        list.insertAdjacentHTML('beforebegin', formHtml);
+    }
+
+    list.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
+    try {
+        const r = await fetch(`${API}/sport/membership-types/${currentGroup.id}`);
+        const d = await r.json();
+        const types = d.types || [];
+        const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
+        if (!types.length) {
+            list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין סוגי מנויים עדיין. לחץ "מנוי חדש" להוספה.</p>`;
+            return;
+        }
+        list.innerHTML = types.map(t => `
+            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 mb-2">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0">
+                        <i class="fa-solid fa-id-card text-indigo-400 text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.name)}</h4>
+                        <p class="text-xs text-indigo-600 font-bold mt-0.5">₪${t.price} <span class="font-normal text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 text-[10px]">${kindLabel[t.type]||t.type}${t.sessions?' · '+t.sessions+' כניסות':''}</span></p>
+                    </div>
+                </div>
+                <button onclick="window._sportDeleteTypeInline(${t.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100 transition shrink-0">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+            </div>`).join('');
+    } catch(e) { list.innerHTML = `<p class="text-center text-red-400 text-sm py-4">שגיאה בטעינה</p>`; }
+};
+
+window._sportToggleInlineAddType = function() {
+    const form = document.getElementById('sport-inline-add-type-form');
+    if (form) form.classList.toggle('hidden');
+};
+
+window._sportSaveInlineType = async function() {
+    const name = document.getElementById('sport-inline-type-name')?.value?.trim();
+    const type = document.getElementById('sport-inline-type-kind')?.value;
+    const price = parseFloat(document.getElementById('sport-inline-type-price')?.value) || 0;
+    const sessions = parseInt(document.getElementById('sport-inline-type-sessions')?.value) || null;
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    const durationMap = { monthly:30, yearly:365, punch_card: null, day_pass:1, pt_sessions: null };
+    try {
+        const r = await fetch(`${API}/sport/membership-types`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, name, type, price, durationDays: durationMap[type], sessions })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'נוסף בהצלחה ✅');
+        document.getElementById('sport-inline-type-name').value = '';
+        document.getElementById('sport-inline-type-price').value = '';
+        document.getElementById('sport-inline-type-sessions').value = '';
+        const form = document.getElementById('sport-inline-add-type-form');
+        if (form) form.classList.add('hidden');
+        window.renderSportSalesCatalogView();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportDeleteTypeInline = async function(typeId) {
+    if (!confirm('למחוק סוג מנוי זה?')) return;
+    try {
+        await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
+        showToast('success', 'נמחק ✅');
+        window.renderSportSalesCatalogView();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── Sport store settings: load & save ───────────────────────────────────────
+
+window._loadSportStoreSettings = async function() {
+    try {
+        const r = await fetch(`${API}/store/settings/${currentGroup.id}`);
+        const d = await r.json();
+        const s = d.settings || {};
+        const sp = s.sport_settings ? (typeof s.sport_settings === 'string' ? JSON.parse(s.sport_settings) : s.sport_settings) : {};
+
+        const trialEl = document.getElementById('sport-trial-enabled');
+        const cancelEl = document.getElementById('sport-cancellation-policy');
+        const freezeEl = document.getElementById('sport-freeze-policy');
+        const waiverEl = document.getElementById('sport-waiver-text');
+        const minAgeEl = document.getElementById('sport-min-age');
+        const noticeDaysEl = document.getElementById('sport-cancel-notice-days');
+
+        if (trialEl) trialEl.checked = !!sp.trial_enabled;
+        if (cancelEl) cancelEl.value = sp.cancellation_policy || '';
+        if (freezeEl) freezeEl.value = sp.freeze_policy || '';
+        if (waiverEl) waiverEl.value = sp.waiver_text || '';
+        if (minAgeEl) minAgeEl.value = sp.min_age || '';
+        if (noticeDaysEl) noticeDaysEl.value = sp.cancel_notice_days || '';
+    } catch(e) {}
+};
+
+// Hook into saveStoreSettings to also persist sport fields
+(function() {
+    const _origSave = window.saveStoreSettings;
+    window.saveStoreSettings = async function() {
+        if (currentGroup?.business_type === 'sport') {
+            const sportSettings = {
+                trial_enabled: document.getElementById('sport-trial-enabled')?.checked || false,
+                cancellation_policy: document.getElementById('sport-cancellation-policy')?.value || '',
+                freeze_policy: document.getElementById('sport-freeze-policy')?.value || '',
+                waiver_text: document.getElementById('sport-waiver-text')?.value || '',
+                min_age: parseInt(document.getElementById('sport-min-age')?.value) || null,
+                cancel_notice_days: parseInt(document.getElementById('sport-cancel-notice-days')?.value) || null,
+            };
+            try {
+                await fetch(`${API}/sport/store-settings`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: currentGroup.id, sportSettings })
+                });
+            } catch(e) {}
+        }
+        if (typeof _origSave === 'function') await _origSave();
+    };
+})();
 
 // ─── rdAction routing for sport ───────────────────────────────────────────────
 (function() {
