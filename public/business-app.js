@@ -3651,6 +3651,39 @@ window.renderDashboard = async function(forceRefresh = false) {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
+    // For admin/owner in sport business, show sport-specific dashboard
+    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'sport') {
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+            if (container) {
+                dashEl = document.createElement('div');
+                dashEl.id = 'content-role-dashboard';
+                dashEl.className = 'px-2';
+                container.appendChild(dashEl);
+            }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            dashEl.style.position = 'relative';
+            dashEl.style.zIndex = '1';
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            await renderSportDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden')) renderSportDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 30000);
+        }
+        return;
+    }
+
     // For admin/owner in maintenance_repair business, show service calls dashboard
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair' && !window._inProcurementMode) {
         let dashEl = document.getElementById('content-role-dashboard');
@@ -27897,42 +27930,6 @@ window.createWoCalendarEvent = async function() {
 // ===== SPORT / FITNESS MODULE =====
 
 // ─── Sport Dashboard ──────────────────────────────────────────────────────────
-async function renderSportDashboard(el) {
-    let stats = { active_members: 0, expiring_soon: 0, checkins_today: 0, currently_in: 0, at_risk: 0, revenue_month: 0 };
-    try {
-        const r = await fetch(`${API}/sport/dashboard/${currentGroup.id}`);
-        const d = await r.json();
-        if (d.stats) stats = d.stats;
-    } catch(e) {}
-
-    const kpis = [
-        { label: 'מנויים פעילים', value: stats.active_members, icon: '🏃', color: 'indigo', action: () => window.showSportMembers('active') },
-        { label: 'פג תוקף בקרוב', value: stats.expiring_soon, icon: '⏳', color: stats.expiring_soon > 0 ? 'orange' : 'slate', action: () => window.showSportMembers('expiring') },
-        { label: 'כניסות היום', value: stats.checkins_today, icon: '✅', color: 'emerald', action: () => window.showSportCheckins() },
-        { label: 'בפנים כרגע', value: stats.currently_in, icon: '🔴', color: stats.currently_in > 0 ? 'red' : 'slate', action: () => window.showSportCheckins() },
-        { label: 'לא אימנו 30 יום', value: stats.at_risk, icon: '⚠️', color: stats.at_risk > 0 ? 'red' : 'green', action: () => window.showSportMembers('at_risk') },
-        { label: 'הכנסה החודש', value: `₪${Number(stats.revenue_month||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon: '💰', color: 'emerald', action: () => rdAction('cashflow','') }
-    ];
-
-    const kpiHtml = kpis.map(k => `<button type="button" onclick="(${k.action.toString()})()" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;">
-        <span class="text-xl">${k.icon}</span>
-        <div class="text-lg font-black text-${k.color}-600">${k.value}</div>
-        <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
-    </button>`).join('');
-
-    el.innerHTML = `
-        ${roleDashboardHeader('🏋️','ממשק מנהל מועדון','מנויים, כניסות ו-KPIs יומיים','from-indigo-600','to-violet-700')}
-        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
-        ${roleQuickActions([
-            {icon:'🚪', label:'צ\'ק-אין', tab:'', action:'sport-checkin'},
-            {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
-            {icon:'➕', label:'מנוי חדש', tab:'', action:'sport-add-member'},
-            {icon:'📅', label:'יומן', tab:'calendar'},
-            {icon:'💰', label:'קופה', tab:'cashflow'}
-        ])}
-        ${roleFullMenuBtn()}`;
-}
-
 // rdAction handlers for sport
 const _origRdAction = window.rdAction || null;
 
