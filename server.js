@@ -2141,7 +2141,8 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
 
         const stats = {
-            families: groups.rows.filter(g => g.type === 'FAMILY').length,
+            families: groups.rows.filter(g => g.type === 'FAMILY' && g.member_type !== 'member').length,
+            members: groups.rows.filter(g => g.member_type === 'member').length,
             businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
             familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
             businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
@@ -11322,18 +11323,37 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
         const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [businessGroupId]);
         const bizType = bizR.rows[0]?.business_type || 'other';
 
+        // Check if there's a direct membership link (faster & accurate)
+        const linkR = await pool.query(
+            'SELECT linked_member_ref_id FROM member_business_links WHERE member_group_id=$1 AND business_group_id=$2 AND is_active=true LIMIT 1',
+            [memberGroupId, businessGroupId]
+        );
+        const refId = linkR.rows[0]?.linked_member_ref_id;
+
         let orders = [];
         if (bizType === 'sport') {
-            const r = await pool.query(
-                `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
-                        sm.sessions_total, sm.sessions_used, sm.notes,
-                        smt.name AS type_name, smt.price
-                 FROM sport_memberships sm
-                 LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
-                 WHERE sm.group_id = $1 AND sm.member_phone = $2
-                 ORDER BY sm.created_at DESC`,
-                [businessGroupId, phone]
-            );
+            // Prefer direct membership ID; fall back to phone lookup
+            const r = refId
+                ? await pool.query(
+                    `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
+                            sm.sessions_total, sm.sessions_used, sm.notes,
+                            smt.name AS type_name, smt.price
+                     FROM sport_memberships sm
+                     LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+                     WHERE sm.group_id = $1 AND (sm.id = $2 OR sm.member_phone = $3)
+                     ORDER BY sm.created_at DESC`,
+                    [businessGroupId, refId, phone]
+                )
+                : await pool.query(
+                    `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
+                            sm.sessions_total, sm.sessions_used, sm.notes,
+                            smt.name AS type_name, smt.price
+                     FROM sport_memberships sm
+                     LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+                     WHERE sm.group_id = $1 AND sm.member_phone = $2
+                     ORDER BY sm.created_at DESC`,
+                    [businessGroupId, phone]
+                );
             orders = r.rows.map(o => ({ ...o, category: 'מנוי' }));
         } else {
             const r = await pool.query(
