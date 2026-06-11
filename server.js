@@ -814,6 +814,36 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_valid_until DATE`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS date_of_birth DATE`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`); } catch(e) {}
+      // Trainers / Staff
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainers (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          name VARCHAR(100) NOT NULL, phone VARCHAR(30), email VARCHAR(100),
+          specialties TEXT,
+          pay_type VARCHAR(20) DEFAULT 'per_class',
+          hourly_rate DECIMAL(10,2) DEFAULT 0,
+          per_class_rate DECIMAL(10,2) DEFAULT 0,
+          revenue_percent DECIMAL(5,2) DEFAULT 0,
+          bonus_base_trainees INT DEFAULT 10,
+          bonus_per_trainee DECIMAL(10,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainer_sessions (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          trainer_id INT REFERENCES sport_trainers(id) ON DELETE CASCADE,
+          class_id INT REFERENCES sport_classes(id) ON DELETE SET NULL,
+          session_date DATE NOT NULL,
+          hours_worked DECIMAL(4,2) DEFAULT 1,
+          trainees_count INT DEFAULT 0,
+          pay_amount DECIMAL(10,2) DEFAULT 0,
+          is_substitute BOOLEAN DEFAULT false,
+          original_trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL,
+          notes TEXT,
+          paid_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_classes ADD COLUMN IF NOT EXISTS trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -10584,6 +10614,141 @@ app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
             AND (waiver_valid_until IS NULL OR waiver_valid_until < CURRENT_DATE + INTERVAL '14 days')
             ORDER BY waiver_valid_until NULLS FIRST`, [req.params.groupId]);
         res.json({ members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Trainers ─────────────────────────────────────────────────────────────────
+app.get('/api/sport/trainers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT t.*,
+            (SELECT COUNT(*) FROM sport_trainer_sessions WHERE trainer_id=t.id) as total_sessions,
+            (SELECT COALESCE(SUM(pay_amount),0) FROM sport_trainer_sessions WHERE trainer_id=t.id AND paid_at IS NULL) as unpaid_amount
+            FROM sport_trainers t WHERE t.group_id=$1 ORDER BY t.name`, [req.params.groupId]);
+        res.json({ trainers: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/trainers', async (req, res) => {
+    const { groupId, name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes } = req.body;
+    if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
+    try {
+        const r = await pool.query(`INSERT INTO sport_trainers (group_id,name,phone,email,specialties,pay_type,hourly_rate,per_class_rate,revenue_percent,bonus_base_trainees,bonus_per_trainee,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+            [groupId, name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/trainers/:id', async (req, res) => {
+    const { name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes, isActive } = req.body;
+    try {
+        await pool.query(`UPDATE sport_trainers SET name=$1,phone=$2,email=$3,specialties=$4,pay_type=$5,hourly_rate=$6,per_class_rate=$7,revenue_percent=$8,bonus_base_trainees=$9,bonus_per_trainee=$10,notes=$11,is_active=$12 WHERE id=$13`,
+            [name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null, isActive!==false, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/trainers/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sport_trainers WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Trainer detail + sessions
+app.get('/api/sport/trainers/:id/detail', async (req, res) => {
+    try {
+        const t = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [req.params.id]);
+        if (!t.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const sessions = await pool.query(`SELECT ts.*, sc.class_name, sc.class_date FROM sport_trainer_sessions ts
+            LEFT JOIN sport_classes sc ON ts.class_id=sc.id WHERE ts.trainer_id=$1 ORDER BY ts.session_date DESC LIMIT 50`, [req.params.id]);
+        const totals = await pool.query(`SELECT COALESCE(SUM(pay_amount),0) as total_earned,
+            COALESCE(SUM(CASE WHEN paid_at IS NULL THEN pay_amount ELSE 0 END),0) as unpaid,
+            COALESCE(SUM(CASE WHEN paid_at IS NOT NULL THEN pay_amount ELSE 0 END),0) as paid,
+            COUNT(*) as session_count FROM sport_trainer_sessions WHERE trainer_id=$1`, [req.params.id]);
+        res.json({ trainer: t.rows[0], sessions: sessions.rows, totals: totals.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Calculate pay for a session based on trainer rate
+function calcTrainerPay(trainer, hoursWorked, traineesCount, classRevenue) {
+    const t = trainer;
+    let pay = 0;
+    if (t.pay_type === 'hourly') {
+        pay = (t.hourly_rate || 0) * (hoursWorked || 1);
+    } else if (t.pay_type === 'per_class') {
+        pay = t.per_class_rate || 0;
+    } else if (t.pay_type === 'revenue_percent') {
+        pay = ((classRevenue || 0) * (t.revenue_percent || 0)) / 100;
+    } else if (t.pay_type === 'bonus') {
+        pay = t.per_class_rate || 0;
+        const extra = Math.max(0, (traineesCount || 0) - (t.bonus_base_trainees || 10));
+        pay += extra * (t.bonus_per_trainee || 0);
+    }
+    return Math.round(pay * 100) / 100;
+}
+
+// Log a trainer session
+app.post('/api/sport/trainer-sessions', async (req, res) => {
+    const { groupId, trainerId, classId, sessionDate, hoursWorked, traineesCount, classRevenue, isSubstitute, originalTrainerId, notes } = req.body;
+    if (!groupId || !trainerId || !sessionDate) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const t = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [trainerId]);
+        if (!t.rows.length) return res.status(404).json({ error: 'מאמן לא נמצא' });
+        const payAmount = calcTrainerPay(t.rows[0], hoursWorked, traineesCount, classRevenue);
+        const r = await pool.query(`INSERT INTO sport_trainer_sessions (group_id,trainer_id,class_id,session_date,hours_worked,trainees_count,pay_amount,is_substitute,original_trainer_id,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+            [groupId, trainerId, classId||null, sessionDate, hoursWorked||1, traineesCount||0, payAmount, isSubstitute||false, originalTrainerId||null, notes||null]);
+        res.json({ success: true, id: r.rows[0].id, payAmount });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Mark sessions as paid
+app.post('/api/sport/trainer-sessions/mark-paid', async (req, res) => {
+    const { sessionIds } = req.body;
+    if (!sessionIds?.length) return res.status(400).json({ error: 'לא נבחרו sessions' });
+    try {
+        await pool.query('UPDATE sport_trainer_sessions SET paid_at=NOW() WHERE id=ANY($1)', [sessionIds]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Trainer salary report for a month
+app.get('/api/sport/trainer-payroll/:groupId', async (req, res) => {
+    const { month } = req.query; // YYYY-MM
+    try {
+        const r = await pool.query(`SELECT t.id, t.name, t.pay_type,
+            COUNT(ts.id) as session_count,
+            COALESCE(SUM(ts.trainees_count),0) as total_trainees,
+            COALESCE(SUM(ts.pay_amount),0) as total_pay,
+            COALESCE(SUM(CASE WHEN ts.paid_at IS NULL THEN ts.pay_amount ELSE 0 END),0) as unpaid,
+            COALESCE(SUM(CASE WHEN ts.paid_at IS NOT NULL THEN ts.pay_amount ELSE 0 END),0) as paid
+            FROM sport_trainers t
+            LEFT JOIN sport_trainer_sessions ts ON ts.trainer_id=t.id
+                ${month ? `AND TO_CHAR(ts.session_date,'YYYY-MM')=$2` : ''}
+            WHERE t.group_id=$1 AND t.is_active=true
+            GROUP BY t.id, t.name, t.pay_type ORDER BY t.name`,
+            month ? [req.params.groupId, month] : [req.params.groupId]);
+        res.json({ payroll: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Substitution request
+app.post('/api/sport/trainer-substitution', async (req, res) => {
+    const { groupId, classId, originalTrainerId, substituteTrainerId, reason, sessionDate } = req.body;
+    if (!classId || !substituteTrainerId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        // Update class trainer
+        await pool.query('UPDATE sport_classes SET trainer_id=$1, trainer_name=(SELECT name FROM sport_trainers WHERE id=$1) WHERE id=$2', [substituteTrainerId, classId]);
+        // Log session for substitute
+        const sub = await pool.query('SELECT * FROM sport_trainers WHERE id=$1', [substituteTrainerId]);
+        if (sub.rows.length) {
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+            const count = cls.rows.length ? (await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [classId])).rows[0].count : 0;
+            const payAmount = calcTrainerPay(sub.rows[0], 1, parseInt(count), 0);
+            await pool.query(`INSERT INTO sport_trainer_sessions (group_id,trainer_id,class_id,session_date,trainees_count,pay_amount,is_substitute,original_trainer_id,notes)
+                VALUES ($1,$2,$3,$4,$5,$6,true,$7,$8)`,
+                [groupId, substituteTrainerId, classId, sessionDate||cls.rows[0]?.class_date, parseInt(count), payAmount, originalTrainerId||null, reason||'החלפה']);
+        }
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

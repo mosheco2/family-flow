@@ -28367,6 +28367,7 @@ async function renderSportDashboard(el) {
             {icon:'🚪', label:"צ'ק-אין", tab:'', action:'sport-checkin'},
             {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
+            {icon:'👨‍🏫', label:'מאמנים', tab:'', action:'sport-trainers'},
             {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
             {icon:'📋', label:'הצהרות', tab:'', action:'sport-waivers'},
             {icon:'📊', label:'דוחות', tab:'', action:'sport-reports'}
@@ -29920,3 +29921,408 @@ window.showSportAlerts = async function() {
 };
 
 // ===== END SPORT PHASE 6 =====
+
+// ===== SPORT PHASE 7 — ניהול מאמנים + שכר =====
+
+// ─── Trainers List ────────────────────────────────────────────────────────────
+window.showSportTrainers = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">מאמנים 🏋️</h2>
+            <button onclick="window.showSportAddTrainer()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ מאמן</button>
+        </div>
+        <div class="flex border-b border-slate-100">
+            <button onclick="window._sportTrainerTab('trainers')" id="tr-tab-trainers" class="flex-1 py-2 text-xs font-bold border-b-2 border-indigo-500 text-indigo-600">👥 מאמנים</button>
+            <button onclick="window._sportTrainerTab('payroll')" id="tr-tab-payroll" class="flex-1 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400">💰 שכר</button>
+        </div>
+        <div id="sport-trainer-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportTrainerTab('trainers');
+};
+
+window._sportTrainerTab = async function(tab) {
+    ['trainers','payroll'].forEach(t => {
+        const btn = document.getElementById(`tr-tab-${t}`);
+        if (btn) btn.className = `flex-1 py-2 text-xs font-bold border-b-2 ${t===tab?'border-indigo-500 text-indigo-600':'border-transparent text-slate-400'}`;
+    });
+    const el = document.getElementById('sport-trainer-content');
+    if (!el) return;
+
+    if (tab === 'trainers') {
+        try {
+            const d = await fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r=>r.json());
+            const list = d.trainers||[];
+            if (!list.length) {
+                el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין מאמנים עדיין</div>
+                    <button onclick="window.showSportAddTrainer()" class="w-full mt-4 bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">הוסף מאמן ראשון ➕</button>`;
+                return;
+            }
+            const payLabels = { hourly:'שעתי', per_class:'לשיעור', revenue_percent:'% הכנסות', bonus:'בונוס' };
+            el.innerHTML = list.map(t => `
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex gap-2">
+                            <button onclick="window.showSportTrainerDetail(${t.id})" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">פרטים</button>
+                            <button onclick="window.showSportEditTrainer(${t.id})" class="text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg">✏️</button>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-slate-800">${t.name}</div>
+                            <div class="text-[11px] text-slate-500">${t.phone||''} ${t.specialties?'· '+t.specialties:''}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-50 text-[11px]">
+                        <div class="flex gap-2">
+                            ${t.unpaid_amount>0?`<span class="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">₪${Number(t.unpaid_amount).toLocaleString()} לתשלום</span>`:''}
+                            <span class="text-slate-500">${t.total_sessions} שיעורים</span>
+                        </div>
+                        <span class="text-slate-400">${payLabels[t.pay_type]||t.pay_type}</span>
+                    </div>
+                </div>`).join('');
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+
+    } else { // payroll
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+        try {
+            const d = await fetch(`${API}/sport/trainer-payroll/${currentGroup.id}?month=${currentMonth}`).then(r=>r.json());
+            const list = d.payroll||[];
+            const totalUnpaid = list.reduce((s,t)=>s+parseFloat(t.unpaid||0),0);
+            const totalPaid = list.reduce((s,t)=>s+parseFloat(t.paid||0),0);
+            el.innerHTML = `
+            <div class="flex gap-3 mb-4">
+                <div class="flex-1 bg-red-50 border border-red-100 rounded-2xl p-3 text-center">
+                    <div class="text-lg font-black text-red-600">₪${totalUnpaid.toLocaleString('he-IL',{maximumFractionDigits:0})}</div>
+                    <div class="text-[10px] text-red-400 font-bold">לתשלום</div>
+                </div>
+                <div class="flex-1 bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
+                    <div class="text-lg font-black text-emerald-600">₪${totalPaid.toLocaleString('he-IL',{maximumFractionDigits:0})}</div>
+                    <div class="text-[10px] text-emerald-400 font-bold">שולם החודש</div>
+                </div>
+            </div>
+            ${list.map(t => `
+                <div class="bg-white border border-slate-100 rounded-2xl p-3 mb-2 text-right">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="flex gap-1.5">
+                            ${parseFloat(t.unpaid)>0?`<button onclick="window._sportMarkTrainerPaid(${t.id},'${(t.name||'').replace(/'/g,"\\'")}',${t.unpaid})" class="text-[11px] font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-lg">שלם ₪${Number(t.unpaid).toLocaleString()}</button>`:'<span class="text-[11px] text-emerald-600 font-bold">שולם ✅</span>'}
+                        </div>
+                        <span class="font-bold text-slate-800 text-sm">${t.name}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 text-right">${t.session_count} שיעורים · ${t.total_trainees} מתאמנים · סה"כ ₪${Number(t.total_pay).toLocaleString()}</div>
+                </div>`).join('')}
+            <div class="mt-4">
+                <select id="tr-month-sel" onchange="window._sportLoadPayroll(this.value)" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-right text-sm">
+                    ${[-2,-1,0].map(offset=>{const d=new Date(now.getFullYear(),now.getMonth()+offset,1);const m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const lbl=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});return`<option value="${m}" ${m===currentMonth?'selected':''}>${lbl}</option>`}).join('')}
+                </select>
+            </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+    }
+};
+
+window._sportLoadPayroll = async function(month) {
+    const el = document.getElementById('sport-trainer-content');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/trainer-payroll/${currentGroup.id}?month=${month}`).then(r=>r.json());
+        const list = d.payroll||[];
+        const totalUnpaid = list.reduce((s,t)=>s+parseFloat(t.unpaid||0),0);
+        const totalPaid = list.reduce((s,t)=>s+parseFloat(t.paid||0),0);
+        const summaryEl = el.querySelector('.flex.gap-3');
+        if (summaryEl) {
+            summaryEl.querySelector('.text-red-600').textContent = `₪${totalUnpaid.toLocaleString('he-IL',{maximumFractionDigits:0})}`;
+            summaryEl.querySelector('.text-emerald-600').textContent = `₪${totalPaid.toLocaleString('he-IL',{maximumFractionDigits:0})}`;
+        }
+    } catch(e) {}
+};
+
+window._sportMarkTrainerPaid = async function(trainerId, trainerName, amount) {
+    if (!confirm(`לסמן תשלום של ₪${Number(amount).toLocaleString()} ל${trainerName}?`)) return;
+    try {
+        // get unpaid session ids for trainer
+        const r = await fetch(`${API}/sport/trainers/${trainerId}/detail`).then(r=>r.json());
+        const unpaidIds = (r.sessions||[]).filter(s=>!s.paid_at).map(s=>s.id);
+        if (!unpaidIds.length) { showToast('error','אין sessions לתשלום'); return; }
+        const d = await fetch(`${API}/sport/trainer-sessions/mark-paid`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ sessionIds: unpaidIds })
+        }).then(r=>r.json());
+        if (d.success) { showToast('success',`תשלום ₪${Number(amount).toLocaleString()} ל${trainerName} סומן ✅`); window._sportTrainerTab('payroll'); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Add/Edit Trainer ─────────────────────────────────────────────────────────
+window.showSportAddTrainer = function() { window._sportTrainerForm(null); };
+window.showSportEditTrainer = async function(id) {
+    try {
+        const d = await fetch(`${API}/sport/trainers/${id}/detail`).then(r=>r.json());
+        window._sportTrainerForm(d.trainer);
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportTrainerForm = function(trainer) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const t = trainer || {};
+    const isEdit = !!t.id;
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportTrainers()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">${isEdit?'עריכת':'הוספת'} מאמן</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 text-right">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">שם מלא *</label>
+                <input id="tf-name" value="${t.name||''}" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
+                    <input id="tf-phone" value="${t.phone||''}" type="tel" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" dir="ltr"/>
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-slate-600 block mb-1">אימייל</label>
+                    <input id="tf-email" value="${t.email||''}" type="email" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" dir="ltr"/>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">התמחויות</label>
+                <input id="tf-specialties" value="${t.specialties||''}" placeholder="יוגה, קרוספיט, שחייה..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-4">
+                <div class="font-bold text-slate-800 text-sm mb-3">סוג שכר</div>
+                <div class="space-y-2">
+                    ${[
+                        {val:'per_class', label:'לשיעור', desc:'סכום קבוע לכל שיעור'},
+                        {val:'hourly', label:'שעתי', desc:'תעריף לפי שעות עבודה'},
+                        {val:'revenue_percent', label:'אחוז הכנסות', desc:'% מהכנסות השיעור'},
+                        {val:'bonus', label:'בסיס + בונוס', desc:'בסיס + תוספת לכל מתאמן מעל X'}
+                    ].map(o=>`<label class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer ${(t.pay_type||'per_class')===o.val?'border-indigo-400 bg-indigo-50':'border-slate-100'}">
+                        <input type="radio" name="tf-paytype" value="${o.val}" ${(t.pay_type||'per_class')===o.val?'checked':''} onchange="window._sportUpdatePayFields()" class="accent-indigo-600">
+                        <div class="text-right mr-2"><div class="text-sm font-bold text-slate-800">${o.label}</div><div class="text-[11px] text-slate-400">${o.desc}</div></div>
+                    </label>`).join('')}
+                </div>
+            </div>
+            <div id="tf-pay-fields" class="space-y-3"></div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
+                <textarea id="tf-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300">${t.notes||''}</textarea>
+            </div>
+            <button onclick="window._sportSaveTrainer(${isEdit?t.id:'null'})" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור ✅</button>
+            ${isEdit?`<button onclick="if(confirm('למחוק מאמן זה?'))window._sportDeleteTrainer(${t.id})" class="w-full bg-red-50 text-red-500 font-bold py-3 rounded-2xl text-sm">מחק מאמן 🗑️</button>`:''}
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    // Store trainer data for defaults
+    window._sportCurrentTrainer = t;
+    window._sportUpdatePayFields();
+};
+
+window._sportUpdatePayFields = function() {
+    const payType = document.querySelector('input[name="tf-paytype"]:checked')?.value || 'per_class';
+    const t = window._sportCurrentTrainer || {};
+    const el = document.getElementById('tf-pay-fields');
+    if (!el) return;
+    let html = '';
+    if (payType === 'per_class') {
+        html = `<div><label class="text-xs font-bold text-slate-600 block mb-1">תשלום לשיעור (₪)</label>
+            <input id="tf-per-class" type="number" value="${t.per_class_rate||150}" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>`;
+    } else if (payType === 'hourly') {
+        html = `<div><label class="text-xs font-bold text-slate-600 block mb-1">תעריף לשעה (₪)</label>
+            <input id="tf-hourly" type="number" value="${t.hourly_rate||80}" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>`;
+    } else if (payType === 'revenue_percent') {
+        html = `<div><label class="text-xs font-bold text-slate-600 block mb-1">אחוז מהכנסות (%)</label>
+            <input id="tf-rev-pct" type="number" value="${t.revenue_percent||20}" min="0" max="100" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>`;
+    } else if (payType === 'bonus') {
+        html = `<div class="flex gap-3">
+            <div class="flex-1"><label class="text-xs font-bold text-slate-600 block mb-1">בסיס לשיעור (₪)</label>
+                <input id="tf-per-class" type="number" value="${t.per_class_rate||100}" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+            <div class="flex-1"><label class="text-xs font-bold text-slate-600 block mb-1">מספר מתאמנים בסיס</label>
+                <input id="tf-bonus-base" type="number" value="${t.bonus_base_trainees||10}" min="1" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+        </div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1">בונוס לכל מתאמן מעל הבסיס (₪)</label>
+            <input id="tf-bonus-per" type="number" value="${t.bonus_per_trainee||15}" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>`;
+    }
+    el.innerHTML = html;
+};
+
+window._sportSaveTrainer = async function(id) {
+    const name = document.getElementById('tf-name')?.value?.trim();
+    if (!name) { showToast('error','שם חובה'); return; }
+    const payType = document.querySelector('input[name="tf-paytype"]:checked')?.value||'per_class';
+    const payload = {
+        groupId: currentGroup.id, name,
+        phone: document.getElementById('tf-phone')?.value?.trim()||null,
+        email: document.getElementById('tf-email')?.value?.trim()||null,
+        specialties: document.getElementById('tf-specialties')?.value?.trim()||null,
+        payType,
+        hourlyRate: parseFloat(document.getElementById('tf-hourly')?.value||0),
+        perClassRate: parseFloat(document.getElementById('tf-per-class')?.value||0),
+        revenuePercent: parseFloat(document.getElementById('tf-rev-pct')?.value||0),
+        bonusBaseTrainees: parseInt(document.getElementById('tf-bonus-base')?.value||10),
+        bonusPerTrainee: parseFloat(document.getElementById('tf-bonus-per')?.value||0),
+        notes: document.getElementById('tf-notes')?.value?.trim()||null
+    };
+    try {
+        const url = id ? `${API}/sport/trainers/${id}` : `${API}/sport/trainers`;
+        const method = id ? 'PUT' : 'POST';
+        const d = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(r=>r.json());
+        if (d.success || d.id) { showToast('success', id?'עודכן ✅':'נוסף ✅'); window.showSportTrainers(); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportDeleteTrainer = async function(id) {
+    try {
+        const d = await fetch(`${API}/sport/trainers/${id}`, {method:'DELETE'}).then(r=>r.json());
+        if (d.success) { showToast('success','נמחק'); window.showSportTrainers(); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Trainer Detail + Sessions ────────────────────────────────────────────────
+window.showSportTrainerDetail = async function(trainerId) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportTrainers()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">פרופיל מאמן</h2>
+            <button onclick="window.showSportEditTrainer(${trainerId})" class="text-indigo-600 text-sm font-bold">✏️</button>
+        </div>
+        <div id="sport-trainer-detail-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    try {
+        const d = await fetch(`${API}/sport/trainers/${trainerId}/detail`).then(r=>r.json());
+        const t = d.trainer;
+        const totals = d.totals || {};
+        const sessions = d.sessions || [];
+        const payLabels = { hourly:'שעתי', per_class:'לשיעור', revenue_percent:'% הכנסות', bonus:'בונוס' };
+        const el = document.getElementById('sport-trainer-detail-content');
+        el.innerHTML = `
+        <div class="bg-indigo-50 rounded-2xl p-4 mb-4 text-right">
+            <div class="font-black text-indigo-800 text-lg">${t.name}</div>
+            <div class="text-xs text-indigo-500">${t.phone||''} ${t.email?'· '+t.email:''}</div>
+            ${t.specialties?`<div class="text-xs text-indigo-600 mt-1">🎯 ${t.specialties}</div>`:''}
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="bg-white border border-slate-100 rounded-xl p-3 text-center">
+                <div class="text-lg font-black text-slate-700">${totals.session_count||0}</div>
+                <div class="text-[10px] text-slate-400 font-bold">שיעורים</div>
+            </div>
+            <div class="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                <div class="text-lg font-black text-red-600">₪${Number(totals.unpaid||0).toLocaleString()}</div>
+                <div class="text-[10px] text-red-400 font-bold">לתשלום</div>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                <div class="text-lg font-black text-emerald-600">₪${Number(totals.paid||0).toLocaleString()}</div>
+                <div class="text-[10px] text-emerald-400 font-bold">שולם</div>
+            </div>
+        </div>
+        <div class="flex gap-2 mb-4">
+            <button onclick="window.showSportLogSession(${trainerId},'${(t.name||'').replace(/'/g,"\\'")}',false)" class="flex-1 bg-indigo-600 text-white font-black py-2.5 rounded-xl text-xs">+ רשום שיעור</button>
+            <button onclick="window.showSportLogSession(${trainerId},'${(t.name||'').replace(/'/g,"\\'")}',true)" class="flex-1 bg-orange-100 text-orange-700 font-bold py-2.5 rounded-xl text-xs">🔄 החלפה</button>
+            ${Number(totals.unpaid||0)>0?`<button onclick="window._sportMarkTrainerPaid(${trainerId},'${(t.name||'').replace(/'/g,"\\'")}',${totals.unpaid})" class="flex-1 bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">💰 שלם</button>`:''}
+        </div>
+        <div class="text-xs font-black text-slate-500 mb-2 text-right">שיעורים אחרונים</div>
+        ${sessions.slice(0,20).map(s=>`<div class="bg-slate-50 rounded-xl p-3 mb-1.5 flex items-center justify-between">
+            <div class="flex gap-1.5 items-center">
+                ${!s.paid_at?`<span class="text-[10px] font-bold text-red-500">₪${Number(s.pay_amount).toLocaleString()}</span>`:`<span class="text-[10px] font-bold text-emerald-500">שולם</span>`}
+                ${s.is_substitute?'<span class="text-[9px] bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">מחליף</span>':''}
+            </div>
+            <div class="text-right">
+                <div class="text-sm font-bold text-slate-800">${s.class_name||'שיעור'}</div>
+                <div class="text-[11px] text-slate-500">${s.session_date?new Date(s.session_date).toLocaleDateString('he-IL'):''} · ${s.trainees_count} מתאמנים${s.hours_worked>1?' · '+s.hours_worked+'ש':''}</div>
+            </div>
+        </div>`).join('')}`;
+    } catch(e) { document.getElementById('sport-trainer-detail-content').innerHTML = '<div class="text-center py-8 text-red-400">שגיאה</div>'; }
+};
+
+// ─── Log Session / Substitution ──────────────────────────────────────────────
+window.showSportLogSession = function(trainerId, trainerName, isSubstitute) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const today = new Date().toISOString().split('T')[0];
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportTrainerDetail(${trainerId})" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">${isSubstitute?'רישום החלפה':'רישום שיעור'}</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 text-right">
+            <div class="bg-indigo-50 rounded-xl p-3 font-black text-indigo-800">${trainerName}</div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">תאריך</label>
+                <input id="ls-date" type="date" value="${today}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שעות עבודה</label>
+                    <input id="ls-hours" type="number" value="1" min="0.5" step="0.5" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-slate-600 block mb-1">מספר מתאמנים</label>
+                    <input id="ls-trainees" type="number" value="10" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                </div>
+            </div>
+            ${isSubstitute?`<div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מחליף את (שם מאמן מקורי)</label>
+                <input id="ls-original" placeholder="שם מאמן מקורי" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>`:''}
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
+                <input id="ls-notes" placeholder="שם שיעור / הערה..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <button onclick="window._sportSubmitSession(${trainerId},${isSubstitute})" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור שיעור ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitSession = async function(trainerId, isSubstitute) {
+    const sessionDate = document.getElementById('ls-date')?.value;
+    const hoursWorked = parseFloat(document.getElementById('ls-hours')?.value||1);
+    const traineesCount = parseInt(document.getElementById('ls-trainees')?.value||0);
+    const notes = document.getElementById('ls-notes')?.value?.trim()||null;
+    if (!sessionDate) { showToast('error','תאריך חובה'); return; }
+    try {
+        const d = await fetch(`${API}/sport/trainer-sessions`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, trainerId, sessionDate, hoursWorked, traineesCount, isSubstitute, notes })
+        }).then(r=>r.json());
+        if (d.success) {
+            showToast('success', `שיעור נרשם ✅ שכר: ₪${Number(d.payAmount).toLocaleString()}`);
+            window.showSportTrainerDetail(trainerId);
+        } else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Add trainer button in schedule header ────────────────────────────────────
+// Override showSportSchedule to add trainers button (already has 🚫 cancel policy button)
+const _origShowSportSchedule = window.showSportSchedule;
+window.showSportSchedule = async function() {
+    await _origShowSportSchedule();
+    // inject trainers button into schedule header
+    const header = document.querySelector('#sport-modal .flex.gap-1\\.5');
+    if (header) {
+        const btn = document.createElement('button');
+        btn.onclick = window.showSportTrainers;
+        btn.className = 'bg-teal-100 text-teal-700 text-xs font-bold px-2.5 py-1.5 rounded-lg';
+        btn.textContent = '👨‍🏫 מאמנים';
+        header.insertBefore(btn, header.firstChild);
+    }
+};
+
+// Route sport-trainers action
+(function(){
+    const prev = window.rdAction;
+    window.rdAction = function(tab, action) {
+        if (action === 'sport-trainers') { window.showSportTrainers(); return; }
+        prev(tab, action);
+    };
+})();
+
+// ===== END SPORT PHASE 7 =====
