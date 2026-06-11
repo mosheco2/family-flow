@@ -8798,12 +8798,16 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                 const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[o.status] || o.status;
                 const end = o.end_date ? new Date(o.end_date).toLocaleDateString('he-IL') : '—';
                 const sess = o.sessions_total ? `${o.sessions_total-(o.sessions_used||0)}/${o.sessions_total} כניסות` : '';
+                const canFreeze = o.status === 'active';
+                const canUnfreeze = o.status === 'frozen';
                 return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                         <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
                         <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.type_name||'מנוי')}</span>
                     </div>
-                    <div style="font-size:10px;color:#94a3b8;">${sess}${sess?' · ':''}עד ${end}</div>
+                    <div style="font-size:10px;color:#94a3b8;margin-bottom:${canFreeze||canUnfreeze?'6':'0'}px;">${sess}${sess?' · ':''}עד ${end}</div>
+                    ${canFreeze ? `<button onclick="window._memberFreeze(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:none;border-radius:8px;padding:5px 0;cursor:pointer;width:100%;">❄️ הקפא מנוי</button>` : ''}
+                    ${canUnfreeze ? `<button onclick="window._memberUnfreeze(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#d1fae5;color:#065f46;border:none;border-radius:8px;padding:5px 0;cursor:pointer;width:100%;">▶️ שחרר הקפאה</button>` : ''}
                 </div>`;
             } else if (resolvedType === 'maintenance_repair') {
                 const SC_STATUS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
@@ -8813,12 +8817,23 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                 const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
                 const scheduled = o.scheduled_at ? ` · תור: ${new Date(o.scheduled_at).toLocaleDateString('he-IL')}` : '';
                 const price = o.price_quote ? ` · ₪${parseFloat(o.price_quote).toFixed(0)}` : '';
+                const canCancel = !['done','cancelled'].includes(o.status);
+                const canRate = o.status === 'done' && !o.rating;
+                const titleEsc = safeStr(o.title||'קריאת שירות').replace(/'/g,"&#39;");
                 return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <div style="display:flex;gap:6px;flex-shrink:0;">
+                            <button onclick="window._memberOpenScDetails(${o.id},'${titleEsc}','${o.status}',${o.price_quote||0},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#e0e7ff;color:#4f46e5;border:none;border-radius:8px;padding:3px 8px;cursor:pointer;">💬 פרטים</button>
+                            ${canCancel ? `<button onclick="window._memberCancelSc(${o.id},'${bizGroupId}')" style="font-size:10px;font-weight:700;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:3px 8px;cursor:pointer;">ביטול</button>` : ''}
+                        </div>
                         <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.title||'קריאת שירות')}</span>
                     </div>
-                    <div style="font-size:10px;color:#94a3b8;">${date}${scheduled}${price}</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:10px;color:#94a3b8;">${date}${scheduled}${price}</span>
+                    </div>
+                    ${canRate ? `<div style="margin-top:6px;text-align:center;font-size:11px;color:#92400e;">דרג: ${[1,2,3,4,5].map(r=>`<span onclick="window._memberRateSc(${o.id},${r},'${bizGroupId}')" style="cursor:pointer;font-size:18px;">⭐</span>`).join('')}</div>` : ''}
+                    ${o.rating ? `<div style="margin-top:4px;text-align:center;font-size:11px;color:#92400e;">הדירוג שלך: ${'⭐'.repeat(o.rating)}</div>` : ''}
                 </div>`;
             } else if (resolvedType === 'restaurant') {
                 const REST_STATUS = { new:'חדשה', preparing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטל' };
@@ -8862,3 +8877,116 @@ function _memberBizTypeLabel(type) {
     const labels = { sport:'ספורט / כושר', restaurant:'מסעדה / בית קפה', retail:'חנות', services:'שירותים', construction:'בנייה', maintenance_repair:'תחזוקה', logistics:'לוגיסטיקה', healthcare:'בריאות', beauty:'יופי', education:'חינוך', events:'אירועים', food_production:'ייצור מזון' };
     return labels[type] || type;
 }
+
+// ONEFLOWLIFE MEMBER — interactive actions
+
+window._memberOpenScDetails = async function(callId, title, status, priceQuote, bizGroupId) {
+    let modal = document.getElementById('member-sc-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'member-sc-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;';
+    const SC_STATUS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const statusLabel = SC_STATUS[status] || status;
+    const canCancel = !['done','cancelled'].includes(status);
+    const canRate = status === 'done';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;direction:rtl;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <button onclick="document.getElementById('member-sc-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;padding:6px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">סגור</button>
+                <div style="text-align:right;">
+                    <div style="font-size:14px;font-weight:900;color:#1e293b;">${safeStr(title)}</div>
+                    <div style="font-size:11px;color:#94a3b8;">${statusLabel}${priceQuote ? ' · ₪'+parseFloat(priceQuote).toFixed(0) : ''}</div>
+                </div>
+            </div>
+            <div id="member-sc-chat-${callId}" style="background:#f8fafc;border-radius:16px;padding:12px;min-height:80px;max-height:260px;overflow-y:auto;margin-bottom:12px;">
+                <div style="text-align:center;color:#94a3b8;font-size:12px;">טוען שיחה...</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                <button onclick="window._memberSendScMsg(${callId},'${bizGroupId}')" style="background:#4f46e5;color:white;border:none;border-radius:12px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">שלח</button>
+                <input id="member-sc-msg-input-${callId}" type="text" placeholder="כתוב הודעה..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:12px;direction:rtl;outline:none;" onkeydown="if(event.key==='Enter')window._memberSendScMsg(${callId},'${bizGroupId}')"/>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${canCancel ? `<button onclick="window._memberCancelSc(${callId},'${bizGroupId}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:12px;padding:8px 16px;font-size:11px;font-weight:700;cursor:pointer;">ביטול קריאה</button>` : ''}
+                ${canRate ? `<div style="width:100%;text-align:center;padding:8px;background:#fffbeb;border-radius:12px;">
+                    <div style="font-size:11px;color:#92400e;margin-bottom:4px;font-weight:700;">דרג את השירות</div>
+                    ${[1,2,3,4,5].map(r=>`<span onclick="window._memberRateSc(${callId},${r},'${bizGroupId}')" style="cursor:pointer;font-size:22px;">⭐</span>`).join('')}
+                </div>` : ''}
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    try {
+        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const d = await r.json();
+        const chatEl = document.getElementById(`member-sc-chat-${callId}`);
+        if (chatEl) {
+            const msgs = d.messages || [];
+            chatEl.innerHTML = msgs.length ? msgs.map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
+                <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('') : '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px;">אין הודעות עדיין</div>';
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window._memberSendScMsg = async function(callId, bizGroupId) {
+    const input = document.getElementById(`member-sc-msg-input-${callId}`);
+    const msg = input?.value?.trim();
+    if (!msg) return;
+    input.value = '';
+    try {
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ senderType:'family', senderName: currentUser?.nickname || 'לקוח', message: msg }) });
+        const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+        const d2 = await r2.json();
+        const chatEl = document.getElementById(`member-sc-chat-${callId}`);
+        if (chatEl) {
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
+                <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
+                    ${safeStr(m.message)}
+                </div>
+            </div>`).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+        }
+    } catch(e) {}
+};
+
+window._memberCancelSc = async function(callId, bizGroupId) {
+    if (!confirm('לבטל את הקריאה?')) return;
+    try {
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        if (r.ok) {
+            document.getElementById('member-sc-modal')?.remove();
+            _memberLoadOrders(bizGroupId, 'maintenance_repair');
+        }
+    } catch(e) {}
+};
+
+window._memberRateSc = async function(callId, rating, bizGroupId) {
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        document.getElementById('member-sc-modal')?.remove();
+        _memberLoadOrders(bizGroupId, 'maintenance_repair');
+    } catch(e) {}
+};
+
+window._memberFreeze = async function(membershipId, bizGroupId) {
+    if (!confirm('להקפיא את המנוי?')) return;
+    try {
+        const r = await fetch(`/api/sport/members/${membershipId}/freeze`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        if (r.ok) _memberLoadOrders(bizGroupId, 'sport');
+    } catch(e) {}
+};
+
+window._memberUnfreeze = async function(membershipId, bizGroupId) {
+    if (!confirm('לשחרר את ההקפאה?')) return;
+    try {
+        const r = await fetch(`/api/sport/members/${membershipId}/unfreeze`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        if (r.ok) _memberLoadOrders(bizGroupId, 'sport');
+    } catch(e) {}
+};

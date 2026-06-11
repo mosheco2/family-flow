@@ -11373,11 +11373,11 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
             orders = r.rows.map(o => ({ ...o, category: 'מנוי' }));
         } else if (bizType === 'maintenance_repair') {
             const r = await pool.query(
-                `SELECT id, title, status, priority, price_quote, scheduled_at, created_at, description
+                `SELECT id, title, status, priority, price_quote, scheduled_at, created_at, description, rating, discount_pct
                  FROM service_calls
-                 WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_name=$3)
+                 WHERE business_group_id=$1 AND (family_group_id=$4 OR customer_phone=$2 OR customer_name=$3)
                  ORDER BY created_at DESC LIMIT 50`,
-                [businessGroupId, phone, nickname]
+                [businessGroupId, phone, nickname, memberGroupId]
             );
             orders = r.rows.map(o => ({ ...o, category: 'קריאת שירות' }));
         } else if (bizType === 'restaurant') {
