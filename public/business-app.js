@@ -31072,3 +31072,507 @@ window._sportConvertLead = async function(leadId, name, phone) {
 })();
 
 // ===== END SPORT PHASE 8 =====
+
+// ===== SPORT PHASE 9 — ONEFLOW CONNECTIVITY + INBOX + AI TOOLS =====
+
+// ─── Update dashboard quick actions to include new screens ───────────────────
+(function() {
+    const origRender = window.renderSportDashboard || renderSportDashboard;
+    // Patch renderSportDashboard to add new quick actions
+    const _patchDash = function(el) {
+        if (!el) return;
+        // Replace the roleQuickActions call by injecting 3 new tiles after paint
+        setTimeout(() => {
+            const qa = el.querySelector('.role-quick-actions-grid, [data-qa-grid]');
+            // If qa exists we add tiles to it; otherwise we rely on the rebuilt dashboard
+        }, 0);
+    };
+})();
+
+// Override renderSportDashboard to include ONEFLOW + Inbox + AI tiles
+(function() {
+    const _orig = window.renderSportDashboard || renderSportDashboard;
+    async function renderSportDashboardV9(el) {
+        // call original to paint base
+        await _orig(el);
+        // append extra quick-action row
+        const extraHtml = `
+        <div class="grid grid-cols-3 gap-3 mt-1 mb-4" id="sport-dash-extra-qa">
+            <button type="button" onclick="window.showSportOneFlow()" class="bg-white rounded-2xl p-3 shadow-sm border border-indigo-100 flex flex-col items-center gap-1 active:scale-95 transition touch-manipulation">
+                <span class="text-xl">🔗</span>
+                <div class="text-[10px] font-black text-indigo-600">ONEFLOW</div>
+            </button>
+            <button type="button" onclick="window.showSportInbox()" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex flex-col items-center gap-1 active:scale-95 transition touch-manipulation" id="sport-inbox-qa-btn">
+                <span class="text-xl">💬</span>
+                <div class="text-[10px] font-black text-slate-600">הודעות</div>
+            </button>
+            <button type="button" onclick="window.showSportAITools()" class="bg-white rounded-2xl p-3 shadow-sm border border-violet-100 flex flex-col items-center gap-1 active:scale-95 transition touch-manipulation">
+                <span class="text-xl">🤖</span>
+                <div class="text-[10px] font-black text-violet-600">AI כלים</div>
+            </button>
+        </div>`;
+        el.insertAdjacentHTML('beforeend', extraHtml);
+        // Update inbox unread badge on the button
+        window._updateSportInboxBadge();
+    }
+    window.renderSportDashboard = renderSportDashboardV9;
+    // patch the global reference used by other code
+    if (typeof renderSportDashboard !== 'undefined') {
+        try { renderSportDashboard = renderSportDashboardV9; } catch(e) {}
+    }
+})();
+
+window._updateSportInboxBadge = async function() {
+    try {
+        const res = await fetch(`${API}/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        const unread = (data.messages||[]).filter(m=>!m.is_read).length;
+        const btn = document.getElementById('sport-inbox-qa-btn');
+        if (btn && unread > 0) {
+            btn.querySelector('span').textContent = '💬';
+            const badge = btn.querySelector('.inbox-unread-dot') || document.createElement('div');
+            badge.className = 'inbox-unread-dot absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] font-black flex items-center justify-center';
+            badge.textContent = unread > 9 ? '9+' : unread;
+            btn.style.position = 'relative';
+            if (!btn.querySelector('.inbox-unread-dot')) btn.appendChild(badge);
+        }
+    } catch(e) {}
+};
+
+// ─── ONEFLOW Screen ────────────────────────────────────────────────────────────
+window.showSportOneFlow = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">ONEFLOW LIFE 🔗</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="sport-oneflow-content">
+            <div class="text-center py-8 text-slate-400 text-sm">טוען חברים מ-ONEFLOW...</div>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="window._sportOneFlowBroadcast()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">📢 שלח הודעה לכל חברי ONEFLOW</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    const el = document.getElementById('sport-oneflow-content');
+    try {
+        const res = await fetch(`${API}/sport/oneflow-members/${currentGroup.id}`);
+        const data = await res.json();
+        const members = data.members || [];
+        if (!members.length) {
+            el.innerHTML = `<div class="text-center py-12">
+                <div class="text-4xl mb-3">🔗</div>
+                <div class="font-black text-slate-700 mb-1">אין חברים מחוברים ל-ONEFLOW</div>
+                <div class="text-xs text-slate-400">חברים שיש להם חשבון ONEFLOW LIFE עם אותו מספר טלפון יופיעו כאן</div>
+            </div>`;
+            return;
+        }
+        const statusColors = { active: 'emerald', frozen: 'blue', expired: 'red' };
+        const statusLabels = { active: 'פעיל', frozen: 'מוקפא', expired: 'פג' };
+        el.innerHTML = `
+            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 mb-4 text-right">
+                <div class="font-black text-indigo-700 text-sm">${members.length} חברים מחוברים ל-ONEFLOW LIFE</div>
+                <div class="text-xs text-indigo-500">תקשורת דו-כיוונית פעילה</div>
+            </div>
+            ${members.map(m => `
+            <div class="bg-white border border-slate-100 rounded-2xl p-3 mb-2 flex items-center justify-between shadow-sm">
+                <div class="flex gap-2">
+                    <button onclick="window._sportOneFlowMessageMember(${m.family_group_id},'${(m.member_name||'').replace(/'/g,"\\'")}')" class="text-[11px] font-bold text-white bg-indigo-600 px-2 py-1.5 rounded-lg">💬</button>
+                    <button onclick="window.showSportAITrainingPlan('${(m.member_name||'').replace(/'/g,"\\'")}','${m.member_phone||''}')" class="text-[11px] font-bold text-violet-700 bg-violet-50 px-2 py-1.5 rounded-lg">🤖</button>
+                </div>
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${m.member_name || '—'}</div>
+                    <div class="flex items-center gap-1.5 justify-end mt-0.5">
+                        <span class="text-[10px] font-bold text-${statusColors[m.status]||'slate'}-600 bg-${statusColors[m.status]||'slate'}-50 px-1.5 py-0.5 rounded">${statusLabels[m.status]||m.status}</span>
+                        <span class="text-[10px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded font-bold">🔗 ${m.family_name||'ONEFLOW'}</span>
+                        ${m.type_name ? `<span class="text-[10px] text-slate-400">${m.type_name}</span>` : ''}
+                    </div>
+                </div>
+            </div>`).join('')}`;
+    } catch(e) {
+        el.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינה</div>`;
+    }
+};
+
+window._sportOneFlowBroadcast = function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportOneFlow()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">📢 הודעה לכולם</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <input id="ofl-bc-subject" type="text" placeholder="נושא ההודעה" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="rtl"/>
+            <textarea id="ofl-bc-content" rows="6" placeholder="תוכן ההודעה..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none" dir="rtl"></textarea>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="window._sportOneFlowDoBroadcast()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שלח לכל חברי ONEFLOW 📤</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportOneFlowDoBroadcast = async function() {
+    const subject = document.getElementById('ofl-bc-subject')?.value?.trim();
+    const content = document.getElementById('ofl-bc-content')?.value?.trim();
+    if (!content) return showToast('error', 'כתוב תוכן להודעה');
+    try {
+        const r = await fetch(`${API}/sport/oneflow-broadcast`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, subject, content })
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('success', `ההודעה נשלחה ל-${d.count} חברי ONEFLOW ✅`);
+            window.showSportOneFlow();
+        } else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportOneFlowMessageMember = function(familyGroupId, memberName) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportOneFlow()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">💬 הודעה ל-${memberName}</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <input id="ofl-msg-subject" type="text" placeholder="נושא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="rtl"/>
+            <textarea id="ofl-msg-content" rows="6" placeholder="תוכן ההודעה..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none" dir="rtl"></textarea>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <button onclick="window._sportOneFlowDoSendMessage(${familyGroupId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שלח הודעה 📤</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportOneFlowDoSendMessage = async function(familyGroupId) {
+    const subject = document.getElementById('ofl-msg-subject')?.value?.trim();
+    const content = document.getElementById('ofl-msg-content')?.value?.trim();
+    if (!content) return showToast('error', 'כתוב תוכן להודעה');
+    try {
+        const r = await fetch(`${API}/sport/oneflow-member-message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyGroupId, businessGroupId: currentGroup.id, subject, content })
+        });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'ההודעה נשלחה ✅'); window.showSportOneFlow(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── Sport Inbox ───────────────────────────────────────────────────────────────
+window.showSportInbox = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">הודעות נכנסות 💬</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="sport-inbox-list">
+            <div class="text-center py-8 text-slate-400 text-sm">טוען...</div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    await window._sportLoadInbox();
+};
+
+window._sportLoadInbox = async function() {
+    const el = document.getElementById('sport-inbox-list');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API}/inbox/${currentGroup.id}`);
+        const data = await res.json();
+        const msgs = data.messages || [];
+        if (!msgs.length) {
+            el.innerHTML = `<div class="text-center py-12"><div class="text-4xl mb-3">💬</div><div class="font-black text-slate-700">אין הודעות עדיין</div></div>`;
+            return;
+        }
+        const typeIcons = { customer: '👤', business: '🏢', superadmin: '🛡️', zone_manager: '📍' };
+        el.innerHTML = msgs.map(m => `
+        <div onclick="window._sportInboxOpen(${m.id})" class="bg-${m.is_read ? 'white' : 'indigo-50'} border border-${m.is_read ? 'slate-100' : 'indigo-200'} rounded-2xl p-3 mb-2 cursor-pointer active:scale-95 transition">
+            <div class="flex items-start justify-between gap-2">
+                <div class="text-xs text-slate-400">${new Date(m.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+                <div class="text-right flex-1">
+                    <div class="flex items-center gap-1.5 justify-end mb-0.5">
+                        ${!m.is_read ? '<span class="w-2 h-2 bg-indigo-500 rounded-full inline-block"></span>' : ''}
+                        <span class="font-black text-slate-800 text-sm">${m.subject || 'הודעה'}</span>
+                    </div>
+                    <div class="text-xs text-slate-500">${typeIcons[m.sender_type] || '👤'} ${m.sender_name || ''} ${m.sender_contact ? '· ' + m.sender_contact : ''}</div>
+                </div>
+            </div>
+        </div>`).join('');
+    } catch(e) {
+        el.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>`;
+    }
+};
+
+window._sportInboxOpen = async function(msgId) {
+    const msgs = (await fetch(`${API}/inbox/${currentGroup.id}`).then(r=>r.json()).catch(()=>({messages:[]}))).messages || [];
+    const m = msgs.find(x => x.id === msgId);
+    if (!m) return;
+    // Mark as read
+    fetch(`${API}/inbox/${msgId}/read`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ isRead: true }) });
+
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportInbox()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-base font-black text-slate-800 text-right flex-1 mx-2">${m.subject || 'הודעה'}</h2>
+            <button onclick="window._sportInboxDelete(${msgId})" class="text-red-400 text-sm">🗑</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="bg-slate-50 rounded-2xl p-4 mb-4 text-right">
+                <div class="text-xs text-slate-500 mb-1">מ: ${m.sender_name || ''} ${m.sender_contact ? '· ' + m.sender_contact : ''}</div>
+                <div class="text-xs text-slate-400">${new Date(m.created_at).toLocaleString('he-IL')}</div>
+            </div>
+            <div class="text-sm text-slate-800 leading-relaxed text-right whitespace-pre-wrap">${m.content || ''}</div>
+            ${m.sender_contact ? `<div class="mt-6"><a href="tel:${m.sender_contact}" class="flex items-center justify-center gap-2 w-full bg-emerald-50 text-emerald-700 font-black py-3 rounded-2xl text-sm">📞 התקשר</a></div>` : ''}
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportInboxDelete = async function(msgId) {
+    if (!confirm('למחוק הודעה זו?')) return;
+    try {
+        await fetch(`${API}/inbox/${msgId}`, { method: 'DELETE' });
+        window.showSportInbox();
+    } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+// ─── AI Tools Screen ───────────────────────────────────────────────────────────
+window.showSportAITools = function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">כלי AI 🤖</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <button onclick="window.showSportAITrainingPlan()" class="bg-violet-50 border border-violet-200 rounded-2xl p-4 text-right active:scale-95 transition flex items-center gap-3">
+                <span class="text-3xl">📋</span>
+                <div><div class="font-black text-violet-800">תוכנית אימון אישית</div><div class="text-xs text-violet-500 mt-0.5">Gemini AI מייצר תוכנית מותאמת אישית</div></div>
+            </button>
+            <button onclick="window.showSportAIAlertCompose()" class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-right active:scale-95 transition flex items-center gap-3">
+                <span class="text-3xl">✍️</span>
+                <div><div class="font-black text-indigo-800">כתיבת הודעה חכמה</div><div class="text-xs text-indigo-500 mt-0.5">AI כותב הודעה שיווקית / תזכורת</div></div>
+            </button>
+            <button onclick="window.showSportAIInsights()" class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-right active:scale-95 transition flex items-center gap-3">
+                <span class="text-3xl">📊</span>
+                <div><div class="font-black text-emerald-800">תובנות עסקיות</div><div class="text-xs text-emerald-500 mt-0.5">ניתוח KPIs והמלצות</div></div>
+            </button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+// Training Plan Generator
+window.showSportAITrainingPlan = function(prefillName, prefillPhone) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportAITools()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">📋 תוכנית אימון AI</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="sport-ai-plan-content">
+            <div class="flex flex-col gap-3">
+                <input id="ai-plan-name" type="text" placeholder="שם המתאמן" value="${prefillName||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="rtl"/>
+                <input id="ai-plan-phone" type="tel" placeholder="טלפון (לנתוני כניסות)" value="${prefillPhone||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="ltr"/>
+                <select id="ai-plan-fitness" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="beginner">מתחיל — אין ניסיון</option>
+                    <option value="intermediate">בינוני — מתאמן לפעמים</option>
+                    <option value="advanced">מתקדם — מתאמן קבוע</option>
+                </select>
+                <input id="ai-plan-goal" type="text" placeholder="מטרה (לדוג׳ הורדת משקל, בנייה)" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="rtl"/>
+                <input id="ai-plan-days" type="number" placeholder="ימי אימון בשבוע (לדוג׳ 3)" min="1" max="7" value="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>
+                <textarea id="ai-plan-health" placeholder="הערות בריאות / מגבלות..." rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none" dir="rtl"></textarea>
+                <button onclick="window._sportAIGeneratePlan()" class="w-full bg-violet-600 text-white font-black py-3 rounded-2xl text-sm">✨ צור תוכנית אישית</button>
+            </div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportAIGeneratePlan = async function() {
+    const name = document.getElementById('ai-plan-name')?.value?.trim();
+    const phone = document.getElementById('ai-plan-phone')?.value?.trim();
+    const fitness = document.getElementById('ai-plan-fitness')?.value;
+    const goal = document.getElementById('ai-plan-goal')?.value?.trim();
+    const days = document.getElementById('ai-plan-days')?.value;
+    const health = document.getElementById('ai-plan-health')?.value?.trim();
+    const content = document.getElementById('sport-ai-plan-content');
+    if (content) content.innerHTML = `<div class="text-center py-12"><div class="text-4xl mb-3 animate-pulse">🤖</div><div class="font-black text-violet-700">AI מייצר תוכנית...</div><div class="text-xs text-slate-400 mt-1">עשוי לקחת 10–20 שניות</div></div>`;
+    try {
+        const r = await fetch(`${API}/ai/sport/training-plan`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ memberName: name, memberPhone: phone, fitnessGoal: goal, currentFitness: fitness, availableDays: days, healthNotes: health, groupId: currentGroup.id })
+        });
+        const d = await r.json();
+        if (!d.success) { if (content) content.innerHTML = `<div class="text-center py-8 text-red-400">${d.error || 'שגיאה'}</div>`; return; }
+        const plan = d.plan;
+        const weekHtml = (plan.weeks || []).map(w => `
+            <div class="bg-slate-50 rounded-2xl p-4 mb-3">
+                <div class="font-black text-slate-800 text-sm mb-2 text-right">שבוע ${w.weekNum} — ${w.goal || ''}</div>
+                ${(w.days || []).map(day => `
+                    <div class="bg-white rounded-xl p-3 mb-2 border border-slate-100">
+                        <div class="font-bold text-sm text-right text-indigo-700 mb-1">${day.day} · ${day.focus} (${day.duration || 45} דק׳)</div>
+                        ${(day.exercises || []).map(ex => `
+                            <div class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
+                                <span class="text-xs text-slate-500">${ex.sets}×${ex.reps}${ex.notes?' · '+ex.notes:''}</span>
+                                <span class="text-xs font-bold text-slate-700">${ex.name}</span>
+                            </div>`).join('')}
+                    </div>`).join('')}
+            </div>`).join('');
+        const nutritionHtml = (plan.nutrition || []).length ? `
+            <div class="bg-emerald-50 rounded-2xl p-4 mb-3">
+                <div class="font-black text-emerald-800 text-sm mb-2 text-right">🥗 תזונה</div>
+                ${(plan.nutrition).map(n => `<div class="text-xs text-emerald-700 text-right py-1 border-b border-emerald-100 last:border-0">• ${n}</div>`).join('')}
+            </div>` : '';
+        const safetyHtml = (plan.safetyNotes || []).length ? `
+            <div class="bg-orange-50 rounded-2xl p-4 mb-3">
+                <div class="font-black text-orange-800 text-sm mb-2 text-right">⚠️ בטיחות</div>
+                ${(plan.safetyNotes).map(n => `<div class="text-xs text-orange-700 text-right py-1">• ${n}</div>`).join('')}
+            </div>` : '';
+        if (content) content.innerHTML = `
+            <div class="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-4 text-right">
+                <div class="font-black text-violet-800 text-sm mb-1">תוכנית אישית עבור ${name || 'החבר'}</div>
+                <div class="text-xs text-violet-600">${plan.summary || ''}</div>
+            </div>
+            ${weekHtml}${nutritionHtml}${safetyHtml}
+            <button onclick="window.showSportAITrainingPlan('${(name||'').replace(/'/g,"\\'")}','${phone||''}')" class="w-full bg-slate-100 text-slate-600 font-bold py-3 rounded-2xl text-sm mt-2">🔄 צור מחדש</button>`;
+    } catch(e) { if (content) content.innerHTML = `<div class="text-center py-8 text-red-400">שגיאת תקשורת</div>`; }
+};
+
+// AI Smart Message Composer
+window.showSportAIAlertCompose = function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportAITools()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">✍️ כתיבת הודעה חכמה</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <select id="ai-msg-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                <option value="renewal">תזכורת חידוש מנוי</option>
+                <option value="promo">מבצע מיוחד לחברים</option>
+                <option value="event">הודעה על שיעור / אירוע</option>
+                <option value="inactive">החזרת חבר לא פעיל</option>
+                <option value="welcome">ברוכים הבאים לחבר חדש</option>
+            </select>
+            <input id="ai-msg-context" type="text" placeholder="פרטים נוספים (לדוג׳ שם האירוע, % ההנחה)" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="rtl"/>
+            <button onclick="window._sportAICompose()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">✨ כתוב הודעה</button>
+            <div id="ai-msg-result" class="hidden bg-slate-50 rounded-2xl p-4">
+                <div class="text-sm text-slate-800 text-right whitespace-pre-wrap" id="ai-msg-text"></div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="window._sportAIBroadcastMsg()" class="flex-1 bg-indigo-600 text-white font-black py-2 rounded-xl text-xs">שלח לחברי ONEFLOW</button>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('ai-msg-text').innerText);showToast('success','הועתק!')" class="flex-1 bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs">העתק</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportAICompose = async function() {
+    const type = document.getElementById('ai-msg-type')?.value;
+    const context = document.getElementById('ai-msg-context')?.value?.trim();
+    const resultDiv = document.getElementById('ai-msg-result');
+    const textDiv = document.getElementById('ai-msg-text');
+    if (textDiv) textDiv.innerText = 'כותב...';
+    if (resultDiv) resultDiv.classList.remove('hidden');
+    const typeLabels = { renewal:'תזכורת חידוש מנוי', promo:'מבצע מיוחד', event:'הודעה על שיעור/אירוע', inactive:'החזרת חבר לא פעיל', welcome:'ברוכים הבאים' };
+    try {
+        // Use existing AI chat endpoint with a direct prompt
+        const r = await fetch(`${API}/ai/generate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: `כתוב הודעה קצרה ומשכנעת בעברית לחבר מועדון ספורט. סוג הודעה: ${typeLabels[type]}. פרטים: ${context||'כללי'}. ההודעה צריכה להיות עד 3 משפטים, חמה ומזמינה.` })
+        });
+        const d = await r.json();
+        const text = d.response || d.answer || d.text || 'לא ניתן ליצור הודעה';
+        if (textDiv) textDiv.innerText = text;
+    } catch(e) {
+        if (textDiv) textDiv.innerText = 'שגיאת AI';
+    }
+};
+
+window._sportAIBroadcastMsg = function() {
+    const text = document.getElementById('ai-msg-text')?.innerText;
+    if (!text || text === 'כותב...' || text === 'שגיאת AI') return showToast('error', 'אין הודעה לשליחה');
+    // Pre-fill the broadcast form
+    window._sportOneFlowBroadcast();
+    setTimeout(() => {
+        const content = document.getElementById('ofl-bc-content');
+        if (content) content.value = text;
+    }, 100);
+};
+
+// AI Insights
+window.showSportAIInsights = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportAITools()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">📊 תובנות AI</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="sport-ai-insights">
+            <div class="text-center py-12"><div class="text-4xl mb-3 animate-pulse">🤖</div><div class="font-black text-emerald-700">מנתח נתונים...</div></div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    const el = document.getElementById('sport-ai-insights');
+    try {
+        const [sr, ar] = await Promise.all([
+            fetch(`${API}/sport/dashboard/${currentGroup.id}`).then(r=>r.json()),
+            fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json())
+        ]);
+        const stats = sr.stats || {};
+        const r = await fetch(`${API}/ai/generate`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ query: `אתה יועץ עסקי למועדוני ספורט. נתח את הנתונים הבאים ותן 3–5 תובנות קצרות והמלצות ספציפיות בעברית:
+מנויים פעילים: ${stats.active_members||0}
+פג תוקף בקרוב: ${stats.expiring_soon||0}
+לא אימנו 30+ יום: ${stats.at_risk||0}
+מוקפאים: ${(ar.frozen||[]).length}
+כניסות היום: ${stats.checkins_today||0}
+הכנסה החודש: ₪${stats.revenue_month||0}
+
+תן תובנות ממוקדות ופעולות מומלצות.` })
+        });
+        const d = await r.json();
+        const insights = d.response || d.answer || d.text || 'לא ניתן לנתח';
+        el.innerHTML = `
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-indigo-50 rounded-2xl p-3 text-right"><div class="text-2xl font-black text-indigo-700">${stats.active_members||0}</div><div class="text-xs text-indigo-500">מנויים פעילים</div></div>
+                <div class="bg-${(stats.at_risk||0)>0?'red':'green'}-50 rounded-2xl p-3 text-right"><div class="text-2xl font-black text-${(stats.at_risk||0)>0?'red':'green'}-700">${stats.at_risk||0}</div><div class="text-xs text-${(stats.at_risk||0)>0?'red':'green'}-500">בסיכון נטישה</div></div>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-2xl p-4">
+                <div class="font-black text-slate-800 text-sm mb-3 text-right">💡 המלצות AI</div>
+                <div class="text-sm text-slate-700 leading-relaxed text-right whitespace-pre-wrap">${insights}</div>
+            </div>`;
+    } catch(e) { el.innerHTML = `<div class="text-center py-8 text-red-400">שגיאה</div>`; }
+};
+
+// ─── rdAction routing ─────────────────────────────────────────────────────────
+(function() {
+    const prev = window.rdAction;
+    window.rdAction = function(tab, action) {
+        if (action === 'sport-oneflow') { window.showSportOneFlow(); return; }
+        if (action === 'sport-inbox')   { window.showSportInbox(); return; }
+        if (action === 'sport-ai')      { window.showSportAITools(); return; }
+        prev(tab, action);
+    };
+})();
+
+// ===== END SPORT PHASE 9 =====

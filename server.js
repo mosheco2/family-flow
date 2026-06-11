@@ -11050,6 +11050,125 @@ app.put('/api/sport/members/:id/extended', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ===== SPORT PHASE 9 — ONEFLOW CONNECTIVITY + INBOX + AI =====
+
+// ─── Discover ONEFLOW-connected sport members ──────────────────────────────────
+app.get('/api/sport/oneflow-members/:groupId', async (req, res) => {
+    const { groupId } = req.params;
+    try {
+        const r = await pool.query(`
+            SELECT DISTINCT ON (sm.id)
+                sm.id, sm.member_name, sm.member_phone, sm.member_email,
+                sm.status, sm.end_date, smt.name as type_name,
+                u.id as oneflow_user_id, u.nickname as oneflow_nickname,
+                u.group_id as family_group_id, fg.name as family_name
+            FROM sport_memberships sm
+            LEFT JOIN sport_membership_types smt ON sm.membership_type_id = smt.id
+            JOIN users u ON (
+                u.phone = sm.member_phone
+                OR REPLACE(u.phone, '+972', '0') = sm.member_phone
+                OR (sm.member_phone LIKE '0%' AND u.phone = CONCAT('+972', SUBSTRING(sm.member_phone FROM 2)))
+            )
+            JOIN family_groups fg ON u.group_id = fg.id
+            WHERE sm.group_id = $1 AND sm.status IN ('active','frozen','expired')
+            ORDER BY sm.id, sm.status`, [groupId]);
+        res.json({ success: true, members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Broadcast inbox message to all ONEFLOW sport members ─────────────────────
+app.post('/api/sport/oneflow-broadcast', async (req, res) => {
+    const { groupId, subject, content, senderName } = req.body;
+    if (!groupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const r = await pool.query(`
+            SELECT DISTINCT u.group_id as family_group_id
+            FROM sport_memberships sm
+            JOIN users u ON (
+                u.phone = sm.member_phone
+                OR REPLACE(u.phone, '+972', '0') = sm.member_phone
+                OR (sm.member_phone LIKE '0%' AND u.phone = CONCAT('+972', SUBSTRING(sm.member_phone FROM 2)))
+            )
+            WHERE sm.group_id = $1 AND sm.status IN ('active','frozen')`, [groupId]);
+        const biz = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const bizName = senderName || biz.rows[0]?.name || 'מועדון ספורט';
+        let count = 0;
+        for (const row of r.rows) {
+            await pool.query(
+                `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+                 VALUES ($1,'business',$2,$3,$4)`,
+                [row.family_group_id, bizName, subject || 'הודעה מהמועדון', content]);
+            count++;
+        }
+        res.json({ success: true, count });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Send inbox message to a single ONEFLOW sport member ──────────────────────
+app.post('/api/sport/oneflow-member-message', async (req, res) => {
+    const { familyGroupId, subject, content, businessGroupId } = req.body;
+    if (!familyGroupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const biz = await pool.query('SELECT name FROM family_groups WHERE id=$1', [businessGroupId]);
+        const bizName = biz.rows[0]?.name || 'מועדון ספורט';
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content)
+             VALUES ($1,'business',$2,$3,$4)`,
+            [familyGroupId, bizName, subject || 'הודעה מהמועדון', content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Member sends message to gym (from storefront) ────────────────────────────
+app.post('/api/sport/inbox-member-message', async (req, res) => {
+    const { businessGroupId, memberName, memberPhone, subject, content } = req.body;
+    if (!businessGroupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        await pool.query(
+            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content)
+             VALUES ($1,'customer',$2,$3,$4,$5)`,
+            [businessGroupId, memberName || 'חבר', memberPhone || '', subject || 'הודעה מחבר', content]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── AI: Generate personalised training plan ──────────────────────────────────
+app.post('/api/ai/sport/training-plan', async (req, res) => {
+    if (!genAI) return res.status(500).json({ error: 'מפתח Gemini חסר' });
+    const { memberName, memberPhone, fitnessGoal, currentFitness, availableDays, healthNotes, membershipType, groupId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        let checkinCount = 0;
+        if (memberPhone) {
+            const cr = await pool.query(`
+                SELECT COUNT(*) as count FROM sport_checkins sc
+                JOIN sport_memberships sm ON sc.membership_id = sm.id
+                WHERE sm.group_id=$1 AND sm.member_phone=$2`, [groupId, memberPhone]);
+            checkinCount = parseInt(cr.rows[0]?.count || 0);
+        }
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const prompt = `אתה מאמן כושר מקצועי. צור תוכנית אימונים שבועית מפורטת בעברית.
+פרטי המתאמן:
+שם: ${memberName || 'חבר/ה'}
+מטרה: ${fitnessGoal || 'כושר כללי'}
+רמה: ${currentFitness || 'מתחיל'}
+ימי אימון בשבוע: ${availableDays || '3'}
+סוג מנוי: ${membershipType || 'רגיל'}
+כניסות עד כה: ${checkinCount}
+הערות בריאות: ${healthNotes || 'אין'}
+
+החזר JSON בלבד (ללא ```):
+{"summary":"תקציר","weeks":[{"weekNum":1,"goal":"מטרה","days":[{"day":"ראשון","focus":"קבוצת שרירים","exercises":[{"name":"שם","sets":3,"reps":"12","notes":""}],"duration":45}]}],"nutrition":["המלצה"],"safetyNotes":["הערה"]}`;
+        const result = await model.generateContent(prompt);
+        let rawText = result.response.text();
+        rawText = rawText.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+        let plan;
+        try { plan = JSON.parse(rawText); }
+        catch(e2) { plan = { summary: rawText, weeks: [], nutrition: [], safetyNotes: [] }; }
+        res.json({ success: true, plan });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===== END SPORT / FITNESS API =====
 
 // הפעלת השרת
