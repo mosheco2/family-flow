@@ -418,7 +418,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
         <div class="step-num">2</div>
         <div>
           <div class="step-title">הגדר סוגי מנויים</div>
-          <div class="step-desc">עבור ל<strong>מכירות ← קטלוג ← מנויים</strong>. הוסף לפחות סוג מנוי אחד: שם (לדוג' "מנוי חודשי"), מחיר, מספר כניסות (אם רלוונטי), משך בחודשים. ללא סוגי מנויים לא ניתן לרשום חברים.</div>
+          <div class="step-desc">עבור לתפריט תחתון → <strong>מכירות</strong> → טאב <strong>"מנויים"</strong> (הטאב הראשון). לחץ <strong>"+ מנוי חדש"</strong> והוסף לפחות סוג מנוי אחד: שם (לדוג' "מנוי חודשי"), מחיר, מספר כניסות (אם רלוונטי), משך בחודשים. ללא סוגי מנויים לא ניתן לרשום חברים.</div>
         </div>
       </div>
       <div class="step">
@@ -574,8 +574,18 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
   </div>
   <div class="card-body">
     <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
-      בכניסה לאפליקציה הניהולית (<code>business.html</code>) המנהל מגיע ישירות לדשבורד המועדון. המסך מציג KPIs חיים ופעולות מהירות.
+      בכניסה לאפליקציה הניהולית המנהל מגיע ישירות לדשבורד המועדון. המסך מציג KPIs חיים ופעולות מהירות.
     </p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">🧭</span>
+      <div>
+        <strong>מבנה הניווט — שתי שכבות:</strong><br>
+        <strong>1. תפריט תחתון קבוע</strong> — ראשי | צוות | מכירות | מלאי | כספים | עוד<br>
+        <strong>2. פעולות מהירות בדשבורד (ראשי)</strong> — כפתורים שפותחים מסכי ניהול ספורט: צ'ק-אין, מנויים, שיעורים, מאמנים, לידים, התראות, הצהרות, דוחות, ONEFLOW, הודעות, AI<br><br>
+        <strong>כלל מנחה:</strong> ניהול <em>חברי המועדון ופעילות יומיומית</em> → דרך פעולות מהירות בדשבורד (ראשי). ניהול <em>מכירות, כספים, הגדרות</em> → דרך התפריט התחתון.
+      </div>
+    </div>
 
     <div class="screen-section">
       <div class="screen-section-title">📌 באנר התראה (מופיע כשיש אירועים דחופים)</div>
@@ -643,11 +653,20 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
 
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">תחתית המסך → <strong>מכירות</strong> → טאב <strong>"קטלוג"</strong> → סקשן <strong>"מנויים"</strong></p>
+      <p style="font-size:0.85rem;color:#475569">תפריט תחתון → <strong>מכירות</strong> → טאב <strong>"מנויים"</strong> (הטאב הראשון — נפתח כברירת מחדל)</p>
+      <p style="font-size:0.82rem;color:#64748b;margin-top:0.4rem">במסך זה תראה: <strong>מנוי חדש +</strong> | <strong>תבניות הרכבה</strong> — ומתחת, רשימת כל סוגי המנויים הקיימים ומוצרים נוספים</p>
     </div>
 
     <div class="screen-section">
-      <div class="screen-section-title">➕ הוספת סוג מנוי חדש — שדות</div>
+      <div class="screen-section-title">➕ הוספת סוג מנוי חדש — שלבים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ "+ מנוי חדש"</div><div class="step-desc">הכפתור נמצא בחלק העליון של הרשימה, משמאל ל"תבניות הרכבה"</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">מלא את הפרטים ושמור</div><div class="step-desc">שדות הטופס מפורטים בסקשן הבא</div></div></div>
+      </div>
+    </div>
+
+    <div class="screen-section">
+      <div class="screen-section-title">📋 שדות סוג מנוי חדש</div>
       <div class="field-row"><div class="field-name">שם המנוי</div><div class="field-desc">שם שיוצג לחברים בחנות הציבורית. לדוג' "מנוי חודשי", "כרטיסיה 10 כניסות", "מנוי שנתי VIP"</div></div>
       <div class="field-row"><div class="field-name">מחיר (₪)</div><div class="field-desc">המחיר שישולם בעת רכישה. ניתן לשנות בכל עת — לא משפיע על מנויים קיימים</div></div>
       <div class="field-row"><div class="field-name">מספר כניסות</div><div class="field-desc">אם המנוי הוא כרטיסיה — הכנס מספר. אם מנוי לפי זמן בלבד — השאר ריק</div></div>
@@ -672,7 +691,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
         <div style="font-size:0.75rem;color:#cbd5e1">תמונה תתווסף בהמשך</div>
       </div>
     </div>
-    <div class="screenshot-caption">מסך קטלוג מנויים — ניהול סוגי מנויים</div>
+    <div class="screenshot-caption">מסך ניהול מנויים — מכירות → מנויים</div>
 
     <div class="callout callout-tip">
       <span class="callout-icon">💡</span>
@@ -879,7 +898,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
 
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">דשבורד → <strong>"שיעורים 🗓️"</strong> → כפתור <strong>"סוגי שיעורים 🎽"</strong> בראש המסך<br>— או — מניהול מכירות → קטלוג → <strong>"כללי הרשמה לשיעורים ↗"</strong></p>
+      <p style="font-size:0.85rem;color:#475569">דשבורד → <strong>"שיעורים 🗓️"</strong> → כפתור <strong>"🎽 סוגים"</strong> בראש המסך<br>— או — תפריט תחתון → מכירות → טאב "מנויים" → קישור <strong>"כללי הרשמה לשיעורים ↗"</strong></p>
     </div>
 
     <div class="screen-section">
@@ -1167,18 +1186,18 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
   <div class="card-header">
     <div class="card-icon" style="background:#fce7f3">🛍️</div>
     <div>
-      <div class="card-title">חנות וקטלוג — ממשק ניהולי</div>
+      <div class="card-title">מכירות — מנויים ומוצרים</div>
       <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> ניהול מה מוצג בחנות הציבורית</div>
     </div>
   </div>
   <div class="card-body">
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">תחתית המסך → <strong>"מכירות"</strong> → הטאב <strong>"קטלוג"</strong></p>
+      <p style="font-size:0.85rem;color:#475569">תפריט תחתון → <strong>"מכירות"</strong>. הטאבים הזמינים תחת מכירות: <strong>מנויים | הצעות מחיר | הזמנות | אנליטיקה | גדרות | שיווק</strong></p>
     </div>
 
     <div class="screen-section">
-      <div class="screen-section-title">📋 שני סקשנים בקטלוג הספורט</div>
+      <div class="screen-section-title">📋 טאב "מנויים" — מה מוצג</div>
       <div class="field-row"><div class="field-name">🎫 מנויים</div><div class="field-desc">מנויי הספורט שהוגדרו (ראה סוגי מנויים). אלה המוצרים העיקריים</div></div>
       <div class="field-row"><div class="field-name">🛍️ מוצרים נוספים</div><div class="field-desc">מוצרים רגילים — ציוד ספורט, ביגוד, ספלים, תוספי תזונה וכו'. נוצרו בויזארד או מוסיפים כאן</div></div>
     </div>
@@ -1193,7 +1212,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
 
     <div class="screen-section">
       <div class="screen-section-title">📣 כפתור "כללי הרשמה לשיעורים ↗"</div>
-      <p style="font-size:0.85rem;color:#475569;line-height:1.6">בראש מסך הקטלוג מוצג קישור מהיר לניהול סוגי שיעורים וכללי הרשמה — לנוחות ניהול הכל ממקום אחד.</p>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">בטאב "מנויים" מוצג קישור מהיר <strong>"כללי הרשמה לשיעורים ↗"</strong> שמוביל ישירות לניהול סוגי שיעורים — לנוחות ניהול הכל ממקום אחד.</p>
     </div>
   </div>
 </section>
@@ -1212,7 +1231,7 @@ mark { background: #bbf7d0; border-radius: 2px; padding: 0 2px; }
   <div class="card-body">
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <p style="font-size:0.85rem;color:#475569">מכירות → טאב <strong>"הגדרות"</strong></p>
+      <p style="font-size:0.85rem;color:#475569">תפריט תחתון → מכירות → טאב <strong>"גדרות"</strong></p>
     </div>
 
     <div class="screen-section">
