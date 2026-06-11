@@ -2434,6 +2434,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         document.getElementById('sport-purchase-modal').classList.remove('hidden');
     };
 
+    let _sportNewMemberId = null;
+    let _sportNewMemberName = '';
+    let _sportNewMemberPhone = '';
+    let _sportWaiverSigned = false;
+
     window._submitSportPurchase = async function(gId) {
         const name = document.getElementById('spm-name')?.value?.trim();
         const phone = document.getElementById('spm-phone')?.value?.trim();
@@ -2454,18 +2459,95 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }).then(r=>r.json());
             if (!r.success) { alert(r.error||'שגיאה'); if(btn){btn.disabled=false;btn.textContent='שלח בקשת הצטרפות 🏃';} return; }
             document.getElementById('sport-purchase-modal').classList.add('hidden');
-            // Show success
-            const succ = document.createElement('div');
-            succ.className = 'fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4';
-            succ.innerHTML = `<div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-                <div class="text-5xl mb-4">🎉</div>
-                <div class="font-black text-2xl text-slate-800 mb-2">ברוך הבא, ${name}!</div>
-                <div class="text-slate-600 text-sm mb-4">הצטרפת בהצלחה! הצוות יצור איתך קשר בקרוב לאישור תשלום.</div>
-                <div class="text-xs text-slate-400 mb-4">סוג מנוי: ${r.membershipType}${r.endDate?' · בתוקף עד '+new Date(r.endDate).toLocaleDateString('he-IL'):''}</div>
-                <button onclick="this.closest('.fixed').remove()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl">סגור</button>
-            </div>`;
-            document.body.appendChild(succ);
+            _sportNewMemberId = r.memberId;
+            _sportNewMemberName = name;
+            _sportNewMemberPhone = phone;
+            // Check if waiver required
+            const tmplR = await fetch(`${API}/sport/waiver-template/${gId}`).then(r=>r.json());
+            if (tmplR.template && tmplR.template.require_for_registration) {
+                window._sportShowPublicWaiver(gId, tmplR.template, r);
+            } else {
+                window._sportShowPurchaseSuccess(name, r);
+            }
         } catch(e) { alert('שגיאת תקשורת'); if(btn){btn.disabled=false;btn.textContent='שלח בקשת הצטרפות 🏃';} }
+    };
+
+    window._sportShowPublicWaiver = function(gId, tmpl, purchaseResult) {
+        const succ = document.createElement('div');
+        succ.id = 'sport-waiver-overlay';
+        succ.className = 'fixed inset-0 bg-black/60 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4';
+        succ.innerHTML = `<div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <div class="text-right">
+                <div class="font-black text-slate-800 text-lg mb-1">📋 ${tmpl.title}</div>
+                <div class="text-xs text-amber-600 font-bold mb-3">יש לחתום כדי להשלים את ההצטרפות</div>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 whitespace-pre-line max-h-48 overflow-y-auto text-right">${tmpl.content}</div>
+            ${tmpl.require_guardian_for_minors ? `
+            <details class="text-xs text-slate-400">
+                <summary class="font-bold text-slate-600 cursor-pointer">האם המנוי קטין? (לחץ להרחבה)</summary>
+                <div class="mt-2 flex flex-col gap-2">
+                    <input id="spw-guardian-name" placeholder="שם הורה / אפוטרופוס" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-right text-sm"/>
+                    <input id="spw-guardian-phone" type="tel" placeholder="טלפון הורה" dir="ltr" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"/>
+                    <label class="flex items-center gap-2 justify-end text-xs text-slate-600"><input type="checkbox" id="spw-is-minor" class="accent-amber-500"> מנוי קטין</label>
+                </div>
+            </details>` : ''}
+            <div class="bg-slate-50 rounded-2xl p-4 text-center">
+                <div class="text-xs text-slate-500 mb-2">לחץ לאישור שקראת והסכמת להצהרה</div>
+                <div id="spw-sig-pad" class="border-2 border-dashed border-slate-300 rounded-xl h-20 flex items-center justify-center cursor-pointer bg-white active:bg-emerald-50"
+                    onclick="window._sportPublicSignWaiver()">
+                    <span id="spw-sig-text" class="text-slate-400 text-sm">לחץ לחתימה ✍️</span>
+                </div>
+            </div>
+            <button id="spw-submit-btn" onclick="window._sportSubmitPublicWaiver(${gId},'${JSON.stringify(purchaseResult).replace(/'/g,"\\'")}');" disabled
+                class="w-full bg-slate-300 text-slate-500 font-black py-3.5 rounded-2xl text-sm transition" id="spw-btn">
+                חתום ואשר הצטרפות ✅
+            </button>
+            <button onclick="window._sportShowPurchaseSuccess('${(_sportNewMemberName||'').replace(/'/g,"\\'")}',${JSON.stringify(purchaseResult).replace(/\\/g,'\\\\').replace(/'/g,"\\'")})" class="text-xs text-slate-400 text-center underline">דלג (אחתום מאוחר יותר)</button>
+        </div>`;
+        document.body.appendChild(succ);
+        _sportWaiverSigned = false;
+    };
+
+    window._sportPublicSignWaiver = function() {
+        _sportWaiverSigned = true;
+        const pad = document.getElementById('spw-sig-pad');
+        const txt = document.getElementById('spw-sig-text');
+        const btn = document.getElementById('spw-submit-btn');
+        if (pad) pad.className = 'border-2 border-emerald-400 rounded-xl h-20 flex items-center justify-center bg-emerald-50';
+        if (txt) { txt.textContent = '✅ חתמתי ומסכים/ה'; txt.className = 'text-emerald-700 font-bold text-sm'; }
+        if (btn) { btn.disabled=false; btn.className='w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm transition'; }
+    };
+
+    window._sportSubmitPublicWaiver = async function(gId, purchaseResultStr) {
+        if (!_sportWaiverSigned) { alert('יש לאשר חתימה תחילה'); return; }
+        const guardianName = document.getElementById('spw-guardian-name')?.value?.trim()||null;
+        const guardianPhone = document.getElementById('spw-guardian-phone')?.value?.trim()||null;
+        const isMinor = document.getElementById('spw-is-minor')?.checked||false;
+        try {
+            await fetch(`${API}/sport/public-sign-declaration`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ groupId: gId, memberPhone: _sportNewMemberPhone, guardianName, guardianPhone, signatureData:'public-web-signed' })
+            });
+            const overlay = document.getElementById('sport-waiver-overlay');
+            if (overlay) overlay.remove();
+            let pr; try { pr = JSON.parse(purchaseResultStr); } catch(e) { pr = {}; }
+            window._sportShowPurchaseSuccess(_sportNewMemberName, pr);
+        } catch(e) { alert('שגיאת תקשורת'); }
+    };
+
+    window._sportShowPurchaseSuccess = function(name, r) {
+        const overlay = document.getElementById('sport-waiver-overlay');
+        if (overlay) overlay.remove();
+        const succ = document.createElement('div');
+        succ.className = 'fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4';
+        succ.innerHTML = `<div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div class="text-5xl mb-4">🎉</div>
+            <div class="font-black text-2xl text-slate-800 mb-2">ברוך הבא, ${name}!</div>
+            <div class="text-slate-600 text-sm mb-4">הצטרפת בהצלחה! הצוות יצור איתך קשר בקרוב לאישור תשלום.</div>
+            <div class="text-xs text-slate-400 mb-4">סוג מנוי: ${r.membershipType||''}${r.endDate?' · בתוקף עד '+new Date(r.endDate).toLocaleDateString('he-IL'):''}</div>
+            <button onclick="this.closest('.fixed').remove()" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl">סגור</button>
+        </div>`;
+        document.body.appendChild(succ);
     };
 
     let _sportCurrentClassId = null;

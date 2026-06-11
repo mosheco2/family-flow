@@ -785,6 +785,35 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // Registration cancel tracking
       try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancel_type VARCHAR(20)`); } catch(e) {}
+      // Health Declarations / Waivers
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_health_declarations (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), member_phone VARCHAR(30),
+          declaration_text TEXT,
+          signed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          valid_until DATE,
+          guardian_name VARCHAR(100),
+          guardian_phone VARCHAR(30),
+          is_minor BOOLEAN DEFAULT false,
+          ip_address VARCHAR(45),
+          signature_data TEXT
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_waiver_templates (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          title VARCHAR(200) NOT NULL,
+          content TEXT NOT NULL,
+          require_for_registration BOOLEAN DEFAULT true,
+          validity_months INT DEFAULT 12,
+          require_guardian_for_minors BOOLEAN DEFAULT true,
+          minor_age_threshold INT DEFAULT 18,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_signed_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_valid_until DATE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS date_of_birth DATE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -10455,6 +10484,106 @@ app.delete('/api/sport/public-class-register', async (req, res) => {
             await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [first.rows[0].id]);
         }
         res.json({ success: true, lateCancelApplied });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Health Declaration / Waiver ─────────────────────────────────────────────
+
+// Get waiver template for group
+app.get('/api/sport/waiver-template/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true ORDER BY created_at DESC LIMIT 1', [req.params.groupId]);
+        res.json({ template: r.rows[0] || null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Create/update waiver template
+app.post('/api/sport/waiver-template/:groupId', async (req, res) => {
+    const { title, content, requireForRegistration, validityMonths, requireGuardianForMinors, minorAgeThreshold } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'כותרת ותוכן חובה' });
+    try {
+        // deactivate previous
+        await pool.query('UPDATE sport_waiver_templates SET is_active=false WHERE group_id=$1', [req.params.groupId]);
+        const r = await pool.query(`INSERT INTO sport_waiver_templates (group_id,title,content,require_for_registration,validity_months,require_guardian_for_minors,minor_age_threshold)
+            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+            [req.params.groupId, title, content, requireForRegistration!==false, validityMonths||12, requireGuardianForMinors!==false, minorAgeThreshold||18]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get declarations for a group (admin view)
+app.get('/api/sport/declarations/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT d.*, sm.status as member_status FROM sport_health_declarations d
+            LEFT JOIN sport_memberships sm ON d.membership_id=sm.id
+            WHERE d.group_id=$1 ORDER BY d.signed_at DESC`, [req.params.groupId]);
+        res.json({ declarations: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get declaration status for a member
+app.get('/api/sport/declaration-status/:membershipId', async (req, res) => {
+    try {
+        const m = await pool.query('SELECT * FROM sport_memberships WHERE id=$1', [req.params.membershipId]);
+        if (!m.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const mem = m.rows[0];
+        const decl = await pool.query(`SELECT * FROM sport_health_declarations WHERE membership_id=$1 ORDER BY signed_at DESC LIMIT 1`, [req.params.membershipId]);
+        const hasSigned = decl.rows.length > 0;
+        const isValid = hasSigned && mem.waiver_valid_until && new Date(mem.waiver_valid_until) > new Date();
+        const daysUntilExpiry = mem.waiver_valid_until ? Math.ceil((new Date(mem.waiver_valid_until) - new Date()) / 86400000) : null;
+        res.json({ hasSigned, isValid, daysUntilExpiry, lastSigned: decl.rows[0] || null, member: mem });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Submit health declaration / waiver signature
+app.post('/api/sport/sign-declaration', async (req, res) => {
+    const { groupId, membershipId, memberName, memberPhone, declarationText, guardianName, guardianPhone, isMinor, ipAddress, signatureData } = req.body;
+    if (!groupId || !membershipId) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const tmpl = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true LIMIT 1', [groupId]);
+        const validityMonths = tmpl.rows[0]?.validity_months || 12;
+        const validUntil = new Date();
+        validUntil.setMonth(validUntil.getMonth() + validityMonths);
+        const validUntilDate = validUntil.toISOString().split('T')[0];
+        await pool.query(`INSERT INTO sport_health_declarations (group_id,membership_id,member_name,member_phone,declaration_text,valid_until,guardian_name,guardian_phone,is_minor,ip_address,signature_data)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [groupId, membershipId, memberName, memberPhone, declarationText || tmpl.rows[0]?.content || '', validUntilDate, guardianName||null, guardianPhone||null, isMinor||false, ipAddress||null, signatureData||null]);
+        await pool.query('UPDATE sport_memberships SET waiver_signed_at=NOW(), waiver_valid_until=$1 WHERE id=$2', [validUntilDate, membershipId]);
+        res.json({ success: true, validUntil: validUntilDate });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public sign declaration (external customer)
+app.post('/api/sport/public-sign-declaration', async (req, res) => {
+    const { groupId, memberPhone, guardianName, guardianPhone, signatureData } = req.body;
+    if (!groupId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const mem = await pool.query('SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 ORDER BY id DESC LIMIT 1', [groupId, memberPhone]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא מנוי' });
+        const m = mem.rows[0];
+        const tmpl = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true LIMIT 1', [groupId]);
+        const validityMonths = tmpl.rows[0]?.validity_months || 12;
+        const validUntil = new Date();
+        validUntil.setMonth(validUntil.getMonth() + validityMonths);
+        const validUntilDate = validUntil.toISOString().split('T')[0];
+        await pool.query(`INSERT INTO sport_health_declarations (group_id,membership_id,member_name,member_phone,declaration_text,valid_until,guardian_name,guardian_phone,signature_data)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [groupId, m.id, m.member_name, memberPhone, tmpl.rows[0]?.content||'', validUntilDate, guardianName||null, guardianPhone||null, signatureData||null]);
+        await pool.query('UPDATE sport_memberships SET waiver_signed_at=NOW(), waiver_valid_until=$1 WHERE id=$2', [validUntilDate, m.id]);
+        res.json({ success: true, validUntil: validUntilDate, memberName: m.member_name });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get members with expiring waivers (within 14 days or already expired)
+app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT id, member_name, member_phone, waiver_valid_until, waiver_signed_at,
+            CEIL((waiver_valid_until::date - CURRENT_DATE)) as days_until_expiry
+            FROM sport_memberships
+            WHERE group_id=$1 AND status='active'
+            AND (waiver_valid_until IS NULL OR waiver_valid_until < CURRENT_DATE + INTERVAL '14 days')
+            ORDER BY waiver_valid_until NULLS FIRST`, [req.params.groupId]);
+        res.json({ members: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

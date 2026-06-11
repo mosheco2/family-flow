@@ -28368,6 +28368,7 @@ async function renderSportDashboard(el) {
             {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
             {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
+            {icon:'📋', label:'הצהרות', tab:'', action:'sport-waivers'},
             {icon:'📊', label:'דוחות', tab:'', action:'sport-reports'}
         ])}
         ${roleFullMenuBtn()}`;
@@ -28853,6 +28854,7 @@ window._sportLoadReports = async function(period) {
         if(action==='sport-schedule'){window.showSportSchedule();return;}
         if(action==='sport-alerts')  {window.showSportAlerts();return;}
         if(action==='sport-reports') {window.showSportReports();return;}
+        if(action==='sport-waivers') {window.showSportWaiverSettings();return;}
         prev(tab,action);
     };
 })();
@@ -29667,3 +29669,254 @@ window._sportClassTab = async function(tab, classId) {
 };
 
 // ===== END SPORT PHASE 5 =====
+
+// ===== SPORT PHASE 6 — הצהרת בריאות / תקנון =====
+
+// ─── Waiver Template Editor ────────────────────────────────────────────────────
+window.showSportWaiverSettings = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportMembers()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">הצהרת בריאות / תקנון 📋</h2><span></span>
+        </div>
+        <div class="flex border-b border-slate-100">
+            <button onclick="window._sportWaiverTab('template')" id="wt-tab-template" class="flex-1 py-2 text-xs font-bold border-b-2 border-indigo-500 text-indigo-600">📝 תבנית</button>
+            <button onclick="window._sportWaiverTab('signed')" id="wt-tab-signed" class="flex-1 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400">✅ חתומות</button>
+            <button onclick="window._sportWaiverTab('alerts')" id="wt-tab-alerts" class="flex-1 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400">⚠️ התראות</button>
+        </div>
+        <div id="sport-waiver-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportWaiverTab('template');
+};
+
+window._sportWaiverTab = async function(tab) {
+    ['template','signed','alerts'].forEach(t => {
+        const btn = document.getElementById(`wt-tab-${t}`);
+        if (btn) btn.className = `flex-1 py-2 text-xs font-bold border-b-2 ${t===tab?'border-indigo-500 text-indigo-600':'border-transparent text-slate-400'}`;
+    });
+    const el = document.getElementById('sport-waiver-content');
+    if (!el) return;
+
+    if (tab === 'template') {
+        try {
+            const d = await fetch(`${API}/sport/waiver-template/${currentGroup.id}`).then(r=>r.json());
+            const t = d.template || {};
+            el.innerHTML = `
+            <div class="space-y-4 text-right">
+                <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-xs text-blue-700 text-right">
+                    המנוי יידרש לחתום על הצהרה זו לפני הרשמה ראשונה. תוקף ההצהרה ${t.validity_months||12} חודשים.
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">כותרת</label>
+                    <input id="wt-title" value="${(t.title||'הצהרת בריאות ותקנון מועדון').replace(/"/g,'&quot;')}"
+                        class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">תוכן ההצהרה</label>
+                    <textarea id="wt-content" rows="8" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">${t.content||`אני המנוי/ה מצהיר/ה בזאת כי:
+1. אני בריא/ה ומסוגל/ת להשתתף בפעילות גופנית.
+2. לא ידוע לי על מגבלה רפואית המונעת ממני להתאמן.
+3. קראתי את תקנון המועדון ואני מסכים/ה לכלל תנאיו.
+4. ידוע לי כי המועדון אינו אחראי לנזקים שנגרמו עקב פעילות גופנית.
+5. אני מאשר/ת שימוש בתמונותי לצורכי שיווק המועדון.`}</textarea>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תוקף (חודשים)</label>
+                        <select id="wt-validity" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                            ${[6,12,24,36].map(m=>`<option value="${m}" ${(t.validity_months||12)===m?'selected':''}>${m} חודשים</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">גיל קטין (מתחת ל-)</label>
+                        <select id="wt-minor-age" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                            ${[16,17,18].map(a=>`<option value="${a}" ${(t.minor_age_threshold||18)===a?'selected':''}>${a}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between bg-white rounded-2xl p-3 border border-slate-100">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="wt-require" ${t.require_for_registration!==false?'checked':''} class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                    <div class="text-right"><div class="font-bold text-slate-800 text-sm">חובה לחתום לפני הרשמה</div><div class="text-xs text-slate-400">חסום רישום לשיעור ללא חתימה</div></div>
+                </div>
+                <div class="flex items-center justify-between bg-white rounded-2xl p-3 border border-slate-100">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="wt-guardian" ${t.require_guardian_for_minors!==false?'checked':''} class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                    <div class="text-right"><div class="font-bold text-slate-800 text-sm">חתימת הורה לקטינים</div><div class="text-xs text-slate-400">קטין יצטרך שם + טלפון הורה</div></div>
+                </div>
+                <button onclick="window._sportSaveWaiverTemplate()" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור תבנית ✅</button>
+            </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+
+    } else if (tab === 'signed') {
+        try {
+            const d = await fetch(`${API}/sport/declarations/${currentGroup.id}`).then(r=>r.json());
+            const list = d.declarations||[];
+            if (!list.length) { el.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין הצהרות חתומות עדיין</div>'; return; }
+            el.innerHTML = `<div class="text-xs font-black text-slate-500 mb-3 text-right">${list.length} הצהרות חתומות</div>
+                ${list.map(d2 => {
+                    const signedDate = new Date(d2.signed_at).toLocaleDateString('he-IL');
+                    const validUntil = d2.valid_until ? new Date(d2.valid_until).toLocaleDateString('he-IL') : '—';
+                    const isExpired = d2.valid_until && new Date(d2.valid_until) < new Date();
+                    return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 text-right">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isExpired?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'}">${isExpired?'פג תוקף':'בתוקף'}</span>
+                            <span class="font-bold text-slate-800 text-sm">${d2.member_name||''}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500">נחתם: ${signedDate} · בתוקף עד: ${validUntil}</div>
+                        ${d2.is_minor?`<div class="text-[11px] text-amber-600 mt-0.5">קטין — הורה: ${d2.guardian_name||''} ${d2.guardian_phone||''}</div>`:''}
+                    </div>`;
+                }).join('')}`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+
+    } else { // alerts
+        try {
+            const d = await fetch(`${API}/sport/waiver-alerts/${currentGroup.id}`).then(r=>r.json());
+            const list = d.members||[];
+            if (!list.length) { el.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין חברים עם הצהרה שפגה / עומדת לפוג 🎉</div>'; return; }
+            el.innerHTML = `<div class="text-xs font-black text-orange-600 mb-3 text-right">⚠️ ${list.length} חברים ללא הצהרה בתוקף</div>
+                ${list.map(m => {
+                    const days = m.days_until_expiry;
+                    const label = !m.waiver_signed_at ? 'מעולם לא חתם' : days < 0 ? `פג לפני ${Math.abs(days)} ימים` : `פג בעוד ${days} ימים`;
+                    const color = !m.waiver_signed_at || days < 0 ? 'red' : 'orange';
+                    return `<div class="bg-${color}-50 border border-${color}-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                        <div class="flex gap-2">
+                            <button onclick="window.showSportAdminSignWaiver(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.member_phone||''}')" class="text-[11px] font-bold text-white bg-indigo-600 px-2 py-1 rounded-lg">חתום</button>
+                            ${m.member_phone?`<a href="tel:${m.member_phone}" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">📞</a>`:''}
+                        </div>
+                        <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name||''}</div>
+                        <div class="text-[11px] text-${color}-600">${label}</div></div>
+                    </div>`;
+                }).join('')}`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+    }
+};
+
+window._sportSaveWaiverTemplate = async function() {
+    const title = document.getElementById('wt-title')?.value?.trim();
+    const content = document.getElementById('wt-content')?.value?.trim();
+    const validityMonths = parseInt(document.getElementById('wt-validity')?.value)||12;
+    const minorAgeThreshold = parseInt(document.getElementById('wt-minor-age')?.value)||18;
+    const requireForRegistration = document.getElementById('wt-require')?.checked;
+    const requireGuardianForMinors = document.getElementById('wt-guardian')?.checked;
+    if (!title || !content) { showToast('error','כותרת ותוכן חובה'); return; }
+    try {
+        const d = await fetch(`${API}/sport/waiver-template/${currentGroup.id}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ title, content, requireForRegistration, validityMonths, requireGuardianForMinors, minorAgeThreshold })
+        }).then(r=>r.json());
+        if (d.success) { showToast('success','תבנית נשמרה ✅'); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Admin sign waiver on behalf of member ─────────────────────────────────────
+window.showSportAdminSignWaiver = async function(memberId, memberName, memberPhone) {
+    try {
+        const [tmplD, statusD] = await Promise.all([
+            fetch(`${API}/sport/waiver-template/${currentGroup.id}`).then(r=>r.json()),
+            fetch(`${API}/sport/declaration-status/${memberId}`).then(r=>r.json())
+        ]);
+        const tmpl = tmplD.template;
+        if (!tmpl) { showToast('error','אין תבנית הצהרה — צור תבנית תחילה'); return; }
+        const mem = statusD.member || {};
+        const isMinor = mem.date_of_birth ? (new Date().getFullYear() - new Date(mem.date_of_birth).getFullYear()) < (tmpl.minor_age_threshold||18) : false;
+
+        _ensureSportModal();
+        const modal = document.getElementById('sport-modal');
+        modal.innerHTML = `<div class="flex flex-col h-full">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <button onclick="window.showSportWaiverSettings()" class="text-slate-400 text-xl">←</button>
+                <h2 class="text-lg font-black text-slate-800">חתימה על הצהרה</h2><span></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 text-right">
+                <div class="bg-indigo-50 rounded-2xl p-3">
+                    <div class="font-black text-indigo-800">${memberName}</div>
+                    <div class="text-xs text-indigo-500">${memberPhone||''}</div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-4">
+                    <div class="text-sm font-black text-slate-800 mb-2">${tmpl.title}</div>
+                    <div class="text-xs text-slate-600 whitespace-pre-line max-h-40 overflow-y-auto">${tmpl.content}</div>
+                </div>
+                ${isMinor || tmpl.require_guardian_for_minors ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                    <div class="text-xs font-black text-amber-700 mb-2">פרטי הורה / אפוטרופוס</div>
+                    <input id="ws-guardian-name" placeholder="שם הורה" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-right text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+                    <input id="ws-guardian-phone" type="tel" placeholder="טלפון הורה" dir="ltr" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-300"/>
+                    <label class="flex items-center gap-2 justify-end text-xs text-slate-600"><input type="checkbox" id="ws-is-minor" class="accent-amber-500"> מנוי קטין (מתחת ל-${tmpl.minor_age_threshold||18})</label>
+                </div>` : ''}
+                <div class="bg-slate-50 rounded-2xl p-4 text-center">
+                    <div class="text-xs text-slate-500 mb-3">המנוי מאשר שקרא והבין את ההצהרה לעיל</div>
+                    <div id="ws-sig-pad" class="border-2 border-dashed border-slate-300 rounded-xl h-24 flex items-center justify-center cursor-pointer bg-white"
+                        onclick="window._sportActivateSigPad()">
+                        <span class="text-slate-400 text-sm">לחץ לחתימה דיגיטלית</span>
+                    </div>
+                    <div id="ws-sig-done" class="hidden text-emerald-600 text-sm font-bold mt-1">✅ נחתם</div>
+                </div>
+                <button onclick="window._sportSubmitAdminWaiver(${memberId},'${(memberName||'').replace(/'/g,"\\'")}','${memberPhone||''}')" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">אשר ושמור חתימה ✅</button>
+            </div>
+        </div>`;
+        modal.classList.remove('hidden');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+let _sportSigSigned = false;
+window._sportActivateSigPad = function() {
+    const pad = document.getElementById('ws-sig-pad');
+    const done = document.getElementById('ws-sig-done');
+    if (!pad) return;
+    _sportSigSigned = true;
+    pad.innerHTML = '<div class="text-2xl">✍️</div><div class="text-xs text-emerald-600 font-bold">חתימה אושרה</div>';
+    pad.className = 'border-2 border-emerald-400 rounded-xl h-24 flex flex-col items-center justify-center bg-emerald-50';
+    if (done) done.classList.remove('hidden');
+};
+
+window._sportSubmitAdminWaiver = async function(memberId, memberName, memberPhone) {
+    if (!_sportSigSigned) { showToast('error','יש לאשר חתימה'); return; }
+    const guardianName = document.getElementById('ws-guardian-name')?.value?.trim() || null;
+    const guardianPhone = document.getElementById('ws-guardian-phone')?.value?.trim() || null;
+    const isMinor = document.getElementById('ws-is-minor')?.checked || false;
+    try {
+        const d = await fetch(`${API}/sport/sign-declaration`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, membershipId: memberId, memberName, memberPhone, guardianName, guardianPhone, isMinor, signatureData:'admin-confirmed' })
+        }).then(r=>r.json());
+        if (d.success) {
+            showToast('success',`הצהרה נשמרה ✅ בתוקף עד ${new Date(d.validUntil).toLocaleDateString('he-IL')}`);
+            _sportSigSigned = false;
+            window.showSportWaiverSettings();
+        } else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Add waiver status to member detail ──────────────────────────────────────
+// Hook into showSportMemberDetail to show waiver badge — patch alert section
+const _origShowSportAlerts2 = window.showSportAlerts;
+window.showSportAlerts = async function() {
+    await _origShowSportAlerts2();
+    // After alerts load, also check waiver alerts count and add to header if needed
+    try {
+        const d = await fetch(`${API}/sport/waiver-alerts/${currentGroup.id}`).then(r=>r.json());
+        const count = (d.members||[]).length;
+        if (count > 0) {
+            const el = document.getElementById('sport-alerts-content');
+            if (el) {
+                const waiverBanner = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 flex items-center justify-between cursor-pointer" onclick="window.showSportWaiverSettings()">
+                    <span class="text-xs font-black text-amber-700">לניהול →</span>
+                    <div class="text-right"><div class="font-black text-amber-800 text-sm">📋 הצהרות שפגו / חסרות (${count})</div>
+                    <div class="text-xs text-amber-600">לחץ לטיפול</div></div>
+                </div>`;
+                el.innerHTML = waiverBanner + el.innerHTML;
+            }
+        }
+    } catch(e2) {}
+};
+
+// ===== END SPORT PHASE 6 =====
