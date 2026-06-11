@@ -31910,15 +31910,17 @@ window.showSportSchedule = async function() {
                 class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
         </div>
         <div class="flex gap-2 items-center">
+            <span class="text-[10px] text-slate-400 font-bold whitespace-nowrap shrink-0">תאריך:</span>
             <input id="sport-sched-date" type="date" oninput="window._sportFilterSchedule()"
-                title="תאריך ספציפי"
-                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
-            <span class="text-[10px] text-slate-400 font-bold whitespace-nowrap">או טווח:</span>
+                class="flex-1 min-w-0 border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+        </div>
+        <div class="flex gap-2 items-center">
+            <span class="text-[10px] text-slate-400 font-bold whitespace-nowrap shrink-0">טווח:</span>
             <input id="sport-sched-from" type="date" value="${today}" oninput="window._sportFilterSchedule()"
-                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
-            <span class="text-slate-300">—</span>
+                class="flex-1 min-w-0 border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            <span class="text-slate-300 shrink-0">—</span>
             <input id="sport-sched-to" type="date" value="${todayTo}" oninput="window._sportFilterSchedule()"
-                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+                class="flex-1 min-w-0 border border-slate-200 rounded-xl px-2 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
         </div>`;
     list.parentNode.insertBefore(bar, list);
 };
