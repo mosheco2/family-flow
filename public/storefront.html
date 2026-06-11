@@ -2309,7 +2309,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
                     let registerBtnHtml;
                     if (isFull) {
-                        registerBtnHtml = `<button onclick="window.openSportWaitlist(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}')" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 active:scale-95 transition">⏳ המתנה</button>`;
+                        registerBtnHtml = `<button onclick="window.openSportWaitlist(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}',${gId})" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 active:scale-95 transition">⏳ המתנה</button>`;
                     } else if (bookingStatus === 'not_yet') {
                         const openDate = new Date(classDateTime);
                         openDate.setDate(openDate.getDate() - c.booking_open_days);
@@ -2456,20 +2456,28 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         document.getElementById('sport-class-modal').classList.remove('hidden');
     };
 
-    window.openSportWaitlist = function(classId, className) {
+    window.openSportWaitlist = function(classId, className, groupId) {
+        const existing = document.getElementById('sport-waitlist-overlay');
+        if (existing) existing.remove();
         const u = _sportOneflowUser;
+        const gIdResolved = groupId || storeData?.groupId || '';
         const overlay = document.createElement('div');
         overlay.id = 'sport-waitlist-overlay';
         overlay.className = 'fixed inset-0 bg-black/60 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-4';
-        overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 text-right">
-            <div class="text-lg font-black text-slate-800 mb-1">⏳ רשימת המתנה</div>
-            <div class="text-sm text-slate-500 mb-4">${className}</div>
+        overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 text-right shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <button onclick="document.getElementById('sport-waitlist-overlay').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">✕</button>
+                <div>
+                    <div class="text-lg font-black text-slate-800">⏳ רשימת המתנה</div>
+                    <div class="text-sm text-slate-500">${className}</div>
+                </div>
+            </div>
             <div id="swl-result" class="mb-2"></div>
-            <input id="swl-name" type="text" placeholder="שם מלא *" value="${u?.name||''}"
+            <input id="swl-name" type="text" placeholder="שם מלא *" value="${u?.name||''}" dir="rtl"
                 class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-200"/>
             <input id="swl-phone" type="tel" placeholder="טלפון *" value="${u?.membership?.member_phone||u?.phone||''}" dir="ltr"
                 class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-amber-200"/>
-            <button id="swl-btn" onclick="window._submitSportWaitlist(${classId},${storeData.groupId})" class="w-full bg-amber-500 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition mb-2">הצטרף לרשימת המתנה ⏳</button>
+            <button id="swl-btn" onclick="window._submitSportWaitlist(${classId},${gIdResolved})" class="w-full bg-amber-500 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition mb-2">הצטרף לרשימת המתנה ⏳</button>
             <button onclick="document.getElementById('sport-waitlist-overlay').remove()" class="w-full bg-slate-100 text-slate-600 font-bold py-2.5 rounded-2xl text-sm">ביטול</button>
         </div>`;
         document.body.appendChild(overlay);

@@ -28182,9 +28182,56 @@ function _sportMemberCard(m) {
 }
 
 window.showSportFreeze = function(memberId, memberName) {
-    const reason = prompt(`סיבת הקפאה עבור ${memberName}:`);
-    if (reason === null) return;
-    window.sportFreeze(memberId, reason);
+    const existing = document.getElementById('sport-freeze-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'sport-freeze-overlay';
+    overlay.className = 'fixed inset-0 bg-black/50 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4';
+    overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 text-right shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="document.getElementById('sport-freeze-overlay').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">✕</button>
+            <div>
+                <div class="text-lg font-black text-slate-800">הקפאת מנוי ❄️</div>
+                <div class="text-sm text-slate-500">${memberName}</div>
+            </div>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">סיבת הקפאה</label>
+                <input id="sport-freeze-reason" type="text" placeholder='לדוג׳: טיול, פציעה, חופשה...' dir="rtl"
+                    class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מספר ימים (אופציונלי)</label>
+                <input id="sport-freeze-days" type="number" placeholder="30" min="1" max="365"
+                    class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
+            </div>
+            <div id="sport-freeze-overlay-result"></div>
+            <button onclick="window._sportConfirmFreeze(${memberId})" class="w-full bg-violet-600 text-white font-black py-3.5 rounded-2xl text-sm active:scale-95 transition">הקפא מנוי ❄️</button>
+            <button onclick="document.getElementById('sport-freeze-overlay').remove()" class="w-full bg-slate-100 text-slate-600 font-bold py-2.5 rounded-2xl text-sm">ביטול</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._sportConfirmFreeze = async function(memberId) {
+    const reason = document.getElementById('sport-freeze-reason')?.value?.trim() || '';
+    const days = parseInt(document.getElementById('sport-freeze-days')?.value) || null;
+    const resEl = document.getElementById('sport-freeze-overlay-result');
+    try {
+        const r = await fetch(`${API}/sport/members/${memberId}/freeze`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason, days })
+        }).then(r => r.json());
+        if (!r.success) {
+            if (resEl) resEl.innerHTML = `<div class="text-red-500 text-sm text-center mb-2">${r.error||'שגיאה'}</div>`;
+            return;
+        }
+        document.getElementById('sport-freeze-overlay')?.remove();
+        showToast('success', 'המנוי הוקפא ❄️');
+        if (document.getElementById('sport-member-detail-content')) window.showSportMemberDetail(memberId);
+        else if (document.getElementById('sport-members-list')) window._sportLoadMembers(window._sportCurrentFilter || 'all');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.sportFreeze = async function(memberId, reason) {
@@ -28503,9 +28550,33 @@ window.renderSportSalesCatalogView = async function() {
                         <p class="text-xs text-indigo-600 font-bold mt-0.5">₪${t.price} <span class="font-normal text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 text-[10px]">${kindLabel[t.type]||t.type}${t.sessions?' · '+t.sessions+' כניסות':''}</span></p>
                     </div>
                 </div>
-                <button onclick="window._sportDeleteTypeInline(${t.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100 transition shrink-0">
-                    <i class="fa-solid fa-trash text-xs"></i>
-                </button>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button onclick="window._sportEditTypeInline(${t.id},'${(t.name||'').replace(/'/g,"\\'")}','${t.type}',${t.price},${t.sessions||'null'})" class="text-slate-400 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100 transition" title="ערוך">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                    <button onclick="window._sportDeleteTypeInline(${t.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center border border-slate-100 transition" title="מחק">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="sport-inline-edit-${t.id}" class="hidden bg-indigo-50 rounded-2xl p-4 mb-2 space-y-3 border border-indigo-200">
+                <div class="text-sm font-black text-indigo-800 text-right">✏️ עריכת סוג מנוי</div>
+                <input id="siet-name-${t.id}" type="text" value="${(t.name||'').replace(/"/g,'&quot;')}" placeholder="שם" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                <select id="siet-type-${t.id}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                    <option value="monthly" ${t.type==='monthly'?'selected':''}>חודשי</option>
+                    <option value="yearly" ${t.type==='yearly'?'selected':''}>שנתי</option>
+                    <option value="punch_card" ${t.type==='punch_card'?'selected':''}>כרטיסייה</option>
+                    <option value="day_pass" ${t.type==='day_pass'?'selected':''}>כניסה יומית</option>
+                    <option value="pt_sessions" ${t.type==='pt_sessions'?'selected':''}>אימונים אישיים (PT)</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="siet-price-${t.id}" type="number" value="${t.price}" placeholder="מחיר ₪" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                    <input id="siet-sess-${t.id}" type="number" value="${t.sessions||''}" placeholder="כניסות" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window._sportSaveTypeInline(${t.id})" class="flex-1 bg-indigo-600 text-white font-black py-2 rounded-xl text-sm">שמור ✅</button>
+                    <button onclick="document.getElementById('sport-inline-edit-${t.id}').classList.add('hidden')" class="px-4 bg-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm">ביטול</button>
+                </div>
             </div>`).join('')
             : `<p class="text-center text-slate-400 py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-sm">אין מנויים עדיין. לחץ "מנוי חדש" להוספה.</p>`;
 
@@ -28581,6 +28652,29 @@ window._sportDeleteTypeInline = async function(typeId) {
     try {
         await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
         showToast('success', 'נמחק ✅');
+        window.renderSportSalesCatalogView();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportEditTypeInline = function(id, name, type, price, sessions) {
+    const panel = document.getElementById(`sport-inline-edit-${id}`);
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+};
+
+window._sportSaveTypeInline = async function(id) {
+    const name = document.getElementById(`siet-name-${id}`)?.value?.trim();
+    const type = document.getElementById(`siet-type-${id}`)?.value;
+    const price = parseFloat(document.getElementById(`siet-price-${id}`)?.value) || 0;
+    const sessions = parseInt(document.getElementById(`siet-sess-${id}`)?.value) || null;
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    try {
+        const r = await fetch(`${API}/sport/membership-types/${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, type, price, sessions })
+        }).then(r => r.json());
+        if (!r.success) { showToast('error', r.error || 'שגיאה'); return; }
+        showToast('success', 'נשמר ✅');
         window.renderSportSalesCatalogView();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
@@ -31703,30 +31797,72 @@ window._sportRenderSchedule = function(classes) {
 };
 
 window._sportFilterSchedule = function() {
-    const q = (document.getElementById('sport-sched-search')?.value || '').trim().toLowerCase();
-    if (!q) { window._sportRenderSchedule(window._sportScheduleAllClasses); return; }
+    const q    = (document.getElementById('sport-sched-search')?.value   || '').trim().toLowerCase();
+    const tr   = (document.getElementById('sport-sched-trainer')?.value  || '').trim().toLowerCase();
+    const tp   = (document.getElementById('sport-sched-type')?.value     || '').trim().toLowerCase();
+    const from = document.getElementById('sport-sched-from')?.value || '';
+    const to   = document.getElementById('sport-sched-to')?.value   || '';
+    const dateEx = document.getElementById('sport-sched-date')?.value || '';
+
     const filtered = window._sportScheduleAllClasses.filter(c => {
-        const name = (c.class_name || c.type_name || '').toLowerCase();
+        const name    = (c.class_name  || c.type_name || '').toLowerCase();
         const trainer = (c.trainer_name || '').toLowerCase();
-        return name.includes(q) || trainer.includes(q);
+        const type    = (c.type_name   || '').toLowerCase();
+        const date    = (c.class_date  || '').substring(0, 10);
+
+        if (q  && !name.includes(q) && !trainer.includes(q)) return false;
+        if (tr && !trainer.includes(tr)) return false;
+        if (tp && !type.includes(tp) && !name.includes(tp)) return false;
+        if (dateEx && date !== dateEx) return false;
+        if (from && date < from) return false;
+        if (to   && date > to)   return false;
+        return true;
     });
     window._sportRenderSchedule(filtered);
 };
 
-// Inject filter bar after schedule renders
+window._sportClearScheduleFilter = function() {
+    ['sport-sched-search','sport-sched-trainer','sport-sched-type','sport-sched-from','sport-sched-to','sport-sched-date']
+        .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    window._sportRenderSchedule(window._sportScheduleAllClasses);
+};
+
+// Inject rich filter bar after schedule renders
 const _origShowSportSchedule3 = window.showSportSchedule;
 window.showSportSchedule = async function() {
     await _origShowSportSchedule3();
     const modal = document.getElementById('sport-modal');
-    const list = modal?.querySelector('#sport-schedule-list');
-    if (list && !modal.querySelector('#sport-sched-search')) {
-        const bar = document.createElement('div');
-        bar.className = 'px-4 pb-2 pt-1 border-b border-slate-100';
-        bar.innerHTML = `<input id="sport-sched-search" type="text" placeholder="סינון לפי שם שיעור / מאמן..." dir="rtl"
-            oninput="window._sportFilterSchedule()"
-            class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>`;
-        list.parentNode.insertBefore(bar, list);
-    }
+    const list  = modal?.querySelector('#sport-schedule-list');
+    if (!list || modal.querySelector('#sport-sched-search')) return;
+    const today = new Date().toISOString().split('T')[0];
+    const toD   = new Date(); toD.setDate(toD.getDate()+14);
+    const todayTo = toD.toISOString().split('T')[0];
+    const bar = document.createElement('div');
+    bar.className = 'px-3 pb-2 pt-2 border-b border-slate-100 bg-white space-y-2';
+    bar.innerHTML = `
+        <div class="flex gap-2">
+            <input id="sport-sched-search" type="text" placeholder="שם שיעור / מאמן..." dir="rtl" oninput="window._sportFilterSchedule()"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            <button onclick="window._sportClearScheduleFilter()" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl whitespace-nowrap">נקה ✕</button>
+        </div>
+        <div class="flex gap-2">
+            <input id="sport-sched-trainer" type="text" placeholder="מאמן" dir="rtl" oninput="window._sportFilterSchedule()"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            <input id="sport-sched-type" type="text" placeholder="סוג שיעור" dir="rtl" oninput="window._sportFilterSchedule()"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+        </div>
+        <div class="flex gap-2 items-center">
+            <input id="sport-sched-date" type="date" oninput="window._sportFilterSchedule()"
+                title="תאריך ספציפי"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            <span class="text-[10px] text-slate-400 font-bold whitespace-nowrap">או טווח:</span>
+            <input id="sport-sched-from" type="date" value="${today}" oninput="window._sportFilterSchedule()"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+            <span class="text-slate-300">—</span>
+            <input id="sport-sched-to" type="date" value="${todayTo}" oninput="window._sportFilterSchedule()"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>
+        </div>`;
+    list.parentNode.insertBefore(bar, list);
 };
 
 // ===== END SPORT PHASE 9 =====
