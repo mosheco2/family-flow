@@ -818,6 +818,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS waiver_valid_until DATE`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS date_of_birth DATE`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
       // Trainers / Staff
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainers (
           id SERIAL PRIMARY KEY, group_id INT NOT NULL,
@@ -9976,6 +9977,18 @@ app.delete('/api/sport/membership-types/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/sport/membership-types/:id', async (req, res) => {
+    try {
+        const { name, type, price, sessions } = req.body;
+        const durationMap = { monthly:30, yearly:365, punch_card:null, day_pass:1, pt_sessions:null };
+        await pool.query(
+            `UPDATE sport_membership_types SET name=$1, type=$2, price=$3, duration_days=$4, sessions=$5, updated_at=NOW() WHERE id=$6`,
+            [name, type, parseFloat(price)||0, durationMap[type]||null, parseInt(sessions)||null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Sport store settings (trial, cancellation policy, freeze policy, waiver)
 app.post('/api/sport/store-settings', async (req, res) => {
     try {
@@ -10013,7 +10026,7 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
 
 app.post('/api/sport/members', async (req, res) => {
     try {
-        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender } = req.body;
+        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender, idNumber } = req.body;
         const mName = name || memberName;
         const mPhone = phone || memberPhone || '';
         const mEmail = email || memberEmail || '';
@@ -10025,8 +10038,8 @@ app.post('/api/sport/members', async (req, res) => {
             if (mtype.sessions) sessionsTotal = mtype.sessions;
         }
         const r = await pool.query(
-            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes,date_of_birth,gender) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-            [groupId, mName, mPhone, mEmail, membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'', dateOfBirth||null, gender||null]
+            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes,date_of_birth,gender,id_number) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+            [groupId, mName, mPhone, mEmail, membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'', dateOfBirth||null, gender||null, idNumber||null]
         );
         res.json({ success: true, member: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }

@@ -28063,10 +28063,20 @@ window._sportDoCheckin = async function(memberId, memberName, status) {
         });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
-        showToast('success', `✅ ${memberName} נרשם/ה בהצלחה!`);
-        document.getElementById('sport-checkin-search').value = '';
-        document.getElementById('sport-checkin-results').innerHTML = '';
-        window._sportLoadCheckinToday();
+        const mem = d.member;
+        let sessMsg = '';
+        if (mem && mem.sessions_total != null) {
+            const remaining = mem.sessions_total - (mem.sessions_used||0) - 1;
+            sessMsg = remaining > 0 ? ` — נותרו ${remaining} כניסות` : ' — כרטיסייה מנוצלת 🔔';
+        }
+        showToast('success', `✅ ${memberName} נרשמ/ה בהצלחה!${sessMsg}`);
+        const srch = document.getElementById('sport-checkin-search');
+        const res = document.getElementById('sport-checkin-results');
+        if (srch) srch.value = '';
+        if (res) res.innerHTML = '';
+        if (document.getElementById('sport-checkin-today')) window._sportLoadCheckinToday();
+        // refresh member list if visible
+        if (document.getElementById('sport-members-list')) window._sportLoadMembers(window._sportCurrentFilter||'all');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -28196,7 +28206,12 @@ window.sportUnfreeze = async function(memberId) {
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'המנוי הופשר ☀️');
-        window._sportLoadMembers(window._sportCurrentFilter || 'all');
+        // Reload whichever view is currently active
+        if (document.getElementById('sport-member-detail-content')) {
+            window.showSportMemberDetail(memberId);
+        } else if (document.getElementById('sport-members-list')) {
+            window._sportLoadMembers(window._sportCurrentFilter || 'all');
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -28245,6 +28260,10 @@ window.showSportAddMember = async function() {
                 <input id="sport-new-start" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
             </div>
             <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">תעודת זהות</label>
+                <input id="sport-new-idnumber" type="text" placeholder="מספר ת\"ז (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" dir="ltr"/>
+            </div>
+            <div>
                 <label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות</label>
                 <textarea id="sport-new-notes" rows="2" placeholder="הערות נוספות..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
             </div>
@@ -28263,12 +28282,13 @@ window._sportSubmitNewMember = async function() {
     const typeId = document.getElementById('sport-new-type')?.value;
     const startDate = document.getElementById('sport-new-start')?.value;
     const notes = document.getElementById('sport-new-notes')?.value?.trim();
+    const idNumber = document.getElementById('sport-new-idnumber')?.value?.trim();
     if (!name) { showToast('error', 'יש להזין שם'); return; }
     if (!typeId) { showToast('error', 'יש לבחור סוג מנוי'); return; }
     try {
         const r = await fetch(`${API}/sport/members`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes })
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, idNumber })
         });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
@@ -28321,8 +28341,11 @@ window._sportLoadMembershipTypes = async function() {
         const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
         if (!types.length) { el.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">אין סוגי מנויים עדיין</p>`; return; }
         el.innerHTML = types.map(t => `<div class="bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
-            <button onclick="window._sportDeleteType(${t.id})" class="text-red-400 hover:text-red-600 text-lg px-2">🗑️</button>
-            <div class="text-right">
+            <div class="flex gap-1">
+                <button onclick="window._sportDeleteType(${t.id})" class="text-red-400 hover:text-red-600 text-base px-1.5" title="מחק">🗑️</button>
+                <button onclick="window._sportEditType(${t.id},'${(t.name||'').replace(/'/g,"\\'")}','${t.type}',${t.price},${t.sessions||'null'})" class="text-blue-400 hover:text-blue-600 text-base px-1.5" title="ערוך">✏️</button>
+            </div>
+            <div class="text-right flex-1 mx-2">
                 <div class="font-bold text-slate-800 text-sm">${t.name}</div>
                 <div class="text-[11px] text-slate-500">₪${t.price} · ${kindLabel[t.type]||t.type}${t.sessions?' · '+t.sessions+' כניסות':''}</div>
             </div>
@@ -28357,6 +28380,52 @@ window._sportDeleteType = async function(typeId) {
     try {
         await fetch(`${API}/sport/membership-types/${typeId}`, { method: 'DELETE' });
         showToast('success', 'נמחק ✅');
+        window._sportLoadMembershipTypes();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportEditType = function(id, name, type, price, sessions) {
+    const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
+    const el = document.getElementById('sport-types-list');
+    if (!el) return;
+    const row = el.querySelector(`[data-type-id="${id}"]`);
+    const editId = `sport-edit-type-${id}`;
+    if (document.getElementById(editId)) { document.getElementById(editId).remove(); return; }
+    const div = document.createElement('div');
+    div.id = editId;
+    div.className = 'bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-col gap-2 mt-1';
+    div.innerHTML = `
+        <div class="text-xs font-black text-indigo-700 text-right">✏️ עריכת סוג מנוי</div>
+        <input id="sport-edit-name-${id}" value="${name}" placeholder="שם" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm w-full"/>
+        <select id="sport-edit-kind-${id}" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm w-full">
+            ${['monthly','yearly','punch_card','day_pass','pt_sessions'].map(k=>`<option value="${k}"${k===type?' selected':''}>${kindLabel[k]}</option>`).join('')}
+        </select>
+        <div class="grid grid-cols-2 gap-2">
+            <input id="sport-edit-price-${id}" type="number" value="${price}" placeholder="מחיר ₪" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            <input id="sport-edit-sessions-${id}" type="number" value="${sessions||''}" placeholder="כניסות" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="document.getElementById('${editId}').remove()" class="flex-1 bg-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm">ביטול</button>
+            <button onclick="window._sportSaveEditType(${id})" class="flex-1 bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm">שמור ✅</button>
+        </div>`;
+    el.insertBefore(div, el.firstChild);
+};
+
+window._sportSaveEditType = async function(id) {
+    const name = document.getElementById(`sport-edit-name-${id}`)?.value?.trim();
+    const type = document.getElementById(`sport-edit-kind-${id}`)?.value;
+    const price = parseFloat(document.getElementById(`sport-edit-price-${id}`)?.value)||0;
+    const sessions = parseInt(document.getElementById(`sport-edit-sessions-${id}`)?.value)||null;
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    try {
+        const r = await fetch(`${API}/sport/membership-types/${id}`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, type, price, sessions })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success', 'עודכן בהצלחה ✅');
+        document.getElementById(`sport-edit-type-${id}`)?.remove();
         window._sportLoadMembershipTypes();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
@@ -28666,7 +28735,7 @@ async function renderSportDashboard(el) {
         <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
         ${roleQuickActions([
             {icon:'🚪', label:"צ'ק-אין", tab:'', action:'sport-checkin'},
-            {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
+            {icon:'👥', label:'חברים', tab:'', action:'sport-members'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
             {icon:'👨‍🏫', label:'מאמנים', tab:'', action:'sport-trainers'},
             {icon:'🎯', label:'לידים', tab:'', action:'sport-leads'},
@@ -28718,7 +28787,7 @@ window.showSportAlerts = async function() {
         if (d.frozen?.length) {
             html += `<div class="text-xs font-black text-blue-600 mt-4 mb-2 text-right">❄️ מוקפאים (${d.frozen.length})</div>`;
             html += d.frozen.map(m => `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2 flex items-center justify-between">
-                <button onclick="window.sportUnfreeze(${m.id});window._sportBack()" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר</button>
+                <button onclick="window.sportUnfreeze(${m.id})" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר</button>
                 <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
                 <div class="text-[11px] text-blue-500">הוקפא: ${m.frozen_at?new Date(m.frozen_at).toLocaleDateString('he-IL'):''} ${m.frozen_reason?'· '+m.frozen_reason:''}</div></div>
             </div>`).join('');
@@ -28855,7 +28924,7 @@ window.showSportMemberDetail = async function(memberId) {
             <div class="flex gap-2 mb-4 flex-wrap">
                 <button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="flex-1 min-w-[80px] bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">חדש 🔄</button>
                 ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}');window.showSportMembers()" class="flex-1 min-w-[80px] bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-xs">הקפא ❄️</button>`:''}
-                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id});window.showSportMembers()" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
                 <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
             </div>
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
@@ -29817,7 +29886,7 @@ window.showSportMemberDetail = async function(memberId) {
                 <button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="flex-1 min-w-[72px] bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">חדש 🔄</button>
                 <button onclick="window.showSportMemberQR(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')" class="flex-1 min-w-[72px] bg-slate-100 text-slate-700 font-bold py-2 rounded-xl text-xs">QR 📱</button>
                 ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}');window.showSportMembers()" class="flex-1 min-w-[72px] bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-xs">הקפא ❄️</button>`:''}
-                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id});window.showSportMembers()" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
+                ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
                 <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
             </div>
             <div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
@@ -31574,5 +31643,90 @@ window.showSportAIInsights = async function() {
         prev(tab, action);
     };
 })();
+
+// ===== SPORT PHASE 10 — Schedule Filter + Waitlist =====
+
+// ─── Schedule Filter Bar ──────────────────────────────────────────────────────
+window._sportScheduleAllClasses = [];
+
+const _origLoadSchedule = window._sportLoadSchedule;
+window._sportLoadSchedule = async function(from, to) {
+    const el = document.getElementById('sport-schedule-list');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/classes/${currentGroup.id}?from=${from}&to=${to}`).then(r => r.json());
+        window._sportScheduleAllClasses = d.classes || [];
+        window._sportRenderSchedule(window._sportScheduleAllClasses);
+    } catch(e) { el.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>`; }
+};
+
+window._sportRenderSchedule = function(classes) {
+    const el = document.getElementById('sport-schedule-list');
+    if (!el) return;
+    if (!classes.length) {
+        el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין שיעורים תואמים</div>`;
+        return;
+    }
+    const byDate = {};
+    classes.forEach(c => { if (!byDate[c.class_date]) byDate[c.class_date] = []; byDate[c.class_date].push(c); });
+    const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    const colorMap = { indigo:'bg-indigo-50 border-indigo-200 text-indigo-700', violet:'bg-violet-50 border-violet-200 text-violet-700', emerald:'bg-emerald-50 border-emerald-200 text-emerald-700', orange:'bg-orange-50 border-orange-200 text-orange-700', red:'bg-red-50 border-red-200 text-red-700', blue:'bg-blue-50 border-blue-200 text-blue-700', teal:'bg-teal-50 border-teal-200 text-teal-700' };
+    const todayStr = new Date().toISOString().split('T')[0];
+    el.innerHTML = Object.keys(byDate).sort().map(date => {
+        const d2 = new Date(date);
+        const isToday = date === todayStr;
+        return `<div class="mb-4">
+            <div class="text-xs font-black ${isToday?'text-indigo-600':'text-slate-500'} mb-2 text-right">${isToday?'📍 היום — ':''}${days[d2.getDay()]} ${d2.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})}</div>
+            ${byDate[date].map(c => {
+                const cls = colorMap[c.color] || colorMap.indigo;
+                const fill = Math.min(100, Math.round((c.registered_count / (c.capacity||20)) * 100));
+                const full = parseInt(c.registered_count) >= (c.capacity||20);
+                return `<div class="border rounded-2xl p-3 mb-2 ${cls}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex gap-1.5">
+                            <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
+                            <button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-sm">${c.class_name||c.type_name||'שיעור'}</div>
+                            <div class="text-[11px]">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''}</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-[11px] font-bold ${full?'text-red-600':''}">${c.registered_count}/${c.capacity} ${full?'🔴 מלא':''}</span>
+                        <div class="w-24 h-1.5 bg-white/50 rounded-full overflow-hidden"><div class="h-full rounded-full ${full?'bg-red-500':'bg-current opacity-60'}" style="width:${fill}%"></div></div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }).join('');
+};
+
+window._sportFilterSchedule = function() {
+    const q = (document.getElementById('sport-sched-search')?.value || '').trim().toLowerCase();
+    if (!q) { window._sportRenderSchedule(window._sportScheduleAllClasses); return; }
+    const filtered = window._sportScheduleAllClasses.filter(c => {
+        const name = (c.class_name || c.type_name || '').toLowerCase();
+        const trainer = (c.trainer_name || '').toLowerCase();
+        return name.includes(q) || trainer.includes(q);
+    });
+    window._sportRenderSchedule(filtered);
+};
+
+// Inject filter bar after schedule renders
+const _origShowSportSchedule3 = window.showSportSchedule;
+window.showSportSchedule = async function() {
+    await _origShowSportSchedule3();
+    const modal = document.getElementById('sport-modal');
+    const list = modal?.querySelector('#sport-schedule-list');
+    if (list && !modal.querySelector('#sport-sched-search')) {
+        const bar = document.createElement('div');
+        bar.className = 'px-4 pb-2 pt-1 border-b border-slate-100';
+        bar.innerHTML = `<input id="sport-sched-search" type="text" placeholder="סינון לפי שם שיעור / מאמן..." dir="rtl"
+            oninput="window._sportFilterSchedule()"
+            class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"/>`;
+        list.parentNode.insertBefore(bar, list);
+    }
+};
 
 // ===== END SPORT PHASE 9 =====

@@ -2309,7 +2309,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
                     let registerBtnHtml;
                     if (isFull) {
-                        registerBtnHtml = `<button class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 cursor-not-allowed">מלא</button>`;
+                        registerBtnHtml = `<button onclick="window.openSportWaitlist(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}')" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 active:scale-95 transition">⏳ המתנה</button>`;
                     } else if (bookingStatus === 'not_yet') {
                         const openDate = new Date(classDateTime);
                         openDate.setDate(openDate.getDate() - c.booking_open_days);
@@ -2454,6 +2454,53 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (nameEl) nameEl.value = _sportOneflowUser.name || '';
         }
         document.getElementById('sport-class-modal').classList.remove('hidden');
+    };
+
+    window.openSportWaitlist = function(classId, className) {
+        const u = _sportOneflowUser;
+        const overlay = document.createElement('div');
+        overlay.id = 'sport-waitlist-overlay';
+        overlay.className = 'fixed inset-0 bg-black/60 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-4';
+        overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 text-right">
+            <div class="text-lg font-black text-slate-800 mb-1">⏳ רשימת המתנה</div>
+            <div class="text-sm text-slate-500 mb-4">${className}</div>
+            <div id="swl-result" class="mb-2"></div>
+            <input id="swl-name" type="text" placeholder="שם מלא *" value="${u?.name||''}"
+                class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-200"/>
+            <input id="swl-phone" type="tel" placeholder="טלפון *" value="${u?.membership?.member_phone||u?.phone||''}" dir="ltr"
+                class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-amber-200"/>
+            <button id="swl-btn" onclick="window._submitSportWaitlist(${classId},${storeData.groupId})" class="w-full bg-amber-500 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition mb-2">הצטרף לרשימת המתנה ⏳</button>
+            <button onclick="document.getElementById('sport-waitlist-overlay').remove()" class="w-full bg-slate-100 text-slate-600 font-bold py-2.5 rounded-2xl text-sm">ביטול</button>
+        </div>`;
+        document.body.appendChild(overlay);
+    };
+
+    window._submitSportWaitlist = async function(classId, groupId) {
+        const name = document.getElementById('swl-name')?.value?.trim();
+        const phone = document.getElementById('swl-phone')?.value?.trim();
+        const btn = document.getElementById('swl-btn');
+        const resEl = document.getElementById('swl-result');
+        if (!name || !phone) { if(resEl) resEl.innerHTML = `<div class="text-red-500 text-sm mb-2">יש למלא שם וטלפון</div>`; return; }
+        if (btn) { btn.disabled = true; btn.textContent = 'מצטרף...'; }
+        try {
+            const r = await fetch(`${API}/sport/classes/${classId}/waitlist`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId, memberName: name, membershipId: _sportOneflowUser?.membership?.id || null })
+            }).then(r => r.json());
+            if (r.success) {
+                if (resEl) resEl.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center mb-3">
+                    <div class="font-bold text-amber-700">✅ נוספת לרשימת המתנה</div>
+                    <div class="text-xs text-amber-600">מקום #${r.position} — ניצור קשר כשמתפנה מקום</div>
+                </div>`;
+                if (btn) { btn.textContent = 'נוספת ✅'; btn.className = 'w-full bg-amber-100 text-amber-700 font-black py-3 rounded-2xl text-sm mb-2'; }
+            } else {
+                if (resEl) resEl.innerHTML = `<div class="text-red-500 text-sm mb-2">${r.error||'שגיאה'}</div>`;
+                if (btn) { btn.disabled = false; btn.textContent = 'נסה שוב'; }
+            }
+        } catch(e) {
+            if (resEl) resEl.innerHTML = `<div class="text-red-500 text-sm mb-2">שגיאת תקשורת</div>`;
+            if (btn) { btn.disabled = false; btn.textContent = 'נסה שוב'; }
+        }
     };
 
     window._sport1ClickRegister = async function(classId, className, classDate, startTime, gId) {
