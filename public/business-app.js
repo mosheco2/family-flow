@@ -3651,34 +3651,23 @@ window.renderDashboard = async function(forceRefresh = false) {
     const isEmployee = currentUser?.role === 'MEMBER' || currentUser?.role === 'SENIOR';
     if (isEmployee) { await renderEmployeeDashboard(); return; }
 
-    // For admin/owner in sport business, show sport-specific dashboard
+    // For admin/owner in sport business, render sport dashboard into content-feed
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'sport') {
-        let dashEl = document.getElementById('content-role-dashboard');
-        if (!dashEl) {
-            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
-            if (container) {
-                dashEl = document.createElement('div');
-                dashEl.id = 'content-role-dashboard';
-                dashEl.className = 'px-2';
-                container.appendChild(dashEl);
-            }
-        }
-        if (dashEl) {
-            dashEl.classList.remove('hidden');
-            dashEl.style.position = 'relative';
-            dashEl.style.zIndex = '1';
-            const feedEl = document.getElementById('content-feed');
-            if (feedEl) feedEl.classList.add('hidden');
-            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
-            });
-            await renderSportDashboard(dashEl);
-            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+        if (window._sportScreenActive) return; // sport sub-screen is open — don't overwrite
+        switchTab('feed');
+        const feedEl = document.getElementById('content-feed');
+        ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.classList.add('hidden');
+        });
+        if (feedEl) {
+            await renderSportDashboard(feedEl);
+            if (window._roleDashInterval) clearInterval(window._roleDashInterval);
             window._roleDashInterval = setInterval(() => {
-                const el = document.getElementById('content-role-dashboard');
-                if (el && !el.classList.contains('hidden')) renderSportDashboard(el);
-                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+                if (window._sportScreenActive) return;
+                const feed = document.getElementById('content-feed');
+                if (feed && !feed.classList.contains('hidden') && currentGroup?.business_type === 'sport') {
+                    renderSportDashboard(feed);
+                } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
             }, 30000);
         }
         return;
@@ -28308,35 +28297,37 @@ window._sportDeleteType = async function(typeId) {
 
 // ─── Sport screen navigation (within app shell) ───────────────────────────────
 function _ensureSportModal() {
-    switchTab('feed');
-    const dashEl = document.getElementById('content-role-dashboard');
-    if (dashEl) dashEl.classList.add('hidden');
+    window._sportScreenActive = true;
+    switchTab('feed'); // shows content-feed; renderDashboard is blocked by flag above
     ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
         const el = document.getElementById(id); if (el) el.classList.add('hidden');
     });
-    if (!document.getElementById('sport-modal')) {
+    const feedEl = document.getElementById('content-feed');
+    if (!feedEl) return;
+    // If sport-modal is already a direct child, reuse it. Otherwise clear and create.
+    if (!feedEl.querySelector(':scope > #sport-modal')) {
+        feedEl.innerHTML = '';
         const div = document.createElement('div');
         div.id = 'sport-modal';
-        div.className = 'w-full flex flex-col';
-        div.style.minHeight = 'calc(100vh - 130px)';
-        const feedEl = document.getElementById('content-feed');
-        if (feedEl) feedEl.appendChild(div);
-        else document.body.appendChild(div);
+        div.className = 'w-full flex flex-col min-h-0';
+        div.style.minHeight = 'calc(100dvh - 130px)';
+        feedEl.appendChild(div);
     }
 }
 
 window._sportBack = function() {
-    const modal = document.getElementById('sport-modal');
-    if (modal) modal.innerHTML = '';
-    const dashEl = document.getElementById('content-role-dashboard');
-    if (dashEl) {
-        dashEl.classList.remove('hidden');
-        renderSportDashboard(dashEl);
-        if (window._roleDashInterval) clearInterval(window._roleDashInterval);
+    window._sportScreenActive = false;
+    const feedEl = document.getElementById('content-feed');
+    if (feedEl) feedEl.innerHTML = '';
+    if (window._roleDashInterval) clearInterval(window._roleDashInterval);
+    if (currentGroup?.business_type === 'sport' && feedEl) {
+        renderSportDashboard(feedEl);
         window._roleDashInterval = setInterval(() => {
-            const el = document.getElementById('content-role-dashboard');
-            if (el && !el.classList.contains('hidden')) renderSportDashboard(el);
-            else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            if (window._sportScreenActive) return;
+            const feed = document.getElementById('content-feed');
+            if (feed && !feed.classList.contains('hidden') && currentGroup?.business_type === 'sport') {
+                renderSportDashboard(feed);
+            } else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
         }, 30000);
     }
 };
