@@ -8716,7 +8716,32 @@ async function renderMemberDashboard() {
             bizsEl.innerHTML = `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים. בקש מהמסלקאה/המאמן שלך לחבר אותך.</div>`;
             return;
         }
-        bizsEl.innerHTML = businesses.map(b => `
+        const pending = businesses.filter(b => b.status === 'pending');
+        const active  = businesses.filter(b => b.status === 'active');
+
+        let html = '';
+
+        // Pending requests section
+        if (pending.length) {
+            html += `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:20px;padding:14px;margin-bottom:16px;">
+                <div style="font-size:13px;font-weight:900;color:#92400e;margin-bottom:10px;">⏳ בקשות קישור ממתינות לאישורך</div>
+                ${pending.map(b => `
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #fde68a;">
+                    <div style="font-size:22px;">${_memberBizIcon(b.business_type)}</div>
+                    <div style="flex:1;text-align:right;">
+                        <div style="font-size:13px;font-weight:800;color:#1e293b;">${safeStr(b.business_name)}</div>
+                        <div style="font-size:10px;color:#92400e;">${_memberBizTypeLabel(b.business_type)} · ${b.linked_by_admin_name ? 'ע"י '+safeStr(b.linked_by_admin_name) : ''}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+                        <button onclick="window._memberRespond(${b.id},'approve')" style="background:#10b981;color:white;border:none;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">✅ אשר</button>
+                        <button onclick="window._memberRespond(${b.id},'reject')" style="background:#f1f5f9;color:#ef4444;border:1px solid #fca5a5;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;">✕ דחה</button>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        }
+
+        // Active businesses
+        html += active.map(b => `
             <div id="biz-section-${b.business_group_id}" style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
                     <div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
@@ -8727,12 +8752,14 @@ async function renderMemberDashboard() {
                         <div style="font-size:10px;color:#94a3b8;">${_memberBizTypeLabel(b.business_type)}</div>
                     </div>
                 </div>
-                <div id="orders-${b.business_group_id}" style="text-align:center;color:#94a3b8;font-size:12px;padding:8px;">טוען הזמנות...</div>
+                <div id="orders-${b.business_group_id}" style="text-align:center;color:#94a3b8;font-size:12px;padding:8px;">טוען...</div>
             </div>
         `).join('');
 
-        // Load orders for each business
-        for (const b of businesses) {
+        bizsEl.innerHTML = html || `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים.</div>`;
+
+        // Load orders for active businesses only
+        for (const b of active) {
             _memberLoadOrders(b.business_group_id, b.business_type);
         }
     } catch(e) {
@@ -8744,6 +8771,16 @@ async function renderMemberDashboard() {
 window._memberLogout = function() {
     localStorage.removeItem('ofl_session');
     window.location.reload();
+};
+
+window._memberRespond = async function(linkId, decision) {
+    try {
+        const r = await fetch(`${API}/member/link/${linkId}/respond`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ decision })
+        }).then(r => r.json());
+        if (r.success) renderMemberDashboard();
+    } catch(e) { alert('שגיאת תקשורת'); }
 };
 
 async function _memberLoadOrders(bizGroupId, bizType) {

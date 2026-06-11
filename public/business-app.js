@@ -31509,13 +31509,13 @@ window.showAddToOneflow = async function(name, phone, refId) {
                     class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
             </div>
             <div>
-                <label class="text-xs font-bold text-slate-600 block mb-1">טלפון (יהיה שם המשתמש)</label>
-                <input id="ofl-new-phone" type="tel" value="${phone||''}" dir="ltr" placeholder="050-0000000"
+                <label class="text-xs font-bold text-slate-600 block mb-1">טלפון <span class="text-slate-400 font-normal">או קוד ONEFLOW (M123456)</span></label>
+                <input id="ofl-new-phone" type="text" value="${phone||''}" dir="ltr" placeholder="050-0000000 או M123456"
                     class="w-full border border-slate-200 rounded-xl px-4 py-3 text-left text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
             </div>
         </div>
         <div id="ofl-add-result" class="mb-3"></div>
-        <button onclick="window._doAddToOneflow(${refId||'null'})" class="w-full bg-violet-600 text-white font-black py-3.5 rounded-2xl text-sm active:scale-95 transition">צור חשבון ONEFLOW 🚀</button>
+        <button onclick="window._doAddToOneflow(${refId||'null'})" class="w-full bg-violet-600 text-white font-black py-3.5 rounded-2xl text-sm active:scale-95 transition">קשר ל-ONEFLOW 🔗</button>
         <button onclick="document.getElementById('oneflow-add-overlay').remove()" class="w-full mt-2 bg-slate-100 text-slate-600 font-bold py-2.5 rounded-2xl text-sm">ביטול</button>
     </div>`;
     document.body.appendChild(overlay);
@@ -31525,26 +31525,20 @@ window._doAddToOneflow = async function(refId) {
     const name = document.getElementById('ofl-new-name')?.value?.trim();
     const phone = document.getElementById('ofl-new-phone')?.value?.trim();
     const resEl = document.getElementById('ofl-add-result');
-    if (!name || !phone) { if(resEl) resEl.innerHTML = `<p class="text-red-500 text-sm text-center">יש למלא שם וטלפון</p>`; return; }
-    if(resEl) resEl.innerHTML = `<p class="text-slate-400 text-sm text-center">יוצר חשבון...</p>`;
+    if (!name || !phone) { if(resEl) resEl.innerHTML = `<p class="text-red-500 text-sm text-center">יש למלא שם וטלפון/קוד</p>`; return; }
+    if(resEl) resEl.innerHTML = `<p class="text-slate-400 text-sm text-center">מחבר...</p>`;
     try {
         const r = await fetch(`${API}/member/create-for-business`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                business_group_id: currentGroup.id,
-                name, phone,
-                member_ref_id: refId || null,
-                admin_name: currentUser?.nickname || ''
-            })
+            body: JSON.stringify({ business_group_id: currentGroup.id, name, phone, member_ref_id: refId || null, admin_name: currentUser?.nickname || '' })
         }).then(r => r.json());
 
         if (!r.success) { if(resEl) resEl.innerHTML = `<p class="text-red-500 text-sm text-center">${r.error||'שגיאה'}</p>`; return; }
 
-        const waText = r.is_new
-            ? encodeURIComponent(`שלום! נוצר לך חשבון אישי ב-ONEFLOW 🎉\n\nפרטי כניסה לאפליקציה:\nקוד: ${r.group_code}\nשם: ${name}\nסיסמה: ${r.password}\n\nכנס בכתובת: oneflowlife.com`)
-            : null;
-        const credLine = r.is_new
-            ? `<div class="mt-3 bg-violet-50 border border-violet-200 rounded-xl p-3 text-right">
+        let resultHtml = '';
+        if (r.is_new) {
+            const waText = encodeURIComponent(`שלום! נוצר לך חשבון אישי ב-ONEFLOW 🎉\n\nפרטי כניסה לאפליקציה:\nקוד: ${r.group_code}\nשם: ${name}\nסיסמה: ${r.password}\n\nכנס בכתובת: oneflowlife.com`);
+            resultHtml = `<div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-right">
                 <div class="text-xs font-bold text-violet-700 mb-1">פרטי כניסה — שלח ללקוח:</div>
                 <div class="text-sm font-mono text-slate-800">קוד: <b>${r.group_code}</b></div>
                 <div class="text-sm font-mono text-slate-800">שם: <b>${name}</b></div>
@@ -31554,11 +31548,17 @@ window._doAddToOneflow = async function(refId) {
                    class="mt-2 flex items-center justify-center gap-2 w-full bg-[#25D366] text-white font-bold py-2 rounded-xl text-sm">
                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.556 4.119 1.526 5.847L.057 23.986l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.854 0-3.585-.497-5.077-1.365l-.364-.215-3.742.981.998-3.648-.237-.376A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                    שלח ב-WhatsApp
-                </a>
-               </div>`
-            : `<div class="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-right text-sm text-emerald-700 font-bold">ללקוח יש כבר חשבון ONEFLOW — הוא קושר לעסק שלך ✅</div>`;
+                </a></div>`;
+        } else if (r.link_status === 'pending') {
+            resultHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right">
+                <div class="text-sm font-bold text-amber-700 mb-1">⏳ ממתין לאישור הלקוח</div>
+                <div class="text-xs text-amber-600">הבקשה נשלחה. הלקוח יראה אותה בדשבורד ONEFLOW שלו ויצטרך לאשר את הקישור לעסק שלך.</div>
+            </div>`;
+        } else {
+            resultHtml = `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-right text-sm text-emerald-700 font-bold">הלקוח קושר לעסק שלך ✅</div>`;
+        }
 
-        if(resEl) resEl.innerHTML = `<p class="text-emerald-600 text-sm text-center font-bold">${r.is_new ? 'החשבון נוצר בהצלחה! 🎉' : 'הקישור עודכן ✅'}</p>${credLine}`;
+        if(resEl) resEl.innerHTML = `<p class="text-emerald-600 text-sm text-center font-bold mb-2">${r.is_new ? 'החשבון נוצר! 🎉' : r.link_status === 'pending' ? 'בקשה נשלחה ⏳' : 'קושר בהצלחה ✅'}</p>${resultHtml}`;
         const btn = document.querySelector('#oneflow-add-overlay button[onclick*="_doAddToOneflow"]');
         if(btn) { btn.textContent = 'סגור'; btn.onclick = () => document.getElementById('oneflow-add-overlay')?.remove(); }
     } catch(e) { if(resEl) resEl.innerHTML = `<p class="text-red-500 text-sm text-center">שגיאת תקשורת</p>`; }
