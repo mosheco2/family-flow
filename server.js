@@ -11147,6 +11147,7 @@ app.post('/api/ai/sport/training-plan', async (req, res) => {
             checkinCount = parseInt(cr.rows[0]?.count || 0);
         }
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const jsonSchema = '{"summary":"תקציר","weeks":[{"weekNum":1,"goal":"מטרה","days":[{"day":"ראשון","focus":"קבוצת שרירים","exercises":[{"name":"שם","sets":3,"reps":"12","notes":""}],"duration":45}]}],"nutrition":["המלצה"],"safetyNotes":["הערה"]}';
         const prompt = `אתה מאמן כושר מקצועי. צור תוכנית אימונים שבועית מפורטת בעברית.
 פרטי המתאמן:
 שם: ${memberName || 'חבר/ה'}
@@ -11157,8 +11158,8 @@ app.post('/api/ai/sport/training-plan', async (req, res) => {
 כניסות עד כה: ${checkinCount}
 הערות בריאות: ${healthNotes || 'אין'}
 
-החזר JSON בלבד (ללא ```):
-{"summary":"תקציר","weeks":[{"weekNum":1,"goal":"מטרה","days":[{"day":"ראשון","focus":"קבוצת שרירים","exercises":[{"name":"שם","sets":3,"reps":"12","notes":""}],"duration":45}]}],"nutrition":["המלצה"],"safetyNotes":["הערה"]}`;
+החזר JSON בלבד ללא סימני backtick:
+${jsonSchema}`;
         const result = await model.generateContent(prompt);
         let rawText = result.response.text();
         rawText = rawText.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
