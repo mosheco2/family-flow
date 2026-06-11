@@ -2290,15 +2290,49 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     const spotsLeft = (c.capacity||20) - parseInt(c.registered_count);
                     const cb = c.color || 'indigo';
                     const clsColor = {indigo:'bg-indigo-50 border-indigo-200',violet:'bg-violet-50 border-violet-200',emerald:'bg-emerald-50 border-emerald-200',orange:'bg-orange-50 border-orange-200',red:'bg-red-50 border-red-200',blue:'bg-blue-50 border-blue-200',teal:'bg-teal-50 border-teal-200'}[cb]||'bg-indigo-50 border-indigo-200';
+
+                    const now = new Date();
+                    const classDateTime = new Date(`${c.class_date.split('T')[0]}T${c.start_time || '00:00'}:00`);
+                    const closeHours = c.booking_close_hours ?? 1;
+                    const closeTime = new Date(classDateTime.getTime() - closeHours * 60 * 60 * 1000);
+
+                    let bookingStatus = 'open';
+                    if (c.booking_open_days != null) {
+                        const openDate = new Date(classDateTime);
+                        openDate.setDate(openDate.getDate() - c.booking_open_days);
+                        if (now < openDate) { bookingStatus = 'not_yet'; }
+                    }
+                    if (now > closeTime) { bookingStatus = 'closed'; }
+
+                    const allowedIds = c.allowed_membership_type_ids ?
+                        (Array.isArray(c.allowed_membership_type_ids) ? c.allowed_membership_type_ids : JSON.parse(c.allowed_membership_type_ids)) : [];
+
+                    let registerBtnHtml;
+                    if (isFull) {
+                        registerBtnHtml = `<button class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 cursor-not-allowed">מלא</button>`;
+                    } else if (bookingStatus === 'not_yet') {
+                        const openDate = new Date(classDateTime);
+                        openDate.setDate(openDate.getDate() - c.booking_open_days);
+                        registerBtnHtml = `<button class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 cursor-not-allowed" title="נפתח ${openDate.toLocaleDateString('he-IL')}">⏳ טרם נפתח</button>`;
+                    } else if (bookingStatus === 'closed') {
+                        registerBtnHtml = `<button class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 cursor-not-allowed">נסגרה</button>`;
+                    } else {
+                        registerBtnHtml = `<button onclick="window.openSportClassRegister(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}','${c.class_date}','${c.start_time||''}')"
+                            class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white text-indigo-600 border border-indigo-300">הרשם</button>`;
+                    }
+
+                    const memberBadge = allowedIds.length ? `<span class="text-[9px] font-bold text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">🎟️ מנוי נדרש</span>` : '';
+
                     return `<div class="border rounded-xl p-3 mb-1.5 ${clsColor}">
                         <div class="flex items-center justify-between">
-                            <button ${isFull?'':''}onclick="window.openSportClassRegister(${c.id},'${(c.class_name||'').replace(/'/g,"\\'")}','${c.class_date}','${c.start_time||''}')"
-                                class="text-xs font-bold px-3 py-1.5 rounded-lg ${isFull?'bg-slate-200 text-slate-500':'bg-white text-indigo-600 border border-indigo-300'} ${isFull?'cursor-not-allowed':''}">
-                                ${isFull ? 'מלא' : 'הרשם'}
-                            </button>
+                            ${registerBtnHtml}
                             <div class="text-right">
                                 <div class="font-black text-slate-800 text-sm">${c.class_name||c.type_name||'שיעור'}</div>
-                                <div class="text-[11px] text-slate-500">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''} · ${isFull?'🔴 מלא':''+spotsLeft+' מקומות'}</div>
+                                <div class="text-[11px] text-slate-500 flex items-center gap-1 justify-end flex-wrap">
+                                    <span>${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''}</span>
+                                    <span>${isFull?'🔴 מלא':''+spotsLeft+' מקומות'}</span>
+                                    ${memberBadge}
+                                </div>
                             </div>
                         </div>
                     </div>`;

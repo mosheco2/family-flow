@@ -785,6 +785,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // Registration cancel tracking
       try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancel_type VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS allowed_membership_type_ids JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS booking_open_days INT DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS booking_close_hours INT DEFAULT 1`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_types ADD COLUMN IF NOT EXISTS max_per_session INT DEFAULT NULL`); } catch(e) {}
       // Health Declarations / Waivers
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_health_declarations (
           id SERIAL PRIMARY KEY, group_id INT NOT NULL,
@@ -10203,10 +10207,30 @@ app.get('/api/sport/class-types/:groupId', async (req, res) => {
 });
 
 app.post('/api/sport/class-types', async (req, res) => {
-    const { groupId, name, color, defaultDurationMin } = req.body;
+    const { groupId, name, color, defaultDurationMin, allowedMembershipTypeIds, bookingOpenDays, bookingCloseHours, maxPerSession } = req.body;
     try {
-        const r = await pool.query(`INSERT INTO sport_class_types (group_id,name,color,default_duration_min) VALUES ($1,$2,$3,$4) RETURNING *`,
-            [groupId, name, color || 'indigo', defaultDurationMin || 60]);
+        const r = await pool.query(
+            `INSERT INTO sport_class_types (group_id,name,color,default_duration_min,allowed_membership_type_ids,booking_open_days,booking_close_hours,max_per_session)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [groupId, name, color || 'indigo', defaultDurationMin || 60,
+             JSON.stringify(allowedMembershipTypeIds || []),
+             bookingOpenDays || null, bookingCloseHours ?? 1, maxPerSession || null]
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/class-types/:id', async (req, res) => {
+    const { name, color, defaultDurationMin, allowedMembershipTypeIds, bookingOpenDays, bookingCloseHours, maxPerSession } = req.body;
+    try {
+        const r = await pool.query(
+            `UPDATE sport_class_types SET name=$1,color=$2,default_duration_min=$3,
+             allowed_membership_type_ids=$4,booking_open_days=$5,booking_close_hours=$6,max_per_session=$7
+             WHERE id=$8 RETURNING *`,
+            [name, color || 'indigo', defaultDurationMin || 60,
+             JSON.stringify(allowedMembershipTypeIds || []),
+             bookingOpenDays || null, bookingCloseHours ?? 1, maxPerSession || null, req.params.id]
+        );
         res.json({ success: true, type: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10455,11 +10479,12 @@ app.get('/api/sport/public-schedule/:groupId', async (req, res) => {
     const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
     try {
         const r = await pool.query(`SELECT sc.id, sc.class_name, sc.trainer_name, sc.class_date, sc.start_time, sc.end_time,
-            sc.capacity, sc.status, sct.name as type_name, sct.color,
-            (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc.id) as registered_count
-            FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
-            WHERE sc.group_id=$1 AND sc.class_date BETWEEN $2 AND $3 AND sc.status != 'cancelled'
-            ORDER BY sc.class_date, sc.start_time`, [req.params.groupId, fromDate, toDate]);
+    sc.capacity, sc.status, sct.name as type_name, sct.color,
+    sct.allowed_membership_type_ids, sct.booking_open_days, sct.booking_close_hours, sct.max_per_session,
+    (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc.id AND cancelled_at IS NULL) as registered_count
+    FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
+    WHERE sc.group_id=$1 AND sc.class_date BETWEEN $2 AND $3 AND sc.status != 'cancelled'
+    ORDER BY sc.class_date, sc.start_time`, [req.params.groupId, fromDate, toDate]);
         res.json({ classes: r.rows });
     } catch(e) { res.json({ classes: [] }); }
 });
@@ -10490,9 +10515,46 @@ app.post('/api/sport/public-class-register', async (req, res) => {
     const { groupId, classId, memberPhone, memberName } = req.body;
     if (!groupId || !classId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
     try {
-        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1 AND group_id=$2', [classId, groupId]);
+        const cls = await pool.query(`SELECT sc.*, sct.allowed_membership_type_ids, sct.booking_open_days, sct.booking_close_hours, sct.max_per_session
+            FROM sport_classes sc LEFT JOIN sport_class_types sct ON sc.class_type_id=sct.id
+            WHERE sc.id=$1 AND sc.group_id=$2`, [classId, groupId]);
         if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
         const c = cls.rows[0];
+
+        // Booking window validation
+        const classDateTime = new Date(`${c.class_date.toISOString().split('T')[0]}T${c.start_time || '00:00'}:00`);
+        const now = new Date();
+
+        // Too early check
+        if (c.booking_open_days != null) {
+            const openDate = new Date(classDateTime);
+            openDate.setDate(openDate.getDate() - c.booking_open_days);
+            if (now < openDate) {
+                return res.json({ success: false, error: `ההרשמה תיפתח ב-${openDate.toLocaleDateString('he-IL')}` });
+            }
+        }
+
+        // Too late check
+        const closeHours = c.booking_close_hours ?? 1;
+        const closeTime = new Date(classDateTime.getTime() - closeHours * 60 * 60 * 1000);
+        if (now > closeTime) {
+            return res.json({ success: false, error: 'ההרשמה לשיעור זה נסגרה' });
+        }
+
+        // Membership check
+        const allowedIds = c.allowed_membership_type_ids;
+        if (Array.isArray(allowedIds) && allowedIds.length > 0 && memberPhone) {
+            const memRes = await pool.query(
+                `SELECT sm.membership_type_id FROM sport_memberships sm
+                 WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status='active'
+                 AND sm.membership_type_id = ANY($3::int[]) LIMIT 1`,
+                [groupId, memberPhone, allowedIds]
+            );
+            if (!memRes.rows.length) {
+                return res.json({ success: false, error: 'שיעור זה מצריך סוג מנוי ספציפי', requiresMembership: true, allowedTypeIds: allowedIds });
+            }
+        }
+
         // Find member by phone
         const mem = await pool.query(`SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 AND status='active' LIMIT 1`, [groupId, memberPhone]);
         const count = await pool.query('SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=$1', [classId]);

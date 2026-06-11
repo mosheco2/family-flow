@@ -29164,32 +29164,73 @@ window.showSportClassTypes = async function() {
                         ${colors.map(c=>`<option value="${c}">${{indigo:'כחול',violet:'סגול',emerald:'ירוק',orange:'כתום',red:'אדום',blue:'תכלת',teal:'טורקיז',pink:'ורוד'}[c]||c}</option>`).join('')}
                     </select>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">פתיחת הרשמה (ימים מראש, ריק=תמיד)</label>
+                        <input id="sport-ct-open-days" type="number" min="0" placeholder="ריק = תמיד פתוח" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">סגירת הרשמה (שעות לפני)</label>
+                        <input id="sport-ct-close-hours" type="number" min="0" value="1" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">מנויים מאושרים (ריק = כולם)</label>
+                    <div id="sport-ct-membership-checkboxes" class="flex flex-wrap gap-2 mt-1"></div>
+                </div>
                 <button onclick="window._sportAddClassType()" class="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm">הוסף ➕</button>
             </div>
         </div>
     </div>`;
     modal.classList.remove('hidden');
     window._sportLoadClassTypesList();
+    // Load membership types for checkboxes
+    fetch(`${API}/sport/membership-types/${currentGroup.id}`).then(r=>r.json()).then(d => {
+        const container = document.getElementById('sport-ct-membership-checkboxes');
+        if (!container) return;
+        const types = d.types || [];
+        if (!types.length) { container.innerHTML = '<span class="text-xs text-slate-400">אין מנויים מוגדרים</span>'; return; }
+        container.innerHTML = types.map(t => `<label class="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 cursor-pointer">
+            <input type="checkbox" value="${t.id}" class="accent-indigo-600"> ${t.name}
+        </label>`).join('');
+    });
 };
 
 window._sportLoadClassTypesList = async function() {
     const el = document.getElementById('sport-class-types-list');
     if (!el) return;
     try {
-        const d = await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json());
-        const types = d.types || [];
+        const [typesData, memData] = await Promise.all([
+            fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json()),
+            fetch(`${API}/sport/membership-types/${currentGroup.id}`).then(r=>r.json())
+        ]);
+        const types = typesData.types || [];
+        const memTypes = memData.types || [];
         const colorBg = {indigo:'bg-indigo-100 text-indigo-700',violet:'bg-violet-100 text-violet-700',emerald:'bg-emerald-100 text-emerald-700',orange:'bg-orange-100 text-orange-700',red:'bg-red-100 text-red-700',blue:'bg-blue-100 text-blue-700',teal:'bg-teal-100 text-teal-700',pink:'bg-pink-100 text-pink-700'};
         if (!types.length) { el.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm">אין סוגי שיעורים עדיין</div>`; return; }
-        el.innerHTML = types.map(t => `<div class="bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
-            <button onclick="window._sportDeleteClassType(${t.id})" class="text-red-400 text-lg px-2">🗑️</button>
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${colorBg[t.color]||colorBg.indigo}">${t.color}</span>
-                <div class="text-right">
-                    <div class="font-bold text-slate-800 text-sm">${t.name}</div>
-                    <div class="text-[11px] text-slate-500">${t.default_duration_min} דקות</div>
+        el.innerHTML = types.map(t => {
+            const allowedIds = Array.isArray(t.allowed_membership_type_ids) ? t.allowed_membership_type_ids : (t.allowed_membership_type_ids ? JSON.parse(t.allowed_membership_type_ids) : []);
+            const allowedNames = allowedIds.length ? memTypes.filter(m => allowedIds.includes(m.id)).map(m=>m.name).join(', ') : 'כולם';
+            const bookingRule = t.booking_open_days != null ? `נפתח ${t.booking_open_days} ימים מראש · ` : '';
+            const closeRule = `נסגר ${t.booking_close_hours ?? 1}ש׳ לפני`;
+            return `<div class="bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <button onclick="window._sportDeleteClassType(${t.id})" class="text-red-400 text-lg px-2">🗑️</button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full ${colorBg[t.color]||colorBg.indigo}">${{indigo:'כחול',violet:'סגול',emerald:'ירוק',orange:'כתום',red:'אדום',blue:'תכלת',teal:'טורקיז',pink:'ורוד'}[t.color]||t.color}</span>
+                        <div class="text-right">
+                            <div class="font-bold text-slate-800 text-sm">${t.name}</div>
+                            <div class="text-[10px] text-slate-500">${t.default_duration_min} דקות</div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>`).join('');
+                <div class="mt-2 pt-2 border-t border-slate-50 text-right space-y-1">
+                    <div class="text-[10px] text-slate-500">🎟️ מנויים: <span class="font-bold text-slate-700">${allowedNames}</span></div>
+                    <div class="text-[10px] text-slate-500">🗓️ הרשמה: <span class="font-bold text-slate-700">${bookingRule}${closeRule}</span></div>
+                </div>
+                <button onclick="window._sportEditClassType(${t.id})" class="w-full mt-2 bg-slate-100 text-slate-600 text-xs font-bold py-1.5 rounded-lg hover:bg-slate-200 transition">✏️ עריכה</button>
+            </div>`;
+        }).join('');
     } catch(e) { el.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">שגיאה</div>`; }
 };
 
@@ -29197,11 +29238,21 @@ window._sportAddClassType = async function() {
     const name = document.getElementById('sport-ct-name')?.value?.trim();
     const dur = parseInt(document.getElementById('sport-ct-dur')?.value) || 60;
     const color = document.getElementById('sport-ct-color')?.value || 'indigo';
+    const openDays = document.getElementById('sport-ct-open-days')?.value;
+    const closeHours = document.getElementById('sport-ct-close-hours')?.value;
+    const checkboxes = document.querySelectorAll('#sport-ct-membership-checkboxes input[type=checkbox]:checked');
+    const allowedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
     if (!name) { showToast('error','יש להזין שם'); return; }
     try {
         const d = await fetch(`${API}/sport/class-types`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({groupId:currentGroup.id, name, color, defaultDurationMin:dur})
+            body: JSON.stringify({
+                groupId: currentGroup.id, name, color,
+                defaultDurationMin: dur,
+                allowedMembershipTypeIds: allowedIds,
+                bookingOpenDays: openDays ? parseInt(openDays) : null,
+                bookingCloseHours: closeHours !== '' ? parseInt(closeHours) : 1
+            })
         }).then(r=>r.json());
         if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
         showToast('success','נוסף ✅');
@@ -29215,6 +29266,82 @@ window._sportDeleteClassType = async function(id) {
     try {
         await fetch(`${API}/sport/class-types/${id}`, {method:'DELETE'});
         showToast('success','נמחק');
+        window._sportLoadClassTypesList();
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportEditClassType = async function(typeId) {
+    const [typesData, memData] = await Promise.all([
+        fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json()),
+        fetch(`${API}/sport/membership-types/${currentGroup.id}`).then(r=>r.json())
+    ]);
+    const t = (typesData.types || []).find(x => x.id === typeId);
+    if (!t) return;
+    const memTypes = memData.types || [];
+    const allowedIds = Array.isArray(t.allowed_membership_type_ids) ? t.allowed_membership_type_ids : (t.allowed_membership_type_ids ? JSON.parse(t.allowed_membership_type_ids) : []);
+    const colors = ['indigo','violet','emerald','orange','red','blue','teal','pink'];
+    const colorNames = {indigo:'כחול',violet:'סגול',emerald:'ירוק',orange:'כתום',red:'אדום',blue:'תכלת',teal:'טורקיז',pink:'ורוד'};
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/60 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4';
+    overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-5 text-right space-y-3">
+        <div class="flex justify-between items-center mb-1">
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">עריכת סוג שיעור</h3>
+            <span></span>
+        </div>
+        <input id="sct-edit-name" type="text" value="${t.name}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+        <div class="grid grid-cols-2 gap-2">
+            <input id="sct-edit-dur" type="number" value="${t.default_duration_min}" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            <select id="sct-edit-color" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                ${colors.map(c=>`<option value="${c}" ${t.color===c?'selected':''}>${colorNames[c]}</option>`).join('')}
+            </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">פתיחת הרשמה (ימים, ריק=תמיד)</label>
+                <input id="sct-edit-open-days" type="number" min="0" value="${t.booking_open_days ?? ''}" placeholder="תמיד פתוח" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">סגירת הרשמה (שעות לפני)</label>
+                <input id="sct-edit-close-hours" type="number" min="0" value="${t.booking_close_hours ?? 1}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+            </div>
+        </div>
+        <div>
+            <label class="text-[10px] font-bold text-slate-500 block mb-1">מנויים מאושרים (ריק = כולם)</label>
+            <div class="flex flex-wrap gap-2 mt-1">
+                ${memTypes.length ? memTypes.map(m => `<label class="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 cursor-pointer">
+                    <input type="checkbox" value="${m.id}" class="sct-edit-mem-cb accent-indigo-600" ${allowedIds.includes(m.id)?'checked':''}> ${m.name}
+                </label>`).join('') : '<span class="text-xs text-slate-400">אין מנויים מוגדרים</span>'}
+            </div>
+        </div>
+        <button onclick="window._sportSaveClassType(${typeId}, this.closest('.fixed'))" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl text-sm">שמור ✅</button>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._sportSaveClassType = async function(typeId, overlay) {
+    const name = document.getElementById('sct-edit-name')?.value?.trim();
+    const dur = parseInt(document.getElementById('sct-edit-dur')?.value) || 60;
+    const color = document.getElementById('sct-edit-color')?.value || 'indigo';
+    const openDays = document.getElementById('sct-edit-open-days')?.value;
+    const closeHours = document.getElementById('sct-edit-close-hours')?.value;
+    const checkboxes = document.querySelectorAll('.sct-edit-mem-cb:checked');
+    const allowedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    if (!name) { showToast('error','יש להזין שם'); return; }
+    try {
+        const d = await fetch(`${API}/sport/class-types/${typeId}`, {
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                name, color, defaultDurationMin: dur,
+                allowedMembershipTypeIds: allowedIds,
+                bookingOpenDays: openDays ? parseInt(openDays) : null,
+                bookingCloseHours: closeHours !== '' ? parseInt(closeHours) : 1
+            })
+        }).then(r=>r.json());
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success','נשמר ✅');
+        overlay.remove();
         window._sportLoadClassTypesList();
     } catch(e) { showToast('error','שגיאת תקשורת'); }
 };
