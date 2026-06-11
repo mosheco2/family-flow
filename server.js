@@ -878,6 +878,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           UNIQUE(member_group_id, business_group_id)
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE member_business_links ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS unlocked_modules JSONB DEFAULT '[]'`); } catch(e) {}
       // ===== END ONEFLOWLIFE MEMBER FEATURE =====
 
       client.release();
@@ -11315,6 +11316,26 @@ app.post('/api/member/link/:linkId/respond', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA: שדרוג חבר למשפחה או החזרה לחבר
+app.patch('/api/sa/groups/:id/upgrade-member', async (req, res) => {
+    const { memberType } = req.body;
+    if (!['family','member'].includes(memberType)) return res.status(400).json({ error: 'invalid' });
+    try {
+        await pool.query('UPDATE family_groups SET member_type=$1 WHERE id=$2', [memberType, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: עדכון מודולים פתוחים לחשבון חבר
+app.patch('/api/sa/groups/:id/modules', async (req, res) => {
+    const { modules } = req.body; // array of strings
+    if (!Array.isArray(modules)) return res.status(400).json({ error: 'modules must be array' });
+    try {
+        await pool.query('UPDATE family_groups SET unlocked_modules=$1 WHERE id=$2', [JSON.stringify(modules), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Get all businesses linked to a member group (active + pending)
 app.get('/api/member/my-businesses/:groupId', async (req, res) => {
     try {
@@ -11328,8 +11349,10 @@ app.get('/api/member/my-businesses/:groupId', async (req, res) => {
              ORDER BY mbl.linked_at DESC`,
             [req.params.groupId]
         );
-        res.json({ businesses: r.rows });
-    } catch(e) { res.json({ businesses: [] }); }
+        const mgR = await pool.query('SELECT unlocked_modules FROM family_groups WHERE id=$1', [req.params.groupId]);
+        const unlocked_modules = mgR.rows[0]?.unlocked_modules || [];
+        res.json({ businesses: r.rows, unlocked_modules });
+    } catch(e) { res.json({ businesses: [], unlocked_modules: [] }); }
 });
 
 // Get member's orders/memberships at a specific business (active links only)

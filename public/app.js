@@ -294,6 +294,7 @@ function renderSAGroups() {
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
                         <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
                         ${proToggleBtn}
+                        ${g.member_type === 'member' ? `<button onclick="saUpgradeMember(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up"></i> שדרג למשפחה</button><button onclick="saManageMemberModules(${g.id},'${safeStr(g.name).replace(/'/g,'&#39;')}','${JSON.stringify(g.unlocked_modules||[]).replace(/'/g,'&#39;')}')" class="bg-slate-100 text-slate-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-puzzle-piece"></i> מודולים</button>` : ''}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
@@ -8740,8 +8741,14 @@ async function renderMemberDashboard() {
             </div>`;
         }
 
+        const memberUnlockedModules = d.unlocked_modules || [];
+
         // Active businesses
-        html += active.map(b => `
+        html += active.map(b => {
+            const isRepair = b.business_type === 'maintenance_repair';
+            const isRestaurant = b.business_type === 'restaurant';
+            const bizNameEsc = safeStr(b.business_name).replace(/'/g,"&#39;");
+            return `
             <div id="biz-section-${b.business_group_id}" style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
                     <div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
@@ -8751,16 +8758,19 @@ async function renderMemberDashboard() {
                         <div style="font-size:13px;font-weight:800;color:#1e293b;">${safeStr(b.business_name)}</div>
                         <div style="font-size:10px;color:#94a3b8;">${_memberBizTypeLabel(b.business_type)}</div>
                     </div>
+                    ${isRepair ? `<button onclick="window._memberNewServiceCall('${b.business_group_id}','${bizNameEsc}')" style="background:#e0e7ff;color:#4f46e5;border:none;border-radius:10px;padding:6px 10px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;">➕ קריאה חדשה</button>` : ''}
                 </div>
                 <div id="orders-${b.business_group_id}" style="text-align:center;color:#94a3b8;font-size:12px;padding:8px;">טוען...</div>
-            </div>
-        `).join('');
+                ${isRestaurant ? `<div id="quotes-${b.business_group_id}"></div>` : ''}
+            </div>`;
+        }).join('');
 
         bizsEl.innerHTML = html || `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים.</div>`;
 
-        // Load orders for active businesses only
+        // Load orders + quotes for active businesses only
         for (const b of active) {
             _memberLoadOrders(b.business_group_id, b.business_type);
+            if (b.business_type === 'restaurant') _memberLoadQuotes(b.business_group_id);
         }
     } catch(e) {
         const bizsEl = document.getElementById('member-biz-list');
@@ -8989,4 +8999,173 @@ window._memberUnfreeze = async function(membershipId, bizGroupId) {
         const r = await fetch(`/api/sport/members/${membershipId}/unfreeze`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
         if (r.ok) _memberLoadOrders(bizGroupId, 'sport');
     } catch(e) {}
+};
+
+// פתיחת קריאת שירות חדשה מדשבורד חבר
+window._memberNewServiceCall = function(bizGroupId, bizName) {
+    document.getElementById('member-new-sc-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'member-new-sc-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-end;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;direction:rtl;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <button onclick="document.getElementById('member-new-sc-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;padding:6px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">סגור</button>
+                <div style="text-align:right;">
+                    <div style="font-size:14px;font-weight:900;color:#1e293b;">🔧 קריאת שירות חדשה</div>
+                    <div style="font-size:11px;color:#94a3b8;">${safeStr(bizName)}</div>
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">תיאור הבעיה *</label>
+                <textarea id="mnsc-title" rows="2" placeholder="למשל: המזגן לא מקרר, ברז דולף..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;resize:none;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">כתובת הטיפול</label>
+                <input id="mnsc-address" type="text" placeholder="הרחוב שלך..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;box-sizing:border-box;"/>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">פרטים נוספים (אופציונלי)</label>
+                <textarea id="mnsc-desc" rows="2" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:13px;direction:rtl;outline:none;resize:none;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">עדיפות</label>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+                    ${[['low','נמוכה','🟢'],['normal','רגילה','🔵'],['high','גבוהה','🟠'],['urgent','דחוף','🔴']].map(([v,l,e])=>`<button type="button" onclick="document.getElementById('mnsc-priority').value='${v}';document.querySelectorAll('.mnsc-prio-btn').forEach(b=>b.style.borderColor='#e2e8f0');this.style.borderColor='#4f46e5'" class="mnsc-prio-btn" style="border:2px solid ${v==='normal'?'#4f46e5':'#e2e8f0'};border-radius:10px;padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;background:white;">${e}<br>${l}</button>`).join('')}
+                </div>
+                <input type="hidden" id="mnsc-priority" value="normal"/>
+            </div>
+            <button onclick="window._memberSubmitNewSc('${bizGroupId}')" style="width:100%;background:#4f46e5;color:white;border:none;border-radius:14px;padding:14px;font-size:13px;font-weight:900;cursor:pointer;">שלח קריאה ←</button>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._memberSubmitNewSc = async function(bizGroupId) {
+    const title = document.getElementById('mnsc-title')?.value?.trim();
+    if (!title) { alert('נא לתאר את הבעיה'); return; }
+    const address = document.getElementById('mnsc-address')?.value?.trim() || null;
+    const desc = document.getElementById('mnsc-desc')?.value?.trim() || null;
+    const priority = document.getElementById('mnsc-priority')?.value || 'normal';
+    try {
+        const r = await fetch('/api/service-calls', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                familyGroupId: currentGroup.id,
+                businessGroupId: parseInt(bizGroupId),
+                title, description: desc, address, priority,
+                customerName: currentUser?.nickname || null,
+                customerPhone: currentUser?.phone || null,
+                createdByUserId: currentUser?.id || null
+            })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('member-new-sc-modal')?.remove();
+            _memberLoadOrders(bizGroupId, 'maintenance_repair');
+        } else { alert(d.error || 'שגיאה בשליחה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
+// טעינת הצעות מחיר למסעדה בדשבורד חבר
+async function _memberLoadQuotes(bizGroupId) {
+    const el = document.getElementById(`quotes-${bizGroupId}`);
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${currentUser?.id||''}`);
+        const d = await r.json();
+        const quotes = (d.quotes||[]).filter(q => String(q.group_id) === String(bizGroupId));
+        if (!quotes.length) return;
+        // add to familyQuotesCache so openFamilyQuoteView can find them
+        quotes.forEach(q => {
+            if (!familyQuotesCache.find(x => x.id === q.id)) familyQuotesCache.push(q);
+        });
+        const QS = { waiting_customer:'ממתינה לתגובתך', customer_approved:'אישרת', waiting_business:'בבדיקת העסק', cancelled:'בוטלה' };
+        const QC = { waiting_customer:'#f59e0b', customer_approved:'#10b981', waiting_business:'#6366f1', cancelled:'#94a3b8' };
+        el.innerHTML = `<div style="border-top:1px solid #f1f5f9;padding-top:8px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">📋 הצעות מחיר</div>
+            ${quotes.map(q => {
+                const qs = q.quote_status || (q.status==='quote'?'waiting_customer':q.status);
+                const qColor = QC[qs] || '#94a3b8';
+                const qLabel = QS[qs] || qs;
+                const date = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : '';
+                const total = q.total_amount ? '₪'+parseFloat(q.total_amount).toFixed(0) : '';
+                return `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
+                    <button onclick="openFamilyQuoteView(${q.id})" style="background:#f59e0b;color:white;border:none;border-radius:8px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">צפה</button>
+                    <div style="text-align:right;">
+                        <div style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(q.quote_title||'הצעת מחיר')}</div>
+                        <div style="font-size:10px;color:#92400e;">${qLabel}${total?' · '+total:''}${date?' · '+date:''}</div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    } catch(e) {}
+}
+
+// SA: שדרוג חבר למשפחה
+window.saUpgradeMember = async function(groupId) {
+    if (!confirm('לשדרג חשבון זה ממשפחה מסוג "חבר" למשפחה מלאה? הלקוח יקבל גישה לכל אפשרויות ONEFLOW LIFE.')) return;
+    try {
+        const r = await fetch(`${API}/sa/groups/${groupId}/upgrade-member`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ memberType: 'family' })
+        });
+        const d = await r.json();
+        if (d.success) {
+            if (typeof showToast === 'function') showToast('success', '✅ החשבון שודרג למשפחה מלאה');
+            if (typeof loadSAData === 'function') loadSAData();
+        } else { alert(d.error || 'שגיאה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
+// SA: ניהול מודולים לחשבון חבר
+window.saManageMemberModules = function(groupId, groupName, modulesJson) {
+    let current = [];
+    try { current = JSON.parse(modulesJson); } catch(e) {}
+    const MODULES = [
+        { key: 'full_orders', label: 'היסטוריית הזמנות מלאה', desc: 'גישה לכל ההזמנות לפי מספר טלפון' },
+        { key: 'full_service_calls', label: 'קריאות שירות מלאות', desc: 'גישה לכל קריאות השירות לפי טלפון' },
+        { key: 'community', label: 'קהילה', desc: 'גישה לתכונות קהילה ושכנות' },
+        { key: 'calendar', label: 'לוח שנה', desc: 'ניהול לוח שנה אישי' }
+    ];
+    document.getElementById('sa-modules-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'sa-modules-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:20px;width:360px;max-width:90vw;padding:20px;direction:rtl;">
+            <div style="font-size:15px;font-weight:900;color:#1e293b;margin-bottom:4px;">📦 מודולים — ${safeStr(groupName)}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:16px;">בחר מודולים לפתיחה עבור חשבון חבר זה</div>
+            ${MODULES.map(m => `
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1.5px solid ${current.includes(m.key)?'#4f46e5':'#e2e8f0'};border-radius:12px;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" id="samod-${m.key}" ${current.includes(m.key)?'checked':''} style="margin-top:2px;width:16px;height:16px;"/>
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#1e293b;">${m.label}</div>
+                    <div style="font-size:10px;color:#94a3b8;">${m.desc}</div>
+                </div>
+            </label>`).join('')}
+            <div style="display:flex;gap:8px;margin-top:16px;">
+                <button onclick="window.saSetMemberModules(${groupId})" style="flex:1;background:#4f46e5;color:white;border:none;border-radius:12px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">שמור</button>
+                <button onclick="document.getElementById('sa-modules-modal')?.remove()" style="flex:1;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">ביטול</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.saSetMemberModules = async function(groupId) {
+    const MODULES = ['full_orders','full_service_calls','community','calendar'];
+    const selected = MODULES.filter(k => document.getElementById(`samod-${k}`)?.checked);
+    try {
+        const r = await fetch(`${API}/sa/groups/${groupId}/modules`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ modules: selected })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('sa-modules-modal')?.remove();
+            if (typeof showToast === 'function') showToast('success', '✅ מודולים עודכנו');
+            if (typeof loadSAData === 'function') loadSAData();
+        } else { alert(d.error || 'שגיאה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
 };
