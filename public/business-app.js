@@ -27940,7 +27940,7 @@ window.showSportCheckIn = function() {
     modal.innerHTML = `
     <div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">כניסה למועדון 🚪</h2>
             <span></span>
         </div>
@@ -28032,7 +28032,7 @@ window.showSportMembers = async function(filterParam) {
     modal.innerHTML = `
     <div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">מנויים 👥</h2>
             <button onclick="window.showSportAddMember()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ חדש</button>
         </div>
@@ -28148,7 +28148,7 @@ window.showSportAddMember = async function() {
     modal.innerHTML = `
     <div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">מנוי חדש ➕</h2>
             <span></span>
         </div>
@@ -28207,10 +28207,7 @@ window._sportSubmitNewMember = async function() {
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', `${name} נוסף/ה בהצלחה 🎉`);
-        document.getElementById('sport-modal').classList.add('hidden');
-        // refresh dashboard
-        const dashEl = document.getElementById('role-dashboard');
-        if (dashEl) renderSportDashboard(dashEl);
+        window._sportBack();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -28220,7 +28217,7 @@ window.showSportMembershipTypes = async function() {
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">סוגי מנויים</h2>
             <span></span>
         </div>
@@ -28309,14 +28306,40 @@ window._sportDeleteType = async function(typeId) {
     };
 })();
 
-// ─── Modal container ──────────────────────────────────────────────────────────
+// ─── Sport screen navigation (within app shell) ───────────────────────────────
 function _ensureSportModal() {
-    if (document.getElementById('sport-modal')) return;
-    const div = document.createElement('div');
-    div.id = 'sport-modal';
-    div.className = 'fixed inset-0 z-[9999] bg-white flex flex-col hidden';
-    document.body.appendChild(div);
+    switchTab('feed');
+    const dashEl = document.getElementById('content-role-dashboard');
+    if (dashEl) dashEl.classList.add('hidden');
+    ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    if (!document.getElementById('sport-modal')) {
+        const div = document.createElement('div');
+        div.id = 'sport-modal';
+        div.className = 'w-full flex flex-col';
+        div.style.minHeight = 'calc(100vh - 130px)';
+        const feedEl = document.getElementById('content-feed');
+        if (feedEl) feedEl.appendChild(div);
+        else document.body.appendChild(div);
+    }
 }
+
+window._sportBack = function() {
+    const modal = document.getElementById('sport-modal');
+    if (modal) modal.innerHTML = '';
+    const dashEl = document.getElementById('content-role-dashboard');
+    if (dashEl) {
+        dashEl.classList.remove('hidden');
+        renderSportDashboard(dashEl);
+        if (window._roleDashInterval) clearInterval(window._roleDashInterval);
+        window._roleDashInterval = setInterval(() => {
+            const el = document.getElementById('content-role-dashboard');
+            if (el && !el.classList.contains('hidden')) renderSportDashboard(el);
+            else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+        }, 30000);
+    }
+};
 
 // ===== END SPORT / FITNESS MODULE =====
 
@@ -28379,7 +28402,7 @@ window.showSportAlerts = async function() {
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">התראות 🔔</h2><span></span>
         </div>
         <div id="sport-alerts-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
@@ -28414,7 +28437,7 @@ window.showSportAlerts = async function() {
         if (d.frozen?.length) {
             html += `<div class="text-xs font-black text-blue-600 mt-4 mb-2 text-right">❄️ מוקפאים (${d.frozen.length})</div>`;
             html += d.frozen.map(m => `<div class="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2 flex items-center justify-between">
-                <button onclick="window.sportUnfreeze(${m.id});document.getElementById('sport-modal').classList.add('hidden')" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר</button>
+                <button onclick="window.sportUnfreeze(${m.id});window._sportBack()" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר</button>
                 <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
                 <div class="text-[11px] text-blue-500">הוקפא: ${m.frozen_at?new Date(m.frozen_at).toLocaleDateString('he-IL'):''} ${m.frozen_reason?'· '+m.frozen_reason:''}</div></div>
             </div>`).join('');
@@ -28490,9 +28513,7 @@ window._sportSubmitRenew = async function(memberId, memberName) {
         }).then(r=>r.json());
         if (!d.success){showToast('error',d.error||'שגיאה');return;}
         showToast('success',`מנויו של ${memberName} חודש 🎉`);
-        document.getElementById('sport-modal').classList.add('hidden');
-        const dashEl=document.getElementById('role-dashboard');
-        if(dashEl) renderSportDashboard(dashEl);
+        window._sportBack();
     } catch(e){showToast('error','שגיאת תקשורת');}
 };
 
@@ -28613,7 +28634,7 @@ window.showSportSchedule = async function() {
     const toDate = toD.toISOString().split('T')[0];
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">לוח שיעורים 🗓️</h2>
             <button onclick="window.showSportAddClass()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ שיעור</button>
         </div>
@@ -28789,7 +28810,7 @@ window.showSportReports = async function() {
     const modal=document.getElementById('sport-modal');
     modal.innerHTML=`<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">דוחות 📊</h2>
             <select id="sport-report-period" onchange="window._sportLoadReports(this.value)" class="text-xs border border-slate-200 rounded-lg px-2 py-1">
                 <option value="month">החודש</option><option value="year">השנה</option>
@@ -29183,7 +29204,7 @@ window.showSportSchedule = async function() {
     const toDate = toD.toISOString().split('T')[0];
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">לוח שיעורים 🗓️</h2>
             <div class="flex gap-1.5">
                 <button onclick="window.showSportCancelPolicy()" class="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">🚫 ביטולים</button>
@@ -29928,7 +29949,7 @@ window.showSportTrainers = async function() {
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">מאמנים 🏋️</h2>
             <button onclick="window.showSportAddTrainer()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ מאמן</button>
         </div>
@@ -30428,9 +30449,7 @@ window._sportSubmitNewMember = async function() {
         }).then(r => r.json());
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', `${name} נוסף/ה בהצלחה 🎉`);
-        document.getElementById('sport-modal').classList.add('hidden');
-        const dashEl = document.getElementById('role-dashboard');
-        if (dashEl) renderSportDashboard(dashEl);
+        window._sportBack();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -30509,7 +30528,7 @@ window.showSportLeads = async function() {
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">לידים / מתעניינים 🎯</h2>
             <button onclick="window.showSportAddLead()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ ליד</button>
         </div>
