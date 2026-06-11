@@ -5122,7 +5122,7 @@ app.get('/api/init-promotions', async (req, res) => {
 
 app.get('/api/store/promotions/:groupId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM store_promotions WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        const result = await pool.query('SELECT * FROM store_promotions WHERE group_id = $1 ORDER BY id DESC', [req.params.groupId]);
         res.json({ success: true, promotions: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -5753,24 +5753,31 @@ app.post('/api/ai/generate-catalog', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        // Note: no responseMimeType — extract JSON manually for compatibility
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         let sysPrompt = "";
-        
+
         if (type === 'BUSINESS') {
-            sysPrompt = `You are a business consultant. The user has a business described as "${promptText}". Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew. 
-            Return strictly a JSON array of objects: [{"name": "product name", "category": "category name", "price": 15.5, "description": "short description"}]. Make prices realistic in ILS.`;
+            sysPrompt = `You are a business consultant. The user has a business described as "${promptText}". Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew.
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{"name": "שם המוצר", "category": "קטגוריה", "price": 15.5, "description": "תיאור קצר"}]
+Make prices realistic in ILS (Israeli Shekels).`;
         } else {
             sysPrompt = `You are a home management expert. The user wants to populate their pantry/shopping list. Family type: "${promptText}". Generate a realistic starter pantry list with 8-12 common grocery/household items in Hebrew.
-            Return strictly a JSON array of objects: [{"name": "item name", "category": "category name", "price": 0, "description": ""}].`;
+Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
+[{"name": "שם הפריט", "category": "קטגוריה", "price": 0, "description": ""}]`;
         }
 
         const result = await model.generateContent(sysPrompt);
         let rawText = result.response.text().trim();
+        // Strip markdown code fences if present
+        rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
         const jsonStart = rawText.indexOf('[');
         const jsonEnd = rawText.lastIndexOf(']');
         if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה רשימת פריטים תקינה');
         const items = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
-        res.json({ success: true, items: items });
+        if (!Array.isArray(items) || items.length === 0) throw new Error('הרשימה שנוצרה ריקה');
+        res.json({ success: true, items });
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הקטלוג האוטומטי'); }
 });
 // START SERVER
