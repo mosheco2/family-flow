@@ -295,6 +295,7 @@ function renderSAGroups() {
                         <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
                         ${proToggleBtn}
                         ${g.member_type === 'member' ? `<button onclick="saUpgradeMember(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up"></i> שדרג למשפחה</button><button onclick="saManageMemberModules(${g.id},'${safeStr(g.name).replace(/'/g,'&#39;')}','${JSON.stringify(g.unlocked_modules||[]).replace(/'/g,'&#39;')}')" class="bg-slate-100 text-slate-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-puzzle-piece"></i> מודולים</button>` : ''}
+                        ${g.type === 'FAMILY' && g.member_type !== 'member' ? `<button onclick="saMarkAsMember(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-link"></i> סמן כחבר</button>` : ''}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
@@ -9103,6 +9104,21 @@ async function _memberLoadQuotes(bizGroupId) {
 }
 
 // SA: שדרוג חבר למשפחה
+window.saMarkAsMember = async function(groupId) {
+    if (!confirm('לסמן חשבון זה כחבר ONEFLOW? הוא יופיע כ"חבר" במערכת.')) return;
+    try {
+        const r = await fetch(`${API}/sa/groups/${groupId}/upgrade-member`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ memberType: 'member' })
+        });
+        const d = await r.json();
+        if (d.success) {
+            if (typeof showToast === 'function') showToast('success', '✅ סומן כחבר ONEFLOW');
+            if (typeof loadSAData === 'function') loadSAData();
+        } else { alert(d.error || 'שגיאה'); }
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
 window.saUpgradeMember = async function(groupId) {
     if (!confirm('לשדרג חשבון זה ממשפחה מסוג "חבר" למשפחה מלאה? הלקוח יקבל גישה לכל אפשרויות ONEFLOW LIFE.')) return;
     try {
