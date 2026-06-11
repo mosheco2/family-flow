@@ -29028,15 +29028,72 @@ window.showSportMemberDetail = async function(memberId) {
 };
 
 window._sportAddPayment = function(memberId, memberName, suggestedAmount) {
-    const amount = prompt(`תשלום עבור ${memberName}\nסכום:`, suggestedAmount||'');
-    if (!amount||isNaN(parseFloat(amount))) return;
-    const method = prompt('אמצעי תשלום: cash / credit / transfer / app','cash')||'cash';
-    fetch(`${API}/sport/payments`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({groupId:currentGroup.id,membershipId:memberId,memberName,amount:parseFloat(amount),paymentMethod:method})
-    }).then(r=>r.json()).then(d=>{
-        if(d.success){showToast('success',`תשלום ₪${amount} נרשם ✅`);window.showSportMemberDetail(memberId);}
-        else showToast('error',d.error||'שגיאה');
-    }).catch(()=>showToast('error','שגיאת תקשורת'));
+    const existing = document.getElementById('sport-payment-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'sport-payment-overlay';
+    overlay.className = 'fixed inset-0 bg-black/50 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4';
+    overlay.innerHTML = `<div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 text-right shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="document.getElementById('sport-payment-overlay').remove()" class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">✕</button>
+            <div>
+                <div class="text-lg font-black text-slate-800">רישום תשלום 💰</div>
+                <div class="text-sm text-slate-500">${memberName}</div>
+            </div>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">סכום (₪)</label>
+                <input id="sport-pay-amount" type="number" value="${suggestedAmount||''}" placeholder="0"
+                    class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"/>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">אמצעי תשלום</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="window._sportSelectPayMethod(this,'cash')" data-method="cash" class="sport-pay-method-btn py-2 rounded-xl text-xs font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700">מזומן</button>
+                    <button onclick="window._sportSelectPayMethod(this,'credit')" data-method="credit" class="sport-pay-method-btn py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600">אשראי</button>
+                    <button onclick="window._sportSelectPayMethod(this,'transfer')" data-method="transfer" class="sport-pay-method-btn py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600">העברה</button>
+                    <button onclick="window._sportSelectPayMethod(this,'app')" data-method="app" class="sport-pay-method-btn py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600">אפליקציה</button>
+                </div>
+                <input type="hidden" id="sport-pay-method" value="cash"/>
+            </div>
+            <div id="sport-pay-result"></div>
+            <button onclick="window._sportConfirmPayment(${memberId},'${memberName.replace(/'/g,"\\'")}')" class="w-full bg-emerald-600 text-white font-black py-3.5 rounded-2xl text-sm active:scale-95 transition">אשר תשלום ✅</button>
+            <button onclick="document.getElementById('sport-payment-overlay').remove()" class="w-full bg-slate-100 text-slate-600 font-bold py-2.5 rounded-2xl text-sm">ביטול</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._sportSelectPayMethod = function(btn, method) {
+    document.querySelectorAll('.sport-pay-method-btn').forEach(b => {
+        b.className = 'sport-pay-method-btn py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600';
+    });
+    btn.className = 'sport-pay-method-btn py-2 rounded-xl text-xs font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700';
+    document.getElementById('sport-pay-method').value = method;
+};
+
+window._sportConfirmPayment = async function(memberId, memberName) {
+    const amount = parseFloat(document.getElementById('sport-pay-amount')?.value);
+    const method = document.getElementById('sport-pay-method')?.value || 'cash';
+    const resEl  = document.getElementById('sport-pay-result');
+    if (!amount || isNaN(amount) || amount <= 0) {
+        if (resEl) resEl.innerHTML = `<div class="text-red-500 text-sm text-center mb-2">יש להזין סכום תקין</div>`;
+        return;
+    }
+    try {
+        const d = await fetch(`${API}/sport/payments`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, membershipId: memberId, memberName, amount, paymentMethod: method })
+        }).then(r => r.json());
+        if (d.success) {
+            document.getElementById('sport-payment-overlay')?.remove();
+            showToast('success', `תשלום ₪${amount} נרשם ✅`);
+            window.showSportMemberDetail(memberId);
+        } else {
+            if (resEl) resEl.innerHTML = `<div class="text-red-500 text-sm text-center mb-2">${d.error||'שגיאה'}</div>`;
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 // ─── Updated Member Card (with detail tap + expiry warning) ──────────────────
@@ -31779,6 +31836,7 @@ window._sportRenderSchedule = function(classes) {
                     <div class="flex items-start justify-between">
                         <div class="flex gap-1.5">
                             <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
+                            <button onclick="window.showSportEditClass(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70 text-indigo-600">✏️</button>
                             <button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
                         </div>
                         <div class="text-right">
@@ -31866,3 +31924,64 @@ window.showSportSchedule = async function() {
 };
 
 // ===== END SPORT PHASE 9 =====
+
+// ===== SPORT PHASE 11 — Edit Class, Styled Payment, Styled Freeze =====
+
+window.showSportEditClass = async function(classId) {
+    const c = (window._sportScheduleAllClasses || []).find(x => x.id === classId);
+    if (!c) { showToast('error', 'לא נמצא שיעור'); return; }
+    let types = [];
+    try { types = (await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types || []; } catch(e){}
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">עריכת שיעור ✏️</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם השיעור *</label>
+                <input id="sedit-cls-name" type="text" value="${(c.class_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            ${types.length?`<div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג שיעור</label>
+                <select id="sedit-cls-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="">-- ללא --</option>
+                    ${types.map(t=>`<option value="${t.id}" ${c.class_type_id==t.id?'selected':''}>${t.name}</option>`).join('')}
+                </select></div>`:''}
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
+                <input id="sedit-cls-trainer" type="text" value="${(c.trainer_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
+                <input id="sedit-cls-date" type="date" value="${(c.class_date||'').substring(0,10)}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת סיום</label>
+                    <input id="sedit-cls-end" type="time" value="${c.end_time?c.end_time.substring(0,5):''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת התחלה</label>
+                    <input id="sedit-cls-start" type="time" value="${c.start_time?c.start_time.substring(0,5):''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">קיבולת</label>
+                <input id="sedit-cls-cap" type="number" value="${c.capacity||20}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div class="p-4 border-t">
+            <button onclick="window._sportSubmitEditClass(${classId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור שינויים ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitEditClass = async function(classId) {
+    const name    = document.getElementById('sedit-cls-name')?.value?.trim();
+    const date    = document.getElementById('sedit-cls-date')?.value;
+    const trainer = document.getElementById('sedit-cls-trainer')?.value?.trim() || '';
+    const start   = document.getElementById('sedit-cls-start')?.value || null;
+    const end     = document.getElementById('sedit-cls-end')?.value   || null;
+    const cap     = parseInt(document.getElementById('sedit-cls-cap')?.value) || 20;
+    if (!name || !date) { showToast('error', 'שם ותאריך הם שדות חובה'); return; }
+    try {
+        const d = await fetch(`${API}/sport/classes/${classId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ className: name, trainerName: trainer, classDate: date, startTime: start, endTime: end, capacity: cap, status: 'scheduled' })
+        }).then(r => r.json());
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'שיעור עודכן ✅');
+        window.showSportSchedule();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
