@@ -28368,6 +28368,7 @@ async function renderSportDashboard(el) {
             {icon:'👥', label:'מנויים', tab:'', action:'sport-members'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
             {icon:'👨‍🏫', label:'מאמנים', tab:'', action:'sport-trainers'},
+            {icon:'🎯', label:'לידים', tab:'', action:'sport-leads'},
             {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
             {icon:'📋', label:'הצהרות', tab:'', action:'sport-waivers'},
             {icon:'📊', label:'דוחות', tab:'', action:'sport-reports'}
@@ -30326,3 +30327,324 @@ window.showSportSchedule = async function() {
 })();
 
 // ===== END SPORT PHASE 7 =====
+
+// ===== SPORT PHASE 8 — Color Pills + DOB/Gender + ICS + Lead CRM =====
+
+// ─── Enhanced Member Card with proper color pills ─────────────────────────────
+// Override _sportMemberCard with richer status logic
+function _sportMemberCard(m) {
+    // Determine effective status pill
+    const waiverExpired = m.waiver_valid_until && new Date(m.waiver_valid_until) < new Date();
+    const waiverMissing = !m.waiver_signed_at;
+    const days = m.end_date ? Math.ceil((new Date(m.end_date) - new Date()) / 86400000) : null;
+
+    let pill = { color: 'slate', text: m.status };
+    if (m.status === 'active') {
+        if (waiverExpired || waiverMissing) pill = { color: 'amber', dot: '🟡', text: 'ממתין להצהרה' };
+        else if (days !== null && days <= 7) pill = { color: 'orange', dot: '🟠', text: `פג ${days <= 0 ? 'היום!' : 'בעוד ' + days + 'י'}` };
+        else pill = { color: 'emerald', dot: '🟢', text: 'פעיל' };
+    } else if (m.status === 'frozen') {
+        pill = { color: 'violet', dot: '🟣', text: 'מוקפא' };
+    } else if (m.status === 'expired') {
+        pill = { color: 'red', dot: '🔴', text: 'פג תוקף' };
+    } else if (m.status === 'cancelled') {
+        pill = { color: 'slate', text: 'בוטל' };
+    }
+
+    const endDate = m.end_date ? new Date(m.end_date).toLocaleDateString('he-IL') : '—';
+    const sessions = m.sessions_total != null ? `<span class="text-[11px] text-slate-500">${m.sessions_total - (m.sessions_used || 0)}/${m.sessions_total}</span>` : '';
+    const frozen = m.status === 'frozen' ? `<div class="text-[11px] text-violet-500 mt-0.5">מוקפא: ${m.frozen_reason || ''}</div>` : '';
+    const warn = waiverExpired || waiverMissing ? `<span class="text-[10px] text-amber-500 font-bold">📋</span>` : '';
+    const trialBadge = m.is_trial ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">ניסיון</span>` : '';
+
+    // Age display from DOB
+    const age = m.date_of_birth ? Math.floor((new Date() - new Date(m.date_of_birth)) / (365.25 * 86400000)) : null;
+    const ageBadge = age ? `<span class="text-[10px] text-slate-400">${age}ש</span>` : '';
+
+    return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+        <div class="flex items-center gap-3 mb-2 cursor-pointer" onclick="window.showSportMemberDetail(${m.id})">
+            <div class="w-10 h-10 rounded-full bg-${pill.color}-100 flex items-center justify-center text-lg font-black text-${pill.color}-600 flex-shrink-0">${(m.member_name || '?')[0]}</div>
+            <div class="flex-1 min-w-0 text-right">
+                <div class="flex items-center gap-1 justify-end">${trialBadge}${ageBadge}<span class="font-bold text-slate-800 text-sm">${m.member_name || ''}</span></div>
+                <div class="text-[11px] text-slate-500">${m.member_phone || ''} ${m.type_name ? '· ' + m.type_name : ''}</div>${frozen}
+            </div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-${pill.color}-100 text-${pill.color}-700 flex-shrink-0 whitespace-nowrap">${pill.dot || ''} ${pill.text}</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] border-t border-slate-50 pt-2">
+            <div class="flex gap-1.5">
+                ${m.status === 'active' ? `<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>` : ''}
+                ${m.status === 'active' ? `<button onclick="window.showSportFreeze(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}')}" class="font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg">❄️</button>` : ''}
+                ${m.status === 'frozen' ? `<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>` : ''}
+                ${(m.status === 'expired' || (days !== null && days <= 7 && m.status === 'active')) ? `<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}',${m.membership_type_id || 'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>` : ''}
+                ${(waiverMissing || waiverExpired) && m.status === 'active' ? `<button onclick="window.showSportAdminSignWaiver(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}','${m.member_phone || ''}')" class="font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">📋</button>` : ''}
+            </div>
+            <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
+        </div>
+    </div>`;
+}
+
+// ─── Add DOB + Gender to showSportAddMember ───────────────────────────────────
+const _origShowSportAddMember = window.showSportAddMember;
+window.showSportAddMember = async function() {
+    await _origShowSportAddMember();
+    // Inject DOB + gender fields before notes
+    const notesLabel = document.querySelector('#sport-modal label[for="sport-new-notes"], #sport-modal .flex-col label:last-of-type');
+    const notesDiv = document.getElementById('sport-new-notes')?.closest('div');
+    if (notesDiv) {
+        const extra = document.createElement('div');
+        extra.className = 'flex gap-3';
+        extra.innerHTML = `
+            <div class="flex-1">
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך לידה</label>
+                <input id="sport-new-dob" type="date" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+            </div>
+            <div class="flex-1">
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">מגדר</label>
+                <select id="sport-new-gender" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">לא צוין</option>
+                    <option value="male">זכר</option>
+                    <option value="female">נקבה</option>
+                    <option value="other">אחר</option>
+                </select>
+            </div>`;
+        notesDiv.parentNode.insertBefore(extra, notesDiv);
+    }
+};
+
+// Override _sportSubmitNewMember to include DOB + gender
+const _origSportSubmitNewMember = window._sportSubmitNewMember;
+window._sportSubmitNewMember = async function() {
+    const name = document.getElementById('sport-new-name')?.value?.trim();
+    const phone = document.getElementById('sport-new-phone')?.value?.trim();
+    const email = document.getElementById('sport-new-email')?.value?.trim();
+    const typeId = document.getElementById('sport-new-type')?.value;
+    const startDate = document.getElementById('sport-new-start')?.value;
+    const notes = document.getElementById('sport-new-notes')?.value?.trim();
+    const dob = document.getElementById('sport-new-dob')?.value || null;
+    const gender = document.getElementById('sport-new-gender')?.value || null;
+    if (!name) { showToast('error', 'יש להזין שם'); return; }
+    if (!typeId) { showToast('error', 'יש לבחור סוג מנוי'); return; }
+    try {
+        const d = await fetch(`${API}/sport/members`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, dateOfBirth: dob, gender })
+        }).then(r => r.json());
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', `${name} נוסף/ה בהצלחה 🎉`);
+        document.getElementById('sport-modal').classList.add('hidden');
+        const dashEl = document.getElementById('role-dashboard');
+        if (dashEl) renderSportDashboard(dashEl);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── ICS Calendar Export ──────────────────────────────────────────────────────
+window.showSportExportICS = async function() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const toD = new Date(); toD.setDate(toD.getDate() + 30);
+        const toDate = toD.toISOString().split('T')[0];
+        const d = await fetch(`${API}/sport/classes/${currentGroup.id}?from=${today}&to=${toDate}`).then(r => r.json());
+        const classes = d.classes || [];
+        if (!classes.length) { showToast('error', 'אין שיעורים לייצוא'); return; }
+
+        const icsLines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//OneFlow Sport//IL',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:לוח שיעורים — ${currentGroup.name || 'מועדון'}`,
+            'X-WR-TIMEZONE:Asia/Jerusalem'
+        ];
+
+        classes.forEach(cls => {
+            const dateStr = (cls.class_date || '').replace(/-/g, '');
+            const startT = cls.start_time ? cls.start_time.replace(':', '').substring(0, 4) + '00' : '070000';
+            const endT = cls.end_time ? cls.end_time.replace(':', '').substring(0, 4) + '00' : '080000';
+            const uid = `sport-${cls.id}-${currentGroup.id}@oneflow`;
+            icsLines.push(
+                'BEGIN:VEVENT',
+                `UID:${uid}`,
+                `DTSTART;TZID=Asia/Jerusalem:${dateStr}T${startT}`,
+                `DTEND;TZID=Asia/Jerusalem:${dateStr}T${endT}`,
+                `SUMMARY:${cls.class_name || 'שיעור'}${cls.trainer_name ? ' — ' + cls.trainer_name : ''}`,
+                `DESCRIPTION:${cls.trainer_name ? 'מאמן: ' + cls.trainer_name + '\\n' : ''}מקומות: ${(cls.capacity || 20) - parseInt(cls.registered_count || 0)}/${cls.capacity || 20}`,
+                `STATUS:CONFIRMED`,
+                'END:VEVENT'
+            );
+        });
+        icsLines.push('END:VCALENDAR');
+        const icsContent = icsLines.join('\r\n');
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sport-schedule-${today}.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('success', 'לוח שיעורים יוצא ✅ פתח ב-Google/Apple Calendar');
+    } catch(e) { showToast('error', 'שגיאה בייצוא'); }
+};
+
+// Add ICS export button to schedule screen — override once more
+const _origShowSportSchedule2 = window.showSportSchedule;
+window.showSportSchedule = async function() {
+    await _origShowSportSchedule2();
+    const header = document.querySelector('#sport-modal .flex.items-center.justify-between.p-4');
+    if (header) {
+        const btnGroup = header.querySelector('.flex.gap-1\\.5');
+        if (btnGroup) {
+            const icsBtn = document.createElement('button');
+            icsBtn.onclick = window.showSportExportICS;
+            icsBtn.className = 'bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1.5 rounded-lg';
+            icsBtn.textContent = '📅 ICS';
+            btnGroup.insertBefore(icsBtn, btnGroup.firstChild);
+        }
+    }
+};
+
+// ─── Lead CRM — Drop-in Capture ──────────────────────────────────────────────
+window.showSportLeads = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">לידים / מתעניינים 🎯</h2>
+            <button onclick="window.showSportAddLead()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ ליד</button>
+        </div>
+        <div id="sport-leads-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadLeads();
+};
+
+window._sportLoadLeads = async function() {
+    const el = document.getElementById('sport-leads-content');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/leads/${currentGroup.id}`).then(r => r.json());
+        const list = d.leads || [];
+        if (!list.length) {
+            el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין לידים עדיין</div>
+                <div class="mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 text-right text-xs text-blue-700">
+                    <div class="font-bold mb-1">מה זה ליד?</div>
+                    מתעניין שהגיע לשיעור ניסיון (drop-in) אך עדיין לא רכש מנוי. מעקב אוטומטי מהחנות הציבורית.
+                </div>`;
+            return;
+        }
+        const statusColors = { new:'indigo', contacted:'blue', interested:'amber', converted:'emerald', lost:'slate' };
+        const statusLabels = { new:'חדש', contacted:'נוצר קשר', interested:'מתעניין', converted:'הצטרף ✅', lost:'לא רלוונטי' };
+        el.innerHTML = list.map(l => {
+            const sc = statusColors[l.status] || 'slate';
+            const sl = statusLabels[l.status] || l.status;
+            const created = l.created_at ? new Date(l.created_at).toLocaleDateString('he-IL') : '';
+            return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex gap-2">
+                        <select onchange="window._sportUpdateLeadStatus(${l.id},this.value)" class="text-[11px] border border-slate-200 rounded-lg px-2 py-1 text-right">
+                            ${Object.entries(statusLabels).map(([v,t])=>`<option value="${v}" ${l.status===v?'selected':''}>${t}</option>`).join('')}
+                        </select>
+                        ${l.member_phone ? `<a href="tel:${l.member_phone}" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">📞</a>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-slate-800">${l.member_name || ''}</div>
+                        <div class="text-[11px] text-slate-500">${l.member_phone || ''} ${l.source ? '· ' + l.source : ''}</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between text-[10px] pt-2 border-t border-slate-50">
+                    <span class="text-slate-400">${created}</span>
+                    <span class="font-bold px-2 py-0.5 rounded-full bg-${sc}-100 text-${sc}-700">${sl}</span>
+                </div>
+                ${l.notes ? `<div class="text-[11px] text-slate-500 mt-1.5 text-right">${l.notes}</div>` : ''}
+                ${l.status !== 'converted' ? `<button onclick="window._sportConvertLead(${l.id},'${(l.member_name||'').replace(/'/g,"\\'")}','${l.member_phone||''}')" class="w-full mt-2 bg-indigo-50 text-indigo-600 text-xs font-bold py-2 rounded-xl">המר למנוי ➡️</button>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+};
+
+window._sportUpdateLeadStatus = async function(leadId, status) {
+    try {
+        await fetch(`${API}/sport/leads/${leadId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+    } catch(e) {}
+};
+
+window.showSportAddLead = function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportLeads()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">הוסף ליד</h2><span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 text-right">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שם</label>
+                <input id="lead-name" placeholder="שם המתעניין" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
+                <input id="lead-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" dir="ltr"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מקור</label>
+                <select id="lead-source" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="drop-in">drop-in (ניסיון)</option>
+                    <option value="website">אתר / חנות</option>
+                    <option value="referral">המלצה</option>
+                    <option value="social">רשתות חברתיות</option>
+                    <option value="walk-in">הגיע פיזית</option>
+                    <option value="other">אחר</option>
+                </select></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
+                <textarea id="lead-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea></div>
+            <button onclick="window._sportSubmitLead()" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור ליד ✅</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+};
+
+window._sportSubmitLead = async function() {
+    const name = document.getElementById('lead-name')?.value?.trim();
+    const phone = document.getElementById('lead-phone')?.value?.trim();
+    const source = document.getElementById('lead-source')?.value || 'drop-in';
+    const notes = document.getElementById('lead-notes')?.value?.trim() || null;
+    if (!name && !phone) { showToast('error', 'שם או טלפון חובה'); return; }
+    try {
+        const d = await fetch(`${API}/sport/leads`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, source, notes })
+        }).then(r => r.json());
+        if (d.success || d.id) { showToast('success', 'ליד נשמר ✅'); window.showSportLeads(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sportConvertLead = async function(leadId, name, phone) {
+    // Mark lead as converted, then open add member with prefilled data
+    try {
+        await fetch(`${API}/sport/leads/${leadId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'converted' })
+        });
+    } catch(e) {}
+    await window.showSportAddMember();
+    // Prefill name and phone
+    const nameEl = document.getElementById('sport-new-name');
+    const phoneEl = document.getElementById('sport-new-phone');
+    if (nameEl) nameEl.value = name;
+    if (phoneEl) phoneEl.value = phone;
+    showToast('success', 'פרטי הליד מולאו — בחר סוג מנוי');
+};
+
+// Route sport-leads action
+(function() {
+    const prev = window.rdAction;
+    window.rdAction = function(tab, action) {
+        if (action === 'sport-leads') { window.showSportLeads(); return; }
+        prev(tab, action);
+    };
+})();
+
+// ===== END SPORT PHASE 8 =====

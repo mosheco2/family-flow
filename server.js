@@ -844,6 +844,16 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_classes ADD COLUMN IF NOT EXISTS trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL`); } catch(e) {}
+      // Sport Leads / CRM
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_leads (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          member_name VARCHAR(100), member_phone VARCHAR(30), member_email VARCHAR(100),
+          source VARCHAR(50) DEFAULT 'drop-in',
+          status VARCHAR(20) DEFAULT 'new',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -9973,7 +9983,10 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
 
 app.post('/api/sport/members', async (req, res) => {
     try {
-        const { groupId, name, phone, email, membershipTypeId, startDate, notes } = req.body;
+        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender } = req.body;
+        const mName = name || memberName;
+        const mPhone = phone || memberPhone || '';
+        const mEmail = email || memberEmail || '';
         const typeRes = await pool.query('SELECT * FROM sport_membership_types WHERE id=$1', [membershipTypeId]);
         const mtype = typeRes.rows[0];
         let endDate = null, sessionsTotal = null;
@@ -9982,8 +9995,8 @@ app.post('/api/sport/members', async (req, res) => {
             if (mtype.sessions) sessionsTotal = mtype.sessions;
         }
         const r = await pool.query(
-            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-            [groupId, name, phone||'', email||'', membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'']
+            `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes,date_of_birth,gender) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [groupId, mName, mPhone, mEmail, membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'', dateOfBirth||null, gender||null]
         );
         res.json({ success: true, member: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -10469,7 +10482,14 @@ app.post('/api/sport/public-class-register', async (req, res) => {
                 res.json({ success: true, status: 'waitlisted', position: pos.rows[0].next, memberName: m.member_name });
             }
         } else {
-            // No active membership — just add to waitlist by name/phone
+            // No active membership — capture as lead + allow drop-in if space
+            try {
+                const existingLead = await pool.query('SELECT id FROM sport_leads WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+                if (!existingLead.rows.length) {
+                    await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,source,notes) VALUES ($1,$2,$3,'drop-in',$4)`,
+                        [groupId, memberName||memberPhone, memberPhone, `שיעור #${classId}`]);
+                }
+            } catch(e2) {}
             if (registered < (c.capacity||20)) {
                 await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,NULL,$2) ON CONFLICT DO NOTHING`, [classId, memberName||memberPhone]);
                 res.json({ success: true, status: 'registered', memberName: memberName||memberPhone, warning: 'no_active_membership' });
@@ -10614,6 +10634,52 @@ app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
             AND (waiver_valid_until IS NULL OR waiver_valid_until < CURRENT_DATE + INTERVAL '14 days')
             ORDER BY waiver_valid_until NULLS FIRST`, [req.params.groupId]);
         res.json({ members: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Leads / CRM ─────────────────────────────────────────────────────────────
+app.get('/api/sport/leads/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_leads WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ leads: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/leads', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, source, notes } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        const r = await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,member_email,source,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+            [groupId, memberName||null, memberPhone||null, memberEmail||null, source||'drop-in', notes||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sport/leads/:id', async (req, res) => {
+    const { status, notes } = req.body;
+    try {
+        await pool.query('UPDATE sport_leads SET status=COALESCE($1,status), notes=COALESCE($2,notes), updated_at=NOW() WHERE id=$3', [status||null, notes||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Auto-capture drop-in visitor from storefront as lead
+app.post('/api/sport/public-dropin-capture', async (req, res) => {
+    const { groupId, memberName, memberPhone, memberEmail, classId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'groupId חובה' });
+    try {
+        // Check if already a member
+        const existing = await pool.query('SELECT id FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+        if (existing.rows.length) return res.json({ success: true, type: 'existing_member' });
+        // Check if already a lead
+        const existingLead = await pool.query('SELECT id FROM sport_leads WHERE group_id=$1 AND member_phone=$2 LIMIT 1', [groupId, memberPhone]);
+        if (existingLead.rows.length) {
+            await pool.query('UPDATE sport_leads SET updated_at=NOW() WHERE id=$1', [existingLead.rows[0].id]);
+            return res.json({ success: true, type: 'existing_lead' });
+        }
+        const r = await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,member_email,source,notes) VALUES ($1,$2,$3,$4,'drop-in',$5) RETURNING id`,
+            [groupId, memberName||memberPhone, memberPhone||null, memberEmail||null, classId ? `שיעור #${classId}` : null]);
+        res.json({ success: true, type: 'new_lead', id: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
