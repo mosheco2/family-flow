@@ -761,6 +761,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS is_trial BOOLEAN DEFAULT false`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS qr_token VARCHAR(64)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_membership_types ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true`); } catch(e) {}
+      try { await client.query(`UPDATE sport_membership_types SET is_active=true WHERE is_active IS NULL`); } catch(e) {}
+      try { await client.query(`UPDATE sport_membership_types SET is_public=true WHERE is_public IS NULL`); } catch(e) {}
       // Sport Waitlist
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_waitlist (
           id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
@@ -9963,7 +9965,7 @@ app.post('/api/sport/membership-types', async (req, res) => {
     try {
         const { groupId, name, type, price, durationDays, sessions, color } = req.body;
         const r = await pool.query(
-            `INSERT INTO sport_membership_types (group_id,name,type,price,duration_days,sessions,color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            `INSERT INTO sport_membership_types (group_id,name,type,price,duration_days,sessions,color,is_active,is_public) VALUES ($1,$2,$3,$4,$5,$6,$7,true,true) RETURNING *`,
             [groupId, name, type||'monthly', parseFloat(price)||0, durationDays||null, sessions||null, color||'indigo']
         );
         res.json({ success: true, type: r.rows[0] });
@@ -10480,7 +10482,8 @@ app.post('/api/sport/classes/recurring', async (req, res) => {
 app.get('/api/sport/public-types/:groupId', async (req, res) => {
     try {
         const r = await pool.query(`SELECT id,name,type,price,duration_days,sessions,color,is_active
-            FROM sport_membership_types WHERE group_id=$1 AND is_active=true AND is_public=true ORDER BY price ASC`, [req.params.groupId]);
+            FROM sport_membership_types WHERE group_id=$1
+            AND COALESCE(is_active,true)=true AND COALESCE(is_public,true)=true ORDER BY price ASC`, [req.params.groupId]);
         res.json({ types: r.rows });
     } catch(e) { res.json({ types: [] }); }
 });
