@@ -2493,10 +2493,39 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (!r.success) { document.getElementById('scm-result').innerHTML=`<div class="text-red-500 text-sm text-center">${r.error||'שגיאה'}</div>`; if(btn){btn.disabled=false;btn.textContent='הרשם לשיעור ✅';} return; }
             const msg = r.status==='waitlisted'
                 ? `<div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center"><div class="font-bold text-orange-700">נרשמת לרשימת המתנה</div><div class="text-xs text-orange-500">מקום #${r.position} — נעדכן אם יתפנה מקום</div></div>`
-                : `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center"><div class="font-bold text-emerald-700">✅ ${r.memberName} — נרשמת בהצלחה!</div>${r.warning?'<div class="text-xs text-orange-500 mt-1">שים לב: אין לך מנוי פעיל</div>':''}</div>`;
+                : `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                    <div class="font-bold text-emerald-700">✅ ${r.memberName} — נרשמת בהצלחה!</div>
+                    ${r.warning?'<div class="text-xs text-orange-500 mt-1">שים לב: אין לך מנוי פעיל</div>':''}
+                    <button onclick="window.openSportCancelRegistration(${_sportCurrentClassId},'${(phone||'').replace(/'/g,"\\'")}','${gId}')" class="mt-3 w-full bg-white border border-red-200 text-red-500 text-xs font-bold py-2 rounded-xl">ביטול הרשמה</button>
+                  </div>`;
             document.getElementById('scm-result').innerHTML = msg;
             if(btn){btn.disabled=true;btn.textContent='נרשמת ✅';}
         } catch(e) { document.getElementById('scm-result').innerHTML='<div class="text-red-500 text-sm text-center">שגיאת תקשורת</div>'; if(btn){btn.disabled=false;btn.textContent='הרשם לשיעור ✅';} }
+    };
+
+    // ─── Cancel Registration (external) ───────────────────────────────────────
+    window.openSportCancelRegistration = function(classId, phone, gId) {
+        const confirmed = confirm('לבטל את ההרשמה? שים לב: ביטול מאוחר עשוי לנקב session.');
+        if (!confirmed) return;
+        window._sportPublicCancelReg(classId, phone, gId);
+    };
+
+    window._sportPublicCancelReg = async function(classId, phone, gId) {
+        try {
+            // find membership by phone
+            const mRes = await fetch(`${API}/sport/public-class-register`, {method:'DELETE', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({classId, memberPhone: phone, groupId: gId})
+            }).then(r=>r.json());
+            const el = document.getElementById('scm-result');
+            if (!el) return;
+            if (mRes.success) {
+                let msg = '<div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-sm text-slate-600">הרשמה בוטלה</div>';
+                if (mRes.lateCancelApplied) msg = '<div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center"><div class="font-bold text-orange-700">הרשמה בוטלה</div><div class="text-xs text-orange-500">ביטול מאוחר — session נוקב</div></div>';
+                el.innerHTML = msg;
+            } else {
+                el.innerHTML = `<div class="text-red-500 text-sm text-center">${mRes.error||'שגיאה בביטול'}</div>`;
+            }
+        } catch(e) { alert('שגיאת תקשורת'); }
     };
     </script>
     <!-- ===== END SPORT PUBLIC MODULE ===== -->

@@ -769,6 +769,22 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(class_id, membership_id)
       )`); } catch(e) {}
+      // Sport Cancel Policy
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_cancel_policy (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL UNIQUE,
+          enabled BOOLEAN DEFAULT true,
+          cancel_window_hours INT DEFAULT 8,
+          late_cancel_action VARCHAR(20) DEFAULT 'deduct_session',
+          late_cancel_fee DECIMAL(10,2) DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      // Waitlist confirmation timer
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_waitlist ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'waiting'`); } catch(e) {}
+      // Registration cancel tracking
+      try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_class_registrations ADD COLUMN IF NOT EXISTS cancel_type VARCHAR(20)`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -10205,18 +10221,96 @@ app.delete('/api/sport/classes/:id/waitlist/:membershipId', async (req, res) => 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// promote first waitlisted person when a registration is deleted
-app.delete('/api/sport/classes/:id/registrations/:membershipId', async (req, res) => {
+// ─── Cancellation Policy ──────────────────────────────────────────────────────
+app.get('/api/sport/cancel-policy/:groupId', async (req, res) => {
     try {
+        const r = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [req.params.groupId]);
+        if (r.rows.length) return res.json({ policy: r.rows[0] });
+        res.json({ policy: { enabled: true, cancel_window_hours: 8, late_cancel_action: 'deduct_session', late_cancel_fee: 0 } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/cancel-policy/:groupId', async (req, res) => {
+    const { enabled, cancelWindowHours, lateCancelAction, lateCancelFee } = req.body;
+    try {
+        await pool.query(`INSERT INTO sport_cancel_policy (group_id,enabled,cancel_window_hours,late_cancel_action,late_cancel_fee)
+            VALUES ($1,$2,$3,$4,$5) ON CONFLICT (group_id) DO UPDATE
+            SET enabled=$2,cancel_window_hours=$3,late_cancel_action=$4,late_cancel_fee=$5,updated_at=NOW()`,
+            [req.params.groupId, enabled, cancelWindowHours||8, lateCancelAction||'deduct_session', lateCancelFee||0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Pending waitlist confirmations for a group
+app.get('/api/sport/waitlist-pending/:groupId', async (req, res) => {
+    try {
+        // expire timed-out pending slots and promote next
+        const expired = await pool.query(`SELECT w.* FROM sport_class_waitlist w
+            WHERE w.group_id=$1 AND w.status='pending' AND w.expires_at < NOW()`, [req.params.groupId]);
+        for (const ex of expired.rows) {
+            await pool.query('UPDATE sport_class_waitlist SET status=\'expired\' WHERE id=$1', [ex.id]);
+            // promote next waiting
+            const next = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [ex.class_id]);
+            if (next.rows.length) {
+                const nw = next.rows[0];
+                await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [nw.id]);
+            }
+        }
+        const r = await pool.query(`SELECT w.*, sc.class_name, sc.class_date, sc.start_time FROM sport_class_waitlist w
+            JOIN sport_classes sc ON w.class_id=sc.id
+            WHERE w.group_id=$1 AND w.status='pending' ORDER BY w.expires_at`, [req.params.groupId]);
+        res.json({ pending: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Confirm waitlist spot
+app.post('/api/sport/classes/:id/waitlist/:membershipId/confirm', async (req, res) => {
+    try {
+        const w = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND membership_id=$2 AND status='pending'`, [req.params.id, req.params.membershipId]);
+        if (!w.rows.length) return res.status(400).json({ error: 'אין מקום פנוי לאישור או שפג תוקף' });
+        if (new Date(w.rows[0].expires_at) < new Date()) return res.status(400).json({ error: 'פג תוקף האישור (30 דקות)' });
+        await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [req.params.id, req.params.membershipId, w.rows[0].member_name]);
+        await pool.query('DELETE FROM sport_class_waitlist WHERE id=$1', [w.rows[0].id]);
+        await pool.query('UPDATE sport_class_waitlist SET position=position-1 WHERE class_id=$1 AND status=\'waiting\'', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// cancel registration with policy enforcement
+app.delete('/api/sport/classes/:id/registrations/:membershipId', async (req, res) => {
+    const { groupId, force } = req.query;
+    try {
+        let lateCancelApplied = false;
+        // Check cancellation policy
+        if (groupId && !force) {
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [req.params.id]);
+            const policy = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [groupId]);
+            if (cls.rows.length && policy.rows.length && policy.rows[0].enabled) {
+                const p = policy.rows[0];
+                const classDateTime = new Date(`${cls.rows[0].class_date}T${cls.rows[0].start_time || '00:00'}:00`);
+                const hoursUntilClass = (classDateTime - new Date()) / 3600000;
+                if (hoursUntilClass < p.cancel_window_hours && hoursUntilClass > 0) {
+                    // Late cancel — apply policy
+                    if (p.late_cancel_action === 'deduct_session') {
+                        await pool.query(`UPDATE sport_memberships SET sessions_used=sessions_used+1 WHERE id=$1 AND sessions_total IS NOT NULL`, [req.params.membershipId]);
+                        lateCancelApplied = true;
+                    } else if (p.late_cancel_action === 'block') {
+                        return res.status(400).json({ error: `ביטול מאוחר — פחות מ-${p.cancel_window_hours} שעות לשיעור`, lateCancellation: true, windowHours: p.cancel_window_hours });
+                    }
+                }
+            }
+        }
+        await pool.query('UPDATE sport_class_registrations SET cancelled_at=NOW(),cancel_type=$1 WHERE class_id=$2 AND membership_id=$3', [lateCancelApplied?'late':'on_time', req.params.id, req.params.membershipId]);
         await pool.query('DELETE FROM sport_class_registrations WHERE class_id=$1 AND membership_id=$2', [req.params.id, req.params.membershipId]);
-        const first = await pool.query('SELECT * FROM sport_class_waitlist WHERE class_id=$1 ORDER BY position LIMIT 1', [req.params.id]);
+        // promote next — set pending with 30 min timer
+        const first = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [req.params.id]);
+        let promoted = null;
         if (first.rows.length) {
             const w = first.rows[0];
-            await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [req.params.id, w.membership_id, w.member_name]);
-            await pool.query('DELETE FROM sport_class_waitlist WHERE id=$1', [w.id]);
-            await pool.query('UPDATE sport_class_waitlist SET position=position-1 WHERE class_id=$1', [req.params.id]);
+            await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [w.id]);
+            promoted = { memberName: w.member_name, membershipId: w.membership_id };
         }
-        res.json({ success: true });
+        res.json({ success: true, lateCancelApplied, promoted });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10324,6 +10418,43 @@ app.post('/api/sport/public-class-register', async (req, res) => {
                 res.json({ success: false, status: 'full', error: 'השיעור מלא ואין לך מנוי פעיל' });
             }
         }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public cancel class registration
+app.delete('/api/sport/public-class-register', async (req, res) => {
+    const { classId, memberPhone, groupId } = req.body;
+    if (!classId || !memberPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const mem = await pool.query(`SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 LIMIT 1`, [groupId, memberPhone]);
+        if (!mem.rows.length) return res.status(404).json({ error: 'לא נמצא מנוי לטלפון זה' });
+        const m = mem.rows[0];
+        let lateCancelApplied = false;
+        // Check cancellation policy
+        const policy = await pool.query('SELECT * FROM sport_cancel_policy WHERE group_id=$1', [groupId]);
+        if (policy.rows.length && policy.rows[0].enabled) {
+            const p = policy.rows[0];
+            const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+            if (cls.rows.length) {
+                const classDateTime = new Date(`${cls.rows[0].class_date}T${cls.rows[0].start_time || '00:00'}:00`);
+                const hoursUntilClass = (classDateTime - new Date()) / 3600000;
+                if (hoursUntilClass < p.cancel_window_hours && hoursUntilClass > 0) {
+                    if (p.late_cancel_action === 'block') {
+                        return res.status(400).json({ error: `ביטול מאוחר — פחות מ-${p.cancel_window_hours} שעות לשיעור` });
+                    } else if (p.late_cancel_action === 'deduct_session') {
+                        await pool.query(`UPDATE sport_memberships SET sessions_used=sessions_used+1 WHERE id=$1 AND sessions_total IS NOT NULL`, [m.id]);
+                        lateCancelApplied = true;
+                    }
+                }
+            }
+        }
+        await pool.query('DELETE FROM sport_class_registrations WHERE class_id=$1 AND membership_id=$2', [classId, m.id]);
+        // promote next from waitlist
+        const first = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [classId]);
+        if (first.rows.length) {
+            await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [first.rows[0].id]);
+        }
+        res.json({ success: true, lateCancelApplied });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

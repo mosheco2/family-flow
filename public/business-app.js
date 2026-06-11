@@ -28419,6 +28419,17 @@ window.showSportAlerts = async function() {
                 <div class="text-[11px] text-blue-500">הוקפא: ${m.frozen_at?new Date(m.frozen_at).toLocaleDateString('he-IL'):''} ${m.frozen_reason?'· '+m.frozen_reason:''}</div></div>
             </div>`).join('');
         }
+        // Waitlist pending confirmations
+        try {
+            const wp = await fetch(`${API}/sport/waitlist-pending/${currentGroup.id}`).then(r=>r.json());
+            if (wp.pending?.length) {
+                html = `<div class="bg-amber-50 border border-amber-300 rounded-2xl p-3 mb-4 flex items-center justify-between cursor-pointer" onclick="window.showSportWaitlistPending()">
+                    <span class="text-xs font-black text-amber-700">צפה ב-${wp.pending.length} ממתינים →</span>
+                    <div class="text-right"><div class="font-black text-amber-800 text-sm">⏳ ממתינים לאישור מקום (${wp.pending.length})</div>
+                    <div class="text-xs text-amber-600">פנה מקום מרשימת המתנה — יפוג תוך 30 דקות</div></div>
+                </div>` + html;
+            }
+        } catch(e2) {}
         if (!html) html = `<div class="text-center py-8 text-slate-400 text-sm">אין התראות כרגע 🎉</div>`;
         el.innerHTML = html;
     } catch(e) { document.getElementById('sport-alerts-content').innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>`; }
@@ -29174,6 +29185,7 @@ window.showSportSchedule = async function() {
             <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
             <h2 class="text-lg font-black text-slate-800">לוח שיעורים 🗓️</h2>
             <div class="flex gap-1.5">
+                <button onclick="window.showSportCancelPolicy()" class="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">🚫 ביטולים</button>
                 <button onclick="window.showSportClassTypes()" class="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🎽 סוגים</button>
                 <button onclick="window.showSportAddRecurring()" class="bg-violet-100 text-violet-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">🔁</button>
                 <button onclick="window.showSportAddClass()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">+ שיעור</button>
@@ -29416,3 +29428,242 @@ function _sportMemberCard(m) {
 }
 
 // ===== END SPORT PHASE 4 =====
+
+// ===== SPORT PHASE 5 — מדיניות ביטולים + Waitlist Timer =====
+
+// ─── Cancellation Policy Settings ────────────────────────────────────────────
+window.showSportCancelPolicy = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">מדיניות ביטולים</h2><span></span>
+        </div>
+        <div id="sport-cancel-policy-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    await window._sportLoadCancelPolicy();
+};
+
+window._sportLoadCancelPolicy = async function() {
+    const el = document.getElementById('sport-cancel-policy-content');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/cancel-policy/${currentGroup.id}`).then(r=>r.json());
+        const p = d.policy || {};
+        el.innerHTML = `
+        <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 text-right">
+            <div class="text-sm font-black text-orange-800 mb-1">מה זה מדיניות ביטולים?</div>
+            <div class="text-xs text-orange-700">קובע כמה שעות לפני שיעור ניתן לבטל חינם. ביטול מאוחר יותר — ניקוב session אוטומטי.</div>
+        </div>
+        <div class="space-y-4 text-right">
+            <div class="flex items-center justify-between bg-white rounded-2xl p-4 border border-slate-100">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="cp-enabled" ${p.enabled!==false?'checked':''} class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:ring-0 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+                <div>
+                    <div class="font-bold text-slate-800 text-sm">מדיניות פעילה</div>
+                    <div class="text-xs text-slate-400">הפעל/כבה אכיפת מדיניות ביטולים</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 border border-slate-100">
+                <div class="font-bold text-slate-800 text-sm mb-3">חלון ביטול חינם (שעות לפני שיעור)</div>
+                <div class="flex gap-2 flex-wrap">
+                    ${[2,4,8,12,24,48].map(h=>`<button onclick="window._sportSelectCancelWindow(${h})" id="cw-${h}" class="px-4 py-2 rounded-xl text-sm font-bold border-2 ${(p.cancel_window_hours||8)===h?'border-indigo-500 bg-indigo-50 text-indigo-700':'border-slate-200 text-slate-600'}">${h}ש'</button>`).join('')}
+                </div>
+                <input type="hidden" id="cp-window" value="${p.cancel_window_hours||8}">
+            </div>
+            <div class="bg-white rounded-2xl p-4 border border-slate-100">
+                <div class="font-bold text-slate-800 text-sm mb-3">ביטול מאוחר — מה קורה?</div>
+                <div class="space-y-2">
+                    <label class="flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer ${(p.late_cancel_action||'deduct_session')==='deduct_session'?'border-indigo-500 bg-indigo-50':'border-slate-100'}">
+                        <input type="radio" name="lca" value="deduct_session" ${(p.late_cancel_action||'deduct_session')==='deduct_session'?'checked':''} class="accent-indigo-600">
+                        <div class="text-right mr-2"><div class="text-sm font-bold text-slate-800">ניקוב session</div><div class="text-xs text-slate-400">ניקוב אוטומטי מהכרטיסייה</div></div>
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer ${p.late_cancel_action==='block'?'border-indigo-500 bg-indigo-50':'border-slate-100'}">
+                        <input type="radio" name="lca" value="block" ${p.late_cancel_action==='block'?'checked':''} class="accent-indigo-600">
+                        <div class="text-right mr-2"><div class="text-sm font-bold text-slate-800">חסימה</div><div class="text-xs text-slate-400">מניעת ביטול מאוחר לחלוטין</div></div>
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer ${p.late_cancel_action==='none'?'border-indigo-500 bg-indigo-50':'border-slate-100'}">
+                        <input type="radio" name="lca" value="none" ${p.late_cancel_action==='none'?'checked':''} class="accent-indigo-600">
+                        <div class="text-right mr-2"><div class="text-sm font-bold text-slate-800">ללא עונש</div><div class="text-xs text-slate-400">ביטול חופשי בכל עת</div></div>
+                    </label>
+                </div>
+            </div>
+            <button onclick="window._sportSaveCancelPolicy()" class="w-full bg-indigo-600 text-white font-black py-3.5 rounded-2xl text-sm">שמור מדיניות ✅</button>
+        </div>`;
+    } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינה</div>'; }
+};
+
+window._sportSelectCancelWindow = function(h) {
+    document.getElementById('cp-window').value = h;
+    [2,4,8,12,24,48].forEach(x => {
+        const btn = document.getElementById(`cw-${x}`);
+        if (btn) btn.className = `px-4 py-2 rounded-xl text-sm font-bold border-2 ${x===h?'border-indigo-500 bg-indigo-50 text-indigo-700':'border-slate-200 text-slate-600'}`;
+    });
+};
+
+window._sportSaveCancelPolicy = async function() {
+    const enabled = document.getElementById('cp-enabled')?.checked;
+    const cancelWindowHours = parseInt(document.getElementById('cp-window')?.value)||8;
+    const lateCancelAction = document.querySelector('input[name="lca"]:checked')?.value||'deduct_session';
+    try {
+        const d = await fetch(`${API}/sport/cancel-policy/${currentGroup.id}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ enabled, cancelWindowHours, lateCancelAction })
+        }).then(r=>r.json());
+        if (d.success) { showToast('success','מדיניות נשמרה ✅'); window.showSportSchedule(); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Modified Remove Registration with policy enforcement ─────────────────────
+window._sportRemoveRegistration = async function(classId, membershipId) {
+    if (!confirm('להסיר נרשם זה?')) return;
+    try {
+        const url = `${API}/sport/classes/${classId}/registrations/${membershipId}?groupId=${currentGroup.id}`;
+        const d = await fetch(url, {method:'DELETE'}).then(r=>r.json());
+        if (d.error && d.lateCancellation) {
+            showToast('error', d.error);
+            return;
+        }
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        let msg = 'הוסר ✅';
+        if (d.lateCancelApplied) msg += ' (ניקוב session — ביטול מאוחר)';
+        if (d.promoted) msg += ` | ${d.promoted.memberName} הועלה ממתנה ⏳`;
+        showToast('success', msg);
+        window._sportClassTab('attendance', classId);
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Waitlist Pending Confirmations ──────────────────────────────────────────
+window.showSportWaitlistPending = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportAlerts()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">ממתינים לאישור מקום ⏳</h2><span></span>
+        </div>
+        <div id="sport-waitlist-pending-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    await window._sportLoadWaitlistPending();
+};
+
+window._sportLoadWaitlistPending = async function() {
+    const el = document.getElementById('sport-waitlist-pending-content');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/waitlist-pending/${currentGroup.id}`).then(r=>r.json());
+        const list = d.pending||[];
+        if (!list.length) {
+            el.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין ממתינים לאישור</div>'; return;
+        }
+        el.innerHTML = list.map(w => {
+            const expires = new Date(w.expires_at);
+            const now = new Date();
+            const minsLeft = Math.max(0, Math.round((expires - now) / 60000));
+            const dateStr = w.class_date ? new Date(w.class_date).toLocaleDateString('he-IL') : '';
+            return `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-3 text-right">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full ${minsLeft>10?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}">${minsLeft} דקות</span>
+                    <div>
+                        <div class="font-black text-slate-800 text-sm">${w.member_name||''}</div>
+                        <div class="text-xs text-slate-500">${w.class_name||''} · ${dateStr} ${w.start_time||''}</div>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="window._sportForceConfirmWaitlist(${w.class_id},${w.membership_id})" class="flex-1 bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">אשר מקום ✅</button>
+                    <button onclick="window._sportSkipWaitlist(${w.class_id},${w.membership_id})" class="flex-1 bg-slate-100 text-slate-600 font-bold py-2 rounded-xl text-xs">דלג (הבא) ⏭️</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+};
+
+window._sportForceConfirmWaitlist = async function(classId, membershipId) {
+    try {
+        const d = await fetch(`${API}/sport/classes/${classId}/waitlist/${membershipId}/confirm`, {method:'POST'}).then(r=>r.json());
+        if (d.success) { showToast('success','אושר ✅'); window._sportLoadWaitlistPending(); }
+        else showToast('error', d.error||'שגיאה');
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportSkipWaitlist = async function(classId, membershipId) {
+    try {
+        // expire this pending slot → server will promote next
+        await fetch(`${API}/sport/classes/${classId}/waitlist/${membershipId}`, {method:'DELETE'});
+        showToast('success','דולג, הבא ברשימה הועלה ⏭️');
+        window._sportLoadWaitlistPending();
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Waitlist status in class detail ─────────────────────────────────────────
+// Override _sportClassTab to show pending timer in waitlist tab
+const _origSportClassTab = window._sportClassTab;
+window._sportClassTab = async function(tab, classId) {
+    const tabs = {attendance:'sport-class-tab-attendance', waitlist:'sport-class-tab-waitlist'};
+    Object.keys(tabs).forEach(t => {
+        const btn = document.getElementById(tabs[t]);
+        if (!btn) return;
+        btn.className = `flex-1 py-2 text-xs font-bold border-b-2 ${t===tab?'border-indigo-500 text-indigo-600':'border-transparent text-slate-400'}`;
+    });
+    const el = document.getElementById('sport-class-detail-content');
+    if (!el) return;
+
+    if (tab === 'attendance') {
+        try {
+            const d = await fetch(`${API}/sport/classes/${classId}/registrations`).then(r=>r.json());
+            const regs = d.registrations||[];
+            if (!regs.length) {
+                el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין נרשמים עדיין</div>
+                    <div class="mt-4"><button onclick="window._sportRegisterToClass(${classId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">הוסף נרשם ➕</button></div>`;
+                return;
+            }
+            el.innerHTML = `<div class="text-xs font-black text-slate-500 mb-3 text-right">סמן נוכחות (${regs.length} נרשמים)</div>
+                ${regs.map(r2=>`<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-2">
+                    <div class="flex gap-2">
+                        <button onclick="window._sportRemoveRegistration(${classId},${r2.membership_id})" class="text-red-400 text-xs px-1">✕</button>
+                        <input type="checkbox" id="att-${r2.membership_id}" ${r2.attended?'checked':''} class="w-5 h-5 accent-indigo-600"/>
+                    </div>
+                    <span class="font-bold text-slate-800 text-sm">${r2.member_name||''}</span>
+                </div>`).join('')}
+                <div class="mt-4 flex gap-2">
+                    <button onclick="window._sportSaveAttendance(${classId},[${regs.map(r2=>r2.membership_id).join(',')}])" class="flex-1 bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור ✅</button>
+                    <button onclick="window._sportRegisterToClass(${classId})" class="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-2xl text-sm">+ הוסף</button>
+                </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+
+    } else { // waitlist
+        try {
+            const d = await fetch(`${API}/sport/classes/${classId}/waitlist`).then(r=>r.json());
+            const list = d.waitlist||[];
+            el.innerHTML = `<div class="text-xs font-black text-slate-500 mb-3 text-right">רשימת המתנה${list.length?` (${list.length})`:''}</div>
+                ${list.length ? list.map(w=>{
+                    const isPending = w.status === 'pending';
+                    const expires = w.expires_at ? new Date(w.expires_at) : null;
+                    const minsLeft = expires ? Math.max(0, Math.round((expires - new Date())/60000)) : null;
+                    const timerBadge = isPending ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${minsLeft>10?'bg-amber-100 text-amber-700':'bg-red-100 text-red-600'} mr-1">${minsLeft}ד'</span>` : '';
+                    const statusBadge = isPending ? `<span class="text-[10px] font-bold text-amber-600">ממתין לאישור</span>` : `<span class="text-[10px] text-slate-400">#${w.position}</span>`;
+                    return `<div class="rounded-xl p-3 mb-2 flex items-center justify-between ${isPending?'bg-amber-50 border border-amber-200':'bg-orange-50 border border-orange-100'}">
+                        <div class="flex gap-1.5 items-center">
+                            <button onclick="window._sportRemoveWaitlist(${classId},${w.membership_id})" class="text-red-400 text-xs px-1">✕</button>
+                            ${isPending?`<button onclick="window._sportForceConfirmWaitlist(${classId},${w.membership_id})" class="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded-lg font-bold">אשר</button>`:''}
+                        </div>
+                        <div class="text-right">
+                            <div class="flex items-center gap-1 justify-end">${timerBadge}<span class="font-bold text-slate-800 text-sm">${w.member_name||''}</span></div>
+                            <div class="flex items-center gap-1 justify-end">${statusBadge}${w.member_phone?`<span class="text-[11px] text-slate-400">${w.member_phone}</span>`:''}</div>
+                        </div>
+                    </div>`;
+                }).join('') : '<div class="text-center py-4 text-slate-400 text-sm">אין ממתינים</div>'}
+                <div class="mt-4">
+                    <button onclick="window._sportAddToWaitlist(${classId})" class="w-full bg-orange-100 text-orange-700 font-black py-3 rounded-2xl text-sm">הוסף לרשימת המתנה ➕</button>
+                </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+    }
+};
+
+// ===== END SPORT PHASE 5 =====
