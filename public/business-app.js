@@ -28871,3 +28871,318 @@ window._sportLoadReports = async function(period) {
 })();
 
 // ===== END SPORT PHASE 2+ =====
+
+// ===== SPORT PHASE 3 EXTRAS — CLASS TYPES, RECURRING, WAITLIST =====
+
+// ─── Class Types Management Screen ───────────────────────────────────────────
+window.showSportClassTypes = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const colors = ['indigo','violet','emerald','orange','red','blue','teal','pink'];
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">סוגי שיעורים 🎽</h2>
+            <span></span>
+        </div>
+        <div id="sport-class-types-list" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+            <div class="text-center py-6 text-slate-400 text-sm">טוען...</div>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-slate-50 rounded-2xl p-4 flex flex-col gap-3">
+                <div class="text-sm font-black text-slate-700 text-right">הוסף סוג שיעור</div>
+                <input id="sport-ct-name" type="text" placeholder="שם (לדוג׳ יוגה, ספינינג...)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="sport-ct-dur" type="number" placeholder="משך (דקות)" value="60" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm"/>
+                    <select id="sport-ct-color" class="border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                        ${colors.map(c=>`<option value="${c}">${{indigo:'כחול',violet:'סגול',emerald:'ירוק',orange:'כתום',red:'אדום',blue:'תכלת',teal:'טורקיז',pink:'ורוד'}[c]||c}</option>`).join('')}
+                    </select>
+                </div>
+                <button onclick="window._sportAddClassType()" class="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm">הוסף ➕</button>
+            </div>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadClassTypesList();
+};
+
+window._sportLoadClassTypesList = async function() {
+    const el = document.getElementById('sport-class-types-list');
+    if (!el) return;
+    try {
+        const d = await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json());
+        const types = d.types || [];
+        const colorBg = {indigo:'bg-indigo-100 text-indigo-700',violet:'bg-violet-100 text-violet-700',emerald:'bg-emerald-100 text-emerald-700',orange:'bg-orange-100 text-orange-700',red:'bg-red-100 text-red-700',blue:'bg-blue-100 text-blue-700',teal:'bg-teal-100 text-teal-700',pink:'bg-pink-100 text-pink-700'};
+        if (!types.length) { el.innerHTML = `<div class="text-center py-6 text-slate-400 text-sm">אין סוגי שיעורים עדיין</div>`; return; }
+        el.innerHTML = types.map(t => `<div class="bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+            <button onclick="window._sportDeleteClassType(${t.id})" class="text-red-400 text-lg px-2">🗑️</button>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${colorBg[t.color]||colorBg.indigo}">${t.color}</span>
+                <div class="text-right">
+                    <div class="font-bold text-slate-800 text-sm">${t.name}</div>
+                    <div class="text-[11px] text-slate-500">${t.default_duration_min} דקות</div>
+                </div>
+            </div>
+        </div>`).join('');
+    } catch(e) { el.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">שגיאה</div>`; }
+};
+
+window._sportAddClassType = async function() {
+    const name = document.getElementById('sport-ct-name')?.value?.trim();
+    const dur = parseInt(document.getElementById('sport-ct-dur')?.value) || 60;
+    const color = document.getElementById('sport-ct-color')?.value || 'indigo';
+    if (!name) { showToast('error','יש להזין שם'); return; }
+    try {
+        const d = await fetch(`${API}/sport/class-types`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({groupId:currentGroup.id, name, color, defaultDurationMin:dur})
+        }).then(r=>r.json());
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success','נוסף ✅');
+        document.getElementById('sport-ct-name').value = '';
+        window._sportLoadClassTypesList();
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportDeleteClassType = async function(id) {
+    if (!confirm('למחוק סוג שיעור זה?')) return;
+    try {
+        await fetch(`${API}/sport/class-types/${id}`, {method:'DELETE'});
+        showToast('success','נמחק');
+        window._sportLoadClassTypesList();
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Recurring Classes Screen ─────────────────────────────────────────────────
+window.showSportAddRecurring = async function() {
+    let types = [];
+    try { types = (await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types||[]; } catch(e) {}
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1);
+
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">שיעור חוזר 🔁</h2>
+            <span></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם השיעור *</label>
+                <input id="sport-rec-name" type="text" placeholder="לדוג׳ יוגה בוקר" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            ${types.length ? `<div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג שיעור</label>
+                <select id="sport-rec-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+                    <option value="">-- ללא --</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+                </select></div>`:''}
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
+                <input id="sport-rec-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת סיום</label>
+                    <input id="sport-rec-end" type="time" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת התחלה *</label>
+                    <input id="sport-rec-start" type="time" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-2 text-right">ימים בשבוע *</label>
+                <div class="flex gap-2 justify-end flex-wrap">
+                    ${dayNames.map((d,i)=>`<button type="button" id="sport-rec-day-${i}" onclick="window._sportToggleDay(${i})"
+                        class="w-10 h-10 rounded-full border-2 border-slate-200 text-xs font-bold text-slate-500 transition">${d}</button>`).join('')}
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">עד תאריך</label>
+                    <input id="sport-rec-to" type="date" value="${nextMonth.toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מתאריך</label>
+                    <input id="sport-rec-from" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">קיבולת</label>
+                <input id="sport-rec-cap" type="number" value="20" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div class="p-4 border-t">
+            <button onclick="window._sportSubmitRecurring()" class="w-full bg-violet-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition">צור שיעורים חוזרים 🔁</button>
+        </div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportSelectedDays = new Set();
+};
+
+window._sportSelectedDays = new Set();
+
+window._sportToggleDay = function(dayIndex) {
+    const btn = document.getElementById(`sport-rec-day-${dayIndex}`);
+    if (!btn) return;
+    if (window._sportSelectedDays.has(dayIndex)) {
+        window._sportSelectedDays.delete(dayIndex);
+        btn.className = 'w-10 h-10 rounded-full border-2 border-slate-200 text-xs font-bold text-slate-500 transition';
+    } else {
+        window._sportSelectedDays.add(dayIndex);
+        btn.className = 'w-10 h-10 rounded-full border-2 border-violet-500 bg-violet-100 text-xs font-bold text-violet-700 transition';
+    }
+};
+
+window._sportSubmitRecurring = async function() {
+    const name = document.getElementById('sport-rec-name')?.value?.trim();
+    const fromDate = document.getElementById('sport-rec-from')?.value;
+    const toDate = document.getElementById('sport-rec-to')?.value;
+    const weekDays = Array.from(window._sportSelectedDays);
+    if (!name) { showToast('error','יש להזין שם'); return; }
+    if (!weekDays.length) { showToast('error','יש לבחור לפחות יום אחד'); return; }
+    if (!fromDate || !toDate) { showToast('error','יש לבחור טווח תאריכים'); return; }
+    if (new Date(toDate) <= new Date(fromDate)) { showToast('error','תאריך סיום חייב להיות אחרי תאריך התחלה'); return; }
+
+    const dayRange = Math.ceil((new Date(toDate)-new Date(fromDate))/86400000);
+    if (dayRange > 365) { showToast('error','טווח מקסימלי הוא שנה'); return; }
+
+    try {
+        const d = await fetch(`${API}/sport/classes/recurring`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                classTypeId: document.getElementById('sport-rec-type')?.value || null,
+                className: name,
+                trainerName: document.getElementById('sport-rec-trainer')?.value?.trim() || '',
+                startTime: document.getElementById('sport-rec-start')?.value || null,
+                endTime: document.getElementById('sport-rec-end')?.value || null,
+                capacity: parseInt(document.getElementById('sport-rec-cap')?.value) || 20,
+                weekDays, fromDate, toDate
+            })
+        }).then(r=>r.json());
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success', `נוצרו ${d.count} שיעורים בהצלחה 🎉`);
+        window.showSportSchedule();
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Waitlist in Class Detail ─────────────────────────────────────────────────
+window.showSportClassDetail = async function(classId) {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="window.showSportSchedule()" class="text-slate-400 text-xl">←</button>
+            <h2 class="text-lg font-black text-slate-800">ניהול שיעור</h2><span></span>
+        </div>
+        <div class="flex border-b border-slate-100">
+            <button onclick="window._sportClassTab('attendance',${classId})" id="sport-class-tab-attendance" class="flex-1 py-2 text-xs font-bold border-b-2 border-indigo-500 text-indigo-600">נרשמים ✅</button>
+            <button onclick="window._sportClassTab('waitlist',${classId})" id="sport-class-tab-waitlist" class="flex-1 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400">המתנה ⏳</button>
+        </div>
+        <div id="sport-class-detail-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportClassTab('attendance', classId);
+};
+
+window._sportClassTab = async function(tab, classId) {
+    // update tab styles
+    const tabs = {attendance:'sport-class-tab-attendance', waitlist:'sport-class-tab-waitlist'};
+    Object.keys(tabs).forEach(t => {
+        const btn = document.getElementById(tabs[t]);
+        if (!btn) return;
+        btn.className = `flex-1 py-2 text-xs font-bold border-b-2 ${t===tab?'border-indigo-500 text-indigo-600':'border-transparent text-slate-400'}`;
+    });
+
+    const el = document.getElementById('sport-class-detail-content');
+    if (!el) return;
+
+    if (tab === 'attendance') {
+        try {
+            const d = await fetch(`${API}/sport/classes/${classId}/registrations`).then(r=>r.json());
+            const regs = d.registrations||[];
+            if (!regs.length) {
+                el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין נרשמים עדיין</div>
+                    <div class="mt-4"><button onclick="window._sportRegisterToClass(${classId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">הוסף נרשם ➕</button></div>`;
+                return;
+            }
+            el.innerHTML = `<div class="text-xs font-black text-slate-500 mb-3 text-right">סמן נוכחות (${regs.length} נרשמים)</div>
+                ${regs.map(r2=>`<div class="flex items-center justify-between bg-slate-50 rounded-xl p-3 mb-2">
+                    <div class="flex gap-2">
+                        <button onclick="window._sportRemoveRegistration(${classId},${r2.membership_id})" class="text-red-400 text-xs px-1">✕</button>
+                        <input type="checkbox" id="att-${r2.membership_id}" ${r2.attended?'checked':''} class="w-5 h-5 accent-indigo-600"/>
+                    </div>
+                    <span class="font-bold text-slate-800 text-sm">${r2.member_name||''}</span>
+                </div>`).join('')}
+                <div class="mt-4 flex gap-2">
+                    <button onclick="window._sportSaveAttendance(${classId},[${regs.map(r2=>r2.membership_id).join(',')}])" class="flex-1 bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור ✅</button>
+                    <button onclick="window._sportRegisterToClass(${classId})" class="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-2xl text-sm">+ הוסף</button>
+                </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+
+    } else { // waitlist
+        try {
+            const d = await fetch(`${API}/sport/classes/${classId}/waitlist`).then(r=>r.json());
+            const list = d.waitlist||[];
+            el.innerHTML = `<div class="text-xs font-black text-slate-500 mb-3 text-right">רשימת המתנה${list.length ? ` (${list.length})` : ''}</div>
+                ${list.length ? list.map(w=>`<div class="bg-orange-50 border border-orange-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                    <button onclick="window._sportRemoveWaitlist(${classId},${w.membership_id})" class="text-red-400 text-xs px-1">✕</button>
+                    <div class="text-right">
+                        <span class="font-bold text-slate-800 text-sm">#${w.position} ${w.member_name||''}</span>
+                        ${w.member_phone?`<div class="text-[11px] text-slate-400">${w.member_phone}</div>`:''}
+                    </div>
+                </div>`).join('') : '<div class="text-center py-4 text-slate-400 text-sm">אין ממתינים</div>'}
+                <div class="mt-4">
+                    <button onclick="window._sportAddToWaitlist(${classId})" class="w-full bg-orange-100 text-orange-700 font-black py-3 rounded-2xl text-sm">הוסף לרשימת המתנה ➕</button>
+                </div>`;
+        } catch(e) { el.innerHTML = '<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>'; }
+    }
+};
+
+window._sportRemoveRegistration = async function(classId, membershipId) {
+    if (!confirm('להסיר נרשם זה? אם יש ממתינים, הראשון יועלה אוטומטית.')) return;
+    try {
+        const d = await fetch(`${API}/sport/classes/${classId}/registrations/${membershipId}`, {method:'DELETE'}).then(r=>r.json());
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success', 'הוסר ✅');
+        window._sportClassTab('attendance', classId);
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportAddToWaitlist = async function(classId) {
+    const q = prompt('שם חבר להוספה לרשימת המתנה:');
+    if (!q) return;
+    try {
+        const members = (await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}`).then(r=>r.json())).members||[];
+        if (!members.length) { showToast('error','חבר לא נמצא'); return; }
+        const m = members[0];
+        const d = await fetch(`${API}/sport/classes/${classId}/waitlist`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({membershipId:m.id, memberName:m.member_name, groupId:currentGroup.id})
+        }).then(r=>r.json());
+        if (!d.success) { showToast('error', d.error||'שגיאה'); return; }
+        showToast('success', `${m.member_name} נוסף/ה למתנה במקום #${d.position} ⏳`);
+        window._sportClassTab('waitlist', classId);
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+window._sportRemoveWaitlist = async function(classId, membershipId) {
+    try {
+        await fetch(`${API}/sport/classes/${classId}/waitlist/${membershipId}`, {method:'DELETE'});
+        showToast('success','הוסר');
+        window._sportClassTab('waitlist', classId);
+    } catch(e) { showToast('error','שגיאת תקשורת'); }
+};
+
+// ─── Updated Schedule screen — add Class Types + Recurring buttons ─────────────
+window.showSportSchedule = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const today = new Date().toISOString().split('T')[0];
+    const toD = new Date(); toD.setDate(toD.getDate()+14);
+    const toDate = toD.toISOString().split('T')[0];
+    modal.innerHTML = `<div class="flex flex-col h-full">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100">
+            <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">לוח שיעורים 🗓️</h2>
+            <div class="flex gap-1.5">
+                <button onclick="window.showSportClassTypes()" class="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1.5 rounded-lg">🎽 סוגים</button>
+                <button onclick="window.showSportAddRecurring()" class="bg-violet-100 text-violet-700 text-xs font-bold px-2.5 py-1.5 rounded-lg">🔁</button>
+                <button onclick="window.showSportAddClass()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">+ שיעור</button>
+            </div>
+        </div>
+        <div id="sport-schedule-list" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
+    </div>`;
+    modal.classList.remove('hidden');
+    window._sportLoadSchedule(today, toDate);
+};
+
+// ===== END SPORT PHASE 3 EXTRAS =====

@@ -754,6 +754,14 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           payment_method VARCHAR(30) DEFAULT 'cash', notes TEXT,
           paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      // Sport Waitlist
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_waitlist (
+          id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
+          group_id INT NOT NULL, membership_id INT REFERENCES sport_memberships(id) ON DELETE CASCADE,
+          member_name VARCHAR(100), position INT NOT NULL,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(class_id, membership_id)
+      )`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       client.release();
@@ -10154,6 +10162,78 @@ app.post('/api/sport/classes/:id/attendance', async (req, res) => {
         }
         await pool.query(`UPDATE sport_classes SET status='completed' WHERE id=$1`, [req.params.id]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Waitlist ────────────────────────────────────────────────────────────────
+app.get('/api/sport/classes/:id/waitlist', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT w.*, sm.member_phone FROM sport_class_waitlist w
+            LEFT JOIN sport_memberships sm ON w.membership_id=sm.id
+            WHERE w.class_id=$1 ORDER BY w.position`, [req.params.id]);
+        res.json({ waitlist: r.rows });
+    } catch(e) { res.json({ waitlist: [] }); }
+});
+
+app.post('/api/sport/classes/:id/waitlist', async (req, res) => {
+    const { membershipId, memberName, groupId } = req.body;
+    try {
+        const pos = await pool.query('SELECT COALESCE(MAX(position),0)+1 as next FROM sport_class_waitlist WHERE class_id=$1', [req.params.id]);
+        await pool.query(`INSERT INTO sport_class_waitlist (class_id,group_id,membership_id,member_name,position) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+            [req.params.id, groupId, membershipId, memberName, pos.rows[0].next]);
+        res.json({ success: true, position: pos.rows[0].next });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sport/classes/:id/waitlist/:membershipId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sport_class_waitlist WHERE class_id=$1 AND membership_id=$2', [req.params.id, req.params.membershipId]);
+        // reorder remaining
+        const remaining = await pool.query('SELECT id FROM sport_class_waitlist WHERE class_id=$1 ORDER BY position', [req.params.id]);
+        for (let i = 0; i < remaining.rows.length; i++) {
+            await pool.query('UPDATE sport_class_waitlist SET position=$1 WHERE id=$2', [i+1, remaining.rows[i].id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// promote first waitlisted person when a registration is deleted
+app.delete('/api/sport/classes/:id/registrations/:membershipId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM sport_class_registrations WHERE class_id=$1 AND membership_id=$2', [req.params.id, req.params.membershipId]);
+        const first = await pool.query('SELECT * FROM sport_class_waitlist WHERE class_id=$1 ORDER BY position LIMIT 1', [req.params.id]);
+        if (first.rows.length) {
+            const w = first.rows[0];
+            await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [req.params.id, w.membership_id, w.member_name]);
+            await pool.query('DELETE FROM sport_class_waitlist WHERE id=$1', [w.id]);
+            await pool.query('UPDATE sport_class_waitlist SET position=position-1 WHERE class_id=$1', [req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Recurring Classes ────────────────────────────────────────────────────────
+// Creates multiple class instances from a weekly template
+app.post('/api/sport/classes/recurring', async (req, res) => {
+    const { groupId, classTypeId, className, trainerName, startTime, endTime, capacity, notes, weekDays, fromDate, toDate } = req.body;
+    // weekDays: array of 0-6 (0=Sun)
+    if (!weekDays?.length || !fromDate || !toDate) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const created = [];
+        const from = new Date(fromDate);
+        const to = new Date(toDate);
+        const cur = new Date(from);
+        while (cur <= to) {
+            if (weekDays.includes(cur.getDay())) {
+                const dateStr = cur.toISOString().split('T')[0];
+                const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,class_date,start_time,end_time,capacity,notes)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+                    [groupId, classTypeId||null, className, trainerName||'', dateStr, startTime||null, endTime||null, capacity||20, notes||'']);
+                created.push(r.rows[0].id);
+            }
+            cur.setDate(cur.getDate()+1);
+        }
+        res.json({ success: true, count: created.length, classIds: created });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
