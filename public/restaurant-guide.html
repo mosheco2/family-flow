@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך מסעדה / בית קפה — ONEFLOW BUSINESS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  :root {
+    --primary: #dc2626;
+    --primary-dark: #b91c1c;
+    --primary-light: #fef2f2;
+    --accent: #f97316;
+    --accent-light: #fff7ed;
+  }
+  * { scroll-behavior: smooth; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; color: #1e293b; }
+  .sidebar { position: fixed; top: 0; right: 0; width: 260px; height: 100vh; overflow-y: auto; background: #fff; border-left: 1px solid #e2e8f0; z-index: 40; padding: 1rem 0; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #dc2626; border-radius: 2px; }
+  .main-content { margin-right: 260px; max-width: 900px; padding: 2rem; }
+  .nav-link { display: block; padding: 0.4rem 1.2rem; font-size: 0.82rem; color: #475569; border-right: 3px solid transparent; transition: all 0.15s; }
+  .nav-link:hover, .nav-link.active { color: #dc2626; border-right-color: #dc2626; background: #fef2f2; font-weight: 600; }
+  .nav-category { padding: 0.6rem 1.2rem 0.2rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
+  .hero { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 40%, #f97316 100%); color: white; border-radius: 1.5rem; padding: 2.5rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: '🍕'; position: absolute; left: -10px; top: -10px; font-size: 8rem; opacity: 0.08; }
+  .hero::after { content: '🍽️'; position: absolute; left: 80px; bottom: -20px; font-size: 6rem; opacity: 0.06; }
+  .section-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { background: linear-gradient(90deg, #fef2f2, #fff7ed); padding: 1rem 1.5rem; border-bottom: 1px solid #fce7e7; display: flex; align-items: center; gap: 0.75rem; }
+  .section-header h2 { font-size: 1.15rem; font-weight: 700; color: #991b1b; }
+  .section-body { padding: 1.25rem 1.5rem; }
+  .step-box { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+  .step-num { min-width: 2rem; height: 2rem; background: #dc2626; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-weight: 700; color: #1e293b; margin-bottom: 0.2rem; }
+  .step-content p, .step-content span { font-size: 0.9rem; color: #475569; }
+  .tip-box { background: #fff7ed; border-right: 4px solid #f97316; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .tip-box strong { color: #c2410c; }
+  .warn-box { background: #fef2f2; border-right: 4px solid #dc2626; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .warn-box strong { color: #dc2626; }
+  .info-box { background: #eff6ff; border-right: 4px solid #3b82f6; border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.3rem; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-orange { background: #ffedd5; color: #c2410c; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .role-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .role-card h4 { font-weight: 700; color: #1e293b; margin-bottom: 0.4rem; }
+  .img-placeholder { background: linear-gradient(135deg, #fef2f2, #fff7ed); border: 2px dashed #fca5a5; border-radius: 0.75rem; padding: 2.5rem; text-align: center; color: #dc2626; font-size: 0.85rem; margin: 1rem 0; }
+  .img-placeholder i { font-size: 2.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.4; }
+  .table-wrap { overflow-x: auto; margin: 0.75rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { background: #fef2f2; color: #991b1b; font-weight: 700; padding: 0.6rem 0.75rem; text-align: right; border-bottom: 2px solid #fca5a5; }
+  td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .faq-item { border: 1px solid #e2e8f0; border-radius: 0.75rem; margin-bottom: 0.6rem; overflow: hidden; }
+  .faq-q { padding: 0.85rem 1.1rem; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #fff; transition: background 0.15s; font-size: 0.9rem; }
+  .faq-q:hover { background: #fef2f2; }
+  .faq-a { display: none; padding: 0.85rem 1.1rem; background: #fafafa; font-size: 0.875rem; color: #475569; border-top: 1px solid #f1f5f9; }
+  .faq-a.open { display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; font-weight: 600; background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; margin: 0.15rem; cursor: pointer; }
+  .chip:hover { background: #dc2626; color: white; }
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, #dc2626, #f97316); z-index: 100; transition: width 0.2s; }
+  .back-top { position: fixed; bottom: 1.5rem; left: 1.5rem; background: #dc2626; color: white; width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.3s; z-index: 50; box-shadow: 0 4px 12px rgba(220,38,38,0.35); }
+  .search-box { padding: 0.6rem 1rem; margin: 0 0.8rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.82rem; width: calc(100% - 1.6rem); }
+  @media(max-width:768px) { .sidebar{display:none;} .main-content{margin-right:0;padding:1rem;} }
+  .mobile-nav { display: none; position: sticky; top: 0; z-index: 30; background: white; border-bottom: 1px solid #e2e8f0; padding: 0.5rem 1rem; overflow-x: auto; white-space: nowrap; }
+  @media(max-width:768px) { .mobile-nav{display:block;} }
+  ul.check-list { list-style: none; padding: 0; }
+  ul.check-list li { padding: 0.25rem 0; font-size: 0.9rem; color: #475569; }
+  ul.check-list li::before { content: '✓ '; color: #dc2626; font-weight: 700; }
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 0.6rem; margin: 0.75rem 0; }
+  .module-item { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 0.6rem; padding: 0.6rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: #991b1b; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress-bar" style="width:0%"></div>
+<div class="back-top" id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fa-solid fa-arrow-up text-sm"></i></div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div style="padding:1rem 1.2rem 0.5rem; border-bottom:1px solid #f1f5f9;">
+    <div style="font-size:1.1rem; font-weight:800; color:#dc2626;">🍕 מדריך מסעדה</div>
+    <div style="font-size:0.72rem; color:#94a3b8; margin-top:0.2rem;">ONEFLOW BUSINESS</div>
+  </div>
+  <input class="search-box" id="sidebar-search" placeholder="חיפוש בתוכן..." oninput="searchSections(this.value)">
+  <nav id="sidebar-nav">
+    <div class="nav-category">מבוא</div>
+    <a class="nav-link" href="#quick-start">התחלה מהירה</a>
+    <a class="nav-link" href="#user-types">סוגי משתמשים</a>
+    <a class="nav-link" href="#setup-wizard">ויזארד הקמה</a>
+    <div class="nav-category">תפעול שוטף</div>
+    <a class="nav-link" href="#dashboard">דשבורד מנהל</a>
+    <a class="nav-link" href="#pos">קופה (POS)</a>
+    <a class="nav-link" href="#tables">ניהול שולחנות</a>
+    <a class="nav-link" href="#menu">תפריט וקטלוג</a>
+    <a class="nav-link" href="#kitchen">מטבח ו-KDS</a>
+    <a class="nav-link" href="#deliveries">משלוחים</a>
+    <div class="nav-category">צוות ומלאי</div>
+    <a class="nav-link" href="#shifts">משמרות ונוכחות</a>
+    <a class="nav-link" href="#pantry">מלאי וחומרי גלם</a>
+    <a class="nav-link" href="#foodcost">עלות מנות (Food Cost)</a>
+    <a class="nav-link" href="#suppliers">ספקים והזמנות</a>
+    <div class="nav-category">לקוחות ושיווק</div>
+    <a class="nav-link" href="#customers">ניהול לקוחות</a>
+    <a class="nav-link" href="#cashflow">תזרים וכספים</a>
+    <a class="nav-link" href="#alerts">התראות ומעקב</a>
+    <div class="nav-category">ONEFLOW ו-AI</div>
+    <a class="nav-link" href="#inbox">הודעות נכנסות</a>
+    <a class="nav-link" href="#oneflow">ONEFLOW LIFE</a>
+    <a class="nav-link" href="#ai-tools">כלי AI</a>
+    <div class="nav-category">לקוח חיצוני</div>
+    <a class="nav-link" href="#storefront">חנות ציבורית</a>
+    <a class="nav-link" href="#faq">שאלות נפוצות</a>
+  </nav>
+</aside>
+
+<!-- Mobile nav -->
+<div class="mobile-nav">
+  <span class="chip" onclick="scrollTo('#quick-start')">🚀 התחלה</span>
+  <span class="chip" onclick="scrollTo('#pos')">💳 קופה</span>
+  <span class="chip" onclick="scrollTo('#tables')">🪑 שולחנות</span>
+  <span class="chip" onclick="scrollTo('#menu')">📋 תפריט</span>
+  <span class="chip" onclick="scrollTo('#kitchen')">👨‍🍳 מטבח</span>
+  <span class="chip" onclick="scrollTo('#deliveries')">🛵 משלוחים</span>
+  <span class="chip" onclick="scrollTo('#shifts')">👥 צוות</span>
+  <span class="chip" onclick="scrollTo('#pantry')">📦 מלאי</span>
+  <span class="chip" onclick="scrollTo('#foodcost')">🧮 Food Cost</span>
+  <span class="chip" onclick="scrollTo('#oneflow')">🔗 ONEFLOW</span>
+  <span class="chip" onclick="scrollTo('#ai-tools')">🤖 AI</span>
+</div>
+
+<main class="main-content">
+
+<!-- Hero -->
+<section class="hero" id="top">
+  <div style="position:relative;z-index:1;">
+    <div style="font-size:0.85rem;opacity:0.85;margin-bottom:0.4rem;">ONEFLOW BUSINESS — מדריך סוג עסק</div>
+    <h1 style="font-size:2rem;font-weight:900;margin-bottom:0.5rem;">🍕 מדריך מסעדה / בית קפה</h1>
+    <p style="opacity:0.9;max-width:600px;line-height:1.6;">מדריך מקיף לניהול מסעדה, בית קפה, מזנון, או כל עסק מזון — כולל קופה, שולחנות, מטבח, משלוחים, מלאי, food cost, צוות, ONEFLOW ו-AI.</p>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">15 מודולים</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">4 סוגי משתמשים</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">ONEFLOW מחובר</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:9999px;padding:0.3rem 0.8rem;font-size:0.78rem;font-weight:600;">AI מובנה</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 1. QUICK START ========== -->
+<section class="section-card" id="quick-start">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🚀</span>
+    <h2>התחלה מהירה — 5 צעדים לפתיחה</h2>
+  </div>
+  <div class="section-body">
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <strong>צור קבוצת עסק מסוג מסעדה</strong>
+        <p>בממשק ONEFLOW → צור קבוצה → בחר "עסק" → בחר "מסעדה / בית קפה". הגדר שם, לוגו ומספר שולחנות.</p>
+      </div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <strong>הגדר תפריט ראשוני</strong>
+        <p>עבור לתפריט → הוסף קטגוריות (פתיחים, עיקריות, קינוחים, שתייה) → הוסף מנות עם מחיר ותמונה.</p>
+      </div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <strong>הגדר שולחנות</strong>
+        <p>עבור להגדרות → מספר שולחנות → קבע את מספר השולחנות. כל שולחן יקבל QR קוד לסריקה עצמית.</p>
+      </div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <strong>הוסף צוות</strong>
+        <p>הזמן עובדים (מלצרים, טבחים, מנהל משמרת) → הגדר תפקיד לכל עובד → עובדים יקבלו גישה מותאמת.</p>
+      </div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <strong>פתח את הקופה ותתחיל לעבוד</strong>
+        <p>לחץ על "קופה" (POS) → בחר שולחן → הוסף מנות → סגור הזמנה. זהו!</p>
+      </div>
+    </div>
+    <div class="module-grid">
+      <div class="module-item">💳 קופה POS</div>
+      <div class="module-item">🪑 שולחנות</div>
+      <div class="module-item">📋 תפריט</div>
+      <div class="module-item">👨‍🍳 מטבח KDS</div>
+      <div class="module-item">🛵 משלוחים</div>
+      <div class="module-item">👥 משמרות</div>
+      <div class="module-item">⏰ נוכחות</div>
+      <div class="module-item">📦 מלאי</div>
+      <div class="module-item">🧮 Food Cost</div>
+      <div class="module-item">🤝 ספקים</div>
+      <div class="module-item">👤 לקוחות</div>
+      <div class="module-item">💰 תזרים</div>
+      <div class="module-item">💬 הודעות</div>
+      <div class="module-item">🔗 ONEFLOW</div>
+      <div class="module-item">🤖 AI</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 2. USER TYPES ========== -->
+<section class="section-card" id="user-types">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">👥</span>
+    <h2>סוגי משתמשים ורמות גישה</h2>
+  </div>
+  <div class="section-body">
+    <div class="role-card">
+      <h4>🔑 מנהל (ADMIN)</h4>
+      <p style="font-size:0.875rem;color:#475569;">גישה מלאה לכל המערכת. רואה דשבורד KPIs, מנהל תפריט, עובדים, מלאי, ספקים, דוחות, הגדרות ו-food cost. יכול לשנות מחירים, לבטל הזמנות ולגשת לכל הנתונים הפיננסיים.</p>
+      <div style="margin-top:0.4rem;">
+        <span class="badge badge-red">כל מודול</span>
+        <span class="badge badge-orange">דוחות מלאים</span>
+        <span class="badge badge-blue">הגדרות עסק</span>
+      </div>
+    </div>
+    <div class="role-card">
+      <h4>📋 מנהל משמרת</h4>
+      <p style="font-size:0.875rem;color:#475569;">פותח ומסגר קופה, מאשר ביטולים, מנהל שולחנות ונוכחות, רואה דוח סיכום משמרת. אינו רואה דוחות פיננסיים מלאים.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-orange">קופה + שולחנות</span><span class="badge badge-orange">נוכחות</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🍽️ מלצר/ית</h4>
+      <p style="font-size:0.875rem;color:#475569;">פותח הזמנה לשולחן, מוסיף מנות, שולח למטבח, מסכם חשבון. לא רואה מחירי עלות, הגדרות, או נתוני עובדים אחרים.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">שולחן + POS</span><span class="badge badge-gray">שליחה למטבח</span></div>
+    </div>
+    <div class="role-card">
+      <h4>👨‍🍳 טבח/ית</h4>
+      <p style="font-size:0.875rem;color:#475569;">רואה את מסך ה-KDS (Kitchen Display System) — תצוגת הזמנות ממוינות לפי זמן ועדיפות. מסמן מנות כ"מוכן". אינו גורע ממחיר ואינו מגיע לקופה.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">KDS בלבד</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🛵 שליח</h4>
+      <p style="font-size:0.875rem;color:#475569;">רואה רשימת משלוחים פתוחים מוקצים אליו, מאשר איסוף ומסירה, מקבל נייד עם ניווט. ניגש רק למשלוחים שלו.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">משלוחים בלבד</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🔗 ONEFLOW — לקוח משפחתי</h4>
+      <p style="font-size:0.875rem;color:#475569;">לקוח שמחובר דרך מערכת ONEFLOW LIFE (מספר טלפון תואם). מקבל הודעות ממסעדה, יכול לשלוח הודעות דרך הממשק שלו. קיים תיאום דו-כיווני.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-blue">ONEFLOW</span></div>
+    </div>
+    <div class="role-card">
+      <h4>🌐 לקוח ציבורי (אורח)</h4>
+      <p style="font-size:0.875nm;color:#475569;">סורק QR בשולחן → גישה לתפריט ציבורי → יכול להזמין (אם הוגדר), לראות מבצעים, ולשלוח הודעה למסעדה.</p>
+      <div style="margin-top:0.4rem;"><span class="badge badge-gray">תפריט + QR</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 3. SETUP WIZARD ========== -->
+<section class="section-card" id="setup-wizard">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🧙</span>
+    <h2>ויזארד הקמת מסעדה</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:1rem;">בעת יצירת עסק מסוג מסעדה, מופיע ויזארד הקמה שמנחה שלב-אחר-שלב:</p>
+    <div class="img-placeholder"><i class="fa-solid fa-hat-chef"></i>📸 כאן תופיע תמונת מסך של ויזארד ההקמה</div>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>פרטי עסק</strong><span>שם, לוגו, כתובת, שעות פעילות, מספר שולחנות</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>הגדרות קופה</strong><span>מטבע, מע"מ (ברירת מחדל 18%), שיטת תשלום, מדפסת קבלות</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>תפריט ראשוני</strong><span>ייבוא מקובץ Excel, בנייה ידנית, או עם קטגוריות ריקות לאחר מכן</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>הגדרות משלוחים</strong><span>פעיל/לא פעיל, אזורי משלוח, מינימום הזמנה, עלות משלוח</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">5</div>
+      <div class="step-content"><strong>הזמנת צוות ראשון</strong><span>שלח הזמנה למלצרים, טבחים ומנהל — הם יצטרפו לאותו עסק</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 טיפ:</strong> ניתן לדלג על כל שלב ולחזור אליו בהגדרות. כדאי להתחיל עם לפחות תפריט בסיסי לפני הפתיחה.</div>
+  </div>
+</section>
+
+<!-- ========== 4. DASHBOARD ========== -->
+<section class="section-card" id="dashboard">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">📊</span>
+    <h2>דשבורד מנהל</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-chart-line"></i>📸 כאן תופיע תמונת מסך של דשבורד המסעדה</div>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">הדשבורד מציג בזמן-אמת:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>KPI</th><th>תיאור</th><th>תדירות עדכון</th></tr>
+        <tr><td>💰 מכירות היום</td><td>סך הכנסות קופה יום נוכחי</td><td>בזמן-אמת</td></tr>
+        <tr><td>🍽️ הזמנות פתוחות</td><td>מספר שולחנות פעילים</td><td>בזמן-אמת</td></tr>
+        <tr><td>🛵 משלוחים בדרך</td><td>הזמנות שהוצאו לשליחה</td><td>בזמן-אמת</td></tr>
+        <tr><td>📈 ממוצע לאורח</td><td>מכירות / מספר אורחים</td><td>יומי</td></tr>
+        <tr><td>🧮 עלות מזון %</td><td>Food Cost מתגלגל 30 יום</td><td>יומי</td></tr>
+        <tr><td>👥 נוכחות עובדים</td><td>כמה עובדים מחוברים/בשמרה</td><td>בזמן-אמת</td></tr>
+        <tr><td>⚠️ מלאי נמוך</td><td>חומרי גלם מתחת לרף</td><td>בזמן-אמת</td></tr>
+        <tr><td>⭐ ביקורות</td><td>ממוצע דירוגי לקוחות</td><td>יומי</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">פעולות מהירות מהדשבורד</h3>
+    <ul class="check-list">
+      <li>פתח הזמנה חדשה לשולחן</li>
+      <li>הוסף חומר גלם לרשימת קנייה</li>
+      <li>הדפס דוח יומי</li>
+      <li>שלח הודעה לכל הצוות</li>
+      <li>צפה בהזמנות הנכנסות</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== 5. POS ========== -->
+<section class="section-card" id="pos">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">💳</span>
+    <h2>קופה — Point of Sale (POS)</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-cash-register"></i>📸 כאן תופיע תמונת מסך של מסך הקופה</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">תהליך הזמנה מהקופה</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>בחר שולחן</strong><span>לחץ על מספר שולחן מרשת השולחנות. שולחנות תפוסים מסומנים באדום, פנויים בירוק.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>הוסף מנות</strong><span>גלול בתפריט לפי קטגוריות → לחץ על מנה להוספה → הגדר כמות, הערות מיוחדות, תוספות.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>שלח למטבח</strong><span>לחץ "שלח להכנה" — ההזמנה מגיעה למסך KDS במטבח. ניתן לשלוח מנות בפעמים נפרדות (מנה ראשונה / עיקרית).</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>הוסף מנות נוספות</strong><span>ניתן להוסיף מנות בכל שלב לאותה הזמנה פתוחה. נוספות לסיכום הכולל.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">5</div>
+      <div class="step-content"><strong>סגור חשבון</strong><span>לחץ "חשבון" → בחר שיטת תשלום (מזומן / כרטיס / ביט / אפליקציה) → הדפס קבלה → שולחן מתפנה.</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 פיצול חשבון:</strong> ניתן לפצל חשבון בין אורחים — לחץ "פיצול" ובחר אילו מנות לכל תשלום.</div>
+    <div class="tip-box"><strong>💡 הנחה:</strong> לחץ "הנחה" לפני סגירה — הזן אחוז או סכום קבוע. נדרשת הרשאת מנהל לסכומים גדולים.</div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">שיטות תשלום</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>שיטה</th><th>הגדרה</th><th>הערות</th></tr>
+        <tr><td>מזומן</td><td>אוטומטי</td><td>מחשב עודף</td></tr>
+        <tr><td>כרטיס אשראי</td><td>מסוף חיצוני</td><td>סכום מועבר ידנית</td></tr>
+        <tr><td>ביט / פייבוקס</td><td>הגדרה בקופה</td><td>מסומן ידנית</td></tr>
+        <tr><td>חשבון / פנקס</td><td>לחשבון תקופתי</td><td>דורש אישור מנהל</td></tr>
+        <tr><td>שי / הנחה מלאה</td><td>ביטול חשבון</td><td>דורש אישור מנהל</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 6. TABLES ========== -->
+<section class="section-card" id="tables">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🪑</span>
+    <h2>ניהול שולחנות</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-table"></i>📸 כאן תופיע תמונת מסך של מפת השולחנות</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מפת שולחנות</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">המפה מציגה את כל השולחנות בצבעים:</p>
+    <ul class="check-list">
+      <li><span style="color:#16a34a;font-weight:600;">ירוק</span> — פנוי, ניתן לפתוח הזמנה</li>
+      <li><span style="color:#dc2626;font-weight:600;">אדום</span> — תפוס, הזמנה פעילה</li>
+      <li><span style="color:#f97316;font-weight:600;">כתום</span> — ממתין לתשלום</li>
+      <li><span style="color:#6b7280;font-weight:600;">אפור</span> — מושבת / לא בשימוש</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">פעולות שולחן</h3>
+    <ul class="check-list">
+      <li>לחיצה ארוכה על שולחן תפוס → עבור הזמנה לשולחן אחר</li>
+      <li>מיזוג שולחנות — לחץ "מיזוג" ובחר שולחנות</li>
+      <li>QR code לכל שולחן — לקוח יכול לסרוק ולראות תפריט</li>
+      <li>הגדר קיבולת שולחן (כמה אנשים)</li>
+    </ul>
+    <div class="tip-box"><strong>💡 QR להזמנה עצמית:</strong> אם מופעל, לקוח יכול לסרוק QR → לבחור מנות → ההזמנה נפתחת ישירות בקופה לאישור המלצר.</div>
+  </div>
+</section>
+
+<!-- ========== 7. MENU ========== -->
+<section class="section-card" id="menu">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">📋</span>
+    <h2>תפריט וקטלוג</h2>
+  </div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מבנה התפריט</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">התפריט בנוי מקטגוריות → פריטים. לכל פריט:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>שדה</th><th>תיאור</th><th>חובה?</th></tr>
+        <tr><td>שם מנה</td><td>שם תצוגה בקופה ובתפריט ציבורי</td><td><span class="badge badge-red">חובה</span></td></tr>
+        <tr><td>קטגוריה</td><td>פתיחים / עיקריות / קינוחים / שתייה / מנות מיוחדות</td><td><span class="badge badge-red">חובה</span></td></tr>
+        <tr><td>מחיר מכירה</td><td>מחיר לצרכן כולל מע"מ</td><td><span class="badge badge-red">חובה</span></td></tr>
+        <tr><td>תיאור</td><td>מרכיבים, אלרגנים, כשרות</td><td><span class="badge badge-gray">מומלץ</span></td></tr>
+        <tr><td>תמונה</td><td>תמונת מנה לתפריט ציבורי</td><td><span class="badge badge-gray">מומלץ</span></td></tr>
+        <tr><td>עלות גלם</td><td>עלות הכנה (לחישוב food cost)</td><td><span class="badge badge-orange">חשוב</span></td></tr>
+        <tr><td>זמין / לא זמין</td><td>הסתר מנה מהתפריט מבלי למחוק</td><td>-</td></tr>
+        <tr><td>תוספות</td><td>קבוצות תוספות (רטבים, נתחים, תוספות)</td><td>אופציונלי</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">קבוצות תוספות (Modifiers)</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">צור קבוצות תוספות שניתן לשייך למספר מנות:</p>
+    <ul class="check-list">
+      <li>קבוצת "רטבים" — צ'ילי, חרדל, מיונז, ללא (ברירת מחדל)</li>
+      <li>קבוצת "נתחים" — לויה, אנטריקוט, פילה</li>
+      <li>קבוצת "תוספות בתשלום" — גבינה נוספת (+5₪), ביצה (+8₪)</li>
+      <li>הגדר מינימום/מקסימום בחירות לכל קבוצה</li>
+    </ul>
+    <div class="tip-box"><strong>💡 תפריט עונתי:</strong> ניתן ליצור קטגוריה "מנות מיוחדות" ולהפעיל/לכבות אותה לפי עונה.</div>
+    <div class="tip-box"><strong>💡 ייבוא מ-Excel:</strong> עבור להגדרות → ייבוא תפריט → הורד תבנית → מלא ותעלה.</div>
+  </div>
+</section>
+
+<!-- ========== 8. KITCHEN ========== -->
+<section class="section-card" id="kitchen">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">👨‍🍳</span>
+    <h2>מטבח — Kitchen Display System (KDS)</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-fire-burner"></i>📸 כאן תופיע תמונת מסך של מסך KDS</div>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">ה-KDS מציג למטבח בזמן-אמת את כל ההזמנות הממתינות להכנה:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>עמודה</th><th>מידע</th></tr>
+        <tr><td>מספר שולחן</td><td>מספר השולחן / "משלוח" / "טייק אוויי"</td></tr>
+        <tr><td>מנות</td><td>רשימת המנות להכנה עם כמות ותוספות</td></tr>
+        <tr><td>הערות</td><td>הערות מיוחדות (ללא גלוטן, ב"א וכו')</td></tr>
+        <tr><td>זמן</td><td>זמן שעברה ההזמנה — מתאדם כשעובר יעד</td></tr>
+        <tr><td>סטטוס</td><td>🔴 ממתין → 🟡 בהכנה → 🟢 מוכן</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">שימוש ב-KDS</h3>
+    <ul class="check-list">
+      <li>לחץ על הזמנה → שנה ל"בהכנה"</li>
+      <li>לחץ "מוכן" → מלצר מקבל התראה על מסכו</li>
+      <li>ניתן לסנן לפי סוג (חם / קר / שתייה) בשפות/תחנות שונות</li>
+      <li>KDS יכול לרוץ על טאבלט ייעודי במטבח</li>
+    </ul>
+    <div class="tip-box"><strong>💡 תחנות מטבח:</strong> ניתן להגדיר שמנות מסוימות ילכו לתחנות שונות — פס חם, פס קר, בר.</div>
+  </div>
+</section>
+
+<!-- ========== 9. DELIVERIES ========== -->
+<section class="section-card" id="deliveries">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🛵</span>
+    <h2>ניהול משלוחים</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-motorcycle"></i>📸 כאן תופיע תמונת מסך של ניהול משלוחים</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">הגדרת מודול משלוחים</h3>
+    <ul class="check-list">
+      <li>הפעל/בטל משלוחים מהגדרות עסק</li>
+      <li>הגדר אזורי משלוח (ידנית או רדיוס קילומטרים)</li>
+      <li>מינימום הזמנה, עלות משלוח לפי אזור</li>
+      <li>שעות משלוח (שונות משעות המסעדה)</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">תהליך משלוח</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>הזמנה מגיעה</strong><span>מחנות ציבורית, טלפון, או פתיחה ידנית מהקופה. מסומנת "משלוח" עם כתובת.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>הכנה במטבח</strong><span>הזמנה עוברת ל-KDS כרגיל. כשמוכנה — מסומנת "מוכן לאיסוף".</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>הקצאת שליח</strong><span>מנהל מקצה לשליח → שליח מקבל התראה על הנייד עם כתובת וניווט.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>מסירה ואישור</strong><span>שליח מאשר מסירה → הזמנה נסגרת, תשלום נרשם. ניתן לקבל תשלום בדלת.</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 פלטפורמות חיצוניות:</strong> הזמנות מ-Wolt/10bis נרשמות ידנית בקופה עם סימון "פלטפורמה חיצונית".</div>
+  </div>
+</section>
+
+<!-- ========== 10. SHIFTS ========== -->
+<section class="section-card" id="shifts">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">👥</span>
+    <h2>משמרות, שעון נוכחות ושכר</h2>
+  </div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">ניהול משמרות</h3>
+    <ul class="check-list">
+      <li>צור תבנית משמרת (בוקר / ערב / לילה) עם שעות ותפקידים</li>
+      <li>שבץ עובדים למשמרות בלוח שבועי</li>
+      <li>עובד רואה את המשמרות שלו באפליקציה</li>
+      <li>ניהול חילופים — עובד מבקש, מנהל מאשר</li>
+      <li>דוח נוכחות אוטומטי לשכר</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">שעון נוכחות</h3>
+    <ul class="check-list">
+      <li>עובד "פונץ'-אין" בפתיחת משמרת מהנייד / מהקופה</li>
+      <li>מנהל רואה מי נמצא / מי מאחר בזמן-אמת</li>
+      <li>חריגות (איחור, יציאה מוקדמת) מסומנות ומשלוחות להמנהל</li>
+      <li>ייצוא דוח שעות לקובץ לצורך שכר</li>
+    </ul>
+    <div class="tip-box"><strong>💡 שכר שעתי:</strong> הזן שכר לכל עובד → המערכת מחשבת שכר אוטומטית לפי שעות בפועל + שעות נוספות.</div>
+  </div>
+</section>
+
+<!-- ========== 11. PANTRY ========== -->
+<section class="section-card" id="pantry">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">📦</span>
+    <h2>מלאי וחומרי גלם (Pantry)</h2>
+  </div>
+  <div class="section-body">
+    <div class="img-placeholder"><i class="fa-solid fa-boxes-stacked"></i>📸 כאן תופיע תמונת מסך של ניהול מלאי</div>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">המלאי עוקב אחר חומרי גלם, בדיקת קצב צריכה ורמות מינימום:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>שדה</th><th>תיאור</th></tr>
+        <tr><td>שם חומר גלם</td><td>עגבניות, עוף, שמן זית...</td></tr>
+        <tr><td>יחידת מידה</td><td>ק"ג, ליטר, יחידה, צרור</td></tr>
+        <tr><td>כמות במלאי</td><td>כמות נוכחית</td></tr>
+        <tr><td>רף מינימום</td><td>כשנגמר — שלח התראה לרכש</td></tr>
+        <tr><td>ספק</td><td>קישור לספק מהרשימה</td></tr>
+        <tr><td>מחיר אחרון</td><td>לחישוב food cost</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">עדכון מלאי</h3>
+    <ul class="check-list">
+      <li>עדכון ידני — הזן כמות שהתקבלה עם חשבונית</li>
+      <li>ספירת מלאי — בקיצ' סוף שבוע, הזן כמות בפועל</li>
+      <li>קיזוז אוטומטי — כשמנה נמכרת, מלאי מתעדכן אוטומטית (אם מנה ממופה לחומרי גלם)</li>
+      <li>ייצוא רשימת קנייה לספק</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== 12. FOOD COST ========== -->
+<section class="section-card" id="foodcost">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🧮</span>
+    <h2>עלות מנות — Food Cost</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">Food Cost הוא אחוז עלות חומרי הגלם מהמכירות. יעד תעשייתי: 28-35%.</p>
+    <div class="img-placeholder"><i class="fa-solid fa-calculator"></i>📸 כאן תופיע תמונת מסך של מחשבון Food Cost</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">חישוב עלות מנה</h3>
+    <ul class="check-list">
+      <li>לכל מנה הגדר מתכון — חומרי גלם + כמויות</li>
+      <li>המערכת מחשבת עלות גלם אוטומטית לפי מחיר הספק</li>
+      <li>Food Cost % = עלות גלם / מחיר מכירה × 100</li>
+      <li>צבע אדום = מעל 40%, כתום = 35-40%, ירוק = מתחת 35%</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">דוח Food Cost חודשי</h3>
+    <ul class="check-list">
+      <li>מחזור מכירות לעומת עלות חומרי גלם בפועל (ספירת מלאי)</li>
+      <li>המנות הרווחיות ביותר / פחות רווחיות</li>
+      <li>השוואה לחודש קודם</li>
+      <li>המלצת AI לשיפור תמחור</li>
+    </ul>
+    <div class="warn-box"><strong>⚠️ שים לב:</strong> Food Cost מחושב נכון רק אם מפת מנות לחומרי גלם בצורה מלאה.</div>
+  </div>
+</section>
+
+<!-- ========== 13. SUPPLIERS ========== -->
+<section class="section-card" id="suppliers">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🤝</span>
+    <h2>ספקים והזמנות רכש</h2>
+  </div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">ניהול ספקים</h3>
+    <ul class="check-list">
+      <li>הוסף ספק עם שם, טלפון, איש קשר, ימי אספקה</li>
+      <li>שייך חומרי גלם לכל ספק</li>
+      <li>ראה היסטוריית הזמנות לכל ספק</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">תהליך הזמנת רכש</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>יצירת הזמנה</strong><span>לחץ "הזמנה חדשה" → בחר ספק → בחר פריטים מרשימת המלאי → הגדר כמויות.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>שליחה לספק</strong><span>שלח הזמנה ב-WhatsApp / Email / PDF ישירות מהמערכת.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>קבלת סחורה</strong><span>כשמגיעה סחורה — אשר קבלה, עדכן כמויות בפועל. מלאי מתעדכן אוטומטית.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>תיעוד חשבונית</strong><span>העלה תמונת חשבונית → נרשמת בהוצאות תזרים אוטומטית.</span></div>
+    </div>
+    <div class="tip-box"><strong>💡 הזמנה אוטומטית:</strong> המערכת יכולה ליצור טיוטת הזמנה אוטומטית כשפריטים נמוכים מהרף — בדוק ואשר בלחיצה.</div>
+  </div>
+</section>
+
+<!-- ========== 14. CUSTOMERS ========== -->
+<section class="section-card" id="customers">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">👤</span>
+    <h2>ניהול לקוחות ונאמנות</h2>
+  </div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">כרטיס לקוח</h3>
+    <ul class="check-list">
+      <li>שם, טלפון, מייל, תאריך לידה</li>
+      <li>היסטוריית הזמנות וביקורים</li>
+      <li>הוצאה ממוצעת לביקור</li>
+      <li>הערות מיוחדות (אלרגיות, העדפות)</li>
+      <li>סטטוס נאמנות ונקודות</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">תוכנית נאמנות</h3>
+    <ul class="check-list">
+      <li>הגדר נקודות לכל ₪ שהוצא</li>
+      <li>מימוש נקודות בקופה</li>
+      <li>שלח קופון ליום הולדת אוטומטית</li>
+      <li>דוח לקוחות VIP — מבקרים הכי פעילים</li>
+    </ul>
+    <div class="tip-box"><strong>💡 חיפוש מהיר:</strong> בקופה — לחץ על שדה חיפוש לקוח, הקלד טלפון → כרטיס לקוח מתמלא אוטומטית.</div>
+  </div>
+</section>
+
+<!-- ========== 15. CASHFLOW ========== -->
+<section class="section-card" id="cashflow">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">💰</span>
+    <h2>תזרים מזומנים וכספים</h2>
+  </div>
+  <div class="section-body">
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">הכנסות</h3>
+    <ul class="check-list">
+      <li>כל מכירת קופה נרשמת אוטומטית</li>
+      <li>פירוט לפי שיטת תשלום (מזומן / כרטיס / אחר)</li>
+      <li>הכנסות פלטפורמות חיצוניות (Wolt וכו') — הזן ידנית</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">הוצאות</h3>
+    <ul class="check-list">
+      <li>הזמנות רכש נרשמות אוטומטית</li>
+      <li>הוצאות ידניות — שכירות, חשמל, שכר</li>
+      <li>תמונת חשבונית עם כל הוצאה</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">דוחות</h3>
+    <ul class="check-list">
+      <li>רווח/הפסד חודשי</li>
+      <li>השוואה בין חודשים</li>
+      <li>תחזית תזרים (AI)</li>
+      <li>ייצוא לאקסל לרואה חשבון</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== 16. ALERTS ========== -->
+<section class="section-card" id="alerts">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">⚠️</span>
+    <h2>התראות ומעקב</h2>
+  </div>
+  <div class="section-body">
+    <div class="table-wrap">
+      <table>
+        <tr><th>התראה</th><th>מתי מופעלת</th><th>מיועדת ל</th></tr>
+        <tr><td>מלאי נמוך</td><td>פריט מתחת לרף מינימום</td><td>מנהל + רכש</td></tr>
+        <tr><td>מנה אזלה</td><td>הוגדר כ"אזל"</td><td>קופה + תפריט ציבורי</td></tr>
+        <tr><td>עובד לא הגיע</td><td>חצי שעה לאחר תחילת משמרת</td><td>מנהל משמרת</td></tr>
+        <tr><td>Food Cost גבוה</td><td>מעל 40% השבוע</td><td>מנהל</td></tr>
+        <tr><td>הזמנה ממתינה זמן רב</td><td>מעל 30 דקות ב-KDS</td><td>מנהל משמרת</td></tr>
+        <tr><td>ביקורת שלילית</td><td>דירוג 1-2 כוכבים</td><td>מנהל</td></tr>
+        <tr><td>לקוח לא חזר</td><td>לא ביקר 60 יום</td><td>שיווק</td></tr>
+      </table>
+    </div>
+    <div class="tip-box"><strong>💡 התאמה אישית:</strong> בהגדרות → התראות → ניתן לשנות רפים, לכבות התראות לא רלוונטיות, ולהגדיר מיהו מנמן להתראה.</div>
+  </div>
+</section>
+
+<!-- ========== 17. INBOX ========== -->
+<section class="section-card" id="inbox">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">💬</span>
+    <h2>הודעות נכנסות (Inbox)</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">ה-Inbox ריכוז כל ההודעות הנכנסות למסעדה:</p>
+    <ul class="check-list">
+      <li>הודעות מלקוחות דרך חנות ציבורית</li>
+      <li>הודעות מלקוחות ONEFLOW</li>
+      <li>הודעות ציבוריות (ממוספר לא מזוהה)</li>
+      <li>שאלות, תלונות, בקשות מיוחדות</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">שימוש ב-Inbox</h3>
+    <ul class="check-list">
+      <li>הודעות לא נקראות מסומנות עם אינדיקטור אדום</li>
+      <li>לחץ להרחבה → קרא תוכן מלא</li>
+      <li>ניתן לסמן כ"נקרא" / למחוק</li>
+      <li>לשלוח תשובה — ONEFLOW בלבד (ראה ONEFLOW)</li>
+    </ul>
+    <div class="info-box"><strong>📌 הערה:</strong> ה-Inbox מיועד לקריאה ולניהול הודעות. מענה אוטומטי/ידני ללקוחות ONEFLOW מתבצע דרך מודול ONEFLOW.</div>
+  </div>
+</section>
+
+<!-- ========== 18. ONEFLOW ========== -->
+<section class="section-card" id="oneflow">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🔗</span>
+    <h2>ONEFLOW LIFE — חיבוריות משפחות</h2>
+  </div>
+  <div class="section-body">
+    <div class="tip-box"><strong>💡 מה זה ONEFLOW?</strong> ONEFLOW LIFE הוא הפלטפורם המשפחתי שמחבר בין עסקים ולקוחות. לקוחות שנרשמו גם ב-ONEFLOW LIFE ושמספר טלפונם תואם — ניתן לתקשר איתם בצורה ישירה ודו-כיוונית.</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">זיהוי לקוחות ONEFLOW</h3>
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.5rem;">לחץ על "ONEFLOW" בדשבורד → המערכת מתאימה אוטומטית לקוחות לפי טלפון:</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>לקוח במסעדה</th><th>ONEFLOW</th><th>תוצאה</th></tr>
+        <tr><td>0521234567</td><td>0521234567</td><td>✅ מחובר</td></tr>
+        <tr><td>0521234567</td><td>+972521234567</td><td>✅ מחובר (המרה)</td></tr>
+        <tr><td>+972521234567</td><td>0521234567</td><td>✅ מחובר (המרה)</td></tr>
+        <tr><td>0521234567</td><td>לא רשום</td><td>❌ לא מחובר</td></tr>
+      </table>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">שידור הודעה לכל לקוחות ONEFLOW</h3>
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>לחץ "שדר לכל לקוחות ONEFLOW"</strong><span>כל לקוחות שמחוברים יקבלו הודעה ב-Inbox שלהם ב-ONEFLOW.</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>הזן כותרת ותוכן ההודעה</strong><span>לדוגמה: "חג שמח! קבל 15% הנחה על הזמנה הבאה" / "תפריט קיץ חדש הגיע".</span></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>שלח — הודעות נשמרות ב-Inbox שלך</strong><span>כל תשובה של לקוח מגיעה ל-Inbox שלך ואתה יכול להגיב.</span></div>
+    </div>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">הודעה אישית ללקוח ONEFLOW</h3>
+    <ul class="check-list">
+      <li>בחר לקוח מרשימת ONEFLOW</li>
+      <li>לחץ "שלח הודעה אישית"</li>
+      <li>הזן נושא ותוכן → שלח</li>
+      <li>הלקוח יראה הודעה ב-ONEFLOW שלו בשם המסעדה</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">תקשורת דו-כיוונית</h3>
+    <ul class="check-list">
+      <li>לקוח שולח הודעה דרך חנות ציבורית → מגיעה ל-Inbox שלך</li>
+      <li>אתה עונה מה-Inbox → הלקוח רואה תשובה ב-ONEFLOW שלו</li>
+      <li>כל ההיסטוריה שמורה ונגישה</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== 19. AI TOOLS ========== -->
+<section class="section-card" id="ai-tools">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🤖</span>
+    <h2>כלי AI לניהול מסעדה</h2>
+  </div>
+  <div class="section-body">
+    <div class="role-card">
+      <h4>📝 הודעת שיווק חכמה</h4>
+      <p style="font-size:0.875rem;color:#475569;">הזן בקצרה מה תרצה לקדם (מנה חדשה, מבצע, אירוע) → AI יכתוב הודעת שיווק בסגנון עסקי-חברותי. שלח ישירות כשידור ONEFLOW.</p>
+    </div>
+    <div class="role-card">
+      <h4>📊 תובנות עסקיות</h4>
+      <p style="font-size:0.875rem;color:#475569;">AI מנתח את נתוני המכירות, Food Cost, נוכחות ולקוחות שלך ומספק 3-5 המלצות: "המנות הרווחיות ביותר", "שעות הפעילות הגבוהה", "פריטי מלאי מבוזבז".</p>
+    </div>
+    <div class="role-card">
+      <h4>💡 המלצת תמחור</h4>
+      <p style="font-size:0.875rem;color:#475569;">על בסיס עלות גלם, AI ממליץ על מחיר מכירה אופטימלי לכל מנה בהתחשב ב-Food Cost יעד.</p>
+    </div>
+    <div class="role-card">
+      <h4>🛒 הזמנת רכש חכמה</h4>
+      <p style="font-size:0.875rem;color:#475569;">AI מנתח צריכת מלאי, צופה צריכה לשבוע הבא ומציע כמות הזמנה מיטבית לכל ספק.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 20. STOREFRONT ========== -->
+<section class="section-card" id="storefront">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">🌐</span>
+    <h2>חנות ציבורית — ממשק לקוח</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem;color:#475569;margin-bottom:0.75rem;">כל מסעדה מקבלת עמוד ציבורי נגיש לכל לקוח (גם ללא ONEFLOW):</p>
+    <div class="img-placeholder"><i class="fa-solid fa-store"></i>📸 כאן תופיע תמונת מסך של החנות הציבורית</div>
+    <h3 style="font-weight:700;margin-bottom:0.5rem;color:#991b1b;">מה רואה הלקוח?</h3>
+    <ul class="check-list">
+      <li>לוגו, שם מסעדה, שעות פעילות, כתובת</li>
+      <li>תפריט מלא עם קטגוריות, תמונות ומחירים</li>
+      <li>מנות שאזלו מסומנות ולא ניתן להזמין</li>
+      <li>מבצעים ומנות מומלצות</li>
+      <li>טופס יצירת קשר / שליחת הודעה למסעדה</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">הזמנה מהחנות הציבורית</h3>
+    <ul class="check-list">
+      <li>לקוח בוחר מנות → הזמנה נשלחת למסעדה לאישור</li>
+      <li>מנהל רואה הזמנה ב-POS ומאשר/מבטל</li>
+      <li>לקוח מקבל אישור ב-ONEFLOW שלו (אם מחובר)</li>
+    </ul>
+    <h3 style="font-weight:700;margin:1rem 0 0.5rem;color:#991b1b;">1-Click ONEFLOW</h3>
+    <ul class="check-list">
+      <li>לקוח ONEFLOW שמבקר בחנות מזוהה אוטומטית לפי טלפון</li>
+      <li>מוצג באנר "היי [שם], ברוך הבא חזרה!"</li>
+      <li>היסטוריית הזמנות ונקודות נאמנות זמינות</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== 21. FAQ ========== -->
+<section class="section-card" id="faq">
+  <div class="section-header">
+    <span style="font-size:1.5rem;">❓</span>
+    <h2>שאלות נפוצות</h2>
+  </div>
+  <div class="section-body">
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך מסמנים מנה כ"אזלה" במהלך שירות?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">בקופה → לחץ על שם המנה → "ניהול מנה" → לחץ "אזל מלאי". הסטטוס מתעדכן גם בחנות הציבורית. לשחזור — אותה פעולה עם "זמין".</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך מבטלים הזמנה שנשלחה למטבח?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כל ביטול לאחר שליחה למטבח דורש אישור מנהל משמרת. בחר הזמנה → "ביטול" → הזן סיבה → מנהל מאשר. ביטול נרשם בדוח ימי.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם ניתן להתחבר למדפסת קבלות?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. בהגדרות → מדפסות → הוסף מדפסת. תמיכה במדפסות ESC/POS (Epson, Star, Bixolon וכד'). ניתן להגדיר הדפסה אוטומטית בסגירת חשבון.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך מייצאים דוח מכירות לרואה חשבון?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">דוחות → מכירות → בחר תקופה → ייצוא Excel / PDF. ניתן לייצא גם דוח הוצאות וחשבוניות. קבצים מוכנים לייבוא לתוכנות חשבונאות.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם ניתן לנהל כמה סניפים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. כל סניף הוא קבוצת עסק נפרדת. מנהל ראשי (super admin) יכול לעבור בין סניפים ולראות דוחות מאוחדים.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>מה קורה אם הוסיפו טיפ?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">בעת סגירת חשבון ניתן להוסיף שדה טיפ (%) או סכום קבוע. הטיפ נרשם נפרד מהמכירות ומוצג בדוח ימי תחת "טיפים".</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>האם אפשר לראות כמה הרוויחו כל מלצר בטיפים?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">כן. דוחות → צוות → בחר עובד → רשום טיפים לפי תקופה ומשמרת. הזמנות שנפתחו על ידי המלצר משויכות אליו.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)"><span>איך ONEFLOW עוזר לשיווק המסעדה?</span><i class="fa-solid fa-chevron-down text-xs text-slate-400"></i></div>
+      <div class="faq-a">לקוחות שנרשמו ב-ONEFLOW LIFE וביקרו במסעדה מזוהים אוטומטית. שלח להם הודעות ממוקדות (מבצעים, מנה חדשה, יום הולדת) ישירות ל-ONEFLOW שלהם — בלי SMS, בלי עלות.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<div style="text-align:center;padding:2rem 0;color:#94a3b8;font-size:0.8rem;border-top:1px solid #e2e8f0;margin-top:1rem;">
+  <div style="font-weight:600;color:#dc2626;font-size:1rem;margin-bottom:0.25rem;">🍕 ONEFLOW BUSINESS — מדריך מסעדה</div>
+  <div>עדכון אחרון: יוני 2026 | v1.0</div>
+  <div style="margin-top:0.5rem;"><a href="/biz-guide.html" style="color:#dc2626;">מדריך כללי לעסקים</a> · <a href="/sport-guide.html" style="color:#dc2626;">מדריך ספורט</a> · <a href="/guide.html" style="color:#dc2626;">מדריך ONEFLOW</a></div>
+</div>
+
+</main>
+
+<script>
+// Progress bar
+window.addEventListener('scroll', () => {
+  const s = document.documentElement;
+  const pct = (s.scrollTop / (s.scrollHeight - s.clientHeight)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('back-top').style.opacity = s.scrollTop > 300 ? '1' : '0';
+});
+
+// Active nav
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => obs.observe(s));
+
+// FAQ
+function toggleFaq(el) {
+  const a = el.nextElementSibling;
+  a.classList.toggle('open');
+  el.querySelector('i').style.transform = a.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// Search
+function searchSections(q) {
+  if (!q) { document.querySelectorAll('.section-card').forEach(s => s.style.display = ''); return; }
+  const lq = q.toLowerCase();
+  document.querySelectorAll('.section-card').forEach(s => {
+    s.style.display = s.textContent.toLowerCase().includes(lq) ? '' : 'none';
+  });
+}
+
+// Scroll helper
+function scrollTo(id) { document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' }); }
+</script>
+</body>
+</html>
