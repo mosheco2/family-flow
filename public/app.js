@@ -1152,6 +1152,15 @@ function executeWithAIWarning(actionFn) {
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
+
+    // Member dashboard — separate flow for ONEFLOW members (clients of businesses)
+    if (currentGroup?.member_type === 'member') {
+        renderMemberDashboard();
+        const preloader = getEl('app-preloader');
+        if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 600); }
+        return;
+    }
+
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
@@ -8648,4 +8657,123 @@ function renderHMHistFiltered() {
                 </div></div>`;
         }
     }).join('');
+}
+
+// ─── ONEFLOWLIFE MEMBER DASHBOARD ────────────────────────────────────────────
+async function renderMemberDashboard() {
+    // Hide family containers, show member dashboard
+    const dc = getEl('dashboard-container'); if (dc) dc.classList.add('hidden');
+    const fab = getEl('fab-container'); if (fab) fab.classList.add('hidden');
+    let el = document.getElementById('member-dashboard-root');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'member-dashboard-root';
+        el.style.cssText = 'position:fixed;inset:0;overflow-y:auto;background:#f8fafc;direction:rtl;z-index:50;';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `<div style="max-width:480px;margin:0 auto;padding:16px 12px 80px;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="window._memberLogout()" style="background:#f1f5f9;border:none;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">יציאה</button>
+            <div style="text-align:right;">
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">שלום, ${safeStr(currentUser.nickname)} 👋</div>
+                <div style="font-size:11px;color:#94a3b8;">החשבון האישי שלך ב-ONEFLOW</div>
+            </div>
+        </div>
+
+        <!-- Trial Banner -->
+        <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:14px 16px;margin-bottom:16px;color:white;text-align:right;">
+            <div style="font-size:13px;font-weight:900;margin-bottom:2px;">🎁 חודש ראשון בחינם!</div>
+            <div style="font-size:11px;opacity:0.85;">גישה לכל ההזמנות, מנויים ונתונים שלך במקום אחד</div>
+        </div>
+
+        <!-- Businesses -->
+        <div id="member-biz-list">
+            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">טוען...</div>
+        </div>
+    </div>`;
+
+    // Load businesses
+    try {
+        const r = await fetch(`${API}/member/my-businesses/${currentGroup.id}`);
+        const d = await r.json();
+        const bizsEl = document.getElementById('member-biz-list');
+        if (!bizsEl) return;
+        const businesses = d.businesses || [];
+        if (!businesses.length) {
+            bizsEl.innerHTML = `<div style="text-align:center;padding:32px;color:#94a3b8;font-size:13px;">עדיין לא קושרת לעסקים. בקש מהמסלקאה/המאמן שלך לחבר אותך.</div>`;
+            return;
+        }
+        bizsEl.innerHTML = businesses.map(b => `
+            <div id="biz-section-${b.business_group_id}" style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">
+                        ${_memberBizIcon(b.business_type)}
+                    </div>
+                    <div style="flex:1;text-align:right;">
+                        <div style="font-size:13px;font-weight:800;color:#1e293b;">${safeStr(b.business_name)}</div>
+                        <div style="font-size:10px;color:#94a3b8;">${_memberBizTypeLabel(b.business_type)}</div>
+                    </div>
+                </div>
+                <div id="orders-${b.business_group_id}" style="text-align:center;color:#94a3b8;font-size:12px;padding:8px;">טוען הזמנות...</div>
+            </div>
+        `).join('');
+
+        // Load orders for each business
+        for (const b of businesses) {
+            _memberLoadOrders(b.business_group_id, b.business_type);
+        }
+    } catch(e) {
+        const bizsEl = document.getElementById('member-biz-list');
+        if(bizsEl) bizsEl.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444;font-size:12px;">שגיאה בטעינת הנתונים</div>`;
+    }
+}
+
+window._memberLogout = function() {
+    localStorage.removeItem('ofl_session');
+    window.location.reload();
+};
+
+async function _memberLoadOrders(bizGroupId, bizType) {
+    const el = document.getElementById(`orders-${bizGroupId}`);
+    if (!el) return;
+    try {
+        const r = await fetch(`${API}/member/my-orders/${bizGroupId}/${currentGroup.id}`);
+        const d = await r.json();
+        const orders = d.orders || [];
+        if (!orders.length) { el.innerHTML = `<div style="color:#94a3b8;font-size:12px;text-align:center;padding:8px;">אין היסטוריה עדיין</div>`; return; }
+        el.innerHTML = orders.map(o => {
+            if (bizType === 'sport') {
+                const statusColor = { active:'#10b981', frozen:'#3b82f6', expired:'#ef4444', cancelled:'#94a3b8' }[o.status] || '#94a3b8';
+                const statusLabel = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[o.status] || o.status;
+                const end = o.end_date ? new Date(o.end_date).toLocaleDateString('he-IL') : '—';
+                const sess = o.sessions_total ? `${o.sessions_total-(o.sessions_used||0)}/${o.sessions_total} כניסות` : '';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:700;background:${statusColor}20;color:${statusColor};padding:2px 8px;border-radius:20px;">${statusLabel}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.type_name||'מנוי')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${sess}${sess?' · ':''}עד ${end}</div>
+                </div>`;
+            } else {
+                const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                return `<div style="background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:right;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                        <span style="font-size:11px;font-weight:700;color:#64748b;">${date}</span>
+                        <span style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(o.order_number||'הזמנה')}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;">${o.total_amount ? '₪'+parseFloat(o.total_amount).toFixed(0) : ''} ${o.status||''}</div>
+                </div>`;
+            }
+        }).join('');
+    } catch(e) { if(el) el.innerHTML = `<div style="color:#ef4444;font-size:12px;padding:8px;">שגיאה</div>`; }
+}
+
+function _memberBizIcon(type) {
+    const icons = { sport:'🏋️', restaurant:'🍕', retail:'🛍️', services:'💼', construction:'🏗️', maintenance_repair:'🔧', logistics:'🚚', healthcare:'🏥', beauty:'💅', education:'🎓', events:'🎉', food_production:'🏭' };
+    return icons[type] || '🏢';
+}
+function _memberBizTypeLabel(type) {
+    const labels = { sport:'ספורט / כושר', restaurant:'מסעדה / בית קפה', retail:'חנות', services:'שירותים', construction:'בנייה', maintenance_repair:'תחזוקה', logistics:'לוגיסטיקה', healthcare:'בריאות', beauty:'יופי', education:'חינוך', events:'אירועים', food_production:'ייצור מזון' };
+    return labels[type] || type;
 }

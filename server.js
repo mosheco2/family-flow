@@ -863,6 +863,21 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
+      // ===== ONEFLOWLIFE MEMBER FEATURE =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS member_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS member_business_links (
+          id SERIAL PRIMARY KEY,
+          member_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_type VARCHAR(30) NOT NULL,
+          linked_member_ref_id INT,
+          linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          linked_by_admin_name VARCHAR(100),
+          is_active BOOLEAN DEFAULT true,
+          UNIQUE(member_group_id, business_group_id)
+      )`); } catch(e) {}
+      // ===== END ONEFLOWLIFE MEMBER FEATURE =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -11187,6 +11202,155 @@ ${jsonSchema}`;
 });
 
 // ===== END SPORT / FITNESS API =====
+
+// ===== ONEFLOWLIFE MEMBER API =====
+
+// Check if phone already has a ONEFLOW account linked to business
+app.get('/api/member/check/:businessGroupId', async (req, res) => {
+    const { businessGroupId } = req.params;
+    const { phone } = req.query;
+    if (!phone) return res.json({ linked: false });
+    try {
+        const r = await pool.query(
+            `SELECT fg.id AS member_group_id, u.id AS user_id, u.nickname
+             FROM family_groups fg
+             JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             JOIN member_business_links mbl ON mbl.member_group_id = fg.id
+             WHERE fg.member_type = 'member' AND u.phone = $1 AND mbl.business_group_id = $2 AND mbl.is_active = true
+             LIMIT 1`,
+            [phone, businessGroupId]
+        );
+        if (r.rows.length) {
+            res.json({ linked: true, member_group_id: r.rows[0].member_group_id, user_id: r.rows[0].user_id, nickname: r.rows[0].nickname });
+        } else {
+            res.json({ linked: false });
+        }
+    } catch(e) { res.json({ linked: false, error: e.message }); }
+});
+
+// Create member account and link to business
+app.post('/api/member/create-for-business', async (req, res) => {
+    const { business_group_id, name, phone, email, member_ref_id, admin_name } = req.body;
+    if (!business_group_id || !name || !phone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Get business info
+        const bizR = await client.query('SELECT name, business_type FROM family_groups WHERE id = $1', [business_group_id]);
+        if (!bizR.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'עסק לא נמצא' }); }
+        const biz = bizR.rows[0];
+
+        // Check if phone already has a member group
+        let memberGroupId, userId, rawPassword, isNew = false;
+        const existingUser = await client.query(
+            `SELECT u.id, u.group_id FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.phone = $1 AND fg.member_type = 'member' AND u.role = 'ADMIN' LIMIT 1`,
+            [phone]
+        );
+
+        if (existingUser.rows.length) {
+            memberGroupId = existingUser.rows[0].group_id;
+            userId = existingUser.rows[0].id;
+            rawPassword = null;
+        } else {
+            isNew = true;
+            // Create member group
+            const groupName = `${name} - ONEFLOW`;
+            const groupCode = 'M' + Date.now().toString().slice(-6);
+            const groupR = await client.query(
+                `INSERT INTO family_groups (name, group_code, type, member_type, created_at)
+                 VALUES ($1, $2, 'FAMILY', 'member', NOW()) RETURNING id`,
+                [groupName, groupCode]
+            );
+            memberGroupId = groupR.rows[0].id;
+
+            // Create admin user (plain-text password, consistent with rest of system)
+            rawPassword = Math.random().toString(36).slice(-8);
+            const userR = await client.query(
+                `INSERT INTO users (group_id, nickname, phone, password_hash, role, status, permissions)
+                 VALUES ($1, $2, $3, $4, 'ADMIN', 'active', '{"tabs":["feed","members","bank","tasks"]}')
+                 RETURNING id`,
+                [memberGroupId, name, phone, rawPassword]
+            );
+            userId = userR.rows[0].id;
+        }
+
+        // Link member to business (upsert)
+        await client.query(
+            `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_member_ref_id, linked_by_admin_name)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (member_group_id, business_group_id) DO UPDATE SET is_active = true, linked_at = NOW()`,
+            [memberGroupId, business_group_id, biz.business_type || 'other', member_ref_id || null, admin_name || null]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, member_group_id: memberGroupId, user_id: userId, password: rawPassword, is_new: isNew, group_code: isNew ? (await pool.query('SELECT group_code FROM family_groups WHERE id=$1',[memberGroupId])).rows[0]?.group_code : null });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
+// Get all businesses linked to a member group
+app.get('/api/member/my-businesses/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT mbl.id, mbl.business_group_id, mbl.business_type, mbl.linked_at,
+                    fg.name AS business_name
+             FROM member_business_links mbl
+             JOIN family_groups fg ON fg.id = mbl.business_group_id
+             WHERE mbl.member_group_id = $1 AND mbl.is_active = true
+             ORDER BY mbl.linked_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ businesses: r.rows });
+    } catch(e) { res.json({ businesses: [] }); }
+});
+
+// Get member's orders/memberships at a specific business
+app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res) => {
+    const { businessGroupId, memberGroupId } = req.params;
+    try {
+        // Get member phone to look up records
+        const userR = await pool.query('SELECT phone, nickname FROM users WHERE group_id=$1 AND role=$2 LIMIT 1', [memberGroupId, 'ADMIN']);
+        if (!userR.rows.length) return res.json({ orders: [], type: 'unknown' });
+        const { phone, nickname } = userR.rows[0];
+
+        // Get business type
+        const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [businessGroupId]);
+        const bizType = bizR.rows[0]?.business_type || 'other';
+
+        let orders = [];
+        if (bizType === 'sport') {
+            const r = await pool.query(
+                `SELECT sm.id, sm.member_name, sm.status, sm.start_date, sm.end_date,
+                        sm.sessions_total, sm.sessions_used, sm.notes,
+                        smt.name AS type_name, smt.price
+                 FROM sport_memberships sm
+                 LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+                 WHERE sm.group_id = $1 AND sm.member_phone = $2
+                 ORDER BY sm.created_at DESC`,
+                [businessGroupId, phone]
+            );
+            orders = r.rows.map(o => ({ ...o, category: 'מנוי' }));
+        } else {
+            const r = await pool.query(
+                `SELECT o.id, o.customer_name, o.status, o.total_amount, o.created_at
+                 FROM store_orders o
+                 WHERE o.group_id = $1 AND (o.customer_phone = $2 OR o.customer_name = $3)
+                 ORDER BY o.created_at DESC LIMIT 50`,
+                [businessGroupId, phone, nickname]
+            );
+            orders = r.rows.map(o => ({ ...o, order_number: `#${o.id}`, category: 'הזמנה' }));
+        }
+
+        res.json({ orders, type: bizType, phone, name: nickname });
+    } catch(e) { res.json({ orders: [], error: e.message }); }
+});
+
+// ===== END ONEFLOWLIFE MEMBER API =====
 
 // הפעלת השרת
 app.listen(port, () => {
