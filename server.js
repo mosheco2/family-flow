@@ -10637,6 +10637,109 @@ app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── ONEFLOW LIFE Integration ────────────────────────────────────────────────
+
+// Identify internal ONEFLOW LIFE user by phone (for storefront 1-click)
+app.get('/api/sport/oneflow-identify', async (req, res) => {
+    const { phone, groupId } = req.query;
+    if (!phone) return res.status(400).json({ error: 'טלפון חובה' });
+    try {
+        // Find user in ONEFLOW system
+        const uRes = await pool.query(
+            `SELECT u.id, u.nickname, u.group_id, fg.name as family_name
+             FROM users u JOIN family_groups fg ON u.group_id=fg.id
+             WHERE u.phone=$1 OR u.nickname=$1 LIMIT 1`, [phone]);
+        if (!uRes.rows.length) return res.json({ found: false });
+
+        const user = uRes.rows[0];
+        // Check if they already have a sport membership at this business
+        const memRes = await pool.query(
+            `SELECT sm.*, smt.name as type_name FROM sport_memberships sm
+             LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status IN ('active','frozen')
+             ORDER BY sm.created_at DESC LIMIT 1`, [groupId, phone]);
+
+        // Get upcoming registrations
+        const regsRes = await pool.query(
+            `SELECT scr.*, sc.class_name, sc.class_date, sc.start_time FROM sport_class_registrations scr
+             JOIN sport_classes sc ON scr.class_id=sc.id
+             JOIN sport_memberships sm ON scr.membership_id=sm.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sc.class_date >= CURRENT_DATE
+             ORDER BY sc.class_date LIMIT 5`, [groupId, phone]);
+
+        res.json({
+            found: true,
+            userId: user.id,
+            familyGroupId: user.group_id,
+            name: user.nickname,
+            familyName: user.family_name,
+            membership: memRes.rows[0] || null,
+            upcomingClasses: regsRes.rows
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Sync sport class registration to ONEFLOW calendar
+app.post('/api/sport/oneflow-sync-calendar', async (req, res) => {
+    const { userId, familyGroupId, classId, memberPhone } = req.body;
+    if (!familyGroupId || !classId) return res.status(400).json({ error: 'חסרים שדות' });
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+        if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
+        const c = cls.rows[0];
+        const title = `🏋️ ${c.class_name || 'שיעור'}${c.trainer_name ? ' — ' + c.trainer_name : ''}`;
+        // Add to ONEFLOW calendar_events for the family group
+        await pool.query(
+            `INSERT INTO calendar_events (group_id, title, customer_phone, notes, event_date, start_time, status)
+             VALUES ($1,$2,$3,$4,$5,$6,'confirmed')`,
+            [familyGroupId, title, memberPhone || '', `נרשמת לשיעור: ${c.class_name}`, c.class_date, c.start_time]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// RFQ — Personal Training Plan inquiry (creates a quote/RFQ in the existing quote system)
+app.post('/api/sport/oneflow-rfq', async (req, res) => {
+    const { groupId, familyGroupId, customerName, customerPhone, fitnessGoal, currentFitness, healthNotes, availableDays, budget } = req.body;
+    if (!groupId || !customerPhone) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    try {
+        const rfqText = [
+            `🎯 מטרת כושר: ${fitnessGoal || 'לא צוין'}`,
+            `💪 רמה נוכחית: ${currentFitness || 'לא צוין'}`,
+            `📅 ימים זמינים: ${availableDays || 'לא צוין'}`,
+            `💰 תקציב: ${budget ? '₪' + budget : 'לא צוין'}`,
+            `🏥 הערות בריאות: ${healthNotes || 'אין'}`
+        ].join('\n');
+
+        const r = await pool.query(
+            `INSERT INTO store_orders (group_id, family_group_id, customer_name, customer_phone, status, quote_status, notes, total_amount, items, created_at)
+             VALUES ($1, $2, $3, $4, 'quote', 'waiting_business', $5, 0, $6, NOW()) RETURNING id`,
+            [groupId, familyGroupId || null, customerName || customerPhone, customerPhone,
+             rfqText, JSON.stringify([{ name: 'תוכנית ליווי אישית', qty: 1, price: 0, is_quote_metadata: true }])]);
+        const rfqId = r.rows[0].id;
+        const rfqNumber = `RFQ-${String(rfqId).padStart(6, '0')}`;
+        await pool.query('UPDATE store_orders SET quote_number=$1 WHERE id=$2', [rfqNumber, rfqId]);
+        res.json({ success: true, rfqId, rfqNumber });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get ONEFLOW user's sport activity summary (for internal app)
+app.get('/api/sport/oneflow-member-summary', async (req, res) => {
+    const { phone, groupId } = req.query;
+    if (!phone || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+    try {
+        const mem = await pool.query(
+            `SELECT sm.*, smt.name as type_name FROM sport_memberships sm
+             LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 ORDER BY sm.created_at DESC LIMIT 1`, [groupId, phone]);
+        const upcoming = await pool.query(
+            `SELECT sc.class_name, sc.class_date, sc.start_time, sc.trainer_name FROM sport_class_registrations scr
+             JOIN sport_classes sc ON scr.class_id=sc.id
+             JOIN sport_memberships sm ON scr.membership_id=sm.id
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sc.class_date >= CURRENT_DATE ORDER BY sc.class_date LIMIT 3`, [groupId, phone]);
+        res.json({ membership: mem.rows[0] || null, upcomingClasses: upcoming.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Leads / CRM ─────────────────────────────────────────────────────────────
 app.get('/api/sport/leads/:groupId', async (req, res) => {
     try {
