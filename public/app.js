@@ -1708,7 +1708,7 @@ function renderPantry() {
 
         const pantryDelCb = pantryMultiDeleteMode ? `<label class="absolute top-2 left-2 z-10 cursor-pointer"><input type="checkbox" class="pantry-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${p.id}" onchange="updatePantryDeleteCount()"></label>` : '';
         list.innerHTML += `
-        <div class="bg-white p-3.5 rounded-2xl border ${pantryMultiDeleteMode ? 'border-red-100' : 'border-slate-200'} shadow-sm flex flex-col mb-3 relative">${pantryDelCb}`
+        <div class="bg-white p-3.5 rounded-2xl border ${pantryMultiDeleteMode ? 'border-red-100' : 'border-slate-200'} shadow-sm flex flex-col mb-3 relative">${pantryDelCb}
             <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
