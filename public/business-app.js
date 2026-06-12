@@ -1398,10 +1398,19 @@ async function handleLogin(e) {
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
+
+function _requiresPhone(birthYear) {
+    const y = parseInt(birthYear);
+    if (!y || isNaN(y)) return false;
+    return (new Date().getFullYear() - y) >= 10;
+}
+
 async function handleCreate(e) { 
     e.preventDefault(); if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; toggleLoader('login', true); 
     try { 
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }) }); 
+        const _cPhone = val('create-phone');
+        if (_requiresPhone(val('create-year')) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password'), phone: _cPhone }) }); 
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
@@ -1429,7 +1438,9 @@ function handleTypeSelection(type) {
 
 async function handleJoin(e) { 
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
+    const _jPhone = val('join-phone');
+    if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
+    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), phone: _jPhone }) }); 
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
@@ -2628,7 +2639,8 @@ window.sendSmartWhatsAppInvite = function() {
     let text = `היי! פתחנו פורטל ארגוני חדש ב-Oneflow BIZ 🚀\n\n`;
     text += `הוגדרת במערכת תחת תפקיד: *${roleName}*.\n`;
     text += `קוד העסק שלנו הוא: ${currentGroup.group_code}\n\n`;
-    text += `לחץ/י על הקישור הבא כדי להירשם ולהתחבר ישירות:\n🔗 ${joinLink}`;
+    text += `לחץ/י על הקישור הבא כדי להירשם ולהתחבר ישירות:\n🔗 ${joinLink}\n\n`;
+    text += `📱 בהרשמה יש להכניס מספר טלפון (חובה מגיל 10).`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     document.getElementById('smart-invite-modal').classList.add('hidden');

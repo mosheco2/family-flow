@@ -2462,10 +2462,17 @@ app.post('/api/groups', async (req, res) => {
         );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;
-        
+        const phone = (req.body.phone || '').trim() || null;
+
+        // phone required for age >= 10
+        if (birthYear && (new Date().getFullYear() - birthYear) >= 10 && !phone) {
+            await dbClient.query('ROLLBACK');
+            return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
+        }
+
         const uRes = await dbClient.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
-            [group.id, req.body.adminNickname, birthYear, req.body.password]
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5) RETURNING *`,
+            [group.id, req.body.adminNickname, birthYear, req.body.password, phone]
         );
 
         const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
@@ -2593,10 +2600,16 @@ app.post('/api/join', async (req, res) => {
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
         const bYear = parseInt(birthYear) || null;
-        
+        const joinPhone = (req.body.phone || '').trim() || null;
+
+        // phone required for age >= 10
+        if (bYear && (new Date().getFullYear() - bYear) >= 10 && !joinPhone) {
+            return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
+        }
+
         await pool.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
-            [group.id, nickname, bYear, password, reqRole]
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+            [group.id, nickname, bYear, password, reqRole, joinPhone]
         );
         res.json({ success: true });
     } catch (e) { 
