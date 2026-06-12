@@ -14,6 +14,18 @@ let currentUser = null; let currentGroup = null; let pollInterval = null; let sa
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {}; let categoryMapCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let shopMultiDeleteMode = false; let pantryMultiDeleteMode = false;
+
+function getCatScore(name, normalized) {
+    const lookups = [normalized, name].filter(Boolean);
+    for (const n of lookups) {
+        for (const [cat, items] of Object.entries(PRODUCT_DB)) {
+            if (items.includes(n)) return cat;
+            if (items.some(p => n.includes(p) || (p.split(' ')[0].length > 2 && n.includes(p.split(' ')[0])))) return cat;
+        }
+        if (categoryMapCache[n]) return categoryMapCache[n];
+    }
+    return 'שונות';
+}
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
