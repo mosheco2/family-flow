@@ -1175,15 +1175,8 @@ async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
 
-    // Member dashboard — separate flow for ONEFLOW members (clients of businesses)
-    if (currentGroup?.member_type === 'member') {
-        renderMemberDashboard();
-        const preloader = getEl('app-preloader');
-        if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 600); }
-        return;
-    }
-
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+    const _isMember = currentGroup?.member_type === 'member';
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
     const saTokenLocal = localStorage.getItem('ofl_sa_token');

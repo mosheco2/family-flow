@@ -1253,23 +1253,23 @@ window.clearMemberWelcomeImg = function() {
 
 // ===== Module Popup Settings =====
 const SA_MODULE_LIST = [
-    { key:'bank',              icon:'🏦', name:'הבנק המשפחתי' },
-    { key:'cashflow',          icon:'💸', name:'תזרים הוצאות' },
-    { key:'budget',            icon:'📊', name:'ניהול תקציב' },
-    { key:'forecast',          icon:'📅', name:'תשקיף עתידי' },
-    { key:'tasks',             icon:'✅', name:'משימות וצ\'ופרים' },
-    { key:'shop',              icon:'🛒', name:'רשימת קניות חכמה' },
-    { key:'pantry',            icon:'📦', name:'מזווה חכם' },
-    { key:'recipes',           icon:'👨‍🍳', name:'שף פרטי AI' },
-    { key:'community',         icon:'🏘️', name:'קהילה מקומית' },
-    { key:'members',           icon:'👨‍👩‍👧‍👦', name:'ניהול משפחה' },
-    { key:'academy',           icon:'🎓', name:'אקדמיה פיננסית' },
-    { key:'home-maintenance',  icon:'🔧', name:'ניהול הבית' },
-    { key:'kids-wallet',       icon:'👧', name:'ארנק דיגיטלי לילדים' },
-    { key:'kids-mode',         icon:'🧒', name:'מסך ילדים' },
-    { key:'supermarket-mode',  icon:'🛒', name:'מצב "אני בסופר"' },
-    { key:'ai-assistant',      icon:'🤖', name:'עוזרת אישית AI' },
-    { key:'expense-tracking',  icon:'📈', name:'מעקב הוצאות שוטף' }
+    { key:'bank',              icon:'🏦', name:'הבנק המשפחתי',        defaultTitle:'הבנק המשפחתי',        defaultText:'נהל הכנסות, הוצאות ודמי כיס לכל בני הבית ממקום אחד. כל הזמנה שתבצע מהעסקים שמחוברים אליך נרשמת אוטומטית — ותמיד תדע בדיוק לאן הכסף הולך.' },
+    { key:'cashflow',          icon:'💸', name:'תזרים הוצאות',          defaultTitle:'תזרים הוצאות',          defaultText:'מעקב חכם אחרי כל עסקה — כולל הזמנות, תשלומי מנויים ותיקונים מהעסקים שלך. גרף אחד, תמונה ברורה, שליטה מלאה.' },
+    { key:'budget',            icon:'📊', name:'ניהול תקציב',            defaultTitle:'ניהול תקציב',            defaultText:'הגדר תקציב לכל קטגוריה — אוכל, בילויים, תחזוקה. הזמנות מהעסקים המחוברים אליך נספרות אוטומטית, ותקבל התראה לפני שחורגים.' },
+    { key:'forecast',          icon:'📅', name:'תשקיף עתידי',            defaultTitle:'תשקיף עתידי',            defaultText:'תכנן הוצאות עתידיות, מנויים קבועים והזמנות חוזרות. AI שמנתח את ההרגלים שלך ומייצר תמונה כלכלית עתידית מדויקת.' },
+    { key:'tasks',             icon:'✅', name:'משימות וצ\'ופרים',       defaultTitle:'משימות וצ\'ופרים',       defaultText:'הקצה משימות לילדים ובני הבית, קבע פרסי כסף אמיתיים, ועקוב אחרי ביצוע. כשהמשפחה עובדת יחד — כולם מרוויחים.' },
+    { key:'shop',              icon:'🛒', name:'רשימת קניות חכמה',       defaultTitle:'רשימת קניות חכמה',       defaultText:'רשימת קניות משותפת לכל המשפחה בזמן אמת. הוסף פריטים מהמזווה, שתף עם בן/בת הזוג, וסנכרן עם ההזמנות שלך מהעסקים באזור.' },
+    { key:'pantry',            icon:'📦', name:'מזווה חכם',               defaultTitle:'מזווה חכם',               defaultText:'מעקב אחרי מלאי הבית: מזון, ניקיון, תרופות. כשמשהו אוזל — הזמן ישירות מהעסק המועדף שלך בלחיצה אחת.' },
+    { key:'recipes',           icon:'👨‍🍳', name:'שף פרטי AI',             defaultTitle:'שף פרטי AI',             defaultText:'מתכונים מותאמים אישית על בסיס מה שיש לך במזווה. AI שיודע מה הזמנת השבוע ומציע ארוחות שמשלימות את מה שכבר קנית.' },
+    { key:'community',         icon:'🏘️', name:'קהילה מקומית',            defaultTitle:'קהילה מקומית',            defaultText:'גלה עסקים חדשים, קרא המלצות שכנים ותיאום קניות קבוצתיות. יותר עסקים לבחור — יותר כוח מיקוח ברשת שלך.' },
+    { key:'members',           icon:'👨‍👩‍👧‍👦', name:'ניהול משפחה',           defaultTitle:'ניהול משפחה',           defaultText:'הוסף בני משפחה, הגדר הרשאות מותאמות לכל גיל ותפקיד. ניהול מלא של מי רואה מה ומי יכול לעשות מה.' },
+    { key:'academy',           icon:'🎓', name:'אקדמיה פיננסית',          defaultTitle:'אקדמיה פיננסית',          defaultText:'אתגרי ידע פיננסי אינטראקטיביים לילדים עם פרסי כסף אמיתיים. כישורי חיים שהם ישאו איתם לאורך שנים.' },
+    { key:'home-maintenance',  icon:'🔧', name:'ניהול הבית',               defaultTitle:'ניהול הבית',               defaultText:'עקוב אחרי תחזוקות, ביטוחים, ספקים וקריאות שירות. מחובר לעסקי התיקונים שמחוברים אליך — כל ההיסטוריה במקום אחד.' },
+    { key:'kids-wallet',       icon:'👧', name:'ארנק דיגיטלי לילדים',    defaultTitle:'ארנק דיגיטלי לילדים',    defaultText:'כל ילד מקבל ארנק דיגיטלי משלו עם יתרה, היסטוריית הוצאות והכנסות ומטרות חיסכון. אתה רואה הכל בזמן אמת — הם לומדים אחריות כלכלית.' },
+    { key:'kids-mode',         icon:'🧒', name:'מסך ילדים',                defaultTitle:'מסך ילדים',                defaultText:'הילד נכנס — המערכת מזהה אותו ומציגה לו בדיוק מה שלו: המשימות שממתינות, הפרסים שצבר, הוצאות והכנסות של הארנק שלו.' },
+    { key:'supermarket-mode',  icon:'🛒', name:'מצב "אני בסופר"',          defaultTitle:'מצב "אני בסופר"',          defaultText:'פתח מצב סופר בקנייה: כל מוצר שתסמן "נלקח" נעלם מהרשימה של כולם. מחיר יקר? קבל השוואה. מוצר חסר? בני הבית מוסיפים בזמן אמת.' },
+    { key:'ai-assistant',      icon:'🤖', name:'עוזרת אישית AI',            defaultTitle:'עוזרת אישית AI',            defaultText:'AI שמכירה את המשפחה שלך: יודעת מה הזמנת, מה הוצאת, מה קניתם. שאל "מה לבשל הערב?" או "כמה הוצאנו על אוכל?" — תשובה מיידית מבוססת נתוני האמת שלך.' },
+    { key:'expense-tracking',  icon:'📈', name:'מעקב הוצאות שוטף',        defaultTitle:'מעקב הוצאות שוטף',        defaultText:'גרף חי של ההוצאות היומיות שלך — לפי קטגוריה, לפי עסק, לפי תקופה. ראה בדיוק איפה הכסף הולך, ואיפה אפשר לחסוך.' }
 ];
 
 function renderModuleSettingsAdmin() {
@@ -1296,12 +1296,12 @@ function renderModuleSettingsAdmin() {
             </div>
             <div id="mod-panel-${m.key}" class="hidden px-4 pb-4 pt-3 bg-white space-y-3">
                 <div>
-                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת חלון השדרוג (אופציונלי — ברירת מחדל: שם המודול):</label>
-                    <input type="text" id="mod-title-${m.key}" value="${s.title || ''}" placeholder="${m.name}" oninput="updateModuleField('${m.key}','title',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-300 focus:outline-none">
+                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת חלון השדרוג (ברירת מחדל: שם המודול):</label>
+                    <input type="text" id="mod-title-${m.key}" value="${s.title || m.defaultTitle || ''}" placeholder="${m.name}" oninput="updateModuleField('${m.key}','title',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-300 focus:outline-none">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט שיווקי לחלון השדרוג (אופציונלי):</label>
-                    <textarea id="mod-text-${m.key}" rows="3" placeholder="תאר את יתרונות המודול..." oninput="updateModuleField('${m.key}','text',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-violet-300 focus:outline-none">${s.text || ''}</textarea>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט שיווקי לחלון השדרוג:</label>
+                    <textarea id="mod-text-${m.key}" rows="3" placeholder="תאר את יתרונות המודול..." oninput="updateModuleField('${m.key}','text',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-violet-300 focus:outline-none">${s.text || m.defaultText || ''}</textarea>
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">תמונה שיווקית (אופציונלי):</label>
