@@ -3690,25 +3690,63 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are 'familAI', an Israeli supermarket receipt parser.
+        const prompt = `You are 'familAI', an expert Israeli supermarket receipt parser.
 
-Read this receipt image carefully and extract structured data.
+## HOW ISRAELI RECEIPTS ARE STRUCTURED
 
-RULES:
-1. Identify the STORE NAME from the receipt header (e.g. רמי לוי, שופרסל, מגה, יינות ביתן, ויקטורי, קשת טעמים).
-2. For each purchased item extract:
-   - name: full item name in Hebrew as printed on receipt
-   - normalized_name: generic brand-less name (e.g. "שמן זית כתית תנובה" → "שמן זית", "חלב תנובה 3%" → "חלב 3%", "במבה אסם 80ג" → "במבה")
-   - qty: number of units (e.g. 4). Default 1 if not shown.
-   - unit: "יח" for pieces/packages, 'ק"ג' for kilograms, "ל" for liters, "ג" for grams, "מ"ל" for ml
-   - unit_price: price per single unit BEFORE any discount (number, e.g. 29.70)
-   - discount: TOTAL discount amount for this item across all units (positive number, 0 if none). Discount lines appear BELOW the item they belong to and show a negative amount (e.g. -19.80).
-   - net_unit_price: calculated as (unit_price * qty - discount) / qty — price per unit AFTER discount
+Each purchased item appears as a BLOCK of 2-4 lines:
+  LINE 1: Hebrew product name  (e.g. "שמן זית כתית מ")
+  LINE 2: Barcode number — IGNORE (e.g. "7290117263389")
+  LINE 3: quantity × unit_price = total  (e.g. "4 יחידה x 29.70    118.80")
+  LINE 4 (optional): DISCOUNT LINE — starts with a NEGATIVE number (e.g. "-19.80  שמן זית 750 מל רמי לוי ב19.80")
+           ↑ This line BELONGS to the item above it. The text after the negative amount is a PROMOTIONAL DESCRIPTION, NOT a new product.
+           ↑ Patterns like "13ב2", "2ב1", "3ב10" mean "X items for ₪Y" — these are promo codes, NOT product names.
 
-3. IGNORE: receipt header, store address, phone numbers, barcode/SKU lines (long number strings), totals, VAT, loyalty club text, divider lines.
-4. Discount lines (e.g. "-19.80 שמן זית 750 מ"ל רמי לוי ב19.80") belong to the item ABOVE them — add to that item's discount field.
+After the discount line (if any), the NEXT product block begins immediately.
 
-Return ONLY valid JSON: { "store_name": "...", "items": [{ "name": "...", "normalized_name": "...", "qty": 1, "unit": "יח", "unit_price": 29.70, "discount": 19.80, "net_unit_price": 24.75 }] }`;
+## CRITICAL RULES
+
+1. A line starting with a NEGATIVE number (e.g. -19.80, -5.60) is ALWAYS a discount line for the item above it — NEVER a new item.
+2. The text on a discount line (e.g. "שמן קנולה 1 ליטר 13ב2") is promotional description — do NOT create a new item from it.
+3. Barcode lines (long digit strings like "7290121043366") — IGNORE completely.
+4. Items like "מארז X קופסאות", "כוסות", "שקית" etc. ARE real products — do not skip them.
+5. Extract the STORE NAME from the receipt header.
+
+## EXAMPLE (from actual Rami Levy receipt)
+
+Receipt lines:
+  שמן קנולה הולנ              ← product name
+  7290119673124               ← barcode → IGNORE
+  71.20   8 יחידה x 8.90     ← qty=8, unit_price=8.90, total=71.20
+  -19.20  שמן קנולה 1 ליטר 13ב2  ← discount=-19.20, promo text → add to item above
+  מארז 4 קופסאות               ← NEW product name
+  7290121043366               ← barcode → IGNORE
+  29.90                       ← price (qty=1, no line discount)
+  כוסות נתיה קרה               ← NEW product name
+  8698585273257               ← barcode → IGNORE
+  15.60   4 יחידה x 3.90     ← qty=4, unit_price=3.90
+  -5.60   כוסות               ← discount=-5.60 → add to כוסות item above
+
+Result for these lines:
+  { name: "שמן קנולה הולנ", qty: 8, unit_price: 8.90, discount: 19.20, net_unit_price: 6.50 }
+  { name: "מארז 4 קופסאות", qty: 1, unit_price: 29.90, discount: 0, net_unit_price: 29.90 }
+  { name: "כוסות נתיה קרה", qty: 4, unit_price: 3.90, discount: 5.60, net_unit_price: 2.50 }
+
+## FIELDS TO EXTRACT PER ITEM
+
+- name: Hebrew product name as on receipt
+- normalized_name: generic brand-less name ("שמן זית כתית תנובה" → "שמן זית", "חלב תנובה 3%" → "חלב 3%")
+- qty: number of units (default 1)
+- unit: "יח" for pieces, 'ק"ג' for kg, "ל" for liters, "ג" for grams, 'מ"ל' for ml
+- unit_price: price per unit BEFORE discount
+- discount: total discount for all units (positive number, 0 if none)
+- net_unit_price: (unit_price × qty − discount) / qty
+
+## IGNORE ENTIRELY
+
+Receipt header, store address, phone, barcodes, order number, total lines, VAT, loyalty club paragraphs, dividers.
+
+Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
 
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const parsed = JSON.parse(result.response.text());
