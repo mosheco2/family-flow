@@ -12432,6 +12432,78 @@ app.post('/api/beauty/rfq/:id/message', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// family: list beauty businesses
+app.get('/api/beauty/businesses', async (req, res) => {
+    try {
+        const r = await pool.query(
+            "SELECT id, name, description, city FROM family_groups WHERE type='BUSINESS' AND business_type='beauty' ORDER BY name"
+        );
+        res.json({ businesses: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// family: get own RFQs
+app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT br.*, fg.name AS business_name FROM beauty_rfq br
+             LEFT JOIN family_groups fg ON fg.id=br.business_group_id
+             WHERE br.client_family_id=$1 ORDER BY br.updated_at DESC`,
+            [req.params.familyId]
+        );
+        res.json({ rfqs: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== RETENTION CRON (P5) =====
+// Run daily — find clients overdue for a visit and append to business feed
+const CRON_INTERVAL_MS = 24 * 60 * 60 * 1000;
+async function runRetentionCron() {
+    try {
+        // find clients whose expected next visit is today or in the past (and no appointment scheduled)
+        const overdueClients = await pool.query(`
+            SELECT bcr.id, bcr.client_name, bcr.client_phone, bcr.avg_visit_interval_days,
+                   bcr.last_visit_at, bcr.business_group_id,
+                   (bcr.last_visit_at + (bcr.avg_visit_interval_days || ' days')::INTERVAL) AS expected_next
+            FROM beauty_client_records bcr
+            WHERE bcr.avg_visit_interval_days IS NOT NULL
+              AND bcr.avg_visit_interval_days > 0
+              AND bcr.last_visit_at IS NOT NULL
+              AND (bcr.last_visit_at + (bcr.avg_visit_interval_days || ' days')::INTERVAL) <= NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM beauty_appointments ba
+                  WHERE ba.business_group_id = bcr.business_group_id
+                    AND ba.client_phone = bcr.client_phone
+                    AND ba.status IN ('scheduled','confirmed')
+                    AND ba.start_time > NOW()
+              )
+        `);
+        for (const client of overdueClients.rows) {
+            // insert a retention notification into group_notifications if table exists
+            try {
+                await pool.query(
+                    `INSERT INTO group_notifications (group_id, type, title, body, metadata, created_at)
+                     VALUES ($1, 'beauty_retention', $2, $3, $4, NOW())
+                     ON CONFLICT DO NOTHING`,
+                    [
+                        client.business_group_id,
+                        `לקוח/ה ${client.client_name} לא ביקר/ה זמן מה`,
+                        `ממוצע ביקור כל ${Math.round(client.avg_visit_interval_days)} יום — כדאי ליצור קשר`,
+                        JSON.stringify({ client_id: client.id, client_name: client.client_name, client_phone: client.client_phone, expected_next: client.expected_next })
+                    ]
+                );
+            } catch(e) { /* table may not exist, skip silently */ }
+        }
+        if (overdueClients.rows.length > 0) {
+            console.log(`[Retention Cron] ${overdueClients.rows.length} overdue beauty clients flagged`);
+        }
+    } catch(e) {
+        console.error('[Retention Cron] error:', e.message);
+    }
+}
+// start cron after 1 min to let DB settle, then every 24h
+setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERVAL_MS); }, 60000);
+
 // ===== END BEAUTY & COSMETICS API =====
 
 // הפעלת השרת

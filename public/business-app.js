@@ -32629,7 +32629,10 @@ window._beautyOpenClient = async function(clientId) {
 
             <!-- photos -->
             <div>
-                <p class="text-xs font-bold text-slate-700 mb-2">גלריה לפני/אחרי 📸</p>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-700">גלריה לפני/אחרי 📸</p>
+                    <button onclick="window._beautyUploadPhotoModal(${client.id})" class="text-[10px] text-pink-600 font-bold hover:underline">+ העלה</button>
+                </div>
                 ${photoRows}
             </div>
         </div>
@@ -32986,5 +32989,211 @@ window._beautyPayCommissions = async function(practitionerId) {
         if (r.success) { showToast('success', 'עמלות סומנו כשולמו ✅'); loadBeautyCommissions(); }
         else showToast('error', r.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+
+// ============================================================
+// ===== P6: CONSULTATION FORMS BUILDER + PHOTO UPLOAD ========
+// ============================================================
+
+// --- Photo upload for client cards ---
+window._beautyUploadPhotoModal = function(clientId) {
+    const html = `
+<div id="beauty-photo-upload-modal" class="fixed inset-0 z-[400] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">העלאת תמונה 📸</h3>
+            <button onclick="document.getElementById('beauty-photo-upload-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">סוג תמונה</label>
+                <select id="bpu-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                    <option value="before">לפני טיפול</option>
+                    <option value="after">אחרי טיפול</option>
+                    <option value="consultation">ייעוץ</option>
+                    <option value="reference">רפרנס</option>
+                </select></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">URL תמונה</label>
+                <input id="bpu-url" type="url" placeholder="https://..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">הערה</label>
+                <input id="bpu-note" type="text" placeholder="טיפול, תאריך..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <button onclick="window._beautySubmitPhoto(${clientId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">הוסף תמונה ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitPhoto = async function(clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const photoType = document.getElementById('bpu-type')?.value;
+    const photoUrl = document.getElementById('bpu-url')?.value?.trim();
+    const note = document.getElementById('bpu-note')?.value?.trim();
+    if (!photoUrl) { showToast('error', 'נא הזן URL לתמונה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photo_type: photoType, photo_url: photoUrl, notes: note })
+        }).then(r=>r.json());
+        document.getElementById('beauty-photo-upload-modal')?.remove();
+        if (r.success || r.photo) {
+            showToast('success', 'תמונה נוספה ✅');
+            document.getElementById('beauty-client-modal')?.remove();
+            window._beautyOpenClient(clientId);
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// --- Consultation Form Builder (standalone in beauty_clients) ---
+// Accessible via button on the beauty_clients header
+
+window._beautyFormsBuilderModal = function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const html = `
+<div id="beauty-forms-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">בונה טפסי ייעוץ 📝</h3>
+                <p class="text-indigo-100 text-xs">צור שאלונים לשלוח ללקוחות לפני טיפול</p>
+            </div>
+            <button onclick="document.getElementById('beauty-forms-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1 space-y-4">
+            <!-- template picker -->
+            <div>
+                <p class="text-xs font-bold text-slate-600 mb-2">תבניות מוכנות</p>
+                <div class="grid grid-cols-2 gap-2">
+                    ${[
+                        { id:'color', label:'צביעת שיער 🎨', qs:['מה הצבע הנוכחי?','האם צבעת בשנה האחרונה?','יש אלרגיות ידועות?','מה הגוון הרצוי?'] },
+                        { id:'keratin', label:'קרטין/מיישר 💆', qs:['סוג שיער (סלסול, גלי, ישר)?','האם עשית פעם קרטין?','רגישות לחומרים?','כמה זמן לשמירה?'] },
+                        { id:'nails', label:'ציפורניים 💅', qs:['ג׳ל, אקריל, או ציפוי?','האם יש ריאקציות לדבק?','אורך מועדף?','עיצוב ספציפי?'] },
+                        { id:'skin', label:'טיפול פנים 🌸', qs:['סוג עור (שמן, יבש, מעורב)?','רגישות לחומרים?','בעיות עור קיימות?','תרופות עור?'] }
+                    ].map(t => `<button onclick="window._loadFormTemplate('${t.id}')"
+                        class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-right hover:bg-indigo-50 hover:border-indigo-300 transition">
+                        <p class="text-xs font-bold text-slate-700">${t.label}</p>
+                        <p class="text-[10px] text-slate-400">${t.qs.length} שאלות</p>
+                    </button>`).join('')}
+                </div>
+            </div>
+
+            <!-- form editor -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-600">שאלות</p>
+                    <button onclick="window._addFormQuestion()" class="text-[10px] text-indigo-600 font-bold hover:underline">+ הוסף שאלה</button>
+                </div>
+                <div id="bfb-questions" class="space-y-2 min-h-[60px]">
+                    <p class="text-slate-400 text-xs text-center py-3">בחר תבנית או הוסף שאלות ידנית</p>
+                </div>
+            </div>
+
+            <!-- select client to send -->
+            <div>
+                <p class="text-xs font-bold text-slate-600 mb-2">שלח ל-RFQ פתוח</p>
+                <div id="bfb-rfq-list" class="space-y-1">
+                    <p class="text-slate-400 text-xs">טוען...</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._previewConsultationForm()" class="w-full bg-indigo-600 text-white py-3 rounded-2xl text-sm font-black hover:bg-indigo-700 transition">שלח שאלון ל-RFQ שנבחר ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    window._loadOpenRfqsForForm();
+};
+
+window._formQuestions = [];
+window._selectedRfqId = null;
+
+window._loadFormTemplate = function(templateId) {
+    const templates = {
+        color: ['מה הצבע הנוכחי?','האם צבעת בשנה האחרונה?','יש אלרגיות ידועות?','מה הגוון הרצוי?'],
+        keratin: ['סוג שיער (סלסול, גלי, ישר)?','האם עשית פעם קרטין?','רגישות לחומרים?','כמה זמן לשמירה?'],
+        nails: ['ג׳ל, אקריל, או ציפוי?','האם יש ריאקציות לדבק?','אורך מועדף?','עיצוב ספציפי?'],
+        skin: ['סוג עור (שמן, יבש, מעורב)?','רגישות לחומרים?','בעיות עור קיימות?','תרופות עור?']
+    };
+    window._formQuestions = [...(templates[templateId] || [])];
+    window._renderFormQuestions();
+};
+
+window._addFormQuestion = function() {
+    window._formQuestions.push('');
+    window._renderFormQuestions();
+    const inputs = document.querySelectorAll('#bfb-questions input[type="text"]');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+};
+
+window._renderFormQuestions = function() {
+    const el = document.getElementById('bfb-questions'); if (!el) return;
+    if (window._formQuestions.length === 0) {
+        el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין שאלות</p>';
+        return;
+    }
+    el.innerHTML = window._formQuestions.map((q, i) => `
+        <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-black flex items-center justify-center shrink-0">${i+1}</span>
+            <input type="text" value="${q.replace(/"/g,'&quot;')}" oninput="window._formQuestions[${i}]=this.value"
+                class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"/>
+            <button onclick="window._formQuestions.splice(${i},1);window._renderFormQuestions()" class="w-6 h-6 rounded-lg bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 transition shrink-0">×</button>
+        </div>`).join('');
+};
+
+window._loadOpenRfqsForForm = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('bfb-rfq-list'); if (!el) return;
+    try {
+        const rfqs = await fetch(`${API}/beauty/${biz}/rfq?status=new`).then(r=>r.json());
+        const list = Array.isArray(rfqs) ? rfqs : [];
+        if (list.length === 0) { el.innerHTML = '<p class="text-slate-400 text-xs">אין פניות חדשות ממתינות לשאלון</p>'; return; }
+        el.innerHTML = list.map(rfq => `
+            <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-indigo-50 transition">
+                <input type="radio" name="rfq-select" value="${rfq.id}" onchange="window._selectedRfqId=${rfq.id}" class="text-indigo-600"/>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">${rfq.client_name_family || 'לקוח'}</p>
+                    <p class="text-[10px] text-slate-400 truncate">${rfq.service_description || '—'}</p>
+                </div>
+            </label>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-slate-400 text-xs">שגיאה בטעינת פניות</p>'; }
+};
+
+window._previewConsultationForm = async function() {
+    if (!window._selectedRfqId) { showToast('error', 'נא לבחור פנייה'); return; }
+    const qs = window._formQuestions.filter(q => q.trim());
+    if (qs.length === 0) { showToast('error', 'נא להוסיף לפחות שאלה אחת'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${window._selectedRfqId}/questionnaire`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions: qs })
+        }).then(r=>r.json());
+        document.getElementById('beauty-forms-modal')?.remove();
+        if (r.success) {
+            showToast('success', `שאלון נשלח ✅`);
+            window._formQuestions = [];
+            window._selectedRfqId = null;
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// Patch beauty_clients header to expose the forms builder button
+// (We monkey-patch _renderBeautyClients to inject the extra button)
+const _origRenderClients = window._renderBeautyClients;
+window._renderBeautyClients = function(search) {
+    _origRenderClients(search);
+    // inject forms builder button next to "לקוח חדש"
+    const header = document.querySelector('#content-beauty_clients .bg-gradient-to-l.from-pink-50');
+    if (header) {
+        const existingBtn = header.querySelector('[data-forms-btn]');
+        if (!existingBtn) {
+            const btn = document.createElement('button');
+            btn.setAttribute('data-forms-btn', '1');
+            btn.className = 'bg-white border border-indigo-300 text-indigo-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-50 transition flex items-center gap-1';
+            btn.innerHTML = '<i class="fa-solid fa-file-lines"></i> טפסי ייעוץ';
+            btn.onclick = window._beautyFormsBuilderModal;
+            header.appendChild(btn);
+        }
+    }
 };
 

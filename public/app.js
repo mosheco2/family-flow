@@ -529,6 +529,7 @@ function switchTab(t) { 
         } catch(e) {}
     }
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
+    if (t === 'beauty-rfq') try { loadFamilyBeautyRfq(); } catch(e) {}
 }
 
 let myOrdersCache = [];
@@ -9678,3 +9679,279 @@ window.saSetMemberModules = async function(groupId) {
         } else { alert(d.error || 'שגיאה'); }
     } catch(e) { alert('שגיאת תקשורת'); }
 };
+
+// ============================================================
+// ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================
+// ============================================================
+
+window._beautyRfqState = { businesses: [], rfqs: [] };
+
+async function loadFamilyBeautyRfq() {
+    const el = document.getElementById('content-beauty-rfq'); if (!el) return;
+    if (!currentGroup) { el.innerHTML = '<p class="text-slate-400 text-center py-12 text-sm">נא להתחבר תחילה</p>'; return; }
+    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    try {
+        const [bizRes, rfqRes] = await Promise.all([
+            fetch(`${API}/beauty/businesses`).then(r=>r.json()),
+            fetch(`${API}/beauty/rfq/family/${currentGroup.id}`).then(r=>r.json())
+        ]);
+        window._beautyRfqState.businesses = bizRes.businesses || [];
+        window._beautyRfqState.rfqs = rfqRes.rfqs || [];
+    } catch(e) {
+        window._beautyRfqState.businesses = [];
+        window._beautyRfqState.rfqs = [];
+    }
+    _renderFamilyBeautyRfq();
+}
+
+function _rfqStatusLabel(status) {
+    const map = {
+        new: { label: 'נשלח ✉️', cls: 'bg-blue-100 text-blue-700' },
+        questionnaire_sent: { label: 'ממתין לתשובות 📋', cls: 'bg-yellow-100 text-yellow-700' },
+        client_responded: { label: 'ענינו ✅', cls: 'bg-indigo-100 text-indigo-700' },
+        plan_sent: { label: 'תוכנית טיפול 📄', cls: 'bg-purple-100 text-purple-700' },
+        accepted: { label: 'תוכנית אושרה 🎉', cls: 'bg-green-100 text-green-700' },
+        rejected: { label: 'נדחה', cls: 'bg-red-100 text-red-600' }
+    };
+    const s = map[status] || { label: status, cls: 'bg-slate-100 text-slate-500' };
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}">${s.label}</span>`;
+}
+
+function _renderFamilyBeautyRfq() {
+    const el = document.getElementById('content-beauty-rfq'); if (!el) return;
+    const { businesses, rfqs } = window._beautyRfqState;
+
+    const rfqCards = rfqs.length === 0
+        ? `<div class="text-center py-8 text-slate-400 text-sm">
+            <i class="fa-solid fa-paper-plane text-3xl mb-3 block opacity-30"></i>
+            עדיין לא שלחת פנייה לשום מכון — בחר מכון למטה
+           </div>`
+        : rfqs.map(rfq => {
+            const needsAction = rfq.status === 'questionnaire_sent' || rfq.status === 'plan_sent';
+            return `<div class="bg-white rounded-2xl border ${needsAction ? 'border-purple-300 shadow-purple-50' : 'border-slate-100'} shadow-sm p-4 cursor-pointer hover:shadow-md transition"
+                onclick="window._openFamilyRfq(${rfq.id})">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-lg shrink-0">💅</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                            <p class="text-sm font-bold text-slate-800">${rfq.business_name || 'מכון יופי'}</p>
+                            ${_rfqStatusLabel(rfq.status)}
+                            ${needsAction ? '<span class="text-[9px] font-black bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full animate-pulse">נדרשת פעולה</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">${rfq.service_description || '—'}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${rfq.updated_at ? new Date(rfq.updated_at).toLocaleDateString('he-IL') : ''}</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
+                </div>
+            </div>`;
+        }).join('');
+
+    const bizCards = businesses.length === 0
+        ? `<p class="text-slate-400 text-sm text-center py-4">אין מכוני יופי רשומים בפלטפורמה כרגע</p>`
+        : businesses.map(b => `
+        <div class="bg-white rounded-2xl border border-pink-100 shadow-sm p-3 flex items-center gap-3 hover:shadow-md transition">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-lg shrink-0">💅</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-slate-800">${b.name}</p>
+                ${b.city ? `<p class="text-[11px] text-slate-400">${b.city}</p>` : ''}
+                ${b.description ? `<p class="text-[10px] text-slate-500 truncate">${b.description}</p>` : ''}
+            </div>
+            <button onclick="window._familyNewRfqModal(${b.id}, '${(b.name||'').replace(/'/g,"\\'")}', this)"
+                class="shrink-0 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition">
+                שלח פנייה
+            </button>
+        </div>`).join('');
+
+    el.innerHTML = `
+<div class="space-y-4">
+    <!-- header -->
+    <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-4">
+        <h2 class="text-base font-black text-slate-800 flex items-center gap-2 mb-1">
+            <span class="text-2xl">💅</span> שירותי יופי וקוסמטיקה
+        </h2>
+        <p class="text-xs text-slate-500">פנה/י למכון יופי, ענה/י על שאלות והתאם/י טיפול בדיוק בשבילך</p>
+    </div>
+
+    <!-- my rfqs -->
+    ${rfqs.length > 0 ? `<div>
+        <h3 class="text-xs font-black text-slate-600 mb-2 px-1 uppercase tracking-wide">הפניות שלי</h3>
+        <div class="space-y-2">${rfqCards}</div>
+    </div>` : rfqCards}
+
+    <!-- discovery -->
+    <div>
+        <h3 class="text-xs font-black text-slate-600 mb-2 px-1 uppercase tracking-wide">מכוני יופי בפלטפורמה</h3>
+        <div class="space-y-2">${bizCards}</div>
+    </div>
+</div>`;
+}
+
+window._familyNewRfqModal = function(bizId, bizName, btn) {
+    const html = `
+<div id="family-rfq-modal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">פנייה ל-${bizName}</h3>
+                <p class="text-pink-100 text-xs">תאר/י מה את/ה מחפש/ת</p>
+            </div>
+            <button onclick="document.getElementById('family-rfq-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מה השירות שמעניין אותך? *</label>
+                <textarea id="rfq-desc" rows="4" placeholder="לדוגמה: רוצה לצבוע את השיער, מחפשת עיצוב גבות, ניסיתי מוצר X בעבר..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-300"></textarea>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-2">
+                <i class="fa-solid fa-circle-info mt-0.5 shrink-0"></i>
+                <span>לאחר שליחת הפנייה, המכון עשוי לשלוח שאלון קצר להתאמת הטיפול האידיאלי עבורך.</span>
+            </div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._submitFamilyRfq(${bizId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">שלח פנייה 💌</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._submitFamilyRfq = async function(bizId) {
+    const desc = document.getElementById('rfq-desc')?.value?.trim();
+    if (!desc) { showToast ? showToast('error','נא תארי את הבקשה') : alert('נא תארי את הבקשה'); return; }
+    if (!currentGroup) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_group_id: bizId, client_family_id: currentGroup.id, service_description: desc })
+        }).then(r=>r.json());
+        document.getElementById('family-rfq-modal')?.remove();
+        if (r.id || r.success) {
+            if (window.showToast) showToast('success', 'הפנייה נשלחה! המכון יחזור אליך בקרוב 💌');
+            else alert('הפנייה נשלחה!');
+            loadFamilyBeautyRfq();
+        } else {
+            if (window.showToast) showToast('error', r.error || 'שגיאה');
+            else alert(r.error || 'שגיאה');
+        }
+    } catch(e) {
+        if (window.showToast) showToast('error', 'שגיאת תקשורת');
+        else alert('שגיאת תקשורת');
+    }
+};
+
+window._openFamilyRfq = async function(rfqId) {
+    const rfq = window._beautyRfqState.rfqs.find(r => r.id === rfqId); if (!rfq) return;
+    const status = rfq.status;
+    const qData = rfq.questionnaire_data || {};
+    const plan = rfq.treatment_plan || {};
+    const msgs = rfq.messages || [];
+
+    let actionSection = '';
+    if (status === 'questionnaire_sent' && qData.questions && qData.questions.length > 0) {
+        const qFields = qData.questions.map((q, i) => `
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">${q}</label>
+                <input id="rfq-ans-${i}" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>`).join('');
+        actionSection = `
+            <div class="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3">
+                <p class="text-xs font-black text-purple-700">📋 המכון שלח שאלון — ענה/י כדי לקבל הצעה:</p>
+                ${qFields}
+                <button onclick="window._submitRfqAnswers(${rfqId}, ${qData.questions.length})" class="w-full bg-purple-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-purple-700 transition">שלח תשובות</button>
+            </div>`;
+    } else if (status === 'plan_sent' && plan.sessions) {
+        const sessRows = plan.sessions.map(s => `<li class="text-xs text-slate-600">• ${s.name || s.service || 'טיפול'} ${s.duration_min ? '· ' + s.duration_min + ' דק׳' : ''} ${s.price ? '· ₪' + s.price : ''}</li>`).join('');
+        actionSection = `
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-3">
+                <p class="text-xs font-black text-green-700">📄 תוכנית הטיפול שלך מוכנה!</p>
+                ${plan.title ? `<p class="text-sm font-bold text-slate-800">${plan.title}</p>` : ''}
+                <ul class="space-y-1">${sessRows}</ul>
+                ${plan.total_price ? `<p class="text-sm font-black text-slate-800">סה"כ: ₪${plan.total_price}</p>` : ''}
+                <div class="flex gap-2 mt-2">
+                    <button onclick="window._acceptRfqPlan(${rfqId})" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-green-700 transition">אשר תוכנית ✅</button>
+                    ${plan.payment_link ? `<a href="${plan.payment_link}" target="_blank" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-blue-700 transition text-center">שלם עכשיו 💳</a>` : ''}
+                </div>
+            </div>`;
+    }
+
+    const msgHtml = msgs.length === 0 ? `<p class="text-slate-400 text-xs text-center py-2">אין הודעות עדיין</p>`
+        : msgs.map(m => `<div class="flex ${m.from === 'client' ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${m.from === 'client' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                ${m.text}
+                <div class="text-[9px] opacity-60 mt-0.5 text-right">${new Date(m.ts).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+          </div>`).join('');
+
+    const html = `
+<div id="family-rfq-detail-modal" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">${rfq.business_name || 'מכון יופי'}</h3>
+                <div class="mt-0.5">${_rfqStatusLabel(status)}</div>
+            </div>
+            <button onclick="document.getElementById('family-rfq-detail-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-4">
+            <div class="bg-slate-50 rounded-xl px-3 py-2">
+                <p class="text-[10px] text-slate-400 mb-0.5">הבקשה שלי</p>
+                <p class="text-xs text-slate-700">${rfq.service_description || '—'}</p>
+            </div>
+            ${actionSection}
+            <!-- messages -->
+            <div>
+                <p class="text-xs font-bold text-slate-600 mb-2">הודעות</p>
+                <div class="space-y-2 max-h-40 overflow-y-auto mb-3">${msgHtml}</div>
+                <div class="flex gap-2">
+                    <input id="rfq-msg-input" type="text" placeholder="כתוב/י הודעה..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"/>
+                    <button onclick="window._sendRfqMsg(${rfqId})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black hover:bg-purple-700 transition">שלח</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._submitRfqAnswers = async function(rfqId, count) {
+    const answers = [];
+    for (let i = 0; i < count; i++) {
+        answers.push(document.getElementById(`rfq-ans-${i}`)?.value?.trim() || '');
+    }
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/client-response`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers, photos: [] })
+        }).then(r=>r.json());
+        document.getElementById('family-rfq-detail-modal')?.remove();
+        if (r.success) {
+            if (window.showToast) showToast('success', 'תשובותיך נשלחו ✅');
+            loadFamilyBeautyRfq();
+        } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._acceptRfqPlan = async function(rfqId) {
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/accept`, { method: 'POST' }).then(r=>r.json());
+        document.getElementById('family-rfq-detail-modal')?.remove();
+        if (r.success) {
+            if (window.showToast) showToast('success', 'תוכנית הטיפול אושרה! 🎉');
+            loadFamilyBeautyRfq();
+        } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._sendRfqMsg = async function(rfqId) {
+    const text = document.getElementById('rfq-msg-input')?.value?.trim();
+    if (!text) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: 'client', text })
+        }).then(r=>r.json());
+        if (r.success) {
+            document.getElementById('family-rfq-detail-modal')?.remove();
+            loadFamilyBeautyRfq().then(() => window._openFamilyRfq(rfqId));
+        }
+    } catch(e) {}
+};
+
