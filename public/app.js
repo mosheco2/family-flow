@@ -1589,8 +1589,10 @@ function handleReceiptUpload(event) {
                 getEl('familai-advisor-modal').classList.add('hidden');
                 if(data.success && data.items && data.items.length) {
                     showReceiptReviewModal(data.items, data.storeName || '');
+                } else if (data.error) {
+                    showToast('error', 'שגיאת ניתוח: ' + data.error);
                 } else {
-                    showToast('error', 'לא זוייהו פריטים בקבלה.');
+                    showToast('error', 'לא זוהו פריטים בקבלה — נסה לצלם שוב בתאורה טובה.');
                 }
             } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
             event.target.value = '';

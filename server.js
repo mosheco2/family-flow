@@ -3760,9 +3760,20 @@ Receipt header, store address, phone, barcodes, order number, total lines, VAT, 
 Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
 
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
-        const parsed = JSON.parse(result.response.text());
+        let rawText = result.response.text().trim();
+        // Strip markdown code fences if Gemini wraps the JSON
+        if (rawText.startsWith('```')) {
+            rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        }
+        let parsed;
+        try {
+            parsed = JSON.parse(rawText);
+        } catch(parseErr) {
+            console.error('[scan-receipt] JSON parse error:', parseErr.message, '| raw:', rawText.substring(0, 300));
+            return res.status(500).json({ success: false, error: 'parse_error', details: parseErr.message });
+        }
         const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
-        const storeName = parsed.store_name || '';
+        const storeName = (!Array.isArray(parsed) && parsed.store_name) ? parsed.store_name : '';
 
         // Return items for preview — do NOT save yet
         res.json({ success: true, items, storeName });
