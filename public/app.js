@@ -8988,9 +8988,9 @@ window.showMemberModuleUpgrade = function(moduleKey) {
             <button onclick="document.getElementById('member-upgrade-overlay').remove()" style="width:32px;height:32px;background:#f1f5f9;border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#64748b;">✕</button>
             <div style="font-size:28px;">${mod.icon}</div>
         </div>
-        <div style="font-size:18px;font-weight:900;color:#1e293b;margin-bottom:4px;">🔒 ${safeStr(mod.name)}</div>
+        <div style="font-size:18px;font-weight:900;color:#1e293b;margin-bottom:4px;">🔒 ${_modSet.title ? safeStr(_modSet.title) : safeStr(mod.name)}</div>
         <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:10px;">"${safeStr(mod.tagline)}"</div>
-        <div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:${_modSet.img ? "10px" : "20px"};background:#f8fafc;border-radius:12px;padding:12px;">${safeStr(mod.desc)}</div>
+        ${(_modSet.text || mod.desc) ? '<div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:' + (_modSet.img ? '10px' : '20px') + ';background:#f8fafc;border-radius:12px;padding:12px;">' + safeStr(_modSet.text || mod.desc) + '</div>' : ''}
         ${_modSet.img ? '<img src="' + _modSet.img + '" style="width:100%;max-height:150px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : ''}
         <div id="member-upgrade-result" style="margin-bottom:8px;"></div>
         <button onclick="window._submitModuleRequest('${moduleKey}','${safeStr(mod.name).replace(/'/g,"&#39;")}')"

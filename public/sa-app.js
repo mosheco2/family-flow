@@ -1294,16 +1294,26 @@ function renderModuleSettingsAdmin() {
                     <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
                 </div>
             </div>
-            <div id="mod-panel-${m.key}" class="hidden px-4 pb-4 pt-3 bg-white">
-                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה שיווקית לחלון השדרוג (אופציונלי):</label>
-                <div class="flex flex-col gap-2">
-                    <input type="hidden" id="mod-img-${m.key}" value="${imgVal}">
-                    <input type="file" id="mod-upload-${m.key}" accept="image/*" class="hidden" onchange="handleModuleImgUpload(event,'${m.key}')">
-                    <div class="flex gap-2">
-                        <button type="button" onclick="document.getElementById('mod-upload-${m.key}').click()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-upload"></i> העלה תמונה</button>
-                        <button type="button" id="mod-clear-${m.key}" onclick="clearModuleImg('${m.key}')" class="${imgVal ? '' : 'hidden'} bg-red-50 text-red-500 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition">הסר</button>
+            <div id="mod-panel-${m.key}" class="hidden px-4 pb-4 pt-3 bg-white space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת חלון השדרוג (אופציונלי — ברירת מחדל: שם המודול):</label>
+                    <input type="text" id="mod-title-${m.key}" value="${s.title || ''}" placeholder="${m.name}" oninput="updateModuleField('${m.key}','title',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-violet-300 focus:outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט שיווקי לחלון השדרוג (אופציונלי):</label>
+                    <textarea id="mod-text-${m.key}" rows="3" placeholder="תאר את יתרונות המודול..." oninput="updateModuleField('${m.key}','text',this.value)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-violet-300 focus:outline-none">${s.text || ''}</textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה שיווקית (אופציונלי):</label>
+                    <div class="flex flex-col gap-2">
+                        <input type="hidden" id="mod-img-${m.key}" value="${imgVal}">
+                        <input type="file" id="mod-upload-${m.key}" accept="image/*" class="hidden" onchange="handleModuleImgUpload(event,'${m.key}')">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="document.getElementById('mod-upload-${m.key}').click()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-upload"></i> העלה תמונה</button>
+                            <button type="button" id="mod-clear-${m.key}" onclick="clearModuleImg('${m.key}')" class="${imgVal ? '' : 'hidden'} bg-red-50 text-red-500 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition">הסר</button>
+                        </div>
+                        <img id="mod-img-preview-${m.key}" src="${imgVal}" class="${imgVal ? '' : 'hidden'} w-full h-24 object-contain rounded-lg border border-slate-200 bg-slate-50">
                     </div>
-                    <img id="mod-img-preview-${m.key}" src="${imgVal}" class="${imgVal ? '' : 'hidden'} w-full h-24 object-contain rounded-lg border border-slate-200 bg-slate-50">
                 </div>
             </div>
         </div>`;
@@ -1360,6 +1370,13 @@ window.clearModuleImg = function(key) {
     if (hiddenInput) hiddenInput.value = '';
     if (preview) { preview.src = ''; preview.classList.add('hidden'); }
     if (clearBtn) clearBtn.classList.add('hidden');
+};
+
+window.updateModuleField = function(key, field, value) {
+    const s = window._memberModuleSettings || {};
+    if (!s[key]) s[key] = {};
+    s[key][field] = value;
+    window._memberModuleSettings = s;
 };
 
 window.addLoginSlideImage = function(event) {
@@ -1458,6 +1475,7 @@ function renderSAGroups() {
 
         const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
         const impersonateBtn = adminUser ? `<button onclick="impersonateGroup(${g.id}, ${adminUser.id})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>` : '';
+        const upgradeBtn = g.member_type === 'member' ? `<button onclick="saUpgradeToFamily(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up-right-dots mr-1"></i> שדרג למשפחה</button>` : '';
 
         gHtml += `
         <div class="${g.member_type === 'member' ? 'bg-violet-50 rounded-xl border-2 border-violet-300 mb-2 overflow-hidden shadow-sm' : 'bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm'}">
@@ -1477,6 +1495,7 @@ function renderSAGroups() {
                     <h4 class="text-xs font-bold text-slate-600">פעולות:</h4>
                     <div class="flex gap-2">
                         ${impersonateBtn}
+                        ${upgradeBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${proToggleBtn}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
@@ -1490,6 +1509,25 @@ function renderSAGroups() {
 }
 
 function filterSAGroups() { renderSAGroups(); }
+
+async function saUpgradeToFamily(groupId) {
+    if (!confirm('לשדרג סביבה זו מ"חבר ONEFLOW" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/upgrade-member`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ memberType: 'family' })
+        });
+        const d = await res.json();
+        if (d.success) {
+            showToast('success', 'הסביבה שודרגה למשפחה רגילה ✅');
+            loadSAData();
+        } else {
+            showToast('error', d.error || 'שגיאה בשדרוג');
+        }
+    } catch(e) { showToast('error', 'שגיאת שרת'); }
+}
+
 
 async function saDeleteUser(id) {
     if (!confirm('למחוק משתמש זה מהמערכת כליל?')) return;
