@@ -299,6 +299,13 @@ function renderSAGroups() {
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
                 </div>
+                ${(() => {
+                const reqs = g.module_requests || [];
+                if (!reqs.length) return '';
+                return '<div class="mt-2 mb-1"><div class="text-[10px] font-bold text-orange-600 mb-1">🔔 בקשות שדרוג ממתינות:</div><div class="flex flex-wrap gap-1.5">' +
+                    reqs.map(r => `<button onclick="saQuickUnlockModule(${g.id},'${typeof r === 'object' ? r.key : r}')" class="text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full hover:bg-orange-100 transition">▶ ${typeof r === 'object' ? r.name : r}</button>`).join('') +
+                    '</div></div>';
+            })()}
                 ${uHtml}
             </div>
         </div>`;
@@ -1232,6 +1239,7 @@ async function loadDashboard() {
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
+        if (_isMember) { try { applyMemberLocks(); } catch(e){} }
     } catch (e) {
         showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
@@ -7139,8 +7147,25 @@ function renderQuickTiles() {
     { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',     bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
     { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',  bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c' },
   ];
-  container.innerHTML = tiles.map(t => `
-    <button onclick="switchTab('${t.tab}')"
+  const isMember = currentGroup?.member_type === 'member';
+  container.innerHTML = tiles.map(t => {
+    const isMyOrders = t.tab === 'myorders';
+    const locked = isMember && !isMyOrders;
+    if (locked) {
+      const unlockedMods = currentGroup?.unlocked_modules || [];
+      const isUnlocked = unlockedMods.includes(t.tab);
+      if (!isUnlocked) {
+        return `<button onclick="showMemberModuleUpgrade('${t.tab}')"
+          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;"
+          class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm cursor-pointer">
+          <div style="background:linear-gradient(135deg,#94a3b8,#64748b)" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+            <i class="fa-solid fa-lock text-white text-lg"></i>
+          </div>
+          <span class="text-[11px] font-bold text-slate-400 text-center leading-tight">${t.label}</span>
+        </button>`;
+      }
+    }
+    return `<button onclick="switchTab('${t.tab}')"
       style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
       class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
       <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
@@ -7148,8 +7173,8 @@ function renderQuickTiles() {
       </div>
       <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 }
 
 // ── FAMILY URGENT ITEMS — "מה מחכה לך" ──────────────────────
@@ -8674,6 +8699,111 @@ function renderHMHistFiltered() {
 }
 
 // ─── ONEFLOWLIFE MEMBER DASHBOARD ────────────────────────────────────────────
+// ===== MEMBER TYPE — Module Locking + Upgrade Popups =====
+
+const MEMBER_MODULES = {
+  bank:              { icon:'🏦', name:'הבנק המשפחתי',       tagline:'הזמנות שלך — בתמונה הכלכלית המלאה', desc:'נהל הכנסות, הוצאות ודמי כיס לכל בני הבית ממקום אחד. כל הזמנה שתבצע מהעסקים שמחוברים אליך נרשמת אוטומטית — ותמיד תדע בדיוק לאן הכסף הולך.' },
+  cashflow:          { icon:'💸', name:'תזרים הוצאות',         tagline:'כמה הוצאת החודש? בדיוק עכשיו תדע', desc:'מעקב חכם אחרי כל עסקה — כולל הזמנות, תשלומי מנויים ותיקונים מהעסקים שלך. גרף אחד, תמונה ברורה, שליטה מלאה.' },
+  budget:            { icon:'📊', name:'ניהול תקציב',           tagline:'אל תגלה בסוף החודש', desc:'הגדר תקציב לכל קטגוריה — אוכל, בילויים, תחזוקה. הזמנות מהעסקים המחוברים אליך נספרות אוטומטית, ותקבל התראה לפני שחורגים.' },
+  forecast:          { icon:'📅', name:'תשקיף עתידי',           tagline:'ראה 6 חודשים קדימה — לפני שהם מגיעים', desc:'תכנן הוצאות עתידיות, מנויים קבועים והזמנות חוזרות. AI שמנתח את ההרגלים שלך ומייצר תמונה כלכלית עתידית מדויקת.' },
+  tasks:             { icon:'✅', name:'משימות וצ'ופרים',       tagline:'הפוך משימות לפרסים — ממש', desc:'הקצה משימות לילדים ובני הבית, קבע פרסי כסף אמיתיים, ועקוב אחרי ביצוע. כשהמשפחה עובדת יחד — כולם מרוויחים.' },
+  shop:              { icon:'🛒', name:'רשימת קניות חכמה',      tagline:'לא תשכח שום דבר — לעולם', desc:'רשימת קניות משותפת לכל המשפחה בזמן אמת. הוסף פריטים מהמזווה, שתף עם בן/בת הזוג, וסנכרן עם ההזמנות שלך מהעסקים באזור.' },
+  pantry:            { icon:'📦', name:'מזווה חכם',              tagline:'תמיד תדע מה נגמר — לפני שנגמר', desc:'מעקב אחרי מלאי הבית: מזון, ניקיון, תרופות. כשמשהו אוזל — הזמן ישירות מהעסק המועדף שלך בלחיצה אחת.' },
+  recipes:           { icon:'👨‍🍳', name:'שף פרטי AI',            tagline:'ארוחה מושלמת — ממה שכבר יש לך', desc:'מתכונים מותאמים אישית על בסיס מה שיש לך במזווה. AI שיודע מה הזמנת השבוע ומציע ארוחות שמשלימות את מה שכבר קנית.' },
+  community:         { icon:'🏘️', name:'קהילה מקומית',           tagline:'הכוח של השכונה — ביד', desc:'גלה עסקים חדשים, קרא המלצות שכנים ותיאום קניות קבוצתיות. יותר עסקים לבחור — יותר כוח מיקוח ברשת שלך.' },
+  members:           { icon:'👨‍👩‍👧‍👦', name:'ניהול משפחה',          tagline:'כולם בפנים — כל אחד בתפקידו', desc:'הוסף בני משפחה, הגדר הרשאות מותאמות לכל גיל ותפקיד. ניהול מלא של מי רואה מה ומי יכול לעשות מה.' },
+  academy:           { icon:'🎓', name:'אקדמיה פיננסית',         tagline:'ילדים שמבינים כסף — מתחילים מהבית', desc:'אתגרי ידע פיננסי אינטראקטיביים לילדים עם פרסי כסף אמיתיים. כישורי חיים שהם ישאו איתם לאורך שנים.' },
+  'home-maintenance':{ icon:'🔧', name:'ניהול הבית',              tagline:'הבית שלך — מתועד ומנוהל', desc:'עקוב אחרי תחזוקות, ביטוחים, ספקים וקריאות שירות. מחובר לעסקי התיקונים שמחוברים אליך — כל ההיסטוריה במקום אחד.' },
+  'kids-wallet':     { icon:'👧', name:'ארנק דיגיטלי לילדים',   tagline:'הכסף של הילד — שקוף, חי, ומחנך', desc:'כל ילד מקבל ארנק דיגיטלי משלו עם יתרה, היסטוריית הוצאות והכנסות ומטרות חיסכון. אתה רואה הכל בזמן אמת — הם לומדים אחריות כלכלית. פרסי המשימות מועברים ישירות לארנק שלהם.' },
+  'kids-mode':       { icon:'🧒', name:'מסך ילדים',               tagline:'הממשק שגורם להם לרצות להיכנס', desc:'הילד נכנס — המערכת מזהה אותו ומציגה לו בדיוק מה שלו: המשימות שממתינות, הפרסים שצבר, הוצאות והכנסות של הארנק שלו. ממשק שמרגיש "שלו" — לא של ההורים.' },
+  'supermarket-mode':{ icon:'🛒', name:'מצב "אני בסופר"',          tagline:'קניות בזמן אמת — כולם בסנכרון', desc:'פתח מצב סופר בקנייה: כל מוצר שתסמן "נלקח" נעלם מהרשימה של כולם. מחיר יקר? קבל השוואה. מוצר חסר? בני הבית מוסיפים בזמן אמת.' },
+  'ai-assistant':    { icon:'🤖', name:'עוזרת אישית AI',           tagline:'מנהלת הבית החכמה שרצית', desc:'AI שמכירה את המשפחה שלך: יודעת מה הזמנת, מה הוצאת, מה קניתם. שאל "מה לבשל הערב?" או "כמה הוצאנו על אוכל?" — תשובה מיידית מבוססת נתוני האמת שלך.' },
+  'expense-tracking':{ icon:'📈', name:'מעקב הוצאות שוטף',         tagline:'מאה הוצאות קטנות — תמונה אחת גדולה', desc:'כל הוצאה נרשמת — חד פעמית, קבועה חודשית, מנוי שנתי. הזמנות מהעסקים המחוברים אליך נכנסות אוטומטית — אפס הקלדה ידנית.' },
+};
+
+// Lock all tabs for member type (except feed + myorders)
+function applyMemberLocks() {
+    const unlockedMods = currentGroup?.unlocked_modules || [];
+    const ALWAYS_OPEN = ['feed', 'myorders'];
+
+    // Lock tabs in nav
+    document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+        const tabId = btn.id.replace('tab-', '');
+        if (ALWAYS_OPEN.includes(tabId)) return;
+        if (unlockedMods.includes(tabId)) return;
+        btn.classList.add('opacity-40', 'grayscale', 'pointer-events-none');
+        btn.style.position = 'relative';
+        if (!btn.querySelector('.member-lock-icon')) {
+            const lk = document.createElement('span');
+            lk.className = 'member-lock-icon';
+            lk.style.cssText = 'position:absolute;top:2px;right:2px;font-size:8px;';
+            lk.textContent = '🔒';
+            btn.appendChild(lk);
+        }
+        btn.classList.remove('pointer-events-none');
+        btn.style.pointerEvents = 'auto';
+        btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); showMemberModuleUpgrade(tabId); };
+    });
+
+    // Add member welcome banner if not exists
+    const feed = document.getElementById('view-feed');
+    if (feed && !document.getElementById('member-welcome-banner')) {
+        const banner = document.createElement('div');
+        banner.id = 'member-welcome-banner';
+        banner.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:14px 16px;margin:8px 12px 0;color:white;direction:rtl;';
+        banner.innerHTML = '<div style="font-size:13px;font-weight:900;margin-bottom:2px;">👋 ברוך הבא ל-ONEFLOW!</div><div style="font-size:11px;opacity:0.85;">לחץ על <strong>הזמנות שלי</strong> לניהול הזמנות ומנויים מהעסקים שלך. 🔒 שאר המודולים ניתנים לשדרוג.</div>';
+        feed.insertBefore(banner, feed.firstChild);
+    }
+
+    // Re-render quick tiles with locks
+    try { renderQuickTiles(); } catch(e) {}
+}
+
+window.showMemberModuleUpgrade = function(moduleKey) {
+    const mod = MEMBER_MODULES[moduleKey] || { icon: '🔒', name: moduleKey, tagline: 'מודול זה דורש שדרוג', desc: 'צור קשר עם המנהל לפתיחת המודול.' };
+    document.getElementById('member-upgrade-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'member-upgrade-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;direction:rtl;';
+    overlay.innerHTML = `<div style="background:white;width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:24px 20px 32px;box-shadow:0 -8px 32px rgba(0,0,0,0.15);text-align:right;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <button onclick="document.getElementById('member-upgrade-overlay').remove()" style="width:32px;height:32px;background:#f1f5f9;border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#64748b;">✕</button>
+            <div style="font-size:28px;">${mod.icon}</div>
+        </div>
+        <div style="font-size:18px;font-weight:900;color:#1e293b;margin-bottom:4px;">🔒 ${safeStr(mod.name)}</div>
+        <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:10px;">"${safeStr(mod.tagline)}"</div>
+        <div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:20px;background:#f8fafc;border-radius:12px;padding:12px;">${safeStr(mod.desc)}</div>
+        <div id="member-upgrade-result" style="margin-bottom:8px;"></div>
+        <button onclick="window._submitModuleRequest('${moduleKey}','${safeStr(mod.name).replace(/'/g,"&#39;")}')"
+            style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:16px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;margin-bottom:8px;">
+            📤 שלח בקשת שדרוג לניהול
+        </button>
+        <div style="font-size:10px;color:#94a3b8;text-align:center;">המנהל יקבל את בקשתך ויוכל לפתוח את המודול עבורך</div>
+    </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._submitModuleRequest = async function(moduleKey, moduleName) {
+    const resEl = document.getElementById('member-upgrade-result');
+    try {
+        const r = await fetch(\`\${API}/member/request-module\`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, moduleKey, moduleName })
+        }).then(r => r.json());
+        if (r.success) {
+            if (resEl) resEl.innerHTML = '<div style="background:#f0fdf4;color:#16a34a;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;text-align:center;">✅ הבקשה נשלחה! המנהל יחזור אליך.</div>';
+            const btn = document.querySelector('#member-upgrade-overlay button[onclick*="_submitModuleRequest"]');
+            if (btn) btn.disabled = true;
+        } else {
+            if (resEl) resEl.innerHTML = '<div style="color:#ef4444;font-size:12px;text-align:center;">שגיאה — נסה שוב</div>';
+        }
+    } catch(e) {
+        if (resEl) resEl.innerHTML = '<div style="color:#ef4444;font-size:12px;text-align:center;">שגיאת תקשורת</div>';
+    }
+};
+
+// ===== END MEMBER TYPE =====
+
 async function renderMemberDashboard() {
     // Hide family containers, show member dashboard
     const dc = getEl('dashboard-container'); if (dc) dc.classList.add('hidden');
@@ -9104,6 +9234,17 @@ async function _memberLoadQuotes(bizGroupId) {
 }
 
 // SA: שדרוג חבר למשפחה
+window.saQuickUnlockModule = async function(groupId, moduleKey) {
+    try {
+        const r = await fetch(`${API}/sa/groups/${groupId}/unlock-module`, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ moduleKey })
+        }).then(r => r.json());
+        if (r.success) { showToast('success', `✅ מודול "${moduleKey}" נפתח`); loadSAData(); }
+        else alert(r.error || 'שגיאה');
+    } catch(e) { alert('שגיאת תקשורת'); }
+};
+
 window.saMarkAsMember = async function(groupId) {
     if (!confirm('לסמן חשבון זה כחבר ONEFLOW? הוא יופיע כ"חבר" במערכת.')) return;
     try {

@@ -879,6 +879,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       try { await client.query(`ALTER TABLE member_business_links ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS unlocked_modules JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
       // ===== END ONEFLOWLIFE MEMBER FEATURE =====
 
       client.release();
@@ -11316,6 +11317,27 @@ app.post('/api/member/link/:linkId/respond', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Member: request module unlock (sent to SA)
+app.post('/api/member/request-module', async (req, res) => {
+    const { groupId, moduleKey, moduleName } = req.body;
+    if (!groupId || !moduleKey) return res.status(400).json({ error: 'missing fields' });
+    try {
+        // Add to module_requests array (avoid duplicates)
+        await pool.query(
+            `UPDATE family_groups
+             SET module_requests = (
+                 SELECT jsonb_agg(DISTINCT x) FROM (
+                     SELECT jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) AS x
+                     UNION SELECT $2::jsonb
+                 ) sub
+             )
+             WHERE id = $1`,
+            [groupId, JSON.stringify({ key: moduleKey, name: moduleName, requested_at: new Date().toISOString() })]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: שדרוג חבר למשפחה או החזרה לחבר
 app.patch('/api/sa/groups/:id/upgrade-member', async (req, res) => {
     const { memberType } = req.body;
@@ -11326,12 +11348,45 @@ app.patch('/api/sa/groups/:id/upgrade-member', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// SA: עדכון מודולים פתוחים לחשבון חבר
+// SA: עדכון מודולים פתוחים לחשבון חבר (also clears matching requests)
 app.patch('/api/sa/groups/:id/modules', async (req, res) => {
     const { modules } = req.body; // array of strings
     if (!Array.isArray(modules)) return res.status(400).json({ error: 'modules must be array' });
     try {
-        await pool.query('UPDATE family_groups SET unlocked_modules=$1 WHERE id=$2', [JSON.stringify(modules), req.params.id]);
+        // Clear requests for newly unlocked modules
+        const clearSql = `
+            UPDATE family_groups
+            SET unlocked_modules = $1,
+                module_requests = COALESCE(
+                    (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r
+                     WHERE NOT ($1::jsonb @> jsonb_build_array(r->>'key'))),
+                    '[]'::jsonb
+                )
+            WHERE id = $2`;
+        await pool.query(clearSql, [JSON.stringify(modules), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: unlock a single module for a member group (quick unlock from SA row)
+app.patch('/api/sa/groups/:id/unlock-module', async (req, res) => {
+    const { moduleKey } = req.body;
+    if (!moduleKey) return res.status(400).json({ error: 'missing moduleKey' });
+    try {
+        await pool.query(
+            `UPDATE family_groups
+             SET unlocked_modules = CASE
+                 WHEN unlocked_modules @> $1::jsonb THEN unlocked_modules
+                 ELSE unlocked_modules || $1::jsonb
+             END,
+             module_requests = COALESCE(
+                 (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r
+                  WHERE r->>'key' != $2),
+                 '[]'::jsonb
+             )
+             WHERE id = $3`,
+            [JSON.stringify([moduleKey]), moduleKey, req.params.id]
+        );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
