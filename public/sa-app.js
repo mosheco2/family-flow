@@ -331,6 +331,34 @@ window.switchSAGroup = function(groupId) {
     showToast('error', 'אין הרשאה לגשת למקטע זה.');
 };
 
+window.switchViewTab = function(viewId, tabId) {
+    const nav = document.getElementById('vtnav-' + viewId);
+    if (!nav) return;
+    // Hide all sub-tab panels
+    document.querySelectorAll('#sa-view-' + viewId + ' .vt-' + viewId).forEach(el => {
+        el.classList.add('hidden');
+        el.style.display = 'none';
+    });
+    // Show target panel
+    const target = document.getElementById('vt-' + viewId + '-' + tabId);
+    if (target) {
+        target.classList.remove('hidden');
+        target.style.display = '';
+    }
+    // Update nav button styles
+    nav.querySelectorAll('button').forEach(btn => {
+        btn.style.background = '#f1f5f9';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #e2e8f0';
+    });
+    const activeBtn = document.getElementById('vtnav-' + viewId + '-' + tabId);
+    if (activeBtn) {
+        activeBtn.style.background = '#4f46e5';
+        activeBtn.style.color = 'white';
+        activeBtn.style.border = '1px solid #4338ca';
+    }
+};
+
 // Close mobile sidebar after navigating (on mobile widths)
 function _updateMobileNav() {
     if (window.innerWidth <= 640) {

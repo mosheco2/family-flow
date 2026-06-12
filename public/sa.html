@@ -253,7 +253,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
             <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 modal-scroll relative">
 
-                <div id="sa-view-partners" class="hidden space-y-8 fade-in">
+                <div id="sa-view-partners" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-partners">
+          <button id="vtnav-partners-overview" onclick="switchViewTab('partners','overview')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-bar" style="font-size:11px;"></i>סקירה</button>
+          <button id="vtnav-partners-managers" onclick="switchViewTab('partners','managers')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-map-location-dot" style="font-size:11px;"></i>מנהלי אזורים</button>
+        </div>
+                <div id="vt-partners-overview" class="vt-partners space-y-6">
 
                     <!-- קוביות KPI -->
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -325,6 +330,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                </div><!-- /vt-partners-overview -->
+                <div id="vt-partners-managers" class="vt-partners hidden">
                     <!-- Zone Manager Section -->
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -381,7 +388,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </table>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-partners-managers -->
+                </div><!-- /sa-view-partners -->
 
                 <div id="sa-view-pulse" class="hidden fade-in">
 
@@ -648,7 +656,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-comm" class="hidden space-y-8 fade-in">
+                <div id="sa-view-comm" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-comm">
+          <button id="vtnav-comm-manage" onclick="switchViewTab('comm','manage')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-plus-circle" style="font-size:11px;"></i>הקמה ושיוך</button>
+          <button id="vtnav-comm-table" onclick="switchViewTab('comm','table')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-list" style="font-size:11px;"></i>טבלת קהילות</button>
+        </div>
+                <div id="vt-comm-manage" class="vt-comm space-y-8">
                     <div id="sa-pending-biz-container" class="hidden bg-orange-100/50 p-6 rounded-2xl border border-orange-200 shadow-sm">
                         <h3 class="font-bold text-orange-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-bell text-orange-500"></i> בקשות הצטרפות ממתינות (עסקים לקהילות)</h3>
                         <div id="sa-pending-biz-list" class="space-y-3"></div>
@@ -730,7 +743,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md mt-8">
+                </div><!-- /vt-comm-manage -->
+                <div id="vt-comm-table" class="vt-comm hidden">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> טבלת קהילות פעילות</h3>
                             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -765,9 +780,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </table>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-comm-table -->
+                </div><!-- /sa-view-comm -->
 
-                <div id="sa-view-finance" class="hidden space-y-8 fade-in">
+                <div id="sa-view-finance" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-finance">
+          <button id="vtnav-finance-overview" onclick="switchViewTab('finance','overview')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-chart-pie" style="font-size:11px;"></i>סקירה</button>
+          <button id="vtnav-finance-settings" onclick="switchViewTab('finance','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-percent" style="font-size:11px;"></i>הגדרות</button>
+          <button id="vtnav-finance-dues" onclick="switchViewTab('finance','dues')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-file-invoice-dollar" style="font-size:11px;"></i>חובות עסקים</button>
+          <button id="vtnav-finance-wallets" onclick="switchViewTab('finance','wallets')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-wallet" style="font-size:11px;"></i>ארנקי קהילות</button>
+        </div>
+                <div id="vt-finance-overview" class="vt-finance">
                     <!-- קוביות סיכום -->
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
@@ -823,6 +846,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                </div><!-- /vt-finance-overview -->
+                <div id="vt-finance-settings" class="vt-finance hidden">
                     <!-- אחוזי עמלה וקאשבק -->
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <h2 class="text-xl font-bold mb-6 text-slate-800"><i class="fa-solid fa-percent text-emerald-500 mr-2"></i> הגדרות עמלה וקאשבק קהילתי</h2>
@@ -850,6 +875,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <button onclick="savePlatformRates()" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-emerald-700 transition"><i class="fa-solid fa-save mr-2"></i> שמור הגדרות</button>
                     </div>
 
+                </div><!-- /vt-finance-settings -->
+                <div id="vt-finance-dues" class="vt-finance hidden">
                     <!-- חובות עסקים -->
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-5">
@@ -876,6 +903,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                </div><!-- /vt-finance-dues -->
+                <div id="vt-finance-wallets" class="vt-finance hidden">
                     <!-- ארנקי קהילות -->
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <h2 class="text-xl font-bold mb-5 text-slate-800"><i class="fa-solid fa-wallet text-purple-500 mr-2"></i> ארנקי קהילות - יתרות קאשבק</h2>
@@ -896,7 +925,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </table>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-finance-wallets -->
+                </div><!-- /sa-view-finance -->
 
                 <div id="sa-view-biz" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
@@ -1083,7 +1113,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         </div><!-- /sa-newsletter-builder -->
 
         <div id="sa-view-content" class="hidden space-y-8 fade-in">
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-content">
+                      <button id="vtnav-content-branding" onclick="switchViewTab('content','branding')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-paint-roller" style="font-size:11px;"></i>מיתוג ולוגו</button>
+                      <button id="vtnav-content-banners" onclick="switchViewTab('content','banners')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-bullhorn" style="font-size:11px;"></i>הודעות ובאנרים</button>
+                    </div>
 
+          <div id="vt-content-branding" class="vt-content">
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                         <h2 class="text-xl font-black mb-1 text-slate-800"><i class="fa-solid fa-sliders text-indigo-500 mr-2"></i> הגדרות כניסה למערכת</h2>
                         <p class="text-xs text-slate-400 mb-5">שליטה על אמצעי ההתחברות שמוצגים בדף הכניסה של הסופר-אדמין</p>
@@ -1132,7 +1167,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </div>
                         </div>
                     </div>
+          </div>
 
+          <div id="vt-content-banners" class="vt-content" style="display:none;">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                             <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה משפחות</h2>
@@ -1264,6 +1301,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
                         <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
                     </button>
+          </div>
                 </div>
 
                <div id="sa-view-clients" class="hidden space-y-8 fade-in">
@@ -1279,7 +1317,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
 
-                <div id="sa-view-hr" class="hidden space-y-8 fade-in">
+                <div id="sa-view-hr" class="hidden fade-in">
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-hr">
+          <button id="vtnav-hr-teams" onclick="switchViewTab('hr','teams')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-shield" style="font-size:11px;"></i>צוותים</button>
+          <button id="vtnav-hr-staff" onclick="switchViewTab('hr','staff')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-user-tie" style="font-size:11px;"></i>נציגים</button>
+          <button id="vtnav-hr-master" onclick="switchViewTab('hr','master')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-key" style="font-size:11px;"></i>מאסטר אדמין</button>
+        </div>
+                <div id="vt-hr-teams" class="vt-hr">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i> ניהול צוותים והרשאות גישה (RBAC)</h2>
@@ -1288,6 +1332,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <div id="sa-teams-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                     </div>
 
+                </div><!-- /vt-hr-teams -->
+                <div id="vt-hr-staff" class="vt-hr hidden">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
                         <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-user-tie text-blue-500 mr-2"></i> נציגי מערכת וצוות עובדים</h2>
@@ -1309,6 +1355,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
+                </div><!-- /vt-hr-staff -->
+                <div id="vt-hr-master" class="vt-hr hidden">
                     <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8 border-l-4 border-l-red-500">
                         <h2 class="text-xl font-black mb-2 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> מנהל על מרכזי (Master Admin)</h2>
                         <p class="text-xs text-slate-500 mb-4">שינוי פרטי גישה של חשבון המאסטר הראשי.</p>
@@ -1321,7 +1369,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <button onclick="updateSACredentials()" class="bg-red-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-red-700 transition">שמור ועדכן</button>
                         </div>
                     </div>
-                </div>
+                </div><!-- /vt-hr-master -->
+                </div><!-- /sa-view-hr -->
 
                 <div id="sa-view-devops" class="hidden space-y-8 fade-in">
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
