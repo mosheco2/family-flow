@@ -103,13 +103,12 @@ window.checkTabAccess = function(tabId) {
 };
 
 // פתיחה וסגירה של סרגל הצד במסכי מובייל
-window.toggleMobileSidebar = function() {
+window.toggleSASidebar = window.toggleMobileSidebar = function() {
     const sidebar = document.getElementById('sa-sidebar');
     const backdrop = document.getElementById('sa-sidebar-backdrop');
-    if (sidebar && backdrop) {
-        sidebar.classList.toggle('translate-x-full');
-        backdrop.classList.toggle('hidden');
-    }
+    const isOpen = sidebar && sidebar.classList.contains('sidebar-open');
+    if (sidebar) sidebar.classList.toggle('sidebar-open', !isOpen);
+    if (backdrop) backdrop.style.display = (!isOpen) ? 'block' : 'none';
 };
 
 window.updateSADashboard = async function() {
@@ -297,7 +296,7 @@ function _updateSAGroupNav(tabId) {
     }
 
     _updateSubNavBar(groupId, tabId);
-    _updateMobileNav(groupId);
+    _updateMobileNav();
 }
 
 function _updateSubNavBar(groupId, activeTabId) {
@@ -332,29 +331,17 @@ window.switchSAGroup = function(groupId) {
     showToast('error', 'אין הרשאה לגשת למקטע זה.');
 };
 
-// Mobile bottom nav helpers
-const _MOB_GROUP_BTNS = ['home', 'customers', 'supportdev', 'finance'];
-
-function _updateMobileNav(groupId) {
-    _MOB_GROUP_BTNS.forEach(g => {
-        const btn = document.getElementById(`mob-btn-${g}`);
-        if (!btn) return;
-        btn.style.color = (g === groupId) ? '#6366f1' : '#94a3b8';
-    });
-    const moreBtn = document.getElementById('mob-btn-more');
-    const moreGroups = ['contentmkt', 'partners', 'system'];
-    if (moreBtn) moreBtn.style.color = moreGroups.includes(groupId) ? '#6366f1' : '#94a3b8';
+// Close mobile sidebar after navigating (on mobile widths)
+function _updateMobileNav() {
+    if (window.innerWidth <= 640) {
+        const sidebar = document.getElementById('sa-sidebar');
+        const backdrop = document.getElementById('sa-sidebar-backdrop');
+        if (sidebar && sidebar.classList.contains('sidebar-open')) {
+            sidebar.classList.remove('sidebar-open');
+            if (backdrop) backdrop.style.display = 'none';
+        }
+    }
 }
-
-window._showMobileMore = function() {
-    const drawer = document.getElementById('sa-mobile-more-drawer');
-    if (drawer) drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
-};
-
-window._hideMobileMore = function() {
-    const drawer = document.getElementById('sa-mobile-more-drawer');
-    if (drawer) drawer.style.display = 'none';
-};
 
 window.updateSADashboard = async function() {
     try {

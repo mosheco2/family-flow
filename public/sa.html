@@ -71,13 +71,18 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 #toast{font-family:'Rubik',sans-serif!important;border-radius:99px!important}
 @media(max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
 @media(max-width:640px){
-  #sa-sidebar{display:none!important}
-  #sa-main-content{margin-right:0!important;padding:0.75rem 0.75rem 80px!important}
-  #sa-mobile-nav{display:flex!important}
+  #sa-sidebar{transform:translateX(100%);transition:transform 0.25s ease;position:fixed!important;top:0;bottom:0;right:0;z-index:300!important}
+  #sa-sidebar.sidebar-open{transform:translateX(0)}
+  #sa-main-content{margin-right:0!important;padding:0.75rem!important}
   .sa-top-bar{border-radius:0.5rem;padding:0.6rem 0.85rem;margin-bottom:0.75rem}
+  #sa-subnav-bar{flex-wrap:nowrap!important;overflow-x:auto!important}
+  #sa-view-pulse .grid>div{overflow:hidden}
+  #sa-view-pulse .grid>div .text-center>span{font-size:clamp(0.7rem,4.5vw,1.5rem)!important;word-break:break-all;display:block}
 }
 @media(min-width:641px) and (max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
 .legal-editor p{margin-bottom:0.6rem}
+/* KPI number overflow protection */
+#sa-view-pulse .text-2xl.font-black{word-break:break-all;overflow-wrap:break-word;min-width:0;max-width:100%}
 .legal-editor h2{font-size:1.2rem;font-weight:800;color:#1e293b;margin:1rem 0 0.4rem}
 .legal-editor h3{font-size:1rem;font-weight:700;color:#334155;margin:0.8rem 0 0.3rem}
 .legal-editor ul{list-style:disc;padding-right:1.5rem;margin-bottom:0.5rem}
@@ -201,7 +206,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
         <main id="sa-main-content">
             
-            <button onclick="toggleSASidebar()" class="absolute top-4 right-4 z-[60] text-slate-400 hover:text-indigo-600 bg-white shadow-md w-8 h-8 flex items-center justify-center rounded-full transition-all md:hidden">
+            <!-- Mobile sidebar overlay backdrop -->
+            <div id="sa-sidebar-backdrop" onclick="toggleSASidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:299;backdrop-filter:blur(2px);"></div>
+
+            <button onclick="toggleSASidebar()" class="fixed top-4 right-4 z-[310] text-slate-400 hover:text-indigo-600 bg-white shadow-md w-9 h-9 flex items-center justify-center rounded-full transition-all md:hidden" id="sa-hamburger-btn">
                 <i class="fa-solid fa-bars"></i>
             </button>
 
@@ -1822,34 +1830,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div>
-
-        <!-- Mobile Bottom Navigation -->
-        <nav id="sa-mobile-nav" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0f172a;border-top:1px solid rgba(255,255,255,0.1);z-index:300;height:64px;align-items:stretch;justify-content:stretch;">
-          <button onclick="switchSAGroup('home')" id="mob-btn-home" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
-            <i class="fa-solid fa-gauge-high" style="font-size:16px;"></i><span>בית</span>
-          </button>
-          <button onclick="switchSAGroup('customers')" id="mob-btn-customers" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
-            <i class="fa-solid fa-users" style="font-size:16px;"></i><span>לקוחות</span>
-          </button>
-          <button onclick="switchSAGroup('supportdev')" id="mob-btn-supportdev" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
-            <i class="fa-solid fa-headset" style="font-size:16px;"></i><span>תמיכה</span>
-          </button>
-          <button onclick="switchSAGroup('finance')" id="mob-btn-finance" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
-            <i class="fa-solid fa-wallet" style="font-size:16px;"></i><span>כספים</span>
-          </button>
-          <button onclick="window._showMobileMore()" id="mob-btn-more" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
-            <i class="fa-solid fa-ellipsis" style="font-size:16px;"></i><span>עוד</span>
-          </button>
-        </nav>
-
-        <!-- Mobile "More" drawer -->
-        <div id="sa-mobile-more-drawer" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:#1e293b;border-top:1px solid rgba(255,255,255,0.1);z-index:299;padding:0.5rem;">
-          <div style="display:flex;flex-direction:column;gap:2px;">
-            <button onclick="switchSAGroup('contentmkt');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-image" style="color:#f472b6;width:18px;text-align:center;"></i> תוכן ושיווק</button>
-            <button onclick="switchSAGroup('partners');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-handshake" style="color:#34d399;width:18px;text-align:center;"></i> שותפים</button>
-            <button onclick="switchSAGroup('system');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-gear" style="color:#94a3b8;width:18px;text-align:center;"></i> צוות ומערכת</button>
-          </div>
-        </div>
 
         </main>
       </div>
