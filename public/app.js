@@ -13,6 +13,7 @@ const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g,
 let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {}; let categoryMapCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
+let shopMultiDeleteMode = false; let pantryMultiDeleteMode = false;
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
@@ -1691,8 +1692,9 @@ function renderPantry() {
         const minusAmount = packQty - (1 / upp);
         const plusAmount = packQty + (1 / upp);
 
+        const pantryDelCb = pantryMultiDeleteMode ? `<label class="absolute top-2 left-2 z-10 cursor-pointer"><input type="checkbox" class="pantry-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${p.id}" onchange="updatePantryDeleteCount()"></label>` : '';
         list.innerHTML += `
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
+        <div class="bg-white p-3.5 rounded-2xl border ${pantryMultiDeleteMode ? 'border-red-100' : 'border-slate-200'} shadow-sm flex flex-col mb-3 relative">${pantryDelCb}`
             <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
@@ -2259,6 +2261,71 @@ async function loadCategoryMap() {
 }
 
 async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
+function toggleShopMultiDelete() {
+    shopMultiDeleteMode = !shopMultiDeleteMode;
+    const btn = document.getElementById('btn-shop-multi-delete');
+    const bar = document.getElementById('shop-delete-bar');
+    if (btn) { btn.innerHTML = shopMultiDeleteMode ? '<i class="fa-solid fa-xmark mr-1"></i> ביטול בחירה' : '<i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה'; btn.classList.toggle('bg-red-50', !shopMultiDeleteMode); btn.classList.toggle('text-red-600', !shopMultiDeleteMode); btn.classList.toggle('bg-slate-100', shopMultiDeleteMode); btn.classList.toggle('text-slate-600', shopMultiDeleteMode); }
+    if (bar) bar.classList.toggle('hidden', !shopMultiDeleteMode);
+    if (!shopMultiDeleteMode) updateShopDeleteCount();
+    renderShopList();
+}
+
+function updateShopDeleteCount() {
+    const cbs = document.querySelectorAll('.shop-del-cb:checked');
+    const bar = document.getElementById('shop-delete-bar');
+    const cnt = document.getElementById('shop-delete-count');
+    if (cnt) cnt.textContent = cbs.length + ' פריטים נבחרו';
+    if (bar) { if (shopMultiDeleteMode) { bar.classList.remove('hidden'); } }
+}
+
+async function deleteSelectedShopItems() {
+    const cbs = document.querySelectorAll('.shop-del-cb:checked');
+    if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
+    if (!confirm('למחוק ' + cbs.length + ' פריטים?')) return;
+    const ids = Array.from(cbs).map(cb => cb.dataset.id);
+    await Promise.all(ids.map(id => fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' })));
+    showToast('success', ids.length + ' פריטים נמחקו');
+    shopMultiDeleteMode = false;
+    const bar = document.getElementById('shop-delete-bar');
+    if (bar) bar.classList.add('hidden');
+    const btn = document.getElementById('btn-shop-multi-delete');
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה'; btn.classList.remove('bg-slate-100', 'text-slate-600'); btn.classList.add('bg-red-50', 'text-red-600'); }
+    fetchData();
+}
+
+function togglePantryMultiDelete() {
+    pantryMultiDeleteMode = !pantryMultiDeleteMode;
+    const btn = document.getElementById('btn-pantry-multi-delete');
+    const bar = document.getElementById('pantry-delete-bar');
+    if (btn) { btn.innerHTML = pantryMultiDeleteMode ? '<i class="fa-solid fa-xmark mr-1"></i> ביטול בחירה' : '<i class="fa-solid fa-trash-can mr-1"></i> בחר למחיקה'; btn.classList.toggle('bg-red-50', !pantryMultiDeleteMode); btn.classList.toggle('text-red-500', !pantryMultiDeleteMode); btn.classList.toggle('border-red-200', !pantryMultiDeleteMode); btn.classList.toggle('bg-slate-100', pantryMultiDeleteMode); btn.classList.toggle('text-slate-600', pantryMultiDeleteMode); btn.classList.toggle('border-slate-200', pantryMultiDeleteMode); }
+    if (bar) bar.classList.toggle('hidden', !pantryMultiDeleteMode);
+    if (!pantryMultiDeleteMode) updatePantryDeleteCount();
+    renderPantry();
+}
+
+function updatePantryDeleteCount() {
+    const cbs = document.querySelectorAll('.pantry-del-cb:checked');
+    const bar = document.getElementById('pantry-delete-bar');
+    const cnt = document.getElementById('pantry-delete-count');
+    if (cnt) cnt.textContent = cbs.length + ' פריטים נבחרו';
+    if (bar && pantryMultiDeleteMode) bar.classList.remove('hidden');
+}
+
+async function deleteSelectedPantryItems() {
+    const cbs = document.querySelectorAll('.pantry-del-cb:checked');
+    if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
+    if (!confirm('למחוק ' + cbs.length + ' פריטים מהמזווה?')) return;
+    const ids = Array.from(cbs).map(cb => cb.dataset.id);
+    await Promise.all(ids.map(id => fetch(`${API}/pantry/delete/${id}`, { method: 'DELETE' })));
+    showToast('success', ids.length + ' פריטים נמחקו');
+    pantryMultiDeleteMode = false;
+    const bar = document.getElementById('pantry-delete-bar');
+    if (bar) bar.classList.add('hidden');
+    const btn = document.getElementById('btn-pantry-multi-delete');
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-trash-can mr-1"></i> בחר למחיקה'; btn.classList.remove('bg-slate-100', 'text-slate-600', 'border-slate-200'); btn.classList.add('bg-red-50', 'text-red-500', 'border-red-200'); }
+    fetchData();
+}
 
 async function clearEntireCart() {
     if(!confirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.')) return;
@@ -2328,7 +2395,8 @@ function renderShopList() {
             bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
         }
 
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
+        const delCb = shopMultiDeleteMode ? `<label class="flex items-center flex-shrink-0 mr-1 cursor-pointer"><input type="checkbox" class="shop-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${i.id}" onchange="updateShopDeleteCount()"></label>` : '';
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border ${shopMultiDeleteMode ? 'border-red-100' : 'border-slate-100'} flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3">${delCb}<input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }

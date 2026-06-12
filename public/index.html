@@ -692,7 +692,10 @@
                         </div>
                         <div class="flex justify-between items-center mb-2 px-2" id="admin-shop-tools" class="hidden">
                             <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
-                            <button onclick="clearEntireCart()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-trash-can"></i> מחיקת כל העגלה</button>
+                            <div class="flex gap-1.5">
+                                <button id="btn-shop-multi-delete" onclick="toggleShopMultiDelete()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-check-square mr-1"></i> בחר למחיקה</button>
+                                <button onclick="clearEntireCart()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-trash-can"></i> מחיקת כל העגלה</button>
+                            </div>
                         </div>
 
                         <div class="flex gap-2 mb-4 px-2">
@@ -722,6 +725,7 @@
                             <div class="flex gap-2">
                                 <button onclick="startBarcodeScan('pantry')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-camera"></i> סרוק להוספה</button>
                                 <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
+                                <button id="btn-pantry-multi-delete" onclick="togglePantryMultiDelete()" class="bg-red-50 border border-red-200 text-red-500 px-3 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
                         </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
@@ -1482,6 +1486,26 @@
         </div>
     </div>
 
+    <!-- Shop Multi-Delete Floating Bar -->
+    <div id="shop-delete-bar" class="fixed bottom-0 left-0 right-0 hidden z-[60]">
+        <div class="max-w-md mx-auto bg-red-600 text-white px-4 py-3 flex items-center justify-between shadow-2xl">
+            <span id="shop-delete-count" class="font-bold text-sm">0 פריטים נבחרו</span>
+            <div class="flex gap-2">
+                <button onclick="toggleShopMultiDelete()" class="bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/30 transition">ביטול</button>
+                <button onclick="deleteSelectedShopItems()" class="bg-white text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-50 transition"><i class="fa-solid fa-trash-can mr-1"></i> מחק נבחרים</button>
+            </div>
+        </div>
+    </div>
+    <!-- Pantry Multi-Delete Floating Bar -->
+    <div id="pantry-delete-bar" class="fixed bottom-0 left-0 right-0 hidden z-[60]">
+        <div class="max-w-md mx-auto bg-red-600 text-white px-4 py-3 flex items-center justify-between shadow-2xl">
+            <span id="pantry-delete-count" class="font-bold text-sm">0 פריטים נבחרו</span>
+            <div class="flex gap-2">
+                <button onclick="togglePantryMultiDelete()" class="bg-white/20 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-white/30 transition">ביטול</button>
+                <button onclick="deleteSelectedPantryItems()" class="bg-white text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-50 transition"><i class="fa-solid fa-trash-can mr-1"></i> מחק נבחרים</button>
+            </div>
+        </div>
+    </div>
     <!-- Receipt Review Modal -->
     <div id="receipt-review-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[65] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-5 shadow-2xl max-h-[90vh] flex flex-col">
