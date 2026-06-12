@@ -1467,6 +1467,20 @@ function renderSAGroups() {
         `).join('');
 
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
+
+        // Module upgrade requests for member-type groups
+        let moduleReqHtml = '';
+        if (g.member_type === 'member') {
+            const reqs = (() => { try { return Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) { return []; } })();
+            if (reqs.length) {
+                const reqBtns = reqs.map(key => {
+                    const mod = SA_MODULE_LIST.find(m => m.key === key) || { icon: '🔓', name: key };
+                    return `<button onclick="saQuickUnlockModule(${g.id},'${key}')" class="flex items-center gap-1 bg-orange-50 border border-orange-300 text-orange-700 text-[10px] px-2 py-1 rounded-lg font-bold hover:bg-orange-100 transition"><span>${mod.icon} ${mod.name}</span><i class="fa-solid fa-check text-[9px]"></i></button>`;
+                }).join('');
+                moduleReqHtml = `<div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg"><div class="text-[10px] font-bold text-orange-700 mb-1.5"><i class="fa-solid fa-bell mr-1"></i> בקשות שחרור מודול (${reqs.length}):</div><div class="flex flex-wrap gap-1">${reqBtns}</div></div>`;
+            }
+        }
+
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
@@ -1502,6 +1516,7 @@ function renderSAGroups() {
                     </div>
                 </div>
                 ${uHtml}
+                ${moduleReqHtml}
             </div>
         </div>`;
     });
@@ -1509,6 +1524,28 @@ function renderSAGroups() {
 }
 
 function filterSAGroups() { renderSAGroups(); }
+
+async function saQuickUnlockModule(groupId, moduleKey) {
+    const group = saAllGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const current = (() => { try { return Array.isArray(group.unlocked_modules) ? group.unlocked_modules : JSON.parse(group.unlocked_modules || '[]'); } catch(e) { return []; } })();
+    if (current.includes(moduleKey)) return showToast('info', 'מודול זה כבר פתוח');
+    const updated = [...current, moduleKey];
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/modules`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ modules: updated })
+        });
+        const d = await res.json();
+        if (d.success || res.ok) {
+            const idx = saAllGroups.findIndex(g => g.id === groupId);
+            if (idx > -1) { saAllGroups[idx].unlocked_modules = updated; const reqs = saAllGroups[idx].module_requests || []; saAllGroups[idx].module_requests = reqs.filter(r => r !== moduleKey); }
+            const mod = SA_MODULE_LIST.find(m => m.key === moduleKey);
+            showToast('success', `${mod?.icon || ''} ${mod?.name || moduleKey} - שוחרר בהצלחה!`);
+            renderSAGroups();
+        } else { showToast('error', d.error || 'שגיאה בשחרור מודול'); }
+    } catch(e) { showToast('error', 'שגיאת שרת'); }
+}
 
 async function saUpgradeToFamily(groupId) {
     if (!confirm('לשדרג סביבה זו מ"חבר ONEFLOW" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
@@ -1565,20 +1602,44 @@ function openSAEditGroupModal(id, name, email) {
     getEl('sa-edit-group-id').value = id;
     getEl('sa-edit-group-name').value = name;
     getEl('sa-edit-group-email').value = email || '';
-    
-    let f = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, shifts: true };
-    if (group && group.features) {
-        try { f = typeof group.features === 'string' ? JSON.parse(group.features) : group.features; } catch(e) {}
+
+    const isMember = group?.member_type === 'member';
+    const flagsSection = getEl('sa-flags-section');
+    const memberSection = getEl('sa-member-modules-section');
+
+    if (isMember) {
+        // Show family module management, hide business flags
+        if (flagsSection) flagsSection.classList.add('hidden');
+        if (memberSection) memberSection.classList.remove('hidden');
+
+        // Build member module checkboxes
+        const unlocked = (() => { try { return Array.isArray(group.unlocked_modules) ? group.unlocked_modules : JSON.parse(group.unlocked_modules || '[]'); } catch(e) { return []; } })();
+        const grid = getEl('sa-member-modules-grid');
+        if (grid) {
+            grid.innerHTML = SA_MODULE_LIST.map(m => `
+                <label class="flex items-center gap-2 p-2.5 rounded-xl cursor-pointer border transition ${unlocked.includes(m.key) ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200 hover:bg-violet-50'}">
+                    <input type="checkbox" id="fammod-${m.key}" class="fam-mod-cb w-4 h-4 accent-violet-600 rounded" ${unlocked.includes(m.key) ? 'checked' : ''}>
+                    <span class="text-xs font-bold text-slate-700">${m.icon} ${m.name}</span>
+                </label>`).join('');
+        }
+    } else {
+        // Show business flags, hide member section
+        if (flagsSection) flagsSection.classList.remove('hidden');
+        if (memberSection) memberSection.classList.add('hidden');
+
+        let f = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, shifts: true };
+        if (group && group.features) {
+            try { f = typeof group.features === 'string' ? JSON.parse(group.features) : group.features; } catch(e) {}
+        }
+        const setCb = (id, val) => { const el = getEl(id); if (el) el.checked = !!val; };
+        setCb('flag-store', f.store); setCb('flag-b2b', f.b2b); setCb('flag-academy', f.academy); setCb('flag-calendar', f.calendar);
+        setCb('flag-finance', f.finance); setCb('flag-inventory', f.inventory); setCb('flag-crm', f.crm); setCb('flag-deliveries', f.deliveries);
+        setCb('flag-foodcost', f.foodcost); setCb('flag-ai', f.ai); setCb('flag-timeclock', f.timeclock !== undefined ? f.timeclock : true);
+        setCb('flag-cashflow', f.cashflow !== undefined ? f.cashflow : true); setCb('flag-budget', f.budget !== undefined ? f.budget : true);
+        setCb('flag-forecast', f.forecast !== undefined ? f.forecast : true); setCb('flag-tasks', f.tasks !== undefined ? f.tasks : true);
+        setCb('flag-community', f.community !== undefined ? f.community : true); setCb('flag-members', f.members !== undefined ? f.members : true);
+        setCb('flag-shifts', f.shifts !== undefined ? f.shifts : true);
     }
-    
-    const setCb = (id, val) => { const el = getEl(id); if (el) el.checked = !!val; };
-    setCb('flag-store', f.store); setCb('flag-b2b', f.b2b); setCb('flag-academy', f.academy); setCb('flag-calendar', f.calendar);
-    setCb('flag-finance', f.finance); setCb('flag-inventory', f.inventory); setCb('flag-crm', f.crm); setCb('flag-deliveries', f.deliveries);
-    setCb('flag-foodcost', f.foodcost); setCb('flag-ai', f.ai); setCb('flag-timeclock', f.timeclock !== undefined ? f.timeclock : true);
-    setCb('flag-cashflow', f.cashflow !== undefined ? f.cashflow : true); setCb('flag-budget', f.budget !== undefined ? f.budget : true);
-    setCb('flag-forecast', f.forecast !== undefined ? f.forecast : true); setCb('flag-tasks', f.tasks !== undefined ? f.tasks : true);
-    setCb('flag-community', f.community !== undefined ? f.community : true); setCb('flag-members', f.members !== undefined ? f.members : true);
-    setCb('flag-shifts', f.shifts !== undefined ? f.shifts : true);
 
     getEl('sa-edit-group-modal').classList.remove('hidden');
 }
@@ -1587,35 +1648,54 @@ async function saveSAEditGroup() {
     const id = val('sa-edit-group-id');
     const name = val('sa-edit-group-name');
     const adminEmail = val('sa-edit-group-email');
-    const getCb = (id) => { const el = getEl(id); return el ? el.checked : true; };
-
-    const flags = {
-        store: getCb('flag-store'), b2b: getCb('flag-b2b'), academy: getCb('flag-academy'), calendar: getCb('flag-calendar'),
-        finance: getCb('flag-finance'), inventory: getCb('flag-inventory'), crm: getCb('flag-crm'), deliveries: getCb('flag-deliveries'),
-        foodcost: getCb('flag-foodcost'), ai: getCb('flag-ai'), timeclock: getCb('flag-timeclock'), cashflow: getCb('flag-cashflow'),
-        budget: getCb('flag-budget'), forecast: getCb('flag-forecast'), tasks: getCb('flag-tasks'), community: getCb('flag-community'),
-        members: getCb('flag-members'), shifts: getCb('flag-shifts')
-    };
 
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
-    
+
+    const group = saAllGroups.find(g => g.id === parseInt(id));
+    const isMember = group?.member_type === 'member';
+
     try {
-        const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
-        if(groupIndex > -1) {
-            saAllGroups[groupIndex].name = name;
-            saAllGroups[groupIndex].admin_email = adminEmail;
-            saAllGroups[groupIndex].features = flags; 
+        if (isMember) {
+            const unlocked = Array.from(document.querySelectorAll('.fam-mod-cb:checked')).map(cb => cb.id.replace('fammod-', ''));
+            const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
+            if (groupIndex > -1) {
+                saAllGroups[groupIndex].name = name;
+                saAllGroups[groupIndex].admin_email = adminEmail;
+                saAllGroups[groupIndex].unlocked_modules = unlocked;
+            }
+            await fetch(`${API}/sa/groups/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                body: JSON.stringify({ name, adminEmail })
+            });
+            await fetch(`${API}/sa/groups/${id}/modules`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                body: JSON.stringify({ modules: unlocked })
+            });
+        } else {
+            const getCb = (cbId) => { const el = getEl(cbId); return el ? el.checked : true; };
+            const flags = {
+                store: getCb('flag-store'), b2b: getCb('flag-b2b'), academy: getCb('flag-academy'), calendar: getCb('flag-calendar'),
+                finance: getCb('flag-finance'), inventory: getCb('flag-inventory'), crm: getCb('flag-crm'), deliveries: getCb('flag-deliveries'),
+                foodcost: getCb('flag-foodcost'), ai: getCb('flag-ai'), timeclock: getCb('flag-timeclock'), cashflow: getCb('flag-cashflow'),
+                budget: getCb('flag-budget'), forecast: getCb('flag-forecast'), tasks: getCb('flag-tasks'), community: getCb('flag-community'),
+                members: getCb('flag-members'), shifts: getCb('flag-shifts')
+            };
+            const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
+            if (groupIndex > -1) {
+                saAllGroups[groupIndex].name = name;
+                saAllGroups[groupIndex].admin_email = adminEmail;
+                saAllGroups[groupIndex].features = flags;
+            }
+            await fetch(`${API}/sa/groups/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                body: JSON.stringify({ name, adminEmail, features: flags })
+            });
         }
 
-        const res = await fetch(`${API}/sa/groups/${id}`, { 
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify({ name, adminEmail, features: flags }) 
-        });
-        
-        showToast('success', 'פרטי הסביבה וההרשאות עודכנו בהצלחה!');
+        showToast('success', 'פרטי הסביבה עודכנו בהצלחה!');
         getEl('sa-edit-group-modal').classList.add('hidden');
         renderSAGroups();
-    } catch (e) { showToast('error', 'שגיאת רשת בשמירת ההרשאות'); }
+    } catch (e) { showToast('error', 'שגיאת רשת בשמירת הנתונים'); }
 }
 
 window.toggleAllSAFlags = function(checked) {

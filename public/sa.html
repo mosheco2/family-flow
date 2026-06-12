@@ -1945,6 +1945,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
             </div>
 
+            <!-- Family module unlocking (for member-type groups only) -->
+            <div id="sa-member-modules-section" class="hidden mb-6">
+                <div class="flex justify-between items-center mb-3 border-b border-violet-100 pb-2">
+                    <h4 class="font-bold text-violet-700 text-sm"><i class="fa-solid fa-puzzle-piece mr-1"></i> מודולים פתוחים לחשבון חבר זה:</h4>
+                    <span class="text-[10px] text-slate-400">הזמנות שלי פתוחות תמיד</span>
+                </div>
+                <div id="sa-member-modules-grid" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2"></div>
+            </div>
+
+            <!-- Business feature flags (for business/family groups) -->
+            <div id="sa-flags-section">
             <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
                 <h4 class="font-bold text-slate-700 text-sm">מודולים ופיצ'רים פעילים (Feature Flags):</h4>
                 <div class="flex gap-2">
@@ -2031,7 +2042,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <span class="text-xs font-black text-purple-800"><i class="fa-solid fa-robot text-purple-500 w-4 text-center mr-1"></i> עוזר AI וכלים חכמים</span>
                 </label>
             </div>
-            
+            </div><!-- /sa-flags-section -->
+
             <div class="flex gap-3 pt-2 border-t border-slate-100">
                 <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                 <button onclick="saveSAEditGroup()" class="w-2/3 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים והרשאות</button>
