@@ -2471,7 +2471,18 @@ app.get('/api/data/:userId', async (req, res) => {
         const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
         
         for (let item of shoppingList.rows) {
-            const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE (sti.item_name = $1 OR sti.normalized_name = $2) AND sti.price_per_unit > 0 ORDER BY sti.price_per_unit ASC LIMIT 1`, [item.item_name, item.normalized_name || item.item_name]);
+            const _norm = item.normalized_name || item.item_name;
+            const _words = _norm.split(' ').filter(w => w.length > 2);
+            const _kw = _words.length > 0 ? _words[0] : '';
+            const bestPriceRes = await pool.query(
+                `SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id
+                 FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id
+                 WHERE (sti.item_name = $1 OR sti.normalized_name = $2
+                        OR ($3 != '' AND (sti.normalized_name ILIKE $4 OR sti.item_name ILIKE $4)))
+                 AND sti.price_per_unit > 0
+                 ORDER BY sti.price_per_unit ASC LIMIT 1`,
+                [item.item_name, _norm, _kw, '%' + _kw + '%']
+            );
             if (bestPriceRes.rows.length > 0) { const bp = bestPriceRes.rows[0]; item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id }; }
         }
 
@@ -2555,7 +2566,7 @@ app.post('/api/shopping/update', async (req, res) => {
         const { itemId, status, estimatedPrice, itemName, quantity, unit } = req.body;
         if (status !== undefined) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
         if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [parseFloat(estimatedPrice) || 0, itemId]);
-        if (itemName !== undefined) await pool.query('UPDATE shopping_list SET item_name=$1 WHERE id=$2', [itemName, itemId]);
+        if (itemName !== undefined) await pool.query('UPDATE shopping_list SET item_name=$1, normalized_name=$1 WHERE id=$2', [itemName, itemId]);
         if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [parseFloat(quantity) || 1, itemId]);
         if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
         res.json({ success: true });

@@ -1621,7 +1621,17 @@ async function confirmReceiptItems() {
     try {
         const res = await fetch(`${API}/shopping/scan-receipt/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: selected, userId: currentUser.id }) });
         const data = await res.json();
-        if(data.success) { showFamilAIModal('קופאית אוטומאטית', `✅ הוספתי ${data.count} פריטים מהקבלה לרשימת הקניות!`); triggerConfetti(); fetchData(); }
+        if(data.success) {
+            for (const item of selected) {
+                const detectedCat = getCatScore(item.name, item.normalized_name);
+                const saveKey = item.normalized_name || item.name;
+                if (detectedCat && detectedCat !== 'שונות' && !categoryMapCache[saveKey]) {
+                    categoryMapCache[saveKey] = detectedCat;
+                    fetch(`${API}/shopping/category-map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: saveKey, category: detectedCat }) });
+                }
+            }
+            showFamilAIModal('קופאית אוטומאטית', `✅ הוספתי ${data.count} פריטים מהקבלה לרשימת הקניות!`); triggerConfetti(); fetchData();
+        }
         else showToast('error', 'שגיאה בשמירת הפריטים');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -2289,11 +2299,21 @@ function renderShopList() {
     if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
     else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    const getCatScore = (name, normalized) => {
+        const lookups = [normalized, name].filter(Boolean);
+        for (const n of lookups) {
+            for(const [cat, items] of Object.entries(PRODUCT_DB)) {
+                if(items.includes(n)) return cat;
+                if(items.some(p => n.includes(p) || (p.split(' ')[0].length > 2 && n.includes(p.split(' ')[0])))) return cat;
+            }
+            if(categoryMapCache[n]) return categoryMapCache[n];
+        }
+        return 'שונות';
+    };
+    activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let shopHtml = '';
     activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+        const cat = getCatScore(i.item_name, i.normalized_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
         const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
         const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
@@ -2403,11 +2423,11 @@ function closeSupermarketMode() {
 
 function renderSupermarketList() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return categoryMapCache[name] || 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    const getCatScore = (name, normalized) => { const ll = [normalized,name].filter(Boolean); for(const n of ll) { for(const [cat,items] of Object.entries(PRODUCT_DB)) { if(items.includes(n)) return cat; if(items.some(p => n.includes(p)||(p.split(' ')[0].length>2&&n.includes(p.split(' ')[0])))) return cat; } if(categoryMapCache[n]) return categoryMapCache[n]; } return 'שונות'; };
+    activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let html = '';
     activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name);
+        const cat = getCatScore(i.item_name, i.normalized_name);
         if(cat !== currentCat) {
             html += `<div class="text-emerald-400 text-xs font-black uppercase tracking-wider px-2 pt-3 pb-1">${cat}</div>`;
             currentCat = cat;
@@ -2512,6 +2532,8 @@ async function saveEditShopItem() {
                 categoryMapCache[name] = category;
                 fetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
             }
+            const cachedItem = shoppingListCache.find(i => i.id == id);
+            if (cachedItem) { cachedItem.item_name = name; cachedItem.normalized_name = name; }
             getEl('edit-shop-item-modal').classList.add('hidden');
             showToast('success', 'הפריט עודכן');
             fetchData();
