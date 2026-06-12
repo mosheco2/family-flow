@@ -1580,7 +1580,7 @@ function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
     executeWithAIWarning(() => {
         showFamilAIModal('קופאית אוטומאטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח כ-30 שניות.';
-        compressImage(file, 1000, 1000, 0.75, async (compressedDataUrl) => {
+        compressImage(file, 800, 800, 0.65, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 90000);

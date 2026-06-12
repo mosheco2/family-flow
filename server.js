@@ -3700,7 +3700,7 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `You are 'familAI', an expert Israeli supermarket receipt parser.
 
 ## HOW ISRAELI RECEIPTS ARE STRUCTURED
