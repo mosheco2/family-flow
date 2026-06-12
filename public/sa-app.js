@@ -55,28 +55,28 @@ window.applyUserPermissions = function() {
     if (!window.currentSAUser) return;
     const perms = window.currentSAUser.permissions || [];
     const isMaster = perms.includes('all');
-    
-    // הוספנו את הטאבים ה"פתוחים" למפת ההרשאות כדי שהלולאה תסיר מהם את ה-hidden
+
     const tabRequirements = {
-        'pulse': 'open',
-        'dashboard': 'open',
-        'clients': 'open',
+        'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'all', 'sysmap': 'open', 'legal': 'open'
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'all'
     };
 
-    Object.keys(tabRequirements).forEach(tab => {
-        const btn = getEl(`btn-sa-tab-${tab}`);
+    function canAccessTab(tab) {
+        const req = tabRequirements[tab];
+        if (!req) return false;
+        return isMaster || req === 'open' || perms.includes(req);
+    }
+
+    // Show/hide group buttons based on whether user can access any sub-tab in the group
+    Object.entries(SA_GROUPS).forEach(([groupId, group]) => {
+        const btn = getEl(`btn-sa-group-${groupId}`);
         if (!btn) return;
-        
-        btn.classList.remove('opacity-40'); 
-        
-        // מוצג אם זה מאסטר, אם הטאב פתוח לכולם, או אם יש למשתמש הרשאה ספציפית
-        if (isMaster || tabRequirements[tab] === 'open' || perms.includes(tabRequirements[tab])) {
+        const canAccess = group.tabs.some(t => canAccessTab(t));
+        if (canAccess) {
             btn.classList.remove('hidden');
-            btn.classList.add('flex'); // תצוגת בלוק פלקס ל-Sidebar
+            btn.classList.add('flex');
         } else {
             btn.classList.add('hidden');
             btn.classList.remove('flex');
@@ -219,18 +219,21 @@ window.switchSATab = function(tabId) {
     });
     
     const activeView = document.getElementById(`sa-view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
-    
     if (activeView) activeView.classList.remove('hidden');
 
     const newsletterBuilder = document.getElementById('sa-newsletter-builder');
     if (newsletterBuilder) newsletterBuilder.classList.toggle('hidden', tabId !== 'inbox');
 
-    if (activeBtn) {
-        // עיצוב כפתור פעיל מודרני
-        activeBtn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition items-center gap-3';
-        activeTabTitle = activeBtn.innerText.trim();
-    }
+    // Derive topbar title from SA_GROUPS labels
+    const _tabTitles = {
+        pulse:'דופק מערכת', stats:'דוחות ופיננסים', dashboard:'ספר מוצר',
+        support:'קריאות שירות', devops:'פיתוח ומוצר',
+        comm:'קהילות', biz:'עסקים', clients:'קבוצות',
+        inbox:'שיווק והשקות', content:'מיתוג ותוכן',
+        hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
+        sysmap:'מפת המערכת', legal:'מסמכים משפטיים'
+    };
+    activeTabTitle = _tabTitles[tabId] || tabId;
 
     // עדכון כותרת בסרגל העליון (Topbar)
     const topbarTitle = document.getElementById('sa-topbar-title');
@@ -255,6 +258,102 @@ window.switchSATab = function(tabId) {
     if (tabId === 'support') loadSATickets();
     if (tabId === 'clients') loadSAData();
     if (tabId === 'partners') loadSAPartners();
+
+    // Update group button active state + sub-nav bar
+    _updateSAGroupNav(tabId);
+};
+
+// ===== GROUP NAVIGATION =====
+
+const SA_GROUPS = {
+    home:       { tabs: ['pulse', 'stats'],             labels: ['דופק מערכת', 'דוחות'],           icons: ['fa-heart-pulse', 'fa-chart-line'],       default: 'pulse' },
+    customers:  { tabs: ['comm', 'biz', 'clients'],     labels: ['קהילות', 'עסקים', 'קבוצות'],      icons: ['fa-users-rays', 'fa-store', 'fa-users'],  default: 'comm' },
+    finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
+    supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract'], default: 'content' },
+    partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
+    system:     { tabs: ['hr', 'sysmap'],               labels: ['צוות ונציגים', 'מפת המערכת'],     icons: ['fa-user-tie', 'fa-map'],                  default: 'hr' },
+};
+
+function _getGroupForTab(tabId) {
+    for (const [gId, g] of Object.entries(SA_GROUPS)) {
+        if (g.tabs.includes(tabId)) return gId;
+    }
+    return null;
+}
+
+function _updateSAGroupNav(tabId) {
+    // Reset all group buttons
+    document.querySelectorAll('[id^="btn-sa-group-"]').forEach(btn => {
+        btn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition items-center gap-3';
+    });
+
+    const groupId = _getGroupForTab(tabId);
+    if (!groupId) return;
+
+    const groupBtn = document.getElementById(`btn-sa-group-${groupId}`);
+    if (groupBtn) {
+        groupBtn.className = 'flex w-full text-right px-4 py-3 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/30 transition items-center gap-3';
+    }
+
+    _updateSubNavBar(groupId, tabId);
+    _updateMobileNav(groupId);
+}
+
+function _updateSubNavBar(groupId, activeTabId) {
+    const bar = document.getElementById('sa-subnav-bar');
+    if (!bar) return;
+    const group = SA_GROUPS[groupId];
+    if (!group || group.tabs.length <= 1) {
+        bar.style.display = 'none';
+        return;
+    }
+    bar.style.display = 'flex';
+    bar.innerHTML = group.tabs.map((t, i) => {
+        const isActive = t === activeTabId;
+        const label = group.labels[i] || t;
+        const icon = group.icons[i] ? `<i class="fa-solid ${group.icons[i]}" style="font-size:11px;margin-left:5px;"></i>` : '';
+        const activeStyle = 'background:#4f46e5;color:white;border:1px solid #4338ca;';
+        const inactiveStyle = 'background:#f8fafc;color:#475569;border:1px solid #e2e8f0;';
+        return `<button onclick="switchSATab('${t}')" style="${isActive ? activeStyle : inactiveStyle}border-radius:0.6rem;padding:0.4rem 0.85rem;font-size:0.78rem;font-weight:${isActive ? '700' : '600'};cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:flex;align-items:center;gap:4px;white-space:nowrap;">${icon}${label}</button>`;
+    }).join('');
+}
+
+window.switchSAGroup = function(groupId) {
+    const group = SA_GROUPS[groupId];
+    if (!group) return;
+    // Find first accessible tab in the group
+    for (const t of group.tabs) {
+        if (typeof window.checkTabAccess !== 'function' || window.checkTabAccess(t)) {
+            window.switchSATab(t);
+            return;
+        }
+    }
+    showToast('error', 'אין הרשאה לגשת למקטע זה.');
+};
+
+// Mobile bottom nav helpers
+const _MOB_GROUP_BTNS = ['home', 'customers', 'supportdev', 'finance'];
+
+function _updateMobileNav(groupId) {
+    _MOB_GROUP_BTNS.forEach(g => {
+        const btn = document.getElementById(`mob-btn-${g}`);
+        if (!btn) return;
+        btn.style.color = (g === groupId) ? '#6366f1' : '#94a3b8';
+    });
+    const moreBtn = document.getElementById('mob-btn-more');
+    const moreGroups = ['contentmkt', 'partners', 'system'];
+    if (moreBtn) moreBtn.style.color = moreGroups.includes(groupId) ? '#6366f1' : '#94a3b8';
+}
+
+window._showMobileMore = function() {
+    const drawer = document.getElementById('sa-mobile-more-drawer');
+    if (drawer) drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
+};
+
+window._hideMobileMore = function() {
+    const drawer = document.getElementById('sa-mobile-more-drawer');
+    if (drawer) drawer.style.display = 'none';
 };
 
 window.updateSADashboard = async function() {

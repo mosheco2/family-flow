@@ -70,7 +70,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-top-bar-title{font-size:1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
 #toast{font-family:'Rubik',sans-serif!important;border-radius:99px!important}
 @media(max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
-@media(max-width:640px){#sa-sidebar{width:200px}#sa-main-content{margin-right:200px;padding:0.75rem}}
+@media(max-width:640px){
+  #sa-sidebar{display:none!important}
+  #sa-main-content{margin-right:0!important;padding:0.75rem 0.75rem 80px!important}
+  #sa-mobile-nav{display:flex!important}
+  .sa-top-bar{border-radius:0.5rem;padding:0.6rem 0.85rem;margin-bottom:0.75rem}
+}
+@media(min-width:641px) and (max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
 .legal-editor p{margin-bottom:0.6rem}
 .legal-editor h2{font-size:1.2rem;font-weight:800;color:#1e293b;margin:1rem 0 0.4rem}
 .legal-editor h3{font-size:1rem;font-weight:700;color:#334155;margin:0.8rem 0 0.3rem}
@@ -162,64 +168,27 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <p>Oneflow Life — ניהול מערכת</p>
           </div>
           <div class="sb-ver"><span>מערכת ראשית</span><span style="font-weight:800;color:#c4b5fd">v2</span></div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">ראשי</div>
-            <button id="btn-sa-tab-pulse" onclick="switchSATab('pulse')" class="hidden flex">
-              <i class="fa-solid fa-heart-pulse" style="color:#f87171"></i> דופק מערכת
+          <div style="padding:0.75rem 0">
+            <button id="btn-sa-group-home" onclick="switchSAGroup('home')" class="hidden flex">
+              <i class="fa-solid fa-gauge-high" style="color:#f87171"></i> בית
             </button>
-            <button id="btn-sa-tab-stats" onclick="switchSATab('stats')" class="hidden flex">
-              <i class="fa-solid fa-chart-line"></i> דוחות ופיננסים
+            <button id="btn-sa-group-customers" onclick="switchSAGroup('customers')" class="hidden flex">
+              <i class="fa-solid fa-users" style="color:#60a5fa"></i> לקוחות ועסקים
             </button>
-            <button id="btn-sa-tab-dashboard" onclick="window.open('/qa-book.html', '_blank')" class="hidden flex">
-              <i class="fa-solid fa-book-open" style="color:#60a5fa"></i> ספר מוצר ו-QA
+            <button id="btn-sa-group-finance" onclick="switchSAGroup('finance')" class="hidden flex">
+              <i class="fa-solid fa-wallet" style="color:#f59e0b"></i> פיננסים
             </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">תפעול ושירות</div>
-            <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="hidden flex">
-              <i class="fa-solid fa-headset" style="color:#60a5fa"></i> קריאות שירות
+            <button id="btn-sa-group-supportdev" onclick="switchSAGroup('supportdev')" class="hidden flex">
+              <i class="fa-solid fa-headset" style="color:#a78bfa"></i> תמיכה ופיתוח
             </button>
-            <button id="btn-sa-tab-devops" onclick="switchSATab('devops')" class="hidden flex">
-              <i class="fa-solid fa-code" style="color:#a78bfa"></i> פיתוח ומוצר
+            <button id="btn-sa-group-contentmkt" onclick="switchSAGroup('contentmkt')" class="hidden flex">
+              <i class="fa-solid fa-image" style="color:#f472b6"></i> תוכן ושיווק
             </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">לקוחות ועסקים</div>
-            <button id="btn-sa-tab-comm" onclick="switchSATab('comm')" class="hidden flex">
-              <i class="fa-solid fa-users-rays"></i> קהילות
+            <button id="btn-sa-group-partners" onclick="switchSAGroup('partners')" class="hidden flex">
+              <i class="fa-solid fa-handshake" style="color:#34d399"></i> שותפים
             </button>
-            <button id="btn-sa-tab-biz" onclick="switchSATab('biz')" class="hidden flex">
-              <i class="fa-solid fa-store"></i> עסקים
-            </button>
-            <button id="btn-sa-tab-clients" onclick="switchSATab('clients')" class="hidden flex">
-              <i class="fa-solid fa-users"></i> לקוחות קצה
-            </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">צמיחה והנהלה</div>
-            <button id="btn-sa-tab-inbox" onclick="switchSATab('inbox')" class="hidden flex">
-              <i class="fa-solid fa-bullhorn" style="color:#f472b6"></i> שיווק והשקות
-            </button>
-            <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="hidden flex">
-              <i class="fa-solid fa-image"></i> מיתוג ותוכן
-            </button>
-            <button id="btn-sa-tab-hr" onclick="switchSATab('hr')" class="hidden flex">
-              <i class="fa-solid fa-user-tie"></i> נציגים וצוותים
-            </button>
-            <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="hidden flex">
-              <i class="fa-solid fa-handshake"></i> שותפים
-            </button>
-            <button id="btn-sa-tab-finance" onclick="switchSATab('finance')" class="hidden flex">
-              <i class="fa-solid fa-wallet" style="color:#f59e0b"></i> קאשבק
-            </button>
-          </div>
-          <div style="padding:0.5rem 0">
-            <div class="sb-label">מערכת</div>
-            <button id="btn-sa-tab-sysmap" onclick="switchSATab('sysmap')" class="hidden flex">
-              <i class="fa-solid fa-map" style="color:#94a3b8"></i> מפת המערכת
-            </button>
-            <button id="btn-sa-tab-legal" onclick="switchSATab('legal')" class="hidden flex">
-              <i class="fa-solid fa-file-contract" style="color:#94a3b8"></i> מסמכים משפטיים
+            <button id="btn-sa-group-system" onclick="switchSAGroup('system')" class="hidden flex">
+              <i class="fa-solid fa-gear" style="color:#94a3b8"></i> צוות ומערכת
             </button>
           </div>
           <div class="sb-footer">
@@ -270,6 +239,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                 </div>
             </div>
+
+            <!-- Sub-navigation bar: shows context tabs within merged sections -->
+            <div id="sa-subnav-bar" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.5rem 0.75rem;margin-bottom:1.25rem;gap:0.5rem;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;"></div>
 
             <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 modal-scroll relative">
 
@@ -1850,6 +1822,34 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                 </div>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav id="sa-mobile-nav" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0f172a;border-top:1px solid rgba(255,255,255,0.1);z-index:300;height:64px;align-items:stretch;justify-content:stretch;">
+          <button onclick="switchSAGroup('home')" id="mob-btn-home" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
+            <i class="fa-solid fa-gauge-high" style="font-size:16px;"></i><span>בית</span>
+          </button>
+          <button onclick="switchSAGroup('customers')" id="mob-btn-customers" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
+            <i class="fa-solid fa-users" style="font-size:16px;"></i><span>לקוחות</span>
+          </button>
+          <button onclick="switchSAGroup('supportdev')" id="mob-btn-supportdev" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
+            <i class="fa-solid fa-headset" style="font-size:16px;"></i><span>תמיכה</span>
+          </button>
+          <button onclick="switchSAGroup('finance')" id="mob-btn-finance" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
+            <i class="fa-solid fa-wallet" style="font-size:16px;"></i><span>כספים</span>
+          </button>
+          <button onclick="window._showMobileMore()" id="mob-btn-more" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:#94a3b8;cursor:pointer;font-family:Rubik,sans-serif;font-size:9px;font-weight:600;padding:4px 2px;transition:color 0.15s;">
+            <i class="fa-solid fa-ellipsis" style="font-size:16px;"></i><span>עוד</span>
+          </button>
+        </nav>
+
+        <!-- Mobile "More" drawer -->
+        <div id="sa-mobile-more-drawer" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:#1e293b;border-top:1px solid rgba(255,255,255,0.1);z-index:299;padding:0.5rem;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <button onclick="switchSAGroup('contentmkt');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-image" style="color:#f472b6;width:18px;text-align:center;"></i> תוכן ושיווק</button>
+            <button onclick="switchSAGroup('partners');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-handshake" style="color:#34d399;width:18px;text-align:center;"></i> שותפים</button>
+            <button onclick="switchSAGroup('system');window._hideMobileMore()" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 16px;background:none;border:none;color:#cbd5e1;font-family:Rubik,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-align:right;" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='none'"><i class="fa-solid fa-gear" style="color:#94a3b8;width:18px;text-align:center;"></i> צוות ומערכת</button>
+          </div>
+        </div>
 
         </main>
       </div>
