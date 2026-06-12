@@ -491,7 +491,6 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    if (t === 'myorders' && currentGroup?.member_type === 'member') { t = 'feed'; }
     ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
@@ -7134,38 +7133,38 @@ function renderQuickTiles() {
   const pantryCount = (pantryCache || []).length;
   const taskCount = (allTasks || []).filter(t => t.status === 'pending').length;
   const tiles = [
-    { fa:'fa-cart-shopping',  label:'קניות',        badge: shopCount,   tab:'shop',      bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0d9488)', badge_bg:'#059669' },
-    { fa:'fa-box-open',       label:'מזווה',         badge: pantryCount, tab:'pantry',    bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
-    { fa:'fa-chart-pie',      label:'תקציב',         badge: null,        tab:'cashflow',  bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4f46e5)', badge_bg:'#2563eb' },
-    { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community', bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
-    { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',     bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
-    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',  bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c' },
+    { fa:'fa-cart-shopping',  label:'קניות',        badge: shopCount,   tab:'shop',             bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0d9488)', badge_bg:'#059669' },
+    { fa:'fa-box-open',       label:'מזווה',         badge: pantryCount, tab:'pantry',           bg:'#fff7ed', grad:'linear-gradient(135deg,#fb923c,#ea580c)', badge_bg:'#c2410c' },
+    { fa:'fa-chart-pie',      label:'תקציב',         badge: null,        tab:'cashflow',         bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4f46e5)', badge_bg:'#2563eb' },
+    { fa:'fa-people-group',   label:'הקהילה שלי',    badge: null,        tab:'community',        bg:'#faf5ff', grad:'linear-gradient(135deg,#c084fc,#db2777)', badge_bg:'#7c3aed' },
+    { fa:'fa-list-check',     label:'משימות',        badge: taskCount,   tab:'tasks',            bg:'#f0fdf4', grad:'linear-gradient(135deg,#4ade80,#16a34a)', badge_bg:'#15803d' },
+    { fa:'fa-wrench',         label:'ניהול הבית',    badge: null,        tab:'home-maintenance', bg:'#fefce8', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-clipboard-list', label:'הזמנות שלי',    badge: null,        tab:'myorders',         bg:'#fff1f2', grad:'linear-gradient(135deg,#fb7185,#e11d48)', badge_bg:'#be123c', fullWidth: true },
   ];
   const isMember = currentGroup?.member_type === 'member';
+  const unlockedMods = currentGroup?.unlocked_modules || [];
   container.innerHTML = tiles.map(t => {
     const isMyOrders = t.tab === 'myorders';
-    const locked = isMember && !isMyOrders;
+    const fullWidthStyle = t.fullWidth ? 'grid-column:1/-1;' : '';
+    const locked = isMember && !isMyOrders && !unlockedMods.includes(t.tab);
     if (locked) {
-      const unlockedMods = currentGroup?.unlocked_modules || [];
-      const isUnlocked = unlockedMods.includes(t.tab);
-      if (!isUnlocked) {
-        return `<button onclick="showMemberModuleUpgrade('${t.tab}')"
-          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;"
+      return `<button onclick="showMemberModuleUpgrade('${t.tab}')"
+          style="background:#f8fafc;border:1.5px solid rgba(0,0,0,0.06);opacity:0.7;${fullWidthStyle}"
           class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm cursor-pointer">
           <div style="background:linear-gradient(135deg,#94a3b8,#64748b)" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
             <i class="fa-solid fa-lock text-white text-lg"></i>
           </div>
           <span class="text-[11px] font-bold text-slate-400 text-center leading-tight">${t.label}</span>
         </button>`;
-      }
     }
+    const fullWidthInner = t.fullWidth ? 'flex-row gap-3 justify-center' : 'flex-col';
     return `<button onclick="switchTab('${t.tab}')"
-      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06)"
-      class="relative rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.04] active:scale-95 transition-all duration-200 cursor-pointer">
-      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md mb-0.5">
+      style="background:${t.bg};border:1.5px solid rgba(0,0,0,0.06);${fullWidthStyle}"
+      class="relative rounded-2xl p-3.5 flex ${fullWidthInner} items-center gap-2 shadow-sm hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 cursor-pointer">
+      <div style="background:${t.grad}" class="w-11 h-11 rounded-xl flex items-center justify-center shadow-md ${t.fullWidth ? 'flex-shrink-0' : 'mb-0.5'}">
         <i class="fa-solid ${t.fa} text-white text-lg"></i>
       </div>
-      <span class="text-[11px] font-bold text-slate-600 text-center leading-tight">${t.label}</span>
+      <span class="text-[11px] font-bold text-slate-600 ${t.fullWidth ? 'text-base' : 'text-center'} leading-tight">${t.label}</span>
       ${t.badge !== null && t.badge > 0 ? `<span style="background:${t.badge_bg}" class="absolute -top-1.5 -right-1.5 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-md">${t.badge}</span>` : ''}
     </button>`;
   }).join('');
@@ -8726,13 +8725,13 @@ async function loadMemberSettings() {
 // Lock all tabs for member type (except feed + myorders)
 function applyMemberLocks() {
     const unlockedMods = currentGroup?.unlocked_modules || [];
-    const ALWAYS_OPEN = ['feed', 'myorders'];
+    const ALWAYS_OPEN_TABS = ['feed', 'myorders'];
+    const ALWAYS_OPEN_DROPS = ['myorders']; // fgdrop- items always open for members
 
-    // Lock tabs in nav
+    // --- Lock scrollable tab bar ---
     document.querySelectorAll('[id^="tab-"]').forEach(btn => {
         const tabId = btn.id.replace('tab-', '');
-        if (ALWAYS_OPEN.includes(tabId)) return;
-        if (unlockedMods.includes(tabId)) return;
+        if (ALWAYS_OPEN_TABS.includes(tabId) || unlockedMods.includes(tabId)) return;
         btn.classList.add('opacity-40', 'grayscale');
         btn.style.position = 'relative';
         if (!btn.querySelector('.member-lock-icon')) {
@@ -8746,81 +8745,18 @@ function applyMemberLocks() {
         btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); showMemberModuleUpgrade(tabId); };
     });
 
-    // Build member feed dashboard (replaces regular feed content)
-    const contentFeed = document.getElementById('content-feed');
-    if (contentFeed && !document.getElementById('member-feed-dashboard')) {
-        // Hide regular feed elements
-        ['tour-balance-card','quick-tiles','child-home-header','child-home-footer',
-         'child-todo-section','family-urgent-section'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-        // Hide feed header + filters + list
-        const feedHeader = contentFeed.querySelector('.flex.flex-col.gap-2.mb-4.px-2');
-        if (feedHeader) feedHeader.style.display = 'none';
-        const unifiedList = document.getElementById('unified-feed-list');
-        if (unifiedList) unifiedList.style.display = 'none';
+    // --- Lock top-nav dropdown items (fgdrop-*) ---
+    document.querySelectorAll('[id^="fgdrop-"]').forEach(btn => {
+        const tabId = btn.id.replace('fgdrop-', '');
+        if (ALWAYS_OPEN_DROPS.includes(tabId) || unlockedMods.includes(tabId)) return;
+        btn.style.opacity = '0.45';
+        btn.style.pointerEvents = 'auto';
+        const origOnclick = btn.getAttribute('onclick');
+        btn.setAttribute('onclick', `event.stopPropagation();closeFamilyNavDropdowns();showMemberModuleUpgrade('${tabId}')`);
+    });
 
-        // Welcome banner (SA-managed)
-        const _mcs = window._memberContentSettings || {};
-        let welcomeHtml = '';
-        if (_mcs.memberWelcomeEnabled !== false) {
-            const _bText = _mcs.memberWelcomeText || '';
-            const _bImg = _mcs.memberWelcomeImg || '';
-            let inner = '';
-            if (_bImg) inner += '<img src="' + _bImg + '" style="width:100%;max-height:110px;object-fit:contain;border-radius:12px;margin-bottom:8px;">';
-            if (_bText) inner += '<div style="font-size:12px;opacity:0.9;">' + _bText + '</div>';
-            if (inner) welcomeHtml = '<div id="member-welcome-banner" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:12px 16px;margin-bottom:14px;color:white;direction:rtl;">' + inner + '</div>';
-        }
-
-        // Build dashboard
-        const dash = document.createElement('div');
-        dash.id = 'member-feed-dashboard';
-        dash.style.cssText = 'direction:rtl;padding:8px 8px 90px;';
-        dash.innerHTML = welcomeHtml +
-            '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:18px 20px;margin-bottom:14px;color:white;position:relative;overflow:hidden;">' +
-                '<div style="position:absolute;left:-16px;bottom:-16px;font-size:72px;opacity:0.1;">\uD83D\uDEF5</div>' +
-                '<div style="font-size:21px;font-weight:900;margin-bottom:3px;">\uD83D\uDCE6 הזמנות שלי</div>' +
-                '<div style="font-size:12px;opacity:0.85;">מעקב הזמנות מעסקים ● קריאות שירות ● הצעות מחיר</div>' +
-                '<button onclick="fetchMemberFeedOrders()" style="margin-top:10px;background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 14px;color:white;font-size:11px;font-weight:700;cursor:pointer;"><i class="fa-solid fa-rotate-right"></i> רענן</button>' +
-            '</div>' +
-            '<div style="display:flex;gap:4px;background:#f1f5f9;border-radius:16px;padding:4px;margin-bottom:12px;">' +
-                '<button id="mf-tab-orders" onclick="switchMemberFeedTab(&apos;orders&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:900;border-radius:12px;border:none;background:white;color:#334155;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);touch-action:manipulation;">\uD83D\uDCE6 הזמנות</button>' +
-                '<button id="mf-tab-faults" onclick="switchMemberFeedTab(&apos;faults&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;touch-action:manipulation;">\uD83D\uDD27 קריאות שירות</button>' +
-                '<button id="mf-tab-quotes" onclick="switchMemberFeedTab(&apos;quotes&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;touch-action:manipulation;">\uD83D\uDCCB הצעות מחיר</button>' +
-            '</div>' +
-            '<div id="mf-section-orders">' +
-                '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px;margin-bottom:10px;">' +
-                    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
-                        '<div style="flex:1;display:flex;align-items:center;gap:6px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:6px 10px;">' +
-                            '<i class="fa-solid fa-magnifying-glass" style="color:#cbd5e1;font-size:11px;"></i>' +
-                            '<input id="mf-orders-search" type="text" placeholder="חיפוש לפי שם עסק..." style="flex:1;font-size:11px;background:transparent;outline:none;color:#334155;border:none;direction:rtl;" oninput="filterMemberFeedOrders()">' +
-                        '</div>' +
-                        '<button onclick="toggleMemberFeedSort()" id="mf-sort-btn" style="font-size:10px;font-weight:700;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:6px 10px;color:#64748b;cursor:pointer;white-space:nowrap;">חדש→ישן</button>' +
-                    '</div>' +
-                    '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-                        '<span style="font-size:10px;color:#94a3b8;font-weight:700;align-self:center;">תקופה:</span>' +
-                        '<button data-mfp="all" onclick="setMemberFeedPeriod(&apos;all&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#6d28d9;color:white;border:none;cursor:pointer;">הכל</button>' +
-                        '<button data-mfp="week" onclick="setMemberFeedPeriod(&apos;week&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">שבוע</button>' +
-                        '<button data-mfp="month" onclick="setMemberFeedPeriod(&apos;month&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">חודש</button>' +
-                        '<button data-mfp="quarter" onclick="setMemberFeedPeriod(&apos;quarter&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">3 חודשים</button>' +
-                    '</div>' +
-                '</div>' +
-                '<div id="mf-orders-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הזמנות...</p></div>' +
-            '</div>' +
-            '<div id="mf-section-faults" style="display:none;">' +
-                '<div id="mf-faults-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען קריאות שירות...</p></div>' +
-            '</div>' +
-            '<div id="mf-section-quotes" style="display:none;">' +
-                '<div id="mf-quotes-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הצעות מחיר...</p></div>' +
-            '</div>';
-        contentFeed.appendChild(dash);
-    }
-
-    // Re-render quick tiles (still needed for unlocked modules display)
+    // --- Refresh quick tiles (lock icons already handled in renderQuickTiles) ---
     try { renderQuickTiles(); } catch(e) {}
-    // Load orders data
-    setTimeout(() => { try { fetchMemberFeedOrders(); } catch(e){} }, 100);
 }
 
 // ===== MEMBER FEED DASHBOARD =====
