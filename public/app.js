@@ -1579,22 +1579,32 @@ function handleTaskProofUpload(event) {
 function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
     executeWithAIWarning(() => {
-        showFamilAIModal('קופאית אוטומאטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
-        compressImage(file, 1600, 1600, 0.85, async (compressedDataUrl) => {
+        showFamilAIModal('קופאית אוטומאטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח כ-30 שניות.';
+        compressImage(file, 1000, 1000, 0.75, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 90000);
             try {
-                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) });
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }), signal: controller.signal });
+                clearTimeout(timeout);
                 const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
                 getEl('familai-advisor-modal').classList.add('hidden');
                 if(data.success && data.items && data.items.length) {
                     showReceiptReviewModal(data.items, data.storeName || '');
+                } else if (data.error === 'parse_error') {
+                    showToast('error', 'שגיאת ניתוח — נסה שוב בתמונה ברורה יותר.');
                 } else if (data.error) {
-                    showToast('error', 'שגיאת ניתוח: ' + data.error);
+                    showToast('error', data.error);
                 } else {
                     showToast('error', 'לא זוהו פריטים בקבלה — נסה לצלם שוב בתאורה טובה.');
                 }
-            } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
+            } catch(err) { 
+                clearTimeout(timeout);
+                getEl('familai-advisor-modal').classList.add('hidden'); 
+                if(err.name === 'AbortError') showToast('error', 'הסריקה ארכה יותר מדי — נסה שוב עם תמונה קטנה יותר.');
+                else showToast('error', 'שגיאת תקשורת — בדוק חיבור לאינטרנט ונסה שוב.');
+            }
             event.target.value = '';
         });
     });

@@ -3759,7 +3759,19 @@ Receipt header, store address, phone, barcodes, order number, total lines, VAT, 
 
 Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
 
-        const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
+        let result, lastErr;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
+                break;
+            } catch(e) {
+                lastErr = e;
+                if (attempt === 0 && !String(e.message).includes('429')) {
+                    await new Promise(r => setTimeout(r, 3000));
+                } else { throw e; }
+            }
+        }
+        if (!result) throw lastErr;
         let rawText = result.response.text().trim();
         // Strip markdown code fences if Gemini wraps the JSON
         if (rawText.startsWith('```')) {
