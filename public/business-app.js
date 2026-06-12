@@ -31565,9 +31565,16 @@ window._doAddToOneflow = async function(refId) {
                    שלח ב-WhatsApp
                 </a></div>`;
         } else if (r.link_status === 'pending') {
-            resultHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right">
-                <div class="text-sm font-bold text-amber-700 mb-1">⏳ ממתין לאישור הלקוח</div>
+            const waTextExisting = encodeURIComponent(`שלום ${name}! העסק ${currentGroup?.name||''} ביקש לקשר אותך ל-ONEFLOW 🔗\n\nכדי לאשר את הקישור, כנס לאפליקציה:\n🔗 ${window.location.origin}/?code=${r.group_code}&role=ADMIN\n\nבדשבורד שלך תופיע בקשת אישור.`);
+            const waPhoneExisting = phone.replace(/\D/g,'').replace(/^0/,'972');
+            resultHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right space-y-2">
+                <div class="text-sm font-bold text-amber-700">⏳ ממתין לאישור הלקוח</div>
                 <div class="text-xs text-amber-600">הבקשה נשלחה. הלקוח יראה אותה בדשבורד ONEFLOW שלו ויצטרך לאשר את הקישור לעסק שלך.</div>
+                ${r.group_code ? `<div class="text-xs text-slate-600 bg-white rounded-lg px-2 py-1 border border-amber-200">קוד כניסה: <b class="font-mono">${r.group_code}</b></div>` : ''}
+                <a href="https://wa.me/${waPhoneExisting}?text=${waTextExisting}" target="_blank"
+                   class="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white font-bold py-2 rounded-xl text-sm">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.556 4.119 1.526 5.847L.057 23.986l6.304-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.854 0-3.585-.497-5.077-1.365l-.364-.215-3.742.981.998-3.648-.237-.376A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg> שלח קישור אישור ב-WhatsApp
+                </a>
             </div>`;
         } else {
             resultHtml = `<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-right text-sm text-emerald-700 font-bold">הלקוח קושר לעסק שלך ✅</div>`;
