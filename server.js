@@ -4607,6 +4607,23 @@ app.post('/api/store/orders/status', async (req, res) => {
         await pool.query('UPDATE store_orders SET status=$1, status_changed_at=CURRENT_TIMESTAMP WHERE id=$2', [status, orderId]);
         res.json({ success: true });
         if (status === 'delivered' || status === 'completed') triggerCashbackForOrder(orderId);
+        try {
+            const orderR = await pool.query('SELECT family_group_id, group_id FROM store_orders WHERE id=$1', [orderId]);
+            if (orderR.rows.length && orderR.rows[0].family_group_id) {
+                const ord = orderR.rows[0];
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.member_group_id=$1 AND mbl.business_group_id=$2 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [ord.family_group_id, ord.group_id]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { new:'חדשה', processing:'בטיפול', ready:'מוכנה לאיסוף', delivering:'בדרך', delivered:'נמסרה', completed:'הושלמה', cancelled:'בוטלה' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `ההזמנה שלך ב${linkR.rows[0].biz_name} עודכנה: ${lbl}`, `mbiz_order_${orderId}_${status}`);
+                }
+            }
+        } catch(e) {}
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9367,7 +9384,23 @@ app.patch('/api/service-calls/:id', async (req, res) => {
         vals.push(req.params.id);
         const result = await pool.query(`UPDATE service_calls SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
         if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
-        res.json({ success: true, call: result.rows[0] });
+        const sc = result.rows[0];
+        res.json({ success: true, call: sc });
+        if (status !== undefined && sc.family_group_id && sc.business_group_id) {
+            try {
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.member_group_id=$1 AND mbl.business_group_id=$2 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [sc.family_group_id, sc.business_group_id]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { new:'חדש', scheduled:'נקבע תור', processing:'בטיפול', done:'הושלם', cancelled:'בוטל', quote:'הצעת מחיר', waiting_parts:'ממתין לחלקים' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `קריאת השירות שלך ב${linkR.rows[0].biz_name} עודכנה: ${lbl}`, `mbiz_sc_${req.params.id}_${status}`);
+                }
+            } catch(e) {}
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10190,9 +10223,25 @@ app.post('/api/sport/members', async (req, res) => {
 app.put('/api/sport/members/:id', async (req, res) => {
     try {
         const { name, phone, email, notes, status } = req.body;
+        const smR = await pool.query('SELECT group_id FROM sport_memberships WHERE id=$1', [req.params.id]);
         await pool.query(`UPDATE sport_memberships SET member_name=$1,member_phone=$2,member_email=$3,notes=$4,status=COALESCE($5,status),updated_at=NOW() WHERE id=$6`,
             [name, phone||'', email||'', notes||'', status||null, req.params.id]);
         res.json({ success: true });
+        if (status && smR.rows.length) {
+            try {
+                const linkR = await pool.query(
+                    `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                     JOIN family_groups fg ON fg.id = mbl.business_group_id
+                     WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                    [parseInt(req.params.id)]
+                );
+                if (linkR.rows.length) {
+                    const lbl = { active:'פעיל', frozen:'מוקפא', expired:'פג תוקף', cancelled:'בוטל' }[status] || status;
+                    await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                        `המנוי שלך ב${linkR.rows[0].biz_name} עודכן: ${lbl}`, `mbiz_sport_${req.params.id}_${status}`);
+                }
+            } catch(e) {}
+        }
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10201,6 +10250,18 @@ app.post('/api/sport/members/:id/freeze', async (req, res) => {
         const { reason } = req.body;
         await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2`, [reason||'', req.params.id]);
         res.json({ success: true });
+        try {
+            const linkR = await pool.query(
+                `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                 JOIN family_groups fg ON fg.id = mbl.business_group_id
+                 WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                [parseInt(req.params.id)]
+            );
+            if (linkR.rows.length) {
+                await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                    `המנוי שלך ב${linkR.rows[0].biz_name} הוקפא`, `mbiz_sport_${req.params.id}_frozen`);
+            }
+        } catch(e) {}
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10218,6 +10279,19 @@ app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
         }
         await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, req.params.id]);
         res.json({ success: true });
+        try {
+            const linkR = await pool.query(
+                `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                 JOIN family_groups fg ON fg.id = mbl.business_group_id
+                 WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                [parseInt(req.params.id)]
+            );
+            if (linkR.rows.length) {
+                const ts = Date.now();
+                await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                    `המנוי שלך ב${linkR.rows[0].biz_name} הופשר ✅`, `mbiz_sport_${req.params.id}_unfreeze_${ts}`);
+            }
+        } catch(e) {}
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11354,6 +11428,18 @@ async function _findMemberByIdentifier(identifier) {
         [clean]
     );
     return r.rows[0] || null;
+}
+
+async function _sendMemberBizNotif(memberGroupId, bizName, message, refKey) {
+    try {
+        const exists = await pool.query('SELECT id FROM alert_notifications WHERE group_id=$1 AND reference_key=$2', [memberGroupId, refKey]);
+        if (!exists.rows.length) {
+            await pool.query(
+                `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key, created_at) VALUES ($1,'business_update',$2,$3,NOW())`,
+                [memberGroupId, message, refKey]
+            );
+        }
+    } catch(e) {}
 }
 
 // Create member account and link to business
