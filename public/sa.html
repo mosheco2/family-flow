@@ -1235,6 +1235,52 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             </div>
                         </div>
                     </div>
+                    <!-- Member Banners & Module Popups -->
+                    <div class="bg-violet-50 p-6 rounded-2xl border border-violet-200">
+                        <h2 class="text-xl font-bold mb-1 text-violet-900"><i class="fa-solid fa-user-lock text-violet-500 mr-2"></i> הודעות לחברי ONEFLOW (Member)</h2>
+                        <p class="text-xs text-slate-500 mb-5">הגדרות הבאנר וחלונות השדרוג המוצגים ללקוחות מסוג "חבר" שמחוברים לחשבון משפחה נעול.</p>
+
+                        <!-- Welcome Banner -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-violet-100 mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 class="font-bold text-slate-700">באנר קבלת פנים (Member Welcome)</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">מוצג בראש מסך הבית לכל חבר.</p>
+                                </div>
+                                <button id="member-welcome-toggle" onclick="toggleMemberWelcome()" class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none bg-slate-300">
+                                    <span id="member-welcome-toggle-dot" class="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-1"></span>
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט הבאנר:</label>
+                                    <textarea id="sa-member-welcome-text" class="w-full p-3 rounded-xl border border-slate-300 h-24 text-sm" placeholder="ברוך הבא! לחץ על הזמנות שלי לניהול הזמנות..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה לבאנר (אופציונלי — עם או בלי טקסט):</label>
+                                    <div class="flex flex-col gap-2">
+                                        <input type="hidden" id="sa-member-welcome-img">
+                                        <input type="file" id="sa-member-welcome-upload" accept="image/*" class="hidden" onchange="handleBannerImageUpload(event, 'sa-member-welcome-img', 'sa-member-welcome-preview')">
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="document.getElementById('sa-member-welcome-upload').click()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-upload"></i> העלה תמונה</button>
+                                            <button type="button" id="sa-member-welcome-clear-btn" onclick="clearMemberWelcomeImg()" class="hidden bg-red-50 text-red-500 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition">הסר</button>
+                                        </div>
+                                        <img id="sa-member-welcome-preview" src="" class="hidden w-full h-24 object-contain rounded-lg border border-slate-200 bg-slate-50">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module Upgrade Popups -->
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-violet-100">
+                            <h3 class="font-bold text-slate-700 mb-1">חלונות שדרוג מודולים</h3>
+                            <p class="text-xs text-slate-500 mb-4">לכל מודול ניתן להפעיל/לכבות את הפופ-אפ ולהוסיף תמונה שיווקית.</p>
+                            <div id="sa-module-settings-list" class="space-y-2">
+                                <p class="text-xs text-slate-400 text-center py-2">טוען...</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
                         <i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת
                     </button>

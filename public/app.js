@@ -1239,7 +1239,7 @@ async function loadDashboard() {
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
-        if (_isMember) { try { applyMemberLocks(); } catch(e){} }
+        if (_isMember) { try { await loadMemberSettings(); } catch(e){} try { applyMemberLocks(); } catch(e){} }
     } catch (e) {
         showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
@@ -8706,7 +8706,7 @@ const MEMBER_MODULES = {
   cashflow:          { icon:'💸', name:'תזרים הוצאות',         tagline:'כמה הוצאת החודש? בדיוק עכשיו תדע', desc:'מעקב חכם אחרי כל עסקה — כולל הזמנות, תשלומי מנויים ותיקונים מהעסקים שלך. גרף אחד, תמונה ברורה, שליטה מלאה.' },
   budget:            { icon:'📊', name:'ניהול תקציב',           tagline:'אל תגלה בסוף החודש', desc:'הגדר תקציב לכל קטגוריה — אוכל, בילויים, תחזוקה. הזמנות מהעסקים המחוברים אליך נספרות אוטומטית, ותקבל התראה לפני שחורגים.' },
   forecast:          { icon:'📅', name:'תשקיף עתידי',           tagline:'ראה 6 חודשים קדימה — לפני שהם מגיעים', desc:'תכנן הוצאות עתידיות, מנויים קבועים והזמנות חוזרות. AI שמנתח את ההרגלים שלך ומייצר תמונה כלכלית עתידית מדויקת.' },
-  tasks:             { icon:'✅', name:'משימות וצ'ופרים',       tagline:'הפוך משימות לפרסים — ממש', desc:'הקצה משימות לילדים ובני הבית, קבע פרסי כסף אמיתיים, ועקוב אחרי ביצוע. כשהמשפחה עובדת יחד — כולם מרוויחים.' },
+  tasks:             { icon:'✅', name:'משימות וצ\'ופרים',       tagline:'הפוך משימות לפרסים — ממש', desc:'הקצה משימות לילדים ובני הבית, קבע פרסי כסף אמיתיים, ועקוב אחרי ביצוע. כשהמשפחה עובדת יחד — כולם מרוויחים.' },
   shop:              { icon:'🛒', name:'רשימת קניות חכמה',      tagline:'לא תשכח שום דבר — לעולם', desc:'רשימת קניות משותפת לכל המשפחה בזמן אמת. הוסף פריטים מהמזווה, שתף עם בן/בת הזוג, וסנכרן עם ההזמנות שלך מהעסקים באזור.' },
   pantry:            { icon:'📦', name:'מזווה חכם',              tagline:'תמיד תדע מה נגמר — לפני שנגמר', desc:'מעקב אחרי מלאי הבית: מזון, ניקיון, תרופות. כשמשהו אוזל — הזמן ישירות מהעסק המועדף שלך בלחיצה אחת.' },
   recipes:           { icon:'👨‍🍳', name:'שף פרטי AI',            tagline:'ארוחה מושלמת — ממה שכבר יש לך', desc:'מתכונים מותאמים אישית על בסיס מה שיש לך במזווה. AI שיודע מה הזמנת השבוע ומציע ארוחות שמשלימות את מה שכבר קנית.' },
@@ -8720,6 +8720,14 @@ const MEMBER_MODULES = {
   'ai-assistant':    { icon:'🤖', name:'עוזרת אישית AI',           tagline:'מנהלת הבית החכמה שרצית', desc:'AI שמכירה את המשפחה שלך: יודעת מה הזמנת, מה הוצאת, מה קניתם. שאל "מה לבשל הערב?" או "כמה הוצאנו על אוכל?" — תשובה מיידית מבוססת נתוני האמת שלך.' },
   'expense-tracking':{ icon:'📈', name:'מעקב הוצאות שוטף',         tagline:'מאה הוצאות קטנות — תמונה אחת גדולה', desc:'כל הוצאה נרשמת — חד פעמית, קבועה חודשית, מנוי שנתי. הזמנות מהעסקים המחוברים אליך נכנסות אוטומטית — אפס הקלדה ידנית.' },
 };
+
+async function loadMemberSettings() {
+    try {
+        const r = await fetch(`${API}/settings/member-content`);
+        if (r.ok) window._memberContentSettings = await r.json();
+        else window._memberContentSettings = {};
+    } catch(e) { window._memberContentSettings = {}; }
+}
 
 // Lock all tabs for member type (except feed + myorders)
 function applyMemberLocks() {
@@ -8745,13 +8753,20 @@ function applyMemberLocks() {
         btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); showMemberModuleUpgrade(tabId); };
     });
 
-    // Add member welcome banner if not exists
+    // Add member welcome banner if not exists (content from SA settings)
     const feed = document.getElementById('view-feed');
-    if (feed && !document.getElementById('member-welcome-banner')) {
+    const _mcs = window._memberContentSettings || {};
+    if (feed && !document.getElementById('member-welcome-banner') && _mcs.memberWelcomeEnabled !== false) {
         const banner = document.createElement('div');
         banner.id = 'member-welcome-banner';
         banner.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:14px 16px;margin:8px 12px 0;color:white;direction:rtl;';
-        banner.innerHTML = '<div style="font-size:13px;font-weight:900;margin-bottom:2px;">👋 ברוך הבא ל-ONEFLOW!</div><div style="font-size:11px;opacity:0.85;">לחץ על <strong>הזמנות שלי</strong> לניהול הזמנות ומנויים מהעסקים שלך. 🔒 שאר המודולים ניתנים לשדרוג.</div>';
+        const _bannerText = _mcs.memberWelcomeText || 'לחץ על הזמנות שלי לניהול הזמנות ומנויים מהעסקים שלך. 🔒 שאר המודולים ניתנים לשדרוג.';
+        const _bannerImg = _mcs.memberWelcomeImg || '';
+        let _bannerHtml = '';
+        if (_bannerImg) _bannerHtml += '<img src="' + _bannerImg + '" style="width:100%;max-height:120px;object-fit:contain;border-radius:10px;margin-bottom:8px;">';
+        if (_bannerText) _bannerHtml += '<div style="font-size:13px;font-weight:900;margin-bottom:2px;">👋 ברוך הבא ל-ONEFLOW!</div><div style="font-size:11px;opacity:0.85;">' + _bannerText + '</div>';
+        if (!_bannerHtml) _bannerHtml = '<div style="font-size:13px;font-weight:900;">👋 ברוך הבא ל-ONEFLOW!</div>';
+        banner.innerHTML = _bannerHtml;
         feed.insertBefore(banner, feed.firstChild);
     }
 
@@ -8761,6 +8776,9 @@ function applyMemberLocks() {
 
 window.showMemberModuleUpgrade = function(moduleKey) {
     const mod = MEMBER_MODULES[moduleKey] || { icon: '🔒', name: moduleKey, tagline: 'מודול זה דורש שדרוג', desc: 'צור קשר עם המנהל לפתיחת המודול.' };
+    const _mcs2 = window._memberContentSettings || {};
+    const _modSet = (_mcs2.memberModuleSettings || {})[moduleKey] || {};
+    if (_modSet.enabled === false) return;
     document.getElementById('member-upgrade-overlay')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'member-upgrade-overlay';
@@ -8772,7 +8790,8 @@ window.showMemberModuleUpgrade = function(moduleKey) {
         </div>
         <div style="font-size:18px;font-weight:900;color:#1e293b;margin-bottom:4px;">🔒 ${safeStr(mod.name)}</div>
         <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:10px;">"${safeStr(mod.tagline)}"</div>
-        <div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:20px;background:#f8fafc;border-radius:12px;padding:12px;">${safeStr(mod.desc)}</div>
+        <div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:${_modSet.img ? "10px" : "20px"};background:#f8fafc;border-radius:12px;padding:12px;">${safeStr(mod.desc)}</div>
+        ${_modSet.img ? '<img src="' + _modSet.img + '" style="width:100%;max-height:150px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : ''}
         <div id="member-upgrade-result" style="margin-bottom:8px;"></div>
         <button onclick="window._submitModuleRequest('${moduleKey}','${safeStr(mod.name).replace(/'/g,"&#39;")}')"
             style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:16px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;margin-bottom:8px;">
@@ -8786,7 +8805,7 @@ window.showMemberModuleUpgrade = function(moduleKey) {
 window._submitModuleRequest = async function(moduleKey, moduleName) {
     const resEl = document.getElementById('member-upgrade-result');
     try {
-        const r = await fetch(\`\${API}/member/request-module\`, {
+        const r = await fetch(`${API}/member/request-module`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, moduleKey, moduleName })
         }).then(r => r.json());

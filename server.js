@@ -2125,7 +2125,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username', 'global_ai_logo', 'login_slides', 'sms_login_enabled', 'member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
@@ -2165,7 +2165,11 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
             adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
             bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
-            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
+            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom'),
+            memberWelcomeEnabled: getSet('member_welcome_enabled') !== 'false',
+            memberWelcomeText: getSet('member_welcome_text'),
+            memberWelcomeImg: getSet('member_welcome_img'),
+            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })()
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -2181,6 +2185,11 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     
     if (globalAiLogo !== undefined) items.push({ k: 'global_ai_logo', v: globalAiLogo || '' });
     if (loginSlides !== undefined) items.push({ k: 'login_slides', v: JSON.stringify(loginSlides || []) });
+    const { memberWelcomeEnabled, memberWelcomeText, memberWelcomeImg, memberModuleSettings } = req.body;
+    if (memberWelcomeEnabled !== undefined) items.push({ k: 'member_welcome_enabled', v: String(memberWelcomeEnabled) });
+    if (memberWelcomeText !== undefined) items.push({ k: 'member_welcome_text', v: memberWelcomeText || '' });
+    if (memberWelcomeImg !== undefined) items.push({ k: 'member_welcome_img', v: memberWelcomeImg || '' });
+    if (memberModuleSettings !== undefined) items.push({ k: 'member_module_settings', v: JSON.stringify(memberModuleSettings || {}) });
 
     try {
         await pool.query('BEGIN');
@@ -2188,6 +2197,19 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
         await pool.query('COMMIT');
         res.json({ success: true });
     } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת נתוני המערכת' }); }
+});
+
+app.get('/api/settings/member-content', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('member_welcome_enabled', 'member_welcome_text', 'member_welcome_img', 'member_module_settings')");
+        const getSet = (k) => result.rows.find(r => r.key === k)?.value || '';
+        res.json({
+            memberWelcomeEnabled: getSet('member_welcome_enabled') !== 'false',
+            memberWelcomeText: getSet('member_welcome_text'),
+            memberWelcomeImg: getSet('member_welcome_img'),
+            memberModuleSettings: (() => { try { return JSON.parse(getSet('member_module_settings') || '{}'); } catch(e){ return {}; } })()
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/settings/login-mode', async (req, res) => {

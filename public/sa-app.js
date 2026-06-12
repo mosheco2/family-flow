@@ -1103,6 +1103,17 @@ async function loadSAData() {
         setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom);
         setImgPreview('sa-biz-banner-bottom', data.bizBannerImgBottom);
 
+        // Member welcome banner
+        window._memberWelcomeEnabled = data.memberWelcomeEnabled !== false;
+        updateMemberWelcomeToggleUI();
+        setVal('sa-member-welcome-text', data.memberWelcomeText);
+        setImgPreview('sa-member-welcome', data.memberWelcomeImg);
+        const mwClearBtn = getEl('sa-member-welcome-clear-btn');
+        if (mwClearBtn) { if (data.memberWelcomeImg) mwClearBtn.classList.remove('hidden'); else mwClearBtn.classList.add('hidden'); }
+        // Module popup settings
+        window._memberModuleSettings = data.memberModuleSettings || {};
+        renderModuleSettingsAdmin();
+
         const setTxt = (id, v) => { const e = getEl(id); if (e) e.innerText = v || 0; };
         if (data.stats) {
             setTxt('sa-stat-families', data.stats.families);
@@ -1162,7 +1173,11 @@ window.saveAllBanners = async function() {
             bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'),
             bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img'),
             globalAiLogo: val('sa-global-ai-logo-base64'),
-            loginSlides: window.loginSlidesCache
+            loginSlides: window.loginSlidesCache,
+            memberWelcomeEnabled: window._memberWelcomeEnabled !== false,
+            memberWelcomeText: val('sa-member-welcome-text'),
+            memberWelcomeImg: val('sa-member-welcome-img'),
+            memberModuleSettings: window._memberModuleSettings || {}
         };
 
         const res = await fetch(`${API}/superadmin/banners`, {
@@ -1208,6 +1223,143 @@ window.clearGlobalLogo = function() {
     getEl('sa-global-ai-logo-preview').src = '';
     getEl('sa-global-ai-logo-preview').classList.add('hidden');
     if(getEl('sa-global-ai-logo-icon')) getEl('sa-global-ai-logo-icon').classList.remove('hidden');
+};
+
+// ===== Member Welcome Banner Controls =====
+window._memberWelcomeEnabled = true;
+function updateMemberWelcomeToggleUI() {
+    const btn = getEl('member-welcome-toggle');
+    const dot = getEl('member-welcome-toggle-dot');
+    if (!btn || !dot) return;
+    if (window._memberWelcomeEnabled) {
+        btn.classList.remove('bg-slate-300'); btn.classList.add('bg-violet-500');
+        dot.style.transform = 'translateX(20px)';
+    } else {
+        btn.classList.remove('bg-violet-500'); btn.classList.add('bg-slate-300');
+        dot.style.transform = 'translateX(2px)';
+    }
+}
+window.toggleMemberWelcome = function() {
+    window._memberWelcomeEnabled = !window._memberWelcomeEnabled;
+    updateMemberWelcomeToggleUI();
+};
+window.clearMemberWelcomeImg = function() {
+    getEl('sa-member-welcome-img').value = '';
+    const preview = getEl('sa-member-welcome-preview');
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    const clearBtn = getEl('sa-member-welcome-clear-btn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+};
+
+// ===== Module Popup Settings =====
+const SA_MODULE_LIST = [
+    { key:'bank',              icon:'🏦', name:'הבנק המשפחתי' },
+    { key:'cashflow',          icon:'💸', name:'תזרים הוצאות' },
+    { key:'budget',            icon:'📊', name:'ניהול תקציב' },
+    { key:'forecast',          icon:'📅', name:'תשקיף עתידי' },
+    { key:'tasks',             icon:'✅', name:'משימות וצ\'ופרים' },
+    { key:'shop',              icon:'🛒', name:'רשימת קניות חכמה' },
+    { key:'pantry',            icon:'📦', name:'מזווה חכם' },
+    { key:'recipes',           icon:'👨‍🍳', name:'שף פרטי AI' },
+    { key:'community',         icon:'🏘️', name:'קהילה מקומית' },
+    { key:'members',           icon:'👨‍👩‍👧‍👦', name:'ניהול משפחה' },
+    { key:'academy',           icon:'🎓', name:'אקדמיה פיננסית' },
+    { key:'home-maintenance',  icon:'🔧', name:'ניהול הבית' },
+    { key:'kids-wallet',       icon:'👧', name:'ארנק דיגיטלי לילדים' },
+    { key:'kids-mode',         icon:'🧒', name:'מסך ילדים' },
+    { key:'supermarket-mode',  icon:'🛒', name:'מצב "אני בסופר"' },
+    { key:'ai-assistant',      icon:'🤖', name:'עוזרת אישית AI' },
+    { key:'expense-tracking',  icon:'📈', name:'מעקב הוצאות שוטף' }
+];
+
+function renderModuleSettingsAdmin() {
+    const container = getEl('sa-module-settings-list');
+    if (!container) return;
+    const settings = window._memberModuleSettings || {};
+    container.innerHTML = SA_MODULE_LIST.map(m => {
+        const s = settings[m.key] || {};
+        const enabled = s.enabled !== false;
+        const imgVal = s.img || '';
+        return `<div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-slate-50 cursor-pointer" onclick="toggleModuleSettingsPanel('${m.key}')">
+                <div class="flex items-center gap-2">
+                    <span>${m.icon}</span>
+                    <span class="text-sm font-bold text-slate-700">${m.name}</span>
+                    <span id="mod-status-chip-${m.key}" class="text-[10px] px-2 py-0.5 rounded-full font-bold ${enabled ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-500'}">${enabled ? 'פעיל' : 'כבוי'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="mod-toggle-${m.key}" onclick="event.stopPropagation();toggleModuleEnabled('${m.key}')" class="relative inline-flex h-6 w-10 items-center rounded-full transition-colors duration-200 focus:outline-none ${enabled ? 'bg-violet-500' : 'bg-slate-300'}">
+                        <span id="mod-toggle-dot-${m.key}" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${enabled ? 'translate-x-5' : 'translate-x-1'}"></span>
+                    </button>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </div>
+            </div>
+            <div id="mod-panel-${m.key}" class="hidden px-4 pb-4 pt-3 bg-white">
+                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה שיווקית לחלון השדרוג (אופציונלי):</label>
+                <div class="flex flex-col gap-2">
+                    <input type="hidden" id="mod-img-${m.key}" value="${imgVal}">
+                    <input type="file" id="mod-upload-${m.key}" accept="image/*" class="hidden" onchange="handleModuleImgUpload(event,'${m.key}')">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="document.getElementById('mod-upload-${m.key}').click()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-upload"></i> העלה תמונה</button>
+                        <button type="button" id="mod-clear-${m.key}" onclick="clearModuleImg('${m.key}')" class="${imgVal ? '' : 'hidden'} bg-red-50 text-red-500 px-3 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 transition">הסר</button>
+                    </div>
+                    <img id="mod-img-preview-${m.key}" src="${imgVal}" class="${imgVal ? '' : 'hidden'} w-full h-24 object-contain rounded-lg border border-slate-200 bg-slate-50">
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.toggleModuleSettingsPanel = function(key) {
+    const panel = getEl('mod-panel-' + key);
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+};
+
+window.toggleModuleEnabled = function(key) {
+    const s = window._memberModuleSettings || {};
+    if (!s[key]) s[key] = {};
+    s[key].enabled = s[key].enabled === false ? true : false;
+    window._memberModuleSettings = s;
+    const btn = getEl('mod-toggle-' + key);
+    const dot = getEl('mod-toggle-dot-' + key);
+    const chip = getEl('mod-status-chip-' + key);
+    const on = s[key].enabled !== false;
+    if (btn) { btn.className = btn.className.replace(on ? 'bg-slate-300' : 'bg-violet-500', on ? 'bg-violet-500' : 'bg-slate-300'); }
+    if (dot) { dot.className = dot.className.replace(on ? 'translate-x-1' : 'translate-x-5', on ? 'translate-x-5' : 'translate-x-1'); }
+    if (chip) { chip.textContent = on ? 'פעיל' : 'כבוי'; chip.className = chip.className.replace(on ? 'bg-slate-200 text-slate-500' : 'bg-violet-100 text-violet-700', on ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-500'); }
+};
+
+window.handleModuleImgUpload = function(event, key) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const base64 = e.target.result;
+        const s = window._memberModuleSettings || {};
+        if (!s[key]) s[key] = {};
+        s[key].img = base64;
+        window._memberModuleSettings = s;
+        const hiddenInput = getEl('mod-img-' + key);
+        const preview = getEl('mod-img-preview-' + key);
+        const clearBtn = getEl('mod-clear-' + key);
+        if (hiddenInput) hiddenInput.value = base64;
+        if (preview) { preview.src = base64; preview.classList.remove('hidden'); }
+        if (clearBtn) clearBtn.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearModuleImg = function(key) {
+    const s = window._memberModuleSettings || {};
+    if (s[key]) s[key].img = '';
+    window._memberModuleSettings = s;
+    const hiddenInput = getEl('mod-img-' + key);
+    const preview = getEl('mod-img-preview-' + key);
+    const clearBtn = getEl('mod-clear-' + key);
+    if (hiddenInput) hiddenInput.value = '';
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    if (clearBtn) clearBtn.classList.add('hidden');
 };
 
 window.addLoginSlideImage = function(event) {
