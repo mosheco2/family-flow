@@ -528,8 +528,8 @@ function switchTab(t) { 
             loadFamilyServiceCalls();
         } catch(e) {}
     }
+    if (t === 'myorders') try { _prefetchBeautyRfqs(); } catch(e) {}
     if (t === 'home-maintenance') try { loadHomeMaintenance(); } catch(e) {}
-    if (t === 'beauty-rfq') try { loadFamilyBeautyRfq(); } catch(e) {}
 }
 
 let myOrdersCache = [];
@@ -628,7 +628,7 @@ function applyOrdersFilter(orders) {
 }
 function switchMyOrdersTab(tab) {
     try { sessionStorage.setItem('myorders_sub_tab', tab); } catch(e) {}
-    ['orders','faults','quotes'].forEach(t => {
+    ['orders','faults','quotes','beauty'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
         const sec = getEl(`myorders-section-${t}`);
         if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
@@ -636,6 +636,7 @@ function switchMyOrdersTab(tab) {
     });
     if (tab === 'faults') renderBusinessServiceCallsTab();
     if (tab === 'quotes') loadFamilyQuotes();
+    if (tab === 'beauty') loadFamilyBeautyRfqInline();
 }
 
 async function renderMyFaultsAsServiceCalls() {
@@ -9686,10 +9687,8 @@ window.saSetMemberModules = async function(groupId) {
 
 window._beautyRfqState = { businesses: [], rfqs: [] };
 
-async function loadFamilyBeautyRfq() {
-    const el = document.getElementById('content-beauty-rfq'); if (!el) return;
-    if (!currentGroup) { el.innerHTML = '<p class="text-slate-400 text-center py-12 text-sm">נא להתחבר תחילה</p>'; return; }
-    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+async function _prefetchBeautyRfqs() {
+    if (!currentGroup) return;
     try {
         const [bizRes, rfqRes] = await Promise.all([
             fetch(`${API}/beauty/businesses`).then(r=>r.json()),
@@ -9697,11 +9696,23 @@ async function loadFamilyBeautyRfq() {
         ]);
         window._beautyRfqState.businesses = bizRes.businesses || [];
         window._beautyRfqState.rfqs = rfqRes.rfqs || [];
-    } catch(e) {
-        window._beautyRfqState.businesses = [];
-        window._beautyRfqState.rfqs = [];
+    } catch(e) {}
+}
+
+async function loadFamilyBeautyRfqInline() {
+    const el = document.getElementById('myorders-beauty-content'); if (!el) return;
+    if (!currentGroup) { el.innerHTML = '<p class="text-slate-400 text-center py-6 text-sm">נא להתחבר תחילה</p>'; return; }
+    if (!window._beautyRfqState.businesses.length && !window._beautyRfqState.rfqs.length) {
+        el.innerHTML = `<div class="flex items-center justify-center py-8 text-slate-400 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+        await _prefetchBeautyRfqs();
     }
-    _renderFamilyBeautyRfq();
+    _renderFamilyBeautyRfqInline();
+}
+
+// kept for backwards compat (called from _openFamilyRfq reload)
+async function loadFamilyBeautyRfq() {
+    await _prefetchBeautyRfqs();
+    _renderFamilyBeautyRfqInline();
 }
 
 function _rfqStatusLabel(status) {
@@ -9717,8 +9728,8 @@ function _rfqStatusLabel(status) {
     return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}">${s.label}</span>`;
 }
 
-function _renderFamilyBeautyRfq() {
-    const el = document.getElementById('content-beauty-rfq'); if (!el) return;
+function _renderFamilyBeautyRfqInline() {
+    const el = document.getElementById('myorders-beauty-content'); if (!el) return;
     const { businesses, rfqs } = window._beautyRfqState;
 
     const rfqCards = rfqs.length === 0
@@ -9828,7 +9839,7 @@ window._submitFamilyRfq = async function(bizId) {
         if (r.id || r.success) {
             if (window.showToast) showToast('success', 'הפנייה נשלחה! המכון יחזור אליך בקרוב 💌');
             else alert('הפנייה נשלחה!');
-            loadFamilyBeautyRfq();
+            loadFamilyBeautyRfqInline();
         } else {
             if (window.showToast) showToast('error', r.error || 'שגיאה');
             else alert(r.error || 'שגיאה');
@@ -9924,7 +9935,7 @@ window._submitRfqAnswers = async function(rfqId, count) {
         document.getElementById('family-rfq-detail-modal')?.remove();
         if (r.success) {
             if (window.showToast) showToast('success', 'תשובותיך נשלחו ✅');
-            loadFamilyBeautyRfq();
+            loadFamilyBeautyRfqInline();
         } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
     } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
 };
@@ -9935,7 +9946,7 @@ window._acceptRfqPlan = async function(rfqId) {
         document.getElementById('family-rfq-detail-modal')?.remove();
         if (r.success) {
             if (window.showToast) showToast('success', 'תוכנית הטיפול אושרה! 🎉');
-            loadFamilyBeautyRfq();
+            loadFamilyBeautyRfqInline();
         } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
     } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
 };
@@ -9950,7 +9961,7 @@ window._sendRfqMsg = async function(rfqId) {
         }).then(r=>r.json());
         if (r.success) {
             document.getElementById('family-rfq-detail-modal')?.remove();
-            loadFamilyBeautyRfq().then(() => window._openFamilyRfq(rfqId));
+            loadFamilyBeautyRfqInline().then(() => window._openFamilyRfq(rfqId));
         }
     } catch(e) {}
 };

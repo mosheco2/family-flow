@@ -244,6 +244,9 @@
                                 <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים והטבות מ-Oneflow Life (רשות)</span>
                             </label>
                         </div>
+                        <div id="myorders-section-beauty" class="hidden pb-24">
+                            <div id="myorders-beauty-content"><p class="text-slate-400 text-xs text-center py-6">טוען...</p></div>
+                        </div>
                     </div>
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
                     <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד ייחודי לסביבה שלכם.</p>
@@ -370,7 +373,6 @@
                       <button onclick="switchTab('pantry');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-pantry">📦 מזווה</button>
                       <button onclick="switchTab('recipes');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-recipes">👨‍🍳 שף AI</button>
                       <button onclick="switchTab('home-maintenance');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-home-maintenance">🔧 ניהול הבית</button>
-                      <button onclick="switchTab('beauty-rfq');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="fgdrop-beauty-rfq">💅 שירותי יופי</button>
                     </div>
                   </div>
 
@@ -433,7 +435,6 @@
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn shrink-0">הקהילה שלי 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn shrink-0">ניהול 👥</button>
                             <button onclick="switchTab('home-maintenance')" id="tab-home-maintenance" class="tab-btn shrink-0">ניהול הבית 🔧<span id="tab-home-maintenance-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5"></span></button>
-                            <button onclick="switchTab('beauty-rfq')" id="tab-beauty-rfq" class="tab-btn shrink-0">יופי 💅</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
@@ -455,6 +456,7 @@
                             <button id="myorders-tab-orders" ontouchend="event.preventDefault();switchMyOrdersTab('orders')" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-xs font-black rounded-xl bg-white text-slate-700 shadow-sm transition" style="touch-action:manipulation;">📦 הזמנות</button>
                             <button id="myorders-tab-faults" ontouchend="event.preventDefault();switchMyOrdersTab('faults')" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🔧 קריאות שירות</button>
                             <button id="myorders-tab-quotes" ontouchend="event.preventDefault();switchMyOrdersTab('quotes')" onclick="switchMyOrdersTab('quotes')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">📋 הצעות מחיר</button>
+                            <button id="myorders-tab-beauty" ontouchend="event.preventDefault();switchMyOrdersTab('beauty')" onclick="switchMyOrdersTab('beauty')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">💅 יופי</button>
                         </div>
 
                         <!-- רשימת הזמנות -->
@@ -1108,9 +1110,6 @@
             </div>
         </div>
     </div>
-    <!-- ===== BEAUTY RFQ TAB ===== -->
-    <div id="content-beauty-rfq" class="hidden pb-20 px-3 pt-3"></div>
-
     <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
         <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
             <button onclick="openShopModal(); toggleFab()" class="w-12 h-12 bg-pink-500 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-pink-600 transition"><i class="fa-solid fa-cart-shopping"></i></button>
