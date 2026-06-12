@@ -882,6 +882,187 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
       // ===== END ONEFLOWLIFE MEMBER FEATURE =====
 
+      // ===== BEAUTY & COSMETICS MODULE =====
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_practitioners (
+        id                     SERIAL PRIMARY KEY,
+        business_group_id      INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        user_id                INT,
+        display_name           VARCHAR(100) NOT NULL,
+        tier                   VARCHAR(20) DEFAULT 'standard',
+        color_hex              VARCHAR(7) DEFAULT '#6366f1',
+        specializations        JSONB DEFAULT '[]',
+        schedule_override      JSONB DEFAULT NULL,
+        commission_rate_svc    DECIMAL(5,2) DEFAULT 30.00,
+        commission_rate_retail DECIMAL(5,2) DEFAULT 10.00,
+        is_active              BOOLEAN DEFAULT TRUE,
+        created_at             TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_resources (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(100) NOT NULL,
+        resource_type       VARCHAR(20) DEFAULT 'room',
+        color_hex           VARCHAR(7) DEFAULT '#94a3b8',
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_appointments (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id    INT REFERENCES family_groups(id) ON DELETE SET NULL,
+        client_name         VARCHAR(150),
+        client_phone        VARCHAR(30),
+        client_email        VARCHAR(150),
+        client_type         VARCHAR(20) DEFAULT 'external',
+        booking_source      VARCHAR(30) DEFAULT 'biz',
+        status              VARCHAR(30) DEFAULT 'confirmed',
+        deposit_amount      DECIMAL(10,2) DEFAULT 0,
+        deposit_paid        BOOLEAN DEFAULT FALSE,
+        deposit_wallet_txn  INT,
+        total_price         DECIMAL(10,2),
+        notes               TEXT,
+        internal_notes      TEXT,
+        rfq_id              INT,
+        group_booking_ref   VARCHAR(50),
+        reminder_sent_at    TIMESTAMP,
+        followup_sent_at    TIMESTAMP,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_appointment_segments (
+        id                  SERIAL PRIMARY KEY,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE CASCADE,
+        segment_order       SMALLINT NOT NULL,
+        segment_type        VARCHAR(20) NOT NULL,
+        service_name        VARCHAR(150),
+        service_catalog_id  INT,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        resource_id         INT REFERENCES beauty_resources(id) ON DELETE SET NULL,
+        start_time          TIMESTAMP NOT NULL,
+        end_time            TIMESTAMP NOT NULL,
+        duration_minutes    INT NOT NULL,
+        price               DECIMAL(10,2) DEFAULT 0,
+        gap_notes           TEXT,
+        backbar_items       JSONB DEFAULT '[]'
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_records (
+        id                       SERIAL PRIMARY KEY,
+        business_group_id        INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id         INT REFERENCES family_groups(id) ON DELETE SET NULL,
+        client_name              VARCHAR(150),
+        client_phone             VARCHAR(30),
+        client_email             VARCHAR(150),
+        date_of_birth            DATE,
+        medical_notes            TEXT,
+        patch_test_status        VARCHAR(20) DEFAULT 'none',
+        patch_test_date          TIMESTAMP,
+        patch_test_expires_at    TIMESTAMP,
+        skin_type                VARCHAR(30),
+        hair_type                VARCHAR(30),
+        loyalty_points           INT DEFAULT 0,
+        visit_count              INT DEFAULT 0,
+        last_visit_at            TIMESTAMP,
+        avg_visit_interval_days  DECIMAL(5,1),
+        total_spent              DECIMAL(10,2) DEFAULT 0,
+        preferred_practitioner_id INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        created_at               TIMESTAMP DEFAULT NOW(),
+        updated_at               TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_formulas (
+        id                  SERIAL PRIMARY KEY,
+        client_record_id    INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE SET NULL,
+        treatment_type      VARCHAR(50),
+        formula_data        JSONB NOT NULL DEFAULT '{}',
+        application_notes   TEXT,
+        result_notes        TEXT,
+        processing_time_min INT,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_photos (
+        id                  SERIAL PRIMARY KEY,
+        client_record_id    INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        photo_type          VARCHAR(10) NOT NULL,
+        image_url           TEXT NOT NULL,
+        thumbnail_url       TEXT,
+        treatment_area      VARCHAR(50),
+        notes               TEXT,
+        taken_by            INT,
+        is_consent_given    BOOLEAN DEFAULT FALSE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_inventory (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        product_name        VARCHAR(150) NOT NULL,
+        brand               VARCHAR(100),
+        sku                 VARCHAR(50),
+        inventory_type      VARCHAR(20) NOT NULL DEFAULT 'retail',
+        category            VARCHAR(50),
+        unit                VARCHAR(20) DEFAULT 'unit',
+        unit_size           DECIMAL(8,2),
+        stock_qty           DECIMAL(10,3) DEFAULT 0,
+        reorder_threshold   DECIMAL(10,3) DEFAULT 5,
+        cost_price          DECIMAL(10,2) DEFAULT 0,
+        retail_price        DECIMAL(10,2) DEFAULT 0,
+        image_url           TEXT,
+        supplier_name       VARCHAR(150),
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_commissions (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        practitioner_id     INT REFERENCES beauty_practitioners(id) ON DELETE CASCADE,
+        appointment_id      INT REFERENCES beauty_appointments(id) ON DELETE SET NULL,
+        commission_type     VARCHAR(20) NOT NULL DEFAULT 'service',
+        gross_amount        DECIMAL(10,2) NOT NULL,
+        commission_rate     DECIMAL(5,2) NOT NULL,
+        commission_amount   DECIMAL(10,2) NOT NULL,
+        is_paid             BOOLEAN DEFAULT FALSE,
+        paid_at             TIMESTAMP,
+        period_start        DATE,
+        period_end          DATE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`);
+
+      await client.query(`CREATE TABLE IF NOT EXISTS beauty_rfq (
+        id                         SERIAL PRIMARY KEY,
+        business_group_id          INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_family_id           INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        status                     VARCHAR(30) DEFAULT 'new',
+        service_description        TEXT NOT NULL,
+        questionnaire_data         JSONB DEFAULT NULL,
+        client_photos              JSONB DEFAULT '[]',
+        treatment_plan             JSONB DEFAULT NULL,
+        plan_accepted_at           TIMESTAMP,
+        resulting_appointment_ids  JSONB DEFAULT '[]',
+        messages                   JSONB DEFAULT '[]',
+        created_at                 TIMESTAMP DEFAULT NOW(),
+        updated_at                 TIMESTAMP DEFAULT NOW()
+      )`);
+
+      // Indexes for beauty tables
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_appts_biz ON beauty_appointments(business_group_id, status)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_appt ON beauty_appointment_segments(appointment_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_time ON beauty_appointment_segments(practitioner_id, start_time, end_time)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_resource ON beauty_appointment_segments(resource_id, start_time, end_time)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_clients_biz ON beauty_client_records(business_group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_inv_biz ON beauty_inventory(business_group_id, inventory_type)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_rfq_biz ON beauty_rfq(business_group_id, status)`); } catch(e) {}
+      // ===== END BEAUTY & COSMETICS MODULE =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -11689,6 +11870,569 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
 });
 
 // ===== END ONEFLOWLIFE MEMBER API =====
+
+// ===== BEAUTY & COSMETICS API =====
+
+// --- Practitioners ---
+app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT * FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
+    try {
+        const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.bizId, display_name, tier||'standard', color_hex||'#6366f1',
+             JSON.stringify(specializations||[]), schedule_override ? JSON.stringify(schedule_override) : null,
+             commission_rate_svc||30, commission_rate_retail||10]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
+    try {
+        const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(typeof req.body[f] === 'object' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_practitioners SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Resources ---
+app.get('/api/beauty/:bizId/resources', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1 AND is_active=TRUE ORDER BY name', [req.params.bizId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/resources', async (req, res) => {
+    try {
+        const { name, resource_type, color_hex } = req.body;
+        const r = await pool.query(
+            'INSERT INTO beauty_resources (business_group_id, name, resource_type, color_hex) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.bizId, name, resource_type||'room', color_hex||'#94a3b8']
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
+    try {
+        const { name, resource_type, color_hex, is_active } = req.body;
+        await pool.query(
+            'UPDATE beauty_resources SET name=COALESCE($1,name), resource_type=COALESCE($2,resource_type), color_hex=COALESCE($3,color_hex), is_active=COALESCE($4,is_active) WHERE id=$5 AND business_group_id=$6',
+            [name, resource_type, color_hex, is_active, req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Appointments ---
+app.get('/api/beauty/:bizId/appointments', async (req, res) => {
+    try {
+        const { from, to, practitioner_id, resource_id, status } = req.query;
+        let where = 'ba.business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}`; }
+        if (to)   { vals.push(to);   where += ` AND bas.start_time <= $${vals.length}`; }
+        if (practitioner_id) { vals.push(practitioner_id); where += ` AND bas.practitioner_id=$${vals.length}`; }
+        if (resource_id) { vals.push(resource_id); where += ` AND bas.resource_id=$${vals.length}`; }
+        if (status) { vals.push(status); where += ` AND ba.status=$${vals.length}`; }
+        const r = await pool.query(
+            `SELECT ba.*, json_agg(bas ORDER BY bas.segment_order) AS segments
+             FROM beauty_appointments ba
+             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+             WHERE ${where}
+             GROUP BY ba.id ORDER BY MIN(bas.start_time)`,
+            vals
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/appointments', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { client_family_id, client_name, client_phone, client_email, client_type, booking_source,
+                deposit_amount, notes, internal_notes, rfq_id, group_booking_ref, segments } = req.body;
+
+        // Validate resource conflicts
+        for (const seg of (segments||[])) {
+            if (seg.resource_id) {
+                const conflict = await client.query(
+                    `SELECT id FROM beauty_appointment_segments
+                     WHERE resource_id=$1 AND NOT (end_time<=$2 OR start_time>=$3)`,
+                    [seg.resource_id, seg.start_time, seg.end_time]
+                );
+                if (conflict.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'RESOURCE_CONFLICT', resource_id: seg.resource_id }); }
+            }
+            if (seg.practitioner_id && seg.segment_type === 'active') {
+                const conflict = await client.query(
+                    `SELECT id FROM beauty_appointment_segments
+                     WHERE practitioner_id=$1 AND segment_type='active' AND NOT (end_time<=$2 OR start_time>=$3)`,
+                    [seg.practitioner_id, seg.start_time, seg.end_time]
+                );
+                if (conflict.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'PRACTITIONER_CONFLICT', practitioner_id: seg.practitioner_id }); }
+            }
+        }
+
+        // Validate patch test if needed
+        if (client_family_id) {
+            const patchBlock = req.body.requires_patch_test;
+            if (patchBlock) {
+                const cr = await client.query(
+                    `SELECT patch_test_status, patch_test_expires_at FROM beauty_client_records
+                     WHERE client_family_id=$1 AND business_group_id=$2`,
+                    [client_family_id, req.params.bizId]
+                );
+                const rec = cr.rows[0];
+                if (!rec || rec.patch_test_status !== 'passed' || (rec.patch_test_expires_at && new Date(rec.patch_test_expires_at) < new Date())) {
+                    await client.query('ROLLBACK'); client.release();
+                    return res.status(400).json({ error: 'PATCH_TEST_REQUIRED' });
+                }
+            }
+        }
+
+        const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
+        const appt = await client.query(
+            `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, client_email,
+             client_type, booking_source, deposit_amount, total_price, notes, internal_notes, rfq_id, group_booking_ref)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
+             client_type||'external', booking_source||'biz', deposit_amount||0, totalPrice,
+             notes||null, internal_notes||null, rfq_id||null, group_booking_ref||null]
+        );
+        const apptId = appt.rows[0].id;
+
+        for (const seg of (segments||[])) {
+            await client.query(
+                `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name,
+                 service_catalog_id, practitioner_id, resource_id, start_time, end_time, duration_minutes, price, gap_notes, backbar_items)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                [apptId, seg.segment_order, seg.segment_type, seg.service_name||null,
+                 seg.service_catalog_id||null, seg.practitioner_id||null, seg.resource_id||null,
+                 seg.start_time, seg.end_time, seg.duration_minutes, seg.price||0,
+                 seg.gap_notes||null, JSON.stringify(seg.backbar_items||[])]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json(appt.rows[0]);
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    finally { client.release(); }
+});
+
+app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
+    try {
+        const { status, notes, internal_notes, deposit_paid } = req.body;
+        await pool.query(
+            `UPDATE beauty_appointments SET
+             status=COALESCE($1,status), notes=COALESCE($2,notes),
+             internal_notes=COALESCE($3,internal_notes), deposit_paid=COALESCE($4,deposit_paid),
+             updated_at=NOW()
+             WHERE id=$5 AND business_group_id=$6`,
+            [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Complete appointment → back-bar sync + commissions + follow-up task
+app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        await client.query(
+            'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            ['completed', req.params.id, req.params.bizId]
+        );
+
+        const appt = await client.query('SELECT * FROM beauty_appointments WHERE id=$1', [req.params.id]);
+        if (!appt.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
+        const { total_price, client_family_id } = appt.rows[0];
+
+        // Back-bar inventory depletion
+        const segs = await client.query(
+            'SELECT * FROM beauty_appointment_segments WHERE appointment_id=$1',
+            [req.params.id]
+        );
+        for (const seg of segs.rows) {
+            for (const item of (seg.backbar_items||[])) {
+                await client.query(
+                    'UPDATE beauty_inventory SET stock_qty=stock_qty-$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3 AND stock_qty>=$1',
+                    [item.qty_used, item.inventory_id, req.params.bizId]
+                );
+            }
+            // Commission for active segments with a practitioner
+            if (seg.segment_type === 'active' && seg.practitioner_id && parseFloat(seg.price||0) > 0) {
+                const pr = await client.query('SELECT commission_rate_svc FROM beauty_practitioners WHERE id=$1', [seg.practitioner_id]);
+                if (pr.rows[0]) {
+                    const rate = parseFloat(pr.rows[0].commission_rate_svc);
+                    const gross = parseFloat(seg.price);
+                    await client.query(
+                        `INSERT INTO beauty_commissions (business_group_id, practitioner_id, appointment_id, commission_type, gross_amount, commission_rate, commission_amount)
+                         VALUES ($1,$2,$3,'service',$4,$5,$6)`,
+                        [req.params.bizId, seg.practitioner_id, req.params.id, gross, rate, +(gross * rate / 100).toFixed(2)]
+                    );
+                }
+            }
+        }
+
+        // Update client record visit stats
+        if (client_family_id) {
+            await client.query(
+                `UPDATE beauty_client_records SET
+                 visit_count=visit_count+1, last_visit_at=NOW(), total_spent=total_spent+$1,
+                 updated_at=NOW()
+                 WHERE client_family_id=$2 AND business_group_id=$3`,
+                [total_price||0, client_family_id, req.params.bizId]
+            );
+            // Recalculate avg visit interval
+            await client.query(
+                `UPDATE beauty_client_records SET
+                 avg_visit_interval_days = (
+                   SELECT ROUND(AVG(diff)::NUMERIC, 1) FROM (
+                     SELECT EXTRACT(EPOCH FROM (ba2.created_at - ba1.created_at))/86400 AS diff
+                     FROM beauty_appointments ba1
+                     JOIN beauty_appointments ba2 ON ba2.id > ba1.id
+                       AND ba2.client_family_id = ba1.client_family_id
+                       AND ba2.business_group_id = ba1.business_group_id
+                     WHERE ba1.client_family_id=$1 AND ba1.business_group_id=$2 AND ba1.status='completed'
+                     ORDER BY ba1.created_at LIMIT 10
+                   ) t
+                 )
+                 WHERE client_family_id=$1 AND business_group_id=$2`,
+                [client_family_id, req.params.bizId]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    finally { client.release(); }
+});
+
+app.post('/api/beauty/:bizId/appointments/:id/no-show', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            ['no_show', req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Availability check
+app.get('/api/beauty/:bizId/availability', async (req, res) => {
+    try {
+        const { practitioner_id, resource_id, from, duration } = req.query;
+        const to = new Date(new Date(from).getTime() + parseInt(duration||60)*60000).toISOString();
+        const result = { practitioner_available: true, resource_available: true };
+        if (practitioner_id) {
+            const c = await pool.query(
+                `SELECT id FROM beauty_appointment_segments WHERE practitioner_id=$1 AND segment_type='active' AND NOT (end_time<=$2 OR start_time>=$3)`,
+                [practitioner_id, from, to]
+            );
+            result.practitioner_available = c.rows.length === 0;
+        }
+        if (resource_id) {
+            const c = await pool.query(
+                `SELECT id FROM beauty_appointment_segments WHERE resource_id=$1 AND NOT (end_time<=$2 OR start_time>=$3)`,
+                [resource_id, from, to]
+            );
+            result.resource_available = c.rows.length === 0;
+        }
+        res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Client Records ---
+app.get('/api/beauty/:bizId/clients', async (req, res) => {
+    try {
+        const { q } = req.query;
+        let query = 'SELECT * FROM beauty_client_records WHERE business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (q) { vals.push(`%${q}%`); query += ` AND (client_name ILIKE $${vals.length} OR client_phone ILIKE $${vals.length} OR client_email ILIKE $${vals.length})`; }
+        query += ' ORDER BY last_visit_at DESC NULLS LAST LIMIT 100';
+        const r = await pool.query(query, vals);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
+    try {
+        const [rec, formulas, photos, appts] = await Promise.all([
+            pool.query('SELECT * FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.params.bizId]),
+            pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC LIMIT 20', [req.params.id]),
+            pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]),
+            pool.query(`SELECT ba.id, ba.status, ba.created_at, ba.total_price,
+                        json_agg(bas ORDER BY bas.segment_order) AS segments
+                        FROM beauty_appointments ba
+                        JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+                        WHERE ba.client_family_id=(SELECT client_family_id FROM beauty_client_records WHERE id=$1)
+                          AND ba.business_group_id=$2
+                        GROUP BY ba.id ORDER BY ba.created_at DESC LIMIT 20`, [req.params.id, req.params.bizId])
+        ]);
+        if (!rec.rows[0]) return res.status(404).json({ error: 'Not found' });
+        res.json({ ...rec.rows[0], formulas: formulas.rows, photos: photos.rows, appointments: appts.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/clients', async (req, res) => {
+    try {
+        const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
+             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
+    try {
+        const f = req.body;
+        const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id'];
+        const sets = []; const vals = [];
+        fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_client_records SET ${sets.join(',')},updated_at=NOW() WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Formulas
+app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+    try {
+        const { appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_formulas (client_record_id, appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.id, appointment_id||null, practitioner_id||null, treatment_type||null,
+             JSON.stringify(formula_data||{}), application_notes||null, result_notes||null, processing_time_min||null]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Photos
+app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+    try {
+        const { appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_client_photos (client_record_id, appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.id, appointment_id||null, photo_type, image_url, thumbnail_url||null,
+             treatment_area||null, notes||null, taken_by||null, is_consent_given||false]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Inventory ---
+app.get('/api/beauty/:bizId/inventory', async (req, res) => {
+    try {
+        const { type } = req.query;
+        let q = 'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE';
+        const vals = [req.params.bizId];
+        if (type) { vals.push(type); q += ` AND inventory_type=$${vals.length}`; }
+        q += ' ORDER BY inventory_type, product_name';
+        const r = await pool.query(q, vals);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/inventory', async (req, res) => {
+    try {
+        const { product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name } = req.body;
+        const r = await pool.query(
+            `INSERT INTO beauty_inventory (business_group_id, product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [req.params.bizId, product_name, brand||null, sku||null, inventory_type||'retail', category||null,
+             unit||'unit', unit_size||null, stock_qty||0, reorder_threshold||5, cost_price||0, retail_price||0, supplier_name||null]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/inventory/:id', async (req, res) => {
+    try {
+        const fields = ['product_name','brand','sku','category','unit','unit_size','stock_qty','reorder_threshold','cost_price','retail_price','supplier_name','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(k => { if (req.body[k] !== undefined) { vals.push(req.body[k]); sets.push(`${k}=$${vals.length}`); }});
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id, req.params.bizId);
+        await pool.query(`UPDATE beauty_inventory SET ${sets.join(',')},updated_at=NOW() WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/inventory/:id/adjust', async (req, res) => {
+    try {
+        const { delta, reason } = req.body;
+        await pool.query(
+            'UPDATE beauty_inventory SET stock_qty=stock_qty+$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+            [delta, req.params.id, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/beauty/:bizId/inventory/alerts', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE AND stock_qty<=reorder_threshold ORDER BY stock_qty ASC',
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Commissions ---
+app.get('/api/beauty/:bizId/commissions', async (req, res) => {
+    try {
+        const { practitioner_id, is_paid, from, to } = req.query;
+        let where = 'bc.business_group_id=$1'; const vals = [req.params.bizId];
+        if (practitioner_id) { vals.push(practitioner_id); where += ` AND bc.practitioner_id=$${vals.length}`; }
+        if (is_paid !== undefined) { vals.push(is_paid === 'true'); where += ` AND bc.is_paid=$${vals.length}`; }
+        if (from) { vals.push(from); where += ` AND bc.created_at>=$${vals.length}`; }
+        if (to)   { vals.push(to);   where += ` AND bc.created_at<=$${vals.length}`; }
+        const r = await pool.query(
+            `SELECT bc.*, bp.display_name AS practitioner_name
+             FROM beauty_commissions bc
+             JOIN beauty_practitioners bp ON bp.id = bc.practitioner_id
+             WHERE ${where} ORDER BY bc.created_at DESC`,
+            vals
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/commissions/pay', async (req, res) => {
+    try {
+        const { commission_ids } = req.body;
+        await pool.query(
+            `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE id=ANY($1) AND business_group_id=$2`,
+            [commission_ids, req.params.bizId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- RFQ (Consultation Requests) ---
+app.get('/api/beauty/:bizId/rfq', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = 'SELECT br.*, fg.name AS client_name_family FROM beauty_rfq br LEFT JOIN family_groups fg ON fg.id=br.client_family_id WHERE br.business_group_id=$1';
+        const vals = [req.params.bizId];
+        if (status) { vals.push(status); q += ` AND br.status=$${vals.length}`; }
+        q += ' ORDER BY br.updated_at DESC';
+        const r = await pool.query(q, vals);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq', async (req, res) => {
+    try {
+        const { business_group_id, client_family_id, service_description } = req.body;
+        const r = await pool.query(
+            'INSERT INTO beauty_rfq (business_group_id, client_family_id, service_description) VALUES ($1,$2,$3) RETURNING *',
+            [business_group_id, client_family_id, service_description]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
+    try {
+        const { questions } = req.body;
+        await pool.query(
+            "UPDATE beauty_rfq SET questionnaire_data=$1, status='questionnaire_sent', updated_at=NOW() WHERE id=$2",
+            [JSON.stringify({ questions, sent_at: new Date().toISOString() }), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
+    try {
+        const { answers, photos } = req.body;
+        const existing = await pool.query('SELECT questionnaire_data FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        const qData = existing.rows[0]?.questionnaire_data || {};
+        await pool.query(
+            "UPDATE beauty_rfq SET questionnaire_data=$1, client_photos=$2, status='client_responded', updated_at=NOW() WHERE id=$3",
+            [JSON.stringify({ ...qData, answers, answered_at: new Date().toISOString() }),
+             JSON.stringify(photos||[]), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
+    try {
+        const { sessions, total_price, payment_link, title } = req.body;
+        await pool.query(
+            "UPDATE beauty_rfq SET treatment_plan=$1, status='plan_sent', updated_at=NOW() WHERE id=$2",
+            [JSON.stringify({ title, sessions, total_price, payment_link, sent_at: new Date().toISOString() }), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
+    try {
+        await pool.query(
+            "UPDATE beauty_rfq SET status='accepted', plan_accepted_at=NOW(), updated_at=NOW() WHERE id=$1",
+            [req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/rfq/:id/message', async (req, res) => {
+    try {
+        const { from, text } = req.body;
+        const existing = await pool.query('SELECT messages FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        const msgs = existing.rows[0]?.messages || [];
+        msgs.push({ from, text, ts: new Date().toISOString() });
+        await pool.query('UPDATE beauty_rfq SET messages=$1, updated_at=NOW() WHERE id=$2', [JSON.stringify(msgs), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END BEAUTY & COSMETICS API =====
 
 // הפעלת השרת
 app.listen(port, () => {

@@ -2215,7 +2215,11 @@ const ALL_TABS = [
     { id: 'academy', name: 'מרכז הכשרות 🎓' },
     { id: 'community', name: 'קהילות מחוברות 🏘️' },
     { id: 'surveys', name: 'תקשורת ועדכונים 📣' },
-    { id: 'members', name: 'ניהול צוות 👥' }
+    { id: 'members', name: 'ניהול צוות 👥' },
+    { id: 'beauty_calendar',    name: 'יומן מטפלות 💆' },
+    { id: 'beauty_clients',     name: 'תיקי לקוחות 📋' },
+    { id: 'beauty_inventory',   name: 'מלאי מקצועי 🧴' },
+    { id: 'beauty_commissions', name: 'עמלות ושכר 💰' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -24974,7 +24978,7 @@ const BUSINESS_TYPES = [
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
     { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','deliveries','pantry','shop','customers','shifts','timeclock','members','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
-    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','pantry','shop'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','pos','sales','beauty_clients','beauty_inventory','beauty_commissions','members','timeclock','cashflow','tasks','pantry','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
@@ -25016,6 +25020,11 @@ const EMPLOYEE_ROLE_TYPES = [
     { id: 'branch_manager', name: 'מנהל סניף',     icon: '🏢', feature_key: 'role_branch_manager', price: 39, color: 'slate',   business_types: null },
     { id: 'waiter',         name: 'מלצר/ית',       icon: '🍽️', feature_key: 'role_waiter',         price: 15, color: 'amber',   business_types: ['restaurant'] },
     { id: 'cook',           name: 'טבח/ית',         icon: '👨‍🍳', feature_key: 'role_cook',           price: 15, color: 'red',    business_types: ['restaurant','food_production'] },
+    { id: 'therapist',        name: 'מטפלת',            icon: '💆', feature_key: 'role_therapist',        price: 19, color: 'pink',    business_types: ['beauty'] },
+    { id: 'senior_therapist', name: 'מטפלת בכירה',      icon: '⭐', feature_key: 'role_senior_therapist', price: 29, color: 'purple',  business_types: ['beauty'] },
+    { id: 'nail_tech',        name: 'טכנאית ציפורניים', icon: '💅', feature_key: 'role_nail_tech',        price: 19, color: 'rose',    business_types: ['beauty'] },
+    { id: 'makeup_artist',    name: 'איפורנית',          icon: '💄', feature_key: 'role_makeup_artist',    price: 19, color: 'fuchsia', business_types: ['beauty'] },
+    { id: 'reception',        name: 'קבלנית',            icon: '🗓️', feature_key: 'role_reception',        price: 15, color: 'teal',    business_types: ['beauty'] },
 ];
 
 // --- Feature licensing helpers ---
