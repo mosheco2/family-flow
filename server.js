@@ -3688,27 +3688,53 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt or business invoice. Extract the items purchased, their quantities, and the SINGLE UNIT PRICE. CRITICAL: If there is more than 1 unit of an item, extract ONLY the price for ONE unit. If the receipt only shows the total price for that row, divide the total price by the quantity to get the unit price. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
-        
+        const prompt = `You are 'familAI', an Israeli supermarket receipt parser.
+
+Read this receipt image carefully and extract structured data.
+
+RULES:
+1. Identify the STORE NAME from the receipt header (e.g. רמי לוי, שופרסל, מגה, יינות ביתן, ויקטורי, קשת טעמים).
+2. For each purchased item extract:
+   - name: full item name in Hebrew as printed on receipt
+   - normalized_name: generic brand-less name (e.g. "שמן זית כתית תנובה" → "שמן זית", "חלב תנובה 3%" → "חלב 3%", "במבה אסם 80ג" → "במבה")
+   - qty: number of units (e.g. 4). Default 1 if not shown.
+   - unit: "יח" for pieces/packages, 'ק"ג' for kilograms, "ל" for liters, "ג" for grams, "מ"ל" for ml
+   - unit_price: price per single unit BEFORE any discount (number, e.g. 29.70)
+   - discount: TOTAL discount amount for this item across all units (positive number, 0 if none). Discount lines appear BELOW the item they belong to and show a negative amount (e.g. -19.80).
+   - net_unit_price: calculated as (unit_price * qty - discount) / qty — price per unit AFTER discount
+
+3. IGNORE: receipt header, store address, phone numbers, barcode/SKU lines (long number strings), totals, VAT, loyalty club text, divider lines.
+4. Discount lines (e.g. "-19.80 שמן זית 750 מ"ל רמי לוי ב19.80") belong to the item ABOVE them — add to that item's discount field.
+
+Return ONLY valid JSON: { "store_name": "...", "items": [{ "name": "...", "normalized_name": "...", "qty": 1, "unit": "יח", "unit_price": 29.70, "discount": 19.80, "net_unit_price": 24.75 }] }`;
+
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
-        const items = JSON.parse(result.response.text());
-        let normalizedArray = [];
-        try {
-            const names = items.map(i => i.name);
-            const normPrompt = `Normalize these product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
-            const normResult = await model.generateContent(normPrompt);
-            normalizedArray = JSON.parse(normResult.response.text());
-        } catch(e) { console.error(e); }
-        
-        for (let i = 0; i < items.length; i++) {
-             const item = items[i];
-             const normName = normalizedArray[i] || item.name;
-             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, parseFloat(item.qty) || 1, parseFloat(item.price) || 0]);
+        const parsed = JSON.parse(result.response.text());
+        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+        const storeName = parsed.store_name || '';
+
+        // Return items for preview — do NOT save yet
+        res.json({ success: true, items, storeName });
+    } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
+});
+
+app.post('/api/shopping/scan-receipt/save', async (req, res) => {
+    try {
+        const { items, userId } = req.body;
+        if (!Array.isArray(items) || !userId) return res.status(400).json({ error: 'missing fields' });
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        for (const item of items) {
+            const netPrice = parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0;
+            await pool.query(
+                `INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
+                [groupId, userId, item.name, item.normalized_name || item.name, parseFloat(item.qty) || 1, item.unit || 'יח', netPrice]
+            );
         }
         res.json({ success: true, count: items.length });
-    } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/academy/tutor', async (req, res) => {

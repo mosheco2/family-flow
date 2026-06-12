@@ -1566,17 +1566,64 @@ function handleTaskProofUpload(event) {
 function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
     executeWithAIWarning(() => {
-        showFamilAIModal('קופאית אוטומטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
-        compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
+        showFamilAIModal('קופאית אוטומאטית', null); getEl('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
+        compressImage(file, 1600, 1600, 0.85, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
             try {
-                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) });
+                const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-                if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת החשבונית.'); }
+                getEl('familai-advisor-modal').classList.add('hidden');
+                if(data.success && data.items && data.items.length) {
+                    showReceiptReviewModal(data.items, data.storeName || '');
+                } else {
+                    showToast('error', 'לא זוייהו פריטים בקבלה.');
+                }
             } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
             event.target.value = '';
         });
     });
+}
+
+function showReceiptReviewModal(items, storeName) {
+    const listEl = getEl('receipt-review-list');
+    const storeLabel = getEl('receipt-store-label');
+    if(storeLabel) storeLabel.textContent = storeName ? '🏪 ' + storeName : '';
+    if(!listEl) return;
+    window._receiptParsedItems = items;
+    listEl.innerHTML = items.map((item, idx) => {
+        const hasDiscount = item.discount && parseFloat(item.discount) > 0;
+        const netPrice = parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0;
+        const origPrice = parseFloat(item.unit_price) || 0;
+        const qty = parseFloat(item.qty) || 1;
+        const disc = parseFloat(item.discount) || 0;
+        const priceDisplay = hasDiscount
+            ? `<span class="line-through text-slate-400 text-[10px]">₪${origPrice.toFixed(2)}</span> <span class="text-green-600 font-bold text-xs">₪${netPrice.toFixed(2)}</span> <span class="text-[9px] text-green-500">(-₪${disc.toFixed(2)})</span>`
+            : `<span class="font-bold text-xs text-slate-700">₪${netPrice.toFixed(2)}</span>`;
+        return `<label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-purple-50 cursor-pointer transition">
+            <input type="checkbox" class="receipt-item-cb w-4 h-4 accent-purple-600 rounded shrink-0" data-idx="${idx}" checked>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-800 truncate">${safeStr(item.name)}</div>
+                <div class="text-[10px] text-slate-400">${qty > 1 ? qty + ' ' + (item.unit || 'יח') + ' × ' : ''}${item.unit || 'יח'} ליחידה</div>
+            </div>
+            <div class="text-left shrink-0">${priceDisplay}</div>
+        </label>`;
+    }).join('');
+    getEl('receipt-review-modal').classList.remove('hidden');
+}
+
+async function confirmReceiptItems() {
+    const cbs = document.querySelectorAll('.receipt-item-cb:checked');
+    const allItems = window._receiptParsedItems || [];
+    const selected = Array.from(cbs).map(cb => allItems[parseInt(cb.dataset.idx)]).filter(Boolean);
+    if(!selected.length) return showToast('error', 'לא נבחרו פריטים להוספה');
+    getEl('receipt-review-modal').classList.add('hidden');
+    try {
+        const res = await fetch(`${API}/shopping/scan-receipt/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: selected, userId: currentUser.id }) });
+        const data = await res.json();
+        if(data.success) { showFamilAIModal('קופאית אוטומאטית', `✅ הוספתי ${data.count} פריטים מהקבלה לרשימת הקניות!`); triggerConfetti(); fetchData(); }
+        else showToast('error', 'שגיאה בשמירת הפריטים');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 function startBarcodeScan(target) { currentScanTarget = target; let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.onchange = (e) => handleProductImageUpload(e, target); input.click(); }
