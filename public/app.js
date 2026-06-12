@@ -491,6 +491,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
+    if (t === 'myorders' && currentGroup?.member_type === 'member') { t = 'feed'; }
     ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
@@ -8739,40 +8740,239 @@ function applyMemberLocks() {
         const tabId = btn.id.replace('tab-', '');
         if (ALWAYS_OPEN.includes(tabId)) return;
         if (unlockedMods.includes(tabId)) return;
-        btn.classList.add('opacity-40', 'grayscale', 'pointer-events-none');
+        btn.classList.add('opacity-40', 'grayscale');
         btn.style.position = 'relative';
         if (!btn.querySelector('.member-lock-icon')) {
             const lk = document.createElement('span');
             lk.className = 'member-lock-icon';
             lk.style.cssText = 'position:absolute;top:2px;right:2px;font-size:8px;';
-            lk.textContent = '🔒';
+            lk.textContent = '\u{1F512}';
             btn.appendChild(lk);
         }
-        btn.classList.remove('pointer-events-none');
         btn.style.pointerEvents = 'auto';
         btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); showMemberModuleUpgrade(tabId); };
     });
 
-    // Add member welcome banner if not exists (content from SA settings)
-    const feed = document.getElementById('view-feed');
-    const _mcs = window._memberContentSettings || {};
-    if (feed && !document.getElementById('member-welcome-banner') && _mcs.memberWelcomeEnabled !== false) {
-        const banner = document.createElement('div');
-        banner.id = 'member-welcome-banner';
-        banner.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:14px 16px;margin:8px 12px 0;color:white;direction:rtl;';
-        const _bannerText = _mcs.memberWelcomeText || 'לחץ על הזמנות שלי לניהול הזמנות ומנויים מהעסקים שלך. 🔒 שאר המודולים ניתנים לשדרוג.';
-        const _bannerImg = _mcs.memberWelcomeImg || '';
-        let _bannerHtml = '';
-        if (_bannerImg) _bannerHtml += '<img src="' + _bannerImg + '" style="width:100%;max-height:120px;object-fit:contain;border-radius:10px;margin-bottom:8px;">';
-        if (_bannerText) _bannerHtml += '<div style="font-size:13px;font-weight:900;margin-bottom:2px;">👋 ברוך הבא ל-ONEFLOW!</div><div style="font-size:11px;opacity:0.85;">' + _bannerText + '</div>';
-        if (!_bannerHtml) _bannerHtml = '<div style="font-size:13px;font-weight:900;">👋 ברוך הבא ל-ONEFLOW!</div>';
-        banner.innerHTML = _bannerHtml;
-        feed.insertBefore(banner, feed.firstChild);
+    // Build member feed dashboard (replaces regular feed content)
+    const contentFeed = document.getElementById('content-feed');
+    if (contentFeed && !document.getElementById('member-feed-dashboard')) {
+        // Hide regular feed elements
+        ['tour-balance-card','quick-tiles','child-home-header','child-home-footer',
+         'child-todo-section','family-urgent-section'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        // Hide feed header + filters + list
+        const feedHeader = contentFeed.querySelector('.flex.flex-col.gap-2.mb-4.px-2');
+        if (feedHeader) feedHeader.style.display = 'none';
+        const unifiedList = document.getElementById('unified-feed-list');
+        if (unifiedList) unifiedList.style.display = 'none';
+
+        // Welcome banner (SA-managed)
+        const _mcs = window._memberContentSettings || {};
+        let welcomeHtml = '';
+        if (_mcs.memberWelcomeEnabled !== false) {
+            const _bText = _mcs.memberWelcomeText || '';
+            const _bImg = _mcs.memberWelcomeImg || '';
+            let inner = '';
+            if (_bImg) inner += '<img src="' + _bImg + '" style="width:100%;max-height:110px;object-fit:contain;border-radius:12px;margin-bottom:8px;">';
+            if (_bText) inner += '<div style="font-size:12px;opacity:0.9;">' + _bText + '</div>';
+            if (inner) welcomeHtml = '<div id="member-welcome-banner" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:16px;padding:12px 16px;margin-bottom:14px;color:white;direction:rtl;">' + inner + '</div>';
+        }
+
+        // Build dashboard
+        const dash = document.createElement('div');
+        dash.id = 'member-feed-dashboard';
+        dash.style.cssText = 'direction:rtl;padding:8px 8px 90px;';
+        dash.innerHTML = welcomeHtml +
+            '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:18px 20px;margin-bottom:14px;color:white;position:relative;overflow:hidden;">' +
+                '<div style="position:absolute;left:-16px;bottom:-16px;font-size:72px;opacity:0.1;">\uD83D\uDEF5</div>' +
+                '<div style="font-size:21px;font-weight:900;margin-bottom:3px;">\uD83D\uDCE6 הזמנות שלי</div>' +
+                '<div style="font-size:12px;opacity:0.85;">מעקב הזמנות מעסקים ● קריאות שירות ● הצעות מחיר</div>' +
+                '<button onclick="fetchMemberFeedOrders()" style="margin-top:10px;background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 14px;color:white;font-size:11px;font-weight:700;cursor:pointer;"><i class="fa-solid fa-rotate-right"></i> רענן</button>' +
+            '</div>' +
+            '<div style="display:flex;gap:4px;background:#f1f5f9;border-radius:16px;padding:4px;margin-bottom:12px;">' +
+                '<button id="mf-tab-orders" onclick="switchMemberFeedTab(&apos;orders&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:900;border-radius:12px;border:none;background:white;color:#334155;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);touch-action:manipulation;">\uD83D\uDCE6 הזמנות</button>' +
+                '<button id="mf-tab-faults" onclick="switchMemberFeedTab(&apos;faults&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;touch-action:manipulation;">\uD83D\uDD27 קריאות שירות</button>' +
+                '<button id="mf-tab-quotes" onclick="switchMemberFeedTab(&apos;quotes&apos;)" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:12px;border:none;background:transparent;color:#94a3b8;cursor:pointer;touch-action:manipulation;">\uD83D\uDCCB הצעות מחיר</button>' +
+            '</div>' +
+            '<div id="mf-section-orders">' +
+                '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px;margin-bottom:10px;">' +
+                    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+                        '<div style="flex:1;display:flex;align-items:center;gap:6px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:6px 10px;">' +
+                            '<i class="fa-solid fa-magnifying-glass" style="color:#cbd5e1;font-size:11px;"></i>' +
+                            '<input id="mf-orders-search" type="text" placeholder="חיפוש לפי שם עסק..." style="flex:1;font-size:11px;background:transparent;outline:none;color:#334155;border:none;direction:rtl;" oninput="filterMemberFeedOrders()">' +
+                        '</div>' +
+                        '<button onclick="toggleMemberFeedSort()" id="mf-sort-btn" style="font-size:10px;font-weight:700;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:6px 10px;color:#64748b;cursor:pointer;white-space:nowrap;">חדש→ישן</button>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                        '<span style="font-size:10px;color:#94a3b8;font-weight:700;align-self:center;">תקופה:</span>' +
+                        '<button data-mfp="all" onclick="setMemberFeedPeriod(&apos;all&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#6d28d9;color:white;border:none;cursor:pointer;">הכל</button>' +
+                        '<button data-mfp="week" onclick="setMemberFeedPeriod(&apos;week&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">שבוע</button>' +
+                        '<button data-mfp="month" onclick="setMemberFeedPeriod(&apos;month&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">חודש</button>' +
+                        '<button data-mfp="quarter" onclick="setMemberFeedPeriod(&apos;quarter&apos;)" style="font-size:10px;padding:4px 10px;border-radius:8px;font-weight:700;background:#f1f5f9;color:#64748b;border:none;cursor:pointer;">3 חודשים</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="mf-orders-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הזמנות...</p></div>' +
+            '</div>' +
+            '<div id="mf-section-faults" style="display:none;">' +
+                '<div id="mf-faults-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען קריאות שירות...</p></div>' +
+            '</div>' +
+            '<div id="mf-section-quotes" style="display:none;">' +
+                '<div id="mf-quotes-list" style="min-height:160px;"><p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הצעות מחיר...</p></div>' +
+            '</div>';
+        contentFeed.appendChild(dash);
     }
 
-    // Re-render quick tiles with locks
+    // Re-render quick tiles (still needed for unlocked modules display)
     try { renderQuickTiles(); } catch(e) {}
+    // Load orders data
+    setTimeout(() => { try { fetchMemberFeedOrders(); } catch(e){} }, 100);
 }
+
+// ===== MEMBER FEED DASHBOARD =====
+window._mfOrdersCache = [];
+window._mfFilter = { search: '', period: 'all', sort: 'desc' };
+window._mfActiveTab = 'orders';
+
+window.fetchMemberFeedOrders = async function() {
+    const list = document.getElementById('mf-orders-list');
+    if (!list || !currentUser) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הזמנות... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        if (data.success) {
+            window._mfOrdersCache = data.orders || [];
+            renderMemberFeedOrders();
+        } else {
+            list.innerHTML = `<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">${data.error || 'שגיאה בטעינה'}</p>`;
+        }
+    } catch(e) {
+        if (list) list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>';
+    }
+};
+
+window.renderMemberFeedOrders = function() {
+    const list = document.getElementById('mf-orders-list');
+    if (!list) return;
+    let items = [...(window._mfOrdersCache || [])];
+    const { search, period, sort } = window._mfFilter;
+    if (search) items = items.filter(o => (o.business_name || '').includes(search) || (o.status || '').includes(search));
+    if (period !== 'all') {
+        const days = period === 'week' ? 7 : period === 'month' ? 30 : 90;
+        const cutoff = new Date(Date.now() - days * 86400000);
+        items = items.filter(o => new Date(o.created_at) >= cutoff);
+    }
+    items.sort((a, b) => sort === 'desc' ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at));
+    if (!items.length) {
+        list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הזמנות להצגה</p>';
+        return;
+    }
+    const statusColor = { pending:'#f59e0b', confirmed:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444', processing:'#8b5cf6' };
+    const statusLabel = { pending:'ממתין', confirmed:'אושר', delivered:'נמסר', cancelled:'בוטל', processing:'בהכנה' };
+    list.innerHTML = items.map(o => {
+        const sc = statusColor[o.status] || '#64748b';
+        const sl = statusLabel[o.status] || o.status;
+        const dt = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+        return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
+                '<div style="font-size:13px;font-weight:800;color:#1e293b;">' + safeStr(o.business_name || 'עסק') + '</div>' +
+                '<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:' + sc + '22;color:' + sc + ';">' + sl + '</span>' +
+            '</div>' +
+            (o.items_summary ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px;">' + safeStr(o.items_summary) + '</div>' : '') +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="font-size:11px;color:#94a3b8;">' + dt + '</span>' +
+                (o.total_price ? '<span style="font-size:13px;font-weight:800;color:#1e293b;" dir="ltr">₪' + Number(o.total_price).toLocaleString() + '</span>' : '') +
+            '</div>' +
+        '</div>';
+    }).join('');
+};
+
+window.filterMemberFeedOrders = function() {
+    const inp = document.getElementById('mf-orders-search');
+    if (inp) window._mfFilter.search = inp.value;
+    renderMemberFeedOrders();
+};
+
+window.setMemberFeedPeriod = function(period) {
+    window._mfFilter.period = period;
+    document.querySelectorAll('[data-mfp]').forEach(btn => {
+        const on = btn.dataset.mfp === period;
+        btn.style.background = on ? '#6d28d9' : '#f1f5f9';
+        btn.style.color = on ? 'white' : '#64748b';
+    });
+    renderMemberFeedOrders();
+};
+
+window.toggleMemberFeedSort = function() {
+    window._mfFilter.sort = window._mfFilter.sort === 'desc' ? 'asc' : 'desc';
+    const btn = document.getElementById('mf-sort-btn');
+    if (btn) btn.textContent = window._mfFilter.sort === 'desc' ? 'חדש\u2192ישן' : 'ישן\u2192חדש';
+    renderMemberFeedOrders();
+};
+
+window.switchMemberFeedTab = function(tab) {
+    window._mfActiveTab = tab;
+    ['orders','faults','quotes'].forEach(t => {
+        const sec = document.getElementById('mf-section-' + t);
+        const btn = document.getElementById('mf-tab-' + t);
+        if (sec) sec.style.display = t === tab ? 'block' : 'none';
+        if (btn) {
+            btn.style.background = t === tab ? 'white' : 'transparent';
+            btn.style.color = t === tab ? '#334155' : '#94a3b8';
+            btn.style.fontWeight = t === tab ? '900' : '700';
+            btn.style.boxShadow = t === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none';
+        }
+    });
+    if (tab === 'faults') loadMemberFeedFaults();
+    if (tab === 'quotes') loadMemberFeedQuotes();
+};
+
+window.loadMemberFeedFaults = async function() {
+    const list = document.getElementById('mf-faults-list');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
+    try {
+        const res = await fetch(`${API}/family/service-calls/${currentGroup.id}`);
+        const data = await res.json();
+        const calls = data.calls || [];
+        if (!calls.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין קריאות שירות פתוחות</p>'; return; }
+        list.innerHTML = calls.map(c => {
+            const dt = c.created_at ? new Date(c.created_at).toLocaleDateString('he-IL') : '';
+            return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+                '<div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:4px;">' + safeStr(c.title || 'קריאת שירות') + '</div>' +
+                (c.business_name ? '<div style="font-size:11px;color:#6d28d9;font-weight:700;margin-bottom:3px;">\uD83C\uDFE2 ' + safeStr(c.business_name) + '</div>' : '') +
+                '<div style="font-size:11px;color:#94a3b8;">' + dt + '</div>' +
+            '</div>';
+        }).join('');
+    } catch(e) { list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>'; }
+};
+
+window.loadMemberFeedQuotes = async function() {
+    const list = document.getElementById('mf-quotes-list');
+    if (!list || !currentGroup) return;
+    list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
+    try {
+        const res = await fetch(`${API}/family/quotes/${currentGroup.id}`);
+        const data = await res.json();
+        const quotes = data.quotes || [];
+        if (!quotes.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הצעות מחיר</p>'; return; }
+        list.innerHTML = quotes.map(q => {
+            const dt = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : '';
+            const sc = q.status === 'approved' ? '#10b981' : q.status === 'rejected' ? '#ef4444' : '#f59e0b';
+            const sl = q.status === 'approved' ? 'אושרה' : q.status === 'rejected' ? 'נדחתה' : 'ממתינה';
+            return '<div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;direction:rtl;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">' +
+                    '<div style="font-size:13px;font-weight:800;color:#1e293b;">' + safeStr(q.business_name || 'עסק') + '</div>' +
+                    '<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:8px;background:' + sc + '22;color:' + sc + ';">' + sl + '</span>' +
+                '</div>' +
+                '<div style="font-size:11px;color:#94a3b8;">' + dt + (q.total_price ? ' \u2022 \u20AA' + Number(q.total_price).toLocaleString() : '') + '</div>' +
+            '</div>';
+        }).join('');
+    } catch(e) { list.innerHTML = '<p style="font-size:11px;color:#ef4444;text-align:center;padding:20px;">שגיאת תקשורת</p>'; }
+};
+
 
 window.showMemberModuleUpgrade = function(moduleKey) {
     const mod = MEMBER_MODULES[moduleKey] || { icon: '🔒', name: moduleKey, tagline: 'מודול זה דורש שדרוג', desc: 'צור קשר עם המנהל לפתיחת המודול.' };
