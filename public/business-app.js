@@ -1437,7 +1437,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1487,6 +1487,10 @@ function switchTab(t) {
     if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
     if (t === 'shop') try { switchProcurementTab('list'); } catch(e) {}
     if (t === 'calendar') try { window.switchCalendarTab('main'); } catch(e) {}
+    if (t === 'beauty_calendar') try { loadBeautyCalendar(); } catch(e) {}
+    if (t === 'beauty_clients') try { loadBeautyClients(); } catch(e) {}
+    if (t === 'beauty_inventory') try { loadBeautyInventory(); } catch(e) {}
+    if (t === 'beauty_commissions') try { loadBeautyCommissions(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -32076,3 +32080,911 @@ window._sportSubmitEditClass = async function(classId) {
         window.showSportSchedule();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+// ============================================================
+// ===== BEAUTY & COSMETICS MODULE — UI P3 ===================
+// ============================================================
+
+// ---- shared state ----
+window._beautyState = {
+    practitioners: [],
+    appointments: [],
+    calView: 'day',
+    calDate: new Date(),
+    clients: [],
+    inventory: [],
+    commissions: []
+};
+
+// ---- helpers ----
+function _beautyBizId() { return currentGroup && currentGroup.id; }
+
+function _beautyDateStr(d) {
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function _beautyFmt(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function _beautyFmtDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function _beautyStatusBadge(status) {
+    const map = {
+        scheduled: 'bg-blue-100 text-blue-700',
+        confirmed: 'bg-green-100 text-green-700',
+        in_progress: 'bg-yellow-100 text-yellow-700',
+        completed: 'bg-slate-100 text-slate-600',
+        cancelled: 'bg-red-100 text-red-600',
+        no_show: 'bg-orange-100 text-orange-600'
+    };
+    const labels = {
+        scheduled: 'מתוכנן', confirmed: 'מאושר', in_progress: 'בטיפול',
+        completed: 'הושלם', cancelled: 'בוטל', no_show: 'לא הגיע'
+    };
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${map[status]||'bg-slate-100 text-slate-500'}">${labels[status]||status}</span>`;
+}
+
+// ===================================================
+// BEAUTY CALENDAR
+// ===================================================
+async function loadBeautyCalendar() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_calendar'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    try {
+        const [prRes, apRes] = await Promise.all([
+            fetch(`${API}/beauty/${biz}/practitioners`).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(window._beautyState.calDate)}&to=${_beautyDateStr(window._beautyState.calDate)}`).then(r=>r.json())
+        ]);
+        window._beautyState.practitioners = (prRes.practitioners || []).filter(p => p.is_active);
+        window._beautyState.appointments = apRes.appointments || [];
+    } catch(e) {
+        window._beautyState.practitioners = [];
+        window._beautyState.appointments = [];
+    }
+    _renderBeautyCalendar();
+}
+
+function _renderBeautyCalendar() {
+    const el = document.getElementById('content-beauty_calendar'); if (!el) return;
+    const { practitioners, appointments, calDate } = window._beautyState;
+    const dateLabel = calDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const apByPrac = {};
+    practitioners.forEach(p => { apByPrac[p.id] = []; });
+    appointments.forEach(ap => {
+        if (apByPrac[ap.practitioner_id] !== undefined) apByPrac[ap.practitioner_id].push(ap);
+        else { apByPrac['unassigned'] = apByPrac['unassigned'] || []; apByPrac['unassigned'].push(ap); }
+    });
+
+    const colWidth = practitioners.length > 0 ? Math.max(140, Math.floor(320 / practitioners.length)) : 280;
+
+    const hours = Array.from({length: 13}, (_,i) => i + 8); // 08:00–20:00
+
+    const pracCols = practitioners.length === 0
+        ? `<div class="text-center py-12 text-slate-400 text-sm">אין מטפלות פעילות — הוסף מטפלת תחילה</div>`
+        : practitioners.map(p => {
+            const color = p.color_hex || '#6366f1';
+            const apCards = (apByPrac[p.id]||[]).map(ap => {
+                const startH = new Date(ap.start_time);
+                const endH = new Date(ap.end_time);
+                const topPct = ((startH.getHours() - 8) * 60 + startH.getMinutes()) / (13*60) * 100;
+                const heightPct = Math.max(((endH - startH) / (13*60*60*1000)) * 100, 3);
+                return `<div class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
+                    style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
+                    onclick="window._beautyOpenAp(${ap.id})">
+                    <div class="truncate">${ap.client_name || 'לקוח'}</div>
+                    <div class="opacity-80">${_beautyFmt(ap.start_time)}</div>
+                </div>`;
+            }).join('');
+            return `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
+                <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${color}">${(p.display_name||'?').charAt(0)}</div>
+                    <span class="text-xs font-bold text-slate-700 truncate">${p.display_name}</span>
+                </div>
+                <div class="relative" style="height:${13*60}px">
+                    ${hours.map(h=>`<div class="absolute w-full border-t border-slate-50" style="top:${(h-8)*60}px"></div>`).join('')}
+                    ${apCards}
+                </div>
+            </div>`;
+        }).join('');
+
+    el.innerHTML = `
+<div class="space-y-3 pb-20">
+    <!-- header bar -->
+    <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-3 flex flex-wrap items-center gap-2 justify-between">
+        <div class="flex items-center gap-2">
+            <button onclick="window._beautyCalNav(-1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">‹</button>
+            <span class="text-sm font-bold text-slate-700">${dateLabel}</span>
+            <button onclick="window._beautyCalNav(1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">›</button>
+            <button onclick="window._beautyState.calDate=new Date();loadBeautyCalendar()" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-500 hover:bg-slate-50 transition">היום</button>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> תור חדש</button>
+            <button onclick="window._beautyManagePractitioners()" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">ניהול מטפלות</button>
+        </div>
+    </div>
+
+    <!-- calendar grid -->
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <div class="flex overflow-x-auto">
+            <!-- time gutter -->
+            <div class="shrink-0 w-12 border-r border-slate-100">
+                <div class="h-[52px] border-b border-slate-200"></div>
+                <div class="relative" style="height:${13*60}px">
+                    ${hours.map(h=>`<div class="absolute text-[9px] text-slate-400 font-bold" style="top:${(h-8)*60-6}px;right:4px">${h}:00</div>`).join('')}
+                </div>
+            </div>
+            <!-- practitioner columns -->
+            <div class="flex flex-1">
+                ${pracCols}
+            </div>
+        </div>
+    </div>
+
+    <!-- legend -->
+    ${practitioners.length > 0 ? `<div class="flex flex-wrap gap-2 px-1">
+        ${practitioners.map(p=>`<span class="text-[10px] font-bold px-3 py-1 rounded-full text-white" style="background:${p.color_hex||'#6366f1'}">${p.display_name}</span>`).join('')}
+    </div>` : ''}
+</div>`;
+}
+
+window._beautyCalNav = function(dir) {
+    const d = window._beautyState.calDate;
+    d.setDate(d.getDate() + dir);
+    loadBeautyCalendar();
+};
+
+window._beautyOpenAp = function(apId) {
+    const ap = window._beautyState.appointments.find(a => a.id === apId);
+    if (!ap) return;
+    const prac = window._beautyState.practitioners.find(p => p.id === ap.practitioner_id);
+    const html = `
+<div id="beauty-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">${ap.client_name || 'לקוח'}</h3>
+                <p class="text-pink-100 text-xs">${_beautyFmtDate(ap.start_time)} · ${_beautyFmt(ap.start_time)}–${_beautyFmt(ap.end_time)}</p>
+            </div>
+            <button onclick="document.getElementById('beauty-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${prac?.color_hex||'#6366f1'}">${(prac?.display_name||'?').charAt(0)}</div>
+                <div>
+                    <p class="text-xs font-bold text-slate-700">${prac?.display_name || 'לא שויך'}</p>
+                    <p class="text-[11px] text-slate-400">מטפלת</p>
+                </div>
+                <div class="mr-auto">${_beautyStatusBadge(ap.status)}</div>
+            </div>
+            ${ap.notes ? `<p class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">${ap.notes}</p>` : ''}
+            <p class="text-xs text-slate-500">מחיר: <span class="font-bold text-slate-700">₪${ap.total_price||0}</span></p>
+        </div>
+        <div class="px-5 pb-5 flex gap-2">
+            ${ap.status === 'scheduled' || ap.status === 'confirmed' ? `
+            <button onclick="window._beautyCompleteAp(${ap.id})" class="flex-1 bg-green-600 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-green-700 transition">✅ השלם טיפול</button>
+            <button onclick="window._beautyNoShowAp(${ap.id})" class="flex-1 bg-orange-500 text-white py-2.5 rounded-2xl text-xs font-black hover:bg-orange-600 transition">😞 לא הגיע</button>
+            ` : ''}
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautyCompleteAp = async function(apId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/complete`, { method: 'POST' }).then(r=>r.json());
+        document.getElementById('beauty-ap-modal')?.remove();
+        if (r.success) { showToast('success', 'טיפול הושלם! מלאי ועמלות עודכנו ✅'); loadBeautyCalendar(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyNoShowAp = async function(apId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/no-show`, { method: 'POST' }).then(r=>r.json());
+        document.getElementById('beauty-ap-modal')?.remove();
+        if (r.success) { showToast('info', 'סומן כ"לא הגיע"'); loadBeautyCalendar(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyNewApModal = function() {
+    const practitioners = window._beautyState.practitioners;
+    const biz = _beautyBizId(); if (!biz) return;
+    const dateStr = _beautyDateStr(window._beautyState.calDate);
+    const pracOpts = practitioners.map(p => `<option value="${p.id}">${p.display_name}</option>`).join('');
+    const html = `
+<div id="beauty-new-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">תור חדש 💅</h3>
+            <button onclick="document.getElementById('beauty-new-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שם לקוח *</label>
+                <input id="bnap-client" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
+                <input id="bnap-phone" type="tel" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מטפלת</label>
+                <select id="bnap-prac" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                    <option value="">בחר מטפלת</option>${pracOpts}
+                </select></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך *</label>
+                    <input id="bnap-date" type="date" value="${dateStr}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">שעת התחלה *</label>
+                    <input id="bnap-time" type="time" value="10:00" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שירות</label>
+                <input id="bnap-service" type="text" placeholder="פדיקור, צביעת שיער..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">משך (דקות)</label>
+                    <input id="bnap-dur" type="number" value="60" min="5" step="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪)</label>
+                    <input id="bnap-price" type="number" value="0" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
+                <textarea id="bnap-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea></div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._beautySubmitNewAp()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">קבע תור ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitNewAp = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const clientName = document.getElementById('bnap-client')?.value?.trim();
+    const clientPhone = document.getElementById('bnap-phone')?.value?.trim();
+    const pracId = document.getElementById('bnap-prac')?.value;
+    const date = document.getElementById('bnap-date')?.value;
+    const time = document.getElementById('bnap-time')?.value;
+    const service = document.getElementById('bnap-service')?.value?.trim();
+    const dur = parseInt(document.getElementById('bnap-dur')?.value) || 60;
+    const price = parseFloat(document.getElementById('bnap-price')?.value) || 0;
+    const notes = document.getElementById('bnap-notes')?.value?.trim();
+    if (!clientName || !date || !time) { showToast('error', 'שם לקוח, תאריך ושעה הם שדות חובה'); return; }
+    const startTime = `${date}T${time}:00`;
+    const endDt = new Date(startTime); endDt.setMinutes(endDt.getMinutes() + dur);
+    const endTime = endDt.toISOString().slice(0,19);
+    const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', start_time: startTime, end_time: endTime, duration_minutes: dur, price }];
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, practitioner_id: pracId ? parseInt(pracId) : null, start_time: startTime, end_time: endTime, total_price: price, notes, segments })
+        }).then(r=>r.json());
+        if (r.success || r.appointment) {
+            document.getElementById('beauty-new-ap-modal')?.remove();
+            showToast('success', 'תור נקבע בהצלחה! 💅');
+            loadBeautyCalendar();
+        } else showToast('error', r.error || 'שגיאה ביצירת תור');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyManagePractitioners = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    let practitioners = window._beautyState.practitioners;
+    const html = `
+<div id="beauty-prac-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">ניהול מטפלות 💆</h3>
+            <button onclick="document.getElementById('beauty-prac-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1 space-y-3">
+            <div id="beauty-prac-list" class="space-y-2">
+                ${practitioners.length === 0 ? '<p class="text-slate-400 text-sm text-center py-4">אין מטפלות עדיין</p>' :
+                    practitioners.map(p => `<div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${p.color_hex||'#6366f1'}">${(p.display_name||'?').charAt(0)}</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-slate-700">${p.display_name}</p>
+                            <p class="text-[11px] text-slate-400">${p.tier === 'senior' ? 'בכירה' : p.tier === 'junior' ? 'זוטרה' : 'סטנדרט'} · עמלה ${p.commission_rate_svc}%</p>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">${p.is_active ? 'פעילה' : 'לא פעילה'}</span>
+                    </div>`).join('')}
+            </div>
+            <div class="border-t border-slate-100 pt-4">
+                <p class="text-xs font-bold text-slate-600 mb-3">הוסף מטפלת חדשה</p>
+                <div class="space-y-2">
+                    <input id="bpm-name" type="text" placeholder="שם תצוגה" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"/>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="bpm-tier" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white">
+                            <option value="standard">סטנדרט</option>
+                            <option value="senior">בכירה</option>
+                            <option value="junior">זוטרה</option>
+                        </select>
+                        <input id="bpm-commission" type="number" value="30" min="0" max="100" placeholder="עמלה %" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm"/>
+                    </div>
+                    <input id="bpm-color" type="color" value="#6366f1" class="w-full h-10 border border-slate-200 rounded-xl cursor-pointer"/>
+                    <button onclick="window._beautyAddPractitioner()" class="w-full bg-purple-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-purple-700 transition">הוסף מטפלת</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautyAddPractitioner = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name = document.getElementById('bpm-name')?.value?.trim();
+    const tier = document.getElementById('bpm-tier')?.value;
+    const commission = parseFloat(document.getElementById('bpm-commission')?.value) || 30;
+    const color = document.getElementById('bpm-color')?.value || '#6366f1';
+    if (!name) { showToast('error', 'נא הזן שם'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/practitioners`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ display_name: name, tier, commission_rate_svc: commission, color_hex: color })
+        }).then(r=>r.json());
+        if (r.success || r.practitioner) {
+            document.getElementById('beauty-prac-modal')?.remove();
+            showToast('success', `מטפלת ${name} נוספה ✅`);
+            loadBeautyCalendar();
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ===================================================
+// BEAUTY CLIENTS
+// ===================================================
+async function loadBeautyClients() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_clients'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients`).then(r=>r.json());
+        window._beautyState.clients = r.clients || [];
+    } catch(e) { window._beautyState.clients = []; }
+    _renderBeautyClients();
+}
+
+window._beautyClientsSearch = '';
+
+function _renderBeautyClients(search) {
+    const el = document.getElementById('content-beauty_clients'); if (!el) return;
+    if (search !== undefined) window._beautyClientsSearch = search;
+    const q = (window._beautyClientsSearch || '').toLowerCase();
+    let clients = window._beautyState.clients;
+    if (q) clients = clients.filter(c => (c.client_name||'').toLowerCase().includes(q) || (c.client_phone||'').includes(q));
+
+    const patchBadge = (status) => {
+        if (!status || status === 'none') return '';
+        const map = { passed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-600', pending: 'bg-yellow-100 text-yellow-700', expired: 'bg-orange-100 text-orange-600' };
+        const labels = { passed: 'פאץ׳ תקין', failed: 'פאץ׳ נכשל', pending: 'ממתין לפאץ׳', expired: 'פאץ׳ פג' };
+        return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${map[status]||''}">${labels[status]||status}</span>`;
+    };
+
+    const rows = clients.length === 0
+        ? `<div class="text-center py-12 text-slate-400 text-sm">
+            <i class="fa-solid fa-user-slash text-3xl mb-3 block opacity-30"></i>
+            ${q ? 'לא נמצאו לקוחות' : 'אין לקוחות עדיין'}
+           </div>`
+        : clients.map(c => `
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition cursor-pointer"
+            onclick="window._beautyOpenClient(${c.id})">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-black text-sm shrink-0">
+                ${(c.client_name||'?').charAt(0).toUpperCase()}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <p class="text-sm font-bold text-slate-800">${c.client_name||'—'}</p>
+                    ${patchBadge(c.patch_test_status)}
+                </div>
+                <p class="text-[11px] text-slate-400 truncate">${c.client_phone||''} ${c.email||''}</p>
+                ${c.avg_visit_interval_days ? `<p class="text-[10px] text-purple-500 font-bold">ממוצע ביקור: כל ${Math.round(c.avg_visit_interval_days)} יום</p>` : ''}
+            </div>
+            <div class="text-slate-300 text-xs shrink-0"><i class="fa-solid fa-chevron-left"></i></div>
+        </div>`).join('');
+
+    el.innerHTML = `
+<div class="space-y-3 pb-20">
+    <!-- header -->
+    <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-3 flex flex-wrap gap-2 items-center justify-between">
+        <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-pink-600 flex items-center justify-center text-white text-sm shrink-0">📋</span>
+            תיקי לקוחות
+            <span class="text-xs font-bold bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full">${window._beautyState.clients.length}</span>
+        </h2>
+        <button onclick="window._beautyNewClientModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+    </div>
+    <!-- search -->
+    <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
+        <input type="text" placeholder="חפש לקוח..." oninput="window._renderBeautyClients(this.value)"
+            value="${window._beautyClientsSearch}"
+            class="w-full border border-slate-200 rounded-xl pr-10 pl-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-300"/>
+    </div>
+    <!-- list -->
+    <div class="space-y-2">${rows}</div>
+</div>`;
+    window._renderBeautyClients = _renderBeautyClients;
+}
+
+window._renderBeautyClients = _renderBeautyClients;
+
+window._beautyNewClientModal = function() {
+    const html = `
+<div id="beauty-nc-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">לקוח חדש 📋</h3>
+            <button onclick="document.getElementById('beauty-nc-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שם מלא *</label>
+                <input id="bnc-name" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
+                <input id="bnc-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">אימייל</label>
+                <input id="bnc-email" type="email" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך לידה</label>
+                <input id="bnc-dob" type="date" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">הערות / אלרגיות</label>
+                <textarea id="bnc-notes" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea></div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._beautySubmitNewClient()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">הוסף לקוח ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitNewClient = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name = document.getElementById('bnc-name')?.value?.trim();
+    const phone = document.getElementById('bnc-phone')?.value?.trim();
+    const email = document.getElementById('bnc-email')?.value?.trim();
+    const dob = document.getElementById('bnc-dob')?.value;
+    const notes = document.getElementById('bnc-notes')?.value?.trim();
+    if (!name) { showToast('error', 'שם מלא הוא שדה חובה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_name: name, client_phone: phone, email, date_of_birth: dob || null, general_notes: notes })
+        }).then(r=>r.json());
+        if (r.success || r.client) {
+            document.getElementById('beauty-nc-modal')?.remove();
+            showToast('success', `לקוח ${name} נוסף ✅`);
+            loadBeautyClients();
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyOpenClient = async function(clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const client = window._beautyState.clients.find(c => c.id === clientId); if (!client) return;
+    let formulas = [], photos = [];
+    try {
+        const [fRes, pRes] = await Promise.all([
+            fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`).then(r=>r.json())
+        ]);
+        formulas = fRes.formulas || [];
+        photos = pRes.photos || [];
+    } catch(e) {}
+
+    const patchBadgeMap = { passed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-600', pending: 'bg-yellow-100 text-yellow-700', expired: 'bg-orange-100 text-orange-600', none: 'bg-slate-100 text-slate-500' };
+    const patchLabel = { passed: 'פאץ׳ תקין ✅', failed: 'פאץ׳ נכשל ❌', pending: 'ממתין לפאץ׳ ⏳', expired: 'פאץ׳ פג תוקף ⚠️', none: 'ללא פאץ׳' };
+    const ps = client.patch_test_status || 'none';
+
+    const formulaRows = formulas.length === 0
+        ? `<p class="text-slate-400 text-xs text-center py-3">אין פורמולות שמורות</p>`
+        : formulas.map(f => `<div class="bg-slate-50 rounded-xl p-3 text-xs">
+            <p class="font-bold text-slate-700">${f.service_type || 'שירות'} · ${_beautyFmtDate(f.created_at)}</p>
+            <p class="text-slate-500 mt-1 whitespace-pre-wrap">${f.formula_data ? JSON.stringify(f.formula_data, null, 2) : f.notes || '—'}</p>
+           </div>`).join('');
+
+    const photoRows = photos.length === 0
+        ? `<p class="text-slate-400 text-xs text-center py-3">אין תמונות</p>`
+        : `<div class="grid grid-cols-3 gap-2">
+            ${photos.map(p => `<div class="aspect-square rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center text-slate-400">
+                <img src="${p.photo_url}" alt="${p.photo_type}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/>
+            </div>`).join('')}
+           </div>`;
+
+    const html = `
+<div id="beauty-client-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-black text-white text-base">${client.client_name}</h3>
+                <p class="text-pink-100 text-xs">${client.client_phone||''} ${client.email||''}</p>
+            </div>
+            <button onclick="document.getElementById('beauty-client-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-4">
+            <!-- patch test -->
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">מבחן ריגישות (פאץ׳)</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${patchBadgeMap[ps]}">${patchLabel[ps]}</span>
+            </div>
+            ${client.patch_test_expires_at ? `<p class="text-[10px] text-slate-400">תוקף: ${_beautyFmtDate(client.patch_test_expires_at)}</p>` : ''}
+            ${client.general_notes ? `<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-amber-700 border border-amber-100"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${client.general_notes}</div>` : ''}
+            ${client.avg_visit_interval_days ? `<p class="text-xs text-purple-600 font-bold bg-purple-50 rounded-xl px-3 py-2">ממוצע ביקור: כל ${Math.round(client.avg_visit_interval_days)} יום · צפוי ב: ${_beautyFmtDate(new Date(Date.now() + client.avg_visit_interval_days*86400000))}</p>` : ''}
+
+            <!-- formulas -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-700">פורמולות שמורות 🧪</p>
+                    <button onclick="window._beautyAddFormulaModal(${client.id})" class="text-[10px] text-purple-600 font-bold hover:underline">+ הוסף</button>
+                </div>
+                <div class="space-y-2">${formulaRows}</div>
+            </div>
+
+            <!-- photos -->
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-2">גלריה לפני/אחרי 📸</p>
+                ${photoRows}
+            </div>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautyAddFormulaModal = function(clientId) {
+    const html = `
+<div id="beauty-formula-modal" class="fixed inset-0 z-[400] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">פורמולה חדשה 🧪</h3>
+            <button onclick="document.getElementById('beauty-formula-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">סוג שירות</label>
+                <input id="bfm-type" type="text" placeholder="צביעה, קרטין, שמן..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">פרטי הפורמולה</label>
+                <textarea id="bfm-notes" rows="4" placeholder="רכיבים, יחסים, זמן השהיה..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea></div>
+            <button onclick="window._beautySubmitFormula(${clientId})" class="w-full bg-purple-600 text-white py-3 rounded-2xl text-sm font-black hover:bg-purple-700 transition">שמור פורמולה ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitFormula = async function(clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const type = document.getElementById('bfm-type')?.value?.trim();
+    const notes = document.getElementById('bfm-notes')?.value?.trim();
+    if (!notes) { showToast('error', 'נא הזן פרטי פורמולה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ service_type: type || 'כללי', formula_data: {}, notes })
+        }).then(r=>r.json());
+        if (r.success || r.formula) {
+            document.getElementById('beauty-formula-modal')?.remove();
+            showToast('success', 'פורמולה נשמרה ✅');
+            document.getElementById('beauty-client-modal')?.remove();
+            window._beautyOpenClient(clientId);
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ===================================================
+// BEAUTY INVENTORY
+// ===================================================
+async function loadBeautyInventory() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_inventory'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    try {
+        const [invRes, alertRes] = await Promise.all([
+            fetch(`${API}/beauty/${biz}/inventory`).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/inventory/alerts`).then(r=>r.json())
+        ]);
+        window._beautyState.inventory = invRes.inventory || [];
+        window._beautyState.inventoryAlerts = alertRes.alerts || [];
+    } catch(e) { window._beautyState.inventory = []; window._beautyState.inventoryAlerts = []; }
+    _renderBeautyInventory();
+}
+
+window._beautyInvFilter = 'all';
+
+function _renderBeautyInventory(filter) {
+    const el = document.getElementById('content-beauty_inventory'); if (!el) return;
+    if (filter !== undefined) window._beautyInvFilter = filter;
+    const f = window._beautyInvFilter || 'all';
+    let items = window._beautyState.inventory || [];
+    if (f === 'retail') items = items.filter(i => i.inventory_type === 'retail');
+    else if (f === 'backbar') items = items.filter(i => i.inventory_type === 'backbar');
+    const alerts = window._beautyState.inventoryAlerts || [];
+
+    const alertBar = alerts.length === 0 ? '' : `
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-start gap-3">
+        <i class="fa-solid fa-bell text-red-500 mt-0.5"></i>
+        <div class="flex-1">
+            <p class="text-xs font-bold text-red-700">${alerts.length} מוצרים במלאי נמוך</p>
+            <p class="text-[11px] text-red-500 mt-0.5">${alerts.slice(0,3).map(a=>a.product_name).join(', ')}${alerts.length>3?'...':''}</p>
+        </div>
+    </div>`;
+
+    const rows = items.length === 0
+        ? `<div class="text-center py-12 text-slate-400 text-sm">
+            <i class="fa-solid fa-box-open text-3xl mb-3 block opacity-30"></i>
+            ${f==='all' ? 'אין פריטים במלאי עדיין' : f==='retail' ? 'אין מוצרי מכירה' : 'אין מוצרי back-bar'}
+           </div>`
+        : items.map(item => {
+            const isLow = item.stock_qty <= item.min_stock_qty;
+            const pct = item.min_stock_qty > 0 ? Math.min(100, Math.round((item.stock_qty / (item.min_stock_qty * 3)) * 100)) : 50;
+            return `<div class="bg-white rounded-2xl border ${isLow ? 'border-red-200 shadow-red-50' : 'border-slate-100'} shadow-sm p-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl ${item.inventory_type === 'retail' ? 'bg-emerald-100' : 'bg-purple-100'} flex items-center justify-center text-base shrink-0">
+                        ${item.inventory_type === 'retail' ? '🛍️' : '🧴'}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="text-sm font-bold text-slate-800">${item.product_name}</p>
+                            ${isLow ? '<span class="text-[9px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">מלאי נמוך</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400">${item.brand||''} ${item.sku ? '· ' + item.sku : ''}</p>
+                        <div class="flex items-center gap-3 mt-2">
+                            <div class="flex-1">
+                                <div class="w-full bg-slate-100 rounded-full h-1.5">
+                                    <div class="h-1.5 rounded-full ${isLow ? 'bg-red-400' : 'bg-green-400'}" style="width:${pct}%"></div>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-0.5">${item.stock_qty} ${item.unit||'יח׳'} · מינ׳ ${item.min_stock_qty}</p>
+                            </div>
+                            <p class="text-xs font-bold text-slate-700 shrink-0">₪${item.cost_price||0}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1 shrink-0">
+                        <button onclick="window._beautyAdjustStock(${item.id},'add')" class="w-7 h-7 rounded-lg bg-green-100 text-green-700 font-black text-sm hover:bg-green-200 transition flex items-center justify-center">+</button>
+                        <button onclick="window._beautyAdjustStock(${item.id},'remove')" class="w-7 h-7 rounded-lg bg-red-100 text-red-600 font-black text-sm hover:bg-red-200 transition flex items-center justify-center">−</button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+    el.innerHTML = `
+<div class="space-y-3 pb-20">
+    <!-- header -->
+    <div class="bg-gradient-to-l from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-3 flex flex-wrap gap-2 items-center justify-between">
+        <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-sm shrink-0">🧴</span>
+            מלאי מקצועי
+        </h2>
+        <button onclick="window._beautyAddInventoryModal()" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> הוסף מוצר</button>
+    </div>
+    ${alertBar}
+    <!-- filter tabs -->
+    <div class="flex gap-2">
+        ${['all','retail','backbar'].map(v => `<button onclick="window._renderBeautyInventory('${v}')" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${f===v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}">${v==='all'?'הכל':v==='retail'?'מכירה 🛍️':'Back-bar 🧴'}</button>`).join('')}
+    </div>
+    <!-- items -->
+    <div class="space-y-2">${rows}</div>
+</div>`;
+    window._renderBeautyInventory = _renderBeautyInventory;
+}
+
+window._renderBeautyInventory = _renderBeautyInventory;
+
+window._beautyAdjustStock = function(itemId, direction) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const item = (window._beautyState.inventory||[]).find(i => i.id === itemId);
+    if (!item) return;
+    const qty = direction === 'add' ? 1 : -1;
+    const html = `
+<div id="beauty-adjust-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5 space-y-4">
+        <h3 class="font-black text-slate-800 text-base">${direction==='add'?'הוסף':'הסר'} מלאי — ${item.product_name}</h3>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1">כמות</label>
+            <input id="badj-qty" type="number" value="1" min="1" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1">סיבה</label>
+            <select id="badj-reason" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                ${direction==='add' ?
+                    '<option value="purchase">קנייה</option><option value="return">החזרה</option><option value="correction">תיקון ספירה</option>' :
+                    '<option value="usage">שימוש</option><option value="waste">פסולת/שבירה</option><option value="correction">תיקון ספירה</option>'}
+            </select></div>
+        <div class="flex gap-2">
+            <button onclick="document.getElementById('beauty-adjust-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-2.5 rounded-2xl text-xs font-bold">ביטול</button>
+            <button onclick="window._beautySubmitAdjust(${itemId},'${direction}')" class="flex-1 ${direction==='add'?'bg-green-600':'bg-red-500'} text-white py-2.5 rounded-2xl text-xs font-black">אשר</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitAdjust = async function(itemId, direction) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const qty = parseInt(document.getElementById('badj-qty')?.value) || 1;
+    const reason = document.getElementById('badj-reason')?.value;
+    const adjustedQty = direction === 'add' ? qty : -qty;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/inventory/${itemId}/adjust`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qty_change: adjustedQty, reason })
+        }).then(r=>r.json());
+        document.getElementById('beauty-adjust-modal')?.remove();
+        if (r.success) { showToast('success', 'מלאי עודכן ✅'); loadBeautyInventory(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautyAddInventoryModal = function() {
+    const html = `
+<div id="beauty-inv-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">מוצר חדש 🧴</h3>
+            <button onclick="document.getElementById('beauty-inv-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3 overflow-y-auto flex-1">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שם מוצר *</label>
+                <input id="binv-name" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מותג</label>
+                <input id="binv-brand" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">סוג</label>
+                <select id="binv-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                    <option value="backbar">Back-bar (מקצועי) 🧴</option>
+                    <option value="retail">מכירה ללקוח 🛍️</option>
+                </select></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">כמות בארגז</label>
+                    <input id="binv-qty" type="number" value="1" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">מינימום מלאי</label>
+                    <input id="binv-min" type="number" value="2" min="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">מחיר עלות (₪)</label>
+                    <input id="binv-cost" type="number" value="0" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">מחיר קמעונאי (₪)</label>
+                    <input id="binv-retail" type="number" value="0" min="0" step="0.01" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">יחידת מידה</label>
+                <input id="binv-unit" type="text" value="יח׳" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._beautySubmitInventory()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">הוסף מוצר ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitInventory = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name = document.getElementById('binv-name')?.value?.trim();
+    if (!name) { showToast('error', 'שם מוצר הוא שדה חובה'); return; }
+    const body = {
+        product_name: name,
+        brand: document.getElementById('binv-brand')?.value?.trim(),
+        inventory_type: document.getElementById('binv-type')?.value,
+        stock_qty: parseInt(document.getElementById('binv-qty')?.value) || 0,
+        min_stock_qty: parseInt(document.getElementById('binv-min')?.value) || 2,
+        cost_price: parseFloat(document.getElementById('binv-cost')?.value) || 0,
+        retail_price: parseFloat(document.getElementById('binv-retail')?.value) || 0,
+        unit: document.getElementById('binv-unit')?.value?.trim() || 'יח׳'
+    };
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/inventory`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(r=>r.json());
+        if (r.success || r.item) {
+            document.getElementById('beauty-inv-modal')?.remove();
+            showToast('success', `${name} נוסף למלאי ✅`);
+            loadBeautyInventory();
+        } else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ===================================================
+// BEAUTY COMMISSIONS
+// ===================================================
+async function loadBeautyCommissions() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_commissions'); if (!el) return;
+    el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/commissions`).then(r=>r.json());
+        window._beautyState.commissions = r.commissions || [];
+    } catch(e) { window._beautyState.commissions = []; }
+    _renderBeautyCommissions();
+}
+
+function _renderBeautyCommissions() {
+    const el = document.getElementById('content-beauty_commissions'); if (!el) return;
+    const commissions = window._beautyState.commissions;
+
+    const grouped = {};
+    commissions.forEach(c => {
+        const key = c.practitioner_id;
+        if (!grouped[key]) grouped[key] = { name: c.practitioner_name || 'לא ידוע', color: c.color_hex || '#6366f1', items: [], total: 0, unpaid: 0 };
+        grouped[key].items.push(c);
+        grouped[key].total += parseFloat(c.commission_amount || 0);
+        if (c.paid_at === null) grouped[key].unpaid += parseFloat(c.commission_amount || 0);
+    });
+
+    const totalUnpaid = Object.values(grouped).reduce((s,g) => s + g.unpaid, 0);
+
+    const pracCards = Object.entries(grouped).length === 0
+        ? `<div class="text-center py-12 text-slate-400 text-sm">
+            <i class="fa-solid fa-coins text-3xl mb-3 block opacity-30"></i>
+            אין עמלות עדיין — הן יווצרו אוטומטית עם השלמת טיפולים
+           </div>`
+        : Object.entries(grouped).map(([pid, g]) => {
+            const lastItems = g.items.slice(-3).reverse();
+            return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0" style="background:${g.color}">${(g.name||'?').charAt(0)}</div>
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-slate-800">${g.name}</p>
+                        <p class="text-[11px] text-slate-400">סה"כ: ₪${g.total.toFixed(2)} · לא שולם: ₪${g.unpaid.toFixed(2)}</p>
+                    </div>
+                    ${g.unpaid > 0 ? `<button onclick="window._beautyPayCommissions(${pid})" class="bg-green-600 text-white px-3 py-1.5 rounded-xl text-xs font-black hover:bg-green-700 transition">שלם ₪${g.unpaid.toFixed(0)}</button>` : '<span class="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-1 rounded-full">שולם ✅</span>'}
+                </div>
+                ${lastItems.length > 0 ? `<div class="space-y-1 border-t border-slate-50 pt-2">
+                    ${lastItems.map(item => `<div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-500">${_beautyFmtDate(item.created_at)} · ${item.commission_type === 'service' ? 'שירות' : 'קמעונאי'}</span>
+                        <span class="font-bold ${item.paid_at ? 'text-slate-400' : 'text-green-600'}">₪${parseFloat(item.commission_amount||0).toFixed(2)} ${item.paid_at ? '✓' : ''}</span>
+                    </div>`).join('')}
+                </div>` : ''}
+            </div>`;
+        }).join('');
+
+    el.innerHTML = `
+<div class="space-y-3 pb-20">
+    <!-- header -->
+    <div class="bg-gradient-to-l from-amber-50 to-yellow-50 rounded-2xl border border-amber-200 p-3 flex flex-wrap gap-2 items-center justify-between">
+        <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center text-white text-sm shrink-0">💰</span>
+            עמלות ושכר
+        </h2>
+        <div class="flex items-center gap-2">
+            ${totalUnpaid > 0 ? `<span class="text-xs font-black bg-red-100 text-red-600 px-3 py-1.5 rounded-full">לא שולם: ₪${totalUnpaid.toFixed(0)}</span>` : '<span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1.5 rounded-full">הכל שולם ✅</span>'}
+        </div>
+    </div>
+
+    <!-- summary bar -->
+    ${Object.keys(grouped).length > 0 ? `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <p class="text-xs font-bold text-slate-600 mb-3">סיכום תקופה</p>
+        <div class="grid grid-cols-3 gap-3">
+            <div class="text-center">
+                <p class="text-lg font-black text-slate-800">₪${Object.values(grouped).reduce((s,g)=>s+g.total,0).toFixed(0)}</p>
+                <p class="text-[10px] text-slate-400">סה"כ עמלות</p>
+            </div>
+            <div class="text-center">
+                <p class="text-lg font-black text-red-600">₪${totalUnpaid.toFixed(0)}</p>
+                <p class="text-[10px] text-slate-400">לא שולם</p>
+            </div>
+            <div class="text-center">
+                <p class="text-lg font-black text-green-600">${Object.keys(grouped).length}</p>
+                <p class="text-[10px] text-slate-400">מטפלות</p>
+            </div>
+        </div>
+    </div>` : ''}
+
+    <!-- per-practitioner cards -->
+    <div class="space-y-3">${pracCards}</div>
+</div>`;
+}
+
+window._beautyPayCommissions = async function(practitionerId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/commissions/pay`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ practitioner_id: practitionerId })
+        }).then(r=>r.json());
+        if (r.success) { showToast('success', 'עמלות סומנו כשולמו ✅'); loadBeautyCommissions(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
