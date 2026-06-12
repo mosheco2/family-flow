@@ -1250,7 +1250,7 @@ async function fetchData() {
         
         currentUser.balance = data.user.balance; 
         if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI(); if (data.group.unlocked_modules !== undefined) { const prev = JSON.stringify(currentGroup.unlocked_modules || []); currentGroup.unlocked_modules = data.group.unlocked_modules; if (currentGroup.member_type === 'member' && prev !== JSON.stringify(data.group.unlocked_modules)) { try { applyMemberLocks(); } catch(e){} } }
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
             // עדכון המזהה למקרה שהקהילה השתנתה

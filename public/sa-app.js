@@ -1468,17 +1468,31 @@ function renderSAGroups() {
 
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
 
-        // Module upgrade requests for member-type groups
+        // Module grid + requests for member-type groups
         let moduleReqHtml = '';
         if (g.member_type === 'member') {
+            const unlocked = (() => { try { return Array.isArray(g.unlocked_modules) ? g.unlocked_modules : JSON.parse(g.unlocked_modules || '[]'); } catch(e) { return []; } })();
             const reqs = (() => { try { return Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) { return []; } })();
-            if (reqs.length) {
-                const reqBtns = reqs.map(key => {
-                    const mod = SA_MODULE_LIST.find(m => m.key === key) || { icon: '🔓', name: key };
-                    return `<button onclick="saQuickUnlockModule(${g.id},'${key}')" class="flex items-center gap-1 bg-orange-50 border border-orange-300 text-orange-700 text-[10px] px-2 py-1 rounded-lg font-bold hover:bg-orange-100 transition"><span>${mod.icon} ${mod.name}</span><i class="fa-solid fa-check text-[9px]"></i></button>`;
-                }).join('');
-                moduleReqHtml = `<div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg"><div class="text-[10px] font-bold text-orange-700 mb-1.5"><i class="fa-solid fa-bell mr-1"></i> בקשות שחרור מודול (${reqs.length}):</div><div class="flex flex-wrap gap-1">${reqBtns}</div></div>`;
-            }
+            const reqKeys = reqs.map(r => typeof r === 'string' ? r : r.key);
+
+            // Inline module checkboxes grid
+            const gridItems = SA_MODULE_LIST.map(m => {
+                const checked = unlocked.includes(m.key);
+                const hasPending = reqKeys.includes(m.key);
+                return `<label class="flex items-center gap-1.5 p-2 rounded-lg cursor-pointer border text-[10px] font-bold transition ${checked ? 'bg-violet-50 border-violet-300 text-violet-700' : hasPending ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}" title="${hasPending ? 'בקשה ממתינה' : ''}">
+                    <input type="checkbox" class="sa-inline-mod-cb w-3.5 h-3.5 accent-violet-600" data-group="${g.id}" data-key="${m.key}" ${checked ? 'checked' : ''} onchange="saInlineToggleModule(${g.id})">
+                    ${m.icon} ${m.name}${hasPending ? ' 🔔' : ''}
+                </label>`;
+            }).join('');
+
+            const pendingCount = reqKeys.length;
+            moduleReqHtml = `<div class="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] font-bold text-violet-700"><i class="fa-solid fa-puzzle-piece mr-1"></i> מודולים פתוחים${pendingCount ? ` · <span class="text-orange-600">🔔 ${pendingCount} ממתינות</span>` : ''}</span>
+                    <button onclick="saInlineSaveModules(${g.id})" class="text-[9px] bg-violet-600 text-white px-2 py-0.5 rounded-lg font-bold hover:bg-violet-700 transition">שמור</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-1">${gridItems}</div>
+            </div>`;
         }
 
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
@@ -1539,13 +1553,39 @@ async function saQuickUnlockModule(groupId, moduleKey) {
         const d = await res.json();
         if (d.success || res.ok) {
             const idx = saAllGroups.findIndex(g => g.id === groupId);
-            if (idx > -1) { saAllGroups[idx].unlocked_modules = updated; const reqs = saAllGroups[idx].module_requests || []; saAllGroups[idx].module_requests = reqs.filter(r => r !== moduleKey); }
+            if (idx > -1) {
+                saAllGroups[idx].unlocked_modules = updated;
+                const reqs = saAllGroups[idx].module_requests || [];
+                saAllGroups[idx].module_requests = reqs.filter(r => (typeof r === 'string' ? r : r.key) !== moduleKey);
+            }
             const mod = SA_MODULE_LIST.find(m => m.key === moduleKey);
             showToast('success', `${mod?.icon || ''} ${mod?.name || moduleKey} - שוחרר בהצלחה!`);
             renderSAGroups();
         } else { showToast('error', d.error || 'שגיאה בשחרור מודול'); }
     } catch(e) { showToast('error', 'שגיאת שרת'); }
 }
+
+// Save inline module checkboxes for a member group
+async function saInlineSaveModules(groupId) {
+    const cbs = document.querySelectorAll(`.sa-inline-mod-cb[data-group="${groupId}"]`);
+    const modules = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.key);
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/modules`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ modules })
+        });
+        const d = await res.json();
+        if (d.success || res.ok) {
+            const idx = saAllGroups.findIndex(g => g.id === groupId);
+            if (idx > -1) { saAllGroups[idx].unlocked_modules = modules; saAllGroups[idx].module_requests = []; }
+            showToast('success', 'מודולים עודכנו בהצלחה!');
+            renderSAGroups();
+        } else { showToast('error', d.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאת שרת'); }
+}
+
+// Placeholder for onChange - save button handles actual save
+function saInlineToggleModule(groupId) { /* visual only - click שמור to save */ }
 
 async function saUpgradeToFamily(groupId) {
     if (!confirm('לשדרג סביבה זו מ"חבר ONEFLOW" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
