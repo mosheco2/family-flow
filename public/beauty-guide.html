@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך סלון יופי | OneFlow BIZ</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Heebo', sans-serif; background: #fdf4ff; color: #1e293b; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+#sidebar {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 260px; background: #fff;
+  border-left: 1px solid #e2e8f0;
+  overflow-y: auto; z-index: 50;
+  padding: 0 0 2rem 0;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+.sidebar-logo {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.sidebar-logo img { width: 36px; height: 36px; border-radius: 8px; }
+.sidebar-logo span { font-weight: 900; font-size: 1rem; color: #be185d; }
+
+.sidebar-section-label {
+  font-size: 0.7rem; font-weight: 700; color: #94a3b8;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 1.25rem 1.5rem 0.4rem;
+}
+
+.nav-link {
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.55rem 1.5rem; font-size: 0.875rem; font-weight: 500;
+  color: #475569; cursor: pointer; border-right: 3px solid transparent;
+  transition: all 0.15s; text-decoration: none; white-space: nowrap;
+}
+.nav-link:hover { background: #fdf4ff; color: #be185d; }
+.nav-link.active {
+  background: #fce7f3; color: #be185d; font-weight: 700;
+  border-right-color: #be185d;
+}
+.nav-link .nav-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; flex-shrink: 0;
+  background: #f1f5f9; color: #64748b;
+}
+.nav-link.active .nav-icon { background: #fce7f3; color: #be185d; }
+
+#main { margin-right: 260px; min-height: 100vh; }
+
+#hero {
+  background: linear-gradient(135deg, #831843 0%, #be185d 50%, #ec4899 100%);
+  padding: 3rem 2.5rem 4rem;
+  position: relative; overflow: hidden;
+}
+#hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 9999px; padding: 0.375rem 1rem;
+  font-size: 0.8rem; font-weight: 600; color: white;
+  margin-bottom: 1.25rem;
+}
+.hero-title { font-size: 2.5rem; font-weight: 900; color: white; line-height: 1.15; margin-bottom: 0.75rem; }
+.hero-sub { color: rgba(255,255,255,0.85); font-size: 1.05rem; line-height: 1.7; max-width: 540px; margin-bottom: 2rem; }
+.hero-search { display: flex; gap: 0.75rem; max-width: 480px; }
+.hero-search input {
+  flex: 1; padding: 0.875rem 1.25rem;
+  border-radius: 9999px; border: none; outline: none;
+  font-size: 0.9rem; font-family: 'Heebo', sans-serif;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.hero-search button {
+  padding: 0.875rem 1.5rem; border-radius: 9999px;
+  background: white; color: #be185d; font-weight: 700;
+  border: none; cursor: pointer; font-size: 0.875rem;
+  font-family: 'Heebo', sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  transition: transform 0.15s;
+}
+.hero-search button:hover { transform: scale(1.03); }
+.hero-stats { display: flex; gap: 2rem; margin-top: 2.5rem; flex-wrap: wrap; }
+.hero-stat .num { font-size: 1.75rem; font-weight: 900; color: white; }
+.hero-stat .lbl { font-size: 0.75rem; color: rgba(255,255,255,0.7); font-weight: 500; }
+
+.user-badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.2rem 0.65rem; border-radius: 9999px;
+  font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem;
+}
+.badge-admin { background: #fce7f3; color: #9d174d; }
+.badge-therapist { background: #fef3c7; color: #92400e; }
+.badge-client { background: #dbeafe; color: #1e40af; }
+.badge-oneflow { background: #ede9fe; color: #5b21b6; }
+.badge-public { background: #f0fdf4; color: #166534; }
+
+#mobile-nav {
+  display: none;
+  position: sticky; top: 0; z-index: 40;
+  background: white; border-bottom: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.mobile-nav-inner { display: flex; gap: 0.5rem; overflow-x: auto; }
+.mobile-nav-inner::-webkit-scrollbar { display: none; }
+.chip {
+  flex-shrink: 0; padding: 0.45rem 0.875rem;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 9999px; font-size: 0.78rem; font-weight: 600;
+  color: #475569; cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.chip:hover, .chip.active { background: #fce7f3; border-color: #f9a8d4; color: #be185d; }
+
+#content { padding: 2rem 2.5rem 4rem; max-width: 860px; }
+
+.section-card {
+  background: white; border-radius: 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 2rem; overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.section-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.card-header {
+  padding: 1.75rem 2rem 1.25rem;
+  display: flex; align-items: flex-start; gap: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.card-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.card-title { font-size: 1.35rem; font-weight: 800; color: #1e293b; margin-bottom: 0.25rem; }
+.card-subtitle { font-size: 0.875rem; color: #64748b; line-height: 1.5; }
+.card-body { padding: 1.75rem 2rem; }
+
+.steps { display: flex; flex-direction: column; gap: 1rem; }
+.step {
+  display: flex; gap: 1rem; align-items: flex-start;
+  padding: 1rem 1.25rem; background: #f8fafc;
+  border-radius: 0.875rem; border: 1px solid #f1f5f9;
+  transition: border-color 0.15s;
+}
+.step:hover { border-color: #f9a8d4; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #be185d; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+}
+.step-title { font-size: 0.925rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+.step-desc { font-size: 0.85rem; color: #64748b; line-height: 1.6; }
+
+.callout {
+  display: flex; gap: 0.875rem; align-items: flex-start;
+  padding: 1rem 1.25rem; border-radius: 0.875rem;
+  margin-top: 1.25rem; font-size: 0.875rem; line-height: 1.6;
+}
+.callout-tip { background: #fdf4ff; border: 1px solid #f0abfc; color: #701a75; }
+.callout-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.callout-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.callout-purple { background: #faf5ff; border: 1px solid #ddd6fe; color: #5b21b6; }
+.callout-pink { background: #fce7f3; border: 1px solid #fbcfe8; color: #9d174d; }
+.callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+.mockup {
+  border-radius: 1rem; overflow: hidden;
+  border: 1px solid #e2e8f0; margin: 1.5rem 0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.mockup-bar {
+  background: #1e293b; padding: 0.625rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.mockup-dots { display: flex; gap: 5px; }
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-screen {
+  padding: 2rem 1.5rem;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 180px; gap: 0.75rem; text-align: center;
+}
+.screen-icon { font-size: 3rem; }
+.screen-title { font-size: 1rem; font-weight: 700; }
+.screen-desc { font-size: 0.8rem; opacity: 0.75; }
+.mockup-caption {
+  background: #f8fafc; padding: 0.625rem 1rem;
+  font-size: 0.78rem; color: #64748b; font-weight: 500;
+  border-top: 1px solid #e2e8f0; text-align: center;
+}
+
+.screenshot-wrap {
+  margin: 1.5rem auto 0.5rem;
+  border-radius: 1rem; overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.09);
+  max-width: 390px; background: #f8fafc;
+  min-height: 200px; display: flex; align-items: center; justify-content: center;
+}
+.screenshot-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  padding: 2.5rem; color: #94a3b8; font-size: 0.85rem; text-align: center;
+}
+.screenshot-placeholder i { font-size: 2.5rem; color: #cbd5e1; }
+.screenshot-caption {
+  background: #f8fafc; padding: 0.6rem 1rem;
+  font-size: 0.78rem; color: #64748b; font-weight: 500;
+  border-top: 1px solid #e2e8f0; text-align: center;
+}
+
+.field-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 0.625rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem;
+}
+.field-row:last-child { border-bottom: none; }
+.field-name { font-weight: 600; color: #334155; min-width: 140px; }
+.field-desc { color: #64748b; line-height: 1.5; }
+
+.screen-section {
+  background: #f8fafc; border-radius: 0.875rem;
+  padding: 1.25rem; margin-bottom: 1.25rem;
+  border: 1px solid #e2e8f0;
+}
+.screen-section-title {
+  font-size: 0.875rem; font-weight: 800; color: #1e293b;
+  margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;
+}
+
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1rem 0; }
+.kpi-card {
+  background: white; border-radius: 0.875rem; padding: 0.875rem;
+  border: 1px solid #e2e8f0; text-align: center;
+}
+.kpi-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.kpi-val { font-size: 1.25rem; font-weight: 900; color: #be185d; }
+.kpi-lbl { font-size: 0.68rem; color: #64748b; font-weight: 600; }
+
+.accordion-item { border-bottom: 1px solid #f1f5f9; }
+.accordion-item:last-child { border-bottom: none; }
+.accordion-trigger {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 0; cursor: pointer; font-weight: 600; color: #334155;
+  font-size: 0.9rem; background: none; border: none; text-align: right;
+  font-family: 'Heebo', sans-serif;
+}
+.accordion-trigger:hover { color: #be185d; }
+.accordion-trigger .chevron { transition: transform 0.2s; color: #94a3b8; }
+.accordion-trigger.open .chevron { transform: rotate(180deg); }
+.accordion-body { display: none; padding: 0 0 1rem; color: #475569; font-size: 0.875rem; line-height: 1.75; }
+.accordion-body.open { display: block; }
+
+.search-hidden { display: none !important; }
+mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
+
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-right: 0; }
+  #mobile-nav { display: block; }
+  #hero { padding: 2rem 1.25rem 3rem; }
+  .hero-title { font-size: 1.75rem; }
+  #content { padding: 1.25rem 1rem 4rem; }
+  .card-header { padding: 1.25rem 1.25rem 1rem; }
+  .card-body { padding: 1.25rem; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+#back-to-top {
+  position: fixed; bottom: 1.5rem; left: 1.5rem;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: #be185d; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; cursor: pointer; z-index: 100;
+  box-shadow: 0 4px 12px rgba(190,24,93,0.4);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s; border: none;
+}
+#back-to-top.visible { opacity: 1; pointer-events: auto; }
+#back-to-top:hover { transform: translateY(-2px); }
+
+#progress-bar {
+  position: fixed; top: 0; right: 0; left: 0; height: 3px;
+  background: linear-gradient(to left, #ec4899, #be185d);
+  transform-origin: right; transform: scaleX(0);
+  z-index: 999; transition: transform 0.1s;
+}
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <img src="/logo.png" alt="logo" onerror="this.style.display='none'">
+    <span>💅 סלון יופי</span>
+  </div>
+
+  <div class="sidebar-section-label">מבוא</div>
+  <a class="nav-link active" href="#quick-start" onclick="setActive(this)"><span class="nav-icon">🚀</span> התחלה מהירה</a>
+  <a class="nav-link" href="#users" onclick="setActive(this)"><span class="nav-icon">👥</span> סוגי משתמשים</a>
+  <a class="nav-link" href="#wizard" onclick="setActive(this)"><span class="nav-icon">🧙</span> ויזארד הקמה</a>
+
+  <div class="sidebar-section-label">ניהול פנימי</div>
+  <a class="nav-link" href="#dashboard" onclick="setActive(this)"><span class="nav-icon">📊</span> דשבורד מנהל</a>
+  <a class="nav-link" href="#calendar" onclick="setActive(this)"><span class="nav-icon">📅</span> יומן תורים</a>
+  <a class="nav-link" href="#clients" onclick="setActive(this)"><span class="nav-icon">📋</span> תיקי לקוחות</a>
+  <a class="nav-link" href="#therapists" onclick="setActive(this)"><span class="nav-icon">💆</span> מטפלות וצוות</a>
+  <a class="nav-link" href="#commissions" onclick="setActive(this)"><span class="nav-icon">💰</span> עמלות ושכר</a>
+  <a class="nav-link" href="#inventory" onclick="setActive(this)"><span class="nav-icon">🧴</span> מלאי מקצועי</a>
+  <a class="nav-link" href="#services" onclick="setActive(this)"><span class="nav-icon">💎</span> שירותים וטיפולים</a>
+  <a class="nav-link" href="#reports" onclick="setActive(this)"><span class="nav-icon">📈</span> דוחות</a>
+
+  <div class="sidebar-section-label">מכירות</div>
+  <a class="nav-link" href="#pos" onclick="setActive(this)"><span class="nav-icon">💳</span> קופה POS</a>
+  <a class="nav-link" href="#sales" onclick="setActive(this)"><span class="nav-icon">🛍️</span> חנות ומוצרים</a>
+
+  <div class="sidebar-section-label">תקשורת וחיבוריות</div>
+  <a class="nav-link" href="#inbox" onclick="setActive(this)"><span class="nav-icon">💬</span> הודעות</a>
+  <a class="nav-link" href="#oneflow" onclick="setActive(this)"><span class="nav-icon">🔗</span> ONEFLOW LIFE</a>
+
+  <div class="sidebar-section-label">ממשק לקוח</div>
+  <a class="nav-link" href="#storefront" onclick="setActive(this)"><span class="nav-icon">🌐</span> חנות ציבורית</a>
+
+  <div class="sidebar-section-label">עזרה</div>
+  <a class="nav-link" href="#faq" onclick="setActive(this)"><span class="nav-icon">❓</span> שאלות נפוצות</a>
+</nav>
+
+<!-- MOBILE NAV -->
+<div id="mobile-nav">
+  <div class="mobile-nav-inner">
+    <span class="chip" onclick="goTo('quick-start')">🚀 התחלה</span>
+    <span class="chip" onclick="goTo('users')">👥 משתמשים</span>
+    <span class="chip" onclick="goTo('wizard')">🧙 הקמה</span>
+    <span class="chip" onclick="goTo('dashboard')">📊 דשבורד</span>
+    <span class="chip" onclick="goTo('calendar')">📅 יומן תורים</span>
+    <span class="chip" onclick="goTo('clients')">📋 לקוחות</span>
+    <span class="chip" onclick="goTo('therapists')">💆 מטפלות</span>
+    <span class="chip" onclick="goTo('commissions')">💰 עמלות</span>
+    <span class="chip" onclick="goTo('inventory')">🧴 מלאי</span>
+    <span class="chip" onclick="goTo('services')">💎 שירותים</span>
+    <span class="chip" onclick="goTo('pos')">💳 קופה</span>
+    <span class="chip" onclick="goTo('inbox')">💬 הודעות</span>
+    <span class="chip" onclick="goTo('oneflow')">🔗 ONEFLOW</span>
+    <span class="chip" onclick="goTo('storefront')">🌐 חנות</span>
+    <span class="chip" onclick="goTo('faq')">❓ FAQ</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+<!-- HERO -->
+<section id="hero">
+  <div style="position:relative;z-index:1">
+    <div class="hero-badge"><i class="fa-solid fa-spa"></i> מדריך סלון יופי וקוסמטיקה — OneFlow BIZ</div>
+    <h1 class="hero-title">סלון יופי וקוסמטיקה<br>המדריך המלא</h1>
+    <p class="hero-sub">כל מה שצריך לדעת כדי לנהל סלון יופי, ספא, סטודיו ציפורניים, מרכז קוסמטיקה או כל עסק טיפולי — תורים, תיקי לקוחות, מטפלות, עמלות, מלאי ולקוחות ONEFLOW LIFE.</p>
+    <div class="hero-search">
+      <input type="search" id="search-input" placeholder="חפש נושא... (תור, עמלה, לקוח, מלאי)" oninput="handleSearch(this.value)">
+      <button onclick="handleSearch(document.getElementById('search-input').value)"><i class="fa-solid fa-magnifying-glass"></i> חפש</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">15</div><div class="lbl">מסכי ניהול</div></div>
+      <div class="hero-stat"><div class="num">3</div><div class="lbl">סוגי משתמשים</div></div>
+      <div class="hero-stat"><div class="num">90+</div><div class="lbl">צעדי הדרכה</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<div id="content">
+
+<!-- ═══════════════════════════════════════════════════════
+     1. התחלה מהירה
+═══════════════════════════════════════════════════════ -->
+<section id="quick-start" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">🚀</div>
+    <div>
+      <div class="card-title">התחלה מהירה — 5 צעדים ראשונים</div>
+      <div class="card-subtitle">מה לעשות בפעם הראשונה שנכנסים למערכת</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">הקמת העסק — ויזארד ראשוני</div>
+          <div class="step-desc">בפתיחה הראשונה תועברי אוטומטית לויזארד ההקמה. בחרי <strong>"יופי / קוסמטיקה"</strong> כסוג העסק. מלאי שם, לוגו, תחום פעילות (שיער, ציפורניים, קוסמטיקה, ספא וכו'). הויזארד מאפשר גם להגדיר שירותים ראשוניים — ניתן לדלג ולהוסיף מאוחר יותר.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">הגדר שירותים וטיפולים</div>
+          <div class="step-desc">עבר לתפריט <strong>מכירות → מכירות וחנות → טאב "מנויים/שירותים"</strong> ולחץ <strong>"+ שירות חדש"</strong>. הוסף לפחות שירות אחד: שם, מחיר, משך טיפול, מטפלת משויכת. שירותים אלה יופיעו ביומן התורים ובחנות הציבורית.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">הוסף מטפלת ראשונה</div>
+          <div class="step-desc">מהדשבורד לחץ <strong>"מטפלות" ← "+ מטפלת חדשה"</strong>. מלא שם, טלפון, תפקיד ושיעור עמלה. המטפלת תופיע ביומן התורים כאפשרות שיוך.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-title">קבע תור ראשון</div>
+          <div class="step-desc">ביומן התורים לחץ על משבצת זמן פנויה, בחר לקוחה (חדשה או קיימת), שירות, מטפלת וחדר. לחץ <strong>"שמור"</strong> — התור יופיע מיד ביומן ובדשבורד.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div>
+          <div class="step-title">הוסף לקוחה ותיק לקוחה</div>
+          <div class="step-desc">מהדשבורד לחץ <strong>"לקוחות" ← "+ לקוחה חדשה"</strong>. מלא שם, טלפון, אלרגיות ידועות. לאחר הטיפול הראשון הוסיפי הערות, פורמולות ותמונות לתיק הלקוחה.</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div><strong>טיפ:</strong> רצוי להשלים שלבים 1–3 לפני קבלת לקוחות ראשונות. תיק לקוחה עם היסטוריה ופורמולות הוא הנכס הגדול ביותר של סלון.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     2. סוגי משתמשים
+═══════════════════════════════════════════════════════ -->
+<section id="users" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#dbeafe">👥</div>
+    <div>
+      <div class="card-title">סוגי משתמשים במערכת</div>
+      <div class="card-subtitle">מי משתמש במערכת, מה הם רואים ומה הם יכולים לעשות</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="screen-section">
+      <div class="screen-section-title"><span class="user-badge badge-admin">מנהל</span> מנהל הסלון / בעלת העסק</div>
+      <div class="field-row"><div class="field-name">גישה</div><div class="field-desc">גישה מלאה לכל הממשק הניהולי דרך <code>business.html</code></div></div>
+      <div class="field-row"><div class="field-name">כניסה</div><div class="field-desc">מתחברת עם חשבון OneFlow LIFE שלה — המערכת מזהה שהיא מנהלת הקבוצה העסקית</div></div>
+      <div class="field-row"><div class="field-name">יכולות</div><div class="field-desc">ניהול יומן תורים, תיקי לקוחות, מטפלות, עמלות, מלאי, מכירות, קופה, הגדרות, דוחות, ONEFLOW, הודעות</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title"><span class="user-badge badge-therapist">מטפלת</span> מטפלת / עובדת סלון</div>
+      <div class="field-row"><div class="field-name">גישה</div><div class="field-desc">גישה מוגבלת — התורים שלה, תיקי הלקוחות שלה, העמלות שלה, מלאי</div></div>
+      <div class="field-row"><div class="field-name">כניסה</div><div class="field-desc">דרך אותו ממשק ניהולי — המנהלת מוסיפה אותה כעובדת ומשייכת תורים</div></div>
+      <div class="field-row"><div class="field-name">יכולות</div><div class="field-desc">צפייה בתורים שלה, עדכון סטטוס טיפול, גישה לתיק לקוחה, הוספת הערות אחרי טיפול, צפייה בעמלות</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title"><span class="user-badge badge-client">לקוחה</span> לקוחה / לקוח הסלון</div>
+      <div class="field-row"><div class="field-name">גישה</div><div class="field-desc">גישה לחנות הציבורית בלבד דרך קישור ייחודי לסלון</div></div>
+      <div class="field-row"><div class="field-name">יכולות</div><div class="field-desc">קביעת תור, צפייה בתורים קרובים, שליחת הודעה לסלון, עיון בשירותים ומחירים</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title"><span class="user-badge badge-oneflow">ONEFLOW</span> משתמש OneFlow LIFE</div>
+      <div class="field-row"><div class="field-name">מהו</div><div class="field-desc">אדם שיש לו חשבון פעיל ב-OneFlow LIFE עם אותו מספר טלפון כמו הלקוחה בסלון</div></div>
+      <div class="field-row"><div class="field-name">יתרון</div><div class="field-desc">הזדהות אוטומטית בכניסה לחנות, קביעת תור ב-1-Click, קבלת תזכורות תור ב-Inbox, חיבור למשפחה</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     3. ויזארד הקמה
+═══════════════════════════════════════════════════════ -->
+<section id="wizard" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fef3c7">🧙</div>
+    <div>
+      <div class="card-title">ויזארד הקמת עסק</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> פעם אחת בלבד — בפתיחה הראשונה</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">הויזארד מופעל אוטומטית כשמקימים עסק חדש. ניתן לגשת אליו מחדש דרך הגדרות אם צריך לעדכן פרטים.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">פרטי העסק</div>
+          <div class="step-desc"><strong>שם הסלון</strong> — יופיע בחנות הציבורית ובכל ההתכתבויות. <strong>תיאור קצר</strong> — מה הסלון מציע. <strong>לוגו</strong> — תמונה מרובעת, מומלץ 200×200. <strong>כתובת</strong> — לצורך הצגה ב-Google ובחנות.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">סוג העסק — "יופי / קוסמטיקה"</div>
+          <div class="step-desc">בחירה זו <strong>קריטית</strong> — היא קובעת שהממשק יהיה מותאם ליופי: יומן תורים עם מטפלות וחדרים, תיקי לקוחות עם פורמולות, עמלות, מלאי מקצועי. לא ניתן לשנות לאחר מכן אלא דרך Super Admin.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">שירותים ראשוניים (אופציונלי)</div>
+          <div class="step-desc">ניתן להוסיף שירותים בסיסיים כבר כאן: תספורת, צביעה, טיפול פנים, מניקור. אם מדלגים — מוסיפים מאוחר יותר בחנות הניהול.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <div class="step-title">AI — יצירת קטלוג שירותים אוטומטית (אופציונלי)</div>
+          <div class="step-desc">ניתן לבקש מ-AI ליצור קטלוג שירותים בסיסי על סמך תיאור הסלון. ה-AI מייצר 5–10 שירותים עם מחירים ומשכי זמן מוצעים. ניתן לערוך הכל לאחר מכן.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dots">
+          <div class="mockup-dot" style="background:#ef4444"></div>
+          <div class="mockup-dot" style="background:#f59e0b"></div>
+          <div class="mockup-dot" style="background:#10b981"></div>
+        </div>
+        <span style="color:#94a3b8;font-size:0.75rem;margin-right:auto">ויזארד הקמה — שלב 2</span>
+      </div>
+      <div class="mockup-screen" style="background:#fdf4ff">
+        <div class="screen-icon">💅</div>
+        <div class="screen-title">בחר סוג עסק</div>
+        <div class="screen-desc" style="max-width:300px">בחירת "יופי / קוסמטיקה" תתאים את כל הממשק לניהול תורים, מטפלות, עמלות ותיקי לקוחות</div>
+      </div>
+      <div class="mockup-caption">שלב 2 מתוך 4 — בחירת סוג עסק</div>
+    </div>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>חשוב:</strong> סוג העסק נקבע פעם אחת בלבד בויזארד. שינוי מאוחר יותר מצריך פנייה ל-Super Admin ועלול לאפס הגדרות.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     4. דשבורד מנהל
+═══════════════════════════════════════════════════════ -->
+<section id="dashboard" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">📊</div>
+    <div>
+      <div class="card-title">דשבורד מנהל הסלון</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> מסך הבית — סקירה יומית מהירה</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      בכניסה לאפליקציה הניהולית המנהלת מגיעה ישירות לדשבורד הסלון. המסך מציג KPIs חיים ופעולות מהירות.
+    </p>
+    <div class="callout callout-info">
+      <span class="callout-icon">🧭</span>
+      <div>
+        <strong>מבנה הניווט — שתי שכבות:</strong><br>
+        <strong>1. תפריט ניווט קבוע</strong> — ראשי | צוות | מכירות (dropdown) | מלאי | כספים | עוד<br>
+        <strong>2. פעולות מהירות בדשבורד (ראשי)</strong> — כפתורים שפותחים מסכי ניהול יופי: יומן תורים, לקוחות, מטפלות, עמלות, מלאי, קופה, ONEFLOW, הודעות<br><br>
+        <strong>כלל מנחה:</strong> ניהול <em>תורים ולקוחות יומיומי</em> → דרך פעולות מהירות בדשבורד. ניהול <em>מכירות, כספים, הגדרות</em> → דרך התפריט.
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">📊 KPIs — מדדים עיקריים</div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-val">—</div><div class="kpi-lbl">תורים היום</div></div>
+        <div class="kpi-card"><div class="kpi-icon">💆</div><div class="kpi-val">—</div><div class="kpi-lbl">מטפלות פעילות</div></div>
+        <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-val">—</div><div class="kpi-lbl">טיפולים הושלמו</div></div>
+        <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-val">—</div><div class="kpi-lbl">ממתינים לאישור</div></div>
+        <div class="kpi-card"><div class="kpi-icon">👤</div><div class="kpi-val">—</div><div class="kpi-lbl">לקוחות חדשות</div></div>
+        <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-val">—</div><div class="kpi-lbl">הכנסה החודש</div></div>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">⚡ פעולות מהירות</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;font-size:0.78rem;text-align:center">
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">📅</div><div style="font-weight:700;margin-top:0.25rem">יומן תורים</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">📋</div><div style="font-weight:700;margin-top:0.25rem">לקוחות</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💆</div><div style="font-weight:700;margin-top:0.25rem">מטפלות</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💰</div><div style="font-weight:700;margin-top:0.25rem">עמלות</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">🧴</div><div style="font-weight:700;margin-top:0.25rem">מלאי</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💳</div><div style="font-weight:700;margin-top:0.25rem">קופה</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #c7d2fe"><div style="font-size:1.25rem">🔗</div><div style="font-weight:700;margin-top:0.25rem;color:#4f46e5">ONEFLOW</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💬</div><div style="font-weight:700;margin-top:0.25rem">הודעות</div></div>
+      </div>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>הדשבורד מתעדכן בזמן אמת בכל כניסה. כדי לרענן — יציאה וכניסה מחדש לטאב "ראשי" בתחתית המסך.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     5. יומן תורים
+═══════════════════════════════════════════════════════ -->
+<section id="calendar" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">📅</div>
+    <div>
+      <div class="card-title">יומן תורים</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-therapist">מטפלת</span> לב הסלון — ניהול כל התורים</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      יומן התורים הוא המסך המרכזי בניהול הסלון. מציג תורים לפי יום, שבוע או חודש, עם שיוך למטפלת ולחדר.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד הראשי → לחץ <strong>"יומן תורים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>מכירות → יומן תורים</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">📋 תצוגות יומן</div>
+      <div class="field-row"><div class="field-name">תצוגת יום</div><div class="field-desc">שעות היום לאורך עמודות מטפלות — ראי מי עמוסה ומי פנויה בכל שעה</div></div>
+      <div class="field-row"><div class="field-name">תצוגת שבוע</div><div class="field-desc">תורים לאורך 7 ימים — מצוין לתכנון כוח אדם שבועי</div></div>
+      <div class="field-row"><div class="field-name">תצוגת חודש</div><div class="field-desc">מבט עליון על עומס חודשי — זהה ימים עמוסים וימים חלשים</div></div>
+      <div class="field-row"><div class="field-name">סינון לפי מטפלת</div><div class="field-desc">סנני את היומן לפי מטפלת ספציפית — מצוין לטיפול בתורים שנוצרו שגגה</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">➕ קביעת תור חדש — שלבים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ על משבצת זמן פנויה ביומן (או "+ תור חדש")</div><div class="step-desc">נפתח טופס תור חדש עם השעה שנבחרה ממולאת מראש</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">בחר לקוחה</div><div class="step-desc">חפשי לפי שם/טלפון. אם לקוחה חדשה — לחצי "הוסף לקוחה חדשה" ישירות מהטופס</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">בחר שירות, מטפלת וחדר</div><div class="step-desc">הגדרת השירות קובעת את משך התור אוטומטית. אם המטפלת תפוסה — המערכת מתריעה</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">הגדר תאריך ושעה, הוסף הערות (אופציונלי)</div><div class="step-desc">הערות יופיעו למטפלת בפרטי התור ולא יוצגו ללקוחה</div></div></div>
+        <div class="step"><div class="step-num">5</div><div><div class="step-title">שמור — התור מופיע מיד ביומן</div><div class="step-desc">אם ללקוחה יש חשבון ONEFLOW — היא מקבלת תזכורת ב-Inbox</div></div></div>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🔄 סטטוסי תור</div>
+      <div class="field-row"><div class="field-name">🟡 ממתין</div><div class="field-desc">תור שנקבע — ממתין להגעת הלקוחה</div></div>
+      <div class="field-row"><div class="field-name">🟢 הגיע</div><div class="field-desc">הלקוחה הגיעה — הטיפול עומד להתחיל</div></div>
+      <div class="field-row"><div class="field-name">🔵 בטיפול</div><div class="field-desc">הטיפול מתבצע כרגע</div></div>
+      <div class="field-row"><div class="field-name">✅ הושלם</div><div class="field-desc">הטיפול הסתיים — ניתן לסמן ולעדכן הערות</div></div>
+      <div class="field-row"><div class="field-name">❌ בוטל</div><div class="field-desc">הלקוחה ביטלה — התור נשמר בהיסטוריה לסטטיסטיקה</div></div>
+      <div class="field-row"><div class="field-name">🔴 לא הגיע</div><div class="field-desc">No-show — מסומן לדיווח ולמניעת חזרה ללא הפקדה</div></div>
+    </div>
+    <div class="callout callout-pink">
+      <span class="callout-icon">💡</span>
+      <div><strong>טיפ מקצועי:</strong> עדכון סטטוס "הושלם" מיד בסיום הטיפול מבטיח שחישוב העמלות יהיה מדויק — המערכת מחשבת עמלות רק על תורים שסומנו כ"הושלמו".</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     6. תיקי לקוחות
+═══════════════════════════════════════════════════════ -->
+<section id="clients" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#ede9fe">📋</div>
+    <div>
+      <div class="card-title">תיקי לקוחות</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-therapist">מטפלת</span> הזיכרון המוסדי של הסלון</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      תיק לקוחה הוא הנכס הכי חשוב בסלון. הוא מכיל את כל ההיסטוריה, הפורמולות, האלרגיות והתמונות — כדי שכל מטפלת תוכל לתת שירות מושלם גם בלי להכיר את הלקוחה.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → <strong>"לקוחות"</strong>. לחלופין: תפריט ניווט → <strong>מכירות → חברים/לקוחות</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">📋 תוכן תיק הלקוחה</div>
+      <div class="field-row"><div class="field-name">פרטים אישיים</div><div class="field-desc">שם, טלפון, אימייל, תאריך לידה לברכות</div></div>
+      <div class="field-row"><div class="field-name">אלרגיות ורגישויות</div><div class="field-desc">רשומות בצבע אדום בולט — מוצגות אוטומטית בכל תור. שדה קריטי לבטיחות ולאחריות משפטית</div></div>
+      <div class="field-row"><div class="field-name">פורמולות ומתכונים</div><div class="field-desc">צבע שיער, קרטין, טיפולים — מה השתמשת, כמה, ולמה זמן. מאפשר עקביות בין מטפלות</div></div>
+      <div class="field-row"><div class="field-name">תמונות לפני/אחרי</div><div class="field-desc">תיעוד ויזואלי של שינויים — עוזר להמשיך בדיוק מאיפה עצרנו</div></div>
+      <div class="field-row"><div class="field-name">היסטוריית ביקורים</div><div class="field-desc">רשימת כל התורים עם תאריך, שירות, מטפלת ועלות — לפי סדר כרונולוגי</div></div>
+      <div class="field-row"><div class="field-name">הערות חופשיות</div><div class="field-desc">כל מה שחשוב לזכור: העדפות, חגים, ילדים, קומפלקסים — שמור כל פרט שבונה מערכת יחסים</div></div>
+      <div class="field-row"><div class="field-name">ממוצע ביקורים</div><div class="field-desc">כמה פעמים ביקרה השנה/חודש — עוזר לזהות לקוחות "בסיכון" שלא חזרו</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">➕ הוספת לקוחה חדשה</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ "+ לקוחה חדשה"</div><div class="step-desc">ניתן לפתוח גם ישירות מטופס קביעת תור חדש</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">מלא פרטים בסיסיים</div><div class="step-desc">שם, טלפון — שדות חובה. שאר הפרטים — מומלץ למלא בביקור הראשון</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">הוסף אלרגיות ידועות מיד</div><div class="step-desc">שאלי בביקור הראשון ותעדי — זה מגן על הלקוחה ועל הסלון</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">אחרי הטיפול — הוסיפי פורמולה ותמונות</div><div class="step-desc">5 דקות לאחר כל טיפול = חיסכון בשעות פענוח בביקור הבא</div></div></div>
+      </div>
+    </div>
+    <div class="callout callout-tip">
+      <span class="callout-icon">🔗</span>
+      <div><strong>חיבור ONEFLOW:</strong> לחיצה על כפתור ה-ONEFLOW בפרטי לקוחה שולחת לה לינק הצטרפות לפלטפורמה המשפחתית. ראי סקשן ONEFLOW LIFE לפרטים נוספים.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     7. מטפלות וצוות
+═══════════════════════════════════════════════════════ -->
+<section id="therapists" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">💆</div>
+    <div>
+      <div class="card-title">מטפלות וצוות</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> ניהול הצוות ושיוך שירותים</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → <strong>"מטפלות"</strong>. לחלופין: תפריט ניווט → <strong>צוות → ניהול צוות</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">➕ הוספת מטפלת חדשה — שדות</div>
+      <div class="field-row"><div class="field-name">שם מלא</div><div class="field-desc">יוצג ביומן, בתורים, בדוחות עמלות ובחנות הציבורית</div></div>
+      <div class="field-row"><div class="field-name">טלפון</div><div class="field-desc">לתקשורת פנימית — לא מוצג ללקוחות</div></div>
+      <div class="field-row"><div class="field-name">תפקיד</div><div class="field-desc">קוסמטיקאית, ספרית, טכנאית ציפורניים, מאפרת, מטפלת ספא וכו'</div></div>
+      <div class="field-row"><div class="field-name">שיעור עמלה (%)</div><div class="field-desc">אחוז מהכנסות הטיפול שמגיע למטפלת. ניתן להגדיר עמלה שונה לכל שירות</div></div>
+      <div class="field-row"><div class="field-name">שירותים מאושרים</div><div class="field-desc">אילו שירותים המטפלת מוסמכת לבצע — מגן על יומן מטעויות שיוך</div></div>
+      <div class="field-row"><div class="field-name">ימי עבודה ושעות</div><div class="field-desc">מה הזמינות של המטפלת — המערכת לא תאפשר תור מחוץ לשעות הזמינות</div></div>
+      <div class="field-row"><div class="field-name">חדר קבוע (אופציונלי)</div><div class="field-desc">אם מטפלת תמיד עובדת בחדר ספציפי — ניתן לקבוע ברירת מחדל</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">👁️ מה המטפלת רואה כשנכנסת</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">מטפלת שנכנסת לממשק רואה: התורים שלה היום ומחר, הלקוח הבא (עם הערות והתראות אלרגיה), גישה לתיקי הלקוחות שלה, העמלות שלה החודש. היא <strong>לא</strong> רואה: עמלות מטפלות אחרות, כל הלקוחות, נתוני הכנסה כלליים.</p>
+    </div>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>שים לב:</strong> מחיקת מטפלת לא מוחקת את ההיסטוריה שלה — תורים ועמלות עבר נשמרים. ניתן "להשבית" מטפלת במקום למחוק — כך היא לא מופיעה ביומן אבל הנתונים שלה שמורים.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     8. עמלות ושכר
+═══════════════════════════════════════════════════════ -->
+<section id="commissions" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#d1fae5">💰</div>
+    <div>
+      <div class="card-title">עמלות ושכר</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-therapist">מטפלת</span> שקיפות מלאה על שכר</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      מערכת העמלות מחשבת אוטומטית את סכום העמלה לכל מטפלת לפי הטיפולים שביצעה. שקיפות מלאה — המטפלת רואה בדיוק את אותה ריסה שהמנהלת רואה.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">⚙️ כיצד מחושבת עמלה</div>
+      <div style="font-size:0.85rem;color:#475569;line-height:1.7">
+        <p>לכל תור שסומן כ-<strong>"הושלם"</strong>, המערכת מחשבת: <strong>מחיר הטיפול × שיעור עמלה = עמלת המטפלת</strong>.</p>
+        <p>אם יש שיעורי עמלה שונים לפי שירות — כל שירות יחושב לפי השיעור שהוגדר לו.</p>
+        <p>ניתן לראות את החישוב המפורט בדוח עמלות.</p>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">📊 מסך עמלות — מה רואים</div>
+      <div class="field-row"><div class="field-name">פילטר תקופה</div><div class="field-desc">בחר חודש, שבוע או טווח תאריכים מותאם</div></div>
+      <div class="field-row"><div class="field-name">סיכום לפי מטפלת</div><div class="field-desc">כמה טיפולים, סה"כ הכנסה שיצרה, סה"כ עמלה שמגיעה לה</div></div>
+      <div class="field-row"><div class="field-name">פירוט לפי תור</div><div class="field-desc">כל תור עם תאריך, שם לקוחה, שירות, מחיר ועמלה — ניתן לפרק בלחיצה</div></div>
+      <div class="field-row"><div class="field-name">סטטוס תשלום</div><div class="field-desc">האם העמלה שולמה — ניתן לסמן "שולם" אחרי ביצוע תשלום</div></div>
+    </div>
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div><strong>טיפ:</strong> מומלץ לעשות "גמר חשבון" עמלות בסוף כל חודש — לסמן שולם לכל המטפלות. זה שומר על תצוגה נקייה ומונע בלבול בחודש הבא.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     9. מלאי מקצועי
+═══════════════════════════════════════════════════════ -->
+<section id="inventory" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#cffafe">🧴</div>
+    <div>
+      <div class="card-title">מלאי מקצועי</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> שליטה על חומרי גלם ומוצרי קמעונאות</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      מלאי הסלון מחולק לשני סוגים: <strong>מלאי מקצועי (backbar)</strong> — חומרים שמשתמשים בהם בטיפולים, ו<strong>מלאי קמעונאי</strong> — מוצרים שמוכרים ללקוחות.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📦 שני סוגי מלאי</div>
+      <div class="field-row"><div class="field-name">Backbar (מקצועי)</div><div class="field-desc">צבעי שיער, חמצן, מסכות, תכשירים — משמש למתן טיפולים. לא מוצג בחנות ציבורית. מנוהל לפי כמות שימוש</div></div>
+      <div class="field-row"><div class="field-name">קמעונאי (מכירה)</div><div class="field-desc">שמפו, מסכות, סרומים — מוצג בחנות ציבורית ונמכר ללקוחות. מחיר מכירה ועלות רכישה נפרדים</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">⚠️ ניהול מלאי נמוך והתראות</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">לכל מוצר ניתן לקבוע <strong>כמות מינימום</strong>. כשהמלאי יורד מתחת לסף — מופיעה התראה בדשבורד עם שם המוצר וכמות נותרת. התראות מלאי נמוך מופיעות גם ביומן התורים (כדי להזכיר לפני טיפול שדורש את המוצר).</p>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🔄 עדכון מלאי</div>
+      <div class="field-row"><div class="field-name">קבלת סחורה</div><div class="field-desc">לחץ "עדכן מלאי" ← "הוסף כמות" — מלא כמות שהתקבלה ועלות ליחידה</div></div>
+      <div class="field-row"><div class="field-name">שימוש בטיפול</div><div class="field-desc">המטפלת יכולה לדווח על כמות שימוש אחרי טיפול — מנוהל ביומן לכל תור</div></div>
+      <div class="field-row"><div class="field-name">מכירה ללקוחה</div><div class="field-desc">מכירת מוצר דרך קופה POS מפחיתה אוטומטית מהמלאי הקמעונאי</div></div>
+    </div>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>שים לב:</strong> מוצרי backbar שאזלו לא יפריעו לביצוע הטיפול אך יוצרו התראה. מומלץ לבדוק מלאי בתחילת כל שבוע.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     10. שירותים וטיפולים
+═══════════════════════════════════════════════════════ -->
+<section id="services" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fef3c7">💎</div>
+    <div>
+      <div class="card-title">שירותים וטיפולים</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> הגדרת מה הסלון מציע</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      שירותים הם הבסיס של יומן התורים. כל תור חייב להיות משויך לשירות שמגדיר את משך הטיפול והמחיר.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📋 שדות שירות חדש</div>
+      <div class="field-row"><div class="field-name">שם השירות</div><div class="field-desc">יופיע ביומן, בתורים ובחנות הציבורית. לדוג': "צביעה בסיסית", "תספורת + פן", "מניקור ג'ל"</div></div>
+      <div class="field-row"><div class="field-name">קטגוריה</div><div class="field-desc">שיער / ציפורניים / פנים / גוף / ספא — לניווט מהיר בחנות ובמסך הקביעה</div></div>
+      <div class="field-row"><div class="field-name">משך טיפול</div><div class="field-desc">בדקות — משפיע ישירות על מרווחי הזמן ביומן. שגיאה כאן תגרום לעומסים</div></div>
+      <div class="field-row"><div class="field-name">מחיר</div><div class="field-desc">המחיר הקטלוגי — ניתן לשנות לתור ספציפי בשעת הקביעה</div></div>
+      <div class="field-row"><div class="field-name">מטפלות מאושרות</div><div class="field-desc">מי יכולה לבצע שירות זה — מגן על יומן מתורים שגויים</div></div>
+      <div class="field-row"><div class="field-name">מוצר נדרש מהמלאי</div><div class="field-desc">(אופציונלי) — קישור לחומר גלם. כשקובעים תור — המערכת מציגה התראה אם המוצר אזל</div></div>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">🌐</span>
+      <div>שירותים שמוגדרים מופיעים אוטומטית בחנות הציבורית תחת הקטגוריה הרלוונטית. לקוחות יכולות לקבוע תור ישירות מהחנות.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     11. דוחות
+═══════════════════════════════════════════════════════ -->
+<section id="reports" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#dbeafe">📈</div>
+    <div>
+      <div class="card-title">דוחות וניתוח נתונים</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> תמונה עסקית ברורה</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="screen-section">
+      <div class="screen-section-title">📊 דוחות זמינים</div>
+      <div class="field-row"><div class="field-name">הכנסות</div><div class="field-desc">סה"כ הכנסות לפי יום/שבוע/חודש עם פירוט לפי שירות ומטפלת</div></div>
+      <div class="field-row"><div class="field-name">עמלות</div><div class="field-desc">סיכום עמלות לפי מטפלת ותקופה — הבסיס לחישוב שכר</div></div>
+      <div class="field-row"><div class="field-name">לקוחות</div><div class="field-desc">לקוחות חדשות, לקוחות חוזרות, תדירות ביקורים ממוצעת, לקוחות שלא חזרו 60+ יום</div></div>
+      <div class="field-row"><div class="field-name">שירותים פופולריים</div><div class="field-desc">דירוג שירותים לפי כמות ביצועים ולפי הכנסה — מה שווה לקדם</div></div>
+      <div class="field-row"><div class="field-name">No-show</div><div class="field-desc">כמה לקוחות לא הגיעו — לפי תקופה ולפי מטפלת</div></div>
+      <div class="field-row"><div class="field-name">מלאי</div><div class="field-desc">מוצרים שמגיעים לרף מינימום, שווי מלאי כולל, פריטים שנמכרו</div></div>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>תפריט ניווט → <strong>כספים → דוחות</strong> או ישירות מהדשבורד → כפתור "דוחות".</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     12. קופה POS
+═══════════════════════════════════════════════════════ -->
+<section id="pos" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#d1fae5">💳</div>
+    <div>
+      <div class="card-title">קופה POS</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> קבלת תשלומים מהירה</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      קופה POS משמשת לקבלת תשלום בסיום טיפול ולמכירת מוצרים קמעונאיים במקום.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">💳 תהליך קבלת תשלום</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">פתח קופה → בחר לקוחה או תור שהושלם</div><div class="step-desc">המערכת טוענת אוטומטית את מחיר השירות</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">הוסף מוצרים שנמכרו (אופציונלי)</div><div class="step-desc">מוצרי קמעונאות שנמכרו נוספים ומורידים מהמלאי אוטומטית</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">בחר אמצעי תשלום</div><div class="step-desc">מזומן, אשראי, העברה, split — ניתן לפצל לכמה אמצעי תשלום</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">אשר — קבלה מופקת, עמלה מחושבת אוטומטית</div><div class="step-desc">הרשומה עוברת לדוחות הכנסות ולחישוב עמלות המטפלת</div></div></div>
+      </div>
+    </div>
+    <div class="callout callout-pink">
+      <span class="callout-icon">💡</span>
+      <div><strong>טיפ:</strong> תשלום דרך POS מוודא שהעמלה תחושב — עדיפה קבלת תשלום דרך POS על פני תשלום ישיר למטפלת.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     13. חנות ומוצרים
+═══════════════════════════════════════════════════════ -->
+<section id="sales" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">🛍️</div>
+    <div>
+      <div class="card-title">חנות ומוצרים</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> ניהול קטלוג שירותים ומוצרים</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מכירות → מכירות וחנות</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🗂️ טאבים בחנות</div>
+      <div class="field-row"><div class="field-name">שירותים / מנויים</div><div class="field-desc">כל שירות שמוצע ביומן — מוצג גם בחנות הציבורית</div></div>
+      <div class="field-row"><div class="field-name">מוצרים קמעונאיים</div><div class="field-desc">מוצרי יופי לרכישה — מסונכרנים עם מלאי הסלון</div></div>
+      <div class="field-row"><div class="field-name">הזמנות</div><div class="field-desc">תורים שנקבעו דרך החנות הציבורית — ממתינים לאישור</div></div>
+      <div class="field-row"><div class="field-name">הגדרות חנות</div><div class="field-desc">שם, תיאור, שעות פתיחה, מדיניות ביטול — מה שרואים הלקוחות</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     14. הודעות
+═══════════════════════════════════════════════════════ -->
+<section id="inbox" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#ede9fe">💬</div>
+    <div>
+      <div class="card-title">הודעות</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> תקשורת עם לקוחות וצוות</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="screen-section">
+      <div class="screen-section-title">📨 סוגי הודעות</div>
+      <div class="field-row"><div class="field-name">ללקוחה ספציפית</div><div class="field-desc">מתיק הלקוחה ← לחצי "שלח הודעה". ההודעה מגיעה ל-Inbox הפרטי שלה ב-OneFlow LIFE</div></div>
+      <div class="field-row"><div class="field-name">לכל הלקוחות</div><div class="field-desc">ממסך הודעות ← "שלח לכולן". מתאים להכרזות, מבצעים, שינויי שעות</div></div>
+      <div class="field-row"><div class="field-name">לצוות</div><div class="field-desc">הודעות פנימיות למטפלות — מופיעות בפיד הפנימי שלהן</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🔔 תזכורות תור אוטומטיות</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">לקוחות עם חשבון OneFlow LIFE מקבלות תזכורת תור 24 שעות לפני ו-2 שעות לפני — אוטומטית, ללא פעולה מהמנהלת.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     15. ONEFLOW LIFE
+═══════════════════════════════════════════════════════ -->
+<section id="oneflow" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#ede9fe">🔗</div>
+    <div>
+      <div class="card-title">ONEFLOW LIFE</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> חיבור לקוחות לפלטפורמה המשפחתית</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      ONEFLOW LIFE מחבר את הסלון ללקוחות ברמה עמוקה יותר — הלקוחה מנהלת את חיי המשפחה שלה מאותה אפליקציה שבה היא קובעת תורים אצלך.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">🔗 כיצד לשלוח לינק ONEFLOW ללקוחה</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">פתח תיק לקוחה ← לחץ על כפתור "🔗 ONEFLOW"</div><div class="step-desc">הכפתור מופיע גם ברשימת הלקוחות וגם בתוך תיק הלקוחה</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">הלקוחה מקבלת SMS עם לינק הצטרפות</div><div class="step-desc">הלינק מזהה את הסלון שלך כ"עסק מחובר" של הלקוחה</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">הלקוחה נכנסת ל-OneFlow LIFE</div><div class="step-desc">מעכשיו היא יכולה לקבוע תורים ב-1-Click, לקבל תזכורות, ולנהל חיי משפחה — הכל ממקום אחד</div></div></div>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">✨ יתרונות ללקוחה המחוברת</div>
+      <div class="field-row"><div class="field-name">תזכורות אוטומטיות</div><div class="field-desc">24 שעות ו-2 שעות לפני התור ב-Inbox הפרטי</div></div>
+      <div class="field-row"><div class="field-name">קביעת תור ב-1-Click</div><div class="field-desc">כניסה לחנות הציבורית ← הזדהות אוטומטית ← קביעה ללא הזנת פרטים</div></div>
+      <div class="field-row"><div class="field-name">היסטוריית טיפולים</div><div class="field-desc">הלקוחה רואה את כל ביקוריה בסלון מתוך האפליקציה המשפחתית</div></div>
+      <div class="field-row"><div class="field-name">הודעות מהסלון</div><div class="field-desc">מבצעים, עדכונים — מגיעים ל-Inbox הפרטי, לא ל-SMS שמתעלמים ממנו</div></div>
+    </div>
+    <div class="callout callout-purple">
+      <span class="callout-icon">🌟</span>
+      <div><strong>שימוש מומלץ:</strong> שלחי לינק ONEFLOW לכל לקוחה חדשה בביקור הראשון — זה מגדיל משמעותית את שיעור החזרה ואת שביעות הרצון.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     16. חנות ציבורית
+═══════════════════════════════════════════════════════ -->
+<section id="storefront" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#d1fae5">🌐</div>
+    <div>
+      <div class="card-title">חנות ציבורית — ממשק לקוחות</div>
+      <div class="card-subtitle"><span class="user-badge badge-public">לקוחה</span> מה רואות הלקוחות שלך</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      כל סלון מקבל קישור ציבורי ייחודי. הלקוחות נכנסות דרכו לקבוע תורים, לראות שירותים ולשלוח הודעה לסלון — ללא צורך בהתקנת אפליקציה.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">🗂️ מה הלקוחה רואה</div>
+      <div class="field-row"><div class="field-name">עמוד הבית</div><div class="field-desc">לוגו, שם, כתובת, שעות פתיחה וכפתורי פעולה מהירה</div></div>
+      <div class="field-row"><div class="field-name">שירותים</div><div class="field-desc">כל השירותים מחולקים לקטגוריות עם מחיר ומשך — ניתן לפלטר</div></div>
+      <div class="field-row"><div class="field-name">קביעת תור</div><div class="field-desc">בחירת שירות ← בחירת מטפלת (אם רלוונטי) ← בחירת תאריך ושעה פנויה</div></div>
+      <div class="field-row"><div class="field-name">מוצרים לרכישה</div><div class="field-desc">מוצרי קמעונאות שהוגדרו — עם תמונה ומחיר</div></div>
+      <div class="field-row"><div class="field-name">שליחת הודעה</div><div class="field-desc">צור קשר ישיר עם הסלון — מגיע ל-Inbox הניהולי</div></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">📋 קביעת תור עצמית ע"י לקוחה</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">תור שנקבע דרך החנות הציבורית מופיע בממשק הניהולי עם סטטוס <strong>"ממתין לאישור"</strong>. המנהלת מאשרת או דוחה. לאחר אישור — הלקוחה מקבלת הודעת אישור (אם יש לה OneFlow LIFE).</p>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">🔗</span>
+      <div>הקישור לחנות הציבורית נמצא ב: <strong>הגדרות → הגדרות חנות → קישור ציבורי</strong>. ניתן לשתף ב-WhatsApp, אינסטגרם ו-Google Business.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     17. שאלות נפוצות
+═══════════════════════════════════════════════════════ -->
+<section id="faq" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fdf4ff">❓</div>
+    <div>
+      <div class="card-title">שאלות נפוצות</div>
+      <div class="card-subtitle">תשובות לשאלות הנפוצות ביותר</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="accordion-item">
+      <button class="accordion-trigger">האם ניתן לקבוע תור ליותר ממטפלת אחת (לדוג' צביעה + תספורת)? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">כן — ניתן לפצל תור לשני חלקים רצופים עם מטפלות שונות. בפתיחת תור בחרי שירות ראשון ← לאחר שמירה ← קבעי תור רציף עם שירות שני. שניהם יופיעו ביומן כרצף.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">מה קורה כשלקוחה מבטלת תור ברגע האחרון? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">שני התור לסטטוס "בוטל" — הוא נשמר בהיסטוריה לצורך סטטיסטיקה ו-no-show tracking. ניתן לקבוע מדיניות ביטול (לדוג' 24 שעות מראש) בהגדרות החנות — הלקוחה רואה אותה לפני קביעת תור.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">כיצד מגדירים עמלה שונה לכל שירות (לא אחוז אחיד)? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">בפרטי מטפלת ← לשונית "עמלות" ← לחצי "התאמה לפי שירות". לכל שירות ניתן להגדיר אחוז שונה. הגדרה זו תגבר על ברירת המחדל האחיד.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">כיצד לקוחה יכולה לבחור מטפלת מועדפת? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">בחנות הציבורית — שלב בחירת השירות מציג את שמות המטפלות שמאושרות לאותו שירות. הלקוחה יכולה לבחור "ללא העדפה" (המערכת תשבץ אוטומטית) או מטפלת ספציפית.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">האם ניתן להגביל כמה תורים ביום לכל מטפלת? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">היומן מגביל תורים לפי שעות עבודה ומשך שירות — אם שעות המטפלת מוגדרות 09:00–18:00 ומשך שירות ממוצע שעה, המערכת אוטומטית תציג עד 9 משבצות פנויות.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">מה ההבדל בין "מלאי מקצועי" ל"מלאי קמעונאי"? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">מלאי מקצועי (backbar) הוא חומרים שמשתמשים בהם בטיפולים ולא מוכרים. מלאי קמעונאי הוא מוצרים שמוכרים ללקוחות דרך הקופה או החנות. שניהם מנוהלים בנפרד ומופיעים בשני עמודות שונות בדוח המלאי.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">כיצד ניתן לראות איזו לקוחה לא חזרה 3 חודשים? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">מסך דוחות ← "לקוחות" ← "לקוחות לא פעילות". ניתן לסנן לפי מספר ימים מהביקור האחרון. לאחר מכן ניתן לשלוח הודעה לכל הרשימה בלחיצה אחת.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">האם לקוחה יכולה לקבוע תור בלי להירשם? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">כן — בחנות הציבורית ניתן לקבוע תור עם שם וטלפון בלבד, ללא חשבון. הלקוחה נוצרת אוטומטית ברשימת הלקוחות. אם ברצונה לקבל תזכורות ולנהל תורים — ניתן להצטרף ל-OneFlow LIFE בשלב מאוחר יותר.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">כיצד להעביר פורמולות של לקוחה ממטפלת שעזבה? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">פורמולות ותיקי לקוחות שמורים ברמת הסלון — לא ברמת המטפלת. כאשר מטפלת עוזבת, כל המידע בתיקי הלקוחות שלה נשאר נגיש לכל מטפלת אחרת. אין צורך בהעברה ידנית.</div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">כיצד לקוחה ONEFLOW מקבלת תזכורת תור? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
+      <div class="accordion-body">לקוחה שהצטרפה ל-ONEFLOW LIFE מקבלת הודעה ב-Inbox שלה: 24 שעות לפני התור ו-2 שעות לפניו — אוטומטית. ניתן לשנות את זמני התזכורת בהגדרות חנות.</div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <i class="fa-solid fa-arrow-up"></i>
+</button>
+
+<script>
+function setActive(el) {
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  el.classList.add('active');
+}
+function goTo(id) {
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+}
+function handleSearch(q) {
+  q = q.trim().toLowerCase();
+  document.querySelectorAll('.section-card').forEach(card => {
+    if (!q) { card.classList.remove('search-hidden'); return; }
+    const text = card.textContent.toLowerCase();
+    card.classList.toggle('search-hidden', !text.includes(q));
+  });
+}
+window.addEventListener('scroll', () => {
+  const bar = document.getElementById('progress-bar');
+  const btn = document.getElementById('back-to-top');
+  const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  if (bar) bar.style.transform = `scaleX(${pct})`;
+  if (btn) btn.classList.toggle('visible', window.scrollY > 400);
+  document.querySelectorAll('.section-card').forEach(sec => {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top < 200 && rect.bottom > 200) {
+      const id = sec.id;
+      document.querySelectorAll('.nav-link').forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+});
+document.querySelectorAll('.accordion-trigger').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('open');
+    const body = btn.nextElementSibling;
+    if (body) body.classList.toggle('open');
+  });
+});
+</script>
+</body>
+</html>
