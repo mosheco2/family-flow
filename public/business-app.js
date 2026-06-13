@@ -32389,7 +32389,7 @@ function _renderBeautyCalendar() {
         while (cells.length % 7 !== 0) cells.push(null);
         const weeks = [];
         for (let i=0; i<cells.length; i+=7) weeks.push(cells.slice(i,i+7));
-        const dayNames = ['א'','ב'','ג'','ד'','ה'','ו'','ש''];
+        const dayNames = ["א'","ב'","ג'","ד'","ה'","ו'","ש'"];
         const gridHtml = `<div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
             <div class="grid grid-cols-7 border-b border-slate-100">
                 ${dayNames.map(n=>`<div class="text-center text-[10px] font-black text-slate-400 py-2">${n}</div>`).join('')}
@@ -32807,7 +32807,7 @@ window._beautyCheckOneflow = async function() {
                         <p class="text-xs font-black text-indigo-800">${m.family_name || m.nickname}</p>
                         <p class="text-[10px] text-indigo-500">קוד: ${m.group_code} · ${m.phone || 'ללא טלפון'}</p>
                     </div>
-                    <button onclick="window._beautyLinkOneflow(${m.family_id},'${(m.family_name||m.nickname).replace(/'/g,\'\')}')" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
+                    <button onclick="window._beautyLinkOneflow(${m.family_id}, this.dataset.n)" data-n="${(m.family_name||m.nickname||'').replace(/"/g,'&quot;')}" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
                 </div>`).join('');
         } else {
             resEl.innerHTML = '<p class="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>';
