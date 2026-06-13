@@ -12374,7 +12374,7 @@ app.get('/api/beauty/:bizId/dashboard', async (req, res) => {
                 [bizId, monthStart]
             ),
             pool.query(
-                `SELECT COALESCE(SUM(bc.amount),0) AS sum, COUNT(*) AS cnt
+                `SELECT COALESCE(SUM(bc.commission_amount),0) AS sum, COUNT(*) AS cnt
                  FROM beauty_commissions bc WHERE bc.business_group_id=$1 AND bc.is_paid=FALSE`,
                 [bizId]
             ),
