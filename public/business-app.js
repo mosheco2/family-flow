@@ -1463,6 +1463,11 @@ function switchTab(t) {
     window._suppressRoleDash = false;
     window._currentBizSubTab = null;
 
+    // הסתרת/הצגת מעטפת הטאבים הרגילה עבור טאבי היופי
+    const _beautyTabs = ['beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions'];
+    const wrap = document.getElementById('biz-main-content-wrap');
+    if (wrap) wrap.classList.toggle('hidden', _beautyTabs.includes(t));
+
     // עדכון group nav
     try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
 
@@ -32763,18 +32768,18 @@ window._beautyNewClientModal = function() {
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
             <div><label class="text-xs font-bold text-slate-600 block mb-1">שם מלא *</label>
                 <input id="bnc-name" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מספר ת.ז *</label>
+                <input id="bnc-idnum" type="text" inputmode="numeric" maxlength="9" placeholder="9 ספרות" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/></div>
             <div>
-                <label class="text-xs font-bold text-slate-600 block mb-1">מספר ת.ז *</label>
+                <label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
                 <div class="flex gap-2">
-                    <input id="bnc-idnum" type="text" inputmode="numeric" maxlength="9" placeholder="9 ספרות" class="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/>
+                    <input id="bnc-phone" type="tel" class="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm"/>
                     <button type="button" onclick="window._beautyCheckOneflow()" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center gap-1">
                         <i class="fa-solid fa-user-check text-[11px]"></i> ONEFLOW LIFE
                     </button>
                 </div>
                 <div id="bnc-oneflow-result" class="mt-1 hidden"></div>
             </div>
-            <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
-                <input id="bnc-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">אימייל</label>
                 <input id="bnc-email" type="email" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך לידה</label>
