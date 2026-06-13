@@ -1064,6 +1064,119 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE beauty_client_records ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
       // ===== END BEAUTY & COSMETICS MODULE =====
 
+      // ===== LOGISTICS / DISTRIBUTION / DELIVERY MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_pricing_zones (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          zone_name VARCHAR(100) NOT NULL,
+          base_price DECIMAL(10,2) DEFAULT 0,
+          price_per_km DECIMAL(8,2) DEFAULT 0,
+          price_per_kg DECIMAL(8,2) DEFAULT 0,
+          min_fee DECIMAL(10,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_vehicles (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100),
+          type VARCHAR(30) DEFAULT 'van',
+          plate_number VARCHAR(20),
+          capacity_kg DECIMAL(8,2),
+          insurance_expires_at DATE,
+          inspection_expires_at DATE,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_drivers (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          name VARCHAR(100) NOT NULL,
+          phone VARCHAR(30),
+          email VARCHAR(100),
+          vehicle_id INT,
+          status VARCHAR(20) DEFAULT 'active',
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_orders (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          order_number VARCHAR(30),
+          customer_name VARCHAR(100),
+          customer_phone VARCHAR(30),
+          customer_email VARCHAR(100),
+          pickup_address TEXT,
+          delivery_address TEXT,
+          status VARCHAR(30) DEFAULT 'new',
+          driver_id INT,
+          vehicle_id INT,
+          scheduled_date DATE,
+          scheduled_time_window VARCHAR(50),
+          weight_kg DECIMAL(8,2),
+          package_count INT DEFAULT 1,
+          cod_amount DECIMAL(10,2) DEFAULT 0,
+          cod_collected BOOLEAN DEFAULT false,
+          cod_method VARCHAR(20),
+          delivery_fee DECIMAL(10,2) DEFAULT 0,
+          pricing_zone_id INT,
+          pod_photo_url TEXT,
+          pod_signature_url TEXT,
+          pod_barcode VARCHAR(100),
+          delivery_notes TEXT,
+          internal_notes TEXT,
+          delivered_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_cod_sessions (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          driver_id INT,
+          session_date DATE DEFAULT CURRENT_DATE,
+          total_collected DECIMAL(10,2) DEFAULT 0,
+          total_deposited DECIMAL(10,2) DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'open',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_rfq (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          client_name VARCHAR(100),
+          client_phone VARCHAR(30),
+          description TEXT,
+          photos JSONB DEFAULT '[]',
+          messages JSONB DEFAULT '[]',
+          status VARCHAR(20) DEFAULT 'new',
+          quote_amount DECIMAL(10,2),
+          deposit_amount DECIMAL(10,2) DEFAULT 0,
+          deposit_paid BOOLEAN DEFAULT false,
+          pickup_address TEXT,
+          delivery_address TEXT,
+          preferred_date DATE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_order_events (
+          id SERIAL PRIMARY KEY,
+          order_id INT,
+          group_id INT,
+          event_type VARCHAR(50),
+          old_status VARCHAR(30),
+          new_status VARCHAR(30),
+          actor_name VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_group ON logistics_orders(group_id, status)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_driver ON logistics_orders(driver_id, scheduled_date)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_rfq_group ON logistics_rfq(group_id, status)`); } catch(e) {}
+      // ===== END LOGISTICS MODULE =====
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -12623,6 +12736,366 @@ async function runRetentionCron() {
 setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERVAL_MS); }, 60000);
 
 // ===== END BEAUTY & COSMETICS API =====
+
+// ===== LOGISTICS / DISTRIBUTION / DELIVERY API =====
+
+app.get('/api/logistics/dashboard/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [ordersStats, driversCount, codStats, vehicleAlerts] = await Promise.all([
+            pool.query(`SELECT
+                COUNT(*) FILTER (WHERE status='new') AS new_orders,
+                COUNT(*) FILTER (WHERE status='assigned') AS assigned_orders,
+                COUNT(*) FILTER (WHERE status IN ('picked_up','in_transit')) AS in_transit,
+                COUNT(*) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE) AS delivered_today,
+                COUNT(*) FILTER (WHERE status='no_answer') AS no_answer,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE), 0) AS revenue_today,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE_TRUNC('month',delivered_at)=DATE_TRUNC('month',NOW())), 0) AS revenue_month,
+                COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true AND DATE(delivered_at)=CURRENT_DATE), 0) AS cod_today
+                FROM logistics_orders WHERE group_id=$1`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM logistics_drivers WHERE group_id=$1 AND is_active=true`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(cod_amount),0) AS total_cod_pending FROM logistics_orders WHERE group_id=$1 AND cod_amount>0 AND cod_collected=false AND status='delivered'`, [gid]),
+            pool.query(`SELECT COUNT(*) AS cnt FROM logistics_vehicles WHERE group_id=$1 AND is_active=true AND (insurance_expires_at<=CURRENT_DATE+14 OR inspection_expires_at<=CURRENT_DATE+14)`, [gid])
+        ]);
+        const s = ordersStats.rows[0];
+        res.json({
+            new_orders: parseInt(s.new_orders)||0,
+            assigned_orders: parseInt(s.assigned_orders)||0,
+            in_transit: parseInt(s.in_transit)||0,
+            delivered_today: parseInt(s.delivered_today)||0,
+            no_answer: parseInt(s.no_answer)||0,
+            revenue_today: parseFloat(s.revenue_today)||0,
+            revenue_month: parseFloat(s.revenue_month)||0,
+            cod_today: parseFloat(s.cod_today)||0,
+            cod_pending: parseFloat(codStats.rows[0].total_cod_pending)||0,
+            active_drivers: parseInt(driversCount.rows[0].count)||0,
+            vehicle_alerts: parseInt(vehicleAlerts.rows[0].cnt)||0
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/orders/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const { status, driver_id, date, search } = req.query;
+        let q = `SELECT lo.*, ld.name AS driver_name, lv.name AS vehicle_name
+                 FROM logistics_orders lo
+                 LEFT JOIN logistics_drivers ld ON ld.id=lo.driver_id
+                 LEFT JOIN logistics_vehicles lv ON lv.id=lo.vehicle_id
+                 WHERE lo.group_id=$1`;
+        const params = [gid]; let idx = 2;
+        if (status && status !== 'all') { q += ` AND lo.status=$${idx++}`; params.push(status); }
+        if (driver_id) { q += ` AND lo.driver_id=$${idx++}`; params.push(driver_id); }
+        if (date) { q += ` AND lo.scheduled_date=$${idx++}`; params.push(date); }
+        if (search) { q += ` AND (lo.customer_name ILIKE $${idx} OR lo.customer_phone ILIKE $${idx} OR lo.delivery_address ILIKE $${idx} OR lo.order_number ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
+        q += ` ORDER BY lo.created_at DESC LIMIT 300`;
+        const r = await pool.query(q, params);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/orders', async (req, res) => {
+    try {
+        const { group_id, customer_name, customer_phone, customer_email, pickup_address, delivery_address,
+                scheduled_date, scheduled_time_window, weight_kg, package_count, cod_amount,
+                delivery_fee, pricing_zone_id, delivery_notes, internal_notes, driver_id } = req.body;
+        const orderNumber = 'LOG-' + Date.now().toString().slice(-6);
+        const r = await pool.query(
+            `INSERT INTO logistics_orders (group_id, order_number, customer_name, customer_phone, customer_email,
+             pickup_address, delivery_address, scheduled_date, scheduled_time_window, weight_kg, package_count,
+             cod_amount, delivery_fee, pricing_zone_id, delivery_notes, internal_notes, driver_id, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+            [group_id, orderNumber, customer_name, customer_phone||null, customer_email||null,
+             pickup_address||null, delivery_address||null, scheduled_date||null, scheduled_time_window||null,
+             weight_kg||null, package_count||1, cod_amount||0, delivery_fee||0, pricing_zone_id||null,
+             delivery_notes||null, internal_notes||null, driver_id||null, driver_id ? 'assigned' : 'new']
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/status', async (req, res) => {
+    try {
+        const { status, actor_name, notes } = req.body;
+        const old = await pool.query('SELECT status, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
+        if (!old.rows.length) return res.status(404).json({ error: 'not found' });
+        const oldStatus = old.rows[0].status;
+        let q = 'UPDATE logistics_orders SET status=$1, updated_at=NOW()';
+        const params = [status];
+        if (status === 'delivered') q += ', delivered_at=NOW()';
+        q += ` WHERE id=$${params.length+1}`;
+        params.push(req.params.id);
+        await pool.query(q, params);
+        await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes) VALUES ($1,$2,'status_change',$3,$4,$5,$6)`,
+            [req.params.id, old.rows[0].group_id, oldStatus, status, actor_name||null, notes||null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/assign', async (req, res) => {
+    try {
+        const { driver_id, vehicle_id } = req.body;
+        await pool.query(`UPDATE logistics_orders SET driver_id=$1, vehicle_id=$2, status='assigned', updated_at=NOW() WHERE id=$3`,
+            [driver_id, vehicle_id||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/pod', async (req, res) => {
+    try {
+        const { pod_photo_url, pod_signature_url, pod_barcode } = req.body;
+        await pool.query(`UPDATE logistics_orders SET pod_photo_url=$1, pod_signature_url=$2, pod_barcode=$3, status='delivered', delivered_at=NOW(), updated_at=NOW() WHERE id=$4`,
+            [pod_photo_url||null, pod_signature_url||null, pod_barcode||null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id/cod', async (req, res) => {
+    try {
+        const { cod_method } = req.body;
+        await pool.query(`UPDATE logistics_orders SET cod_collected=true, cod_method=$1, updated_at=NOW() WHERE id=$2`,
+            [cod_method, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/orders/:id', async (req, res) => {
+    try {
+        const fields = ['customer_name','customer_phone','customer_email','pickup_address','delivery_address',
+                        'scheduled_date','scheduled_time_window','weight_kg','package_count','cod_amount',
+                        'delivery_fee','delivery_notes','internal_notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_orders SET ${sets.join(',')}, updated_at=NOW() WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/orders/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_orders SET status='cancelled', updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/drivers/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT ld.*, lv.name AS vehicle_name, lv.type AS vehicle_type,
+            (SELECT COUNT(*) FROM logistics_orders lo WHERE lo.driver_id=ld.id AND lo.status IN ('assigned','picked_up','in_transit')) AS active_orders
+            FROM logistics_drivers ld LEFT JOIN logistics_vehicles lv ON lv.id=ld.vehicle_id
+            WHERE ld.group_id=$1 ORDER BY ld.name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/drivers', async (req, res) => {
+    try {
+        const { group_id, name, phone, email, vehicle_id, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_drivers (group_id, name, phone, email, vehicle_id, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [group_id, name, phone||null, email||null, vehicle_id||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/drivers/:id', async (req, res) => {
+    try {
+        const fields = ['name','phone','email','vehicle_id','status','is_active','notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_drivers SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/drivers/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_drivers SET is_active=false WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/vehicles/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_vehicles WHERE group_id=$1 ORDER BY name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/vehicles', async (req, res) => {
+    try {
+        const { group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_vehicles (group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [group_id, name, type||'van', plate_number||null, capacity_kg||null, insurance_expires_at||null, inspection_expires_at||null, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/vehicles/:id', async (req, res) => {
+    try {
+        const fields = ['name','type','plate_number','capacity_kg','insurance_expires_at','inspection_expires_at','is_active','notes'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_vehicles SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/vehicles/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_vehicles SET is_active=false WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/pricing/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_pricing_zones WHERE group_id=$1 ORDER BY zone_name`, [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/pricing', async (req, res) => {
+    try {
+        const { group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_pricing_zones (group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [group_id, zone_name, base_price||0, price_per_km||0, price_per_kg||0, min_fee||0]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/pricing/:id', async (req, res) => {
+    try {
+        const fields = ['zone_name','base_price','price_per_km','price_per_kg','min_fee','is_active'];
+        const sets = [], params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_pricing_zones SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/pricing/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_pricing_zones WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/cod/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+        const r = await pool.query(`SELECT ld.id AS driver_id, ld.name AS driver_name,
+            COUNT(lo.id) FILTER (WHERE lo.cod_amount > 0) AS total_orders,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_amount > 0), 0) AS total_due,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_collected=true), 0) AS total_collected,
+            COALESCE(SUM(lo.cod_amount) FILTER (WHERE lo.cod_amount > 0 AND lo.cod_collected=false AND lo.status='delivered'), 0) AS pending_deposit
+            FROM logistics_drivers ld
+            LEFT JOIN logistics_orders lo ON lo.driver_id=ld.id AND lo.scheduled_date=$2
+            WHERE ld.group_id=$1 AND ld.is_active=true
+            GROUP BY ld.id, ld.name ORDER BY ld.name`, [gid, date]);
+        res.json({ date, drivers: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/cod/close', async (req, res) => {
+    try {
+        const { driver_id, date, total_deposited, notes, group_id } = req.body;
+        const collected = await pool.query(`SELECT COALESCE(SUM(cod_amount),0) AS total FROM logistics_orders WHERE driver_id=$1 AND scheduled_date=$2 AND cod_collected=true`, [driver_id, date]);
+        await pool.query(`INSERT INTO logistics_cod_sessions (group_id, driver_id, session_date, total_deposited, total_collected, status, notes)
+            VALUES ($1,$2,$3,$4,$5,'closed',$6) ON CONFLICT DO NOTHING`,
+            [group_id, driver_id, date, total_deposited||0, parseFloat(collected.rows[0].total)||0, notes||null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/rfq/:groupId', async (req, res) => {
+    try {
+        const { status } = req.query;
+        let q = 'SELECT * FROM logistics_rfq WHERE group_id=$1';
+        const params = [req.params.groupId];
+        if (status && status !== 'all') { q += ' AND status=$2'; params.push(status); }
+        q += ' ORDER BY created_at DESC LIMIT 100';
+        const r = await pool.query(q, params);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/rfq', async (req, res) => {
+    try {
+        const { group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_rfq (group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [group_id, client_name, client_phone||null, description||null, pickup_address||null, delivery_address||null, preferred_date||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/message', async (req, res) => {
+    try {
+        const { from, text } = req.body;
+        const existing = await pool.query('SELECT messages FROM logistics_rfq WHERE id=$1', [req.params.id]);
+        if (!existing.rows.length) return res.status(404).json({ error: 'not found' });
+        const msgs = existing.rows[0].messages || [];
+        msgs.push({ from, text, at: new Date().toISOString() });
+        await pool.query('UPDATE logistics_rfq SET messages=$1, updated_at=NOW() WHERE id=$2', [JSON.stringify(msgs), req.params.id]);
+        res.json({ success: true, messages: msgs });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/quote', async (req, res) => {
+    try {
+        const { quote_amount, deposit_amount } = req.body;
+        await pool.query(`UPDATE logistics_rfq SET quote_amount=$1, deposit_amount=$2, status='quoted', updated_at=NOW() WHERE id=$3`,
+            [quote_amount, deposit_amount||0, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rfq/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query(`UPDATE logistics_rfq SET status=$1, updated_at=NOW() WHERE id=$2`, [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/reports/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const period = req.query.period || 'week';
+        const dateFilter = period === 'month' ? `DATE_TRUNC('month', NOW())` : `CURRENT_DATE - INTERVAL '7 days'`;
+        const [delivery, byDriver, cod] = await Promise.all([
+            pool.query(`SELECT COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE status='delivered') AS delivered,
+                COUNT(*) FILTER (WHERE status='no_answer') AS no_answer,
+                COUNT(*) FILTER (WHERE status='cancelled') AS cancelled,
+                COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered'), 0) AS revenue,
+                COALESCE(AVG(EXTRACT(EPOCH FROM (delivered_at - created_at))/3600) FILTER (WHERE status='delivered'), 0) AS avg_hours
+                FROM logistics_orders WHERE group_id=$1 AND created_at >= ${dateFilter}`, [gid]),
+            pool.query(`SELECT ld.name,
+                COUNT(lo.id) AS total,
+                COUNT(lo.id) FILTER (WHERE lo.status='delivered') AS delivered,
+                COALESCE(SUM(lo.delivery_fee) FILTER (WHERE lo.status='delivered'), 0) AS revenue
+                FROM logistics_drivers ld
+                LEFT JOIN logistics_orders lo ON lo.driver_id=ld.id AND lo.created_at >= ${dateFilter}
+                WHERE ld.group_id=$1 AND ld.is_active=true
+                GROUP BY ld.id, ld.name ORDER BY delivered DESC NULLS LAST`, [gid]),
+            pool.query(`SELECT COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true), 0) AS collected,
+                COALESCE(SUM(cod_amount) FILTER (WHERE cod_amount>0 AND cod_collected=false AND status='delivered'), 0) AS pending
+                FROM logistics_orders WHERE group_id=$1 AND created_at >= ${dateFilter}`, [gid])
+        ]);
+        res.json({ period, delivery: delivery.rows[0], by_driver: byDriver.rows, cod: cod.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== END LOGISTICS API =====
 
 // הפעלת השרת
 app.listen(port, () => {

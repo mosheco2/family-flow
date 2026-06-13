@@ -1607,7 +1607,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1661,6 +1661,12 @@ function switchTab(t) {
     if (t === 'beauty_clients') try { loadBeautyClients(); } catch(e) {}
     if (t === 'beauty_inventory') try { loadBeautyInventory(); } catch(e) {}
     if (t === 'beauty_commissions') try { loadBeautyCommissions(); } catch(e) {}
+    if (t === 'logistics_orders')   try { loadLogisticsOrders(); } catch(e) {}
+    if (t === 'logistics_drivers')  try { loadLogisticsDrivers(); } catch(e) {}
+    if (t === 'logistics_vehicles') try { loadLogisticsVehicles(); } catch(e) {}
+    if (t === 'logistics_pricing')  try { loadLogisticsPricing(); } catch(e) {}
+    if (t === 'logistics_cod')      try { loadLogisticsCOD(); } catch(e) {}
+    if (t === 'logistics_rfq')      try { loadLogisticsRFQ(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -2393,7 +2399,13 @@ const ALL_TABS = [
     { id: 'beauty_calendar',    name: 'יומן מטפלות 💆' },
     { id: 'beauty_clients',     name: 'תיקי לקוחות 📋' },
     { id: 'beauty_inventory',   name: 'מלאי מקצועי 🧴' },
-    { id: 'beauty_commissions', name: 'עמלות ושכר 💰' }
+    { id: 'beauty_commissions', name: 'עמלות ושכר 💰' },
+    { id: 'logistics_orders',   name: 'קנבן משלוחים 📦' },
+    { id: 'logistics_drivers',  name: 'נהגים 🚗' },
+    { id: 'logistics_vehicles', name: 'צי רכבים 🚚' },
+    { id: 'logistics_pricing',  name: 'מחירון 💰' },
+    { id: 'logistics_cod',      name: 'גבייה COD 💵' },
+    { id: 'logistics_rfq',      name: 'הצעות מחיר 📋' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -3921,6 +3933,33 @@ window.renderDashboard = async function(forceRefresh = false) {
             }, 30000);
         }
         window._beautyDashRendering = false;
+        return;
+    }
+
+    // For admin/owner in logistics business
+    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'logistics') {
+        if (window._logisticsDashRendering) return;
+        window._logisticsDashRendering = true;
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.getElementById('biz-main-content-wrap');
+            if (container) { dashEl = document.createElement('div'); dashEl.id = 'content-role-dashboard'; dashEl.className = 'px-2'; container.appendChild(dashEl); }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            dashEl.style.position = 'relative'; dashEl.style.zIndex = '1';
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            await renderLogisticsAdminDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsAdminDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 30000);
+        }
+        window._logisticsDashRendering = false;
         return;
     }
 
@@ -25202,7 +25241,7 @@ const BUSINESS_TYPES = [
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
-    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','deliveries','pantry','shop','customers','shifts','timeclock','members','cashflow','tasks'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','members','timeclock','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','pos','sales','beauty_clients','beauty_inventory','beauty_commissions','members','timeclock','cashflow','tasks','pantry','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
@@ -33641,6 +33680,847 @@ window._previewConsultationForm = async function() {
         } else showToast('error', r.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+// ===== LOGISTICS MODULE UI =====
+
+// ─── State ────────────────────────────────────────────────────────────────────
+window._logisticsState = { orders:[], drivers:[], vehicles:[], pricing:[], kanbanStatus:'all', selectedDate: new Date().toISOString().split('T')[0] };
+
+// ─── Status helpers ───────────────────────────────────────────────────────────
+function _logStatusLabel(s) {
+    const m = { new:'חדש', assigned:'שויך', picked_up:'נאסף', in_transit:'בדרך', arrived:'הגיע', delivered:'נמסר', no_answer:'לא ענה', rescheduled:'תואם מחדש', returned:'הוחזר', cancelled:'בוטל' };
+    return m[s] || s;
+}
+function _logStatusColor(s) {
+    const m = { new:'bg-slate-100 text-slate-600', assigned:'bg-blue-100 text-blue-700', picked_up:'bg-indigo-100 text-indigo-700', in_transit:'bg-violet-100 text-violet-700', arrived:'bg-amber-100 text-amber-700', delivered:'bg-emerald-100 text-emerald-700', no_answer:'bg-red-100 text-red-700', rescheduled:'bg-orange-100 text-orange-700', returned:'bg-slate-200 text-slate-700', cancelled:'bg-rose-100 text-rose-600' };
+    return m[s] || 'bg-slate-100 text-slate-600';
+}
+function _logVehicleIcon(t) {
+    const m = { motorcycle:'🛵', van:'🚐', truck:'🚛', bicycle:'🚲', electric:'⚡' };
+    return m[t] || '🚗';
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function renderLogisticsAdminDashboard(el) {
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm">טוען נתוני לוגיסטיקה...</div>`;
+    let s = { new_orders:0, assigned_orders:0, in_transit:0, delivered_today:0, no_answer:0, revenue_today:0, revenue_month:0, cod_today:0, cod_pending:0, active_drivers:0, vehicle_alerts:0 };
+    try {
+        const r = await fetch(`${API}/logistics/dashboard/${currentGroup.id}`);
+        if (r.ok) s = await r.json();
+    } catch(e) {}
+
+    const kpis = [
+        { label:'משלוחים חדשים',  value: s.new_orders,      icon:'📥', color:'slate',   cb:`switchTab('logistics_orders')` },
+        { label:'נמסרו היום',     value: s.delivered_today,  icon:'✅', color:'emerald', cb:`switchTab('logistics_orders')` },
+        { label:'בדרך כעת',       value: s.in_transit,       icon:'🚚', color:'violet',  cb:`switchTab('logistics_orders')` },
+        { label:'לא ענו',         value: s.no_answer,        icon:'📵', color: s.no_answer>0?'red':'slate', cb:`switchTab('logistics_orders')` },
+        { label:'הכנסה היום',     value:`₪${Number(s.revenue_today).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'amber', cb:`switchTab('cashflow')` },
+        { label:'COD ממתין',      value:`₪${Number(s.cod_pending).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💵', color: s.cod_pending>0?'orange':'slate', cb:`switchTab('logistics_cod')` }
+    ];
+    const kpiHtml = kpis.map(k=>`<button type="button" onclick="${k.cb}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation"><span class="text-xl">${k.icon}</span><div class="text-lg font-black text-${k.color}-600">${k.value}</div><div class="text-[10px] text-slate-500 font-bold">${k.label}</div></button>`).join('');
+
+    const alerts = [];
+    if (s.no_answer > 0) alerts.push(`<div class="font-black text-red-700">${s.no_answer} משלוחים ללא מענה <button onclick="switchTab('logistics_orders')" class="text-[11px] underline text-red-500">צפה</button></div>`);
+    if (s.vehicle_alerts > 0) alerts.push(`<div class="font-bold text-orange-700 text-xs">${s.vehicle_alerts} רכבים עם ביטוח/טסט הקרוב <button onclick="switchTab('logistics_vehicles')" class="text-[11px] underline text-orange-500">צפה</button></div>`);
+    const alertBanner = alerts.length ? `<div class="bg-orange-50 border border-orange-200 rounded-2xl p-3 mb-3 flex items-center gap-3"><span class="text-2xl">🔔</span><div class="flex-1 text-right text-sm">${alerts.join('')}</div></div>` : '';
+
+    el.innerHTML = `
+        ${roleDashboardHeader('🚚','ממשק מנהל לוגיסטיקה','משלוחים, נהגים ו-KPIs יומיים','from-orange-500','to-amber-600')}
+        ${alertBanner}
+        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
+        ${roleQuickActions([
+            {icon:'📦', label:'קנבן הזמנות',  tab:'logistics_orders'},
+            {icon:'🚗', label:'נהגים',         tab:'logistics_drivers'},
+            {icon:'🚚', label:'צי רכבים',      tab:'logistics_vehicles'},
+            {icon:'💰', label:'מחירון',         tab:'logistics_pricing'},
+            {icon:'💵', label:'גבייה COD',      tab:'logistics_cod'},
+            {icon:'📋', label:'הצעות מחיר',    tab:'logistics_rfq'},
+            {icon:'📊', label:'דוחות',          tab:'cashflow'},
+            {icon:'👥', label:'צוות',           tab:'members'}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// ─── Orders (Kanban) ──────────────────────────────────────────────────────────
+async function loadLogisticsOrders() {
+    const el = document.getElementById('content-logistics_orders'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען משלוחים...</div>`;
+    try {
+        const r = await fetch(`${API}/logistics/orders/${currentGroup.id}`);
+        window._logisticsState.orders = r.ok ? await r.json() : [];
+        const dr = await fetch(`${API}/logistics/drivers/${currentGroup.id}`);
+        window._logisticsState.drivers = dr.ok ? await dr.json() : [];
+    } catch(e) { window._logisticsState.orders = []; }
+    _renderLogisticsKanban();
+}
+
+function _renderLogisticsKanban() {
+    const el = document.getElementById('content-logistics_orders'); if (!el) return;
+    const orders = window._logisticsState.orders;
+    const drivers = window._logisticsState.drivers;
+    const today = window._logisticsState.selectedDate;
+
+    const COLS = [
+        { key:'new',        label:'חדש',         icon:'📥', color:'slate' },
+        { key:'assigned',   label:'שויך',         icon:'👤', color:'blue' },
+        { key:'in_transit', label:'בדרך',         icon:'🚚', color:'violet' },
+        { key:'delivered',  label:'נמסר',         icon:'✅', color:'emerald' },
+        { key:'no_answer',  label:'לא ענה',       icon:'📵', color:'red' }
+    ];
+
+    const dateOrders = orders.filter(o => !today || !o.scheduled_date || o.scheduled_date.split('T')[0] === today || ['delivered','cancelled','returned'].includes(o.status) === false);
+
+    const colsHtml = COLS.map(col => {
+        const colOrders = orders.filter(o => o.status === col.key);
+        const cards = colOrders.map(o => {
+            const driverName = o.driver_name || (drivers.find(d=>d.id==o.driver_id)?.name) || '';
+            const codBadge = o.cod_amount > 0 ? `<span class="text-[10px] font-bold ${o.cod_collected?'text-emerald-600':'text-orange-600'}">${o.cod_collected?'✅':'💵'} ₪${o.cod_amount}</span>` : '';
+            const waze = o.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(o.delivery_address)}&navigate=yes" target="_blank" class="text-[10px] text-blue-500 font-bold">🗺 Waze</a>` : '';
+            return `<div class="bg-white rounded-2xl border border-slate-200 p-3 mb-2 shadow-sm touch-manipulation" onclick="window._logisticsOrderDetail(${o.id})">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-bold text-slate-400">${o.order_number||('#'+o.id)}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${_logStatusColor(o.status)}">${_logStatusLabel(o.status)}</span>
+                </div>
+                <div class="font-black text-slate-800 text-sm truncate">${o.customer_name||''}</div>
+                <div class="text-[11px] text-slate-500 truncate mt-0.5">${o.delivery_address||''}</div>
+                <div class="flex items-center justify-between mt-2">
+                    <div class="flex items-center gap-2">${codBadge}</div>
+                    <div class="text-[10px] text-slate-400">${driverName ? '🚗 '+driverName : ''}</div>
+                </div>
+                ${waze ? `<div class="mt-1">${waze}</div>` : ''}
+            </div>`;
+        }).join('') || `<div class="py-6 text-center text-slate-300 text-[11px]">ריק</div>`;
+
+        return `<div class="flex-none w-48 bg-slate-50 rounded-2xl p-2 border border-slate-200">
+            <div class="flex items-center gap-1 mb-2 px-1">
+                <span>${col.icon}</span>
+                <span class="text-xs font-black text-slate-700">${col.label}</span>
+                <span class="ml-auto text-[10px] font-bold bg-slate-200 text-slate-600 rounded-full px-1.5">${colOrders.length}</span>
+            </div>
+            ${cards}
+        </div>`;
+    }).join('');
+
+    const driverFilter = `<select onchange="window._logisticsFilterDriver(this.value)" class="border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+        <option value="">כל הנהגים</option>
+        ${drivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+    </select>`;
+
+    const dateInput = `<input type="date" value="${today}" onchange="window._logisticsState.selectedDate=this.value; loadLogisticsOrders()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"/>`;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-3 gap-2">
+            <button onclick="window._logisticsNewOrder()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> משלוח חדש</button>
+            <div class="flex gap-2">${dateInput}</div>
+        </div>
+        <div class="overflow-x-auto pb-4">
+            <div class="flex gap-3 min-w-max">${colsHtml}</div>
+        </div>`;
+}
+
+window._logisticsFilterDriver = function(driverId) {
+    const orders = window._logisticsState.orders;
+    if (!driverId) return _renderLogisticsKanban();
+    window._logisticsState.orders = orders.filter(o => String(o.driver_id) === String(driverId));
+    _renderLogisticsKanban();
+    window._logisticsState.orders = orders;
+};
+
+window._logisticsOrderDetail = async function(orderId) {
+    const order = window._logisticsState.orders.find(o=>o.id===orderId);
+    if (!order) return;
+    const drivers = window._logisticsState.drivers;
+    const vehicles = window._logisticsState.vehicles.length ? window._logisticsState.vehicles : (await fetch(`${API}/logistics/vehicles/${currentGroup.id}`).then(r=>r.json()).catch(()=>[]));
+    window._logisticsState.vehicles = vehicles;
+
+    const modal = document.createElement('div');
+    modal.id = 'log-order-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-order-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">${order.order_number||('#'+order.id)} — ${order.customer_name}</h3>
+            <span class="text-[11px] px-2 py-0.5 rounded-full font-bold ${_logStatusColor(order.status)}">${_logStatusLabel(order.status)}</span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-4">
+            <div class="bg-slate-50 rounded-2xl p-4 space-y-2 text-right">
+                <div class="text-sm"><span class="text-slate-400 text-xs">כתובת מסירה:</span><br/><span class="font-bold">${order.delivery_address||'—'}</span></div>
+                ${order.pickup_address ? `<div class="text-sm"><span class="text-slate-400 text-xs">כתובת איסוף:</span><br/><span class="font-bold">${order.pickup_address}</span></div>` : ''}
+                <div class="flex gap-4">
+                    <div class="text-sm"><span class="text-slate-400 text-xs">טלפון:</span><br/><a href="tel:${order.customer_phone}" class="font-bold text-blue-600">${order.customer_phone||'—'}</a></div>
+                    ${order.cod_amount>0?`<div class="text-sm"><span class="text-slate-400 text-xs">COD:</span><br/><span class="font-bold ${order.cod_collected?'text-emerald-600':'text-orange-600'}">₪${order.cod_amount} ${order.cod_collected?'(שולם)':'(ממתין)'}</span></div>`:''}
+                    ${order.delivery_fee>0?`<div class="text-sm"><span class="text-slate-400 text-xs">דמי משלוח:</span><br/><span class="font-bold">₪${order.delivery_fee}</span></div>`:''}
+                </div>
+                ${order.delivery_notes?`<div class="text-sm text-slate-600 bg-amber-50 rounded-xl p-2 border border-amber-100">${order.delivery_notes}</div>`:''}
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1 text-right">שיוך נהג</label>
+                    <select id="log-assign-driver" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                        <option value="">— ללא —</option>
+                        ${drivers.map(d=>`<option value="${d.id}" ${d.id==order.driver_id?'selected':''}>${d.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1 text-right">רכב</label>
+                    <select id="log-assign-vehicle" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                        <option value="">— ללא —</option>
+                        ${vehicles.map(v=>`<option value="${v.id}" ${v.id==order.vehicle_id?'selected':''}>${v.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <button onclick="window._logisticsAssign(${order.id})" class="w-full py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm">שייך נהג ורכב</button>
+
+            <div class="text-xs font-black text-slate-600 text-right mb-2">עדכון סטטוס:</div>
+            <div class="grid grid-cols-3 gap-2">
+                ${['picked_up','in_transit','arrived','delivered','no_answer','rescheduled'].map(st=>`<button onclick="window._logisticsUpdateStatus(${order.id},'${st}')" class="py-2 rounded-xl text-[11px] font-bold border ${order.status===st?'bg-slate-800 text-white border-slate-800':'border-slate-200 text-slate-600 hover:bg-slate-50'}">${_logStatusLabel(st)}</button>`).join('')}
+            </div>
+
+            ${order.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(order.delivery_address)}&navigate=yes" target="_blank" class="w-full flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-700 rounded-2xl font-bold border border-blue-100"><i class="fa-brands fa-waze text-lg"></i> נווט ב-Waze</a>` : ''}
+
+            ${order.cod_amount>0 && !order.cod_collected ? `<div class="bg-orange-50 rounded-2xl p-4 border border-orange-200">
+                <div class="font-black text-orange-700 text-sm mb-3 text-right">💵 גבייה בשטח — ₪${order.cod_amount}</div>
+                <div class="grid grid-cols-3 gap-2">
+                    ${['cash','credit','qr'].map(m=>`<button onclick="window._logisticsCODCollect(${order.id},'${m}')" class="py-2.5 rounded-xl text-[11px] font-bold border border-orange-300 text-orange-700 hover:bg-orange-100">${m==='cash'?'💵 מזומן':m==='credit'?'💳 אשראי':'📱 QR'}</button>`).join('')}
+                </div>
+            </div>` : ''}
+
+            <button onclick="window._logisticsCancelOrder(${order.id})" class="w-full py-2 text-red-500 text-sm font-bold border border-red-200 rounded-xl hover:bg-red-50">ביטול הזמנה</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._logisticsAssign = async function(orderId) {
+    const driverId = document.getElementById('log-assign-driver')?.value;
+    const vehicleId = document.getElementById('log-assign-vehicle')?.value;
+    try {
+        await fetch(`${API}/logistics/orders/${orderId}/assign`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ driver_id: driverId||null, vehicle_id: vehicleId||null }) });
+        showToast('success','שויך!');
+        document.getElementById('log-order-modal')?.remove();
+        loadLogisticsOrders();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsUpdateStatus = async function(orderId, status) {
+    try {
+        await fetch(`${API}/logistics/orders/${orderId}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status, actor_name: currentUser?.name }) });
+        showToast('success', _logStatusLabel(status));
+        document.getElementById('log-order-modal')?.remove();
+        loadLogisticsOrders();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsCODCollect = async function(orderId, method) {
+    try {
+        await fetch(`${API}/logistics/orders/${orderId}/cod`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cod_method: method }) });
+        showToast('success','גבייה אושרה!');
+        document.getElementById('log-order-modal')?.remove();
+        loadLogisticsOrders();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsCancelOrder = async function(orderId) {
+    if (!confirm('לבטל הזמנה זו?')) return;
+    try {
+        await fetch(`${API}/logistics/orders/${orderId}`, { method:'DELETE' });
+        showToast('success','בוטל');
+        document.getElementById('log-order-modal')?.remove();
+        loadLogisticsOrders();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsNewOrder = function() {
+    const drivers = window._logisticsState.drivers;
+    const pricing = window._logisticsState.pricing;
+    const modal = document.createElement('div');
+    modal.id = 'log-new-order-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[92vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-new-order-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">משלוח חדש 📦</h3><span></span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם לקוח *</label><input id="lon-name" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label><input id="lon-phone" type="tel" placeholder="050-..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">כתובת מסירה *</label><input id="lon-addr" type="text" placeholder="רחוב, עיר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">כתובת איסוף</label><input id="lon-pickup" type="text" placeholder="אופציונלי" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך</label><input id="lon-date" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעה/חלון</label><input id="lon-window" type="text" placeholder="08:00-12:00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">COD ₪</label><input id="lon-cod" type="number" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">דמי משלוח ₪</label><input id="lon-fee" type="number" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">משקל ק"ג</label><input id="lon-weight" type="number" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שיוך נהג</label>
+                <select id="lon-driver" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                    <option value="">— ללא —</option>
+                    ${drivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+                </select>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות לנהג</label><textarea id="lon-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right resize-none"></textarea></div>
+        </div>
+        <div class="p-5 border-t border-slate-100">
+            <button onclick="window._logisticsSaveNewOrder()" class="w-full py-3 bg-orange-500 text-white rounded-2xl font-black shadow-sm">צור משלוח</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._logisticsSaveNewOrder = async function() {
+    const name = document.getElementById('lon-name')?.value?.trim();
+    const addr = document.getElementById('lon-addr')?.value?.trim();
+    if (!name || !addr) { showToast('error','שם וכתובת מסירה חובה'); return; }
+    try {
+        await fetch(`${API}/logistics/orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+            group_id: currentGroup.id,
+            customer_name: name,
+            customer_phone: document.getElementById('lon-phone')?.value||null,
+            delivery_address: addr,
+            pickup_address: document.getElementById('lon-pickup')?.value||null,
+            scheduled_date: document.getElementById('lon-date')?.value||null,
+            scheduled_time_window: document.getElementById('lon-window')?.value||null,
+            cod_amount: parseFloat(document.getElementById('lon-cod')?.value)||0,
+            delivery_fee: parseFloat(document.getElementById('lon-fee')?.value)||0,
+            weight_kg: parseFloat(document.getElementById('lon-weight')?.value)||null,
+            driver_id: document.getElementById('lon-driver')?.value||null,
+            delivery_notes: document.getElementById('lon-notes')?.value||null
+        })});
+        showToast('success','משלוח נוצר!');
+        document.getElementById('log-new-order-modal')?.remove();
+        loadLogisticsOrders();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Drivers ──────────────────────────────────────────────────────────────────
+async function loadLogisticsDrivers() {
+    const el = document.getElementById('content-logistics_drivers'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען נהגים...</div>`;
+    try {
+        const r = await fetch(`${API}/logistics/drivers/${currentGroup.id}`);
+        window._logisticsState.drivers = r.ok ? await r.json() : [];
+    } catch(e) { window._logisticsState.drivers = []; }
+    _renderLogisticsDrivers();
+}
+
+function _renderLogisticsDrivers() {
+    const el = document.getElementById('content-logistics_drivers'); if (!el) return;
+    const drivers = window._logisticsState.drivers;
+    const statusColors = { active:'bg-emerald-100 text-emerald-700', on_route:'bg-blue-100 text-blue-700', break:'bg-amber-100 text-amber-700', offline:'bg-slate-100 text-slate-500' };
+    const statusLabels = { active:'פעיל', on_route:'במסלול', break:'הפסקה', offline:'לא פעיל' };
+
+    const cards = drivers.length ? drivers.map(d => `
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl font-black text-orange-600 shrink-0">${(d.name||'?')[0]}</div>
+            <div class="flex-1 text-right">
+                <div class="font-black text-slate-800">${d.name}</div>
+                <div class="text-xs text-slate-500">${d.phone||''} ${d.vehicle_name?'· '+_logVehicleIcon(d.vehicle_type)+' '+d.vehicle_name:''}</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${statusColors[d.status]||'bg-slate-100 text-slate-500'}">${statusLabels[d.status]||d.status}</span>
+                    ${parseInt(d.active_orders)>0?`<span class="text-[10px] font-bold text-violet-600">📦 ${d.active_orders} פעיל</span>`:''}
+                </div>
+            </div>
+            <div class="flex flex-col gap-1">
+                ${d.phone?`<a href="tel:${d.phone}" class="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-sm border border-emerald-100"><i class="fa-solid fa-phone"></i></a>`:''}
+                <button onclick="window._logisticsEditDriver(${d.id})" class="w-9 h-9 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center text-sm border border-slate-100"><i class="fa-solid fa-pen"></i></button>
+            </div>
+        </div>`) .join('') : `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><span class="text-3xl">🚗</span><p class="text-sm text-slate-400 font-bold mt-2">אין נהגים עדיין</p></div>`;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-slate-400 font-bold">${drivers.length} נהגים</span>
+            <button onclick="window._logisticsNewDriver()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> נהג חדש</button>
+        </div>
+        <div class="space-y-3">${cards}</div>`;
+}
+
+window._logisticsNewDriver = function() {
+    const vehicles = window._logisticsState.vehicles;
+    _logisticsDriverModal(null, vehicles);
+};
+
+window._logisticsEditDriver = function(driverId) {
+    const driver = window._logisticsState.drivers.find(d=>d.id===driverId);
+    if (!driver) return;
+    _logisticsDriverModal(driver, window._logisticsState.vehicles);
+};
+
+function _logisticsDriverModal(driver, vehicles) {
+    const isEdit = !!driver;
+    const modal = document.createElement('div');
+    modal.id = 'log-driver-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-driver-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">${isEdit?'עריכת נהג':'נהג חדש'} 🚗</h3><span></span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם *</label><input id="ldr-name" type="text" value="${driver?.name||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label><input id="ldr-phone" type="tel" value="${driver?.phone||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">אימייל</label><input id="ldr-email" type="email" value="${driver?.email||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">רכב ברירת מחדל</label>
+                <select id="ldr-vehicle" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                    <option value="">— ללא —</option>
+                    ${vehicles.map(v=>`<option value="${v.id}" ${v.id==driver?.vehicle_id?'selected':''}>${_logVehicleIcon(v.type)} ${v.name}</option>`).join('')}
+                </select>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">סטטוס</label>
+                <select id="ldr-status" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                    ${['active','on_route','break','offline'].map(s=>`<option value="${s}" ${(driver?.status||'active')===s?'selected':''}>${{active:'פעיל',on_route:'במסלול',break:'הפסקה',offline:'לא פעיל'}[s]}</option>`).join('')}
+                </select>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות</label><textarea id="ldr-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right resize-none">${driver?.notes||''}</textarea></div>
+        </div>
+        <div class="p-5 border-t border-slate-100 flex gap-3">
+            ${isEdit?`<button onclick="window._logisticsDeactivateDriver(${driver.id})" class="flex-1 py-3 border border-red-200 text-red-500 rounded-2xl font-bold text-sm">הסר</button>`:''}
+            <button onclick="window._logisticsSaveDriver(${driver?.id||'null'})" class="flex-1 py-3 bg-orange-500 text-white rounded-2xl font-black">שמור</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+window._logisticsSaveDriver = async function(driverId) {
+    const name = document.getElementById('ldr-name')?.value?.trim();
+    if (!name) { showToast('error','שם חובה'); return; }
+    const body = { name, phone: document.getElementById('ldr-phone')?.value||null, email: document.getElementById('ldr-email')?.value||null, vehicle_id: document.getElementById('ldr-vehicle')?.value||null, status: document.getElementById('ldr-status')?.value, notes: document.getElementById('ldr-notes')?.value||null };
+    try {
+        if (driverId) { await fetch(`${API}/logistics/drivers/${driverId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }); }
+        else { await fetch(`${API}/logistics/drivers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...body, group_id: currentGroup.id }) }); }
+        showToast('success','נשמר!');
+        document.getElementById('log-driver-modal')?.remove();
+        loadLogisticsDrivers();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsDeactivateDriver = async function(driverId) {
+    if (!confirm('להסיר נהג זה?')) return;
+    try {
+        await fetch(`${API}/logistics/drivers/${driverId}`, { method:'DELETE' });
+        showToast('success','הוסר');
+        document.getElementById('log-driver-modal')?.remove();
+        loadLogisticsDrivers();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Vehicles ─────────────────────────────────────────────────────────────────
+async function loadLogisticsVehicles() {
+    const el = document.getElementById('content-logistics_vehicles'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען צי...</div>`;
+    try {
+        const r = await fetch(`${API}/logistics/vehicles/${currentGroup.id}`);
+        window._logisticsState.vehicles = r.ok ? await r.json() : [];
+    } catch(e) { window._logisticsState.vehicles = []; }
+    _renderLogisticsVehicles();
+}
+
+function _renderLogisticsVehicles() {
+    const el = document.getElementById('content-logistics_vehicles'); if (!el) return;
+    const vehicles = window._logisticsState.vehicles;
+    const today = new Date();
+    const in14days = new Date(today.getTime() + 14*86400000);
+
+    const cards = vehicles.length ? vehicles.filter(v=>v.is_active).map(v => {
+        const insExp = v.insurance_expires_at ? new Date(v.insurance_expires_at) : null;
+        const inspExp = v.inspection_expires_at ? new Date(v.inspection_expires_at) : null;
+        const insAlert = insExp && insExp <= in14days;
+        const inspAlert = inspExp && inspExp <= in14days;
+        return `<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="text-3xl">${_logVehicleIcon(v.type)}</span>
+                <div class="flex-1 text-right">
+                    <div class="font-black text-slate-800">${v.name}</div>
+                    <div class="text-xs text-slate-500">${v.plate_number||''} ${v.capacity_kg?'· '+v.capacity_kg+'ק"ג':''}</div>
+                </div>
+                <button onclick="window._logisticsEditVehicle(${v.id})" class="w-9 h-9 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center border border-slate-100"><i class="fa-solid fa-pen text-sm"></i></button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-right">
+                <div class="bg-${insAlert?'red':'slate'}-50 rounded-xl p-2 border border-${insAlert?'red':'slate'}-100">
+                    <div class="text-[10px] text-slate-400 font-bold">ביטוח</div>
+                    <div class="text-xs font-black text-${insAlert?'red':'slate'}-700">${insExp?insExp.toLocaleDateString('he-IL'):'—'}</div>
+                    ${insAlert?'<div class="text-[9px] text-red-500 font-bold">⚠️ בקרוב</div>':''}
+                </div>
+                <div class="bg-${inspAlert?'red':'slate'}-50 rounded-xl p-2 border border-${inspAlert?'red':'slate'}-100">
+                    <div class="text-[10px] text-slate-400 font-bold">טסט</div>
+                    <div class="text-xs font-black text-${inspAlert?'red':'slate'}-700">${inspExp?inspExp.toLocaleDateString('he-IL'):'—'}</div>
+                    ${inspAlert?'<div class="text-[9px] text-red-500 font-bold">⚠️ בקרוב</div>':''}
+                </div>
+            </div>
+        </div>`;
+    }).join('') : `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><span class="text-3xl">🚚</span><p class="text-sm text-slate-400 font-bold mt-2">אין רכבים עדיין</p></div>`;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-slate-400 font-bold">${vehicles.filter(v=>v.is_active).length} רכבים</span>
+            <button onclick="window._logisticsNewVehicle()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> רכב חדש</button>
+        </div>
+        <div class="grid grid-cols-1 gap-3">${cards}</div>`;
+}
+
+window._logisticsNewVehicle = function() { _logisticsVehicleModal(null); };
+window._logisticsEditVehicle = function(id) { _logisticsVehicleModal(window._logisticsState.vehicles.find(v=>v.id===id)); };
+
+function _logisticsVehicleModal(vehicle) {
+    const isEdit = !!vehicle;
+    const modal = document.createElement('div');
+    modal.id = 'log-vehicle-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-vehicle-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">${isEdit?'עריכת רכב':'רכב חדש'} 🚚</h3><span></span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם הרכב *</label><input id="lv-name" type="text" value="${vehicle?.name||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">לוחית</label><input id="lv-plate" type="text" value="${vehicle?.plate_number||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג</label>
+                    <select id="lv-type" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right">
+                        ${['motorcycle','van','truck','bicycle','electric'].map(t=>`<option value="${t}" ${(vehicle?.type||'van')===t?'selected':''}>${_logVehicleIcon(t)} ${{motorcycle:'קטנוע',van:'אסטייט/מסחרית',truck:'משאית',bicycle:'אופניים',electric:'חשמלי'}[t]}</option>`).join('')}
+                    </select>
+                </div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">קיבולת ק"ג</label><input id="lv-cap" type="number" value="${vehicle?.capacity_kg||''}" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">ביטוח עד</label><input id="lv-ins" type="date" value="${vehicle?.insurance_expires_at?.split('T')[0]||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טסט עד</label><input id="lv-insp" type="date" value="${vehicle?.inspection_expires_at?.split('T')[0]||''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות</label><textarea id="lv-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right resize-none">${vehicle?.notes||''}</textarea></div>
+        </div>
+        <div class="p-5 border-t border-slate-100 flex gap-3">
+            ${isEdit?`<button onclick="window._logisticsDeactivateVehicle(${vehicle.id})" class="flex-1 py-3 border border-red-200 text-red-500 rounded-2xl font-bold text-sm">הסר</button>`:''}
+            <button onclick="window._logisticsSaveVehicle(${vehicle?.id||'null'})" class="flex-1 py-3 bg-orange-500 text-white rounded-2xl font-black">שמור</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+window._logisticsSaveVehicle = async function(vehicleId) {
+    const name = document.getElementById('lv-name')?.value?.trim();
+    if (!name) { showToast('error','שם רכב חובה'); return; }
+    const body = { name, type: document.getElementById('lv-type')?.value, plate_number: document.getElementById('lv-plate')?.value||null, capacity_kg: parseFloat(document.getElementById('lv-cap')?.value)||null, insurance_expires_at: document.getElementById('lv-ins')?.value||null, inspection_expires_at: document.getElementById('lv-insp')?.value||null, notes: document.getElementById('lv-notes')?.value||null };
+    try {
+        if (vehicleId) { await fetch(`${API}/logistics/vehicles/${vehicleId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }); }
+        else { await fetch(`${API}/logistics/vehicles`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...body, group_id: currentGroup.id }) }); }
+        showToast('success','נשמר!');
+        document.getElementById('log-vehicle-modal')?.remove();
+        loadLogisticsVehicles();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsDeactivateVehicle = async function(id) {
+    if (!confirm('להסיר רכב זה?')) return;
+    try { await fetch(`${API}/logistics/vehicles/${id}`, { method:'DELETE' }); showToast('success','הוסר'); document.getElementById('log-vehicle-modal')?.remove(); loadLogisticsVehicles(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+async function loadLogisticsPricing() {
+    const el = document.getElementById('content-logistics_pricing'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען מחירון...</div>`;
+    try {
+        const r = await fetch(`${API}/logistics/pricing/${currentGroup.id}`);
+        window._logisticsState.pricing = r.ok ? await r.json() : [];
+    } catch(e) { window._logisticsState.pricing = []; }
+    _renderLogisticsPricing();
+}
+
+function _renderLogisticsPricing() {
+    const el = document.getElementById('content-logistics_pricing'); if (!el) return;
+    const zones = window._logisticsState.pricing;
+    const rows = zones.length ? zones.filter(z=>z.is_active).map(z => `
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-3 px-4 font-bold text-slate-800 text-right">${z.zone_name}</td>
+            <td class="py-3 px-3 text-center font-bold text-slate-700">₪${z.base_price}</td>
+            <td class="py-3 px-3 text-center text-slate-600">₪${z.price_per_km}/ק"מ</td>
+            <td class="py-3 px-3 text-center text-slate-600">₪${z.price_per_kg}/ק"ג</td>
+            <td class="py-3 px-3 text-center text-slate-500">מינ' ₪${z.min_fee}</td>
+            <td class="py-3 px-2 text-center"><button onclick="window._logisticsEditPricing(${z.id})" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-pen text-xs"></i></button></td>
+        </tr>`).join('') : `<tr><td colspan="6" class="py-12 text-center text-slate-400 text-sm">אין אזורי מחיר</td></tr>`;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-slate-400 font-bold">${zones.length} אזורים</span>
+            <button onclick="window._logisticsNewPricing()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> אזור חדש</button>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                        <th class="py-2 px-4 text-right text-xs font-bold text-slate-600">אזור</th>
+                        <th class="py-2 px-3 text-center text-xs font-bold text-slate-600">בסיס</th>
+                        <th class="py-2 px-3 text-center text-xs font-bold text-slate-600">לק"מ</th>
+                        <th class="py-2 px-3 text-center text-xs font-bold text-slate-600">לק"ג</th>
+                        <th class="py-2 px-3 text-center text-xs font-bold text-slate-600">מינימום</th>
+                        <th class="py-2 px-2"></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
+
+window._logisticsNewPricing = function() { _logisticsPricingModal(null); };
+window._logisticsEditPricing = function(id) { _logisticsPricingModal(window._logisticsState.pricing.find(z=>z.id===id)); };
+
+function _logisticsPricingModal(zone) {
+    const isEdit = !!zone;
+    const modal = document.createElement('div');
+    modal.id = 'log-pricing-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-pricing-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">${isEdit?'עריכת אזור':'אזור מחיר חדש'} 💰</h3><span></span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-3">
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם האזור *</label><input id="lp-name" type="text" value="${zone?.zone_name||''}" placeholder="מרכז תל אביב" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מחיר בסיס ₪</label><input id="lp-base" type="number" value="${zone?.base_price||0}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מינימום ₪</label><input id="lp-min" type="number" value="${zone?.min_fee||0}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">₪ לק"מ</label><input id="lp-km" type="number" step="0.1" value="${zone?.price_per_km||0}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">₪ לק"ג</label><input id="lp-kg" type="number" step="0.1" value="${zone?.price_per_kg||0}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+            </div>
+        </div>
+        <div class="p-5 border-t border-slate-100 flex gap-3">
+            ${isEdit?`<button onclick="window._logisticsDeletePricing(${zone.id})" class="flex-1 py-3 border border-red-200 text-red-500 rounded-2xl font-bold text-sm">מחק</button>`:''}
+            <button onclick="window._logisticsSavePricing(${zone?.id||'null'})" class="flex-1 py-3 bg-orange-500 text-white rounded-2xl font-black">שמור</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+window._logisticsSavePricing = async function(zoneId) {
+    const name = document.getElementById('lp-name')?.value?.trim();
+    if (!name) { showToast('error','שם אזור חובה'); return; }
+    const body = { zone_name: name, base_price: parseFloat(document.getElementById('lp-base')?.value)||0, min_fee: parseFloat(document.getElementById('lp-min')?.value)||0, price_per_km: parseFloat(document.getElementById('lp-km')?.value)||0, price_per_kg: parseFloat(document.getElementById('lp-kg')?.value)||0 };
+    try {
+        if (zoneId) { await fetch(`${API}/logistics/pricing/${zoneId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }); }
+        else { await fetch(`${API}/logistics/pricing`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...body, group_id: currentGroup.id }) }); }
+        showToast('success','נשמר!');
+        document.getElementById('log-pricing-modal')?.remove();
+        loadLogisticsPricing();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsDeletePricing = async function(id) {
+    if (!confirm('למחוק אזור זה?')) return;
+    try { await fetch(`${API}/logistics/pricing/${id}`, { method:'DELETE' }); showToast('success','נמחק'); document.getElementById('log-pricing-modal')?.remove(); loadLogisticsPricing(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── COD ──────────────────────────────────────────────────────────────────────
+async function loadLogisticsCOD() {
+    const el = document.getElementById('content-logistics_cod'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען גבייה...</div>`;
+    const today = new Date().toISOString().split('T')[0];
+    let data = { date: today, drivers: [] };
+    try {
+        const r = await fetch(`${API}/logistics/cod/${currentGroup.id}?date=${today}`);
+        if (r.ok) data = await r.json();
+    } catch(e) {}
+    _renderLogisticsCOD(data);
+}
+
+function _renderLogisticsCOD(data) {
+    const el = document.getElementById('content-logistics_cod'); if (!el) return;
+    const drivers = data.drivers || [];
+    const totalCollected = drivers.reduce((s,d)=>s+parseFloat(d.total_collected||0),0);
+    const totalPending = drivers.reduce((s,d)=>s+parseFloat(d.pending_deposit||0),0);
+
+    const rows = drivers.map(d => {
+        const collected = parseFloat(d.total_collected)||0;
+        const pending = parseFloat(d.pending_deposit)||0;
+        return `<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <button onclick="window._logisticsCloseCOD(${d.driver_id},'${data.date}')" class="text-xs font-bold text-slate-500 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-50">סגור יום</button>
+                <div class="text-right"><div class="font-black text-slate-800">${d.driver_name}</div><div class="text-xs text-slate-400">${d.total_orders} הזמנות COD</div></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-50 rounded-xl p-2 border border-slate-100"><div class="text-[10px] text-slate-400 font-bold">לגבות</div><div class="font-black text-slate-700 text-sm">₪${parseFloat(d.total_due||0).toFixed(0)}</div></div>
+                <div class="bg-emerald-50 rounded-xl p-2 border border-emerald-100"><div class="text-[10px] text-emerald-600 font-bold">נגבה</div><div class="font-black text-emerald-700 text-sm">₪${collected.toFixed(0)}</div></div>
+                <div class="bg-${pending>0?'orange':'slate'}-50 rounded-xl p-2 border border-${pending>0?'orange':'slate'}-100"><div class="text-[10px] text-${pending>0?'orange':'slate'}-600 font-bold">להפקדה</div><div class="font-black text-${pending>0?'orange':'slate'}-700 text-sm">₪${pending.toFixed(0)}</div></div>
+            </div>
+        </div>`;
+    }).join('') || `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><span class="text-3xl">💵</span><p class="text-sm text-slate-400 font-bold mt-2">אין נהגים פעילים</p></div>`;
+
+    el.innerHTML = `
+        <div class="bg-gradient-to-l from-orange-50 to-amber-50 rounded-2xl p-4 border border-orange-100 mb-4">
+            <div class="text-xs text-orange-600 font-bold text-right mb-2">${data.date} — סיכום יומי</div>
+            <div class="grid grid-cols-2 gap-3 text-center">
+                <div><div class="text-xl font-black text-emerald-600">₪${totalCollected.toFixed(0)}</div><div class="text-[10px] text-slate-500">נגבה</div></div>
+                <div><div class="text-xl font-black text-${totalPending>0?'orange':'slate'}-600">₪${totalPending.toFixed(0)}</div><div class="text-[10px] text-slate-500">ממתין להפקדה</div></div>
+            </div>
+        </div>
+        <div class="space-y-3">${rows}</div>`;
+}
+
+window._logisticsCloseCOD = async function(driverId, date) {
+    const deposited = prompt('סכום שהופקד ₪:','0');
+    if (deposited === null) return;
+    try {
+        await fetch(`${API}/logistics/cod/close`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ driver_id: driverId, date, total_deposited: parseFloat(deposited)||0, group_id: currentGroup.id }) });
+        showToast('success','יום נסגר!');
+        loadLogisticsCOD();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── RFQ ──────────────────────────────────────────────────────────────────────
+async function loadLogisticsRFQ() {
+    const el = document.getElementById('content-logistics_rfq'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm animate-pulse">טוען הצעות מחיר...</div>`;
+    let rfqs = [];
+    try {
+        const r = await fetch(`${API}/logistics/rfq/${currentGroup.id}`);
+        rfqs = r.ok ? await r.json() : [];
+    } catch(e) {}
+    _renderLogisticsRFQ(rfqs);
+}
+
+function _renderLogisticsRFQ(rfqs) {
+    const el = document.getElementById('content-logistics_rfq'); if (!el) return;
+    const statusLabels = { new:'חדש', quoted:'הוצע מחיר', accepted:'אושר', completed:'הושלם', rejected:'נדחה' };
+    const statusColors = { new:'bg-blue-100 text-blue-700', quoted:'bg-amber-100 text-amber-700', accepted:'bg-emerald-100 text-emerald-700', completed:'bg-slate-100 text-slate-600', rejected:'bg-red-100 text-red-600' };
+
+    const cards = rfqs.length ? rfqs.map(rfq => `
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm cursor-pointer touch-manipulation" onclick="window._logisticsRFQDetail(${rfq.id})">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${statusColors[rfq.status]||'bg-slate-100 text-slate-500'}">${statusLabels[rfq.status]||rfq.status}</span>
+                <div class="text-right">
+                    <div class="font-black text-slate-800">${rfq.client_name}</div>
+                    <div class="text-xs text-slate-400">${rfq.client_phone||''} · ${new Date(rfq.created_at).toLocaleDateString('he-IL')}</div>
+                </div>
+            </div>
+            ${rfq.description?`<div class="text-xs text-slate-600 text-right truncate">${rfq.description}</div>`:''}
+            ${rfq.quote_amount?`<div class="mt-2 text-sm font-black text-emerald-600 text-right">הצעה: ₪${rfq.quote_amount}</div>`:''}
+        </div>`) .join('') : `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><span class="text-3xl">📋</span><p class="text-sm text-slate-400 font-bold mt-2">אין הצעות מחיר עדיין</p></div>`;
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-slate-400 font-bold">${rfqs.length} בקשות</span>
+            <button onclick="window._logisticsNewRFQ()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> בקשה חדשה</button>
+        </div>
+        <div class="space-y-3">${cards}</div>`;
+}
+
+window._logisticsRFQDetail = async function(rfqId) {
+    let rfq = null;
+    try { rfq = await fetch(`${API}/logistics/rfq/${currentGroup.id}`).then(r=>r.json()).then(arr=>arr.find(r=>r.id===rfqId)); } catch(e) {}
+    if (!rfq) return;
+
+    const msgs = rfq.messages || [];
+    const msgHtml = msgs.map(m=>`<div class="flex ${m.from==='biz'?'justify-start':'justify-end'} mb-2">
+        <div class="max-w-[75%] bg-${m.from==='biz'?'slate-100 text-slate-700':'orange-100 text-orange-800'} rounded-2xl px-3 py-2 text-sm">${m.text}<div class="text-[10px] text-slate-400 mt-0.5">${new Date(m.at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div></div>
+    </div>`).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'log-rfq-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-rfq-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">${rfq.client_name} — הצעת מחיר</h3>
+            <select onchange="window._logisticsRFQStatus(${rfqId},this.value)" class="text-[11px] border border-slate-200 rounded-lg px-2 py-1">
+                ${['new','quoted','accepted','completed','rejected'].map(s=>`<option value="${s}" ${rfq.status===s?'selected':''}>${{new:'חדש',quoted:'הוצע',accepted:'אושר',completed:'הושלם',rejected:'נדחה'}[s]}</option>`).join('')}
+            </select>
+        </div>
+        <div class="overflow-y-auto flex-1 p-4 space-y-3">
+            <div class="bg-slate-50 rounded-2xl p-3 text-right text-sm space-y-1">
+                ${rfq.description?`<div><span class="text-xs text-slate-400">תיאור:</span> ${rfq.description}</div>`:''}
+                ${rfq.pickup_address?`<div><span class="text-xs text-slate-400">איסוף:</span> ${rfq.pickup_address}</div>`:''}
+                ${rfq.delivery_address?`<div><span class="text-xs text-slate-400">יעד:</span> ${rfq.delivery_address}</div>`:''}
+                ${rfq.preferred_date?`<div><span class="text-xs text-slate-400">תאריך מועדף:</span> ${new Date(rfq.preferred_date).toLocaleDateString('he-IL')}</div>`:''}
+            </div>
+            ${rfq.quote_amount?`<div class="bg-emerald-50 rounded-2xl p-3 text-right border border-emerald-100"><div class="text-xs text-emerald-600">הצעת מחיר:</div><div class="font-black text-emerald-700 text-lg">₪${rfq.quote_amount}</div>${rfq.deposit_amount?`<div class="text-xs text-emerald-600">מקדמה: ₪${rfq.deposit_amount}</div>`:''}</div>`:''}
+            <div class="bg-slate-50 rounded-2xl p-3 max-h-48 overflow-y-auto">${msgHtml||'<div class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</div>'}</div>
+            <div class="flex gap-2">
+                <button onclick="window._logisticsSendRFQMsg(${rfqId})" class="flex-1 py-2.5 bg-orange-500 text-white rounded-xl font-bold text-sm">שלח הודעה</button>
+                <button onclick="window._logisticsSetRFQQuote(${rfqId})" class="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm">קבע מחיר</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._logisticsSendRFQMsg = async function(rfqId) {
+    const text = prompt('הודעה:');
+    if (!text) return;
+    try { await fetch(`${API}/logistics/rfq/${rfqId}/message`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ from:'biz', text }) }); document.getElementById('log-rfq-modal')?.remove(); window._logisticsRFQDetail(rfqId); } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsSetRFQQuote = async function(rfqId) {
+    const amount = prompt('הצעת מחיר ₪:');
+    if (!amount) return;
+    const deposit = prompt('מקדמה ₪ (0 אם אין):', '0');
+    try { await fetch(`${API}/logistics/rfq/${rfqId}/quote`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ quote_amount: parseFloat(amount), deposit_amount: parseFloat(deposit)||0 }) }); showToast('success','הצעה נשלחה!'); document.getElementById('log-rfq-modal')?.remove(); loadLogisticsRFQ(); } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsRFQStatus = async function(rfqId, status) {
+    try { await fetch(`${API}/logistics/rfq/${rfqId}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) }); loadLogisticsRFQ(); } catch(e) {}
+};
+
+window._logisticsNewRFQ = function() {
+    const modal = document.createElement('div');
+    modal.id = 'log-new-rfq-modal';
+    modal.className = 'fixed inset-0 z-[300] flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `<div class="bg-white w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <button onclick="document.getElementById('log-new-rfq-modal').remove()" class="text-slate-400 text-xl">✕</button>
+            <h3 class="font-black text-slate-800">בקשת הצעת מחיר 📋</h3><span></span>
+        </div>
+        <div class="overflow-y-auto flex-1 p-5 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם לקוח *</label><input id="lrfq-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label><input id="lrfq-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            </div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תיאור הפריטים / הובלה</label><textarea id="lrfq-desc" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right resize-none"></textarea></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">כתובת איסוף</label><input id="lrfq-pickup" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">כתובת יעד</label><input id="lrfq-addr" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך מועדף</label><input id="lrfq-date" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+        </div>
+        <div class="p-5 border-t border-slate-100">
+            <button onclick="window._logisticsSaveRFQ()" class="w-full py-3 bg-orange-500 text-white rounded-2xl font-black">צור בקשה</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._logisticsSaveRFQ = async function() {
+    const name = document.getElementById('lrfq-name')?.value?.trim();
+    if (!name) { showToast('error','שם חובה'); return; }
+    try {
+        await fetch(`${API}/logistics/rfq`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+            group_id: currentGroup.id, client_name: name,
+            client_phone: document.getElementById('lrfq-phone')?.value||null,
+            description: document.getElementById('lrfq-desc')?.value||null,
+            pickup_address: document.getElementById('lrfq-pickup')?.value||null,
+            delivery_address: document.getElementById('lrfq-addr')?.value||null,
+            preferred_date: document.getElementById('lrfq-date')?.value||null
+        })});
+        showToast('success','נוצרה!');
+        document.getElementById('log-new-rfq-modal')?.remove();
+        loadLogisticsRFQ();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ===== END LOGISTICS MODULE UI =====
 
 // Patch beauty_clients header to expose the forms builder button
 // (We monkey-patch _renderBeautyClients to inject the extra button)
