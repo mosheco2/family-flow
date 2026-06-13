@@ -32238,13 +32238,28 @@ async function loadBeautyCalendar() {
     const biz = _beautyBizId(); if (!biz) return;
     const el = document.getElementById('content-beauty_calendar'); if (!el) return;
     el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
+    const view = window._beautyState.calView || 'day';
+    const base = window._beautyState.calDate;
+    let fromDate, toDate;
+    if (view === 'week') {
+        const dow = base.getDay(); // 0=Sun
+        fromDate = new Date(base); fromDate.setDate(base.getDate() - dow);
+        toDate = new Date(fromDate); toDate.setDate(fromDate.getDate() + 6);
+    } else if (view === 'month') {
+        fromDate = new Date(base.getFullYear(), base.getMonth(), 1);
+        toDate = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    } else {
+        fromDate = base; toDate = base;
+    }
     try {
         const [prRes, apRes] = await Promise.all([
             fetch(`${API}/beauty/${biz}/practitioners`).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(window._beautyState.calDate)}&to=${_beautyDateStr(window._beautyState.calDate)}`).then(r=>r.json())
+            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`).then(r=>r.json())
         ]);
         window._beautyState.practitioners = (prRes.practitioners || []).filter(p => p.is_active);
         window._beautyState.appointments = apRes.appointments || [];
+        window._beautyState.calFromDate = fromDate;
+        window._beautyState.calToDate = toDate;
     } catch(e) {
         window._beautyState.practitioners = [];
         window._beautyState.appointments = [];
@@ -32255,6 +32270,7 @@ async function loadBeautyCalendar() {
 function _renderBeautyCalendar() {
     const el = document.getElementById('content-beauty_calendar'); if (!el) return;
     const { practitioners, appointments, calDate } = window._beautyState;
+    const view = window._beautyState.calView || 'day';
     const dateLabel = calDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
     const apByPrac = {};
@@ -32296,6 +32312,118 @@ function _renderBeautyCalendar() {
             </div>`;
         }).join('');
 
+    const viewBtns = ['day','week','month'].map(v => {
+        const labels = {day:'יום',week:'שבוע',month:'חודש'};
+        const active = view === v;
+        return `<button onclick="window._beautySetView('${v}')" class="px-3 py-1.5 text-xs font-bold rounded-xl transition ${active ? 'bg-pink-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}">${labels[v]}</button>`;
+    }).join('');
+
+    // Week / Month views
+    if (view === 'week') {
+        const from = window._beautyState.calFromDate || calDate;
+        const days = Array.from({length:7}, (_,i) => { const d = new Date(from); d.setDate(from.getDate()+i); return d; });
+        const weekLabel = `${days[0].toLocaleDateString('he-IL',{day:'numeric',month:'short'})} – ${days[6].toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'})}`;
+        const apByDay = {};
+        appointments.forEach(ap => {
+            const seg = ap.segments?.[0];
+            if (!seg) return;
+            const day = new Date(seg.start_time).toDateString();
+            apByDay[day] = apByDay[day] || [];
+            apByDay[day].push(ap);
+        });
+        const todayStr = new Date().toDateString();
+        const dayRows = days.map(d => {
+            const dStr = d.toDateString();
+            const isToday = dStr === todayStr;
+            const aps = apByDay[dStr] || [];
+            const apHtml = aps.length === 0
+                ? `<span class="text-[10px] text-slate-300">ללא תורים</span>`
+                : aps.map(ap => `<div onclick="window._beautyOpenAp(${ap.id})" class="inline-flex items-center gap-1 bg-pink-50 border border-pink-100 rounded-lg px-2 py-1 text-[10px] font-bold text-pink-700 cursor-pointer hover:bg-pink-100 transition">
+                    <i class="fa-solid fa-clock text-[9px]"></i> ${_beautyFmt(ap.segments?.[0]?.start_time)} ${ap.client_name||'לקוח'}
+                </div>`).join(' ');
+            return `<div class="bg-white rounded-2xl border ${isToday?'border-pink-400 ring-1 ring-pink-200':'border-slate-100'} p-3 flex gap-3 items-start">
+                <div class="shrink-0 text-center w-10">
+                    <div class="text-[10px] text-slate-400 font-bold">${d.toLocaleDateString('he-IL',{weekday:'short'})}</div>
+                    <div class="text-lg font-black ${isToday?'text-pink-600':'text-slate-700'}">${d.getDate()}</div>
+                </div>
+                <div class="flex-1 flex flex-wrap gap-1.5 items-center min-h-[28px]">${apHtml}</div>
+                <button onclick="window._beautyState.calDate=new Date(${d.getTime()});window._beautySetView('day')" class="shrink-0 text-[10px] text-slate-400 hover:text-pink-500 font-bold transition">יום ›</button>
+            </div>`;
+        }).join('');
+        el.innerHTML = `<div class="space-y-2 pb-20">
+            <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-3 flex flex-wrap items-center gap-2 justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="window._beautyCalNav(-1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">‹</button>
+                    <span class="text-sm font-bold text-slate-700">${weekLabel}</span>
+                    <button onclick="window._beautyCalNav(1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">›</button>
+                    <button onclick="window._beautyState.calDate=new Date();loadBeautyCalendar()" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-500 hover:bg-slate-50 transition">היום</button>
+                </div>
+                <div class="flex items-center gap-2">${viewBtns}
+                    <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition"><i class="fa-solid fa-plus"></i> תור</button>
+                </div>
+            </div>
+            ${dayRows}
+        </div>`;
+        return;
+    }
+
+    if (view === 'month') {
+        const from = window._beautyState.calFromDate || new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+        const monthLabel = calDate.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+        const apByDay = {};
+        appointments.forEach(ap => {
+            const seg = ap.segments?.[0];
+            if (!seg) return;
+            const d = new Date(seg.start_time);
+            const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            apByDay[key] = (apByDay[key]||0) + 1;
+        });
+        // Build calendar grid
+        const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+        const lastDay  = new Date(calDate.getFullYear(), calDate.getMonth()+1, 0);
+        const startDow = firstDay.getDay(); // 0=Sun
+        const today = new Date();
+        const cells = [];
+        for (let i=0; i<startDow; i++) cells.push(null);
+        for (let d=1; d<=lastDay.getDate(); d++) cells.push(new Date(calDate.getFullYear(), calDate.getMonth(), d));
+        while (cells.length % 7 !== 0) cells.push(null);
+        const weeks = [];
+        for (let i=0; i<cells.length; i+=7) weeks.push(cells.slice(i,i+7));
+        const dayNames = ['א'','ב'','ג'','ד'','ה'','ו'','ש''];
+        const gridHtml = `<div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+            <div class="grid grid-cols-7 border-b border-slate-100">
+                ${dayNames.map(n=>`<div class="text-center text-[10px] font-black text-slate-400 py-2">${n}</div>`).join('')}
+            </div>
+            ${weeks.map(week=>`<div class="grid grid-cols-7 border-b border-slate-50 last:border-0">
+                ${week.map(d=>{
+                    if (!d) return '<div class="h-14 bg-slate-50/50"></div>';
+                    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                    const cnt = apByDay[key]||0;
+                    const isToday = d.toDateString()===today.toDateString();
+                    return `<div onclick="window._beautyState.calDate=new Date(${d.getTime()});window._beautySetView('day')" class="h-14 p-1 border-l border-slate-50 cursor-pointer hover:bg-pink-50 transition flex flex-col items-center">
+                        <span class="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday?'bg-pink-600 text-white':'text-slate-700'}">${d.getDate()}</span>
+                        ${cnt>0?`<span class="text-[9px] font-black text-pink-600 bg-pink-50 rounded-full px-1.5 mt-0.5">${cnt} תורים</span>`:''}
+                    </div>`;
+                }).join('')}
+            </div>`).join('')}
+        </div>`;
+        el.innerHTML = `<div class="space-y-3 pb-20">
+            <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-3 flex flex-wrap items-center gap-2 justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="window._beautyCalNav(-1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">‹</button>
+                    <span class="text-sm font-bold text-slate-700">${monthLabel}</span>
+                    <button onclick="window._beautyCalNav(1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">›</button>
+                    <button onclick="window._beautyState.calDate=new Date();loadBeautyCalendar()" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-500 hover:bg-slate-50 transition">היום</button>
+                </div>
+                <div class="flex items-center gap-2">${viewBtns}
+                    <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition"><i class="fa-solid fa-plus"></i> תור</button>
+                </div>
+            </div>
+            ${gridHtml}
+        </div>`;
+        return;
+    }
+
     el.innerHTML = `
 <div class="space-y-3 pb-20">
     <!-- header bar -->
@@ -32306,7 +32434,7 @@ function _renderBeautyCalendar() {
             <button onclick="window._beautyCalNav(1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">›</button>
             <button onclick="window._beautyState.calDate=new Date();loadBeautyCalendar()" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-500 hover:bg-slate-50 transition">היום</button>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">${viewBtns}
             <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> תור חדש</button>
             <button onclick="window._beautyManagePractitioners()" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">ניהול מטפלות</button>
         </div>
@@ -32338,7 +32466,15 @@ function _renderBeautyCalendar() {
 
 window._beautyCalNav = function(dir) {
     const d = window._beautyState.calDate;
-    d.setDate(d.getDate() + dir);
+    const view = window._beautyState.calView || 'day';
+    if (view === 'week') d.setDate(d.getDate() + dir * 7);
+    else if (view === 'month') d.setMonth(d.getMonth() + dir);
+    else d.setDate(d.getDate() + dir);
+    loadBeautyCalendar();
+};
+
+window._beautySetView = function(view) {
+    window._beautyState.calView = view;
     loadBeautyCalendar();
 };
 
@@ -32627,6 +32763,16 @@ window._beautyNewClientModal = function() {
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
             <div><label class="text-xs font-bold text-slate-600 block mb-1">שם מלא *</label>
                 <input id="bnc-name" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מספר ת.ז *</label>
+                <div class="flex gap-2">
+                    <input id="bnc-idnum" type="text" inputmode="numeric" maxlength="9" placeholder="9 ספרות" class="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/>
+                    <button type="button" onclick="window._beautyCheckOneflow()" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center gap-1">
+                        <i class="fa-solid fa-user-check text-[11px]"></i> ONEFLOW LIFE
+                    </button>
+                </div>
+                <div id="bnc-oneflow-result" class="mt-1 hidden"></div>
+            </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
                 <input id="bnc-phone" type="tel" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">אימייל</label>
@@ -32644,20 +32790,59 @@ window._beautyNewClientModal = function() {
     document.body.insertAdjacentHTML('beforeend', html);
 };
 
+window._beautyCheckOneflow = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const phone = document.getElementById('bnc-phone')?.value?.trim();
+    const name  = document.getElementById('bnc-name')?.value?.trim();
+    const resEl = document.getElementById('bnc-oneflow-result'); if (!resEl) return;
+    if (!phone && !name) { resEl.innerHTML = '<p class="text-xs text-amber-600">הכנס טלפון או שם לפני הבדיקה</p>'; resEl.classList.remove('hidden'); return; }
+    resEl.innerHTML = '<p class="text-xs text-slate-400">בודק...</p>'; resEl.classList.remove('hidden');
+    try {
+        const params = new URLSearchParams(); if (phone) params.set('phone', phone); if (name && !phone) params.set('name', name);
+        const d = await fetch(`${API}/beauty/${biz}/check-oneflow?${params}`).then(r=>r.json());
+        if (d.found && d.matches?.length) {
+            resEl.innerHTML = d.matches.map(m => `
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-1">
+                    <div>
+                        <p class="text-xs font-black text-indigo-800">${m.family_name || m.nickname}</p>
+                        <p class="text-[10px] text-indigo-500">קוד: ${m.group_code} · ${m.phone || 'ללא טלפון'}</p>
+                    </div>
+                    <button onclick="window._beautyLinkOneflow(${m.family_id},'${(m.family_name||m.nickname).replace(/'/g,\'\')}')" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
+                </div>`).join('');
+        } else {
+            resEl.innerHTML = '<p class="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>';
+        }
+    } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500">שגיאת תקשורת</p>'; }
+};
+
+window._beautyLinkOneflow = function(familyId, familyName) {
+    document.getElementById('bnc-oneflow-result').innerHTML = `
+        <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
+            <i class="fa-solid fa-link text-green-600 text-sm"></i>
+            <div><p class="text-xs font-black text-green-800">יקושר ל-${familyName}</p>
+            <p class="text-[10px] text-green-600">הקישור יישמר עם הוספת הלקוח</p></div>
+        </div>`;
+    window._bncLinkedFamilyId = familyId;
+};
+
 window._beautySubmitNewClient = async function() {
     const biz = _beautyBizId(); if (!biz) return;
-    const name = document.getElementById('bnc-name')?.value?.trim();
-    const phone = document.getElementById('bnc-phone')?.value?.trim();
-    const email = document.getElementById('bnc-email')?.value?.trim();
-    const dob = document.getElementById('bnc-dob')?.value;
-    const notes = document.getElementById('bnc-notes')?.value?.trim();
-    if (!name) { showToast('error', 'שם מלא הוא שדה חובה'); return; }
+    const name   = document.getElementById('bnc-name')?.value?.trim();
+    const idnum  = document.getElementById('bnc-idnum')?.value?.trim();
+    const phone  = document.getElementById('bnc-phone')?.value?.trim();
+    const email  = document.getElementById('bnc-email')?.value?.trim();
+    const dob    = document.getElementById('bnc-dob')?.value;
+    const notes  = document.getElementById('bnc-notes')?.value?.trim();
+    const linkedFamilyId = window._bncLinkedFamilyId || null;
+    if (!name)  { showToast('error', 'שם מלא הוא שדה חובה'); return; }
+    if (!idnum) { showToast('error', 'מספר ת.ז הוא שדה חובה'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_name: name, client_phone: phone, email, date_of_birth: dob || null, general_notes: notes })
+            body: JSON.stringify({ client_name: name, id_number: idnum, client_phone: phone, email, date_of_birth: dob || null, general_notes: notes, client_family_id: linkedFamilyId })
         }).then(r=>r.json());
-        if (r.success || r.client) {
+        if (r.id || r.success || r.client) {
+            window._bncLinkedFamilyId = null;
             document.getElementById('beauty-nc-modal')?.remove();
             showToast('success', `לקוח ${name} נוסף ✅`);
             loadBeautyClients();

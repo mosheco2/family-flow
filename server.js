@@ -1061,6 +1061,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_clients_biz ON beauty_client_records(business_group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_inv_biz ON beauty_inventory(business_group_id, inventory_type)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_rfq_biz ON beauty_rfq(business_group_id, status)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_client_records ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
       // ===== END BEAUTY & COSMETICS MODULE =====
 
       client.release();
@@ -12206,14 +12207,31 @@ app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
+    try {
+        const { phone, name } = req.query;
+        if (!phone && !name) return res.json({ found: false });
+        let query = `SELECT u.id, u.nickname, u.phone, fg.id AS family_id, fg.name AS family_name, fg.group_code
+                     FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                     WHERE fg.type='FAMILY'`;
+        const vals = [];
+        if (phone) { vals.push(phone.replace(/\D/g,'')); query += ` AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$${vals.length}`; }
+        if (name && !phone) { vals.push(`%${name}%`); query += ` AND u.nickname ILIKE $${vals.length}`; }
+        query += ' LIMIT 5';
+        const r = await pool.query(query, vals);
+        res.json({ found: r.rows.length > 0, matches: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/beauty/:bizId/clients', async (req, res) => {
     try {
-        const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type } = req.body;
+        const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
+        if (!id_number || !id_number.trim()) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה' });
         const r = await pool.query(
-            `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
             [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
-             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null]
+             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null, id_number.trim()]
         );
         res.json(r.rows[0]);
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -12222,7 +12240,7 @@ app.post('/api/beauty/:bizId/clients', async (req, res) => {
 app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
     try {
         const f = req.body;
-        const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id'];
+        const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
         const sets = []; const vals = [];
         fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
         if (!sets.length) return res.json({ success: true });
