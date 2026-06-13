@@ -2270,6 +2270,26 @@ app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/settings/tour', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('tour_slides','tour_enabled')");
+        const map = {}; r.rows.forEach(row => map[row.key] = row.value);
+        res.json({ slides: map.tour_slides ? JSON.parse(map.tour_slides) : null, enabled: map.tour_enabled !== 'false' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/settings/tour', async (req, res) => {
+    try {
+        const saRes = await pool.query("SELECT value FROM system_settings WHERE key='sa_password'");
+        const token = (req.headers.authorization || '').replace('Bearer ', '');
+        if (!saRes.rows.length || token !== saRes.rows[0].value) return res.status(403).json({ error: 'Unauthorized' });
+        const { slides, enabled } = req.body;
+        if (slides !== undefined) await pool.query("INSERT INTO system_settings (key,value) VALUES ('tour_slides',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [JSON.stringify(slides)]);
+        if (enabled !== undefined) await pool.query("INSERT INTO system_settings (key,value) VALUES ('tour_enabled',$1) ON CONFLICT (key) DO UPDATE SET value=$1", [String(enabled)]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/settings/welcome', async (req, res) => {
     try {
         const key = req.query.type === 'BUSINESS' ? 'business_welcome_msg' : 'welcome_msg';

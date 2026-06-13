@@ -1,8 +1,6 @@
 // Oneflow life BIZ - Business Logic Application
 
-const introStyle = document.createElement('style');
-introStyle.innerHTML = `.introjs-showElement{z-index:9999998!important;transform:none!important;}.introjs-fixParent{z-index:auto!important;opacity:1.0!important;transform:none!important;filter:none!important;}body.introjs-active .slider-container,body.introjs-active .slider-scroll,body.introjs-active .overflow-hidden{overflow:visible!important;}body.introjs-active header.sticky{z-index:1!important;}.introjs-overlay{z-index:9999996!important;}.introjs-helperLayer{z-index:9999997!important;}.introjs-tooltipReferenceLayer{z-index:9999998!important;}.introjs-tooltip{z-index:9999999!important;}@media (max-width:768px){.introjs-tooltipReferenceLayer{position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;right:auto!important;bottom:auto!important;width:90vw!important;}.introjs-tooltip{position:relative!important;max-width:350px!important;margin:0 auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;}.introjs-arrow{display:none!important;}}.introjs-tooltip{font-family:'Rubik',sans-serif!important;border-radius:2rem!important;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25)!important;padding:1.5rem!important;border:none!important;overflow:hidden!important;text-align:center!important;}.introjs-tooltip::before{content:'';position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(to right,#3b82f6,#a855f7);}.introjs-tooltipbuttons{border-top:none!important;padding-top:1rem!important;display:flex;gap:0.5rem;justify-content:center;}.introjs-button{border-radius:0.75rem!important;text-shadow:none!important;font-weight:bold!important;font-family:'Rubik',sans-serif!important;padding:0.75rem 1.5rem!important;flex:1;text-align:center;}.introjs-nextbutton{background-color:#3b82f6!important;color:white!important;border:none!important;box-shadow:0 10px 15px -3px rgba(59,130,246,0.3)!important;}.introjs-prevbutton{color:#64748b!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;}.introjs-skipbutton{color:#94a3b8!important;font-weight:500!important;background:transparent!important;}.introjs-bullets ul li a.active{background:#3b82f6!important;}`;
-document.head.appendChild(introStyle);
+// Oneflow Splash Tour — see showOnboardingTour()
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
@@ -16,7 +14,6 @@ let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
-let forceTourStart = false;
 let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
@@ -348,6 +345,7 @@ async function loadSAData() {
         
         const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
         setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        loadTourSettings();
         setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
         setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
         setVal('sa-biz-banner-top-text', data.bizBannerTextTop); setVal('sa-biz-banner-top-link', data.bizBannerLinkTop); setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
@@ -409,9 +407,7 @@ async function checkGlobalWelcome() {
     } catch(e) {} return false;
 }
 
-function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
-function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); } } catch(e) {} }, 1000); }
-function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); }, 300); }
+function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndShowTour(); }
 
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
@@ -1310,51 +1306,180 @@ if (!window.originalFinalizePOSOrderOverridden) {
         </div>
         `);
     }
-function startManagerTour() {
-    switchTab('feed'); const intro = introJs();
-    intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'סיום סיור', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
-        steps: [
-            { title: "המרכז העסקי שלכם 🚀", intro: "ברוכים הבאים ל-Oneflow BIZ! בואו נערוך סיור קצר כדי להכיר את כל כלי הניהול שלכם." },
-            { element: '#sales-stats-dashboard', title: "לוח מחוונים - חנות 🛍️", intro: "כאן תוכלו לראות בזמן אמת את נתוני המכירות וההזמנות הפתוחות שלכם.", position: 'bottom' },
-            { element: '#tab-sales', title: "מכירות, קטלוג ולקוחות", intro: "בטאב זה (שנמצא גם בתפריט למעלה) תנהלו את כל המוצרים שלכם, הלקוחות, המבצעים והזמנות מהקופה.", position: 'bottom' },
-            { element: '#tab-shop', title: "רכש וספקים 🛒", intro: "מכאן תוכלו לייצר דרישות רכש אוטומטיות לכל הספקים שלכם, לנהל מחירונים ולעקוב אחרי הזמנות יוצאות.", position: 'bottom' },
-            { element: '#tab-foodcost', title: "תמחור ורווחיות 🍽️", intro: "כאן תוכלו לבנות עץ מוצר מלא לכל פריט ולחשב את עלויות הייצור (Food Cost) המדויקות.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "מעקב שעות ונוכחות ⏱️", intro: "שליטה מלאה על שעון הנוכחות של העובדים, עריכת משמרות וסיכומי שכר אוטומטיים להורדה.", position: 'bottom' },
-            { element: '#tab-tasks', title: "ניהול משימות ✅", intro: "צרו טיקטים ומשימות לצוות עם יעדים ותמריצים. תוכלו לאשר סיום רק אחרי שהם יעלו תמונה שתוכיח שסיימו.", position: 'bottom' },
-            { element: '#tab-forecast', title: "ראיית העתיד 📅", intro: "המערכת מנתחת אוטומטית את התזרים וההוצאות הקבועות ובונה לכם תשקיף חכם קדימה.", position: 'bottom' }
-        ]
-    });
-    intro.onbeforechange(function(targetElement) { 
-        if(!targetElement) return; const id = targetElement.id;
-        if(id === 'sales-stats-dashboard') switchTab('sales'); else if(id === 'tab-sales') switchTab('sales'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-foodcost') switchTab('foodcost'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
-        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
-    });
-    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+// ─── ONBOARDING SPLASH TOUR ──────────────────────────────────────────────────
+
+const _TOUR_DEFAULTS = {
+  sport: {
+    ADMIN: [
+      { emoji:'🏋️', bg:'from-blue-500 to-indigo-600', title:'ברוכים למרכז הניהול', subtitle:'כל מה שצריך לנהל מועדון ספורט מקצועי', features:[{icon:'👥',text:'ניהול חברים ומנויים'},{icon:'📊',text:'KPI ונתוני מועדון בזמן אמת'},{icon:'🔗',text:'חיבור משפחות ONEFLOW LIFE'}] },
+      { emoji:'🎫', bg:'from-violet-500 to-purple-600', title:'חברים ומנויים', subtitle:'שליטה מלאה בכל חבר', features:[{icon:'➕',text:'הוספה ועריכת חבר'},{icon:'❄️',text:'הקפאה וחידוש מנויים'},{icon:'⚠️',text:'התראות על מנויים פגי תוקף'}] },
+      { emoji:'📅', bg:'from-cyan-500 to-blue-600', title:'יומן שיעורים', subtitle:'תזמון שיעורים קבוצתיים', features:[{icon:'🗓️',text:'יצירת שיעור ומגבלת מקום'},{icon:'📋',text:'רשימות המתנה'},{icon:'✅',text:'עדכון נוכחות'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'כספים ותזרים', subtitle:'תמונה פיננסית בזמן אמת', features:[{icon:'📈',text:'הכנסות והוצאות'},{icon:'💳',text:'קופה POS'},{icon:'📊',text:'דוחות חודשיים'}] },
+      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'חיבור עסקי-משפחתי ייחודי', features:[{icon:'👨‍👩‍👧',text:"רישום חבר כמשפחת 'חבר'"},{icon:'🏠',text:'גישה לפורטל משפחתי'},{icon:'🤝',text:'חיזוק קהילת העסק'}] }
+    ],
+    MANAGER: [
+      { emoji:'🏋️', bg:'from-blue-500 to-cyan-600', title:'ברוכים לפורטל המאמן', subtitle:'הכלים לניהול שיעורים ופעילות', features:[{icon:'👥',text:'רשימת חברים פעילים'},{icon:'📅',text:'ניהול שיעורים'},{icon:'📊',text:'דוחות נוכחות'}] },
+      { emoji:'✅', bg:'from-green-500 to-emerald-600', title:"צ'ק-אין חברים", subtitle:'ניהול כניסות מהיר', features:[{icon:'🔍',text:'בדיקת תוקף מנוי'},{icon:'📝',text:'רישום כניסה ידני'},{icon:'📱',text:'ממשק מהיר'}] },
+      { emoji:'📅', bg:'from-indigo-500 to-violet-600', title:'לוח שיעורים', subtitle:'תכנון ומעקב שיעורים', features:[{icon:'🗓️',text:'צפייה בשיעורים'},{icon:'✅',text:'עדכון נוכחות'},{icon:'📋',text:'ניהול רשימות'}] },
+      { emoji:'📊', bg:'from-orange-500 to-amber-600', title:'דוחות פעילות', subtitle:'נתוני ביצוע ומגמות', features:[{icon:'📈',text:'נוכחות שבועית'},{icon:'⚠️',text:'חברים בסיכון'},{icon:'🔄',text:'מגמות פעילות'}] },
+      { emoji:'📣', bg:'from-pink-500 to-rose-600', title:'תקשורת צוות', subtitle:'עבודה משותפת עם הצוות', features:[{icon:'📰',text:'עדכוני פיד'},{icon:'✅',text:'משימות לצוות'},{icon:'💬',text:'הודעות'}] }
+    ],
+    EMPLOYEE: [
+      { emoji:'🎯', bg:'from-slate-600 to-slate-800', title:'ברוכים לפורטל העובד', subtitle:'הכלים האישיים שלך', features:[{icon:'⏱️',text:'שעות עבודה'},{icon:'🗓️',text:'משמרות'},{icon:'💰',text:'בונוסים ותגמולים'}] },
+      { emoji:'⏱️', bg:'from-blue-500 to-indigo-600', title:'שעון נוכחות', subtitle:'דיווח שעות פשוט ומדויק', features:[{icon:'🟢',text:'כניסה ויציאה בלחיצה'},{icon:'📋',text:'מעקב שעות'},{icon:'📜',text:'היסטוריה אישית'}] },
+      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'משמרות', subtitle:'סידור העבודה שלך', features:[{icon:'👁️',text:'צפייה במשמרות'},{icon:'📲',text:'עדכונים מהמנהל'},{icon:'🔄',text:'בקשות שינוי'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות ובונוסים', subtitle:'בצע ותגמל', features:[{icon:'📋',text:'רשימת משימות פתוחות'},{icon:'📸',text:'העלאת תמונת אישור'},{icon:'💎',text:"צ'ק בונוסים"}] },
+      { emoji:'🎓', bg:'from-amber-500 to-orange-600', title:'הכשרות', subtitle:'למידה ותגמול', features:[{icon:'📚',text:'קורסים ומבדקים'},{icon:'🏆',text:'השלמת הכשרות'},{icon:'💰',text:'תגמולים אישיים'}] }
+    ]
+  },
+  beauty: {
+    ADMIN: [
+      { emoji:'💅', bg:'from-pink-500 to-purple-600', title:'ברוכים לסלון', subtitle:'ניהול מקצועי של עסק יופי', features:[{icon:'📋',text:'תיקי לקוחות'},{icon:'📅',text:'יומן תורים'},{icon:'👩‍💼',text:'ניהול מטפלות'}] },
+      { emoji:'📋', bg:'from-violet-500 to-indigo-600', title:'תיקי לקוחות', subtitle:'היסטוריה מלאה לכל לקוח', features:[{icon:'🧪',text:'פורמולות ותמונות'},{icon:'⚠️',text:'מבחני ריגישות'},{icon:'📈',text:'ממוצע ביקורים'}] },
+      { emoji:'💆', bg:'from-rose-500 to-pink-600', title:'יומן תורים', subtitle:'ניהול תורים מקצועי', features:[{icon:'👩‍⚕️',text:'שיוך למטפלת ולחדר'},{icon:'🔄',text:'סטטוסי תור'},{icon:'📅',text:'תצוגות יום/שבוע/חודש'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'עמלות ושכר', subtitle:'שקיפות מלאה על שכר מטפלות', features:[{icon:'📊',text:'עמלות לפי מטפלת'},{icon:'💳',text:'תשלום עמלות'},{icon:'📈',text:'דוחות הכנסה'}] },
+      { emoji:'🧴', bg:'from-cyan-500 to-blue-600', title:'מלאי מקצועי', subtitle:'ניהול מוצרים קמעונאיים ומקצועיים', features:[{icon:'🛍️',text:'מלאי קמעונאי ו-backbar'},{icon:'⚠️',text:'התראות מלאי נמוך'},{icon:'📦',text:'עדכון כמויות'}] }
+    ],
+    MANAGER: [
+      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'הכלים לניהול התורים שלך', features:[{icon:'📅',text:'תורים היום'},{icon:'📋',text:'לקוחות'},{icon:'💰',text:'עמלות'}] },
+      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול סדר יום', features:[{icon:'🗓️',text:'תצוגת יומן'},{icon:'🔄',text:'סטטוסי תורים'},{icon:'✅',text:'השלמת טיפול'}] },
+      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'לקוחות', subtitle:'גישה לתיק לקוח', features:[{icon:'🧪',text:'פורמולות ורקע רפואי'},{icon:'📜',text:'היסטוריית ביקורים'},{icon:'📝',text:'הוספת הערות'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שכר אישי', features:[{icon:'📊',text:'סיכום עמלות'},{icon:'🗓️',text:'פירוט לפי חודש'},{icon:'✅',text:'סטטוס תשלום'}] },
+      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'ניהול חומרים מקצועיים', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'📢',text:'דיווח חוסרים'},{icon:'📦',text:'עדכון שימוש'}] }
+    ],
+    EMPLOYEE: [
+      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'הכלים לניהול התורים שלך', features:[{icon:'📅',text:'תורים היום'},{icon:'📋',text:'לקוחות'},{icon:'💰',text:'עמלות'}] },
+      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול סדר יום', features:[{icon:'🗓️',text:'תצוגת יומן'},{icon:'🔄',text:'סטטוסי תורים'},{icon:'✅',text:'השלמת טיפול'}] },
+      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'לקוחות', subtitle:'גישה לתיק לקוח', features:[{icon:'🧪',text:'פורמולות ורקע רפואי'},{icon:'📜',text:'היסטוריית ביקורים'},{icon:'📝',text:'הוספת הערות'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שכר אישי', features:[{icon:'📊',text:'סיכום עמלות'},{icon:'🗓️',text:'פירוט לפי חודש'},{icon:'✅',text:'סטטוס תשלום'}] },
+      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'ניהול חומרים מקצועיים', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'📢',text:'דיווח חוסרים'},{icon:'📦',text:'עדכון שימוש'}] }
+    ]
+  },
+  maintenance_repair: {
+    ADMIN: [
+      { emoji:'🔧', bg:'from-slate-600 to-gray-800', title:'ברוכים למרכז השירות', subtitle:'ניהול קריאות שירות ושדה', features:[{icon:'📞',text:'מעקב קריאות שירות'},{icon:'👷',text:'ניתוב לטכנאים'},{icon:'📊',text:'דוחות ביצוע'}] },
+      { emoji:'📞', bg:'from-blue-500 to-indigo-600', title:'קריאות שירות', subtitle:'מרכז כל הקריאות', features:[{icon:'🆕',text:'קריאות חדשות ופתוחות'},{icon:'⚡',text:'עדיפויות ותזמון'},{icon:'🔄',text:'עדכוני סטטוס'}] },
+      { emoji:'👷', bg:'from-orange-500 to-amber-600', title:'ניהול טכנאים', subtitle:'ניתוב עבודה לצוות', features:[{icon:'📍',text:'שיוך קריאות לטכנאי'},{icon:'📈',text:'מעקב התקדמות'},{icon:'⚖️',text:'עומסי עבודה'}] },
+      { emoji:'📊', bg:'from-violet-500 to-purple-600', title:'דוחות וניתוח', subtitle:'ביצועים ורווחיות', features:[{icon:'⏱️',text:'זמני טיפול ממוצעים'},{icon:'💰',text:'הכנסה לפי טכנאי'},{icon:'📉',text:'מגמות תקלות'}] },
+      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'חיבור לקוחות למשפחות', features:[{icon:'👨‍👩‍👧',text:"רישום לקוח כ'חבר'"},{icon:'🏠',text:'גישה למוקד שירות'},{icon:'🤝',text:'חיזוק הקשר'}] }
+    ],
+    MANAGER: [
+      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לממשק המנהל', subtitle:'ניהול הצוות וקריאות השטח', features:[{icon:'📋',text:'קריאות פתוחות'},{icon:'👷',text:'ניתוב לטכנאי'},{icon:'📡',text:'מעקב שטח'}] },
+      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'קריאות שירות', subtitle:'ניהול כל הקריאות', features:[{icon:'🔴',text:'קריאות לפי סטטוס'},{icon:'⚡',text:'עדיפויות'},{icon:'🗓️',text:'תזמון ביקורים'}] },
+      { emoji:'👷', bg:'from-amber-500 to-orange-600', title:'הצוות שלי', subtitle:'ניהול טכנאי שדה', features:[{icon:'📍',text:'שיוך קריאות'},{icon:'📊',text:'עומס עבודה'},{icon:'📡',text:'עדכוני שטח'}] },
+      { emoji:'📊', bg:'from-emerald-500 to-green-600', title:'דוחות', subtitle:'ביצועי הצוות', features:[{icon:'✅',text:'קריאות שהושלמו'},{icon:'⏱️',text:'זמני תגובה'},{icon:'💰',text:'הכנסה'}] },
+      { emoji:'📣', bg:'from-violet-500 to-purple-600', title:'תקשורת', subtitle:'שמירה על קשר עם הצוות', features:[{icon:'📰',text:'עדכוני פיד'},{icon:'✅',text:'משימות'},{icon:'⚠️',text:'התראות דחופות'}] }
+    ],
+    EMPLOYEE: [
+      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לפורטל הטכנאי', subtitle:'הקריאות שלך, הכלים שלך', features:[{icon:'📋',text:'קריאות מוקצות'},{icon:'🗺️',text:'ניווט ומיקום'},{icon:'🔄',text:'עדכוני סטטוס'}] },
+      { emoji:'📋', bg:'from-blue-500 to-indigo-600', title:'הקריאות שלי', subtitle:'ניהול עבודת השדה', features:[{icon:'🟢',text:'קריאות פתוחות'},{icon:'⚡',text:'עדיפויות'},{icon:'🗓️',text:'תזמון'}] },
+      { emoji:'🔄', bg:'from-orange-500 to-amber-600', title:'עדכון סטטוס', subtitle:'דיווח התקדמות', features:[{icon:'🔃',text:'שינוי סטטוס קריאה'},{icon:'📝',text:'הוספת הערות'},{icon:'🔩',text:'דיווח חלקים חסרים'}] },
+      { emoji:'⏱️', bg:'from-violet-500 to-purple-600', title:'נוכחות', subtitle:'דיווח שעות', features:[{icon:'🟢',text:'שעון כניסה ויציאה'},{icon:'📊',text:'מעקב שעות'},{icon:'📋',text:'סיכום יומי'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות נוספות', features:[{icon:'📋',text:'רשימת משימות'},{icon:'📸',text:'דיווח סיום'},{icon:'💬',text:'תקשורת עם מנהל'}] }
+    ]
+  },
+  restaurant: {
+    ADMIN: [
+      { emoji:'🍽️', bg:'from-orange-500 to-amber-600', title:'ברוכים למרכז המסעדה', subtitle:'ניהול מלא של עסק המסעדה', features:[{icon:'📊',text:'KPI יומי'},{icon:'👥',text:'ניהול צוות'},{icon:'📦',text:'מלאי ועלויות'}] },
+      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'קופה ומכירות', subtitle:'ניהול הזמנות ותשלומים', features:[{icon:'⚡',text:'POS מהיר'},{icon:'🪑',text:'ניהול שולחנות'},{icon:'📋',text:'היסטוריית הזמנות'}] },
+      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות', subtitle:'ניהול משמרות ועובדים', features:[{icon:'🗓️',text:'סידור משמרות'},{icon:'⏱️',text:'נוכחות'},{icon:'💰',text:'שכר'}] },
+      { emoji:'📦', bg:'from-emerald-500 to-teal-600', title:'מלאי ומוצרים', subtitle:'שליטה על חומרי גלם', features:[{icon:'🥩',text:'מלאי מטבח'},{icon:'💵',text:'עלות מנה'},{icon:'🛒',text:'הזמנות לספקים'}] },
+      { emoji:'📊', bg:'from-rose-500 to-pink-600', title:'ביצועים', subtitle:'נתוני רווחיות ומכירות', features:[{icon:'📈',text:'הכנסה יומית וחודשית'},{icon:'🍕',text:'מנות פופולריות'},{icon:'💹',text:'תזרים מזומנים'}] }
+    ],
+    MANAGER: [
+      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים למנהל המשמרת', subtitle:'שליטה על המשמרת הנוכחית', features:[{icon:'🪑',text:'סטטוס שולחנות'},{icon:'📋',text:'הזמנות פתוחות'},{icon:'👥',text:'צוות פעיל'}] },
+      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'הזמנות פתוחות', subtitle:'מעקב אחר כל הזמנה', features:[{icon:'🔴',text:'הזמנות פעילות'},{icon:'🍳',text:'סטטוסי הכנה'},{icon:'📡',text:'עדכוני מטבח'}] },
+      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות משמרת', subtitle:'ניהול העובדים הפעילים', features:[{icon:'⏱️',text:'כניסות ויציאות'},{icon:'🏷️',text:'שיוך לתפקידים'},{icon:'💬',text:'תקשורת'}] },
+      { emoji:'📦', bg:'from-emerald-500 to-green-600', title:'מלאי וחוסרים', subtitle:'בקרת מלאי בזמן אמת', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'⚠️',text:'דיווח חוסרים'},{icon:'🔄',text:'עדכוני מטבח'}] },
+      { emoji:'💰', bg:'from-rose-500 to-pink-600', title:'סגירת משמרת', subtitle:'סיכום ודוח כספי', features:[{icon:'📊',text:'סיכום מכירות'},{icon:'🏧',text:'ניהול קופה'},{icon:'📋',text:'דוח יומי'}] }
+    ],
+    EMPLOYEE: [
+      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים לפורטל הצוות', subtitle:'הכלים לעבודה מהירה ויעילה', features:[{icon:'💳',text:'הזמנות'},{icon:'🪑',text:'שולחנות'},{icon:'✅',text:'משימות'}] },
+      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'POS מהיר', subtitle:'קבלת הזמנות בקלות', features:[{icon:'➕',text:'הוספת פריטים לסל'},{icon:'🍳',text:'שליחה למטבח'},{icon:'💵',text:'תשלום'}] },
+      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'המשמרות שלי', subtitle:'סידור עבודה ונוכחות', features:[{icon:'👁️',text:'צפייה במשמרות'},{icon:'⏱️',text:'כניסה ויציאה'},{icon:'🔄',text:'בקשות שינוי'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות לביצוע במשמרת', features:[{icon:'📋',text:'משימות פתוחות'},{icon:'📸',text:'דיווח סיום'},{icon:'💬',text:'תקשורת עם מנהל'}] },
+      { emoji:'🎓', bg:'from-rose-500 to-pink-600', title:'הכשרות', subtitle:'ידע מקצועי ותגמולים', features:[{icon:'📚',text:'מבדקי ידע'},{icon:'🏆',text:'תעודות'},{icon:'💰',text:'בונוסים'}] }
+    ]
+  }
+};
+
+function _getTourSlides() {
+    const bizType = currentGroup?.business_type || '';
+    const role = ['ADMIN','MANAGER'].includes(currentUser?.role) ? currentUser.role : 'EMPLOYEE';
+    return (_TOUR_DEFAULTS[bizType] || _TOUR_DEFAULTS.sport)[role] || _TOUR_DEFAULTS.sport.EMPLOYEE;
 }
 
-function startEmployeeTour() {
-    switchTab('feed'); const intro = introJs();
-    intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
-        steps: [
-            { title: "ברוכים הבאים לפורטל הצוות! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לדווח שעות, לנהל משימות ולעקוב אחרי הבונוסים שלך." },
-            { element: '#user-balance', title: "הבונוסים שלך 💳", intro: "כאן יופיעו הבונוסים שהרווחת מביצוע פרויקטים והכשרות מטעם החברה.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשמרת? לחץ כאן כדי להיכנס. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן תוכל לראות את סידור העבודה השבועי שלך שנקבע על ידי המנהל.", position: 'bottom' },
-            { element: '#tab-shop', title: "דרישות רכש 🛒", intro: "חסר ציוד למשרד או מלאי לעמדה שלך? פתח דרישה כאן והיא תעבור מיד לאישור.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות לביצוע ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? תעלה תמונה והמנהל יוכל לאשר ולצ'פר אותך בבונוס!", position: 'bottom' },
-            { element: '#tab-academy', title: "הכשרות עובדים 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת המבדקים יכולה לזכות אותך בתמריצים.", position: 'bottom' }
-        ]
-    });
-    intro.onbeforechange(function(targetElement) { 
-        if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else switchTab('feed'); 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
-        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
-    });
-    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+function checkAndShowTour() {
+    setTimeout(async () => {
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const key = `ofl_tour_day_${currentUser.id}_${currentGroup?.group_code}`;
+            if (localStorage.getItem(key) === today) return;
+            // בדיקה שהסיור מופעל בשרת
+            const r = await fetch(`${API}/settings/tour`).then(r=>r.json()).catch(()=>({enabled:true}));
+            if (r.enabled === false) return;
+            localStorage.setItem(key, today);
+            showOnboardingTour(r.slides ? (r.slides[currentGroup?.business_type]?.[(['ADMIN','MANAGER'].includes(currentUser?.role)?currentUser.role:'EMPLOYEE')] || _getTourSlides()) : _getTourSlides());
+        } catch(e) {}
+    }, 800);
+}
+
+function showOnboardingTour(slides) {
+    if (!slides?.length) return;
+    document.getElementById('ofl-tour-overlay')?.remove();
+    let idx = 0;
+
+    function renderSlide() {
+        document.getElementById('ofl-tour-overlay')?.remove();
+        const s = slides[idx];
+        const isLast = idx === slides.length - 1;
+        const dots = slides.map((_, i) =>
+            `<div style="width:${i===idx?'24px':'8px'};height:8px;border-radius:999px;background:${i===idx?'#2563eb':'#cbd5e1'};transition:all 0.3s"></div>`
+        ).join('');
+        const feats = s.features.map(f =>
+            `<div style="display:flex;align-items:center;gap:12px;font-size:14px;color:#374151"><span style="font-size:20px;flex-shrink:0">${f.icon}</span><span>${f.text}</span></div>`
+        ).join('');
+
+        const el = document.createElement('div');
+        el.id = 'ofl-tour-overlay';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;font-family:Rubik,sans-serif;direction:rtl;';
+        el.innerHTML = `
+<div style="flex:1;display:flex;flex-direction:column;padding:32px 24px 16px;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px">
+    <div style="display:flex;align-items:center;gap:6px">${dots}</div>
+    <button id="ofl-tour-skip" style="color:#94a3b8;font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;font-family:Rubik,sans-serif">דלג</button>
+  </div>
+  <div style="display:flex;justify-content:center;margin-bottom:32px">
+    <div class="bg-gradient-to-br ${s.bg}" style="width:128px;height:128px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:0 20px 40px rgba(0,0,0,0.15)">
+      ${s.emoji}
+    </div>
+  </div>
+  <div style="text-align:center;margin-bottom:32px">
+    <h2 style="font-size:24px;font-weight:900;color:#0f172a;margin:0 0 8px">${s.title}</h2>
+    <p style="color:#64748b;font-size:16px;line-height:1.6;margin:0">${s.subtitle}</p>
+  </div>
+  <div style="background:#f8fafc;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:16px;margin-top:auto">
+    ${feats}
+  </div>
+</div>
+<div style="padding:16px 24px 32px;border-top:1px solid #f1f5f9">
+  <button id="ofl-tour-next" class="bg-gradient-to-r ${s.bg}" style="width:100%;color:#fff;font-weight:900;font-size:16px;padding:16px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 10px 20px rgba(37,99,235,0.25);font-family:Rubik,sans-serif">
+    ${isLast ? 'בואו נתחיל! 🚀' : 'המשך →'}
+  </button>
+</div>`;
+
+        document.body.appendChild(el);
+
+        document.getElementById('ofl-tour-skip').onclick = () => {
+            document.getElementById('ofl-tour-overlay')?.remove();
+        };
+        document.getElementById('ofl-tour-next').onclick = () => {
+            if (isLast) { document.getElementById('ofl-tour-overlay')?.remove(); }
+            else { idx++; renderSlide(); }
+        };
+    }
+
+    renderSlide();
 }
 
 function switchView(view) { 
@@ -1385,7 +1510,7 @@ function openTosModal(e, docKey) {
 function closeTosModal() { const modal = getEl('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
 async function handleLogin(e) { 
-    e.preventDefault(); forceTourStart = false; toggleLoader('login', true); 
+    e.preventDefault(); toggleLoader('login', true);
     try { 
         const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) }); 
         const data = await res.json(); 
@@ -1406,7 +1531,7 @@ function _requiresPhone(birthYear) {
 }
 
 async function handleCreate(e) { 
-    e.preventDefault(); if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; toggleLoader('login', true); 
+    e.preventDefault(); if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); toggleLoader('login', true); 
     try { 
         const _cPhone = val('create-phone');
         if (_requiresPhone(val('create-year')) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
@@ -1437,7 +1562,7 @@ function handleTypeSelection(type) {
 }
 
 async function handleJoin(e) { 
-    e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
+    e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך');
     const _jPhone = val('join-phone');
     if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
     const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), phone: _jPhone }) }); 
@@ -1700,7 +1825,7 @@ async function loadDashboard() {
        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         try { enforcePermissions(); } catch(e) {}
         switchTab('feed');
-        try { await checkGlobalWelcome(); } catch(e) {}
+        try { const hasWelcome = await checkGlobalWelcome(); if (!hasWelcome) checkAndShowTour(); } catch(e) { checkAndShowTour(); }
         setTimeout(() => { try { window.checkEmployeePopups && window.checkEmployeePopups(); } catch(e) {} }, 2000);
 
         // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
@@ -5662,7 +5787,7 @@ async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { meth
 window.triggerManualTour = function() {
     const modal = document.getElementById('profile-modal');
     if (modal) modal.classList.add('hidden');
-    setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); }, 300);
+    setTimeout(() => showOnboardingTour(_getTourSlides()), 300);
 };
 
 // Makes floating-pill draggable (touch + mouse)
@@ -11873,6 +11998,22 @@ async function saveWelcomeMsg(type = 'FAMILY') {
     } finally {
         if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
     }
+}
+
+// ─── ניהול סיור קבלת פנים מהסופר אדמין ───────────────────────────────────────
+async function saveTourEnabled(enabled) {
+    try {
+        await fetch(`${API}/settings/tour`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${saToken}` }, body: JSON.stringify({ enabled }) });
+        showToast('success', enabled ? 'הסיור הופעל בהצלחה' : 'הסיור הושבת בהצלחה');
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+}
+
+async function loadTourSettings() {
+    try {
+        const r = await fetch(`${API}/settings/tour`).then(r=>r.json());
+        const toggle = document.getElementById('sa-tour-enabled');
+        if (toggle) toggle.checked = r.enabled !== false;
+    } catch(e) {}
 }
 
 window.switchBizCommunityTab = function(tab) {

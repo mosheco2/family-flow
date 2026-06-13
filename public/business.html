@@ -415,6 +415,23 @@
                     </div>
                 </div>
 
+                <!-- ניהול סיור קבלת פנים -->
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-2 text-slate-800"><i class="fa-solid fa-route text-violet-500 mr-2"></i> סיור קבלת פנים</h2>
+                    <p class="text-xs text-slate-500 mb-4">הסיור המודרך מוצג לכל משתמש עסקי פעם ביום בכניסתו למערכת, ומותאם לסוג העסק ולתפקידו.</p>
+                    <div class="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-slate-200">
+                        <div>
+                            <p class="text-sm font-bold text-slate-700">הסיור פעיל</p>
+                            <p class="text-xs text-slate-400">כיבוי ימנע הצגת הסיור לכל המשתמשים</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sa-tour-enabled" class="sr-only peer" checked onchange="saveTourEnabled(this.checked)">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-3">💡 עריכת תוכן השקפים לפי סוג עסק ותפקיד — יתווסף בגרסה הבאה</p>
+                </div>
+
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
                     <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> שינוי פרטי התחברות (מנהל ראשי)</h2>
                     <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות שלך למערכת הניהול.</p>
