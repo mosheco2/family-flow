@@ -32723,7 +32723,10 @@ function _renderBeautyClients(search) {
                 <p class="text-[11px] text-slate-400 truncate">${c.client_phone||''} ${c.email||''}</p>
                 ${c.avg_visit_interval_days ? `<p class="text-[10px] text-purple-500 font-bold">ממוצע ביקור: כל ${Math.round(c.avg_visit_interval_days)} יום</p>` : ''}
             </div>
-            <div class="text-slate-300 text-xs shrink-0"><i class="fa-solid fa-chevron-left"></i></div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="event.stopPropagation();window.showAddToOneflow('${(c.client_name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${(c.client_phone||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',null)" class="text-violet-600 hover:text-violet-800 bg-violet-50 px-2 py-1 rounded-lg text-[10px] font-black border border-violet-100 shadow-sm transition" title="הוסף ל-ONEFLOW LIFE">🔗 ONEFLOW</button>
+                <div class="text-slate-300 text-xs"><i class="fa-solid fa-chevron-left"></i></div>
+            </div>
         </div>`).join('');
 
     el.innerHTML = `
