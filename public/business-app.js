@@ -1403,6 +1403,18 @@ const _TOUR_DEFAULTS = {
   }
 };
 
+function _getGuideUrl(bizType) {
+    const map = {
+        sport:              'sport-guide.html',
+        beauty:             'beauty-guide.html',
+        restaurant:         'restaurant-guide.html',
+        retail:             'retail-guide.html',
+        services:           'services-guide.html',
+        maintenance_repair: 'maintenance-guide.html',
+    };
+    return map[bizType] || 'biz-guide.html';
+}
+
 function _getTourSlides() {
     const bizType = currentGroup?.business_type || '';
     const role = ['ADMIN','MANAGER'].includes(currentUser?.role) ? currentUser.role : 'EMPLOYEE';
@@ -5857,7 +5869,7 @@ window.openProfileModal = function() {
                 <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-gear text-slate-500 mr-2"></i> הגדרות ופרופיל</h3>
                 
                 <div class="space-y-3 mb-6">
-                    <a href="biz-guide.html" target="_blank" class="w-full bg-cyan-50 text-cyan-700 py-3 rounded-xl font-bold hover:bg-cyan-100 transition shadow-sm text-sm flex items-center justify-between px-4 cursor-pointer">
+                    <a href="${_getGuideUrl(currentGroup?.business_type)}" target="_blank" class="w-full bg-cyan-50 text-cyan-700 py-3 rounded-xl font-bold hover:bg-cyan-100 transition shadow-sm text-sm flex items-center justify-between px-4 cursor-pointer">
                         <span>מדריך למערכת העסקית</span>
                         <i class="fa-solid fa-book"></i>
                     </a>
