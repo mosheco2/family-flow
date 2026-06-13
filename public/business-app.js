@@ -32893,7 +32893,10 @@ window._beautyOpenClient = async function(clientId) {
                 <h3 class="font-black text-white text-base">${client.client_name}</h3>
                 <p class="text-pink-100 text-xs">${client.client_phone||''} ${client.email||''}</p>
             </div>
-            <button onclick="document.getElementById('beauty-client-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-2">
+                <button onclick="window.showAddToOneflow('${(client.client_name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${(client.client_phone||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',null)" class="bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded-lg text-[10px] font-black transition border border-white/30" title="הוסף ל-ONEFLOW LIFE">🔗 ONEFLOW</button>
+                <button onclick="document.getElementById('beauty-client-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
         <div class="overflow-y-auto flex-1 p-5 space-y-4">
             <!-- patch test -->
