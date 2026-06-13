@@ -1463,19 +1463,6 @@ function switchTab(t) {
     window._suppressRoleDash = false;
     window._currentBizSubTab = null;
 
-    // הסתרת/הצגת מעטפת הטאבים הרגילה עבור טאבי היופי
-    const _beautyTabs = ['beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions'];
-    const wrap = document.getElementById('biz-main-content-wrap');
-    if (wrap) {
-        if (_beautyTabs.includes(t)) {
-            wrap.style.display = 'none';
-            wrap.classList.add('hidden');
-        } else {
-            wrap.style.display = '';
-            wrap.classList.remove('hidden');
-        }
-    }
-
     // עדכון group nav
     try { updateGroupNavActiveState(t); closeNavDropdowns(); syncGnavAlertBadge(); updateGroupNavBadges(); } catch(e) {}
 
