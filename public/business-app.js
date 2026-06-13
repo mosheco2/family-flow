@@ -3738,6 +3738,33 @@ window.renderDashboard = async function(forceRefresh = false) {
         return;
     }
 
+    // For admin/owner in beauty business, render beauty dashboard
+    if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'beauty') {
+        if (window._beautyDashRendering) return;
+        window._beautyDashRendering = true;
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+            if (container) { dashEl = document.createElement('div'); dashEl.id = 'content-role-dashboard'; dashEl.className = 'px-2'; container.appendChild(dashEl); }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            dashEl.style.position = 'relative'; dashEl.style.zIndex = '1';
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            await renderBeautyAdminDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'beauty') renderBeautyAdminDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 30000);
+        }
+        window._beautyDashRendering = false;
+        return;
+    }
+
     // For admin/owner in maintenance_repair business, show service calls dashboard
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair' && !window._inProcurementMode) {
         let dashEl = document.getElementById('content-role-dashboard');
@@ -23047,7 +23074,15 @@ function renderQuickTiles() {
   const container = document.getElementById('quick-tiles');
   if (!container) return;
   const storeOrderCount = (storeOrdersCache || []).filter(o => o.status === 'pending' || o.status === 'new').length;
-  const tiles = [
+  const isBeauty = currentGroup?.business_type === 'beauty';
+  const tiles = isBeauty ? [
+    { fa:'fa-calendar-check',    label:'יומן תורים',     badge: null,            tab:'beauty_calendar',    bg:'#fdf2f8', grad:'linear-gradient(135deg,#f472b6,#db2777)', badge_bg:'#be185d' },
+    { fa:'fa-address-book',      label:'לקוחות',          badge: null,            tab:'beauty_clients',     bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
+    { fa:'fa-flask',             label:'מלאי מקצועי',    badge: null,            tab:'beauty_inventory',   bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
+    { fa:'fa-hand-holding-dollar',label:'עמלות',         badge: null,            tab:'beauty_commissions', bg:'#fffbeb', grad:'linear-gradient(135deg,#fbbf24,#d97706)', badge_bg:'#b45309' },
+    { fa:'fa-cash-register',     label:'קופה',           badge: storeOrderCount, tab:'pos',                bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
+    { fa:'fa-clock-rotate-left', label:'נוכחות',         badge: null,            tab:'timeclock',          bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
+  ] : [
     { fa:'fa-clock-rotate-left', label:'נוכחות',        badge: null,            tab:'timeclock', bg:'#f8fafc', grad:'linear-gradient(135deg,#64748b,#334155)', badge_bg:'#475569' },
     { fa:'fa-calendar-days',     label:'משמרות',         badge: null,            tab:'shifts',    bg:'#eff6ff', grad:'linear-gradient(135deg,#60a5fa,#4338ca)', badge_bg:'#3730a3' },
     { fa:'fa-calendar-check',    label:'יומן ותורים',    badge: null,            tab:'calendar',  bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
@@ -28863,6 +28898,51 @@ async function renderSportDashboard(el) {
             {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
             {icon:'📋', label:'הצהרות', tab:'', action:'sport-waivers'},
             {icon:'📊', label:'דוחות', tab:'', action:'sport-reports'}
+        ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// ─── Beauty Admin Dashboard ────────────────────────────────────────────────────
+async function renderBeautyAdminDashboard(el) {
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm">טוען נתוני יופי...</div>`;
+    let s = { appt_today:0, appt_pending:0, revenue_today:0, revenue_month:0, unpaid_comm_sum:0, unpaid_comm_cnt:0, low_inventory:0, no_show_today:0, total_clients:0 };
+    try {
+        const r = await fetch(`${API}/beauty/${currentGroup.id}/dashboard`);
+        if (r.ok) s = await r.json();
+    } catch(e) {}
+
+    const kpis = [
+        { label:'תורים היום',      value: s.appt_today,      icon:'📅', color:'indigo',  cb:`switchTab('beauty_calendar')` },
+        { label:'הכנסה היום',      value:`₪${Number(s.revenue_today).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`switchTab('beauty_commissions')` },
+        { label:'תורים עתידיים',   value: s.appt_pending,    icon:'⏳', color:'violet',  cb:`switchTab('beauty_calendar')` },
+        { label:'לקוחות מקושרים',  value: s.total_clients,   icon:'👥', color:'blue',    cb:`switchTab('beauty_clients')` },
+        { label:'עמלות לתשלום',    value:`₪${Number(s.unpaid_comm_sum).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💸', color: s.unpaid_comm_cnt>0?'orange':'slate', cb:`switchTab('beauty_commissions')` },
+        { label:'הכנסה החודש',     value:`₪${Number(s.revenue_month).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'📊', color:'pink', cb:`switchTab('sales')` }
+    ];
+    const kpiHtml = kpis.map(k=>`<button type="button" onclick="${k.cb}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">${k.icon}</span><div class="text-lg font-black text-${k.color}-600">${k.value}</div><div class="text-[10px] text-slate-500 font-bold">${k.label}</div></button>`).join('');
+
+    const alertBanner = (s.low_inventory > 0 || s.no_show_today > 0) ? `
+        <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3 mb-3 flex items-center gap-3">
+            <span class="text-2xl">🔔</span>
+            <div class="flex-1 text-right text-sm">
+                ${s.low_inventory > 0 ? `<div class="font-black text-orange-700">${s.low_inventory} פריטי מלאי מתחת לסף <button onclick="switchTab('beauty_inventory')" class="text-[11px] underline text-orange-500 font-bold">צפה</button></div>` : ''}
+                ${s.no_show_today > 0 ? `<div class="font-bold text-red-600 text-xs">${s.no_show_today} לא הגיעו היום</div>` : ''}
+            </div>
+        </div>` : '';
+
+    el.innerHTML = `
+        ${roleDashboardHeader('💅','ממשק מנהל יופי','תורים, לקוחות ו-KPIs יומיים','from-pink-500','to-rose-600')}
+        ${alertBanner}
+        <div class="grid grid-cols-3 gap-3 mb-4">${kpiHtml}</div>
+        ${roleQuickActions([
+            {icon:'📅', label:'יומן תורים',   tab:'beauty_calendar'},
+            {icon:'👤', label:'לקוחות',        tab:'beauty_clients'},
+            {icon:'🧴', label:'מלאי',           tab:'beauty_inventory'},
+            {icon:'💰', label:'עמלות',          tab:'beauty_commissions'},
+            {icon:'💳', label:'קופה',           tab:'pos'},
+            {icon:'📦', label:'הזמנות',         tab:'sales'},
+            {icon:'📋', label:'משימות',         tab:'tasks'},
+            {icon:'👥', label:'צוות',           tab:'members'}
         ])}
         ${roleFullMenuBtn()}`;
 }

@@ -12323,6 +12323,73 @@ app.post('/api/beauty/:bizId/inventory/:id/adjust', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/beauty/:bizId/dashboard', async (req, res) => {
+    try {
+        const bizId = req.params.bizId;
+        const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+        const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
+        const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+
+        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients] = await Promise.all([
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status NOT IN ('cancelled','no_show')`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time > NOW() AND ba.status='scheduled'`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(ba.total_price),0) AS sum FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status='completed'`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(ba.total_price),0) AS sum FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time >= $2 AND ba.status='completed'`,
+                [bizId, monthStart]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(bc.amount),0) AS sum, COUNT(*) AS cnt
+                 FROM beauty_commissions bc WHERE bc.business_group_id=$1 AND bc.is_paid=FALSE`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE AND stock_qty<=reorder_threshold`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT COUNT(*) FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND bas.start_time BETWEEN $2 AND $3 AND ba.status='no_show'`,
+                [bizId, todayStart, todayEnd]
+            ),
+            pool.query(
+                `SELECT COUNT(DISTINCT client_family_id) AS cnt FROM beauty_appointments WHERE business_group_id=$1 AND client_family_id IS NOT NULL`,
+                [bizId]
+            )
+        ]);
+
+        res.json({
+            appt_today:     parseInt(apptToday.rows[0].count),
+            appt_pending:   parseInt(apptPending.rows[0].count),
+            revenue_today:  parseFloat(revenueToday.rows[0].sum),
+            revenue_month:  parseFloat(revenueMonth.rows[0].sum),
+            unpaid_comm_sum: parseFloat(unpaidComm.rows[0].sum),
+            unpaid_comm_cnt: parseInt(unpaidComm.rows[0].cnt),
+            low_inventory:  parseInt(lowInv.rows[0].count),
+            no_show_today:  parseInt(noShow.rows[0].count),
+            total_clients:  parseInt(totalClients.rows[0].cnt)
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/inventory/alerts', async (req, res) => {
     try {
         const r = await pool.query(
