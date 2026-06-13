@@ -1311,94 +1311,94 @@ if (!window.originalFinalizePOSOrderOverridden) {
 const _TOUR_DEFAULTS = {
   sport: {
     ADMIN: [
-      { emoji:'🏋️', bg:'from-blue-500 to-indigo-600', title:'ברוכים למרכז הניהול', subtitle:'כל מה שצריך לנהל מועדון ספורט מקצועי', features:[{icon:'👥',text:'ניהול חברים ומנויים'},{icon:'📊',text:'KPI ונתוני מועדון בזמן אמת'},{icon:'🔗',text:'חיבור משפחות ONEFLOW LIFE'}] },
-      { emoji:'🎫', bg:'from-violet-500 to-purple-600', title:'חברים ומנויים', subtitle:'שליטה מלאה בכל חבר', features:[{icon:'➕',text:'הוספה ועריכת חבר'},{icon:'❄️',text:'הקפאה וחידוש מנויים'},{icon:'⚠️',text:'התראות על מנויים פגי תוקף'}] },
-      { emoji:'📅', bg:'from-cyan-500 to-blue-600', title:'יומן שיעורים', subtitle:'תזמון שיעורים קבוצתיים', features:[{icon:'🗓️',text:'יצירת שיעור ומגבלת מקום'},{icon:'📋',text:'רשימות המתנה'},{icon:'✅',text:'עדכון נוכחות'}] },
-      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'כספים ותזרים', subtitle:'תמונה פיננסית בזמן אמת', features:[{icon:'📈',text:'הכנסות והוצאות'},{icon:'💳',text:'קופה POS'},{icon:'📊',text:'דוחות חודשיים'}] },
-      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'חיבור עסקי-משפחתי ייחודי', features:[{icon:'👨‍👩‍👧',text:"רישום חבר כמשפחת 'חבר'"},{icon:'🏠',text:'גישה לפורטל משפחתי'},{icon:'🤝',text:'חיזוק קהילת העסק'}] }
+      { emoji:'🏋️', bg:'from-blue-500 to-indigo-600', title:'ברוכים למרכז הניהול', subtitle:'כל מה שצריך לנהל מועדון ספורט מקצועי — במסך אחד', features:[{icon:'👥',text:'עקוב אחרי כל חברי המועדון, תוקפי מנוי וסטטוס פעילות — קבל התראה לפני שמנוי פג'},{icon:'📊',text:'לוח KPI חי עם נתוני הכנסות, כניסות ומגמות שבועיות — קבל תמונה ברורה בכמה שניות'},{icon:'🔗',text:'שלח ללקוחות לינק הצטרפות ל-ONEFLOW LIFE ובנה קהילת לקוחות נאמנה'}] },
+      { emoji:'🎫', bg:'from-violet-500 to-purple-600', title:'ניהול חברים ומנויים', subtitle:'שליטה מלאה בכל מנוי — מרגע ההצטרפות ועד החידוש', features:[{icon:'➕',text:'הוסף חבר חדש בשניות, עדכן פרטים, סוג מנוי ותמונה — הכל בממשק פשוט ואינטואיטיבי'},{icon:'❄️',text:'הקפא מנוי בלחיצה אחת וחדש אותו אוטומטית כשהחבר חוזר — בלי לאבד שום יום'},{icon:'⚠️',text:'קבל התראות יומיות על מנויים שפגו תוקפם — צור קשר בזמן לפני שהחבר עוזב'}] },
+      { emoji:'📅', bg:'from-cyan-500 to-blue-600', title:'יומן שיעורים', subtitle:'תזמון שיעורים קבוצתיים מדויק ויעיל', features:[{icon:'🗓️',text:'פתח שיעור חדש תוך שניות עם שם, מאמן, מגבלת משתתפים ושעת התחלה'},{icon:'📋',text:'רשימות המתנה אוטומטיות — כשמישהו מבטל, הבא ברשימה מקבל הודעה אוטומטית'},{icon:'✅',text:'עדכן נוכחות בזמן אמת ישירות מהאפליקציה בזמן השיעור — ללא ניירת'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'כספים ותזרים', subtitle:'תמונה פיננסית מלאה בזמן אמת', features:[{icon:'📈',text:'עקוב אחרי הכנסות והוצאות בפירוט לפי תאריך, עובד וקטגוריה — בלי להסתמך על אקסל'},{icon:'💳',text:'קופה POS לקבלת תשלומים במזומן, אשראי וחיוב מתמשך — הכל מתועד אוטומטית'},{icon:'📊',text:'דוחות חודשיים שמשווים ביצועים ומזהים מגמות הכנסה לאורך זמן'}] },
+      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'ערך מוסף ייחודי שמחזק את הקשר עם לקוחות', features:[{icon:'👨‍👩‍👧',text:'שלח ללקוח לינק להצטרפות כמשפחת חבר — הוא מקבל פורטל משפחה שמחובר לעסק שלך'},{icon:'🏠',text:'הלקוח מנהל את חיי המשפחה דרך האפליקציה שלך — חוויה שלא קיימת בשום מתחרה'},{icon:'🤝',text:'חזק נאמנות לקוחות דרך ערך אמיתי — לא רק ניהול, אלא חיבור לחיים'}] }
     ],
     MANAGER: [
-      { emoji:'🏋️', bg:'from-blue-500 to-cyan-600', title:'ברוכים לפורטל המאמן', subtitle:'הכלים לניהול שיעורים ופעילות', features:[{icon:'👥',text:'רשימת חברים פעילים'},{icon:'📅',text:'ניהול שיעורים'},{icon:'📊',text:'דוחות נוכחות'}] },
-      { emoji:'✅', bg:'from-green-500 to-emerald-600', title:"צ'ק-אין חברים", subtitle:'ניהול כניסות מהיר', features:[{icon:'🔍',text:'בדיקת תוקף מנוי'},{icon:'📝',text:'רישום כניסה ידני'},{icon:'📱',text:'ממשק מהיר'}] },
-      { emoji:'📅', bg:'from-indigo-500 to-violet-600', title:'לוח שיעורים', subtitle:'תכנון ומעקב שיעורים', features:[{icon:'🗓️',text:'צפייה בשיעורים'},{icon:'✅',text:'עדכון נוכחות'},{icon:'📋',text:'ניהול רשימות'}] },
-      { emoji:'📊', bg:'from-orange-500 to-amber-600', title:'דוחות פעילות', subtitle:'נתוני ביצוע ומגמות', features:[{icon:'📈',text:'נוכחות שבועית'},{icon:'⚠️',text:'חברים בסיכון'},{icon:'🔄',text:'מגמות פעילות'}] },
-      { emoji:'📣', bg:'from-pink-500 to-rose-600', title:'תקשורת צוות', subtitle:'עבודה משותפת עם הצוות', features:[{icon:'📰',text:'עדכוני פיד'},{icon:'✅',text:'משימות לצוות'},{icon:'💬',text:'הודעות'}] }
+      { emoji:'🏋️', bg:'from-blue-500 to-cyan-600', title:'ברוכים לפורטל המאמן', subtitle:'כל הכלים לניהול שיעורים וחברים — במקום אחד', features:[{icon:'👥',text:'גישה מיידית לרשימת חברים פעילים עם סטטוס מנוי ופרטי קשר'},{icon:'📅',text:'נהל את לוח השיעורים שלך, עדכן נוכחות ועקוב אחרי המשתתפים'},{icon:'📊',text:'דוחות נוכחות שמראים מי מגיע, מי נושר ואיפה כדאי לחזק'}] },
+      { emoji:'✅', bg:'from-green-500 to-emerald-600', title:"צ'ק-אין חברים", subtitle:'ניהול כניסות מהיר ומדויק', features:[{icon:'🔍',text:"חפש חבר לפי שם ובדוק בשנייה אחת אם המנוי שלו בתוקף לפני שאתה מכניס אותו לשיעור"},{icon:'📝',text:'רשום כניסה ידנית כשהחבר שכח את הכרטיס — הכל מתועד ושמור'},{icon:'📱',text:'ממשק מהיר ומינימליסטי שמאפשר לנהל עשרות כניסות בדקות'}] },
+      { emoji:'📅', bg:'from-indigo-500 to-violet-600', title:'לוח שיעורים', subtitle:'תכנון ומעקב שיעורים יעיל', features:[{icon:'🗓️',text:'צפה בכל השיעורים של היום, השבוע והחודש — בתצוגה נוחה לנייד'},{icon:'✅',text:'עדכן נוכחות ישירות מהשיעור — לא צריך נייר ולא אקסל'},{icon:'📋',text:'נהל רשימות המתנה ועדכן משתתפים על שינויים בזמן אמת'}] },
+      { emoji:'📊', bg:'from-orange-500 to-amber-600', title:'דוחות פעילות', subtitle:'נתוני ביצוע ומגמות לשיפור מתמיד', features:[{icon:'📈',text:'ראה נוכחות שבועית וחודשית לפי שיעור — זהה את השיעורים הפופולריים'},{icon:'⚠️',text:'גלה חברים שלא הגיעו 3+ שבועות — פנה אליהם לפני שיבטלו את המנוי'},{icon:'🔄',text:'עקוב אחרי מגמות פעילות ושיפור לאורך הזמן'}] },
+      { emoji:'📣', bg:'from-pink-500 to-rose-600', title:'תקשורת צוות', subtitle:'עבודה מסונכרנת עם שאר הצוות', features:[{icon:'📰',text:"קרא עדכונים מהניהול ישירות בפיד — לא תפספס שום הנחיה חשובה"},{icon:'✅',text:"קבל משימות ממנהל, סמן כהושלמו והוכח ביצוע עם תמונה"},{icon:'💬',text:"תקשר עם הצוות בצ'אט פנימי — כולם על אותו דף"}] }
     ],
     EMPLOYEE: [
-      { emoji:'🎯', bg:'from-slate-600 to-slate-800', title:'ברוכים לפורטל העובד', subtitle:'הכלים האישיים שלך', features:[{icon:'⏱️',text:'שעות עבודה'},{icon:'🗓️',text:'משמרות'},{icon:'💰',text:'בונוסים ותגמולים'}] },
-      { emoji:'⏱️', bg:'from-blue-500 to-indigo-600', title:'שעון נוכחות', subtitle:'דיווח שעות פשוט ומדויק', features:[{icon:'🟢',text:'כניסה ויציאה בלחיצה'},{icon:'📋',text:'מעקב שעות'},{icon:'📜',text:'היסטוריה אישית'}] },
-      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'משמרות', subtitle:'סידור העבודה שלך', features:[{icon:'👁️',text:'צפייה במשמרות'},{icon:'📲',text:'עדכונים מהמנהל'},{icon:'🔄',text:'בקשות שינוי'}] },
-      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות ובונוסים', subtitle:'בצע ותגמל', features:[{icon:'📋',text:'רשימת משימות פתוחות'},{icon:'📸',text:'העלאת תמונת אישור'},{icon:'💎',text:"צ'ק בונוסים"}] },
-      { emoji:'🎓', bg:'from-amber-500 to-orange-600', title:'הכשרות', subtitle:'למידה ותגמול', features:[{icon:'📚',text:'קורסים ומבדקים'},{icon:'🏆',text:'השלמת הכשרות'},{icon:'💰',text:'תגמולים אישיים'}] }
+      { emoji:'🎯', bg:'from-slate-600 to-slate-800', title:'ברוכים לפורטל העובד', subtitle:'הכלים האישיים שלך לניהול עבודה יומיומית', features:[{icon:'⏱️',text:'דווח שעות כניסה ויציאה בלחיצה אחת — השעות מתועדות אוטומטית'},{icon:'🗓️',text:'צפה במשמרות ולוח העבודה שלך קדימה ללא הפתעות'},{icon:'💰',text:'עקוב אחרי הבונוסים שצברת וראה את התגמולים האישיים שלך'}] },
+      { emoji:'⏱️', bg:'from-blue-500 to-indigo-600', title:'שעון נוכחות', subtitle:'דיווח שעות פשוט, מדויק ושקוף', features:[{icon:'🟢',text:'לחץ "כניסה" בהתחלת משמרת ו"יציאה" בסוף — בלי טפסים ובלי הסברים'},{icon:'📋',text:'ראה את סיכום השעות של השבוע ומה תועד עד כה בחודש הנוכחי'},{icon:'📜',text:'גש להיסטוריית הנוכחות שלך כדי לוודא שהכל תועד נכון'}] },
+      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'משמרות', subtitle:'לוח עבודה ברור ומעודכן', features:[{icon:'👁️',text:'ראה את המשמרות שלך לשבוע הקרוב — תתכנן את הזמן שלך מראש'},{icon:'📲',text:'קבל עדכונים מהמנהל על שינויים בסידור ישירות לאפליקציה'},{icon:'🔄',text:'שלח בקשת שינוי משמרת ועקוב אחרי הסטטוס שלה'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות ובונוסים', subtitle:'בצע, הוכח וקבל תגמול', features:[{icon:'📋',text:'ראה את רשימת המשימות הפתוחות שלך ודע בדיוק מה מצפים ממך'},{icon:'📸',text:'העלה תמונת אישור להוכחת ביצוע משימה — פשוט ומהיר'},{icon:'💎',text:"בדוק כמה בונוסים צברת ומה הסטטוס של כל תגמול שמגיע לך"}] },
+      { emoji:'🎓', bg:'from-amber-500 to-orange-600', title:'הכשרות ולמידה', subtitle:'פתח עצמך מקצועית ותרוויח על זה', features:[{icon:'📚',text:'גש לקורסים ומבדקי ידע שפותחו עבורך — למד בקצב שלך'},{icon:'🏆',text:'השלם הכשרות וצבור תעודות שמעידות על המומחיות שלך'},{icon:'💰',text:'כל הכשרה שתשלים יכולה להוביל לתגמול כספי — שווה להשקיע'}] }
     ]
   },
   beauty: {
     ADMIN: [
-      { emoji:'💅', bg:'from-pink-500 to-purple-600', title:'ברוכים לסלון', subtitle:'ניהול מקצועי של עסק יופי', features:[{icon:'📋',text:'תיקי לקוחות'},{icon:'📅',text:'יומן תורים'},{icon:'👩‍💼',text:'ניהול מטפלות'}] },
-      { emoji:'📋', bg:'from-violet-500 to-indigo-600', title:'תיקי לקוחות', subtitle:'היסטוריה מלאה לכל לקוח', features:[{icon:'🧪',text:'פורמולות ותמונות'},{icon:'⚠️',text:'מבחני ריגישות'},{icon:'📈',text:'ממוצע ביקורים'}] },
-      { emoji:'💆', bg:'from-rose-500 to-pink-600', title:'יומן תורים', subtitle:'ניהול תורים מקצועי', features:[{icon:'👩‍⚕️',text:'שיוך למטפלת ולחדר'},{icon:'🔄',text:'סטטוסי תור'},{icon:'📅',text:'תצוגות יום/שבוע/חודש'}] },
-      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'עמלות ושכר', subtitle:'שקיפות מלאה על שכר מטפלות', features:[{icon:'📊',text:'עמלות לפי מטפלת'},{icon:'💳',text:'תשלום עמלות'},{icon:'📈',text:'דוחות הכנסה'}] },
-      { emoji:'🧴', bg:'from-cyan-500 to-blue-600', title:'מלאי מקצועי', subtitle:'ניהול מוצרים קמעונאיים ומקצועיים', features:[{icon:'🛍️',text:'מלאי קמעונאי ו-backbar'},{icon:'⚠️',text:'התראות מלאי נמוך'},{icon:'📦',text:'עדכון כמויות'}] }
+      { emoji:'💅', bg:'from-pink-500 to-purple-600', title:'ברוכים לניהול הסלון', subtitle:'ניהול מקצועי של עסק יופי — מלקוח ועד עמלה', features:[{icon:'📋',text:'תיקי לקוחות עם פורמולות, תמונות ורקע רפואי — הכל נשמר ובא לידי ביטוי בכל ביקור'},{icon:'📅',text:'יומן תורים חכם עם שיוך למטפלת, חדר וסוג טיפול — אפס התנגשויות'},{icon:'👩‍💼',text:'נהל את הצוות, עמלות ושכר — שקיפות מלאה לכל מטפלת'}] },
+      { emoji:'📋', bg:'from-violet-500 to-indigo-600', title:'תיקי לקוחות', subtitle:'זיכרון מוסדי שמשפר כל טיפול', features:[{icon:'🧪',text:'שמור פורמולות צבע, טיפולים ותמונות לפני/אחרי — המטפלת הבאה תדע בדיוק מה לעשות'},{icon:'⚠️',text:'תעד אלרגיות ומבחני רגישות — הגן על הלקוח ועל הסלון מבחינה משפטית'},{icon:'📈',text:'ראה ממוצע ביקורים, הכנסה ממוצעת ותדירות ביקורים לכל לקוח'}] },
+      { emoji:'💆', bg:'from-rose-500 to-pink-600', title:'יומן תורים', subtitle:'ניהול תורים מקצועי ללא כאוס', features:[{icon:'👩‍⚕️',text:'שייך כל תור למטפלת ולחדר ספציפיים — אפס חפיפות וקונפליקטים'},{icon:'🔄',text:'עדכן סטטוסי תור בזמן אמת: ממתין, בטיפול, הושלם, בוטל'},{icon:'📅',text:'תצוגות יום, שבוע וחודש — תכנן קיבולת ומנע עומסים'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-teal-600', title:'עמלות ושכר', subtitle:'שקיפות מלאה שמחזקת אמון הצוות', features:[{icon:'📊',text:'ראה עמלות לכל מטפלת לפי טיפול, סוג שירות ותקופה — ללא עמימות'},{icon:'💳',text:'שלם עמלות ישירות מהמערכת ועקוב אחרי כל עסקה'},{icon:'📈',text:'דוחות הכנסה לפי מטפלת — ראה מי מניב ומי צריך חיזוק'}] },
+      { emoji:'🧴', bg:'from-cyan-500 to-blue-600', title:'מלאי מקצועי', subtitle:'שליטה על חומרי גלם ומוצרי מכירה', features:[{icon:'🛍️',text:'נהל בנפרד מלאי קמעונאי (מכירה) ומלאי backbar (שימוש מקצועי)'},{icon:'⚠️',text:'קבל התראה כשמוצר מגיע לכמות מינימום — לא תיגמר לך תוצרת בטיפול'},{icon:'📦',text:'עדכן כמויות בקלות לאחר קבלת סחורה או שימוש בטיפולים'}] }
     ],
     MANAGER: [
-      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'הכלים לניהול התורים שלך', features:[{icon:'📅',text:'תורים היום'},{icon:'📋',text:'לקוחות'},{icon:'💰',text:'עמלות'}] },
-      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול סדר יום', features:[{icon:'🗓️',text:'תצוגת יומן'},{icon:'🔄',text:'סטטוסי תורים'},{icon:'✅',text:'השלמת טיפול'}] },
-      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'לקוחות', subtitle:'גישה לתיק לקוח', features:[{icon:'🧪',text:'פורמולות ורקע רפואי'},{icon:'📜',text:'היסטוריית ביקורים'},{icon:'📝',text:'הוספת הערות'}] },
-      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שכר אישי', features:[{icon:'📊',text:'סיכום עמלות'},{icon:'🗓️',text:'פירוט לפי חודש'},{icon:'✅',text:'סטטוס תשלום'}] },
-      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'ניהול חומרים מקצועיים', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'📢',text:'דיווח חוסרים'},{icon:'📦',text:'עדכון שימוש'}] }
+      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'כל מה שצריך לנהל את יום העבודה שלך', features:[{icon:'📅',text:'ראי בבוקר את כל התורים שלך היום — שעה, לקוח, סוג טיפול'},{icon:'📋',text:'גשי לתיק הלקוח לפני כל טיפול — ראי פורמולות, הערות ואזהרות'},{icon:'💰',text:'עקבי אחרי העמלות שצברת בזמן אמת — שקיפות מלאה'}] },
+      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול יום עבודה מסודר ויעיל', features:[{icon:'🗓️',text:'תצוגת יומן אישית עם כל התורים שלך לפי שעה — תמיד יודעת מה הולך'},{icon:'🔄',text:'עדכני סטטוס תור: הגיע, בטיפול, הושלם — הניהול מתעדכן אוטומטית'},{icon:'✅',text:'סמני טיפול כהושלם ועדכני הערות מיד בסיום הביקור'}] },
+      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'תיק הלקוח', subtitle:'כל מה שצריך לדעת לפני שמתחילות לעבוד', features:[{icon:'🧪',text:'גישה מיידית לפורמולות, הערות הטיפול הקודם ותמונות לפני/אחרי'},{icon:'📜',text:'ראי היסטוריית ביקורים מלאה — ראי את ההתקדמות של הלקוחה'},{icon:'📝',text:'הוסיפי הערות לאחר כל טיפול — יועיל לך בביקור הבא'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שקוף על כל שקל שמגיע לך', features:[{icon:'📊',text:'ראי סיכום עמלות לחודש הנוכחי — לפי סוג טיפול ולקוח'},{icon:'🗓️',text:'פירוט חודשי של כל עסקה שתרמה לעמלה שלך'},{icon:'✅',text:'ראי אם העמלה כבר שולמה או ממתינה לתשלום'}] },
+      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'שמרי על הזמינות של החומרים שלך', features:[{icon:'🔍',text:'בדקי זמינות מוצר לפני שמתחילים טיפול — אין הפתעות באמצע'},{icon:'📢',text:'דווחי על חוסר מוצר כדי שהמנהלת תזמין בזמן'},{icon:'📦',text:'עדכני כמויות שימוש אחרי טיפול מורכב שדרש חומרים מיוחדים'}] }
     ],
     EMPLOYEE: [
-      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'הכלים לניהול התורים שלך', features:[{icon:'📅',text:'תורים היום'},{icon:'📋',text:'לקוחות'},{icon:'💰',text:'עמלות'}] },
-      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול סדר יום', features:[{icon:'🗓️',text:'תצוגת יומן'},{icon:'🔄',text:'סטטוסי תורים'},{icon:'✅',text:'השלמת טיפול'}] },
-      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'לקוחות', subtitle:'גישה לתיק לקוח', features:[{icon:'🧪',text:'פורמולות ורקע רפואי'},{icon:'📜',text:'היסטוריית ביקורים'},{icon:'📝',text:'הוספת הערות'}] },
-      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שכר אישי', features:[{icon:'📊',text:'סיכום עמלות'},{icon:'🗓️',text:'פירוט לפי חודש'},{icon:'✅',text:'סטטוס תשלום'}] },
-      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'ניהול חומרים מקצועיים', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'📢',text:'דיווח חוסרים'},{icon:'📦',text:'עדכון שימוש'}] }
+      { emoji:'💆', bg:'from-pink-500 to-rose-600', title:'ברוכים לפורטל המטפלת', subtitle:'כל מה שצריך לנהל את יום העבודה שלך', features:[{icon:'📅',text:'ראי בבוקר את כל התורים שלך היום — שעה, לקוח, סוג טיפול'},{icon:'📋',text:'גשי לתיק הלקוח לפני כל טיפול — ראי פורמולות, הערות ואזהרות'},{icon:'💰',text:'עקבי אחרי העמלות שצברת בזמן אמת — שקיפות מלאה'}] },
+      { emoji:'📅', bg:'from-violet-500 to-purple-600', title:'התורים שלי', subtitle:'ניהול יום עבודה מסודר ויעיל', features:[{icon:'🗓️',text:'תצוגת יומן אישית עם כל התורים שלך לפי שעה — תמיד יודעת מה הולך'},{icon:'🔄',text:'עדכני סטטוס תור: הגיע, בטיפול, הושלם — הניהול מתעדכן אוטומטית'},{icon:'✅',text:'סמני טיפול כהושלם ועדכני הערות מיד בסיום הביקור'}] },
+      { emoji:'📋', bg:'from-indigo-500 to-blue-600', title:'תיק הלקוח', subtitle:'כל מה שצריך לדעת לפני שמתחילות לעבוד', features:[{icon:'🧪',text:'גישה מיידית לפורמולות, הערות הטיפול הקודם ותמונות לפני/אחרי'},{icon:'📜',text:'ראי היסטוריית ביקורים מלאה — ראי את ההתקדמות של הלקוחה'},{icon:'📝',text:'הוסיפי הערות לאחר כל טיפול — יועיל לך בביקור הבא'}] },
+      { emoji:'💰', bg:'from-emerald-500 to-green-600', title:'העמלות שלי', subtitle:'מעקב שקוף על כל שקל שמגיע לך', features:[{icon:'📊',text:'ראי סיכום עמלות לחודש הנוכחי — לפי סוג טיפול ולקוח'},{icon:'🗓️',text:'פירוט חודשי של כל עסקה שתרמה לעמלה שלך'},{icon:'✅',text:'ראי אם העמלה כבר שולמה או ממתינה לתשלום'}] },
+      { emoji:'🧴', bg:'from-amber-500 to-orange-600', title:'מלאי', subtitle:'שמרי על הזמינות של החומרים שלך', features:[{icon:'🔍',text:'בדקי זמינות מוצר לפני שמתחילים טיפול — אין הפתעות באמצע'},{icon:'📢',text:'דווחי על חוסר מוצר כדי שהמנהלת תזמין בזמן'},{icon:'📦',text:'עדכני כמויות שימוש אחרי טיפול מורכב שדרש חומרים מיוחדים'}] }
     ]
   },
   maintenance_repair: {
     ADMIN: [
-      { emoji:'🔧', bg:'from-slate-600 to-gray-800', title:'ברוכים למרכז השירות', subtitle:'ניהול קריאות שירות ושדה', features:[{icon:'📞',text:'מעקב קריאות שירות'},{icon:'👷',text:'ניתוב לטכנאים'},{icon:'📊',text:'דוחות ביצוע'}] },
-      { emoji:'📞', bg:'from-blue-500 to-indigo-600', title:'קריאות שירות', subtitle:'מרכז כל הקריאות', features:[{icon:'🆕',text:'קריאות חדשות ופתוחות'},{icon:'⚡',text:'עדיפויות ותזמון'},{icon:'🔄',text:'עדכוני סטטוס'}] },
-      { emoji:'👷', bg:'from-orange-500 to-amber-600', title:'ניהול טכנאים', subtitle:'ניתוב עבודה לצוות', features:[{icon:'📍',text:'שיוך קריאות לטכנאי'},{icon:'📈',text:'מעקב התקדמות'},{icon:'⚖️',text:'עומסי עבודה'}] },
-      { emoji:'📊', bg:'from-violet-500 to-purple-600', title:'דוחות וניתוח', subtitle:'ביצועים ורווחיות', features:[{icon:'⏱️',text:'זמני טיפול ממוצעים'},{icon:'💰',text:'הכנסה לפי טכנאי'},{icon:'📉',text:'מגמות תקלות'}] },
-      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'חיבור לקוחות למשפחות', features:[{icon:'👨‍👩‍👧',text:"רישום לקוח כ'חבר'"},{icon:'🏠',text:'גישה למוקד שירות'},{icon:'🤝',text:'חיזוק הקשר'}] }
+      { emoji:'🔧', bg:'from-slate-600 to-gray-800', title:'ברוכים למרכז השירות', subtitle:'ניהול מקצועי של קריאות שירות ועובדי שדה', features:[{icon:'📞',text:'עקוב אחרי כל קריאת שירות בזמן אמת — מהפתיחה ועד הסגירה'},{icon:'👷',text:'נתב קריאות לטכנאים המתאימים לפי מיקום, מומחיות וזמינות'},{icon:'📊',text:'דוחות ביצוע שמראים זמני תגובה, שביעות רצון ורווחיות'}] },
+      { emoji:'📞', bg:'from-blue-500 to-indigo-600', title:'קריאות שירות', subtitle:'מרכז כל קריאות השירות במקום אחד', features:[{icon:'🆕',text:'ראה קריאות חדשות מיד עם הגעתן — אל תתן ללקוח לחכות לתגובה'},{icon:'⚡',text:'סמן עדיפויות ותזמן ביקורים לפי דחיפות — טפל בחירום ראשון'},{icon:'🔄',text:'עדכן סטטוס כל קריאה בזמן אמת כדי שהלקוח תמיד יודע מה קורה'}] },
+      { emoji:'👷', bg:'from-orange-500 to-amber-600', title:'ניהול טכנאים', subtitle:'נתב עבודה בצורה חכמה ויעילה', features:[{icon:'📍',text:'שייך קריאות לטכנאי על פי מיקום גאוגרפי ומומחיות — חסוך זמן נסיעות'},{icon:'📈',text:'עקוב אחרי ההתקדמות של כל טכנאי בזמן אמת'},{icon:'⚖️',text:'ראה עומסי עבודה ואזן חלוקה כדי להימנע מעומס יתר בצוות'}] },
+      { emoji:'📊', bg:'from-violet-500 to-purple-600', title:'דוחות וניתוח', subtitle:'קבל החלטות מבוססות נתונים', features:[{icon:'⏱️',text:'ראה זמני טיפול ממוצעים לפי סוג תקלה וטכנאי — זהה צווארי בקבוק'},{icon:'💰',text:'הכנסה לפי טכנאי וסוג שירות — ראה מה הכי רווחי לעסק שלך'},{icon:'📉',text:'עקוב אחרי מגמות תקלות חוזרות ותן תגובת מנע'}] },
+      { emoji:'🔗', bg:'from-pink-500 to-rose-600', title:'ONEFLOW LIFE', subtitle:'חיבור לקוחות לפלטפורמה המשפחתית', features:[{icon:'👨‍👩‍👧',text:'שלח ללקוח לינק הצטרפות כ"חבר" — הוא מקבל גישה לפורטל משפחה'},{icon:'🏠',text:'הלקוח יכול לפתוח קריאת שירות דרך הפורטל המשפחתי — נוחות מקסימלית'},{icon:'🤝',text:'חזק את הקשר עם לקוחות ובנה מאגר לקוחות נאמן'}] }
     ],
     MANAGER: [
-      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לממשק המנהל', subtitle:'ניהול הצוות וקריאות השטח', features:[{icon:'📋',text:'קריאות פתוחות'},{icon:'👷',text:'ניתוב לטכנאי'},{icon:'📡',text:'מעקב שטח'}] },
-      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'קריאות שירות', subtitle:'ניהול כל הקריאות', features:[{icon:'🔴',text:'קריאות לפי סטטוס'},{icon:'⚡',text:'עדיפויות'},{icon:'🗓️',text:'תזמון ביקורים'}] },
-      { emoji:'👷', bg:'from-amber-500 to-orange-600', title:'הצוות שלי', subtitle:'ניהול טכנאי שדה', features:[{icon:'📍',text:'שיוך קריאות'},{icon:'📊',text:'עומס עבודה'},{icon:'📡',text:'עדכוני שטח'}] },
-      { emoji:'📊', bg:'from-emerald-500 to-green-600', title:'דוחות', subtitle:'ביצועי הצוות', features:[{icon:'✅',text:'קריאות שהושלמו'},{icon:'⏱️',text:'זמני תגובה'},{icon:'💰',text:'הכנסה'}] },
-      { emoji:'📣', bg:'from-violet-500 to-purple-600', title:'תקשורת', subtitle:'שמירה על קשר עם הצוות', features:[{icon:'📰',text:'עדכוני פיד'},{icon:'✅',text:'משימות'},{icon:'⚠️',text:'התראות דחופות'}] }
+      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לממשק המנהל', subtitle:'שליטה על הצוות וקריאות השטח', features:[{icon:'📋',text:'ראה את כל הקריאות הפתוחות ועדיפויות הטיפול — תמיד מעודכן'},{icon:'👷',text:'נתב קריאות לטכנאים הנכונים ועקוב אחרי ביצוע'},{icon:'📡',text:'עקוב אחרי הצוות בשטח בזמן אמת — תמיד יודע מי עושה מה'}] },
+      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'קריאות שירות', subtitle:'ניהול מלא של כל הקריאות תחת אחריותך', features:[{icon:'🔴',text:'ראה קריאות לפי סטטוס: פתוחה, בטיפול, ממתינה לחלקים, הושלמה'},{icon:'⚡',text:'סמן עדיפויות ותזמן ביקורים לפי הדחיפות של כל מקרה'},{icon:'🗓️',text:'תכנן ביקורים עתידיים ועקוב אחרי עמידה בהתחייבויות ללקוח'}] },
+      { emoji:'👷', bg:'from-amber-500 to-orange-600', title:'הצוות שלי', subtitle:'ניהול טכנאי שדה יעיל', features:[{icon:'📍',text:'שייך קריאות לטכנאים לפי מיקום ומומחיות — אופטימיזציה של הנסיעות'},{icon:'📊',text:'ראה עומס עבודה של כל טכנאי ואזן חלוקה בצורה הוגנת'},{icon:'📡',text:'קבל עדכוני שטח בזמן אמת — לא צריך להתקשר כל פעם'}] },
+      { emoji:'📊', bg:'from-emerald-500 to-green-600', title:'דוחות', subtitle:'ביצועי הצוות שלך במספרים', features:[{icon:'✅',text:'ראה כמה קריאות הושלמו בשבוע/חודש לפי כל טכנאי'},{icon:'⏱️',text:'עקוב אחרי זמני תגובה ממוצעים — הצב יעדים ועמוד בהם'},{icon:'💰',text:'הכנסה מהצוות שלך לפי תקופה — ראה את התרומה שלך לעסק'}] },
+      { emoji:'📣', bg:'from-violet-500 to-purple-600', title:'תקשורת', subtitle:'שמור על קשר עם כל הצוות', features:[{icon:'📰',text:'שלח עדכונים לפיד הצוות — הודעות, שינויים בנהלים, עדכוני בטיחות'},{icon:'✅',text:'הפץ משימות לכל הצוות ועקוב אחרי ביצוע עם תמונות אישור'},{icon:'⚠️',text:'שלח התראות דחופות כשיש קריאת חירום שדורשת תגובה מיידית'}] }
     ],
     EMPLOYEE: [
-      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לפורטל הטכנאי', subtitle:'הקריאות שלך, הכלים שלך', features:[{icon:'📋',text:'קריאות מוקצות'},{icon:'🗺️',text:'ניווט ומיקום'},{icon:'🔄',text:'עדכוני סטטוס'}] },
-      { emoji:'📋', bg:'from-blue-500 to-indigo-600', title:'הקריאות שלי', subtitle:'ניהול עבודת השדה', features:[{icon:'🟢',text:'קריאות פתוחות'},{icon:'⚡',text:'עדיפויות'},{icon:'🗓️',text:'תזמון'}] },
-      { emoji:'🔄', bg:'from-orange-500 to-amber-600', title:'עדכון סטטוס', subtitle:'דיווח התקדמות', features:[{icon:'🔃',text:'שינוי סטטוס קריאה'},{icon:'📝',text:'הוספת הערות'},{icon:'🔩',text:'דיווח חלקים חסרים'}] },
-      { emoji:'⏱️', bg:'from-violet-500 to-purple-600', title:'נוכחות', subtitle:'דיווח שעות', features:[{icon:'🟢',text:'שעון כניסה ויציאה'},{icon:'📊',text:'מעקב שעות'},{icon:'📋',text:'סיכום יומי'}] },
-      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות נוספות', features:[{icon:'📋',text:'רשימת משימות'},{icon:'📸',text:'דיווח סיום'},{icon:'💬',text:'תקשורת עם מנהל'}] }
+      { emoji:'🔧', bg:'from-slate-500 to-gray-700', title:'ברוכים לפורטל הטכנאי', subtitle:'הקריאות שלך, הכלים שלך — הכל ביד', features:[{icon:'📋',text:'ראה את כל הקריאות המוקצות לך עם פרטי הלקוח, הכתובת וסוג התקלה'},{icon:'🗺️',text:'ניווט ישיר מהאפליקציה לכתובת הלקוח — ללא עצירות מיותרות'},{icon:'🔄',text:'עדכן סטטוס קריאה בזמן אמת — המנהל רואה את ההתקדמות שלך'}] },
+      { emoji:'📋', bg:'from-blue-500 to-indigo-600', title:'הקריאות שלי', subtitle:'ניהול עבודת השדה בצורה חכמה', features:[{icon:'🟢',text:'ראה קריאות פתוחות וממתינות עם כל הפרטים הנחוצים לפני הגעה'},{icon:'⚡',text:'ראה את רמת הדחיפות של כל קריאה ותעדף בהתאם'},{icon:'🗓️',text:'ראה את תזמון הביקורים שלך ליום ולשבוע — תכנן נסיעות ביעילות'}] },
+      { emoji:'🔄', bg:'from-orange-500 to-amber-600', title:'עדכון סטטוס', subtitle:'הישאר מחובר ושקוף עם המשרד', features:[{icon:'🔃',text:'שנה סטטוס קריאה מ"בדרך" ל"בטיפול" ל"הושלמה" — לחיצה אחת'},{icon:'📝',text:'הוסף הערות טכניות לתיעוד הטיפול — חשוב לעתיד ולחשבונית'},{icon:'🔩',text:'דווח על חלקים חסרים כדי שהמשרד יזמין — אל תחכה שיתגלה מאוחר'}] },
+      { emoji:'⏱️', bg:'from-violet-500 to-purple-600', title:'נוכחות', subtitle:'דיווח שעות שמגן עליך', features:[{icon:'🟢',text:'לחץ "כניסה" בתחילת יום ו"יציאה" בסוף — שעות מדויקות ומתועדות'},{icon:'📊',text:'ראה את סיכום שעות השבוע והחודש — תמיד יודע מה ישולם לך'},{icon:'📋',text:'גישה לסיכום יומי שמשמש אותך גם לדיווחי נסיעות'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות נוספות מעבר לקריאות שירות', features:[{icon:'📋',text:'ראה משימות שהוקצו לך: אחסון ציוד, הכשרות, ביקורי אחזקה מתוזמנים'},{icon:'📸',text:'צלם תמונת אישור לאחר ביצוע — הוכח ביצוע ושמור על עצמך'},{icon:'💬',text:'תקשר עם המנהל ישירות מהאפליקציה — ללא הטרדה בווטסאפ'}] }
     ]
   },
   restaurant: {
     ADMIN: [
-      { emoji:'🍽️', bg:'from-orange-500 to-amber-600', title:'ברוכים למרכז המסעדה', subtitle:'ניהול מלא של עסק המסעדה', features:[{icon:'📊',text:'KPI יומי'},{icon:'👥',text:'ניהול צוות'},{icon:'📦',text:'מלאי ועלויות'}] },
-      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'קופה ומכירות', subtitle:'ניהול הזמנות ותשלומים', features:[{icon:'⚡',text:'POS מהיר'},{icon:'🪑',text:'ניהול שולחנות'},{icon:'📋',text:'היסטוריית הזמנות'}] },
-      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות', subtitle:'ניהול משמרות ועובדים', features:[{icon:'🗓️',text:'סידור משמרות'},{icon:'⏱️',text:'נוכחות'},{icon:'💰',text:'שכר'}] },
-      { emoji:'📦', bg:'from-emerald-500 to-teal-600', title:'מלאי ומוצרים', subtitle:'שליטה על חומרי גלם', features:[{icon:'🥩',text:'מלאי מטבח'},{icon:'💵',text:'עלות מנה'},{icon:'🛒',text:'הזמנות לספקים'}] },
-      { emoji:'📊', bg:'from-rose-500 to-pink-600', title:'ביצועים', subtitle:'נתוני רווחיות ומכירות', features:[{icon:'📈',text:'הכנסה יומית וחודשית'},{icon:'🍕',text:'מנות פופולריות'},{icon:'💹',text:'תזרים מזומנים'}] }
+      { emoji:'🍽️', bg:'from-orange-500 to-amber-600', title:'ברוכים למרכז המסעדה', subtitle:'ניהול מלא של העסק מהמטבח עד הקופה', features:[{icon:'📊',text:'KPI יומי: הכנסות, מספר סועדים, עלות מנה ממוצעת — קבל תמונה מלאה בשניות'},{icon:'👥',text:'ניהול משמרות, נוכחות עובדים ושכר — הכל מסונכרן ואוטומטי'},{icon:'📦',text:'שליטה על מלאי חומרי גלם, עלות מנות והזמנות לספקים'}] },
+      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'קופה ומכירות', subtitle:'ניהול הזמנות ותשלומים מהיר ומדויק', features:[{icon:'⚡',text:'POS מהיר לקבלת הזמנות, עריכתן ושליחה למטבח — ביצוע חלק ומקצועי'},{icon:'🪑',text:'ניהול שולחנות עם סטטוס בזמן אמת — תמיד יודע מה פנוי ומה תפוס'},{icon:'📋',text:'היסטוריית הזמנות מלאה לצורך ניתוח, מענה ללקוחות ובדיקות'}] },
+      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות', subtitle:'ניהול משמרות ועובדים ללא חיכוכים', features:[{icon:'🗓️',text:'תכנן סידורי משמרות שבועיים תוך דקות ושתף עם הצוות אוטומטית'},{icon:'⏱️',text:'עקוב אחרי כניסות ויציאות של כל עובד — נוכחות מדויקת לחשבון שכר'},{icon:'💰',text:'חישוב שכר אוטומטי לפי שעות, שעות נוספות ובונוסים'}] },
+      { emoji:'📦', bg:'from-emerald-500 to-teal-600', title:'מלאי ומוצרים', subtitle:'שליטה על חומרי גלם ומניעת בזבוז', features:[{icon:'🥩',text:'עקוב אחרי מלאי מטבח בזמן אמת — גלה חוסרים לפני שהם מפריעים לשירות'},{icon:'💵',text:'חשב עלות מנה מדויקת לפי חומרי גלם — ראה את הרווח האמיתי'},{icon:'🛒',text:'הגש הזמנות לספקים ישירות מהמערכת עם רשימת חוסרים אוטומטית'}] },
+      { emoji:'📊', bg:'from-rose-500 to-pink-600', title:'ביצועים ורווחיות', subtitle:'נתוני מכירה שיעזרו לך לצמוח', features:[{icon:'📈',text:'ראה הכנסה יומית, שבועית וחודשית עם השוואה לתקופות קודמות'},{icon:'🍕',text:'זהה מנות פופולריות ומנות מפסידות — עדכן תפריט בהתאם'},{icon:'💹',text:'ניהול תזרים מזומנים ותכנון תקציבי מבוסס נתונים אמיתיים'}] }
     ],
     MANAGER: [
-      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים למנהל המשמרת', subtitle:'שליטה על המשמרת הנוכחית', features:[{icon:'🪑',text:'סטטוס שולחנות'},{icon:'📋',text:'הזמנות פתוחות'},{icon:'👥',text:'צוות פעיל'}] },
-      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'הזמנות פתוחות', subtitle:'מעקב אחר כל הזמנה', features:[{icon:'🔴',text:'הזמנות פעילות'},{icon:'🍳',text:'סטטוסי הכנה'},{icon:'📡',text:'עדכוני מטבח'}] },
-      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות משמרת', subtitle:'ניהול העובדים הפעילים', features:[{icon:'⏱️',text:'כניסות ויציאות'},{icon:'🏷️',text:'שיוך לתפקידים'},{icon:'💬',text:'תקשורת'}] },
-      { emoji:'📦', bg:'from-emerald-500 to-green-600', title:'מלאי וחוסרים', subtitle:'בקרת מלאי בזמן אמת', features:[{icon:'🔍',text:'בדיקת מלאי'},{icon:'⚠️',text:'דיווח חוסרים'},{icon:'🔄',text:'עדכוני מטבח'}] },
-      { emoji:'💰', bg:'from-rose-500 to-pink-600', title:'סגירת משמרת', subtitle:'סיכום ודוח כספי', features:[{icon:'📊',text:'סיכום מכירות'},{icon:'🏧',text:'ניהול קופה'},{icon:'📋',text:'דוח יומי'}] }
+      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים למנהל המשמרת', subtitle:'שליטה מלאה על המשמרת הנוכחית', features:[{icon:'🪑',text:'ראה סטטוס כל השולחנות בזמן אמת — מי פנוי, מי מחכה, מי משלם'},{icon:'📋',text:'עקוב אחרי כל ההזמנות הפתוחות עם סטטוס הכנה במטבח'},{icon:'👥',text:'ראה מי מהצוות פעיל ומי עוד לא הגיע למשמרת'}] },
+      { emoji:'📋', bg:'from-blue-500 to-cyan-600', title:'הזמנות פתוחות', subtitle:'מעקב מקיף אחרי כל הזמנה', features:[{icon:'🔴',text:'ראה הזמנות פעילות ממוינות לפי שעה — זהה עיכובים לפני שמתלוננים'},{icon:'🍳',text:'עקוב אחרי סטטוסי הכנה במטבח — תאם ציפיות עם הלקוחות'},{icon:'📡',text:'קבל עדכונים מהמטבח בזמן אמת על כל שינוי בהזמנה'}] },
+      { emoji:'👥', bg:'from-violet-500 to-purple-600', title:'ניהול צוות משמרת', subtitle:'ניהול העובדים הפעילים כרגע', features:[{icon:'⏱️',text:'ראה מי נכנס ומי יצא ממשמרת — נהל נוכחות בקלות'},{icon:'🏷️',text:'שייך עובדים לתפקידים: מלצר, מארחת, קופאי — הכל מסודר'},{icon:'💬',text:'תקשר עם הצוות בזמן אמת — שלח הנחיות והתראות'}] },
+      { emoji:'📦', bg:'from-emerald-500 to-green-600', title:'מלאי וחוסרים', subtitle:'בקרת מלאי בזמן המשמרת', features:[{icon:'🔍',text:'בדוק כמויות מלאי לפני שמתחיל שירות — אל תיתפס בלי מרכיב חשוב'},{icon:'⚠️',text:'דווח חוסרים בזמן אמת כדי שהאחסנה תוכל להגיב מהר'},{icon:'🔄',text:'עדכן מלאי שהתקבל תוך כדי משמרת בלי לשבש את השירות'}] },
+      { emoji:'💰', bg:'from-rose-500 to-pink-600', title:'סגירת משמרת', subtitle:'סיכום כספי מהיר ומדויק', features:[{icon:'📊',text:'קבל סיכום מכירות של המשמרת: כמה שולחנות, כמה פריטים, כמה הכנסה'},{icon:'🏧',text:'נהל קופה, ספור מזומן וסגור קופה לפי נהלים — הכל מתועד'},{icon:'📋',text:'הפק דוח משמרת לסיכום ולהגשה לניהול'}] }
     ],
     EMPLOYEE: [
-      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים לפורטל הצוות', subtitle:'הכלים לעבודה מהירה ויעילה', features:[{icon:'💳',text:'הזמנות'},{icon:'🪑',text:'שולחנות'},{icon:'✅',text:'משימות'}] },
-      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'POS מהיר', subtitle:'קבלת הזמנות בקלות', features:[{icon:'➕',text:'הוספת פריטים לסל'},{icon:'🍳',text:'שליחה למטבח'},{icon:'💵',text:'תשלום'}] },
-      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'המשמרות שלי', subtitle:'סידור עבודה ונוכחות', features:[{icon:'👁️',text:'צפייה במשמרות'},{icon:'⏱️',text:'כניסה ויציאה'},{icon:'🔄',text:'בקשות שינוי'}] },
-      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות לביצוע במשמרת', features:[{icon:'📋',text:'משימות פתוחות'},{icon:'📸',text:'דיווח סיום'},{icon:'💬',text:'תקשורת עם מנהל'}] },
-      { emoji:'🎓', bg:'from-rose-500 to-pink-600', title:'הכשרות', subtitle:'ידע מקצועי ותגמולים', features:[{icon:'📚',text:'מבדקי ידע'},{icon:'🏆',text:'תעודות'},{icon:'💰',text:'בונוסים'}] }
+      { emoji:'🍽️', bg:'from-amber-500 to-orange-600', title:'ברוכים לפורטל הצוות', subtitle:'הכלים שיעזרו לך לתת שירות מצוין', features:[{icon:'💳',text:'גש לממשק הזמנות שלך וקבל הזמנות מלקוחות בקלות ומהירות'},{icon:'🪑',text:'ראה מפת שולחנות ועבוד על הסקטור שלך — לא על של אחרים'},{icon:'✅',text:'קבל משימות ממנהל המשמרת ודווח ביצוע בזמן אמת'}] },
+      { emoji:'💳', bg:'from-blue-500 to-indigo-600', title:'POS מהיר', subtitle:'קבל הזמנות ושלח למטבח בשניות', features:[{icon:'➕',text:'הוסף פריטים לסל הזמנות בנגיעה אחת — לא צריך לחפש בתפריט'},{icon:'🍳',text:'שלח הזמנה למטבח מיד — מטבח מקבל בזמן אמת ומתחיל להכין'},{icon:'💵',text:'גבה תשלום בקלות: מזומן, אשראי, ספליט — גמישות מלאה'}] },
+      { emoji:'🗓️', bg:'from-violet-500 to-purple-600', title:'המשמרות שלי', subtitle:'לוח עבודה ברור ונוכחות מדויקת', features:[{icon:'👁️',text:'ראה את המשמרות שלך לשבוע הקרוב — לא תהיה לך הפתעה'},{icon:'⏱️',text:'לחץ "כניסה" בתחילת משמרת ו"יציאה" בסוף — שעות מדויקות'},{icon:'🔄',text:'שלח בקשת שינוי משמרת ועקוב אחרי האישור שלה'}] },
+      { emoji:'✅', bg:'from-emerald-500 to-teal-600', title:'משימות', subtitle:'מטלות חשובות מעבר לשירות לקוחות', features:[{icon:'📋',text:'ראה משימות פתוחות: ניקיון, הכנות, מילוי מלאי — הכל מסודר ברשימה'},{icon:'📸',text:'צלם תמונת אישור לאחר ביצוע משימה — הוכחה ויזואלית'},{icon:'💬',text:'תקשר עם מנהל המשמרת ישירות מהאפליקציה — לא צריך לחפש אותו'}] },
+      { emoji:'🎓', bg:'from-rose-500 to-pink-600', title:'הכשרות ובונוסים', subtitle:'הפוך את הידע שלך ליתרון כלכלי', features:[{icon:'📚',text:'גש למבדקי ידע על תפריט, שירות ונהלים — הכשר את עצמך בכמה דקות'},{icon:'🏆',text:'השלם הכשרות וצבור תעודות שיפתחו לך דלתות להתקדמות'},{icon:'💰',text:'כל הכשרה שתסיים עשויה להוביל לבונוס ולקידום — שווה מאוד להשקיע'}] }
     ]
   }
 };
@@ -1434,38 +1434,36 @@ function showOnboardingTour(slides) {
         const s = slides[idx];
         const isLast = idx === slides.length - 1;
         const dots = slides.map((_, i) =>
-            `<div style="width:${i===idx?'24px':'8px'};height:8px;border-radius:999px;background:${i===idx?'#2563eb':'#cbd5e1'};transition:all 0.3s"></div>`
+            `<div style="width:${i===idx?'28px':'8px'};height:8px;border-radius:999px;background:${i===idx?'rgba(255,255,255,0.95)':'rgba(255,255,255,0.35)'};transition:all 0.35s ease"></div>`
         ).join('');
         const feats = s.features.map(f =>
-            `<div style="display:flex;align-items:center;gap:12px;font-size:14px;color:#374151"><span style="font-size:20px;flex-shrink:0">${f.icon}</span><span>${f.text}</span></div>`
+            `<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid #f1f5f9"><span style="font-size:22px;flex-shrink:0;margin-top:2px">${f.icon}</span><span style="font-size:13px;color:#334155;line-height:1.55;font-weight:500">${f.text}</span></div>`
         ).join('');
 
         const el = document.createElement('div');
         el.id = 'ofl-tour-overlay';
-        el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;font-family:Rubik,sans-serif;direction:rtl;';
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-end;justify-content:center;font-family:Rubik,sans-serif;direction:rtl;background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);';
         el.innerHTML = `
-<div style="flex:1;display:flex;flex-direction:column;padding:32px 24px 16px;overflow-y:auto">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px">
-    <div style="display:flex;align-items:center;gap:6px">${dots}</div>
-    <button id="ofl-tour-skip" style="color:#94a3b8;font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;font-family:Rubik,sans-serif">דלג</button>
-  </div>
-  <div style="display:flex;justify-content:center;margin-bottom:32px">
-    <div class="bg-gradient-to-br ${s.bg}" style="width:128px;height:128px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:0 20px 40px rgba(0,0,0,0.15)">
-      ${s.emoji}
+<div style="width:100%;max-width:480px;border-radius:28px 28px 0 0;overflow:hidden;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.3);">
+  <div class="bg-gradient-to-br ${s.bg}" style="padding:28px 24px 40px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:7px">${dots}</div>
+      <button id="ofl-tour-skip" style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;background:rgba(0,0,0,0.18);border:none;cursor:pointer;font-family:Rubik,sans-serif;padding:7px 16px;border-radius:20px;">דלג</button>
+    </div>
+    <div style="text-align:center">
+      <div style="width:92px;height:92px;border-radius:50%;background:rgba(255,255,255,0.18);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:46px;margin:0 auto 20px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">${s.emoji}</div>
+      <h2 style="font-size:22px;font-weight:900;color:#fff;margin:0 0 8px;letter-spacing:-0.3px">${s.title}</h2>
+      <p style="color:rgba(255,255,255,0.82);font-size:14px;line-height:1.6;margin:0;font-weight:400">${s.subtitle}</p>
     </div>
   </div>
-  <div style="text-align:center;margin-bottom:32px">
-    <h2 style="font-size:24px;font-weight:900;color:#0f172a;margin:0 0 8px">${s.title}</h2>
-    <p style="color:#64748b;font-size:16px;line-height:1.6;margin:0">${s.subtitle}</p>
-  </div>
-  <div style="background:#f8fafc;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:16px;margin-top:auto">
+  <div style="flex:1;overflow-y:auto;padding:20px 16px 8px;display:flex;flex-direction:column;gap:10px;background:#f8fafc;">
     ${feats}
   </div>
-</div>
-<div style="padding:16px 24px 32px;border-top:1px solid #f1f5f9">
-  <button id="ofl-tour-next" class="bg-gradient-to-r ${s.bg}" style="width:100%;color:#fff;font-weight:900;font-size:16px;padding:16px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 10px 20px rgba(37,99,235,0.25);font-family:Rubik,sans-serif">
-    ${isLast ? 'בואו נתחיל! 🚀' : 'המשך →'}
-  </button>
+  <div style="padding:14px 16px 28px;background:#f8fafc;">
+    <button id="ofl-tour-next" class="bg-gradient-to-r ${s.bg}" style="width:100%;color:#fff;font-weight:800;font-size:16px;padding:15px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:Rubik,sans-serif;">
+      ${isLast ? '🚀 בואו נתחיל!' : 'הבא →'}
+    </button>
+  </div>
 </div>`;
 
         document.body.appendChild(el);
