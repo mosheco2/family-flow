@@ -3749,7 +3749,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         window._beautyDashRendering = true;
         let dashEl = document.getElementById('content-role-dashboard');
         if (!dashEl) {
-            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+            const container = document.getElementById('biz-main-content-wrap');
             if (container) { dashEl = document.createElement('div'); dashEl.id = 'content-role-dashboard'; dashEl.className = 'px-2'; container.appendChild(dashEl); }
         }
         if (dashEl) {
@@ -3774,7 +3774,7 @@ window.renderDashboard = async function(forceRefresh = false) {
     if (currentUser?.role === 'ADMIN' && currentGroup?.business_type === 'maintenance_repair' && !window._inProcurementMode) {
         let dashEl = document.getElementById('content-role-dashboard');
         if (!dashEl) {
-            const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+            const container = document.getElementById('biz-main-content-wrap');
             if (container) {
                 dashEl = document.createElement('div');
                 dashEl.id = 'content-role-dashboard';
@@ -25196,7 +25196,7 @@ async function showRoleDashboard(roleType) {
 
     let dashEl = getEl('content-role-dashboard');
     if (!dashEl) {
-        const container = document.querySelector('[class*="px-2"][class*="w-full"]');
+        const container = document.getElementById('biz-main-content-wrap');
         if (!container) return;
         dashEl = document.createElement('div');
         dashEl.id = 'content-role-dashboard';
