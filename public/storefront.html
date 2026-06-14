@@ -500,6 +500,10 @@
                         if (bookBtn) {
                             bookBtn.classList.remove('hidden');
                             getEl('store-contact-info').classList.remove('hidden');
+                            // auto-open booking modal if ?action=book
+                            if (urlParams.get('action') === 'book') {
+                                setTimeout(() => window.openBookingModal && window.openBookingModal(), 800);
+                            }
                         }
                     }
                 } catch(e) { console.warn('Calendar module not active'); }

@@ -9073,7 +9073,7 @@ function _actRender(filterType, searchQ) {
 // ─── BIZ QUICK ACTIONS ────────────────────────────────────────────────────────
 
 const _BIZ_ACTIONS_MAP = {
-    beauty:             [{ icon:'📅', label:'קבע תור', action:'storefront' }, { icon:'💌', label:'ייעוץ מקדים', action:'beauty_rfq' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    beauty:             [{ icon:'📅', label:'קבע תור', action:'beauty_book' }, { icon:'💌', label:'ייעוץ מקדים', action:'beauty_rfq' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     sport:              [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     gym:                [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
     restaurant:         [{ icon:'🛒', label:'בצע הזמנה', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
@@ -9091,6 +9091,7 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
     const btns = actions.map(a => {
         let handler = '';
         if (a.action === 'storefront' && storeUrl) handler = `window.open('${storeUrl}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
         else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
         else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
@@ -9288,11 +9289,11 @@ function _renderBizAccordion(el, data, bizType) {
         sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
     }
 
-    // Messages tab — present for all business types
+    // Messages tab — always present for all business types
     const msgs = act.messages || [];
-    if (msgs.length > 0) {
-        tabs.push({ id:'messages', label:`הודעות (${msgs.length})` });
-        sections.messages = msgs.map(m => {
+    {
+        tabs.push({ id:'messages', label:`הודעות${msgs.length ? ' ('+msgs.length+')' : ''}` });
+        sections.messages = (msgs.length ? msgs.map(m => {
             const isMine = m.direction === 'inbound';
             const dt = new Date(m.created_at).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
             return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-2">
@@ -9301,7 +9302,7 @@ function _renderBizAccordion(el, data, bizType) {
                     <p class="text-[9px] mt-1 opacity-70 text-left">${dt}</p>
                 </div>
             </div>`;
-        }).join('') + `<div class="mt-3 pt-3 border-t border-slate-100">
+        }).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הודעות עדיין</p>') + `<div class="mt-3 pt-3 border-t border-slate-100">
             <textarea id="biz-acc-msg-${el.closest('[data-biz-id]')?.dataset?.bizId||''}" rows="2" placeholder="כתוב הודעה לעסק..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:border-indigo-400"></textarea>
             <button onclick="window._sendBizAccordionMsg(this)" class="mt-1.5 w-full bg-indigo-600 text-white rounded-xl py-2 text-xs font-bold hover:bg-indigo-700 transition">שלח הודעה</button>
         </div>`;
