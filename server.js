@@ -12823,7 +12823,8 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         const bizGroupId = parseInt(req.params.bizGroupId);
         const [bizR, phoneR] = await Promise.all([
             pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizGroupId]),
-            pool.query("SELECT phone FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1", [familyGroupId])
+            // מחפשים טלפון של כל חבר משפחה (לא רק ADMIN) — כדי לאפשר התאמת טלפון גם ללא מנהל
+            pool.query("SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL LIMIT 1", [familyGroupId])
         ]);
         if (!bizR.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
         const bizType = bizR.rows[0].business_type;
@@ -12837,14 +12838,19 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                                    json_agg(json_build_object('service_name',bas.service_name,'start_time',bas.start_time)) AS segments
                             FROM beauty_appointments ba
                             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
-                            LEFT JOIN beauty_client_records bcr ON bcr.id = ba.client_record_id
                             WHERE ba.business_group_id=$1
-                              AND (REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g')
-                                   OR ba.client_family_id=$3
-                                   OR REGEXP_REPLACE(bcr.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g')
-                                   OR bcr.client_family_id=$3)
+                              AND (
+                                ($2 IS NOT NULL AND REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g'))
+                                OR ba.client_family_id=$3
+                                OR EXISTS (
+                                  SELECT 1 FROM beauty_client_records bcr2
+                                  WHERE bcr2.business_group_id=$1 AND bcr2.client_family_id=$3
+                                    AND ba.client_phone IS NOT NULL
+                                    AND REGEXP_REPLACE(bcr2.client_phone,'[^0-9]','','g')=REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')
+                                )
+                              )
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
-                    [bizGroupId, familyPhone || '', familyGroupId]).catch(() => ({ rows: [] })),
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
                               AND (client_phone=$2 OR client_family_id=$3)
