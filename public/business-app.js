@@ -33108,11 +33108,15 @@ window._beautyEditApModal = async function(apId) {
     const curTime = seg0.start_time ? new Date(seg0.start_time).toTimeString().slice(0,5) : '';
     const curDur = seg0.duration_minutes || 60;
 
+    const serviceName = seg0.service_name || '';
     const html = `
 <div id="beauty-edit-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div class="bg-gradient-to-r from-purple-600 to-pink-500 px-5 py-4 flex items-center justify-between">
-            <h3 class="font-black text-white text-base">עריכת תור — ${ap.client_name || 'לקוח'}</h3>
+            <div>
+                <h3 class="font-black text-white text-base">עריכת תור — ${ap.client_name || 'לקוח'}</h3>
+                ${serviceName ? `<p class="text-pink-100 text-xs mt-0.5">${serviceName}</p>` : ''}
+            </div>
             <button onclick="document.getElementById('beauty-edit-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="p-5 space-y-3 overflow-y-auto flex-1">

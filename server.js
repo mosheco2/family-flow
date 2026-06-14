@@ -7729,7 +7729,7 @@ app.get('/api/calendar/:groupId', async (req, res) => {
         let allEvents = evtRes.rows;
         if (bizType === 'beauty') {
             const bapR = await pool.query(
-                `SELECT ba.id, ba.client_name,
+                `SELECT ba.id, ba.client_name, bs.service_name,
                     TO_CHAR(bs.start_time, 'YYYY-MM-DD') AS event_date,
                     TO_CHAR(bs.start_time, 'HH24:MI') AS start_time_str
                  FROM beauty_appointments ba
@@ -7740,7 +7740,7 @@ app.get('/api/calendar/:groupId', async (req, res) => {
             const syntheticEvents = bapR.rows.map(row => ({
                 id: `bap-${row.id}`,
                 group_id: parseInt(groupId),
-                title: row.client_name,
+                title: row.service_name || row.client_name,
                 event_date: row.event_date,
                 start_time: row.start_time_str,
                 status: 'approved',
@@ -12501,6 +12501,17 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
                 [digits, alt]
             ).catch(() => ({ rows: [] }));
             if (ur.rows[0]) resolvedFamilyId = ur.rows[0].group_id;
+            // fallback: חפש client_family_id ב-beauty_client_records לפי טלפון (הלקוח אולי הזמין בעבר דרך החנות)
+            if (!resolvedFamilyId) {
+                const bcrR = await client.query(
+                    `SELECT client_family_id FROM beauty_client_records
+                     WHERE business_group_id=$1 AND client_family_id IS NOT NULL
+                       AND (REGEXP_REPLACE(client_phone,'[^0-9]','','g')=$2 OR REGEXP_REPLACE(client_phone,'[^0-9]','','g')=$3)
+                     LIMIT 1`,
+                    [req.params.bizId, digits, alt]
+                ).catch(() => ({ rows: [] }));
+                if (bcrR.rows[0]?.client_family_id) resolvedFamilyId = bcrR.rows[0].client_family_id;
+            }
         }
 
         // When business creates appointment for a connected client → pending client approval
