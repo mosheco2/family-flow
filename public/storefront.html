@@ -1857,6 +1857,17 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...';
             }
 
+            // read familyGroupId from URL or localStorage session
+            let familyGroupId = null;
+            try {
+                const _up = new URLSearchParams(window.location.search);
+                familyGroupId = _up.get('familyGroupId') ? parseInt(_up.get('familyGroupId')) : null;
+                if (!familyGroupId) {
+                    const _sess = JSON.parse(localStorage.getItem('ofl_session'));
+                    if (_sess?.group?.id) familyGroupId = _sess.group.id;
+                }
+            } catch(e) {}
+
             const payload = {
                 groupId: storeData.groupId,
                 title: name,
@@ -1865,7 +1876,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 serviceId: serviceId || null,
                 notes: notes,
                 customerPhone: phone,
-                status: 'pending'
+                status: 'pending',
+                customerGroupId: familyGroupId
             };
 
             try {

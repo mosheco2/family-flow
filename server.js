@@ -640,6 +640,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS address TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS attendees_user_ids JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_name VARCHAR(200)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -7704,9 +7705,17 @@ app.get('/api/calendar/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;
         const setRes = await pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]);
-        const srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        let srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        // אם אין שירותים ביומן — קרא מ-beauty_services כ-fallback
+        if (!srvRes.rows.length) {
+            const bsrvRes = await pool.query(
+                `SELECT id, name, duration_minutes AS duration_mins, COALESCE(price,0) AS price FROM beauty_services WHERE group_id=$1 AND is_active=true ORDER BY created_at DESC`,
+                [groupId]
+            ).catch(() => ({ rows: [] }));
+            if (bsrvRes.rows.length) srvRes = { rows: bsrvRes.rows, _fromBeauty: true };
+        }
         const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
-        
+
         let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
         res.json({ success: true, settings, services: srvRes.rows, events: evtRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -7742,13 +7751,13 @@ app.delete('/api/calendar/services/:id', async (req, res) => {
 // הוספת אירוע/תור
 app.post('/api/calendar/events', async (req, res) => {
     try {
-        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status } = req.body;
-        await pool.query(
-            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
-            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending']
+        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId } = req.body;
+        const r = await pool.query(
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null]
         );
-        res.json({ success: true });
+        res.json({ success: true, eventId: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -12692,7 +12701,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             result.activity = { logisticsOrders: loR.rows };
         }
 
-        // הוסף שרשור הודעות לכל סוגי העסקים
+        // הודעות (inbox) — כל סוגי עסקים
         const msgsR = await pool.query(
             `SELECT id, sender_type, sender_name, content, direction, created_at
              FROM inbox_messages
@@ -12701,6 +12710,39 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             [bizGroupId, familyGroupId]
         );
         result.activity.messages = msgsR.rows;
+
+        // calendar_events — תורים שנקבעו דרך החנות הציבורית (כל סוגי עסקים)
+        const calR = await pool.query(
+            `SELECT ce.id, ce.title, ce.event_date, ce.start_time, ce.status, ce.notes, ce.created_at,
+                    cs.name AS service_name, cs.duration_mins
+             FROM calendar_events ce
+             LEFT JOIN calendar_services cs ON cs.id = ce.service_id
+             WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone=$3)
+             ORDER BY ce.event_date DESC, ce.start_time DESC LIMIT 20`,
+            [bizGroupId, familyGroupId, familyPhone || '']
+        );
+        result.activity.calendarEvents = calR.rows;
+
+        // ציר זמן מאוחד (log) — כל האינטרקציות כרונולוגיות
+        const logItems = [];
+        (calR.rows || []).forEach(e => {
+            logItems.push({ type: 'appointment', time: e.event_date + 'T' + e.start_time, status: e.status, label: e.service_name || e.title, id: e.id });
+        });
+        (msgsR.rows || []).forEach(m => {
+            logItems.push({ type: 'message', time: m.created_at, direction: m.direction, label: m.content?.slice(0,60) });
+        });
+        // הוסף גם beauty_appointments, store_orders, service_calls לציר הזמן
+        if (result.activity.appointments) result.activity.appointments.forEach(a => {
+            logItems.push({ type: 'beauty_appt', time: a.start_time || a.created_at, status: a.status, label: a.segments?.[0]?.service_name || 'תור' });
+        });
+        if (result.activity.orders) result.activity.orders.forEach(o => {
+            logItems.push({ type: 'order', time: o.created_at, status: o.status, label: `הזמנה #${o.id}` });
+        });
+        if (result.activity.serviceCalls) result.activity.serviceCalls.forEach(c => {
+            logItems.push({ type: 'service_call', time: c.created_at, status: c.status, label: c.issue_description?.slice(0,50) || 'קריאת שירות' });
+        });
+        logItems.sort((a, b) => new Date(b.time) - new Date(a.time));
+        result.activity.log = logItems.slice(0, 50);
 
         res.json(result);
     } catch(e) { res.status(500).json({ error: e.message }); }

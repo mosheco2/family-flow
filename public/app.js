@@ -9090,8 +9090,8 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
     const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
     const btns = actions.map(a => {
         let handler = '';
-        if (a.action === 'storefront' && storeUrl) handler = `window.open('${storeUrl}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
-        else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        if (a.action === 'storefront' && storeUrl) handler = `window.open('${storeUrl}&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        else if (a.action === 'beauty_book' && storeUrl) handler = `window.open('${storeUrl}&action=book&familyGroupId=${currentGroup?.id||''}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
         else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
         else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
         else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
@@ -9289,6 +9289,46 @@ function _renderBizAccordion(el, data, bizType) {
         sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
     }
 
+    // Calendar events tab (storefront bookings) — for all business types
+    const calEvts = act.calendarEvents || [];
+    if (calEvts.length > 0) {
+        const statusMap = { pending:'ממתין לאישור', approved:'מאושר', cancelled:'בוטל', done:'הושלם' };
+        const statusColor = { pending:'bg-yellow-100 text-yellow-700', approved:'bg-green-100 text-green-700', cancelled:'bg-red-100 text-red-600', done:'bg-slate-100 text-slate-500' };
+        tabs.push({ id:'cal_evts', label:`בקשות תור (${calEvts.length})` });
+        sections.cal_evts = calEvts.map(e => {
+            const dt = new Date(e.event_date).toLocaleDateString('he-IL') + ' ' + (e.start_time||'').slice(0,5);
+            return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center text-sm shrink-0">📅</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${e.service_name || e.title || 'תור'}</p>
+                    <p class="text-[10px] text-slate-400">${dt}${e.duration_mins?' · '+e.duration_mins+' דק':''}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor[e.status]||'bg-slate-100 text-slate-500'}">${statusMap[e.status]||e.status}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // Log tab — unified timeline
+    const logItems = act.log || [];
+    if (logItems.length > 0) {
+        const typeIcon = { appointment:'📅', beauty_appt:'💅', message:'✉️', order:'🛒', service_call:'🔧' };
+        const statusLabels = { pending:'ממתין', approved:'אושר', confirmed:'אושר', completed:'הושלם', done:'הושלם', cancelled:'בוטל', inbound:'נשלחה', outbound:'התקבלה' };
+        tabs.push({ id:'log', label:'לוג' });
+        sections.log = '<div class="relative pr-4">' + logItems.map((item, i) => {
+            const dt = new Date(item.time).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            const icon = typeIcon[item.type] || '•';
+            const status = statusLabels[item.status || item.direction] || '';
+            return `<div class="flex gap-2 mb-2 relative">
+                <div class="absolute right-0 top-3 bottom-0 border-r border-dashed border-slate-200"></div>
+                <div class="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] shrink-0 relative z-10">${icon}</div>
+                <div class="flex-1 min-w-0 py-1">
+                    <p class="text-xs text-slate-700 truncate">${item.label || ''} ${status ? '<span class="text-[9px] text-slate-400">('+status+')</span>' : ''}</p>
+                    <p class="text-[9px] text-slate-400">${dt}</p>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
     // Messages tab — always present for all business types
     const msgs = act.messages || [];
     {
@@ -9344,6 +9384,9 @@ window._sendBizAccordionMsg = async function(btn) {
         }).then(r=>r.json());
         if (r.success) {
             if (ta) ta.value = '';
+            // Invalidate accordion cache so next open reloads
+            const _accWrapper = btn.closest('.biz-act-wrapper');
+            if (_accWrapper) { const _acc = _accWrapper.querySelector('.biz-accordion'); if (_acc) delete _acc.dataset.loaded; }
             // Add message to UI optimistically
             const msgArea = btn.closest('.biz-acc-content');
             const bubble = document.createElement('div');
