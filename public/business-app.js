@@ -33259,6 +33259,11 @@ window._beautyCheckOneflow = async function() {
         if (d.found && d.matches?.length) {
             // שמור את נתוני המשתמשים למילוי שדות
             window._bncOneflowMatches = d.matches;
+            // התאמה יחידה — קשר ומלא אוטומטית
+            if (d.matches.length === 1) {
+                window._beautyLinkOneflow(d.matches[0].family_id, 0);
+                return;
+            }
             resEl.innerHTML = d.matches.map((m, idx) => {
                 const displayName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name);
                 const groupLabel = m.family_nickname || m.family_name;
