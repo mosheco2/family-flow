@@ -7776,7 +7776,43 @@ app.post('/api/calendar/events', async (req, res) => {
 // עדכון סטטוס לאירוע (אישור/ביטול)
 app.put('/api/calendar/events/:id/status', async (req, res) => {
     try {
-        await pool.query('UPDATE calendar_events SET status=$1 WHERE id=$2', [req.body.status, req.params.id]);
+        const { status } = req.body;
+        await pool.query('UPDATE calendar_events SET status=$1 WHERE id=$2', [status, req.params.id]);
+
+        // אישור תור מהחנות הציבורית עבור עסק יופי → יוצר beauty_appointment
+        if (status === 'approved') {
+            const evtR = await pool.query('SELECT * FROM calendar_events WHERE id=$1', [req.params.id]);
+            const evt = evtR.rows[0];
+            if (evt) {
+                const bizR = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [evt.group_id]);
+                if (bizR.rows[0]?.business_type === 'beauty') {
+                    const dateStr = evt.event_date instanceof Date
+                        ? evt.event_date.toISOString().split('T')[0]
+                        : String(evt.event_date).split('T')[0];
+                    const startISO = dateStr + 'T' + (evt.start_time || '10:00') + ':00';
+                    let dur = 60, serviceName = evt.title || 'תור';
+                    if (evt.service_id) {
+                        const sR = await pool.query('SELECT name, duration_minutes FROM beauty_service_catalog WHERE id=$1', [evt.service_id]).catch(() => ({ rows: [] }));
+                        if (sR.rows[0]) { serviceName = sR.rows[0].name; dur = sR.rows[0].duration_minutes || 60; }
+                    }
+                    const endDt = new Date(startISO); endDt.setMinutes(endDt.getMinutes() + dur);
+                    const endISO = endDt.toISOString().slice(0, 19);
+                    const apR = await pool.query(
+                        `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, booking_source, status, notes, total_price)
+                         VALUES ($1,$2,$3,$4,'storefront','confirmed',$5,0) RETURNING id`,
+                        [evt.group_id, evt.customer_group_id || null, evt.title || 'לקוח', evt.customer_phone || '', evt.notes || '']
+                    ).catch(() => ({ rows: [] }));
+                    if (apR.rows[0]) {
+                        await pool.query(
+                            `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name, start_time, end_time, duration_minutes, price)
+                             VALUES ($1,1,'active',$2,$3,$4,$5,0)`,
+                            [apR.rows[0].id, serviceName, startISO, endISO, dur]
+                        ).catch(() => {});
+                    }
+                }
+            }
+        }
+
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

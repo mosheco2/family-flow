@@ -32780,17 +32780,21 @@ async function loadBeautyCalendar() {
         fromDate = base; toDate = base;
     }
     try {
-        const [prRes, apRes] = await Promise.all([
+        const [prRes, apRes, calRes] = await Promise.all([
             fetch(`${API}/beauty/${biz}/practitioners`).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`).then(r=>r.json())
+            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`).then(r=>r.json()),
+            fetch(`${API}/calendar/${biz}`).then(r=>r.json()).catch(() => ({ events: [] }))
         ]);
         window._beautyState.practitioners = Array.isArray(prRes) ? prRes : (prRes.practitioners || []);
         window._beautyState.appointments = Array.isArray(apRes) ? apRes : (apRes.appointments || []);
+        // בקשות ממתינות מהחנות הציבורית
+        window._beautyState.pendingCalEvents = (calRes.events || []).filter(e => e.status === 'pending');
         window._beautyState.calFromDate = fromDate;
         window._beautyState.calToDate = toDate;
     } catch(e) {
         window._beautyState.practitioners = [];
         window._beautyState.appointments = [];
+        window._beautyState.pendingCalEvents = [];
     }
     _renderBeautyCalendar();
 }
@@ -32798,6 +32802,7 @@ async function loadBeautyCalendar() {
 function _renderBeautyCalendar() {
     const el = document.getElementById('content-beauty_calendar'); if (!el) return;
     const { practitioners, appointments, calDate } = window._beautyState;
+    const pendingCalEvents = window._beautyState.pendingCalEvents || [];
     const view = window._beautyState.calView || 'day';
     const dateLabel = calDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -32952,6 +32957,23 @@ function _renderBeautyCalendar() {
         return;
     }
 
+    const pendingBanner = pendingCalEvents.length > 0 ? `
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-amber-700">📋 בקשות תור ממתינות לאישור (${pendingCalEvents.length})</span>
+        </div>
+        ${pendingCalEvents.map(e => `<div class="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-800 truncate">${e.title || 'לקוח'}</p>
+                <p class="text-[10px] text-slate-500">${new Date(e.event_date).toLocaleDateString('he-IL')} ${(e.start_time||'').slice(0,5)}</p>
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="approveCalendarEvent(${e.id});loadBeautyCalendar()" class="bg-green-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-green-600 transition">✓ אשר</button>
+                <button onclick="deleteCalendarEvent(${e.id},true);loadBeautyCalendar()" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-50 hover:text-red-500 transition">✕</button>
+            </div>
+        </div>`).join('')}
+    </div>` : '';
+
     el.innerHTML = `
 <div class="space-y-3 pb-20">
     <!-- header bar -->
@@ -32967,6 +32989,7 @@ function _renderBeautyCalendar() {
             <button onclick="switchTab('beauty_practitioners')" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-people-group text-pink-400"></i> מטפלות</button>
         </div>
     </div>
+    ${pendingBanner}
 
     <!-- calendar grid -->
     <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
