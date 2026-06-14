@@ -373,7 +373,21 @@ function renderSAGroups() {
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
     if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button type="button" onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => {
+            const roleLabel = u.role === 'ADMIN' ? 'הורה/מנהל' : u.role === 'SENIOR' ? 'בכיר' : 'בן משפחה/עובד';
+            const phoneBadge = u.phone ? `<span class="text-[10px] text-emerald-600 bg-emerald-50 px-1 rounded mr-1">${safeStr(u.phone)}</span>` : '<span class="text-[10px] text-red-400 mr-1">ללא טלפון</span>';
+            return `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
+                <div class="flex-1 min-w-0 text-right">
+                    <span class="font-bold text-slate-700">${safeStr(u.nickname)}</span>
+                    <span class="text-[10px] text-slate-400 mr-1">(${roleLabel})</span>
+                    ${phoneBadge}
+                </div>
+                <div class="flex gap-1 shrink-0 mr-2">
+                    <button type="button" onclick="saEditUserModal(${u.id})" class="text-blue-500 hover:text-blue-700 bg-white p-1.5 rounded shadow-sm" title="עריכת משתמש"><i class="fa-solid fa-pen text-xs"></i></button>
+                    <button type="button" onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1.5 rounded shadow-sm" title="מחיקה"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            </div>`;
+        }).join('');
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
@@ -390,6 +404,121 @@ function renderSAGroups() {
 
 function filterSAGroups() { renderSAGroups(); }
 async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+
+function saEditUserModal(userId) {
+    const u = saAllUsers.find(u => u.id === userId);
+    if (!u) return;
+    const group = saAllGroups.find(g => g.id === u.group_id);
+    const groupType = group?.type || 'FAMILY';
+    const existing = document.getElementById('sa-edit-user-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sa-edit-user-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+                <h3 class="font-black text-white text-base">✏️ עריכת משתמש</h3>
+                <button onclick="document.getElementById('sa-edit-user-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-500 space-y-1">
+                    <div><strong>סביבה:</strong> ${safeStr(group?.name || '—')} (${groupType === 'BUSINESS' ? 'עסק' : 'משפחה'})</div>
+                    <div><strong>ID משתמש:</strong> ${u.id} | <strong>סטטוס:</strong> ${u.status}</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">שם תצוגה *</label>
+                        <input id="saeu-nickname" type="text" value="${safeStr(u.nickname||'')}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">תפקיד</label>
+                        <select id="saeu-role" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-indigo-400 focus:outline-none">
+                            <option value="ADMIN" ${u.role==='ADMIN'?'selected':''}>מנהל/הורה</option>
+                            <option value="MEMBER" ${u.role==='MEMBER'?'selected':''}>עובד/בן משפחה</option>
+                            <option value="SENIOR" ${u.role==='SENIOR'?'selected':''}>בכיר</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📱 טלפון <span class="text-red-400">*</span></label>
+                        <input id="saeu-phone" type="tel" value="${safeStr(u.phone||'')}" placeholder="05X-XXXXXXX" class="w-full border ${u.phone ? 'border-slate-200' : 'border-red-200 bg-red-50'} rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">🪪 ת.ז. (אופציונלי)</label>
+                        <input id="saeu-id" type="text" value="${safeStr(u.id_number||'')}" placeholder="9 ספרות" maxlength="9" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📧 אימייל (אופציונלי)</label>
+                        <input id="saeu-email" type="email" value="${safeStr(u.email||'')}" placeholder="user@example.com" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none dir-ltr text-left">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">📅 שנת לידה</label>
+                        <input id="saeu-birth" type="number" value="${u.birth_year||''}" placeholder="1990" min="1900" max="2020" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">🔑 סיסמה חדשה (השאר ריק לאי-שינוי)</label>
+                    <input id="saeu-pw" type="text" placeholder="השאר ריק לאי-שינוי" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none dir-ltr text-left">
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">סטטוס</label>
+                    <select id="saeu-status" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-indigo-400 focus:outline-none">
+                        <option value="active" ${u.status==='active'?'selected':''}>פעיל</option>
+                        <option value="pending" ${u.status==='pending'?'selected':''}>ממתין</option>
+                        <option value="inactive" ${u.status==='inactive'?'selected':''}>לא פעיל</option>
+                    </select>
+                </div>
+
+                <button onclick="saSubmitEditUser(${userId})" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-black shadow hover:bg-indigo-700 transition">
+                    <i class="fa-solid fa-check mr-1"></i> שמור שינויים
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function saSubmitEditUser(userId) {
+    const nickname = document.getElementById('saeu-nickname')?.value?.trim();
+    if (!nickname) { showToast('error', 'נא למלא שם תצוגה'); return; }
+    const phone = document.getElementById('saeu-phone')?.value?.trim();
+    const body = {
+        nickname,
+        phone: phone || null,
+        id_number: document.getElementById('saeu-id')?.value?.trim() || null,
+        email: document.getElementById('saeu-email')?.value?.trim() || null,
+        birth_year: parseInt(document.getElementById('saeu-birth')?.value) || null,
+        role: document.getElementById('saeu-role')?.value,
+        status: document.getElementById('saeu-status')?.value,
+        new_password: document.getElementById('saeu-pw')?.value?.trim() || null
+    };
+    try {
+        const r = await fetch(`${API}/superadmin/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(body)
+        });
+        const data = await r.json();
+        if (data.success) {
+            // עדכון ה-cache המקומי
+            const idx = saAllUsers.findIndex(u => u.id === userId);
+            if (idx >= 0) saAllUsers[idx] = { ...saAllUsers[idx], ...body, ...data.user };
+            document.getElementById('sa-edit-user-modal')?.remove();
+            showToast('success', 'פרטי המשתמש עודכנו ✅');
+            renderSAGroups();
+        } else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
 
 async function saveWelcomeMsg(type = 'FAMILY') {

@@ -562,6 +562,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS licensed_features JSONB DEFAULT '{}'::jsonb`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS table_count INT DEFAULT 8`); } catch(e) {}
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_role_type VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS kitchen_station VARCHAR(30) DEFAULT 'other'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS is_complimentary BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS send_order_email BOOLEAN DEFAULT true`); } catch(e) {}
@@ -2464,7 +2466,27 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
     try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.post('/api/superadmin/settings', verifySA, async (req, res) => {
+app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
+    try {
+        const { nickname, phone, birth_year, id_number, email, role, status, new_password } = req.body;
+        const sets = []; const vals = [];
+        if (nickname !== undefined) { vals.push(nickname); sets.push(`nickname=$${vals.length}`); }
+        if (phone !== undefined)    { vals.push(phone || null); sets.push(`phone=$${vals.length}`); }
+        if (birth_year !== undefined) { vals.push(birth_year || null); sets.push(`birth_year=$${vals.length}`); }
+        if (id_number !== undefined) { vals.push(id_number || null); sets.push(`id_number=$${vals.length}`); }
+        if (email !== undefined)    { vals.push(email || null); sets.push(`email=$${vals.length}`); }
+        if (role !== undefined)     { vals.push(role); sets.push(`role=$${vals.length}`); }
+        if (status !== undefined)   { vals.push(status); sets.push(`status=$${vals.length}`); }
+        if (new_password && new_password.trim()) { vals.push(new_password.trim()); sets.push(`password_hash=$${vals.length}`); }
+        if (sets.length === 0) return res.status(400).json({ error: 'no fields to update' });
+        vals.push(req.params.id);
+        await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
+        const updated = await pool.query('SELECT id, nickname, phone, birth_year, id_number, email, role, status, balance, group_id FROM users WHERE id=$1', [req.params.id]);
+        res.json({ success: true, user: updated.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
     try {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
         if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
