@@ -326,6 +326,8 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   <a class="nav-link" href="#commissions" onclick="setActive(this)"><span class="nav-icon">💰</span> עמלות ושכר</a>
   <a class="nav-link" href="#inventory" onclick="setActive(this)"><span class="nav-icon">🧴</span> מלאי מקצועי</a>
   <a class="nav-link" href="#services" onclick="setActive(this)"><span class="nav-icon">💎</span> שירותים וטיפולים</a>
+  <a class="nav-link" href="#subscriptions" onclick="setActive(this)"><span class="nav-icon">🎁</span> מנויים וחבילות</a>
+  <a class="nav-link" href="#rfq" onclick="setActive(this)"><span class="nav-icon">💬</span> ייעוץ ובקשות</a>
   <a class="nav-link" href="#reports" onclick="setActive(this)"><span class="nav-icon">📈</span> דוחות</a>
 
   <div class="sidebar-section-label">מכירות</div>
@@ -356,6 +358,8 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     <span class="chip" onclick="goTo('commissions')">💰 עמלות</span>
     <span class="chip" onclick="goTo('inventory')">🧴 מלאי</span>
     <span class="chip" onclick="goTo('services')">💎 שירותים</span>
+    <span class="chip" onclick="goTo('subscriptions')">🎁 מנויים</span>
+    <span class="chip" onclick="goTo('rfq')">💬 ייעוץ</span>
     <span class="chip" onclick="goTo('pos')">💳 קופה</span>
     <span class="chip" onclick="goTo('inbox')">💬 הודעות</span>
     <span class="chip" onclick="goTo('oneflow')">🔗 ONEFLOW</span>
@@ -378,9 +382,9 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <button onclick="handleSearch(document.getElementById('search-input').value)"><i class="fa-solid fa-magnifying-glass"></i> חפש</button>
     </div>
     <div class="hero-stats">
-      <div class="hero-stat"><div class="num">15</div><div class="lbl">מסכי ניהול</div></div>
+      <div class="hero-stat"><div class="num">17</div><div class="lbl">מסכי ניהול</div></div>
       <div class="hero-stat"><div class="num">3</div><div class="lbl">סוגי משתמשים</div></div>
-      <div class="hero-stat"><div class="num">90+</div><div class="lbl">צעדי הדרכה</div></div>
+      <div class="hero-stat"><div class="num">100+</div><div class="lbl">צעדי הדרכה</div></div>
     </div>
   </div>
 </section>
@@ -412,14 +416,14 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
         <div class="step-num">2</div>
         <div>
           <div class="step-title">הגדר שירותים וטיפולים</div>
-          <div class="step-desc">עבר לתפריט <strong>מכירות → מכירות וחנות → טאב "מנויים/שירותים"</strong> ולחץ <strong>"+ שירות חדש"</strong>. הוסף לפחות שירות אחד: שם, מחיר, משך טיפול, מטפלת משויכת. שירותים אלה יופיעו ביומן התורים ובחנות הציבורית.</div>
+          <div class="step-desc">מהדשבורד לחץ <strong>"שירותים"</strong> (💎) בפעולות המהירות, או מהתפריט: <strong>מכירות → 💎 שירותים וטיפולים</strong>. לחץ <strong>"+ שירות חדש"</strong>. הוסף לפחות שירות אחד: שם, קטגוריה, מחיר, משך טיפול. שירותים אלה יופיעו ביומן התורים ובחנות הציבורית.</div>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div>
           <div class="step-title">הוסף מטפלת ראשונה</div>
-          <div class="step-desc">מהדשבורד לחץ <strong>"מטפלות" ← "+ מטפלת חדשה"</strong>. מלא שם, טלפון, תפקיד ושיעור עמלה. המטפלת תופיע ביומן התורים כאפשרות שיוך.</div>
+          <div class="step-desc">מהתפריט: <strong>צוות → 👥 ניהול צוות ← "+ הוסף עובד"</strong>. מלא שם, טלפון, תפקיד ושיעור עמלה. המטפלת תופיע ביומן התורים כאפשרות שיוך.</div>
         </div>
       </div>
       <div class="step">
@@ -566,9 +570,14 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <span class="callout-icon">🧭</span>
       <div>
         <strong>מבנה הניווט — שתי שכבות:</strong><br>
-        <strong>1. תפריט ניווט קבוע</strong> — ראשי | צוות | מכירות (dropdown) | מלאי | כספים | עוד<br>
-        <strong>2. פעולות מהירות בדשבורד (ראשי)</strong> — 8 כפתורים: יומן תורים, לקוחות, מלאי, הזמנות, קופה, עמלות, צוות, משימות<br><br>
-        <strong>כלל מנחה:</strong> ניהול <em>תורים ולקוחות יומיומי</em> → דרך פעולות מהירות בדשבורד. ניהול <em>מכירות, כספים, הגדרות</em> → דרך התפריט.
+        <strong>1. תפריט ניווט קבוע (5 קבוצות):</strong><br>
+        &nbsp;&nbsp;• <strong>צוות</strong> — נוכחות, משמרות, 📅 יומן תורים, משימות, הכשרות, ניהול צוות<br>
+        &nbsp;&nbsp;• <strong>מכירות</strong> — קופה, מכירות וחנות, לקוחות, 💎 שירותים וטיפולים, 🎁 מנויים וחבילות, 📋 תיקי לקוחות, 💬 ייעוץ ובקשות<br>
+        &nbsp;&nbsp;• <strong>מלאי</strong> — רכש וספקים, מלאי מחסן, תחזוקת ציוד, 🧴 מלאי יופי<br>
+        &nbsp;&nbsp;• <strong>כספים</strong> — כספים, תזרים, תקציב, תשקיף, 💸 עמלות ושכר<br>
+        &nbsp;&nbsp;• <strong>עוד</strong> — קהילות, תקשורת<br>
+        <strong>2. פעולות מהירות בדשבורד</strong> — 8 כפתורים: 📅 יומן תורים, 👤 לקוחות, 💎 שירותים, 🎁 מנויים, 💸 עמלות, 💳 קופה, 📋 משימות, 👥 צוות<br><br>
+        <strong>כלל מנחה:</strong> ניהול <em>תורים, שירותים ולקוחות</em> → דרך פעולות מהירות בדשבורד. ניהול <em>מלאי, כספים, הגדרות</em> → דרך התפריט.
       </div>
     </div>
     <div class="screen-section">
@@ -591,12 +600,12 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;font-size:0.78rem;text-align:center">
         <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">📅</div><div style="font-weight:700;margin-top:0.25rem">יומן תורים</div></div>
         <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">👤</div><div style="font-weight:700;margin-top:0.25rem">לקוחות</div></div>
-        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">🧴</div><div style="font-weight:700;margin-top:0.25rem">מלאי</div></div>
-        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">📦</div><div style="font-weight:700;margin-top:0.25rem">הזמנות</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💎</div><div style="font-weight:700;margin-top:0.25rem">שירותים</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">🎁</div><div style="font-weight:700;margin-top:0.25rem">מנויים</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💸</div><div style="font-weight:700;margin-top:0.25rem">עמלות</div></div>
         <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💳</div><div style="font-weight:700;margin-top:0.25rem">קופה</div></div>
-        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">💰</div><div style="font-weight:700;margin-top:0.25rem">עמלות</div></div>
-        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">👥</div><div style="font-weight:700;margin-top:0.25rem">צוות</div></div>
         <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">📋</div><div style="font-weight:700;margin-top:0.25rem">משימות</div></div>
+        <div style="background:white;border-radius:0.75rem;padding:0.75rem;border:1px solid #e2e8f0"><div style="font-size:1.25rem">👥</div><div style="font-weight:700;margin-top:0.25rem">צוות</div></div>
       </div>
     </div>
     <div class="callout callout-info">
@@ -623,7 +632,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </p>
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">מהדשבורד הראשי → לחץ <strong>"יומן תורים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>מכירות → יומן תורים</strong></div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"📅 יומן תורים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>צוות → 📅 יומן תורים</strong></div>
     </div>
     <div class="screen-section">
       <div class="screen-section-title">📋 תצוגות יומן</div>
@@ -675,7 +684,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </p>
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">מהדשבורד → <strong>"לקוחות"</strong>. לחלופין: תפריט ניווט → <strong>מכירות → חברים/לקוחות</strong></div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"👤 לקוחות"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>מכירות → 📋 תיקי לקוחות</strong></div>
     </div>
     <div class="screen-section">
       <div class="screen-section-title">📋 תוכן תיק הלקוחה</div>
@@ -717,7 +726,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   <div class="card-body">
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">מהדשבורד → <strong>"מטפלות"</strong>. לחלופין: תפריט ניווט → <strong>צוות → ניהול צוות</strong></div>
+      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>צוות → 👥 ניהול צוות</strong>. לחלופין: פעולות מהירות → <strong>"👥 צוות"</strong> ← חלונית עובדים</div>
     </div>
     <div class="screen-section">
       <div class="screen-section-title">➕ הוספת מטפלת חדשה — שדות</div>
@@ -756,6 +765,10 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       מערכת העמלות מחשבת אוטומטית את סכום העמלה לכל מטפלת לפי הטיפולים שביצעה. שקיפות מלאה — המטפלת רואה בדיוק את אותה ריסה שהמנהלת רואה.
     </p>
     <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"💸 עמלות"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>כספים → 💸 עמלות ושכר</strong></div>
+    </div>
+    <div class="screen-section">
       <div class="screen-section-title">⚙️ כיצד מחושבת עמלה</div>
       <div style="font-size:0.85rem;color:#475569;line-height:1.7">
         <p>לכל תור שסומן כ-<strong>"הושלם"</strong>, המערכת מחשבת: <strong>מחיר הטיפול × שיעור עמלה = עמלת המטפלת</strong>.</p>
@@ -793,6 +806,10 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       מלאי הסלון מחולק לשני סוגים: <strong>מלאי מקצועי (backbar)</strong> — חומרים שמשתמשים בהם בטיפולים, ו<strong>מלאי קמעונאי</strong> — מוצרים שמוכרים ללקוחות.
     </p>
     <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מלאי → 🧴 מלאי יופי</strong></div>
+    </div>
+    <div class="screen-section">
       <div class="screen-section-title">📦 שני סוגי מלאי</div>
       <div class="field-row"><div class="field-name">Backbar (מקצועי)</div><div class="field-desc">צבעי שיער, חמצן, מסכות, תכשירים — משמש למתן טיפולים. לא מוצג בחנות ציבורית. מנוהל לפי כמות שימוש</div></div>
       <div class="field-row"><div class="field-name">קמעונאי (מכירה)</div><div class="field-desc">שמפו, מסכות, סרומים — מוצג בחנות ציבורית ונמכר ללקוחות. מחיר מכירה ועלות רכישה נפרדים</div></div>
@@ -827,12 +844,12 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   </div>
   <div class="card-body">
     <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
-      שירותים הם הבסיס של יומן התורים. כל תור חייב להיות משויך לשירות שמגדיר את משך הטיפול והמחיר. ניהול השירותים נמצא תחת <strong>מכירות → חנות / מנויים</strong>.
+      שירותים הם הבסיס של יומן התורים. כל תור חייב להיות משויך לשירות שמגדיר את משך הטיפול והמחיר.
     </p>
 
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מכירות</strong> → בחר <strong>"חנות / מנויים"</strong> → טאב <strong>"שירותים"</strong></div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"💎 שירותים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>מכירות → 💎 שירותים וטיפולים</strong></div>
     </div>
 
     <div class="screen-section">
@@ -856,21 +873,91 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <div class="field-row"><div class="field-name">מוצר נדרש מהמלאי</div><div class="field-desc">(אופציונלי) קישור לחומר גלם. בקביעת תור — המערכת מתריעה אם המוצר אזל</div></div>
     </div>
 
-    <div class="screen-section">
-      <div class="screen-section-title">🔄 מנויים — הגדרה ומכירה</div>
-      <p style="font-size:0.85rem;color:#475569;margin-bottom:0.75rem">מנוי הוא חבילת טיפולים בתשלום מראש. לדוגמה: "5 טיפולי פנים ב-₪450" או "מנוי חודשי ציפורניים".</p>
-      <div class="steps">
-        <div class="step"><div class="step-num">1</div><div><div class="step-title">תפריט → מכירות → חנות / מנויים → טאב "מנויים"</div><div class="step-desc">רשימת המנויים הקיימים. לחץ "+ מנוי חדש".</div></div></div>
-        <div class="step"><div class="step-num">2</div><div><div class="step-title">הגדר שם, מחיר וכמות כניסות</div><div class="step-desc">לדוגמה: "חבילת 5 טיפולים", מחיר ₪450, 5 כניסות. ניתן גם להגדיר תוקף (בתאריך או בחודשים).</div></div></div>
-        <div class="step"><div class="step-num">3</div><div><div class="step-title">שייך לשירותים ספציפיים (אופציונלי)</div><div class="step-desc">אם המנוי מוגבל לטיפולי פנים בלבד — ציין זאת. אחרת — המנוי כללי לכל השירותים.</div></div></div>
-        <div class="step"><div class="step-num">4</div><div><div class="step-title">מכירת מנוי ללקוחה — דרך הקופה</div><div class="step-desc">קופה (POS) → בחר לקוחה → בחר "מנוי" ברשימת המוצרים → גבה תשלום. המנוי נרשם בתיק הלקוחה אוטומטית.</div></div></div>
-        <div class="step"><div class="step-num">5</div><div><div class="step-title">מימוש כניסה — בקביעת תור</div><div class="step-desc">בקביעת תור ללקוחה עם מנוי פעיל — המערכת מציעה לממש כניסה מהמנוי במקום לחייב מחדש.</div></div></div>
-      </div>
-    </div>
-
     <div class="callout callout-pink">
       <span class="callout-icon">💡</span>
-      <div><strong>טיפ:</strong> שירותים שמוגדרים מופיעים אוטומטית בחנות הציבורית. מנויים שנמכרו מנוהלים בתיק הלקוחה — ניתן לראות כמה כניסות נותרו ומתי פג תוקפם.</div>
+      <div><strong>טיפ:</strong> שירותים שמוגדרים מופיעים אוטומטית בחנות הציבורית של הסלון ובטופס קביעת תור חדש. שירות לא פעיל — ניתן להשבית מבלי למחוק.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     10b. מנויים וחבילות
+═══════════════════════════════════════════════════════ -->
+<section id="subscriptions" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#ede9fe">🎁</div>
+    <div>
+      <div class="card-title">מנויים וחבילות</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> חבילות טיפולים בתשלום מראש</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      מנוי הוא חבילת טיפולים בתשלום מראש. לדוגמה: "5 טיפולי פנים ב-₪450" או "מנוי חודשי ציפורניים". מנויים מגדילים שימור לקוחות ויוצרים הכנסה מובטחת מראש.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"🎁 מנויים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>מכירות → 🎁 מנויים וחבילות</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">➕ יצירת סוג מנוי חדש — שלבים</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">לחץ "+ מנוי חדש"</div><div class="step-desc">כפתור בראש הרשימה. נפתח טופס יצירת סוג מנוי.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">הגדר שם, מחיר וכמות כניסות</div><div class="step-desc">לדוגמה: "חבילת 5 טיפולים", מחיר ₪450, 5 כניסות. ניתן גם להגדיר תוקף בחודשים (לדוג' 6 חודשים).</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">שייך לשירות ספציפי (אופציונלי)</div><div class="step-desc">אם המנוי מוגבל לטיפולי פנים בלבד — בחר את השירות הרלוונטי. אחרת — המנוי כללי לכל השירותים.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">שמור — הסוג מופיע ברשימה</div><div class="step-desc">כעת ניתן למכור מנוי מסוג זה ללקוחות דרך הקופה.</div></div></div>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">💳 מכירת מנוי ללקוחה</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">פתח קופה POS → בחר לקוחה</div><div class="step-desc">חפש לקוחה קיימת לפי שם או טלפון</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">בחר "מנוי" ברשימת הפריטים → בחר סוג מנוי</div><div class="step-desc">המחיר מתמלא אוטומטית לפי סוג המנוי</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">גבה תשלום ואשר</div><div class="step-desc">המנוי נרשם בתיק הלקוחה אוטומטית — ניתן לראות כמה כניסות נותרו ומתי פג תוקפו</div></div></div>
+      </div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🔄 מימוש כניסה מהמנוי</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6">בקביעת תור ללקוחה עם מנוי פעיל — המערכת מציגה את המנוי הפעיל ומאפשרת לממש כניסה במקום לחייב מחדש. כניסות שנמצאו מופחתות אוטומטית. כשהמנוי מגיע ל-0 כניסות — הוא מסתיים אוטומטית.</p>
+    </div>
+    <div class="callout callout-purple">
+      <span class="callout-icon">💡</span>
+      <div><strong>טיפ:</strong> מנויים המוצגים ברשימה עם מחיר ותיאור — נוחים לשיווק ל"חבילות". לדוגמה: "חבילת ברונזה / 3 כניסות", "חבילת זהב / 10 כניסות".</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     10c. ייעוץ ובקשות (RFQ)
+═══════════════════════════════════════════════════════ -->
+<section id="rfq" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#fce7f3">💬</div>
+    <div>
+      <div class="card-title">ייעוץ ובקשות</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-oneflow">ONEFLOW</span> RFQ — בקשות ייעוץ מלקוחות ONEFLOW</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      לקוחות שמחוברות ל-ONEFLOW LIFE יכולות לשלוח בקשת ייעוץ לפני קביעת תור — לדוג' "מה מחיר צביעה בלונד?". המסך מנהל את תהליך השאלות, ההצעה והאישור.
+    </p>
+    <div class="screen-section">
+      <div class="screen-section-title">📍 כיצד להגיע</div>
+      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מכירות → 💬 ייעוץ ובקשות</strong></div>
+    </div>
+    <div class="screen-section">
+      <div class="screen-section-title">🔄 תהליך ה-RFQ</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><div class="step-title">לקוחה ONEFLOW שולחת בקשת ייעוץ</div><div class="step-desc">הבקשה מגיעה למסך "ייעוץ ובקשות" עם שם הלקוחה ופרטי הבקשה</div></div></div>
+        <div class="step"><div class="step-num">2</div><div><div class="step-title">שלח שאלון (אופציונלי)</div><div class="step-desc">לחץ "שלח שאלון" לשליחת שאלות מקדימות ללקוחה — גוון שיער, מצב שיער, ציפיות</div></div></div>
+        <div class="step"><div class="step-num">3</div><div><div class="step-title">שלח הצעת מחיר</div><div class="step-desc">לאחר ניתוח הבקשה — שלח הצעה עם שירות מוצע, מחיר ומשך זמן. הלקוחה מאשרת / מסרבת / מבקשת שינוי</div></div></div>
+        <div class="step"><div class="step-num">4</div><div><div class="step-title">הלקוחה מאשרת → קבע תור</div><div class="step-desc">לאחר אישור — ניתן לקבוע תור ישירות מהבקשה אל יומן התורים</div></div></div>
+      </div>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>מסך ה-RFQ מציג את כל הבקשות בסטטוסים: ממתין, נשלחה הצעה, אושר, בוטל. ניתן לסנן לפי תאריך ולפי לקוחה.</div>
     </div>
   </div>
 </section>
@@ -898,7 +985,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </div>
     <div class="callout callout-info">
       <span class="callout-icon">ℹ️</span>
-      <div>תפריט ניווט → <strong>כספים → דוחות</strong> או ישירות מהדשבורד → כפתור "דוחות".</div>
+      <div>תפריט ניווט → <strong>כספים → 💸 תזרים</strong> או <strong>כספים → 📊 תקציב</strong> לנתוני כספים. נתוני תורים ושירותים — <strong>יומן תורים</strong> ← פילטר תאריך.</div>
     </div>
   </div>
 </section>
@@ -948,7 +1035,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   <div class="card-body">
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מכירות → מכירות וחנות</strong></div>
+      <div style="font-size:0.85rem;color:#475569">תפריט ניווט → <strong>מכירות → 🛍️ מכירות וחנות</strong></div>
     </div>
     <div class="screen-section">
       <div class="screen-section-title">🗂️ טאבים בחנות</div>
@@ -1070,7 +1157,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   <div class="card-body">
     <div class="accordion-item">
       <button class="accordion-trigger">האם ניתן לקבוע תור ליותר ממטפלת אחת (לדוג' צביעה + תספורת)? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
-      <div class="accordion-body">כן — ניתן לפצל תור לשני חלקים רצופים עם מטפלות שונות. בפתיחת תור בחרי שירות ראשון ← לאחר שמירה ← קבעי תור רציף עם שירות שני. שניהם יופיעו ביומן כרצף.</div>
+      <div class="accordion-body">כן — ניתן לקבוע שני תורים רצופים לאותה לקוחה. קבעי תור ראשון ביומן (שירות + מטפלת ראשונה) ← שמרי ← קבעי תור שני שמתחיל בדיוק בסיום הראשון (שירות + מטפלת שנייה). שניהם יופיעו ביומן כרצף.</div>
     </div>
     <div class="accordion-item">
       <button class="accordion-trigger">מה קורה כשלקוחה מבטלת תור ברגע האחרון? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
@@ -1078,7 +1165,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </div>
     <div class="accordion-item">
       <button class="accordion-trigger">כיצד מגדירים עמלה שונה לכל שירות (לא אחוז אחיד)? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
-      <div class="accordion-body">בפרטי מטפלת ← לשונית "עמלות" ← לחצי "התאמה לפי שירות". לכל שירות ניתן להגדיר אחוז שונה. הגדרה זו תגבר על ברירת המחדל האחיד.</div>
+      <div class="accordion-body">צוות → ניהול צוות ← פתחי פרטי מטפלת ← בשדה "שיעור עמלה" ניתן להגדיר אחוז ברירת מחדל. עמלה שונה לפי שירות מוגדרת ישירות בהגדרות השירות עצמו בטאב "💎 שירותים וטיפולים".</div>
     </div>
     <div class="accordion-item">
       <button class="accordion-trigger">כיצד לקוחה יכולה לבחור מטפלת מועדפת? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
@@ -1094,7 +1181,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </div>
     <div class="accordion-item">
       <button class="accordion-trigger">כיצד ניתן לראות איזו לקוחה לא חזרה 3 חודשים? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
-      <div class="accordion-body">מסך דוחות ← "לקוחות" ← "לקוחות לא פעילות". ניתן לסנן לפי מספר ימים מהביקור האחרון. לאחר מכן ניתן לשלוח הודעה לכל הרשימה בלחיצה אחת.</div>
+      <div class="accordion-body">מכירות → 📋 תיקי לקוחות ← חפשי לפי שם או גלגלי ברשימה — ניתן לראות "ביקור אחרון" לכל לקוחה. לאחר מכן ניתן לשלוח הודעה ישירות מתיק הלקוחה.</div>
     </div>
     <div class="accordion-item">
       <button class="accordion-trigger">האם לקוחה יכולה לקבוע תור בלי להירשם? <span class="chevron"><i class="fa-solid fa-chevron-down"></i></span></button>
