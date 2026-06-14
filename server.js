@@ -12512,7 +12512,7 @@ app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
         const { phone, name } = req.query;
         if (!phone && !name) return res.json({ found: false });
         let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
-                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname
+                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
                      FROM users u JOIN family_groups fg ON fg.id = u.group_id
                      WHERE fg.type='FAMILY'`;
         const vals = [];
@@ -12522,6 +12522,24 @@ app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
         const r = await pool.query(query, vals);
         res.json({ found: r.rows.length > 0, matches: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Returns all businesses that have linked this family group as a client (beauty, future types, etc.)
+app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        // beauty client links
+        const beautyR = await pool.query(
+            `SELECT DISTINCT bcr.business_group_id, fg.name AS business_name, fg.business_type,
+                    fg.group_code, fg.community_id, 'beauty' AS link_type, bcr.created_at AS linked_at
+             FROM beauty_client_records bcr
+             JOIN family_groups fg ON fg.id = bcr.business_group_id
+             WHERE bcr.client_family_id = $1
+             ORDER BY bcr.created_at DESC`,
+            [groupId]
+        );
+        res.json({ businesses: beautyR.rows });
+    } catch(e) { res.status(500).json({ error: e.message, businesses: [] }); }
 });
 
 app.post('/api/beauty/:bizId/clients', async (req, res) => {

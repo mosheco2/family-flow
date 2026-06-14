@@ -33266,7 +33266,7 @@ window._beautyCheckOneflow = async function() {
             }
             resEl.innerHTML = d.matches.map((m, idx) => {
                 const displayName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name);
-                const groupLabel = m.family_nickname || m.family_name;
+                const groupLabel = m.group_last_name || m.family_nickname || m.family_name;
                 return `
                 <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-1">
                     <div>
@@ -33277,7 +33277,21 @@ window._beautyCheckOneflow = async function() {
                 </div>`;
             }).join('');
         } else {
-            resEl.innerHTML = '<p class="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>';
+            const searchedPhone = document.getElementById('bnc-phone')?.value?.trim() || '';
+            const bizName = currentGroup?.name || 'העסק';
+            const registrationUrl = window.location.origin + '/';
+            const waMsg = encodeURIComponent(`היי! ${bizName} מזמינים אותך להצטרף ל-ONEFLOW LIFE.\nהרשם בקישור: ${registrationUrl}\n(בהרשמה בחר "חבר")`);
+            const waPhone = searchedPhone.replace(/^0/, '972').replace(/\D/g, '');
+            const waHref = `https://wa.me/${waPhone}?text=${waMsg}`;
+            resEl.innerHTML = `
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                    <p class="text-xs text-slate-500 font-bold">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>
+                    ${searchedPhone ? `<a href="${waHref}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                        <i class="fa-brands fa-whatsapp text-sm"></i>
+                        שלח קישור הרשמה ב-WhatsApp
+                    </a>` : ''}
+                    <p class="text-[10px] text-slate-400 text-center">לאחר הרשמה, תוכל לחפש שוב ולקשר את הלקוח</p>
+                </div>`;
         }
     } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500">שגיאת תקשורת</p>'; }
 };
@@ -33285,7 +33299,7 @@ window._beautyCheckOneflow = async function() {
 window._beautyLinkOneflow = function(familyId, matchIdx) {
     const m = (window._bncOneflowMatches || [])[matchIdx] || {};
     const fullName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name || '');
-    const groupLabel = m.family_nickname || m.family_name || '';
+    const groupLabel = m.group_last_name || m.family_nickname || m.family_name || '';
 
     // מילוי שדות אוטומטי
     const setField = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val; };

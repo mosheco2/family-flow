@@ -447,15 +447,16 @@ function applyOrdersFilter(orders) {
 }
 function switchMyOrdersTab(tab) {
     try { sessionStorage.setItem('myorders_sub_tab', tab); } catch(e) {}
-    ['orders','faults','quotes','beauty'].forEach(t => {
+    ['orders','activities','faults','quotes','beauty'].forEach(t => {
         const btn = getEl(`myorders-tab-${t}`);
         const sec = getEl(`myorders-section-${t}`);
-        if (btn) btn.className = `flex-1 py-2 text-xs rounded-xl transition ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
+        if (btn) btn.className = `flex-1 py-2 text-[10px] rounded-xl transition whitespace-nowrap ${t === tab ? 'font-black bg-white text-slate-700 shadow-sm' : 'font-bold text-slate-500'}`;
         if (sec) sec.classList.toggle('hidden', t !== tab);
     });
     if (tab === 'faults') renderBusinessServiceCallsTab();
     if (tab === 'quotes') loadFamilyQuotes();
     if (tab === 'beauty') loadFamilyBeautyRfqInline();
+    if (tab === 'activities') loadMyActivities();
 }
 
 async function renderMyFaultsAsServiceCalls() {
@@ -8806,6 +8807,50 @@ window.saSetMemberModules = async function(groupId) {
 };
 
 // ============================================================
+// ===== הפעילות שלי — עסקים שקישרו את המשפחה =======================
+
+async function loadMyActivities() {
+    const el = document.getElementById('my-activities-list');
+    if (!el || !currentGroup) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
+        const businesses = d.businesses || [];
+        if (!businesses.length) {
+            el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">עדיין לא קושרת לעסקים. כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן.</p>';
+            return;
+        }
+        const bizTypeLabel = { beauty: 'יופי וטיפוח', gym: 'כושר וספורט', restaurant: 'מסעדה', maintenance_repair: 'תיקונים ואחזקה' };
+        const bizTypeIcon = { beauty: '💅', gym: '💪', restaurant: '🍽️', maintenance_repair: '🔧' };
+        el.innerHTML = businesses.map(b => {
+            const icon = bizTypeIcon[b.business_type] || '🏢';
+            const typeLabel = bizTypeLabel[b.business_type] || b.business_type || 'עסק';
+            const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
+            const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+            return `
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-xl flex-shrink-0">${icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                        <p class="text-[10px] text-slate-400">${typeLabel}${linkedDate ? ' · לקוח מ-' + linkedDate : ''}</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="flex-1 text-center bg-indigo-600 text-white rounded-xl py-2 text-[11px] font-bold hover:bg-indigo-700 transition">
+                        <i class="fa-solid fa-store ml-1"></i>חנות ציבורית
+                    </a>` : ''}
+                    ${b.business_type === 'beauty' ? `<button onclick="switchTab('myorders');switchMyOrdersTab('beauty')" class="flex-1 bg-pink-50 border border-pink-200 text-pink-700 rounded-xl py-2 text-[11px] font-bold hover:bg-pink-100 transition">
+                        <i class="fa-solid fa-calendar-check ml-1"></i>בקש תור
+                    </button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
+    }
+}
+
 // ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================
 // ============================================================
 

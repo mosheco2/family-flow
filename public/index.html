@@ -458,11 +458,12 @@
                         </div>
 
                         <!-- טאבים: הזמנות / קריאות שירות -->
-                        <div class="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-3">
-                            <button id="myorders-tab-orders" ontouchend="event.preventDefault();switchMyOrdersTab('orders')" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-xs font-black rounded-xl bg-white text-slate-700 shadow-sm transition" style="touch-action:manipulation;">📦 הזמנות</button>
-                            <button id="myorders-tab-faults" ontouchend="event.preventDefault();switchMyOrdersTab('faults')" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🔧 קריאות שירות</button>
-                            <button id="myorders-tab-quotes" ontouchend="event.preventDefault();switchMyOrdersTab('quotes')" onclick="switchMyOrdersTab('quotes')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">📋 הצעות מחיר</button>
-                            <button id="myorders-tab-beauty" ontouchend="event.preventDefault();switchMyOrdersTab('beauty')" onclick="switchMyOrdersTab('beauty')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">💅 יופי</button>
+                        <div class="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-3 overflow-x-auto">
+                            <button id="myorders-tab-orders" ontouchend="event.preventDefault();switchMyOrdersTab('orders')" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-[10px] font-black rounded-xl bg-white text-slate-700 shadow-sm transition whitespace-nowrap" style="touch-action:manipulation;">📦 הזמנות</button>
+                            <button id="myorders-tab-activities" ontouchend="event.preventDefault();switchMyOrdersTab('activities')" onclick="switchMyOrdersTab('activities')" class="flex-1 py-2 text-[10px] font-bold rounded-xl text-slate-500 transition whitespace-nowrap" style="touch-action:manipulation;">🏢 הפעילות שלי</button>
+                            <button id="myorders-tab-faults" ontouchend="event.preventDefault();switchMyOrdersTab('faults')" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-[10px] font-bold rounded-xl text-slate-500 transition whitespace-nowrap" style="touch-action:manipulation;">🔧 קריאות</button>
+                            <button id="myorders-tab-quotes" ontouchend="event.preventDefault();switchMyOrdersTab('quotes')" onclick="switchMyOrdersTab('quotes')" class="flex-1 py-2 text-[10px] font-bold rounded-xl text-slate-500 transition whitespace-nowrap" style="touch-action:manipulation;">📋 הצעות</button>
+                            <button id="myorders-tab-beauty" ontouchend="event.preventDefault();switchMyOrdersTab('beauty')" onclick="switchMyOrdersTab('beauty')" class="flex-1 py-2 text-[10px] font-bold rounded-xl text-slate-500 transition whitespace-nowrap" style="touch-action:manipulation;">💅 יופי</button>
                         </div>
 
                         <!-- רשימת הזמנות -->
@@ -519,6 +520,28 @@
                             </div>
                             <div id="family-quotes-list" class="space-y-2 px-1 min-h-[200px]">
                                 <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">לחץ רענן לטעינת הצעות מחיר</p>
+                            </div>
+                        </div>
+
+                        <!-- יופי - RFQ -->
+                        <div id="myorders-section-beauty" class="hidden pb-24">
+                            <div class="flex justify-between items-center mb-1.5 px-1">
+                                <h3 class="font-bold text-slate-700 text-sm">בקשות יופי וטיפוח</h3>
+                                <button onclick="loadFamilyBeautyRfq()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="myorders-beauty-content" class="space-y-2 px-1 min-h-[200px]">
+                                <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען...</p>
+                            </div>
+                        </div>
+
+                        <!-- הפעילות שלי - עסקים שקישרו אותנו -->
+                        <div id="myorders-section-activities" class="hidden pb-24">
+                            <div class="flex justify-between items-center mb-1.5 px-1">
+                                <h3 class="font-bold text-slate-700 text-sm">הפעילות שלי</h3>
+                                <button onclick="loadMyActivities()" class="text-blue-500 text-[10px] font-bold hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="my-activities-list" class="space-y-3 px-1 min-h-[200px]">
+                                <p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען עסקים...</p>
                             </div>
                         </div>
                     </div>
@@ -2043,7 +2066,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=13" defer></script>
+    <script src="app.js?v=14" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
