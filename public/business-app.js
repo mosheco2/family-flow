@@ -1607,7 +1607,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1664,6 +1664,7 @@ function switchTab(t) {
     if (t === 'beauty_subscriptions') try { loadBeautySubscriptions(); } catch(e) {}
     if (t === 'beauty_commissions') try { loadBeautyCommissions(); } catch(e) {}
     if (t === 'beauty_rfq')         try { loadBeautyRfq(); } catch(e) {}
+    if (t === 'beauty_practitioners') try { loadBeautyPractitioners(); } catch(e) {}
     if (t === 'logistics_orders')   try { loadLogisticsOrders(); } catch(e) {}
     if (t === 'logistics_drivers')  try { loadLogisticsDrivers(); } catch(e) {}
     if (t === 'logistics_vehicles') try { loadLogisticsVehicles(); } catch(e) {}
@@ -2409,6 +2410,7 @@ const ALL_TABS = [
     { id: 'beauty_subscriptions', name: 'מנויים וחבילות 🎁' },
     { id: 'beauty_commissions', name: 'עמלות ושכר 💰' },
     { id: 'beauty_rfq',        name: 'ייעוץ ובקשות 💬' },
+    { id: 'beauty_practitioners', name: 'מטפלות 💆' },
     { id: 'logistics_orders',   name: 'קנבן משלוחים 📦' },
     { id: 'logistics_drivers',  name: 'נהגים 🚗' },
     { id: 'logistics_vehicles', name: 'צי רכבים 🚚' },
@@ -3662,7 +3664,7 @@ window.changeFeedPage = function(direction) {
 // --- GROUP NAV — 5 קבוצות ניווט ---
 // ============================================================
 const GNAV_GROUPS = {
-    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar'],
+    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
     sales:     ['pos','sales','customers','deliveries','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','forecast','beauty_commissions'],
@@ -25281,7 +25283,7 @@ const BUSINESS_TYPES = [
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
     { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','members','timeclock','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
-    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','members','timeclock','cashflow','tasks','shop'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
@@ -29190,12 +29192,12 @@ async function renderBeautyAdminDashboard(el) {
         ${roleQuickActions([
             {icon:'📅', label:'יומן תורים',   tab:'beauty_calendar'},
             {icon:'👤', label:'לקוחות',        tab:'beauty_clients'},
+            {icon:'💆', label:'מטפלות',        tab:'beauty_practitioners'},
             {icon:'💎', label:'שירותים',       tab:'beauty_services'},
             {icon:'🎁', label:'מנויים',        tab:'beauty_subscriptions'},
             {icon:'💸', label:'עמלות',          tab:'beauty_commissions'},
             {icon:'💳', label:'קופה',           tab:'pos'},
-            {icon:'📋', label:'משימות',         tab:'tasks'},
-            {icon:'👥', label:'צוות',           tab:'members'}
+            {icon:'📋', label:'משימות',         tab:'tasks'}
         ])}
         ${roleFullMenuBtn()}`;
 }
@@ -35753,3 +35755,152 @@ window._beautyRfqChat = async function(rfqId) {
     } catch(e) { showToast('error', 'שגיאה בשליחת ההודעה'); }
 };
 
+
+// ─── BEAUTY PRACTITIONERS — מטפלות וצוות יופי ──────────────────────────────
+async function loadBeautyPractitioners() {
+    const biz = currentGroup?.id; if (!biz) return;
+    const el = document.getElementById('content-beauty_practitioners'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען מטפלות...</div>`;
+    let practitioners = [];
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/practitioners`);
+        practitioners = r.ok ? (await r.json()) : [];
+        if (!Array.isArray(practitioners)) practitioners = [];
+    } catch(e) {}
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between mb-4 px-1">
+            <button onclick="window._beautyPractModal()" class="bg-pink-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-pink-700 transition flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> מטפלת חדשה
+            </button>
+            <h2 class="text-lg font-black text-slate-800">מטפלות 💆</h2>
+        </div>
+        ${practitioners.length === 0 ? `
+            <div class="text-center py-12 bg-pink-50 rounded-2xl border border-pink-100">
+                <div class="text-4xl mb-3">💆</div>
+                <div class="font-bold text-slate-600 mb-1">אין מטפלות מוגדרות עדיין</div>
+                <div class="text-xs text-slate-400 mb-4">הוסף מטפלת ראשונה להתחלת עבודה</div>
+                <button onclick="window._beautyPractModal()" class="bg-pink-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow hover:bg-pink-700 transition">הוסף מטפלת</button>
+            </div>
+        ` : `
+            <div class="space-y-3">
+                ${practitioners.map(p => `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div class="flex gap-2">
+                            <button onclick="window._beautyPractModal(${JSON.stringify(p).replace(/"/g,'&quot;')})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold transition">עריכה</button>
+                            <button onclick="window._beautyPractToggle(${p.id}, ${p.is_active})" class="text-xs ${p.is_active ? 'bg-red-50 hover:bg-red-100 text-red-500' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'} px-3 py-1.5 rounded-lg font-bold transition">${p.is_active ? 'השבת' : 'הפעל'}</button>
+                        </div>
+                        <div class="flex items-center gap-3 text-right">
+                            <div>
+                                <div class="font-bold text-slate-800 text-sm">${safeStr(p.display_name)}</div>
+                                <div class="text-[11px] text-slate-400">${safeStr(p.tier||'')}${p.commission_rate_svc ? ` · עמלת שירות: ${p.commission_rate_svc}%` : ''}${p.commission_rate_retail ? ` · עמלת קמעונאות: ${p.commission_rate_retail}%` : ''}</div>
+                                ${p.specializations?.length ? `<div class="text-[10px] text-pink-500 mt-0.5">${p.specializations.join(' · ')}</div>` : ''}
+                            </div>
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-sm shrink-0" style="background:${p.color_hex||'#ec4899'}">${(p.display_name||'?').charAt(0)}</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `}
+    `;
+}
+
+window._beautyPractModal = function(p = null) {
+    const isEdit = !!p;
+    const TIERS = ['מטפלת ג׳וניור','מטפלת','מטפלת בכירה','מנהלת טיפולים'];
+    const SPECS = ['פנים','גוף','ציפורניים','שיער','הסרת שיער','עיסוי','איפור','ריסים'];
+
+    const modal = document.createElement('div');
+    modal.id = 'beauty-pract-modal';
+    modal.className = 'fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm';
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-lg rounded-t-3xl p-6 pb-8 shadow-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+            <div class="flex items-center justify-between mb-5">
+                <button onclick="document.getElementById('beauty-pract-modal').remove()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-base font-black text-slate-800">${isEdit ? 'עריכת מטפלת' : 'מטפלת חדשה'}</h3>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">שם מלא *</label>
+                    <input id="bp-name" type="text" value="${safeStr(p?.display_name||'')}" placeholder="שם המטפלת" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-400">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">דרגה</label>
+                        <select id="bp-tier" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-400">
+                            <option value="">בחר...</option>
+                            ${TIERS.map(t => `<option value="${t}" ${p?.tier===t?'selected':''}>${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">צבע זיהוי</label>
+                        <input id="bp-color" type="color" value="${p?.color_hex||'#ec4899'}" class="w-full h-10 border border-slate-200 rounded-xl px-1 py-1 cursor-pointer">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">% עמלת שירות</label>
+                        <input id="bp-comm-svc" type="number" min="0" max="100" step="0.5" value="${p?.commission_rate_svc??''}" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-400">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">% עמלת קמעונאות</label>
+                        <input id="bp-comm-retail" type="number" min="0" max="100" step="0.5" value="${p?.commission_rate_retail??''}" placeholder="0" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-400">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">התמחויות</label>
+                    <div class="flex flex-wrap gap-2">
+                        ${SPECS.map(s => `
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" class="bp-spec" value="${s}" ${p?.specializations?.includes(s)?'checked':''}>
+                                <span class="text-xs text-slate-600">${s}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                <button onclick="window._beautyPractSave(${isEdit ? p.id : 'null'})" class="w-full bg-pink-600 text-white py-3 rounded-xl font-bold shadow hover:bg-pink-700 transition mt-2">
+                    <i class="fa-solid fa-check mr-1"></i> ${isEdit ? 'שמור שינויים' : 'הוסף מטפלת'}
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._beautyPractSave = async function(id) {
+    const biz = currentGroup?.id; if (!biz) return;
+    const name = document.getElementById('bp-name')?.value?.trim();
+    if (!name) { showToast('error', 'נא להזין שם מטפלת'); return; }
+    const specs = [...document.querySelectorAll('.bp-spec:checked')].map(cb => cb.value);
+    const body = {
+        display_name: name,
+        tier: document.getElementById('bp-tier')?.value || null,
+        color_hex: document.getElementById('bp-color')?.value || '#ec4899',
+        commission_rate_svc: parseFloat(document.getElementById('bp-comm-svc')?.value) || 0,
+        commission_rate_retail: parseFloat(document.getElementById('bp-comm-retail')?.value) || 0,
+        specializations: specs
+    };
+    try {
+        const method = id ? 'PATCH' : 'POST';
+        const url = id ? `${API}/beauty/${biz}/practitioners/${id}` : `${API}/beauty/${biz}/practitioners`;
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) throw new Error();
+        showToast('success', id ? 'פרטי המטפלת עודכנו' : 'מטפלת נוספה בהצלחה');
+        document.getElementById('beauty-pract-modal')?.remove();
+        loadBeautyPractitioners();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window._beautyPractToggle = async function(id, isActive) {
+    const biz = currentGroup?.id; if (!biz) return;
+    if (!confirm(isActive ? 'להשבית מטפלת זו?' : 'להפעיל מטפלת זו מחדש?')) return;
+    try {
+        await fetch(`${API}/beauty/${biz}/practitioners/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: !isActive })
+        });
+        showToast('success', isActive ? 'המטפלת הושבתה' : 'המטפלת הופעלה');
+        loadBeautyPractitioners();
+    } catch(e) { showToast('error', 'שגיאה בעדכון'); }
+};
