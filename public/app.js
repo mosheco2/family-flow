@@ -1087,12 +1087,12 @@ function showForcePasswordChange() {
     if (existing) existing.remove();
     const el = document.createElement('div');
     el.id = 'force-pw-overlay';
-    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;overflow-y:auto;';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;overflow-y:auto;padding:20px;direction:rtl;';
     const prefillId = currentUser?.id_number || '';
     const prefillEmail = currentUser?.email || '';
     const prefillYear = currentUser?.birth_year || '';
     el.innerHTML = `
-        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;margin:auto;">
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;margin:40px auto;">
             <div style="text-align:center;margin-bottom:20px;">
                 <div style="font-size:40px;margin-bottom:8px;">🔐</div>
                 <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW!</div>
