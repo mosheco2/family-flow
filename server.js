@@ -1068,6 +1068,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS family_nickname VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`); } catch(e) {}
 
       // ── Beauty service catalog ──────────────────────────────────────────
       try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_service_catalog (
@@ -3579,6 +3580,19 @@ app.post('/api/users/:id/password', async (req, res) => {
         await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newPassword, req.params.id]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// First-login password set (for member accounts created by business — no old password required)
+app.post('/api/users/:id/set-first-password', async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'סיסמה חייבת להכיל לפחות 4 תווים' });
+        const u = await pool.query('SELECT must_change_password FROM users WHERE id=$1', [req.params.id]);
+        if (!u.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        if (!u.rows[0].must_change_password) return res.status(403).json({ error: 'לא ניתן לאפס סיסמה בשלב זה' });
+        await pool.query('UPDATE users SET password_hash=$1, must_change_password=false WHERE id=$2', [newPassword, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/adjust-balance', async (req, res) => {
@@ -11971,8 +11985,8 @@ app.post('/api/member/create-for-business', async (req, res) => {
             memberGroupId = groupR.rows[0].id;
             rawPassword = Math.random().toString(36).slice(-8);
             const userR = await client.query(
-                `INSERT INTO users (group_id, nickname, phone, password_hash, role, status, permissions)
-                 VALUES ($1, $2, $3, $4, 'ADMIN', 'active', '{"tabs":["feed","members","bank","tasks"]}')
+                `INSERT INTO users (group_id, nickname, phone, password_hash, role, status, permissions, must_change_password)
+                 VALUES ($1, $2, $3, $4, 'ADMIN', 'active', '{"tabs":["feed","members","bank","tasks"]}', true)
                  RETURNING id`,
                 [memberGroupId, name, phone, rawPassword]
             );

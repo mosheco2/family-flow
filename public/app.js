@@ -1072,11 +1072,75 @@ async function loadDashboard() {
     } catch (e) {
         showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
+        const preloader = getEl('app-preloader');
+        const finalizeLoad = async () => {
+            // בדוק אם משתמש חבר חייב לשנות סיסמה בכניסה ראשונה
+            if (currentUser?.must_change_password) { showForcePasswordChange(); return; }
+            const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; }
+        };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
 }
+
+function showForcePasswordChange() {
+    const existing = document.getElementById('force-pw-overlay');
+    if (existing) existing.remove();
+    const el = document.createElement('div');
+    el.id = 'force-pw-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    el.innerHTML = `
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:40px;margin-bottom:8px;">🔐</div>
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW!</div>
+                <div style="font-size:12px;color:#64748b;margin-top:6px;">נא לבחור סיסמה אישית לפני הכניסה למערכת</div>
+            </div>
+            <div id="force-pw-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">סיסמה חדשה (לפחות 4 תווים)</label>
+                <input id="force-pw-new" type="password" placeholder="הקלד סיסמה חדשה..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">אימות סיסמה</label>
+                <input id="force-pw-confirm" type="password" placeholder="הקלד שוב..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+            </div>
+            <button onclick="window._submitForcePassword()" style="width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">שמור סיסמה והמשך →</button>
+        </div>`;
+    document.body.appendChild(el);
+    document.getElementById('force-pw-new')?.focus();
+}
+
+window._submitForcePassword = async function() {
+    const np = document.getElementById('force-pw-new')?.value?.trim();
+    const cp = document.getElementById('force-pw-confirm')?.value?.trim();
+    const errEl = document.getElementById('force-pw-error');
+    const showErr = (msg) => { if(errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+    if (!np || np.length < 4) { showErr('סיסמה חייבת להכיל לפחות 4 תווים'); return; }
+    if (np !== cp) { showErr('הסיסמאות אינן תואמות'); return; }
+    if (errEl) errEl.style.display = 'none';
+    const btn = document.querySelector('#force-pw-overlay button');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+    try {
+        const r = await fetch(`${API}/users/${currentUser.id}/set-first-password`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newPassword: np })
+        }).then(r => r.json());
+        if (r.success) {
+            currentUser.must_change_password = false;
+            const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+            if (s.user) { s.user.must_change_password = false; localStorage.setItem('ofl_session', JSON.stringify(s)); }
+            document.getElementById('force-pw-overlay')?.remove();
+            showToast('success', 'הסיסמה עודכנה בהצלחה! ✅');
+            try { await checkGlobalWelcome(); } catch(e) {}
+        } else {
+            showErr(r.error || 'שגיאה בשמירת הסיסמה');
+            if (btn) { btn.disabled = false; btn.textContent = 'שמור סיסמה והמשך →'; }
+        }
+    } catch(e) {
+        showErr('שגיאת תקשורת — נסה שוב');
+        if (btn) { btn.disabled = false; btn.textContent = 'שמור סיסמה והמשך →'; }
+    }
+};
 
 async function fetchData() {
     try {
