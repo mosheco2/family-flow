@@ -3662,10 +3662,10 @@ window.changeFeedPage = function(direction) {
 // --- GROUP NAV — 5 קבוצות ניווט ---
 // ============================================================
 const GNAV_GROUPS = {
-    team:      ['timeclock','shifts','calendar','tasks','academy','members'],
-    sales:     ['pos','sales','customers','deliveries'],
-    inventory: ['shop','pantry','equipment','foodcost'],
-    finance:   ['bank','cashflow','budget','forecast'],
+    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar'],
+    sales:     ['pos','sales','customers','deliveries','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
+    finance:   ['bank','cashflow','budget','forecast','beauty_commissions'],
     more:      ['community','surveys']
 };
 
@@ -29156,6 +29156,7 @@ async function renderSportDashboard(el) {
 
 // ─── Beauty Admin Dashboard ────────────────────────────────────────────────────
 async function renderBeautyAdminDashboard(el) {
+    document.querySelectorAll('[data-beauty-only="1"]').forEach(b => b.classList.remove('hidden'));
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm">טוען נתוני יופי...</div>`;
     let s = { appt_today:0, appt_pending:0, revenue_today:0, revenue_month:0, unpaid_comm_sum:0, unpaid_comm_cnt:0, low_inventory:0, no_show_today:0, total_clients:0 };
     try {
@@ -29189,10 +29190,10 @@ async function renderBeautyAdminDashboard(el) {
         ${roleQuickActions([
             {icon:'📅', label:'יומן תורים',   tab:'beauty_calendar'},
             {icon:'👤', label:'לקוחות',        tab:'beauty_clients'},
-            {icon:'🧴', label:'מלאי',           tab:'beauty_inventory'},
-            {icon:'💰', label:'עמלות',          tab:'beauty_commissions'},
+            {icon:'💎', label:'שירותים',       tab:'beauty_services'},
+            {icon:'🎁', label:'מנויים',        tab:'beauty_subscriptions'},
+            {icon:'💸', label:'עמלות',          tab:'beauty_commissions'},
             {icon:'💳', label:'קופה',           tab:'pos'},
-            {icon:'📦', label:'הזמנות',         tab:'sales'},
             {icon:'📋', label:'משימות',         tab:'tasks'},
             {icon:'👥', label:'צוות',           tab:'members'}
         ])}

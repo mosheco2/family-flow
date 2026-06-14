@@ -637,6 +637,8 @@
                       <button onclick="switchTab('tasks');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center justify-between" id="gdrop-tasks"><span class="flex items-center gap-2">✅ משימות</span><span id="gdrop-badge-tasks" class="hidden text-[9px] bg-red-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none"></span></button>
                       <button onclick="switchTab('academy');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-academy">🎓 הכשרות</button>
                       <button onclick="switchTab('members');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-members">👥 ניהול צוות</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_calendar');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_calendar" data-beauty-only="1">📅 יומן תורים</button>
                     </div>
                   </div>
 
@@ -651,6 +653,11 @@
                       <button onclick="switchTab('sales');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center justify-between" id="gdrop-sales"><span class="flex items-center gap-2">🛍️ מכירות וחנות</span><span id="gdrop-badge-orders" class="hidden text-[9px] bg-amber-500 text-white rounded-full min-w-[14px] h-3.5 inline-flex items-center justify-center px-1 font-bold leading-none"></span></button>
                       <button onclick="switchTab('customers');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-customers">🤝 לקוחות</button>
                       <button onclick="switchTab('deliveries');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-deliveries">🛵 שליחויות</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_services');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_services" data-beauty-only="1">💎 שירותים וטיפולים</button>
+                      <button onclick="switchTab('beauty_subscriptions');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition flex items-center gap-2" id="gdrop-beauty_subscriptions" data-beauty-only="1">🎁 מנויים וחבילות</button>
+                      <button onclick="switchTab('beauty_clients');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_clients" data-beauty-only="1">📋 תיקי לקוחות</button>
+                      <button onclick="switchTab('beauty_rfq');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_rfq" data-beauty-only="1">💬 ייעוץ ובקשות</button>
                     </div>
                   </div>
 
@@ -665,6 +672,8 @@
                       <button onclick="switchTab('pantry');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-pantry">📦 מלאי מחסן</button>
                       <button onclick="switchTab('equipment');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-equipment">🔧 תחזוקת ציוד</button>
                       <button onclick="switchTab('foodcost');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-foodcost">🍽️ פוד קוסט</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_inventory');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_inventory" data-beauty-only="1">🧴 מלאי יופי</button>
                     </div>
                   </div>
 
@@ -679,6 +688,8 @@
                       <button onclick="switchTab('cashflow');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-cashflow">💸 תזרים</button>
                       <button onclick="switchTab('budget');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-budget">📊 תקציב</button>
                       <button onclick="switchTab('forecast');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-forecast">📈 תשקיף</button>
+                      <!-- beauty-only -->
+                      <button onclick="switchTab('beauty_commissions');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-pink-50 hover:text-pink-700 transition flex items-center gap-2" id="gdrop-beauty_commissions" data-beauty-only="1">💸 עמלות ושכר</button>
                     </div>
                   </div>
 
