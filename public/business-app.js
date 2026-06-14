@@ -32063,7 +32063,8 @@ window._doAddToOneflow = async function(refId) {
 
         let resultHtml = '';
         if (r.is_new) {
-            const waText = encodeURIComponent(`שלום! נוצר לך חשבון אישי ב-ONEFLOW 🎉\n\nפרטי כניסה לאפליקציה:\nקוד: ${r.group_code}\nשם: ${name}\nסיסמה: ${r.password}\n\nכנס בכתובת: oneflowlife.com`);
+            const bizNameOfl = currentGroup?.name || 'העסק שלנו';
+            const waText = encodeURIComponent(`שלום ${name} 👋\n\n${bizNameOfl} שמחים לצרף אותך אלינו!\n\nנוצר עבורך חשבון אישי ב-ONEFLOW LIFE — מעכשיו תוכל לנהל הכל ממקום אחד: תורים, פעילויות, ועדכונים מהעסק ישירות אליך.\n\nפרטי כניסה שלך:\n🔑 קוד: ${r.group_code}\n👤 שם: ${name}\n🔒 סיסמה: ${r.password}\n\n👉 כניסה: ${window.location.origin}\n\nנשמח לראות אותך! 🌟`);
             resultHtml = `<div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-right">
                 <div class="text-xs font-bold text-violet-700 mb-1">פרטי כניסה — שלח ללקוח:</div>
                 <div class="text-sm font-mono text-slate-800">קוד: <b>${r.group_code}</b></div>
@@ -32076,7 +32077,8 @@ window._doAddToOneflow = async function(refId) {
                    שלח ב-WhatsApp
                 </a></div>`;
         } else if (r.link_status === 'pending') {
-            const waTextExisting = encodeURIComponent(`שלום ${name}! העסק ${currentGroup?.name||''} ביקש לקשר אותך ל-ONEFLOW 🔗\n\nכדי לאשר את הקישור, כנס לאפליקציה:\n🔗 ${window.location.origin}/?code=${r.group_code}&role=ADMIN\n\nבדשבורד שלך תופיע בקשת אישור.`);
+            const bizNameExisting = currentGroup?.name || 'העסק שלנו';
+            const waTextExisting = encodeURIComponent(`שלום ${name} 👋\n\n${bizNameExisting} שמחים שאתה חלק ממשפחת ONEFLOW LIFE!\n\nמעכשיו תוכל לנהל הכל ממקום אחד — תורים, פעילויות, ועדכונים מהעסק ישירות אליך.\n\nכדי לאשר את הקישור, כנס לאפליקציה:\n🔗 ${window.location.origin}/?code=${r.group_code}&role=ADMIN\n\nנשמח לראות אותך! 🌟`);
             const waPhoneExisting = phone.replace(/\D/g,'').replace(/^0/,'972');
             resultHtml = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-right space-y-2">
                 <div class="text-sm font-bold text-amber-700">⏳ ממתין לאישור הלקוח</div>
@@ -33324,14 +33326,21 @@ window._beautyCreateMemberAccount = async function() {
         // מלא את השדה "קישור" בטופס
         window._bncLinkedFamilyId = r.member_group_id;
         if (r.is_new) {
-            const waText = encodeURIComponent(`שלום ${name}! נוצר לך חשבון אישי ב-ONEFLOW LIFE 🎉
+            const bizName = currentGroup?.name || 'העסק שלנו';
+            const waText = encodeURIComponent(`שלום ${name} 👋
 
-פרטי כניסה:
-קוד: ${r.group_code}
-שם: ${name}
-סיסמה: ${r.password}
+${bizName} שמחים לצרף אותך אלינו!
 
-כנס בכתובת: ${window.location.origin}`);
+נוצר עבורך חשבון אישי ב-ONEFLOW LIFE — מעכשיו תוכל לנהל הכל ממקום אחד: תורים, פעילויות, ועדכונים מהעסק ישירות אליך.
+
+פרטי כניסה שלך:
+🔑 קוד: ${r.group_code}
+👤 שם: ${name}
+🔒 סיסמה: ${r.password}
+
+👉 כניסה: ${window.location.origin}
+
+נשמח לראות אותך! 🌟`);
             const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
             if(resEl) resEl.innerHTML = `
                 <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
@@ -33350,10 +33359,16 @@ window._beautyCreateMemberAccount = async function() {
                     </a>
                 </div>`;
         } else {
-            const waText = encodeURIComponent(`שלום ${name}! ${currentGroup?.name||'העסק'} קישר אותך ל-ONEFLOW LIFE 🔗
+            const waText = encodeURIComponent(`שלום ${name} 👋
 
-התחבר בכתובת: ${window.location.origin}
-עם קוד: ${r.group_code}`);
+${currentGroup?.name||'העסק'} שמחים שאתה חלק ממשפחת ONEFLOW LIFE!
+
+מעכשיו תוכל לנהל הכל ממקום אחד — תורים, פעילויות, ועדכונים מהעסק ישירות אליך.
+
+👉 כנס: ${window.location.origin}
+עם קוד: ${r.group_code}
+
+נשמח לראות אותך! 🌟`);
             const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
             if(resEl) resEl.innerHTML = `
                 <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
