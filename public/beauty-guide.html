@@ -320,7 +320,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
 
   <div class="sidebar-section-label">ניהול פנימי</div>
   <a class="nav-link" href="#dashboard" onclick="setActive(this)"><span class="nav-icon">📊</span> דשבורד מנהל</a>
-  <a class="nav-link" href="#calendar" onclick="setActive(this)"><span class="nav-icon">📅</span> יומן תורים</a>
+  <a class="nav-link" href="#calendar" onclick="setActive(this)"><span class="nav-icon">📅</span> יומן פנימי</a>
   <a class="nav-link" href="#clients" onclick="setActive(this)"><span class="nav-icon">📋</span> תיקי לקוחות</a>
   <a class="nav-link" href="#therapists" onclick="setActive(this)"><span class="nav-icon">💆</span> מטפלות וצוות</a>
   <a class="nav-link" href="#commissions" onclick="setActive(this)"><span class="nav-icon">💰</span> עמלות ושכר</a>
@@ -352,7 +352,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     <span class="chip" onclick="goTo('users')">👥 משתמשים</span>
     <span class="chip" onclick="goTo('wizard')">🧙 הקמה</span>
     <span class="chip" onclick="goTo('dashboard')">📊 דשבורד</span>
-    <span class="chip" onclick="goTo('calendar')">📅 יומן תורים</span>
+    <span class="chip" onclick="goTo('calendar')">📅 יומן פנימי</span>
     <span class="chip" onclick="goTo('clients')">📋 לקוחות</span>
     <span class="chip" onclick="goTo('therapists')">💆 מטפלות</span>
     <span class="chip" onclick="goTo('commissions')">💰 עמלות</span>
@@ -571,7 +571,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
       <div>
         <strong>מבנה הניווט — שתי שכבות:</strong><br>
         <strong>1. תפריט ניווט קבוע (5 קבוצות):</strong><br>
-        &nbsp;&nbsp;• <strong>צוות</strong> — נוכחות, משמרות, 📅 יומן תורים, משימות, הכשרות, ניהול צוות, 💆 מטפלות<br>
+        &nbsp;&nbsp;• <strong>צוות</strong> — נוכחות, משמרות, 🌐 יומן ציבורי, משימות, הכשרות, ניהול צוות, 📅 יומן פנימי, 💆 מטפלות<br>
         &nbsp;&nbsp;• <strong>מכירות</strong> — קופה, מכירות וחנות, 💎 שירותים וטיפולים, 🎁 מנויים וחבילות, 📋 תיקי לקוחות (ניהול מועדון לקוחות), 💬 ייעוץ ובקשות<br>
         &nbsp;&nbsp;• <strong>מלאי</strong> — רכש וספקים, מלאי מחסן, תחזוקת ציוד, 🧴 מלאי יופי<br>
         &nbsp;&nbsp;• <strong>כספים</strong> — כספים, תזרים, תקציב, תשקיף, 💸 עמלות ושכר<br>
@@ -622,8 +622,8 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
   <div class="card-header">
     <div class="card-icon" style="background:#fce7f3">📅</div>
     <div>
-      <div class="card-title">יומן תורים</div>
-      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-therapist">מטפלת</span> לב הסלון — ניהול כל התורים</div>
+      <div class="card-title">יומן פנימי</div>
+      <div class="card-subtitle"><span class="user-badge badge-admin">מנהל</span> <span class="user-badge badge-therapist">מטפלת</span> לב הסלון — ניהול כל התורים הפנימיים</div>
     </div>
   </div>
   <div class="card-body">
@@ -632,7 +632,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </p>
     <div class="screen-section">
       <div class="screen-section-title">📍 כיצד להגיע</div>
-      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"📅 יומן תורים"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>צוות → 📅 יומן תורים</strong></div>
+      <div style="font-size:0.85rem;color:#475569">מהדשבורד → לחץ <strong>"📅 יומן פנימי"</strong> בפעולות המהירות. לחלופין: תפריט ניווט → <strong>צוות → 📅 יומן פנימי</strong></div>
     </div>
     <div class="screen-section">
       <div class="screen-section-title">📋 תצוגות יומן</div>
@@ -662,9 +662,11 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     </div>
     <div class="screen-section">
       <div class="screen-section-title">🌐 יומן ציבורי — תורים מהחנות</div>
-      <div style="font-size:0.85rem;color:#475569;margin-bottom:0.5rem">לקוחות יכולים לקבוע תור דרך החנות הציבורית. הבקשה מגיעה לבאנר <strong>"ממתין לאישור"</strong> בראש היומן הפנימי.</div>
-      <div class="field-row"><div class="field-name">אישור בקשה</div><div class="field-desc">לחצי "✓ אשר" — התור נוצר אוטומטית ביומן הפנימי במועד המבוקש</div></div>
+      <div style="font-size:0.85rem;color:#475569;margin-bottom:0.5rem">לקוחות יכולים לקבוע תור דרך החנות הציבורית (<strong>צוות → 🌐 יומן ציבורי</strong>). הבקשה מגיעה לבאנר <strong>"ממתין לאישור"</strong> בראש היומן הפנימי.</div>
+      <div class="field-row"><div class="field-name">בחירת מטפלת</div><div class="field-desc">הלקוח יכול לבחור מטפלת מועדפת בטופס הזמנת התור בחנות הציבורית (אופציונלי)</div></div>
+      <div class="field-row"><div class="field-name">אישור בקשה</div><div class="field-desc">לחצי "✓ אשר" — התור נוצר אוטומטית ביומן הפנימי במועד המבוקש עם המטפלת שנבחרה</div></div>
       <div class="field-row"><div class="field-name">דחיית בקשה</div><div class="field-desc">לחצי "✕" — הבקשה נמחקת</div></div>
+      <div class="field-row"><div class="field-name">חסימת משבצות</div><div class="field-desc">תורים פנימיים מחסימים אוטומטית את המשבצת גם ביומן הציבורי — לא יתאפשר לקוח לבקש אותה שעה</div></div>
       <div class="field-row"><div class="field-name">אצל הלקוחה</div><div class="field-desc">תור שאושר עובר מ"בקשות תור" ל"תורים" בפעולות שלי — הלקוחה רואה שהתור מאושר</div></div>
     </div>
     <div class="screen-section">

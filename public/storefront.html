@@ -381,13 +381,21 @@
                     </select>
                 </div>
 
+                <!-- בחירת מטפלת — מוצג רק עבור עסקי יופי -->
+                <div id="book-prac-wrap" class="hidden">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">2. בחרו מטפלת (אופציונלי)</label>
+                    <select id="book-prac" class="modern-input py-3 text-sm bg-slate-50 font-bold text-purple-700 border-purple-100 focus:border-purple-400">
+                        <option value="">ללא העדפה</option>
+                    </select>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-2">2. באיזה תאריך?</label>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">3. באיזה תאריך?</label>
                         <input type="date" id="book-date" onchange="window.generateAvailableTimeSlots()" class="modern-input py-3 text-sm bg-white">
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-2">3. שעה רצויה:</label>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">4. שעה רצויה:</label>
                         <select id="book-time" class="modern-input py-3 text-sm bg-white text-center dir-ltr">
                             <option value="">בחרו תאריך קודם</option>
                         </select>
@@ -395,7 +403,7 @@
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="text-xs font-bold text-slate-800 block mb-3 border-b border-slate-100 pb-2">4. פרטים אישיים ליצירת קשר</label>
+                    <label class="text-xs font-bold text-slate-800 block mb-3 border-b border-slate-100 pb-2">5. פרטים אישיים ליצירת קשר</label>
                     <input type="text" id="book-name" class="modern-input py-2.5 text-sm bg-white mb-2" placeholder="שם מלא (חובה)">
                     <input type="tel" id="book-phone" class="modern-input py-2.5 text-sm bg-white text-left dir-ltr mb-3" placeholder="טלפון (חובה)">
                     <textarea id="book-notes" class="modern-input py-2 text-sm bg-white h-16" placeholder="הערות מיוחדות, בקשות לאירוע..."></textarea>
@@ -1750,6 +1758,27 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 }
             }
 
+            // טעינת מטפלות לעסקי יופי
+            const pracWrap = getEl('book-prac-wrap');
+            const pracSelect = getEl('book-prac');
+            if (pracWrap && pracSelect && storeData.groupId) {
+                try {
+                    const prRes = await fetch(`${API}/beauty/${storeData.groupId}/practitioners`);
+                    const prData = await prRes.json();
+                    const prs = Array.isArray(prData) ? prData : (prData.practitioners || []);
+                    const activePrs = prs.filter(p => p.is_active !== false);
+                    if (activePrs.length > 0) {
+                        pracSelect.innerHTML = '<option value="">ללא העדפה</option>' +
+                            activePrs.map(p => `<option value="${p.id}">${safeStr(p.display_name)}</option>`).join('');
+                        pracWrap.classList.remove('hidden');
+                    } else {
+                        pracWrap.classList.add('hidden');
+                    }
+                } catch(e) {
+                    pracWrap.classList.add('hidden');
+                }
+            }
+
             const modal = getEl('booking-modal');
             if (modal) modal.classList.remove('hidden');
 
@@ -1846,6 +1875,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const time = val('book-time');
             const serviceId = val('book-service');
             const notes = val('book-notes');
+            const preferredPracId = val('book-prac') ? parseInt(val('book-prac')) : null;
 
             if (!name || !phone || !date || !time) {
                 return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
@@ -1877,7 +1907,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 notes: notes,
                 customerPhone: phone,
                 status: 'pending',
-                customerGroupId: familyGroupId
+                customerGroupId: familyGroupId,
+                preferredPractitionerId: preferredPracId || null
             };
 
             try {

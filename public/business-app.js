@@ -33264,7 +33264,7 @@ window._beautyNewApModal = async function() {
                 <textarea id="bnap-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none"></textarea></div>
         </div>
         <div class="p-5 border-t">
-            <button onclick="window._beautySubmitNewAp()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">קבע תור ✅</button>
+            <button id="bnap-submit-btn" onclick="window._beautySubmitNewAp()" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">קבע תור ✅</button>
         </div>
     </div>
 </div>`;
@@ -33287,6 +33287,8 @@ window._beautyApSvcChange = function(sel) {
 
 window._beautySubmitNewAp = async function() {
     const biz = _beautyBizId(); if (!biz) return;
+    const btn = document.getElementById('bnap-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
     const clientName = document.getElementById('bnap-client')?.value?.trim();
     const clientPhone = document.getElementById('bnap-phone')?.value?.trim();
     const clientFamilyId = parseInt(document.getElementById('bnap-family-id')?.value) || null;
@@ -33301,7 +33303,11 @@ window._beautySubmitNewAp = async function() {
     const dur = parseInt(document.getElementById('bnap-dur')?.value) || 60;
     const price = parseFloat(document.getElementById('bnap-price')?.value) || 0;
     const notes = document.getElementById('bnap-notes')?.value?.trim();
-    if (!clientName || !date || !time) { showToast('error', 'שם לקוח, תאריך ושעה הם שדות חובה'); return; }
+    if (!clientName || !date || !time) {
+        showToast('error', 'שם לקוח, תאריך ושעה הם שדות חובה');
+        if (btn) { btn.disabled = false; btn.innerHTML = 'קבע תור ✅'; }
+        return;
+    }
     const startTime = `${date}T${time}:00`;
     const endDt = new Date(startTime); endDt.setMinutes(endDt.getMinutes() + dur);
     const endTime = endDt.toISOString().slice(0,19);
@@ -33315,8 +33321,14 @@ window._beautySubmitNewAp = async function() {
             document.getElementById('beauty-new-ap-modal')?.remove();
             showToast('success', 'תור נקבע בהצלחה! 💅');
             loadBeautyCalendar();
-        } else showToast('error', r.error || 'שגיאה ביצירת תור');
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+        } else {
+            showToast('error', r.error || 'שגיאה ביצירת תור');
+            if (btn) { btn.disabled = false; btn.innerHTML = 'קבע תור ✅'; }
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+        if (btn) { btn.disabled = false; btn.innerHTML = 'קבע תור ✅'; }
+    }
 };
 
 window._beautyManagePractitioners = async function() {

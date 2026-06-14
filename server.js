@@ -643,6 +643,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS customer_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
       // Drop FK on service_id so beauty_service_catalog IDs can be stored without constraint violation
       try { await client.query(`ALTER TABLE calendar_events DROP CONSTRAINT IF EXISTS calendar_events_service_id_fkey`); } catch(e) {}
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS preferred_practitioner_id INT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -7723,7 +7724,32 @@ app.get('/api/calendar/:groupId', async (req, res) => {
         }
         const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
         let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
-        res.json({ success: true, settings, services: srvRes.rows, events: evtRes.rows });
+
+        // עבור עסקי יופי — הוסף beauty_appointments פנימיים כ-events חסומים
+        let allEvents = evtRes.rows;
+        if (bizType === 'beauty') {
+            const bapR = await pool.query(
+                `SELECT ba.id, ba.client_name,
+                    TO_CHAR(bs.start_time, 'YYYY-MM-DD') AS event_date,
+                    TO_CHAR(bs.start_time, 'HH24:MI') AS start_time_str
+                 FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
+                 WHERE ba.business_group_id=$1 AND ba.status IN ('confirmed','pending_client')`,
+                [groupId]
+            ).catch(() => ({ rows: [] }));
+            const syntheticEvents = bapR.rows.map(row => ({
+                id: `bap-${row.id}`,
+                group_id: parseInt(groupId),
+                title: row.client_name,
+                event_date: row.event_date,
+                start_time: row.start_time_str,
+                status: 'approved',
+                is_beauty_internal: true
+            }));
+            allEvents = [...evtRes.rows, ...syntheticEvents];
+        }
+
+        res.json({ success: true, settings, services: srvRes.rows, events: allEvents });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -7765,12 +7791,37 @@ app.delete('/api/calendar/services/:id', async (req, res) => {
 // הוספת אירוע/תור
 app.post('/api/calendar/events', async (req, res) => {
     try {
-        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId } = req.body;
+        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status, customerGroupId, preferredPractitionerId } = req.body;
         const r = await pool.query(
-            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null]
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status, customer_group_id, preferred_practitioner_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending', customerGroupId || null, preferredPractitionerId || null]
         );
+
+        // קשר client_family_id ב-beauty_client_records אם הלקוח מחובר
+        if (customerGroupId && customerPhone) {
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]).then(btR => {
+                if (btR.rows[0]?.business_type === 'beauty') {
+                    pool.query(
+                        `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND client_phone=$2 LIMIT 1`,
+                        [groupId, customerPhone]
+                    ).then(exR => {
+                        if (exR.rows[0] && !exR.rows[0].client_family_id) {
+                            pool.query(
+                                'UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2',
+                                [customerGroupId, exR.rows[0].id]
+                            ).catch(() => {});
+                        } else if (!exR.rows[0]) {
+                            pool.query(
+                                `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
+                                [groupId, title || '', customerPhone, customerGroupId]
+                            ).catch(() => {});
+                        }
+                    }).catch(() => {});
+                }
+            }).catch(() => {});
+        }
+
         res.json({ success: true, eventId: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -7806,10 +7857,11 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                         [evt.group_id, evt.customer_group_id || null, evt.title || 'לקוח', evt.customer_phone || '', evt.notes || '']
                     ).catch(() => ({ rows: [] }));
                     if (apR.rows[0]) {
+                        const pracId = evt.preferred_practitioner_id || null;
                         await pool.query(
-                            `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name, start_time, end_time, duration_minutes, price)
-                             VALUES ($1,1,'active',$2,$3,$4,$5,0)`,
-                            [apR.rows[0].id, serviceName, startISO, endISO, dur]
+                            `INSERT INTO beauty_appointment_segments (appointment_id, segment_order, segment_type, service_name, start_time, end_time, duration_minutes, price, practitioner_id)
+                             VALUES ($1,1,'active',$2,$3,$4,$5,0,$6)`,
+                            [apR.rows[0].id, serviceName, startISO, endISO, dur, pracId]
                         ).catch(() => {});
                     }
                 }
@@ -12497,15 +12549,21 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
                 const endDt = new Date(newStart);
                 endDt.setMinutes(endDt.getMinutes() + dur);
                 const newEnd = endDt.toISOString().slice(0,19);
-                await pool.query(
-                    `UPDATE beauty_appointment_segments SET
-                     start_time=$1, end_time=$2, duration_minutes=$3,
-                     practitioner_id=${hasPracKey ? '$4' : 'practitioner_id'}
-                     WHERE appointment_id=$${hasPracKey ? '5' : '4'} AND segment_order=1`,
-                    hasPracKey
-                        ? [newStart, newEnd, dur, practitioner_id, req.params.id]
-                        : [newStart, newEnd, dur, req.params.id]
-                );
+                if (hasPracKey) {
+                    await pool.query(
+                        `UPDATE beauty_appointment_segments SET
+                         start_time=$1, end_time=$2, duration_minutes=$3, practitioner_id=$4
+                         WHERE appointment_id=$5 AND segment_order=1`,
+                        [newStart, newEnd, dur, practitioner_id, req.params.id]
+                    );
+                } else {
+                    await pool.query(
+                        `UPDATE beauty_appointment_segments SET
+                         start_time=$1, end_time=$2, duration_minutes=$3
+                         WHERE appointment_id=$4 AND segment_order=1`,
+                        [newStart, newEnd, dur, req.params.id]
+                    );
+                }
             }
         }
         res.json({ success: true });
