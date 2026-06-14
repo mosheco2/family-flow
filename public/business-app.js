@@ -33257,26 +33257,45 @@ window._beautyCheckOneflow = async function() {
         const params = new URLSearchParams(); if (phone) params.set('phone', phone); if (name && !phone) params.set('name', name);
         const d = await fetch(`${API}/beauty/${biz}/check-oneflow?${params}`).then(r=>r.json());
         if (d.found && d.matches?.length) {
-            resEl.innerHTML = d.matches.map(m => `
+            // שמור את נתוני המשתמשים למילוי שדות
+            window._bncOneflowMatches = d.matches;
+            resEl.innerHTML = d.matches.map((m, idx) => {
+                const displayName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name);
+                const groupLabel = m.family_nickname || m.family_name;
+                return `
                 <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-1">
                     <div>
-                        <p class="text-xs font-black text-indigo-800">${m.family_name || m.nickname}</p>
-                        <p class="text-[10px] text-indigo-500">קוד: ${m.group_code} · ${m.phone || 'ללא טלפון'}</p>
+                        <p class="text-xs font-black text-indigo-800">${safeStr(displayName)}</p>
+                        <p class="text-[10px] text-indigo-500">${safeStr(groupLabel)} · ${m.phone || 'ללא טלפון'}</p>
                     </div>
-                    <button onclick="window._beautyLinkOneflow(${m.family_id}, this.dataset.n)" data-n="${(m.family_name||m.nickname||'').replace(/"/g,'&quot;')}" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
-                </div>`).join('');
+                    <button onclick="window._beautyLinkOneflow(${m.family_id}, ${idx})" class="text-[10px] font-bold bg-indigo-600 text-white px-2 py-1 rounded-lg">קשר</button>
+                </div>`;
+            }).join('');
         } else {
             resEl.innerHTML = '<p class="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>';
         }
     } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500">שגיאת תקשורת</p>'; }
 };
 
-window._beautyLinkOneflow = function(familyId, familyName) {
+window._beautyLinkOneflow = function(familyId, matchIdx) {
+    const m = (window._bncOneflowMatches || [])[matchIdx] || {};
+    const fullName = (m.first_name && m.last_name) ? `${m.first_name} ${m.last_name}` : (m.first_name || m.nickname || m.family_name || '');
+    const groupLabel = m.family_nickname || m.family_name || '';
+
+    // מילוי שדות אוטומטי
+    const setField = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val; };
+    setField('bnc-name', fullName);
+    setField('bnc-email', m.email || '');
+    setField('bnc-idnum', m.id_number || '');
+    if (m.birth_year && !document.getElementById('bnc-dob')?.value) {
+        document.getElementById('bnc-dob').value = `${m.birth_year}-01-01`;
+    }
+
     document.getElementById('bnc-oneflow-result').innerHTML = `
         <div class="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
             <i class="fa-solid fa-link text-green-600 text-sm"></i>
-            <div><p class="text-xs font-black text-green-800">יקושר ל-${familyName}</p>
-            <p class="text-[10px] text-green-600">הקישור יישמר עם הוספת הלקוח</p></div>
+            <div><p class="text-xs font-black text-green-800">${safeStr(fullName)} · ${safeStr(groupLabel)}</p>
+            <p class="text-[10px] text-green-600">השדות מולאו אוטומטית — ניתן לעדכן לפי הצורך</p></div>
         </div>`;
     window._bncLinkedFamilyId = familyId;
 };

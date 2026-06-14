@@ -12511,7 +12511,8 @@ app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
     try {
         const { phone, name } = req.query;
         if (!phone && !name) return res.json({ found: false });
-        let query = `SELECT u.id, u.nickname, u.phone, fg.id AS family_id, fg.name AS family_name, fg.group_code
+        let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
+                            fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname
                      FROM users u JOIN family_groups fg ON fg.id = u.group_id
                      WHERE fg.type='FAMILY'`;
         const vals = [];
