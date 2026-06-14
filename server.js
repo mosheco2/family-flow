@@ -12581,6 +12581,89 @@ app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message, businesses: [] }); }
 });
 
+app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, res) => {
+    try {
+        const familyGroupId = parseInt(req.params.familyGroupId);
+        const bizGroupId = parseInt(req.params.bizGroupId);
+        const [bizR, phoneR] = await Promise.all([
+            pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizGroupId]),
+            pool.query("SELECT phone FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1", [familyGroupId])
+        ]);
+        if (!bizR.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+        const bizType = bizR.rows[0].business_type;
+        const familyPhone = phoneR.rows[0]?.phone || null;
+        const result = { type: bizType, activity: {} };
+
+        if (bizType === 'beauty') {
+            const [apptR, rfqR] = await Promise.all([
+                pool.query(`SELECT ba.id, ba.status, ba.total_price, ba.created_at, ba.client_name,
+                                   MIN(bas.start_time) AS start_time,
+                                   json_agg(json_build_object('service_name',bas.service_name,'start_time',bas.start_time)) AS segments
+                            FROM beauty_appointments ba
+                            JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+                            JOIN beauty_client_records bcr ON bcr.id = ba.client_record_id
+                            WHERE ba.business_group_id=$1
+                              AND (bcr.client_phone=$2 OR bcr.client_family_id=$3)
+                            GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
+                    [bizGroupId, familyPhone, familyGroupId]),
+                pool.query(`SELECT id, status, service_description, preferred_date, created_at
+                            FROM beauty_rfq WHERE business_group_id=$1
+                              AND (client_phone=$2 OR client_family_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                    [bizGroupId, familyPhone, familyGroupId])
+            ]);
+            result.activity = { appointments: apptR.rows, rfqs: rfqR.rows };
+
+        } else if (bizType === 'sport' || bizType === 'gym') {
+            const [memR, checkR] = await Promise.all([
+                pool.query(`SELECT sm.id, sm.status, sm.start_date, sm.end_date, mpt.name AS type_name
+                            FROM sport_memberships sm
+                            LEFT JOIN membership_plan_types mpt ON mpt.id = sm.plan_type_id
+                            WHERE sm.business_group_id=$1 AND sm.member_group_id=$2
+                            ORDER BY sm.start_date DESC LIMIT 10`,
+                    [bizGroupId, familyGroupId]),
+                pool.query(`SELECT id, checked_in_at FROM sport_checkins
+                            WHERE business_group_id=$1 AND member_group_id=$2
+                            ORDER BY checked_in_at DESC LIMIT 30`,
+                    [bizGroupId, familyGroupId])
+            ]);
+            result.activity = { memberships: memR.rows, checkins: checkR.rows };
+
+        } else if (bizType === 'restaurant' || bizType === 'services') {
+            const ordR = await pool.query(`SELECT id, status, total_price, total, created_at
+                            FROM store_orders
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                [bizGroupId, familyPhone, familyGroupId]);
+            const quoteR = await pool.query(`SELECT id, quote_status AS status, created_at
+                            FROM store_orders
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                              AND order_type='quote'
+                            ORDER BY created_at DESC LIMIT 10`,
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+            result.activity = { orders: ordR.rows, quotes: quoteR.rows };
+
+        } else if (bizType === 'maintenance_repair') {
+            const scR = await pool.query(`SELECT id, status, issue_description, title, created_at
+                            FROM service_calls
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                [bizGroupId, familyPhone, familyGroupId]);
+            result.activity = { serviceCalls: scR.rows };
+
+        } else if (bizType === 'logistics') {
+            const loR = await pool.query(`SELECT id, order_number, status, delivery_address, created_at
+                            FROM logistics_orders
+                            WHERE business_group_id=$1 AND (customer_phone=$2 OR sender_group_id=$3)
+                            ORDER BY created_at DESC LIMIT 20`,
+                [bizGroupId, familyPhone, familyGroupId]);
+            result.activity = { logisticsOrders: loR.rows };
+        }
+
+        res.json(result);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/beauty/:bizId/clients', async (req, res) => {
     try {
         const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;

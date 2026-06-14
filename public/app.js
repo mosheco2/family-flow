@@ -8931,18 +8931,10 @@ async function loadMyActivities() {
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
-        await Promise.all([
-            fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json()).then(d => { _activityAllBiz = d.businesses || []; }),
-            _prefetchBeautyRfqs()
-        ]);
+        const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
+        _activityAllBiz = d.businesses || [];
 
-        // Always include beauty category for RFQ discovery
-        const hasBeauty = _activityAllBiz.some(b => b.business_type === 'beauty');
-        if (!hasBeauty) _activityAllBiz.push({ __phantom: true, business_type: 'beauty' });
-
-        const hasAny = _activityAllBiz.filter(b => !b.__phantom).length > 0
-            || window._beautyRfqState.businesses?.length > 0
-            || window._beautyRfqState.rfqs?.length > 0;
+        const hasAny = _activityAllBiz.length > 0;
 
         if (!hasAny) {
             el.innerHTML = `
@@ -8955,7 +8947,7 @@ async function loadMyActivities() {
         }
 
         // Build search + filter controls
-        const types = [...new Set(_activityAllBiz.filter(b => !b.__phantom).map(b => b.business_type || 'other'))];
+        const types = [...new Set(_activityAllBiz.map(b => b.business_type || 'other'))];
         const filterPills = ['all', ...types].map(t => {
             const cat = _ACTIVITY_CAT[t] || { icon: '🏢', label: t };
             return `<button class="act-filter-pill shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition ${t === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}" data-type="${t}" onclick="window._actFilter(this)">
@@ -8975,8 +8967,6 @@ async function loadMyActivities() {
             <div id="act-biz-list"></div>`;
 
         _actRender('all', '');
-
-        _renderFamilyBeautyRfqInline();
     } catch(e) {
         el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
     }
@@ -9002,7 +8992,6 @@ function _actRender(filterType, searchQ) {
     const q = (searchQ || '').trim().toLowerCase();
 
     const visible = _activityAllBiz.filter(b => {
-        if (b.__phantom) return true; // phantom for beauty RFQ
         if (filterType !== 'all' && (b.business_type || 'other') !== filterType) return false;
         if (q && !b.business_name?.toLowerCase().includes(q)) return false;
         return true;
@@ -9019,7 +9008,7 @@ function _actRender(filterType, searchQ) {
     let html = '';
     for (const [type, bizsOfType] of Object.entries(groups)) {
         const cat = _ACTIVITY_CAT[type] || { icon: '🏢', label: 'עסקים נוספים' };
-        const realBizs = bizsOfType.filter(b => !b.__phantom);
+        const realBizs = bizsOfType;
         const showHeader = filterType === 'all' || (Object.keys(groups).length > 1);
 
         html += `<div class="mb-5" data-cat="${type}">`;
@@ -9036,18 +9025,33 @@ function _actRender(filterType, searchQ) {
             const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
             const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
             const pendingBadge = b.status === 'pending' ? '<span class="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">ממתין לאישור</span>' : '';
-            html += `<div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                        <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
-                        ${pendingBadge}
+            const bizId = b.business_group_id;
+            const bizType = b.business_type || 'other';
+            html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white" data-biz-id="${bizId}">
+                <div class="flex items-center gap-3 p-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                            ${pendingBadge}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · מ-' + linkedDate : ''}</p>
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · לקוח מ-' + linkedDate : ''}</p>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition flex flex-col items-center gap-0.5">
+                            <i class="fa-solid fa-store text-xs"></i><span>חנות</span>
+                        </a>` : ''}
+                        <button onclick="window._bizQuickActions(${bizId},'${bizType}','${(b.business_name||'').replace(/'/g,"\\'")}','${b.group_code||''}')"
+                            class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white text-lg font-black flex items-center justify-center hover:opacity-90 transition shadow-sm">+</button>
+                        <button onclick="window._toggleBizAccordion(this,${bizId},'${bizType}')"
+                            class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition text-sm">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
                 </div>
-                ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition flex flex-col items-center gap-0.5">
-                    <i class="fa-solid fa-store text-xs"></i><span>חנות</span>
-                </a>` : ''}
+                <div class="biz-accordion hidden border-t border-slate-100">
+                    <div class="p-3 text-center text-xs text-slate-400"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</div>
+                </div>
             </div>`;
         }
 
@@ -9063,19 +9067,242 @@ function _actRender(filterType, searchQ) {
         </div>`;
     }
 
-    // Beauty RFQ discovery always appears at bottom, separated from business cards
-    const showBeautyRfq = filterType === 'all' || filterType === 'beauty';
-    if (showBeautyRfq) {
-        html += `<div class="mt-4 pt-4 border-t border-slate-100">
-            <div id="activities-beauty-rfq" class="space-y-2">
-                <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
-            </div>
-        </div>`;
+    listEl.innerHTML = html;
+}
+
+// ─── BIZ QUICK ACTIONS ────────────────────────────────────────────────────────
+
+const _BIZ_ACTIONS_MAP = {
+    beauty:             [{ icon:'📅', label:'קבע תור', action:'storefront' }, { icon:'💌', label:'ייעוץ מקדים', action:'beauty_rfq' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    sport:              [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    gym:                [{ icon:'💳', label:'רכוש מנוי', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    restaurant:         [{ icon:'🛒', label:'בצע הזמנה', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    maintenance_repair: [{ icon:'🔧', label:'פתח קריאת שירות', action:'service_call' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+    logistics:          [{ icon:'📦', label:'בקש הצעת מחיר', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }],
+};
+
+window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
+    const actions = _BIZ_ACTIONS_MAP[bizType] || [{ icon:'🌐', label:'בקר בחנות', action:'storefront' }, { icon:'✉️', label:'שלח הודעה', action:'message' }];
+    const storeUrl = groupCode ? `${window.location.origin}/storefront.html?store=${groupCode}` : null;
+    const btns = actions.map(a => {
+        let handler = '';
+        if (a.action === 'storefront' && storeUrl) handler = `window.open('${storeUrl}','_blank');document.getElementById('biz-qs-sheet')?.remove()`;
+        else if (a.action === 'beauty_rfq') handler = `document.getElementById('biz-qs-sheet')?.remove();window._familyNewRfqModal&&window._familyNewRfqModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}',null)`;
+        else if (a.action === 'service_call') handler = `document.getElementById('biz-qs-sheet')?.remove();window._openServiceCallForm&&window._openServiceCallForm(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else if (a.action === 'message') handler = `document.getElementById('biz-qs-sheet')?.remove();window._bizMessageModal(${bizGroupId},'${bizName.replace(/'/g,"\\'")}')`;
+        else handler = `document.getElementById('biz-qs-sheet')?.remove()`;
+        return `<button onclick="${handler}" class="flex items-center gap-3 w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 transition">
+            <span class="text-xl">${a.icon}</span>${a.label}
+        </button>`;
+    }).join('');
+    const sheet = document.createElement('div');
+    sheet.id = 'biz-qs-sheet';
+    sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;direction:rtl;';
+    sheet.innerHTML = `<div style="background:white;border-radius:24px 24px 0 0;padding:20px;width:100%;max-width:480px;margin:0 auto;">
+        <div style="width:40px;height:4px;background:#e2e8f0;border-radius:4px;margin:0 auto 16px;"></div>
+        <p style="font-weight:900;font-size:14px;color:#1e293b;margin-bottom:12px;">פעולות מהירות — ${safeStr(bizName)}</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">${btns}</div>
+        <button onclick="document.getElementById('biz-qs-sheet')?.remove()" style="width:100%;margin-top:12px;padding:12px;background:#f1f5f9;border:none;border-radius:16px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+    </div>`;
+    sheet.addEventListener('click', e => { if (e.target === sheet) sheet.remove(); });
+    document.body.appendChild(sheet);
+};
+
+window._bizMessageModal = function(bizGroupId, bizName) {
+    const modal = document.createElement('div');
+    modal.id = 'biz-msg-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:400px;">
+        <p style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:4px;">✉️ שלח הודעה ל-${safeStr(bizName)}</p>
+        <p style="font-size:11px;color:#94a3b8;margin-bottom:16px;">ההודעה תגיע ל-Inbox של העסק</p>
+        <textarea id="biz-msg-text" rows="4" placeholder="כתוב את הודעתך כאן..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;resize:none;box-sizing:border-box;outline:none;"></textarea>
+        <div id="biz-msg-err" style="display:none;color:#dc2626;font-size:12px;margin-top:6px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="document.getElementById('biz-msg-modal')?.remove()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:14px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
+            <button onclick="window._sendBizMessage(${bizGroupId})" style="flex:2;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:14px;font-weight:900;font-size:13px;cursor:pointer;">שלח הודעה ✉️</button>
+        </div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+    document.getElementById('biz-msg-text')?.focus();
+};
+
+window._sendBizMessage = async function(bizGroupId) {
+    const txt = document.getElementById('biz-msg-text')?.value?.trim();
+    const errEl = document.getElementById('biz-msg-err');
+    if (!txt) { if(errEl) { errEl.textContent = 'נא לכתוב הודעה'; errEl.style.display = 'block'; } return; }
+    const btn = document.querySelector('#biz-msg-modal button:last-child');
+    if (btn) { btn.disabled = true; btn.textContent = 'שולח...'; }
+    try {
+        const r = await fetch(`${API}/inbox/customer`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח ONEFLOW', content: txt })
+        }).then(r => r.json());
+        if (r.success) {
+            document.getElementById('biz-msg-modal')?.remove();
+            showToast('success', 'ההודעה נשלחה ✅');
+        } else { if(errEl) { errEl.textContent = r.error || 'שגיאה בשליחה'; errEl.style.display = 'block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
+    } catch(e) { if(errEl){ errEl.textContent='שגיאת תקשורת'; errEl.style.display='block'; } if(btn){ btn.disabled=false; btn.textContent='שלח הודעה ✉️'; } }
+};
+
+// ─── BIZ ACCORDION ────────────────────────────────────────────────────────────
+
+window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
+    const wrapper = btn.closest('.biz-act-wrapper');
+    if (!wrapper) return;
+    const accordion = wrapper.querySelector('.biz-accordion');
+    if (!accordion) return;
+    const chevron = btn.querySelector('i');
+    const isOpen = !accordion.classList.contains('hidden');
+    if (isOpen) {
+        accordion.classList.add('hidden');
+        if (chevron) { chevron.classList.remove('fa-chevron-up'); chevron.classList.add('fa-chevron-down'); }
+        return;
+    }
+    accordion.classList.remove('hidden');
+    if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-up'); }
+    if (accordion.dataset.loaded) return; // already loaded
+    accordion.dataset.loaded = '1';
+    try {
+        const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
+        _renderBizAccordion(accordion, r, bizType);
+    } catch(e) {
+        accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
+    }
+};
+
+function _renderBizAccordion(el, data, bizType) {
+    const act = data.activity || {};
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
+    const fmtDateTime = d => d ? new Date(d).toLocaleString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+
+    // Build tabs + items per type
+    const tabs = [];
+    const sections = {};
+
+    if (bizType === 'beauty') {
+        const appts = act.appointments || [];
+        const rfqs  = act.rfqs || [];
+        tabs.push({ id:'all', label:'הכל' }, { id:'appts', label:`תורים (${appts.length})` }, { id:'rfqs', label:`ייעוץ (${rfqs.length})` });
+        const apptHtml = appts.length ? appts.map(a => {
+            const seg = a.segments?.[0];
+            return `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center text-sm shrink-0">📅</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${seg?.service_name || 'טיפול'}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDateTime(a.start_time || a.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${a.status==='completed'?'bg-green-100 text-green-700':a.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${{completed:'הושלם',cancelled:'בוטל',pending:'ממתין',confirmed:'מאושר'}[a.status]||a.status}</span>
+            </div>`;
+        }).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין תורים</p>';
+        const rfqHtml = rfqs.length ? rfqs.map(r => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-sm shrink-0">💌</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${r.service_description || 'פנייה'}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(r.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">${r.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין פניות ייעוץ</p>';
+        sections.appts = apptHtml;
+        sections.rfqs  = rfqHtml;
+        sections.all   = (appts.length + rfqs.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : apptHtml + rfqHtml;
+
+    } else if (bizType === 'sport' || bizType === 'gym') {
+        const mems   = act.memberships || [];
+        const checks = act.checkins || [];
+        tabs.push({ id:'all', label:'הכל' }, { id:'membership', label:`מנוי (${mems.length})` }, { id:'checkins', label:`כניסות (${checks.length})` });
+        const memHtml = mems.length ? mems.map(m => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">💳</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">${m.type_name || 'מנוי'}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(m.start_date)} – ${fmtDate(m.end_date)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.status==='active'?'bg-green-100 text-green-700':'bg-slate-100 text-slate-500'}">${m.status==='active'?'פעיל':'לא פעיל'}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין מנוי</p>';
+        const checkHtml = checks.length ? checks.map(c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-sm shrink-0">✅</div>
+                <p class="text-xs text-slate-600 flex-1">${fmtDateTime(c.checked_in_at)}</p>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין כניסות</p>';
+        sections.membership = memHtml;
+        sections.checkins   = checkHtml;
+        sections.all = (mems.length + checks.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : memHtml + checkHtml;
+
+    } else if (bizType === 'restaurant' || bizType === 'services') {
+        const orders = act.orders || [];
+        const quotes = act.quotes || [];
+        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`הזמנות (${orders.length})` }, { id:'quotes', label:`הצעות (${quotes.length})` });
+        const ordHtml = orders.length ? orders.map(o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🛒</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">הזמנה #${o.id}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(o.created_at)} · ₪${parseFloat(o.total_price||o.total||0).toFixed(0)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">${o.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הזמנות</p>';
+        const qHtml = quotes.length ? quotes.map(q => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center text-sm shrink-0">📋</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">הצעה #${q.id}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(q.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">${q.quote_status||q.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין הצעות</p>';
+        sections.orders = ordHtml;
+        sections.quotes = qHtml;
+        sections.all = (orders.length + quotes.length === 0) ? '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>' : ordHtml + qHtml;
+
+    } else if (bizType === 'maintenance_repair') {
+        const calls = act.serviceCalls || [];
+        tabs.push({ id:'all', label:'הכל' }, { id:'calls', label:`קריאות (${calls.length})` });
+        const callsHtml = calls.length ? calls.map(c => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-sm shrink-0">🔧</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${c.issue_description||c.title||'קריאת שירות'}</p>
+                    <p class="text-[10px] text-slate-400">${fmtDate(c.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.status==='done'?'bg-green-100 text-green-700':c.status==='cancelled'?'bg-red-100 text-red-600':'bg-blue-100 text-blue-700'}">${{new:'חדש',scheduled:'נקבע',processing:'בטיפול',done:'הושלם',cancelled:'בוטל',quote:'הצעה'}[c.status]||c.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין קריאות שירות</p>';
+        sections.calls = callsHtml;
+        sections.all   = calls.length ? callsHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
+
+    } else if (bizType === 'logistics') {
+        const orders = act.logisticsOrders || [];
+        tabs.push({ id:'all', label:'הכל' }, { id:'orders', label:`משלוחים (${orders.length})` });
+        const ordHtml = orders.length ? orders.map(o => `<div class="flex items-center gap-2 py-2 border-b border-slate-50 last:border-0">
+                <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-sm shrink-0">📦</div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700">${o.order_number||('#'+o.id)}</p>
+                    <p class="text-[10px] text-slate-400">${o.delivery_address||''} · ${fmtDate(o.created_at)}</p>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">${o.status||''}</span>
+            </div>`).join('') : '<p class="text-xs text-slate-400 text-center py-3">אין משלוחים</p>';
+        sections.orders = ordHtml;
+        sections.all    = orders.length ? ordHtml : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
+
+    } else {
+        tabs.push({ id:'all', label:'הכל' });
+        sections.all = '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>';
     }
 
-    listEl.innerHTML = html;
-    if (showBeautyRfq) _renderFamilyBeautyRfqInline();
-}
+    const tabPills = tabs.map((t, i) => `<button class="biz-acc-tab shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition ${i===0?'bg-indigo-600 text-white border-indigo-600':'bg-white text-slate-500 border-slate-200'}" data-tab="${t.id}" onclick="window._switchBizTab(this,'${t.id}')">${t.label}</button>`).join('');
+
+    el.innerHTML = `<div class="p-3">
+        <div class="flex gap-2 mb-3 hide-scrollbar overflow-x-auto">${tabPills}</div>
+        <div class="biz-acc-content">${sections[tabs[0].id] || ''}</div>
+    </div>`;
+    el._sections = sections;
+};
+
+window._switchBizTab = function(btn, tabId) {
+    const acc = btn.closest('.biz-accordion');
+    if (!acc) return;
+    acc.querySelectorAll('.biz-acc-tab').forEach(b => {
+        b.className = b.className.replace('bg-indigo-600 text-white border-indigo-600', 'bg-white text-slate-500 border-slate-200');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-500 border-slate-200', 'bg-indigo-600 text-white border-indigo-600');
+    const content = acc.querySelector('.biz-acc-content');
+    if (content && acc._sections) content.innerHTML = acc._sections[tabId] || '';
+};
 
 // ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================
 // ============================================================
