@@ -33278,22 +33278,78 @@ window._beautyCheckOneflow = async function() {
             }).join('');
         } else {
             const searchedPhone = document.getElementById('bnc-phone')?.value?.trim() || '';
-            const bizName = currentGroup?.name || 'העסק';
-            const registrationUrl = window.location.origin + '/';
-            const waMsg = encodeURIComponent(`היי! ${bizName} מזמינים אותך להצטרף ל-ONEFLOW LIFE.\nהרשם בקישור: ${registrationUrl}\n(בהרשמה בחר "חבר")`);
-            const waPhone = searchedPhone.replace(/^0/, '972').replace(/\D/g, '');
-            const waHref = `https://wa.me/${waPhone}?text=${waMsg}`;
+            const searchedName  = document.getElementById('bnc-name')?.value?.trim()  || '';
             resEl.innerHTML = `
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-                    <p class="text-xs text-slate-500 font-bold">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>
-                    ${searchedPhone ? `<a href="${waHref}" target="_blank" rel="noopener" class="flex items-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
-                        <i class="fa-brands fa-whatsapp text-sm"></i>
-                        שלח קישור הרשמה ב-WhatsApp
-                    </a>` : ''}
-                    <p class="text-[10px] text-slate-400 text-center">לאחר הרשמה, תוכל לחפש שוב ולקשר את הלקוח</p>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                    <p class="text-xs text-amber-700 font-bold">לא נמצא לקוח ONEFLOW LIFE עם הפרטים האלה</p>
+                    <p class="text-[10px] text-amber-600">ניתן ליצור חשבון חבר חדש ישירות — המערכת תיצור חשבון ותשלח פרטי כניסה ב-WhatsApp</p>
+                    <button onclick="window._beautyCreateMemberAccount()" class="flex items-center gap-2 w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl px-3 py-2 text-xs font-bold transition">
+                        <i class="fa-solid fa-user-plus text-sm"></i>
+                        צור חשבון ONEFLOW וקשר ללקוח
+                    </button>
+                    <p class="text-[10px] text-slate-400 text-center">או המשך להוסיף ללא קישור ONEFLOW</p>
                 </div>`;
         }
     } catch(e) { resEl.innerHTML = '<p class="text-xs text-red-500">שגיאת תקשורת</p>'; }
+};
+
+window._beautyCreateMemberAccount = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name  = document.getElementById('bnc-name')?.value?.trim();
+    const phone = document.getElementById('bnc-phone')?.value?.trim();
+    const resEl = document.getElementById('bnc-oneflow-result');
+    if (!name || !phone) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">נא למלא שם וטלפון לפני יצירת החשבון</p>'; return; }
+    if(resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> יוצר חשבון...</p>';
+    try {
+        const r = await fetch(`${API}/member/create-for-business`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_group_id: biz, name, phone, member_ref_id: null, admin_name: currentGroup?.name || '' })
+        }).then(r => r.json());
+        if (!r.success) { if(resEl) resEl.innerHTML = `<p class="text-xs text-red-500 p-2">${r.error||'שגיאה ביצירת החשבון'}</p>`; return; }
+        // מלא את השדה "קישור" בטופס
+        window._bncLinkedFamilyId = r.member_group_id;
+        if (r.is_new) {
+            const waText = encodeURIComponent(`שלום ${name}! נוצר לך חשבון אישי ב-ONEFLOW LIFE 🎉
+
+פרטי כניסה:
+קוד: ${r.group_code}
+שם: ${name}
+סיסמה: ${r.password}
+
+כנס בכתובת: ${window.location.origin}`);
+            const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
+            if(resEl) resEl.innerHTML = `
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-violet-600"></i>
+                        <p class="text-xs font-black text-violet-800">חשבון ONEFLOW נוצר וקושר ✅</p>
+                    </div>
+                    <div class="bg-white rounded-lg px-2 py-1.5 border border-violet-100 font-mono text-xs space-y-0.5">
+                        <div>קוד: <b>${r.group_code}</b></div>
+                        <div>שם: <b>${safeStr(name)}</b></div>
+                        <div>סיסמה: <b>${r.password}</b></div>
+                    </div>
+                    <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold">
+                       <i class="fa-brands fa-whatsapp"></i> שלח פרטי כניסה ב-WhatsApp
+                    </a>
+                </div>`;
+        } else {
+            const waText = encodeURIComponent(`שלום ${name}! ${currentGroup?.name||'העסק'} קישר אותך ל-ONEFLOW LIFE 🔗
+
+התחבר בכתובת: ${window.location.origin}
+עם קוד: ${r.group_code}`);
+            const waPhone = phone.replace(/^0/, '972').replace(/\D/g, '');
+            if(resEl) resEl.innerHTML = `
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                    <p class="text-xs font-black text-violet-800">קושר לחשבון קיים ✅</p>
+                    <a href="https://wa.me/${waPhone}?text=${waText}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2 w-full bg-[#25D366] text-white rounded-xl px-3 py-2 text-xs font-bold">
+                       <i class="fa-brands fa-whatsapp"></i> שלח עדכון ב-WhatsApp
+                    </a>
+                </div>`;
+        }
+    } catch(e) { if(resEl) resEl.innerHTML = '<p class="text-xs text-red-500 p-2">שגיאת תקשורת</p>'; }
 };
 
 window._beautyLinkOneflow = function(familyId, matchIdx) {
