@@ -33382,8 +33382,10 @@ window._beautySubmitNewAp = async function() {
         }).then(r=>r.json());
         if (r.id || r.success || r.appointment) {
             document.getElementById('beauty-new-ap-modal')?.remove();
-            const isPending = (r.status === 'pending_client') || ((r.appointment || r).status === 'pending_client');
-            showToast('success', isPending ? 'תור נשלח ללקוח לאישור ⏳' : 'תור נקבע בהצלחה! 💅');
+            const saved = r.appointment || r;
+            const isPending = saved.status === 'pending_client';
+            const familyTag = saved.client_family_id ? ` [F:${saved.client_family_id}]` : '';
+            showToast('success', isPending ? `תור נשלח ללקוח לאישור ⏳${familyTag}` : 'תור נקבע בהצלחה! 💅');
             loadBeautyCalendar();
         } else {
             showToast('error', r.error || 'שגיאה ביצירת תור');

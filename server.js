@@ -12848,6 +12848,13 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                                     AND ba.client_phone IS NOT NULL
                                     AND REGEXP_REPLACE(bcr2.client_phone,'[^0-9]','','g')=REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')
                                 )
+                                OR EXISTS (
+                                  SELECT 1 FROM users u2
+                                  WHERE u2.group_id=$3
+                                    AND ba.client_phone IS NOT NULL
+                                    AND u2.phone IS NOT NULL
+                                    AND REGEXP_REPLACE(u2.phone,'[^0-9]','','g')=REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')
+                                )
                               )
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),

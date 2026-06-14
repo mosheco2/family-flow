@@ -9221,6 +9221,8 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
         const pendingCount = (r.activity?.appointments || []).filter(a => a.status === 'pending_client').length;
         const badge = document.getElementById(`biz-appt-pending-badge-${bizGroupId}`);
         if (badge) pendingCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+        // Debug: show group ID so business can compare with toast's [F:xxx]
+        console.log(`[DEBUG] family/biz-activity: familyGroupId=${currentGroup.id} bizGroupId=${bizGroupId} appts=${(r.activity?.appointments||[]).length} pending=${pendingCount}`);
     } catch(e) {
         accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
     }
