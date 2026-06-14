@@ -1082,6 +1082,27 @@ async function loadDashboard() {
     }
 }
 
+async function checkGlobalWelcome() {
+    try {
+        const res = await fetch(`${API}/settings/welcome`);
+        const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser?.id}_${currentGroup?.group_code}`);
+            if (seen !== data.message) {
+                const textEl = document.getElementById('welcome-modal-text');
+                const modalEl = document.getElementById('welcome-modal');
+                if (textEl && modalEl) {
+                    textEl.innerText = data.message;
+                    modalEl.classList.remove('hidden');
+                    window.pendingWelcomeMsg = data.message;
+                    return true;
+                }
+            }
+        }
+    } catch(e) {}
+    return false;
+}
+
 function showForcePasswordChange() {
     const existing = document.getElementById('force-pw-overlay');
     if (existing) existing.remove();
