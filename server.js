@@ -12870,7 +12870,18 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             ORDER BY event_date DESC, start_time DESC LIMIT 20`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
+            // DEBUG: fetch recent raw appointments for this business to diagnose mismatches
+            const dbgR = await pool.query(
+                `SELECT ba.id, ba.status, ba.client_family_id, ba.client_phone, ba.business_group_id,
+                        COUNT(bas.id) AS seg_count
+                 FROM beauty_appointments ba
+                 LEFT JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
+                 WHERE ba.business_group_id=$1
+                 GROUP BY ba.id ORDER BY ba.created_at DESC LIMIT 5`,
+                [bizGroupId]
+            ).catch(() => ({ rows: [] }));
             result.activity = { appointments: apptR.rows, rfqs: rfqR.rows, calendarEvents: calR.rows };
+            result._debug = { familyGroupId, bizGroupId, familyPhone, recentAppts: dbgR.rows };
 
         } else if (bizType === 'sport' || bizType === 'gym') {
             const [memR, checkR] = await Promise.all([
