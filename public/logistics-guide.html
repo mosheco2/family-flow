@@ -343,6 +343,7 @@ mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
   <a class="nav-link" href="#pod" onclick="setActive(this)"><span class="nav-icon">📷</span> אישור מסירה POD</a>
   <a class="nav-link" href="#rfq" onclick="setActive(this)"><span class="nav-icon">💬</span> הצעת מחיר RFQ</a>
   <a class="nav-link" href="#tracking" onclick="setActive(this)"><span class="nav-icon">📍</span> מעקב לקוח</a>
+  <a class="nav-link" href="#routes" onclick="setActive(this)"><span class="nav-icon">🗺️</span> מסלולי חלוקה</a>
   <a class="nav-link" href="#reports" onclick="setActive(this)"><span class="nav-icon">📈</span> דוחות</a>
 
   <div class="sidebar-section-label">חיבורים</div>
@@ -365,6 +366,7 @@ mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
     <span class="chip" onclick="goTo('#pod',this)">📷 POD</span>
     <span class="chip" onclick="goTo('#rfq',this)">💬 RFQ</span>
     <span class="chip" onclick="goTo('#tracking',this)">📍 מעקב</span>
+    <span class="chip" onclick="goTo('#routes',this)">🗺️ מסלולים</span>
     <span class="chip" onclick="goTo('#oneflow',this)">🔗 ONEFLOW</span>
     <span class="chip" onclick="goTo('#faq',this)">❓ FAQ</span>
   </div>
@@ -1116,9 +1118,97 @@ mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
           </div>
         </div>
 
+        <div class="screen-section">
+          <div class="screen-section-title">🔗 טאב "לינקי מעקב" — ניהול ריכוזי</div>
+          <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:0.75rem">בטאב <strong>לינקי מעקב</strong> תוכלו לנהל את כל לינקי המעקב הפעילים:</p>
+          <div class="steps" style="margin-top:0">
+            <div class="step">
+              <div class="step-num">🔗</div>
+              <div>
+                <div class="step-title">יצירת לינק לכל הזמנה</div>
+                <div class="step-desc">לחצו "צור לינק מעקב" על כל הזמנה — המערכת מייצרת token ייחודי חד-פעמי ושומרת אותו.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">📋</div>
+              <div>
+                <div class="step-title">העתקה ושיתוף מיידי</div>
+                <div class="step-desc">לחצו "העתק לינק" — הלינק נכנס ללוח. שלחו ב-SMS / WhatsApp ישירות ללקוח.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">👁️</div>
+              <div>
+                <div class="step-title">פתיחה בדפדפן</div>
+                <div class="step-desc">לחצו "פתח" כדי לראות בדיוק מה הלקוח רואה — שקיפות מלאה.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="callout callout-info">
           <span class="callout-icon">ℹ️</span>
           <div>לקוחות ONEFLOW LIFE מקבלים Push לאפליקציה במקום SMS — חינם, ללא עלות לשליחה, עם אינטראקטיביות מלאה.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- מסלולי חלוקה -->
+    <div class="section-card" id="routes">
+      <div class="card-header">
+        <div class="card-icon" style="background:#dcfce7">🗺️</div>
+        <div>
+          <div class="card-title">מסלולי חלוקה</div>
+          <div class="card-subtitle">ארגון עצירות לפי סדר אופטימלי — הגיעו יותר, עם פחות ק"מ</div>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">יצירת מסלול יומי</div>
+              <div class="step-desc">לחצו "מסלול חדש", בחרו תאריך, שייכו נהג ורכב — ותנו שם לזיהוי (לדוגמה: "מסלול צפון — יום שלישי").</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">הוספת עצירות למסלול</div>
+              <div class="step-desc">פתחו את פרטי המסלול ← הוסיפו הזמנות לפי ID ← הגדירו סדר עצירות ו-ETA לכל נקודה (לדוגמה: "14:30").</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">הפעלת המסלול</div>
+              <div class="step-desc">לחצו "הפעל" — המסלול עובר לסטטוס פעיל. הנהג רואה את העצירות לפי הסדר שהוגדר ב-Driver Companion.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-title">סיכום ביצוע</div>
+              <div class="step-desc">בסיום היום — לחצו "סיים מסלול". המערכת שומרת את כל הנתונים לדוח ביצועים.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screen-section" style="margin-top:1.25rem">
+          <div class="screen-section-title">📋 מה רואה הנהג בכל עצירה?</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <div class="field-row"><div class="field-name">מספר עצירה</div><div class="field-desc">1 מתוך 9 — מחוון ויזואלי בראש הכרטיסייה</div></div>
+            <div class="field-row"><div class="field-name">שם + כתובת</div><div class="field-desc">ישירות לניווט Waze/Google Maps בלחיצה אחת</div></div>
+            <div class="field-row"><div class="field-name">ETA</div><div class="field-desc">שעת הגעה משוערת שהוגדרה על ידי הסדרן</div></div>
+            <div class="field-row"><div class="field-name">COD</div><div class="field-desc">כמה לגבות בשטח — מסומן בצבע כתום</div></div>
+            <div class="field-row"><div class="field-name">סטטוס הזמנה</div><div class="field-desc">נמסר / בדרך / לא ענה — בזמן אמת</div></div>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <span class="callout-icon">💡</span>
+          <div>ניתן לנהל כמה מסלולים במקביל לאותו יום — מסלול אחד לכל נהג. כל מסלול עצמאי ולא מתנגש עם האחרים.</div>
         </div>
       </div>
     </div>
