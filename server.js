@@ -3585,12 +3585,19 @@ app.post('/api/users/:id/password', async (req, res) => {
 // First-login password set (for member accounts created by business — no old password required)
 app.post('/api/users/:id/set-first-password', async (req, res) => {
     try {
-        const { newPassword } = req.body;
+        const { newPassword, id_number, email, birth_year } = req.body;
         if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'סיסמה חייבת להכיל לפחות 4 תווים' });
         const u = await pool.query('SELECT must_change_password FROM users WHERE id=$1', [req.params.id]);
         if (!u.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
         if (!u.rows[0].must_change_password) return res.status(403).json({ error: 'לא ניתן לאפס סיסמה בשלב זה' });
-        await pool.query('UPDATE users SET password_hash=$1, must_change_password=false WHERE id=$2', [newPassword, req.params.id]);
+        const sets = ['password_hash=$1', 'must_change_password=false'];
+        const vals = [newPassword];
+        if (id_number !== undefined && String(id_number).trim() !== '') { vals.push(String(id_number).trim()); sets.push(`id_number=$${vals.length}`); }
+        if (email !== undefined && String(email).trim() !== '') { vals.push(String(email).trim().toLowerCase()); sets.push(`email=$${vals.length}`); }
+        const by = parseInt(birth_year);
+        if (!isNaN(by) && by >= 1920 && by <= 2020) { vals.push(by); sets.push(`birth_year=$${vals.length}`); }
+        vals.push(req.params.id);
+        await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

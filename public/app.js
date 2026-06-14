@@ -1087,24 +1087,45 @@ function showForcePasswordChange() {
     if (existing) existing.remove();
     const el = document.createElement('div');
     el.id = 'force-pw-overlay';
-    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;overflow-y:auto;';
+    const prefillId = currentUser?.id_number || '';
+    const prefillEmail = currentUser?.email || '';
+    const prefillYear = currentUser?.birth_year || '';
     el.innerHTML = `
-        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;">
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;margin:auto;">
             <div style="text-align:center;margin-bottom:20px;">
                 <div style="font-size:40px;margin-bottom:8px;">🔐</div>
                 <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW!</div>
-                <div style="font-size:12px;color:#64748b;margin-top:6px;">נא לבחור סיסמה אישית לפני הכניסה למערכת</div>
+                <div style="font-size:12px;color:#64748b;margin-top:6px;">אנא מלא את הפרטים לפני הכניסה למערכת</div>
             </div>
             <div id="force-pw-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
-            <div style="margin-bottom:14px;">
-                <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">סיסמה חדשה (לפחות 4 תווים)</label>
-                <input id="force-pw-new" type="password" placeholder="הקלד סיסמה חדשה..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+            <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:800;color:#6366f1;margin-bottom:12px;display:flex;align-items:center;gap:6px;">🔑 בחירת סיסמה</div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">סיסמה חדשה (לפחות 4 תווים)</label>
+                    <input id="force-pw-new" type="password" placeholder="הקלד סיסמה חדשה..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">אימות סיסמה</label>
+                    <input id="force-pw-confirm" type="password" placeholder="הקלד שוב..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
             </div>
-            <div style="margin-bottom:20px;">
-                <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">אימות סיסמה</label>
-                <input id="force-pw-confirm" type="password" placeholder="הקלד שוב..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+            <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:20px;">
+                <div style="font-size:11px;font-weight:800;color:#0891b2;margin-bottom:12px;display:flex;align-items:center;gap:6px;">👤 פרטים אישיים</div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">מספר תעודת זהות</label>
+                    <input id="force-pw-idnum" type="text" inputmode="numeric" placeholder="9 ספרות..." value="${prefillId}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">כתובת אימייל</label>
+                    <input id="force-pw-email" type="email" inputmode="email" placeholder="example@gmail.com" value="${prefillEmail}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;direction:ltr;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">שנת לידה</label>
+                    <input id="force-pw-year" type="number" inputmode="numeric" min="1920" max="2020" placeholder="לדוגמה: 1990" value="${prefillYear}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
             </div>
-            <button onclick="window._submitForcePassword()" style="width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">שמור סיסמה והמשך →</button>
+            <button onclick="window._submitForcePassword()" style="width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">שמור והמשך ←</button>
         </div>`;
     document.body.appendChild(el);
     document.getElementById('force-pw-new')?.focus();
@@ -1113,32 +1134,49 @@ function showForcePasswordChange() {
 window._submitForcePassword = async function() {
     const np = document.getElementById('force-pw-new')?.value?.trim();
     const cp = document.getElementById('force-pw-confirm')?.value?.trim();
+    const idNum = document.getElementById('force-pw-idnum')?.value?.trim() || '';
+    const email = document.getElementById('force-pw-email')?.value?.trim() || '';
+    const year = document.getElementById('force-pw-year')?.value?.trim() || '';
     const errEl = document.getElementById('force-pw-error');
     const showErr = (msg) => { if(errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
     if (!np || np.length < 4) { showErr('סיסמה חייבת להכיל לפחות 4 תווים'); return; }
     if (np !== cp) { showErr('הסיסמאות אינן תואמות'); return; }
+    if (year && (isNaN(parseInt(year)) || parseInt(year) < 1920 || parseInt(year) > 2020)) { showErr('שנת לידה לא תקינה (1920–2020)'); return; }
     if (errEl) errEl.style.display = 'none';
     const btn = document.querySelector('#force-pw-overlay button');
     if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
     try {
+        const payload = { newPassword: np };
+        if (idNum) payload.id_number = idNum;
+        if (email) payload.email = email;
+        if (year) payload.birth_year = parseInt(year);
         const r = await fetch(`${API}/users/${currentUser.id}/set-first-password`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ newPassword: np })
+            body: JSON.stringify(payload)
         }).then(r => r.json());
         if (r.success) {
             currentUser.must_change_password = false;
+            if (idNum) currentUser.id_number = idNum;
+            if (email) currentUser.email = email;
+            if (year) currentUser.birth_year = parseInt(year);
             const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
-            if (s.user) { s.user.must_change_password = false; localStorage.setItem('ofl_session', JSON.stringify(s)); }
+            if (s.user) {
+                s.user.must_change_password = false;
+                if (idNum) s.user.id_number = idNum;
+                if (email) s.user.email = email;
+                if (year) s.user.birth_year = parseInt(year);
+                localStorage.setItem('ofl_session', JSON.stringify(s));
+            }
             document.getElementById('force-pw-overlay')?.remove();
-            showToast('success', 'הסיסמה עודכנה בהצלחה! ✅');
+            showToast('success', 'הפרטים נשמרו בהצלחה! ✅');
             try { await checkGlobalWelcome(); } catch(e) {}
         } else {
-            showErr(r.error || 'שגיאה בשמירת הסיסמה');
-            if (btn) { btn.disabled = false; btn.textContent = 'שמור סיסמה והמשך →'; }
+            showErr(r.error || 'שגיאה בשמירת הפרטים');
+            if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך ←'; }
         }
     } catch(e) {
         showErr('שגיאת תקשורת — נסה שוב');
-        if (btn) { btn.disabled = false; btn.textContent = 'שמור סיסמה והמשך →'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'שמור והמשך ←'; }
     }
 };
 
