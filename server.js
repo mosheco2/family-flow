@@ -12646,12 +12646,12 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             WHERE ba.business_group_id=$1
                               AND (bcr.client_phone=$2 OR bcr.client_family_id=$3)
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
-                    [bizGroupId, familyPhone, familyGroupId]),
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
                               AND (client_phone=$2 OR client_family_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                    [bizGroupId, familyPhone, familyGroupId])
+                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
             result.activity = { appointments: apptR.rows, rfqs: rfqR.rows };
 
@@ -12662,11 +12662,11 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             LEFT JOIN membership_plan_types mpt ON mpt.id = sm.plan_type_id
                             WHERE sm.business_group_id=$1 AND sm.member_group_id=$2
                             ORDER BY sm.start_date DESC LIMIT 10`,
-                    [bizGroupId, familyGroupId]),
+                    [bizGroupId, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, checked_in_at FROM sport_checkins
                             WHERE business_group_id=$1 AND member_group_id=$2
                             ORDER BY checked_in_at DESC LIMIT 30`,
-                    [bizGroupId, familyGroupId])
+                    [bizGroupId, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
             result.activity = { memberships: memR.rows, checkins: checkR.rows };
 
@@ -12675,7 +12675,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             FROM store_orders
                             WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                [bizGroupId, familyPhone, familyGroupId]);
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             const quoteR = await pool.query(`SELECT id, quote_status AS status, created_at
                             FROM store_orders
                             WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
@@ -12689,7 +12689,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             FROM service_calls
                             WHERE business_group_id=$1 AND (customer_phone=$2 OR customer_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                [bizGroupId, familyPhone, familyGroupId]);
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             result.activity = { serviceCalls: scR.rows };
 
         } else if (bizType === 'logistics') {
@@ -12697,18 +12697,19 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             FROM logistics_orders
                             WHERE business_group_id=$1 AND (customer_phone=$2 OR sender_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                [bizGroupId, familyPhone, familyGroupId]);
+                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
             result.activity = { logisticsOrders: loR.rows };
         }
 
         // הודעות (inbox) — כל סוגי עסקים
         const msgsR = await pool.query(
-            `SELECT id, sender_type, sender_name, content, direction, created_at
+            `SELECT id, sender_type, sender_name, content,
+                    COALESCE(direction,'inbound') AS direction, created_at
              FROM inbox_messages
              WHERE group_id=$1 AND customer_group_id=$2
              ORDER BY created_at ASC LIMIT 30`,
             [bizGroupId, familyGroupId]
-        );
+        ).catch(() => ({ rows: [] }));
         result.activity.messages = msgsR.rows;
 
         // calendar_events — תורים שנקבעו דרך החנות הציבורית (כל סוגי עסקים)
@@ -12720,7 +12721,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
              WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone=$3)
              ORDER BY ce.event_date DESC, ce.start_time DESC LIMIT 20`,
             [bizGroupId, familyGroupId, familyPhone || '']
-        );
+        ).catch(() => ({ rows: [] }));
         result.activity.calendarEvents = calR.rows;
 
         // ציר זמן מאוחד (log) — כל האינטרקציות כרונולוגיות
