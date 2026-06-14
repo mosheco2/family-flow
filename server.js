@@ -1062,6 +1062,52 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_inv_biz ON beauty_inventory(business_group_id, inventory_type)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_rfq_biz ON beauty_rfq(business_group_id, status)`); } catch(e) {}
       try { await client.query(`ALTER TABLE beauty_client_records ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+
+      // ── Beauty service catalog ──────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_service_catalog (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(150) NOT NULL,
+        category            VARCHAR(50) DEFAULT 'general',
+        duration_minutes    INT NOT NULL DEFAULT 60,
+        price               DECIMAL(10,2) NOT NULL DEFAULT 0,
+        description         TEXT,
+        color_hex           VARCHAR(7) DEFAULT '#6366f1',
+        requires_patch_test BOOLEAN DEFAULT FALSE,
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_svc_biz ON beauty_service_catalog(business_group_id, is_active)`); } catch(e) {}
+
+      // ── Beauty subscription types (packages) ───────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_subscription_types (
+        id                  SERIAL PRIMARY KEY,
+        business_group_id   INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        name                VARCHAR(150) NOT NULL,
+        description         TEXT,
+        sessions_count      INT NOT NULL DEFAULT 5,
+        price               DECIMAL(10,2) NOT NULL DEFAULT 0,
+        validity_days       INT DEFAULT 365,
+        service_ids         JSONB DEFAULT '[]',
+        is_active           BOOLEAN DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+
+      // ── Client purchased subscriptions ─────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_client_subscriptions (
+        id                      SERIAL PRIMARY KEY,
+        business_group_id       INT REFERENCES family_groups(id) ON DELETE CASCADE,
+        client_record_id        INT REFERENCES beauty_client_records(id) ON DELETE CASCADE,
+        subscription_type_id    INT REFERENCES beauty_subscription_types(id) ON DELETE SET NULL,
+        subscription_name       VARCHAR(150),
+        sessions_total          INT NOT NULL DEFAULT 5,
+        sessions_used           INT DEFAULT 0,
+        purchase_date           DATE DEFAULT CURRENT_DATE,
+        expires_at              DATE,
+        is_active               BOOLEAN DEFAULT TRUE,
+        created_at              TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_sub_client ON beauty_client_subscriptions(client_record_id, is_active)`); } catch(e) {}
       // ===== END BEAUTY & COSMETICS MODULE =====
 
       // ===== LOGISTICS / DISTRIBUTION / DELIVERY MODULE =====
@@ -12733,6 +12779,126 @@ app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
             [req.params.familyId]
         );
         res.json({ rfqs: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY SERVICE CATALOG =====
+app.get('/api/beauty/:bizId/services', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=TRUE ORDER BY category, name`,
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/services', async (req, res) => {
+    try {
+        const { name, category, duration_minutes, price, description, color_hex, requires_patch_test } = req.body;
+        if (!name || !duration_minutes) return res.status(400).json({ error: 'name and duration required' });
+        const r = await pool.query(
+            `INSERT INTO beauty_service_catalog (business_group_id, name, category, duration_minutes, price, description, color_hex, requires_patch_test)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.bizId, name, category||'general', duration_minutes, price||0,
+             description||null, color_hex||'#6366f1', requires_patch_test||false]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
+    try {
+        const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id); vals.push(req.params.bizId);
+        await pool.query(`UPDATE beauty_service_catalog SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY SUBSCRIPTION TYPES =====
+app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT * FROM beauty_subscription_types WHERE business_group_id=$1 AND is_active=TRUE ORDER BY price`,
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
+    try {
+        const { name, description, sessions_count, price, validity_days, service_ids } = req.body;
+        if (!name || !sessions_count) return res.status(400).json({ error: 'name and sessions_count required' });
+        const r = await pool.query(
+            `INSERT INTO beauty_subscription_types (business_group_id, name, description, sessions_count, price, validity_days, service_ids)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [req.params.bizId, name, description||null, sessions_count, price||0,
+             validity_days||365, JSON.stringify(service_ids||[])]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
+    try {
+        const fields = ['name','description','sessions_count','price','validity_days','service_ids','is_active'];
+        const sets = []; const vals = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(f === 'service_ids' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); } });
+        if (!sets.length) return res.json({ success: true });
+        vals.push(req.params.id); vals.push(req.params.bizId);
+        await pool.query(`UPDATE beauty_subscription_types SET ${sets.join(',')} WHERE id=$${vals.length-1} AND business_group_id=$${vals.length}`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== BEAUTY CLIENT SUBSCRIPTIONS =====
+app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT bcs.*, bst.name AS type_name
+             FROM beauty_client_subscriptions bcs
+             LEFT JOIN beauty_subscription_types bst ON bst.id = bcs.subscription_type_id
+             WHERE bcs.client_record_id=$1 AND bcs.business_group_id=$2
+             ORDER BY bcs.is_active DESC, bcs.created_at DESC`,
+            [req.params.clientId, req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
+    try {
+        const { client_record_id, subscription_type_id, sessions_total, subscription_name, validity_days } = req.body;
+        if (!client_record_id || !sessions_total) return res.status(400).json({ error: 'client_record_id and sessions_total required' });
+        const expires = validity_days
+            ? new Date(Date.now() + validity_days * 86400000).toISOString().slice(0,10)
+            : new Date(Date.now() + 365 * 86400000).toISOString().slice(0,10);
+        const r = await pool.query(
+            `INSERT INTO beauty_client_subscriptions (business_group_id, client_record_id, subscription_type_id, subscription_name, sessions_total, expires_at)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [req.params.bizId, client_record_id, subscription_type_id||null, subscription_name||null, sessions_total, expires]
+        );
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `UPDATE beauty_client_subscriptions
+             SET sessions_used = sessions_used + 1,
+                 is_active = CASE WHEN sessions_used + 1 >= sessions_total THEN FALSE ELSE TRUE END
+             WHERE id=$1 AND business_group_id=$2 AND is_active=TRUE
+             RETURNING *`,
+            [req.params.id, req.params.bizId]
+        );
+        if (!r.rows[0]) return res.status(404).json({ error: 'subscription not found or depleted' });
+        res.json(r.rows[0]);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -1660,6 +1660,8 @@ function switchTab(t) {
     if (t === 'beauty_calendar') try { loadBeautyCalendar(); } catch(e) {}
     if (t === 'beauty_clients') try { loadBeautyClients(); } catch(e) {}
     if (t === 'beauty_inventory') try { loadBeautyInventory(); } catch(e) {}
+    if (t === 'beauty_services')      try { loadBeautyServices(); } catch(e) {}
+    if (t === 'beauty_subscriptions') try { loadBeautySubscriptions(); } catch(e) {}
     if (t === 'beauty_commissions') try { loadBeautyCommissions(); } catch(e) {}
     if (t === 'beauty_rfq')         try { loadBeautyRfq(); } catch(e) {}
     if (t === 'logistics_orders')   try { loadLogisticsOrders(); } catch(e) {}
@@ -2403,6 +2405,8 @@ const ALL_TABS = [
     { id: 'beauty_calendar',    name: 'יומן מטפלות 💆' },
     { id: 'beauty_clients',     name: 'תיקי לקוחות 📋' },
     { id: 'beauty_inventory',   name: 'מלאי מקצועי 🧴' },
+    { id: 'beauty_services',    name: 'שירותים וטיפולים 💎' },
+    { id: 'beauty_subscriptions', name: 'מנויים וחבילות 🎁' },
     { id: 'beauty_commissions', name: 'עמלות ושכר 💰' },
     { id: 'beauty_rfq',        name: 'ייעוץ ובקשות 💬' },
     { id: 'logistics_orders',   name: 'קנבן משלוחים 📦' },
@@ -25277,7 +25281,7 @@ const BUSINESS_TYPES = [
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
     { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','members','timeclock','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
-    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','pos','sales','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','members','timeclock','cashflow','tasks','pantry','shop'] },
+    { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','members','timeclock','cashflow','tasks','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts'] },
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop'] },
@@ -35128,6 +35132,365 @@ window._renderBeautyClients = function(search) {
             header.appendChild(btn);
         }
     }
+};
+
+// ═══════════════════════════════════════════════════════════
+// BEAUTY SERVICES — שירותים וטיפולים
+// ═══════════════════════════════════════════════════════════
+
+const BEAUTY_CATEGORIES = [
+    { id:'hair',   label:'שיער',         icon:'💇', color:'#fbbf24' },
+    { id:'nails',  label:'ציפורניים',    icon:'💅', color:'#f472b6' },
+    { id:'face',   label:'טיפולי פנים',  icon:'✨', color:'#a78bfa' },
+    { id:'body',   label:'טיפולי גוף',   icon:'🧖', color:'#34d399' },
+    { id:'spa',    label:'ספא / עיסוי',  icon:'🌸', color:'#60a5fa' },
+    { id:'laser',  label:'לייזר / IPL',  icon:'⚡', color:'#f87171' },
+    { id:'makeup', label:'איפור',        icon:'💄', color:'#fb923c' },
+    { id:'general',label:'כללי',         icon:'💎', color:'#94a3b8' }
+];
+
+async function loadBeautyServices() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_services'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען שירותים...</div>`;
+    try {
+        const items = await fetch(`${API}/beauty/${biz}/services`).then(r => r.json());
+        _renderBeautyServices(el, Array.isArray(items) ? items : []);
+    } catch(e) {
+        el.innerHTML = `<div class="py-10 text-center text-red-400 text-sm">שגיאה בטעינה</div>`;
+    }
+}
+
+function _renderBeautyServices(el, items) {
+    const byCategory = {};
+    BEAUTY_CATEGORIES.forEach(c => { byCategory[c.id] = []; });
+    items.forEach(s => {
+        const cat = s.category || 'general';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(s);
+    });
+
+    const catHtml = BEAUTY_CATEGORIES
+        .filter(c => byCategory[c.id]?.length > 0)
+        .map(c => `
+        <div class="mb-4">
+            <div class="text-xs font-black text-slate-500 mb-2 flex items-center gap-1.5">
+                <span>${c.icon}</span><span>${c.label}</span>
+                <span class="bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full">${byCategory[c.id].length}</span>
+            </div>
+            <div class="space-y-2">
+                ${byCategory[c.id].map(s => `
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
+                    <div class="w-3 h-10 rounded-full shrink-0" style="background:${s.color_hex||c.color}"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800 text-sm">${s.name}
+                            ${s.requires_patch_test ? '<span class="text-[9px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded-full mr-1">⚠️ Patch Test</span>' : ''}
+                        </div>
+                        <div class="text-[11px] text-slate-400">${s.duration_minutes} דק׳ · ₪${s.price}</div>
+                        ${s.description ? `<div class="text-[11px] text-slate-500 mt-0.5 truncate">${s.description}</div>` : ''}
+                    </div>
+                    <button onclick="window._beautyEditService(${s.id},'${(s.name).replace(/'/g,"\\'")}',${s.duration_minutes},${s.price},'${s.category||'general'}','${s.color_hex||'#6366f1'}',${s.requires_patch_test})"
+                        class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition shrink-0">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                </div>`).join('')}
+            </div>
+        </div>`).join('');
+
+    el.innerHTML = `
+    <div class="space-y-3 pb-24">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <div class="text-lg font-black text-slate-800">שירותים וטיפולים 💎</div>
+                <div class="text-xs text-slate-400">${items.length} שירותים פעילים</div>
+            </div>
+            <button onclick="window._beautyNewServiceModal()"
+                class="bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-pink-700 transition">
+                + שירות חדש
+            </button>
+        </div>
+        ${items.length === 0
+            ? `<div class="text-center py-16 text-slate-400">
+                <div class="text-4xl mb-3">💎</div>
+                <div class="font-bold text-slate-600 mb-1">אין שירותים עדיין</div>
+                <div class="text-sm mb-4">הגדר שירותים כדי שיופיעו ביומן ובחנות הציבורית</div>
+                <button onclick="window._beautyNewServiceModal()" class="bg-pink-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold">+ הוסף שירות ראשון</button>
+               </div>`
+            : catHtml
+        }
+    </div>`;
+}
+
+window._beautyNewServiceModal = function() {
+    _beautyServiceModal(null);
+};
+
+window._beautyEditService = function(id, name, duration, price, category, color, patchTest) {
+    _beautyServiceModal({ id, name, duration_minutes: duration, price, category, color_hex: color, requires_patch_test: patchTest });
+};
+
+function _beautyServiceModal(svc) {
+    const isEdit = !!svc;
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">${isEdit ? '✏️ עריכת שירות' : '+ שירות חדש'}</h2>
+            <span></span>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600">שם השירות *</label>
+                <input id="bsvc-name" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    value="${svc?.name||''}" placeholder='למשל: "צביעה בסיסית", "מניקור ג׳ל"'>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs font-bold text-slate-600">קטגוריה</label>
+                    <select id="bsvc-cat" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        ${BEAUTY_CATEGORIES.map(c => `<option value="${c.id}" ${(svc?.category||'general')===c.id?'selected':''}>${c.icon} ${c.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600">משך (דקות) *</label>
+                    <input id="bsvc-dur" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${svc?.duration_minutes||60}" min="5" step="5">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs font-bold text-slate-600">מחיר (₪)</label>
+                    <input id="bsvc-price" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${svc?.price||0}" min="0">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600">צבע ביומן</label>
+                    <input id="bsvc-color" type="color" class="mt-1 w-full h-[38px] border border-slate-200 rounded-xl px-2 py-1 cursor-pointer"
+                        value="${svc?.color_hex||'#6366f1'}">
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600">תיאור (אופציונלי)</label>
+                <textarea id="bsvc-desc" rows="2" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">${svc?.description||''}</textarea>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input id="bsvc-patch" type="checkbox" class="w-4 h-4 accent-red-500" ${svc?.requires_patch_test?'checked':''}>
+                <span class="text-sm text-slate-700">⚠️ שירות זה דורש Patch Test מוקדם</span>
+            </label>
+        </div>
+        <button onclick="window._beautySubmitService(${isEdit ? svc.id : 'null'}, this)"
+            class="mt-4 w-full py-3 bg-pink-600 text-white rounded-2xl font-black hover:bg-pink-700 transition">
+            ${isEdit ? 'שמור שינויים ✓' : 'הוסף שירות ✓'}
+        </button>
+        ${isEdit ? `<button onclick="window._beautyDeactivateService(${svc.id}, this)" class="mt-2 w-full py-2.5 bg-red-50 text-red-600 rounded-2xl font-bold text-sm hover:bg-red-100 transition">הסר שירות</button>` : ''}
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+window._beautySubmitService = async function(id, btn) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name = document.getElementById('bsvc-name')?.value?.trim();
+    const dur = parseInt(document.getElementById('bsvc-dur')?.value) || 60;
+    if (!name) { showToast('error', 'שם שירות הוא שדה חובה'); return; }
+    btn.disabled = true; btn.textContent = 'שומר...';
+    const body = {
+        name,
+        category: document.getElementById('bsvc-cat')?.value,
+        duration_minutes: dur,
+        price: parseFloat(document.getElementById('bsvc-price')?.value) || 0,
+        color_hex: document.getElementById('bsvc-color')?.value || '#6366f1',
+        description: document.getElementById('bsvc-desc')?.value?.trim() || null,
+        requires_patch_test: document.getElementById('bsvc-patch')?.checked || false
+    };
+    try {
+        if (id) {
+            await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        } else {
+            await fetch(`${API}/beauty/${biz}/services`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        }
+        btn.closest('.fixed').remove();
+        showToast('success', id ? 'השירות עודכן' : 'השירות נוסף');
+        loadBeautyServices();
+    } catch(e) { showToast('error', 'שגיאה'); btn.disabled = false; btn.textContent = id ? 'שמור שינויים ✓' : 'הוסף שירות ✓'; }
+};
+
+window._beautyDeactivateService = async function(id, btn) {
+    if (!confirm('להסיר שירות זה מהרשימה?')) return;
+    const biz = _beautyBizId(); if (!biz) return;
+    btn.disabled = true;
+    try {
+        await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ is_active: false }) });
+        btn.closest('.fixed').remove();
+        showToast('success', 'השירות הוסר');
+        loadBeautyServices();
+    } catch(e) { showToast('error', 'שגיאה'); btn.disabled = false; }
+};
+
+// ═══════════════════════════════════════════════════════════
+// BEAUTY SUBSCRIPTIONS — מנויים וחבילות
+// ═══════════════════════════════════════════════════════════
+
+async function loadBeautySubscriptions() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const el = document.getElementById('content-beauty_subscriptions'); if (!el) return;
+    el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען מנויים...</div>`;
+    try {
+        const types = await fetch(`${API}/beauty/${biz}/subscription-types`).then(r => r.json());
+        _renderBeautySubscriptions(el, Array.isArray(types) ? types : []);
+    } catch(e) {
+        el.innerHTML = `<div class="py-10 text-center text-red-400 text-sm">שגיאה בטעינה</div>`;
+    }
+}
+
+function _renderBeautySubscriptions(el, types) {
+    el.innerHTML = `
+    <div class="space-y-3 pb-24">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <div class="text-lg font-black text-slate-800">מנויים וחבילות 🎁</div>
+                <div class="text-xs text-slate-400">${types.length} חבילות פעילות · לניהול מנויי לקוחות — כנס לתיק הלקוחה</div>
+            </div>
+            <button onclick="window._beautyNewSubTypeModal()"
+                class="bg-violet-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-violet-700 transition">
+                + חבילה חדשה
+            </button>
+        </div>
+
+        ${types.length === 0
+            ? `<div class="text-center py-16 text-slate-400">
+                <div class="text-4xl mb-3">🎁</div>
+                <div class="font-bold text-slate-600 mb-1">אין חבילות מנוי עדיין</div>
+                <div class="text-sm mb-4">צור חבילת כניסות ומכור אותה ללקוחות דרך הקופה</div>
+                <button onclick="window._beautyNewSubTypeModal()" class="bg-violet-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold">+ צור חבילה ראשונה</button>
+               </div>`
+            : types.map(t => `
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-violet-100 flex items-center justify-center text-xl shrink-0">🎁</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800">${t.name}</div>
+                        <div class="text-xs text-slate-400 mt-0.5">
+                            ${t.sessions_count} כניסות · ₪${t.price}
+                            ${t.validity_days ? `· תוקף ${t.validity_days} יום` : ''}
+                        </div>
+                        ${t.description ? `<div class="text-xs text-slate-500 mt-1">${t.description}</div>` : ''}
+                    </div>
+                    <button onclick="window._beautyEditSubType(${t.id},'${(t.name).replace(/'/g,"\\'")}',${t.sessions_count},${t.price},${t.validity_days||365})"
+                        class="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition shrink-0">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                </div>
+                <div class="mt-3 pt-3 border-t border-slate-100">
+                    <div class="text-[11px] text-slate-500">💡 למכירה ללקוחה: כנס לתיק הלקוחה → כפתור "מכור מנוי"</div>
+                </div>
+            </div>`).join('')
+        }
+
+        <div class="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+            <div class="font-bold text-violet-800 text-sm mb-1">🎯 איך עובדים מנויים?</div>
+            <div class="text-xs text-violet-700 space-y-1">
+                <div>1. צור חבילה כאן (כמות כניסות + מחיר + תוקף)</div>
+                <div>2. כנס לתיק הלקוחה → "מכור מנוי" → בחר חבילה → גבה תשלום</div>
+                <div>3. בקביעת תור — המערכת מציגה מנויים פעילים ומאפשרת מימוש כניסה</div>
+            </div>
+        </div>
+    </div>`;
+}
+
+window._beautyNewSubTypeModal = function() {
+    _beautySubTypeModal(null);
+};
+
+window._beautyEditSubType = function(id, name, sessions, price, validity) {
+    _beautySubTypeModal({ id, name, sessions_count: sessions, price, validity_days: validity });
+};
+
+function _beautySubTypeModal(t) {
+    const isEdit = !!t;
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 text-xl">✕</button>
+            <h2 class="text-lg font-black text-slate-800">${isEdit ? '✏️ עריכת חבילה' : '+ חבילה חדשה'}</h2>
+            <span></span>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-600">שם החבילה *</label>
+                <input id="bsub-name" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    value="${t?.name||''}" placeholder='למשל: "חבילת 5 טיפולי פנים", "מנוי ציפורניים חודשי"'>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="text-xs font-bold text-slate-600">כמות כניסות *</label>
+                    <input id="bsub-sessions" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${t?.sessions_count||5}" min="1">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600">מחיר כולל (₪)</label>
+                    <input id="bsub-price" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${t?.price||0}" min="0">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600">תוקף (ימים)</label>
+                    <input id="bsub-validity" type="number" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        value="${t?.validity_days||365}" min="30">
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-600">תיאור (אופציונלי)</label>
+                <input id="bsub-desc" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    value="${t?.description||''}" placeholder="למשל: כולל גיל ניקוי + מסכה">
+            </div>
+        </div>
+        <button onclick="window._beautySubmitSubType(${isEdit?t.id:'null'}, this)"
+            class="mt-4 w-full py-3 bg-violet-600 text-white rounded-2xl font-black hover:bg-violet-700 transition">
+            ${isEdit ? 'שמור שינויים ✓' : 'צור חבילה ✓'}
+        </button>
+        ${isEdit ? `<button onclick="window._beautyDeactivateSubType(${t.id},this)" class="mt-2 w-full py-2.5 bg-red-50 text-red-600 rounded-2xl font-bold text-sm">הסר חבילה</button>` : ''}
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+window._beautySubmitSubType = async function(id, btn) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name = document.getElementById('bsub-name')?.value?.trim();
+    const sessions = parseInt(document.getElementById('bsub-sessions')?.value) || 5;
+    if (!name) { showToast('error', 'שם חבילה הוא שדה חובה'); return; }
+    btn.disabled = true; btn.textContent = 'שומר...';
+    const body = {
+        name,
+        sessions_count: sessions,
+        price: parseFloat(document.getElementById('bsub-price')?.value) || 0,
+        validity_days: parseInt(document.getElementById('bsub-validity')?.value) || 365,
+        description: document.getElementById('bsub-desc')?.value?.trim() || null
+    };
+    try {
+        if (id) {
+            await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        } else {
+            await fetch(`${API}/beauty/${biz}/subscription-types`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        }
+        btn.closest('.fixed').remove();
+        showToast('success', id ? 'החבילה עודכנה' : 'החבילה נוצרה');
+        loadBeautySubscriptions();
+    } catch(e) { showToast('error', 'שגיאה'); btn.disabled = false; btn.textContent = id ? 'שמור שינויים ✓' : 'צור חבילה ✓'; }
+};
+
+window._beautyDeactivateSubType = async function(id, btn) {
+    if (!confirm('להסיר חבילה זו?')) return;
+    const biz = _beautyBizId(); if (!biz) return;
+    btn.disabled = true;
+    try {
+        await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ is_active: false }) });
+        btn.closest('.fixed').remove();
+        showToast('success', 'החבילה הוסרה');
+        loadBeautySubscriptions();
+    } catch(e) { showToast('error', 'שגיאה'); btn.disabled = false; }
 };
 
 // ═══════════════════════════════════════════════════════════
