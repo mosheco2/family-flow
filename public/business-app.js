@@ -1607,7 +1607,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -1667,6 +1667,9 @@ function switchTab(t) {
     if (t === 'logistics_pricing')  try { loadLogisticsPricing(); } catch(e) {}
     if (t === 'logistics_cod')      try { loadLogisticsCOD(); } catch(e) {}
     if (t === 'logistics_rfq')      try { loadLogisticsRFQ(); } catch(e) {}
+    if (t === 'logistics_routes')   try { loadLogisticsRoutes(); } catch(e) {}
+    if (t === 'logistics_tracking') try { loadLogisticsTracking(); } catch(e) {}
+    if (t === 'logistics_reports')  try { loadLogisticsReports(); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -2405,7 +2408,10 @@ const ALL_TABS = [
     { id: 'logistics_vehicles', name: 'צי רכבים 🚚' },
     { id: 'logistics_pricing',  name: 'מחירון 💰' },
     { id: 'logistics_cod',      name: 'גבייה COD 💵' },
-    { id: 'logistics_rfq',      name: 'הצעות מחיר 📋' }
+    { id: 'logistics_rfq',      name: 'הצעות מחיר 📋' },
+    { id: 'logistics_routes',   name: 'מסלולי חלוקה 🗺️' },
+    { id: 'logistics_tracking', name: 'לינקי מעקב 🔗' },
+    { id: 'logistics_reports',  name: 'דוחות לוגיסטיקה 📊' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -3960,6 +3966,32 @@ window.renderDashboard = async function(forceRefresh = false) {
             }, 30000);
         }
         window._logisticsDashRendering = false;
+        return;
+    }
+
+    // For non-admin in logistics business — Driver Companion view
+    if (currentGroup?.business_type === 'logistics' && ['MEMBER','EMPLOYEE','MANAGER','SENIOR'].includes(currentUser?.role)) {
+        if (window._logisticsDriverDashRendering) return;
+        window._logisticsDriverDashRendering = true;
+        let dashEl = document.getElementById('content-role-dashboard');
+        if (!dashEl) {
+            const container = document.getElementById('biz-main-content-wrap');
+            if (container) { dashEl = document.createElement('div'); dashEl.id = 'content-role-dashboard'; dashEl.className = 'px-2'; container.appendChild(dashEl); }
+        }
+        if (dashEl) {
+            dashEl.classList.remove('hidden');
+            const feedEl = document.getElementById('content-feed');
+            if (feedEl) feedEl.classList.add('hidden');
+            ['tour-balance-card','quick-tiles','admin-kpi-cards'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            await renderLogisticsDriverDashboard(dashEl);
+            if (window._roleDashInterval) { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            window._roleDashInterval = setInterval(() => {
+                const el = document.getElementById('content-role-dashboard');
+                if (el && !el.classList.contains('hidden') && currentGroup?.business_type === 'logistics') renderLogisticsDriverDashboard(el);
+                else { clearInterval(window._roleDashInterval); window._roleDashInterval = null; }
+            }, 60000);
+        }
+        window._logisticsDriverDashRendering = false;
         return;
     }
 
@@ -25241,7 +25273,7 @@ const BUSINESS_TYPES = [
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget'] },
     { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop'] },
-    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','members','timeclock','cashflow','tasks'] },
+    { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','members','timeclock','cashflow','tasks'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry'] },
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','pos','sales','beauty_clients','beauty_inventory','beauty_commissions','members','timeclock','cashflow','tasks','pantry','shop'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos'] },
@@ -33759,43 +33791,59 @@ function _renderLogisticsKanban() {
     const orders = window._logisticsState.orders;
     const drivers = window._logisticsState.drivers;
     const today = window._logisticsState.selectedDate;
+    const viewMode = window._logisticsState.kanbanView || 'active'; // 'active' | 'all'
 
-    const COLS = [
-        { key:'new',        label:'חדש',         icon:'📥', color:'slate' },
-        { key:'assigned',   label:'שויך',         icon:'👤', color:'blue' },
-        { key:'in_transit', label:'בדרך',         icon:'🚚', color:'violet' },
-        { key:'delivered',  label:'נמסר',         icon:'✅', color:'emerald' },
-        { key:'no_answer',  label:'לא ענה',       icon:'📵', color:'red' }
+    // Full 13-status Kanban columns
+    const ALL_COLS = [
+        { key:'new',           label:'חדש',            icon:'📥', bg:'bg-slate-50',   border:'border-slate-200' },
+        { key:'pending_quote', label:'ממתין הצעה',     icon:'💬', bg:'bg-yellow-50',  border:'border-yellow-200' },
+        { key:'quote_sent',    label:'הצעה נשלחה',    icon:'📄', bg:'bg-blue-50',    border:'border-blue-200' },
+        { key:'confirmed',     label:'אושר',           icon:'✅', bg:'bg-cyan-50',    border:'border-cyan-200' },
+        { key:'assigned',      label:'שויך',           icon:'👤', bg:'bg-indigo-50',  border:'border-indigo-200' },
+        { key:'picked_up',     label:'נאסף',           icon:'📦', bg:'bg-violet-50',  border:'border-violet-200' },
+        { key:'in_transit',    label:'בדרך',           icon:'🚚', bg:'bg-purple-50',  border:'border-purple-200' },
+        { key:'arrived',       label:'הגיע',           icon:'📍', bg:'bg-amber-50',   border:'border-amber-200' },
+        { key:'delivered',     label:'נמסר',           icon:'✅', bg:'bg-emerald-50', border:'border-emerald-200' },
+        { key:'partial',       label:'חלקי',           icon:'⚠️', bg:'bg-lime-50',    border:'border-lime-200' },
+        { key:'failed_attempt',label:'לא ענה',         icon:'📵', bg:'bg-red-50',     border:'border-red-200' },
+        { key:'returned',      label:'הוחזר',          icon:'↩️', bg:'bg-slate-100',  border:'border-slate-300' },
+        { key:'cancelled',     label:'בוטל',           icon:'❌', bg:'bg-rose-50',    border:'border-rose-200' }
     ];
 
-    const dateOrders = orders.filter(o => !today || !o.scheduled_date || o.scheduled_date.split('T')[0] === today || ['delivered','cancelled','returned'].includes(o.status) === false);
+    const ACTIVE_KEYS = ['new','pending_quote','quote_sent','confirmed','assigned','picked_up','in_transit','arrived','failed_attempt'];
+    const COLS = viewMode === 'active'
+        ? ALL_COLS.filter(c => ACTIVE_KEYS.includes(c.key))
+        : ALL_COLS;
 
     const colsHtml = COLS.map(col => {
         const colOrders = orders.filter(o => o.status === col.key);
         const cards = colOrders.map(o => {
             const driverName = o.driver_name || (drivers.find(d=>d.id==o.driver_id)?.name) || '';
             const codBadge = o.cod_amount > 0 ? `<span class="text-[10px] font-bold ${o.cod_collected?'text-emerald-600':'text-orange-600'}">${o.cod_collected?'✅':'💵'} ₪${o.cod_amount}</span>` : '';
-            const waze = o.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(o.delivery_address)}&navigate=yes" target="_blank" class="text-[10px] text-blue-500 font-bold">🗺 Waze</a>` : '';
-            return `<div class="bg-white rounded-2xl border border-slate-200 p-3 mb-2 shadow-sm touch-manipulation" onclick="window._logisticsOrderDetail(${o.id})">
+            const waze = o.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(o.delivery_address)}&navigate=yes" target="_blank" onclick="event.stopPropagation()" class="text-[10px] text-blue-500 font-bold">🗺 Waze</a>` : '';
+            const failBadge = o.failed_attempts_count > 0 ? `<span class="text-[10px] font-bold text-red-500">⚠️ ניסיון ${o.failed_attempts_count}</span>` : '';
+            const leaveDoor = o.leave_at_door ? `<span class="text-[10px] text-orange-500 font-bold">🚪 אישר השארה</span>` : '';
+            return `<div class="bg-white rounded-2xl border border-slate-200 p-3 mb-2 shadow-sm touch-manipulation cursor-pointer" onclick="window._logisticsOrderDetail(${o.id})">
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[10px] font-bold text-slate-400">${o.order_number||('#'+o.id)}</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${_logStatusColor(o.status)}">${_logStatusLabel(o.status)}</span>
+                    ${o.tracking_token ? `<span class="text-[10px] text-blue-400" title="יש לינק מעקב">🔗</span>` : ''}
                 </div>
                 <div class="font-black text-slate-800 text-sm truncate">${o.customer_name||''}</div>
                 <div class="text-[11px] text-slate-500 truncate mt-0.5">${o.delivery_address||''}</div>
-                <div class="flex items-center justify-between mt-2">
-                    <div class="flex items-center gap-2">${codBadge}</div>
-                    <div class="text-[10px] text-slate-400">${driverName ? '🚗 '+driverName : ''}</div>
+                ${o.scheduled_time_window ? `<div class="text-[10px] text-slate-400 mt-0.5">🕐 ${o.scheduled_time_window}</div>` : ''}
+                <div class="flex items-center flex-wrap gap-1 mt-2">
+                    ${codBadge}${failBadge}${leaveDoor}
+                    ${driverName ? `<span class="text-[10px] text-slate-400 mr-auto">🚗 ${driverName}</span>` : ''}
                 </div>
                 ${waze ? `<div class="mt-1">${waze}</div>` : ''}
             </div>`;
         }).join('') || `<div class="py-6 text-center text-slate-300 text-[11px]">ריק</div>`;
 
-        return `<div class="flex-none w-48 bg-slate-50 rounded-2xl p-2 border border-slate-200">
+        return `<div class="flex-none w-44 ${col.bg} rounded-2xl p-2 border ${col.border}">
             <div class="flex items-center gap-1 mb-2 px-1">
-                <span>${col.icon}</span>
+                <span class="text-sm">${col.icon}</span>
                 <span class="text-xs font-black text-slate-700">${col.label}</span>
-                <span class="ml-auto text-[10px] font-bold bg-slate-200 text-slate-600 rounded-full px-1.5">${colOrders.length}</span>
+                <span class="mr-auto text-[10px] font-bold bg-white/70 text-slate-600 rounded-full px-1.5 border border-slate-200">${colOrders.length}</span>
             </div>
             ${cards}
         </div>`;
@@ -33808,11 +33856,17 @@ function _renderLogisticsKanban() {
 
     const dateInput = `<input type="date" value="${today}" onchange="window._logisticsState.selectedDate=this.value; loadLogisticsOrders()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"/>`;
 
+    const viewToggle = `<button onclick="window._logisticsState.kanbanView=window._logisticsState.kanbanView==='active'?'all':'active'; _renderLogisticsKanban()"
+        class="border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold">
+        ${viewMode === 'active' ? 'הצג הכל' : 'פעיל בלבד'}
+    </button>`;
+
     el.innerHTML = `
-        <div class="flex items-center justify-between mb-3 gap-2">
+        <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
             <button onclick="window._logisticsNewOrder()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> משלוח חדש</button>
-            <div class="flex gap-2">${dateInput}</div>
+            <div class="flex gap-2 items-center">${dateInput}${viewToggle}</div>
         </div>
+        <div class="flex gap-2 mb-3">${driverFilter}</div>
         <div class="overflow-x-auto pb-4">
             <div class="flex gap-3 min-w-max">${colsHtml}</div>
         </div>`;
@@ -33874,16 +33928,31 @@ window._logisticsOrderDetail = async function(orderId) {
 
             <div class="text-xs font-black text-slate-600 text-right mb-2">עדכון סטטוס:</div>
             <div class="grid grid-cols-3 gap-2">
-                ${['picked_up','in_transit','arrived','delivered','no_answer','rescheduled'].map(st=>`<button onclick="window._logisticsUpdateStatus(${order.id},'${st}')" class="py-2 rounded-xl text-[11px] font-bold border ${order.status===st?'bg-slate-800 text-white border-slate-800':'border-slate-200 text-slate-600 hover:bg-slate-50'}">${_logStatusLabel(st)}</button>`).join('')}
+                ${['confirmed','assigned','picked_up','in_transit','arrived','delivered','partial','failed_attempt','returned','cancelled'].map(st=>`<button onclick="window._logisticsUpdateStatus(${order.id},'${st}')" class="py-2 rounded-xl text-[11px] font-bold border ${order.status===st?'bg-slate-800 text-white border-slate-800':'border-slate-200 text-slate-600 hover:bg-slate-50'}">${window._logStatusLabel ? window._logStatusLabel(st) : st}</button>`).join('')}
             </div>
 
             ${order.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(order.delivery_address)}&navigate=yes" target="_blank" class="w-full flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-700 rounded-2xl font-bold border border-blue-100"><i class="fa-brands fa-waze text-lg"></i> נווט ב-Waze</a>` : ''}
+
+            <!-- Tracking link -->
+            <div class="flex gap-2">
+                ${order.tracking_token
+                    ? `<button onclick="window._logisticsCopyTracking && window._logisticsCopyTracking('${order.tracking_token}')" class="flex-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-bold border border-blue-100">🔗 העתק לינק מעקב</button>`
+                    : `<button onclick="window._logisticsCreateTracking && window._logisticsCreateTracking(${order.id})" class="flex-1 py-2.5 bg-slate-50 text-slate-600 rounded-xl text-sm font-bold border border-slate-200">🔗 צור לינק מעקב</button>`}
+                ${['in_transit','arrived'].includes(order.status)
+                    ? `<button onclick="window._logisticsFailedAttempt && window._logisticsFailedAttempt(${order.id})" class="flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-200">📵 לא ענה</button>`
+                    : ''}
+            </div>
 
             ${order.cod_amount>0 && !order.cod_collected ? `<div class="bg-orange-50 rounded-2xl p-4 border border-orange-200">
                 <div class="font-black text-orange-700 text-sm mb-3 text-right">💵 גבייה בשטח — ₪${order.cod_amount}</div>
                 <div class="grid grid-cols-3 gap-2">
                     ${['cash','credit','qr'].map(m=>`<button onclick="window._logisticsCODCollect(${order.id},'${m}')" class="py-2.5 rounded-xl text-[11px] font-bold border border-orange-300 text-orange-700 hover:bg-orange-100">${m==='cash'?'💵 מזומן':m==='credit'?'💳 אשראי':'📱 QR'}</button>`).join('')}
                 </div>
+            </div>` : ''}
+
+            ${order.failed_attempts_count > 0 ? `<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+                <div class="font-bold">📵 ניסיון ${order.failed_attempts_count} כושל</div>
+                ${order.leave_at_door ? `<div class="text-xs mt-1 text-orange-600 font-medium">✅ הלקוח אישר השארה בדלת</div>` : ''}
             </div>` : ''}
 
             <button onclick="window._logisticsCancelOrder(${order.id})" class="w-full py-2 text-red-500 text-sm font-bold border border-red-200 rounded-xl hover:bg-red-50">ביטול הזמנה</button>
@@ -34521,6 +34590,523 @@ window._logisticsSaveRFQ = async function() {
 };
 
 // ===== END LOGISTICS MODULE UI =====
+
+// ===== LOGISTICS MODULE UI v2 — Full Spec =====
+
+// ─── Full 13-status helpers (override v1) ─────────────────────────────────────
+window._logStatusLabel = function(s) {
+    const m = {
+        new:'חדש', pending_quote:'ממתין להצעה', quote_sent:'הצעה נשלחה',
+        confirmed:'אושר', assigned:'שויך לנהג', picked_up:'נאסף',
+        in_transit:'בדרך', arrived:'הגיע לכתובת', delivered:'נמסר',
+        partial:'נמסר חלקית', failed_attempt:'לא ענה', returned:'הוחזר', cancelled:'בוטל'
+    };
+    return m[s] || s;
+};
+window._logStatusColor = function(s) {
+    const m = {
+        new:'bg-slate-100 text-slate-600',
+        pending_quote:'bg-yellow-100 text-yellow-700',
+        quote_sent:'bg-blue-100 text-blue-700',
+        confirmed:'bg-cyan-100 text-cyan-700',
+        assigned:'bg-indigo-100 text-indigo-700',
+        picked_up:'bg-violet-100 text-violet-700',
+        in_transit:'bg-purple-100 text-purple-700',
+        arrived:'bg-amber-100 text-amber-700',
+        delivered:'bg-emerald-100 text-emerald-700',
+        partial:'bg-lime-100 text-lime-700',
+        failed_attempt:'bg-red-100 text-red-700',
+        returned:'bg-slate-200 text-slate-700',
+        cancelled:'bg-rose-100 text-rose-600'
+    };
+    return m[s] || 'bg-slate-100 text-slate-600';
+};
+
+// ─── Routes tab ───────────────────────────────────────────────────────────────
+async function loadLogisticsRoutes() {
+    const el = document.getElementById('content-logistics_routes'); if (!el) return;
+    el.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin ml-2"></i>טוען מסלולים...</div>`;
+    let routes = [];
+    const today = new Date().toISOString().split('T')[0];
+    try {
+        const r = await fetch(`${API}/logistics/routes/${currentGroup.id}?date=${today}`);
+        routes = r.ok ? await r.json() : [];
+        window._logisticsState.routes = routes;
+        const dr = await fetch(`${API}/logistics/drivers/${currentGroup.id}`);
+        window._logisticsState.drivers = dr.ok ? await dr.json() : [];
+        const vr = await fetch(`${API}/logistics/vehicles/${currentGroup.id}`);
+        window._logisticsState.vehicles = vr.ok ? await vr.json() : [];
+    } catch(e) { routes = []; }
+    _renderLogisticsRoutes(routes, today);
+}
+
+function _renderLogisticsRoutes(routes, today) {
+    const el = document.getElementById('content-logistics_routes'); if (!el) return;
+    const statusBadge = s => ({ planned:'bg-slate-100 text-slate-600', active:'bg-green-100 text-green-700', completed:'bg-emerald-100 text-emerald-700' }[s] || 'bg-slate-100 text-slate-600');
+    const statusLabel = s => ({ planned:'מתוכנן', active:'פעיל', completed:'הסתיים' }[s] || s);
+    el.innerHTML = `
+    <div class="flex items-center justify-between mb-4 mt-1">
+        <h2 class="font-black text-slate-800 text-base">🗺️ מסלולי חלוקה</h2>
+        <button onclick="window._logisticsNewRoute()" class="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-sm flex items-center gap-1"><i class="fa-solid fa-plus"></i> מסלול חדש</button>
+    </div>
+    <div class="mb-3">
+        <input type="date" value="${today}" onchange="window._logisticsRoutesDate=this.value; loadLogisticsRoutes()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"/>
+    </div>
+    ${routes.length === 0 ? `<div class="py-10 text-center text-slate-400 text-sm">אין מסלולים ל-${today}</div>` :
+    routes.map(r => `
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 mb-3 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+            <div class="font-black text-slate-800 text-sm">${r.name || 'מסלול ' + r.id}</div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusBadge(r.status)}">${statusLabel(r.status)}</span>
+        </div>
+        <div class="flex gap-3 text-xs text-slate-500 mb-3">
+            ${r.driver_name ? `<span>🚗 ${r.driver_name}</span>` : ''}
+            ${r.vehicle_name ? `<span>🚚 ${r.vehicle_name}</span>` : ''}
+            <span>📍 ${r.stop_count} עצירות</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window._logisticsRouteDetail(${r.id})" class="flex-1 py-2 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold">פרטים</button>
+            ${r.status === 'planned' ? `<button onclick="window._logisticsRouteStatus(${r.id},'active')" class="flex-1 py-2 bg-green-500 text-white rounded-xl text-xs font-bold">הפעל</button>` : ''}
+            ${r.status === 'active' ? `<button onclick="window._logisticsRouteStatus(${r.id},'completed')" class="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">סיים</button>` : ''}
+            <button onclick="window._logisticsDeleteRoute(${r.id})" class="w-9 h-9 border border-red-200 text-red-400 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    </div>`).join('')}`;
+}
+
+window._logisticsNewRoute = function() {
+    const drivers = window._logisticsState.drivers || [];
+    const vehicles = window._logisticsState.vehicles || [];
+    const today = new Date().toISOString().split('T')[0];
+    const m = document.createElement('div');
+    m.id = 'log-route-modal';
+    m.className = 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center';
+    m.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 space-y-4">
+        <div class="flex items-center justify-between mb-1">
+            <h3 class="font-black text-slate-800">מסלול חדש</h3>
+            <button onclick="document.getElementById('log-route-modal').remove()" class="text-slate-400 text-xl">✕</button>
+        </div>
+        <input id="lroute-name" placeholder="שם המסלול" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-right"/>
+        <input id="lroute-date" type="date" value="${today}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-right"/>
+        <select id="lroute-driver" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-right">
+            <option value="">בחר נהג (אופציונלי)</option>
+            ${drivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+        </select>
+        <select id="lroute-vehicle" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-right">
+            <option value="">בחר רכב (אופציונלי)</option>
+            ${vehicles.map(v=>`<option value="${v.id}">${v.name}</option>`).join('')}
+        </select>
+        <textarea id="lroute-notes" placeholder="הערות" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-right resize-none"></textarea>
+        <button onclick="window._logisticsSaveRoute()" class="w-full py-3 bg-orange-500 text-white rounded-2xl font-black">צור מסלול</button>
+    </div>`;
+    document.body.appendChild(m);
+};
+
+window._logisticsSaveRoute = async function() {
+    const name = document.getElementById('lroute-name')?.value?.trim();
+    if (!name) { showToast('error','נדרש שם מסלול'); return; }
+    try {
+        await fetch(`${API}/logistics/routes`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+            group_id: currentGroup.id,
+            name,
+            route_date: document.getElementById('lroute-date')?.value || new Date().toISOString().split('T')[0],
+            driver_id: document.getElementById('lroute-driver')?.value || null,
+            vehicle_id: document.getElementById('lroute-vehicle')?.value || null,
+            notes: document.getElementById('lroute-notes')?.value || null
+        })});
+        showToast('success','מסלול נוצר!');
+        document.getElementById('log-route-modal')?.remove();
+        loadLogisticsRoutes();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsRouteStatus = async function(routeId, status) {
+    try {
+        await fetch(`${API}/logistics/routes/${routeId}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        loadLogisticsRoutes();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsDeleteRoute = async function(routeId) {
+    if (!confirm('למחוק את המסלול?')) return;
+    try {
+        await fetch(`${API}/logistics/routes/${routeId}`, { method:'DELETE' });
+        showToast('success','נמחק');
+        loadLogisticsRoutes();
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsRouteDetail = async function(routeId) {
+    let stops = [];
+    try {
+        const r = await fetch(`${API}/logistics/routes/${currentGroup.id}/${routeId}/stops`);
+        stops = r.ok ? await r.json() : [];
+    } catch(e) {}
+    const m = document.createElement('div');
+    m.id = 'log-route-detail-modal';
+    m.className = 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center';
+    m.innerHTML = `<div class="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-slate-800">עצירות במסלול</h3>
+            <button onclick="document.getElementById('log-route-detail-modal').remove()" class="text-slate-400 text-xl">✕</button>
+        </div>
+        ${stops.length === 0 ? '<div class="py-6 text-center text-slate-400 text-sm">אין עצירות עדיין</div>' :
+        stops.map((s,i) => `
+        <div class="flex gap-3 mb-3 border-b border-slate-100 pb-3">
+            <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${i+1}</div>
+            <div class="flex-1">
+                <div class="font-bold text-slate-800 text-sm">${s.customer_name || 'לקוח'}</div>
+                <div class="text-xs text-slate-500">${s.delivery_address || ''}</div>
+                ${s.customer_phone ? `<div class="text-xs text-slate-400">${s.customer_phone}</div>` : ''}
+                <div class="flex gap-2 mt-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full ${window._logStatusColor(s.order_status)}">${window._logStatusLabel(s.order_status)}</span>
+                    ${s.cod_amount > 0 ? `<span class="text-xs text-orange-600 font-bold">COD ₪${s.cod_amount}</span>` : ''}
+                    ${s.eta ? `<span class="text-xs text-slate-500">ETA ${s.eta}</span>` : ''}
+                </div>
+            </div>
+        </div>`).join('')}
+        <div class="mt-4 pt-3 border-t border-slate-100">
+            <div class="text-xs text-slate-400 mb-2 font-medium">הוסף הזמנה למסלול</div>
+            <div class="flex gap-2">
+                <input id="lroute-stop-order" placeholder="מס׳ הזמנה / ID" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/>
+                <input id="lroute-stop-eta" placeholder="ETA 14:30" class="w-24 border border-slate-200 rounded-xl px-3 py-2 text-sm text-right"/>
+                <button onclick="window._logisticsAddStop(${routeId})" class="px-4 bg-orange-500 text-white rounded-xl text-sm font-bold">הוסף</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+};
+
+window._logisticsAddStop = async function(routeId) {
+    const orderId = document.getElementById('lroute-stop-order')?.value?.trim();
+    const eta = document.getElementById('lroute-stop-eta')?.value?.trim();
+    if (!orderId) { showToast('error','נדרש מזהה הזמנה'); return; }
+    try {
+        const allOrders = window._logisticsState.orders || [];
+        const stops = parseInt(document.querySelectorAll('#log-route-detail-modal .border-b').length) || 0;
+        await fetch(`${API}/logistics/routes/${routeId}/stops`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order_id: parseInt(orderId), stop_order: stops+1, eta: eta||null }) });
+        showToast('success','נוסף!');
+        document.getElementById('log-route-detail-modal')?.remove();
+        window._logisticsRouteDetail(routeId);
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Tracking tab ─────────────────────────────────────────────────────────────
+async function loadLogisticsTracking() {
+    const el = document.getElementById('content-logistics_tracking'); if (!el) return;
+    el.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin ml-2"></i>טוען...</div>`;
+    let orders = [];
+    try {
+        const r = await fetch(`${API}/logistics/orders/${currentGroup.id}`);
+        orders = r.ok ? await r.json() : [];
+    } catch(e) {}
+    _renderLogisticsTracking(orders);
+}
+
+function _renderLogisticsTracking(orders) {
+    const el = document.getElementById('content-logistics_tracking'); if (!el) return;
+    const active = orders.filter(o => !['delivered','cancelled','returned'].includes(o.status));
+    el.innerHTML = `
+    <div class="flex items-center justify-between mb-4 mt-1">
+        <h2 class="font-black text-slate-800 text-base">🔗 לינקי מעקב ציבורי</h2>
+        <span class="text-xs text-slate-400">${active.length} פעילים</span>
+    </div>
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 text-sm text-orange-800">
+        <div class="font-bold mb-1">📱 כיצד זה עובד?</div>
+        לחץ "צור לינק" על הזמנה — יישלח ללקוח ויציג את מצב המשלוח בזמן אמת
+    </div>
+    ${orders.length === 0 ? '<div class="py-8 text-center text-slate-400 text-sm">אין הזמנות</div>' :
+    orders.map(o => `
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 mb-3 shadow-sm">
+        <div class="flex items-center justify-between mb-1">
+            <div class="font-bold text-slate-800 text-sm">${o.customer_name || 'לקוח'} ${o.order_number ? `· #${o.order_number}` : ''}</div>
+            <span class="text-xs px-2 py-0.5 rounded-full ${window._logStatusColor(o.status)}">${window._logStatusLabel(o.status)}</span>
+        </div>
+        <div class="text-xs text-slate-500 mb-3">${o.delivery_address || ''}</div>
+        ${o.tracking_token ?
+            `<div class="bg-slate-50 rounded-xl px-3 py-2 text-xs font-mono text-slate-600 mb-2 break-all">/track/${o.tracking_token}</div>
+            <div class="flex gap-2">
+                <button onclick="window._logisticsCopyTracking('${o.tracking_token}')" class="flex-1 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold">📋 העתק לינק</button>
+                <a href="/track/${o.tracking_token}" target="_blank" class="flex-1 py-2 bg-blue-500 text-white rounded-xl text-xs font-bold text-center">🔍 פתח</a>
+            </div>` :
+            `<button onclick="window._logisticsCreateTracking(${o.id})" class="w-full py-2 bg-orange-500 text-white rounded-xl text-xs font-bold">🔗 צור לינק מעקב</button>`
+        }
+    </div>`).join('')}`;
+}
+
+window._logisticsCreateTracking = async function(orderId) {
+    try {
+        const r = await fetch(`${API}/logistics/orders/${orderId}/tracking-token`, { method:'POST' });
+        if (r.ok) {
+            const data = await r.json();
+            showToast('success','לינק נוצר!');
+            loadLogisticsTracking();
+        }
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+window._logisticsCopyTracking = function(token) {
+    const url = `${location.origin}/track/${token}`;
+    navigator.clipboard?.writeText(url).then(() => showToast('success','הועתק!')).catch(() => showToast('info', url));
+};
+
+// ─── Reports tab ──────────────────────────────────────────────────────────────
+async function loadLogisticsReports() {
+    const el = document.getElementById('content-logistics_reports'); if (!el) return;
+    el.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin ml-2"></i>טוען נתונים...</div>`;
+    let data = null;
+    try {
+        const r = await fetch(`${API}/logistics/reports/${currentGroup.id}?period=month`);
+        data = r.ok ? await r.json() : null;
+    } catch(e) {}
+    _renderLogisticsReports(data);
+}
+
+function _renderLogisticsReports(data) {
+    const el = document.getElementById('content-logistics_reports'); if (!el) return;
+    if (!data) { el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm">שגיאה בטעינת דוחות</div>`; return; }
+    const d = data.delivery || {};
+    const cod = data.cod || {};
+    const byDriver = data.by_driver || [];
+    const fmt = n => Number(n||0).toLocaleString('he-IL', { maximumFractionDigits:0 });
+    const pct = (a,b) => b > 0 ? Math.round((a/b)*100) : 0;
+    el.innerHTML = `
+    <div class="flex items-center justify-between mb-4 mt-1">
+        <h2 class="font-black text-slate-800 text-base">📊 דוחות לוגיסטיקה</h2>
+        <select onchange="window._logisticsReportPeriod=this.value; loadLogisticsReports()" class="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-right">
+            <option value="month">החודש</option>
+            <option value="week">השבוע</option>
+            <option value="today">היום</option>
+        </select>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        ${[
+            { label:'סה"כ משלוחים', value: fmt(d.total_orders), icon:'📦', color:'slate' },
+            { label:'נמסרו', value: `${fmt(d.delivered_orders)} (${pct(d.delivered_orders, d.total_orders)}%)`, icon:'✅', color:'emerald' },
+            { label:'הכנסה משלוחים', value:`₪${fmt(d.total_revenue)}`, icon:'💰', color:'blue' },
+            { label:'COD שנגבה', value:`₪${fmt(cod.collected)}`, icon:'💵', color:'orange' },
+        ].map(k => `
+        <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+            <div class="text-xl mb-1">${k.icon}</div>
+            <div class="text-lg font-black text-slate-800">${k.value}</div>
+            <div class="text-xs text-slate-400">${k.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- By driver -->
+    ${byDriver.length > 0 ? `
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+        <div class="font-bold text-slate-700 text-sm mb-3">ביצועי נהגים</div>
+        <table class="w-full text-xs">
+            <thead><tr class="text-slate-400 border-b border-slate-100">
+                <th class="pb-2 text-right">נהג</th>
+                <th class="pb-2 text-center">משלוחים</th>
+                <th class="pb-2 text-center">הצלחה</th>
+                <th class="pb-2 text-left">הכנסה</th>
+            </tr></thead>
+            <tbody>
+            ${byDriver.map(d => `<tr class="border-b border-slate-50">
+                <td class="py-2 font-medium">${d.driver_name || 'ללא נהג'}</td>
+                <td class="py-2 text-center">${d.total_orders}</td>
+                <td class="py-2 text-center">${pct(d.delivered_orders, d.total_orders)}%</td>
+                <td class="py-2 text-right text-emerald-700 font-bold">₪${fmt(d.revenue)}</td>
+            </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>` : ''}
+
+    <!-- Alerts -->
+    ${cod.pending > 0 ? `
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3">
+        <span class="text-2xl">⚠️</span>
+        <div>
+            <div class="font-bold text-orange-800 text-sm">COD ממתין לגבייה</div>
+            <div class="text-sm text-orange-700">₪${fmt(cod.pending)} לא נגבו עדיין</div>
+            <button onclick="switchTab('logistics_cod')" class="text-xs text-orange-600 underline mt-1">עבור לגבייה</button>
+        </div>
+    </div>` : ''}`;
+}
+
+// ─── Failed attempt button in order detail (extend _logisticsOrderDetail) ────
+const _origOrderDetail = window._logisticsOrderDetail;
+window._logisticsOrderDetail = async function(orderId) {
+    if (_origOrderDetail) await _origOrderDetail(orderId);
+    // Inject failed-attempt + tracking buttons after modal opens
+    setTimeout(() => {
+        const modal = document.getElementById('log-order-detail-modal');
+        if (!modal) return;
+        const order = window._logisticsState.orders?.find(o => o.id === orderId);
+        if (!order) return;
+        const btnArea = modal.querySelector('.log-order-extra-actions');
+        if (btnArea) return; // already injected
+        const footer = modal.querySelector('div[class*="flex gap"]');
+        if (!footer) return;
+        const extraDiv = document.createElement('div');
+        extraDiv.className = 'log-order-extra-actions flex gap-2 mt-2';
+        extraDiv.innerHTML = `
+            ${['in_transit','arrived'].includes(order.status) ? `<button onclick="window._logisticsFailedAttempt(${orderId})" class="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-bold">📵 לא ענה</button>` : ''}
+            <button onclick="window._logisticsCreateTracking(${orderId})" class="flex-1 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-bold">🔗 לינק מעקב</button>
+        `;
+        footer.parentNode.insertBefore(extraDiv, footer.nextSibling);
+    }, 100);
+};
+
+window._logisticsFailedAttempt = async function(orderId) {
+    const notes = prompt('הערות לניסיון כושל (אופציונלי):') || '';
+    try {
+        const r = await fetch(`${API}/logistics/orders/${orderId}/failed-attempt`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ notes, actor_name: currentUser?.name || 'מערכת' })
+        });
+        if (r.ok) {
+            showToast('warning','סומן כ"לא ענה"');
+            document.getElementById('log-order-detail-modal')?.remove();
+            loadLogisticsOrders();
+        }
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Driver Companion view (for EMPLOYEE role in logistics) ───────────────────
+async function renderLogisticsDriverDashboard(el) {
+    el.innerHTML = `<div class="py-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin ml-2"></i>טוען רשימת משלוחים...</div>`;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Find driver by user
+    let driverId = null;
+    try {
+        const allDrivers = await fetch(`${API}/logistics/drivers/${currentGroup.id}`).then(r=>r.json());
+        const myDriver = allDrivers.find(d => d.user_id === currentUser?.id || (currentUser?.name && d.name === currentUser?.name));
+        driverId = myDriver?.id || null;
+        window._logisticsState.myDriverId = driverId;
+        window._logisticsState.myDriver = myDriver;
+    } catch(e) {}
+
+    if (!driverId) {
+        el.innerHTML = `<div class="py-10 text-center">
+            <div class="text-4xl mb-3">🚗</div>
+            <div class="font-bold text-slate-700 text-sm">לא נמצא פרופיל נהג</div>
+            <div class="text-xs text-slate-400 mt-1">פנה למנהל לקישור חשבונך לפרופיל נהג</div>
+        </div>`;
+        return;
+    }
+
+    let orders = [];
+    try {
+        const r = await fetch(`${API}/logistics/driver-orders/${currentGroup.id}/${driverId}?date=${today}`);
+        orders = r.ok ? await r.json() : [];
+    } catch(e) {}
+
+    _renderDriverCompanion(el, orders, window._logisticsState.myDriver);
+}
+
+function _renderDriverCompanion(el, orders, driver) {
+    const pending = orders.filter(o => ['assigned','picked_up'].includes(o.status));
+    const inTransit = orders.filter(o => o.status === 'in_transit');
+    const done = orders.filter(o => ['delivered','partial'].includes(o.status));
+    const failed = orders.filter(o => o.status === 'failed_attempt');
+    const codTotal = orders.reduce((s,o) => s + (o.cod_amount > 0 && !o.cod_collected ? parseFloat(o.cod_amount)||0 : 0), 0);
+
+    el.innerHTML = `
+    <!-- Driver header -->
+    <div class="bg-gradient-to-l from-orange-500 to-amber-400 rounded-3xl p-5 text-white mb-4 shadow-lg">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">🚗</div>
+            <div>
+                <div class="font-black text-lg">${driver?.name || 'נהג'}</div>
+                <div class="text-sm opacity-80">יום ${new Date().toLocaleDateString('he-IL', {weekday:'long'})}</div>
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white/20 rounded-xl p-2"><div class="font-black text-lg">${orders.length}</div><div class="text-xs opacity-80">סה"כ</div></div>
+            <div class="bg-white/20 rounded-xl p-2"><div class="font-black text-lg">${done.length}</div><div class="text-xs opacity-80">נמסרו</div></div>
+            <div class="bg-white/20 rounded-xl p-2"><div class="font-black text-lg text-yellow-200">${codTotal > 0 ? '₪'+Math.round(codTotal) : '—'}</div><div class="text-xs opacity-80">COD גבייה</div></div>
+        </div>
+    </div>
+
+    <!-- Active orders -->
+    ${[...inTransit, ...pending].length > 0 ? `
+    <div class="font-bold text-slate-700 text-sm mb-3">🚚 פעיל עכשיו (${[...inTransit, ...pending].length})</div>
+    ${[...inTransit, ...pending].map(o => _driverOrderCard(o, true)).join('')}` : ''}
+
+    <!-- Failed attempts -->
+    ${failed.length > 0 ? `
+    <div class="font-bold text-red-600 text-sm mb-3 mt-4">📵 לא ענה (${failed.length})</div>
+    ${failed.map(o => _driverOrderCard(o, true)).join('')}` : ''}
+
+    <!-- Done today -->
+    ${done.length > 0 ? `
+    <div class="font-bold text-emerald-600 text-sm mb-3 mt-4">✅ הושלמו (${done.length})</div>
+    ${done.map(o => _driverOrderCard(o, false)).join('')}` : ''}
+
+    ${orders.length === 0 ? `<div class="py-10 text-center text-slate-400 text-sm">אין משלוחים לסדרן היום</div>` : ''}`;
+}
+
+function _driverOrderCard(o, showActions) {
+    const codBadge = o.cod_amount > 0 && !o.cod_collected ? `<span class="text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">COD ₪${o.cod_amount}</span>` : '';
+    const phone = o.customer_phone ? `<a href="tel:${o.customer_phone}" class="w-9 h-9 bg-green-500 text-white rounded-xl flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-phone"></i></a>` : '';
+    const nav = o.delivery_address ? `<a href="https://waze.com/ul?q=${encodeURIComponent(o.delivery_address)}" target="_blank" class="w-9 h-9 bg-blue-500 text-white rounded-xl flex items-center justify-center text-sm flex-shrink-0"><i class="fa-solid fa-location-arrow"></i></a>` : '';
+    return `
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 mb-3 shadow-sm">
+        <div class="flex items-start justify-between mb-2">
+            <div>
+                <div class="font-black text-slate-800 text-sm">${o.customer_name || 'לקוח'}</div>
+                ${o.order_number ? `<div class="text-xs text-slate-400">#${o.order_number}</div>` : ''}
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full font-bold ${window._logStatusColor(o.status)}">${window._logStatusLabel(o.status)}</span>
+        </div>
+        <div class="text-xs text-slate-600 mb-1">📍 ${o.delivery_address || '—'}</div>
+        ${o.scheduled_time_window ? `<div class="text-xs text-slate-400 mb-2">🕐 ${o.scheduled_time_window}</div>` : ''}
+        ${codBadge}
+        ${showActions ? `
+        <div class="flex gap-2 mt-3">
+            ${phone}
+            ${nav}
+            ${o.status === 'assigned' ? `<button onclick="window._driverUpdateStatus(${o.id},'picked_up')" class="flex-1 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold">נאסף</button>` : ''}
+            ${o.status === 'picked_up' ? `<button onclick="window._driverUpdateStatus(${o.id},'in_transit')" class="flex-1 py-2 bg-violet-500 text-white rounded-xl text-xs font-bold">בדרך</button>` : ''}
+            ${o.status === 'in_transit' ? `<button onclick="window._driverUpdateStatus(${o.id},'arrived')" class="flex-1 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold">הגעתי</button>` : ''}
+            ${o.status === 'arrived' ? `<button onclick="window._driverUpdateStatus(${o.id},'delivered')" class="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">נמסר ✓</button>` : ''}
+            ${['in_transit','arrived'].includes(o.status) ? `<button onclick="window._logisticsFailedAttempt(${o.id})" class="px-3 py-2 bg-red-50 text-red-500 border border-red-200 rounded-xl text-xs font-bold">📵</button>` : ''}
+        </div>` : ''}
+    </div>`;
+}
+
+window._driverUpdateStatus = async function(orderId, newStatus) {
+    try {
+        const r = await fetch(`${API}/logistics/orders/${orderId}/status`, {
+            method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ status: newStatus, actor_name: currentUser?.name || 'נהג' })
+        });
+        if (r.ok) {
+            showToast('success', window._logStatusLabel(newStatus));
+            // Re-render driver dashboard
+            const el = document.getElementById('content-role-dashboard');
+            if (el && currentUser?.role !== 'ADMIN') renderLogisticsDriverDashboard(el);
+        }
+    } catch(e) { showToast('error','שגיאה'); }
+};
+
+// ─── Hook driver view into renderDashboard ────────────────────────────────────
+// Extends existing renderDashboard to add EMPLOYEE/MEMBER view for logistics
+const _origRenderDashboard_v2 = window.renderDashboard;
+if (_origRenderDashboard_v2) {
+    // Already handled in the main renderDashboard block for ADMIN
+    // Add EMPLOYEE/MEMBER/MANAGER companion view
+    const _patchRenderDashboard = async function() {
+        if (currentGroup?.business_type !== 'logistics') return _origRenderDashboard_v2?.apply(this, arguments);
+        if (currentUser?.role === 'ADMIN') return _origRenderDashboard_v2?.apply(this, arguments);
+        // EMPLOYEE/MEMBER/MANAGER in logistics get driver companion
+        const el = document.getElementById('content-role-dashboard');
+        if (!el) return;
+        if (window._logisticsDriverDashRendering) return;
+        window._logisticsDriverDashRendering = true;
+        try { await renderLogisticsDriverDashboard(el); } catch(e) {}
+        window._logisticsDriverDashRendering = false;
+    };
+    // We don't replace the whole renderDashboard — instead we extend the EMPLOYEE branch
+}
+
+// ===== END LOGISTICS MODULE UI v2 =====
 
 // Patch beauty_clients header to expose the forms builder button
 // (We monkey-patch _renderBeautyClients to inject the extra button)

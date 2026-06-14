@@ -1175,6 +1175,56 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_group ON logistics_orders(group_id, status)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_orders_driver ON logistics_orders(driver_id, scheduled_date)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_rfq_group ON logistics_rfq(group_id, status)`); } catch(e) {}
+      // ── Logistics v2: new columns ──────────────────────────────────────────
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS tracking_token VARCHAR(64) UNIQUE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempts_count INT DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempt_gps TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS failed_attempt_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS leave_at_door BOOLEAN DEFAULT false`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS tracking_last_seen TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS express_surcharge DECIMAL(8,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS floor_surcharge DECIMAL(8,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_orders ADD COLUMN IF NOT EXISTS floor_number INT DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS current_lat DECIMAL(10,7)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS current_lng DECIMAL(10,7)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE logistics_drivers ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMP`); } catch(e) {}
+      // ── logistics_routes ──────────────────────────────────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_routes (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          driver_id INT REFERENCES logistics_drivers(id) ON DELETE SET NULL,
+          vehicle_id INT REFERENCES logistics_vehicles(id) ON DELETE SET NULL,
+          route_date DATE DEFAULT CURRENT_DATE,
+          name VARCHAR(100),
+          status VARCHAR(20) DEFAULT 'planned',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_route_stops (
+          id SERIAL PRIMARY KEY,
+          route_id INT REFERENCES logistics_routes(id) ON DELETE CASCADE,
+          order_id INT REFERENCES logistics_orders(id) ON DELETE SET NULL,
+          stop_order INT DEFAULT 0,
+          status VARCHAR(20) DEFAULT 'pending',
+          eta VARCHAR(20),
+          notes TEXT
+      )`); } catch(e) {}
+      // ── logistics_rate_cards (advanced pricing rules) ─────────────────────
+      try { await client.query(`CREATE TABLE IF NOT EXISTS logistics_rate_cards (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          rule_type VARCHAR(30) NOT NULL,
+          condition_key VARCHAR(50),
+          condition_value TEXT,
+          surcharge_amount DECIMAL(10,2) DEFAULT 0,
+          surcharge_pct DECIMAL(5,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT true,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_tracking ON logistics_orders(tracking_token) WHERE tracking_token IS NOT NULL`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_logistics_routes_date ON logistics_routes(group_id, route_date)`); } catch(e) {}
       // ===== END LOGISTICS MODULE =====
 
       client.release();
@@ -12744,11 +12794,11 @@ app.get('/api/logistics/dashboard/:groupId', async (req, res) => {
         const gid = parseInt(req.params.groupId);
         const [ordersStats, driversCount, codStats, vehicleAlerts] = await Promise.all([
             pool.query(`SELECT
-                COUNT(*) FILTER (WHERE status='new') AS new_orders,
-                COUNT(*) FILTER (WHERE status='assigned') AS assigned_orders,
-                COUNT(*) FILTER (WHERE status IN ('picked_up','in_transit')) AS in_transit,
+                COUNT(*) FILTER (WHERE status IN ('new','pending_quote','quote_sent')) AS new_orders,
+                COUNT(*) FILTER (WHERE status IN ('confirmed','assigned')) AS assigned_orders,
+                COUNT(*) FILTER (WHERE status IN ('picked_up','in_transit','arrived')) AS in_transit,
                 COUNT(*) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE) AS delivered_today,
-                COUNT(*) FILTER (WHERE status='no_answer') AS no_answer,
+                COUNT(*) FILTER (WHERE status='failed_attempt') AS no_answer,
                 COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE(delivered_at)=CURRENT_DATE), 0) AS revenue_today,
                 COALESCE(SUM(delivery_fee) FILTER (WHERE status='delivered' AND DATE_TRUNC('month',delivered_at)=DATE_TRUNC('month',NOW())), 0) AS revenue_month,
                 COALESCE(SUM(cod_amount) FILTER (WHERE cod_collected=true AND DATE(delivered_at)=CURRENT_DATE), 0) AS cod_today
@@ -13092,6 +13142,199 @@ app.get('/api/logistics/reports/:groupId', async (req, res) => {
                 FROM logistics_orders WHERE group_id=$1 AND created_at >= ${dateFilter}`, [gid])
         ]);
         res.json({ period, delivery: delivery.rows[0], by_driver: byDriver.rows, cod: cod.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Tracking token generation ──────────────────────────────────
+app.post('/api/logistics/orders/:id/tracking-token', async (req, res) => {
+    try {
+        const existing = await pool.query('SELECT tracking_token FROM logistics_orders WHERE id=$1', [req.params.id]);
+        if (existing.rows[0]?.tracking_token) return res.json({ token: existing.rows[0].tracking_token });
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(24).toString('hex');
+        await pool.query('UPDATE logistics_orders SET tracking_token=$1 WHERE id=$2', [token, req.params.id]);
+        res.json({ token });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Public tracking page (no auth) ──────────────────────────────────────────
+app.get('/track/:token', (req, res) => {
+    res.sendFile(require('path').join(__dirname, 'public', 'track.html'));
+});
+
+app.get('/api/logistics/track/:token', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT lo.id, lo.order_number, lo.status, lo.customer_name,
+                   lo.pickup_address, lo.delivery_address,
+                   lo.scheduled_date, lo.scheduled_time_window,
+                   lo.delivered_at, lo.failed_attempts_count,
+                   lo.leave_at_door, lo.tracking_last_seen,
+                   ld.name AS driver_name, ld.phone AS driver_phone,
+                   ld.current_lat, ld.current_lng
+            FROM logistics_orders lo
+            LEFT JOIN logistics_drivers ld ON ld.id = lo.driver_id
+            WHERE lo.tracking_token=$1`, [req.params.token]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        // Update tracking_last_seen
+        await pool.query('UPDATE logistics_orders SET tracking_last_seen=NOW() WHERE tracking_token=$1', [req.params.token]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Failed attempt ─────────────────────────────────────────────
+app.post('/api/logistics/orders/:id/failed-attempt', async (req, res) => {
+    try {
+        const { gps, notes, actor_name } = req.body;
+        const cur = await pool.query('SELECT failed_attempts_count, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
+        const cnt = (parseInt(cur.rows[0]?.failed_attempts_count)||0) + 1;
+        await pool.query(`UPDATE logistics_orders SET
+            status='failed_attempt', failed_attempts_count=$1,
+            failed_attempt_gps=$2, failed_attempt_at=NOW(), updated_at=NOW()
+            WHERE id=$3`, [cnt, gps||null, req.params.id]);
+        await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes)
+            VALUES ($1,$2,'failed_attempt','in_transit','failed_attempt',$3,$4)`,
+            [req.params.id, cur.rows[0].group_id, actor_name||'מערכת', notes||null]);
+        res.json({ ok: true, attempts: cnt });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Order events timeline ──────────────────────────────────────
+app.get('/api/logistics/orders/:id/events', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM logistics_order_events WHERE order_id=$1 ORDER BY created_at DESC`, [req.params.id]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Driver location update ─────────────────────────────────────
+app.patch('/api/logistics/drivers/:id/location', async (req, res) => {
+    try {
+        const { lat, lng } = req.body;
+        await pool.query('UPDATE logistics_drivers SET current_lat=$1, current_lng=$2, location_updated_at=NOW() WHERE id=$3', [lat, lng, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Driver companion — orders for today ────────────────────────
+app.get('/api/logistics/driver-orders/:groupId/:driverId', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const d = date || new Date().toISOString().split('T')[0];
+        const r = await pool.query(`SELECT lo.*, lv.name AS vehicle_name
+            FROM logistics_orders lo
+            LEFT JOIN logistics_vehicles lv ON lv.id=lo.vehicle_id
+            WHERE lo.group_id=$1 AND lo.driver_id=$2 AND (lo.scheduled_date=$3 OR lo.status IN ('assigned','picked_up','in_transit','failed_attempt'))
+            ORDER BY lo.scheduled_time_window, lo.id`, [req.params.groupId, req.params.driverId, d]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Routes ─────────────────────────────────────────────────────
+app.get('/api/logistics/routes/:groupId', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const d = date || new Date().toISOString().split('T')[0];
+        const routes = await pool.query(`
+            SELECT lr.*, ld.name AS driver_name, lv.name AS vehicle_name,
+                   COUNT(lrs.id) AS stop_count
+            FROM logistics_routes lr
+            LEFT JOIN logistics_drivers ld ON ld.id=lr.driver_id
+            LEFT JOIN logistics_vehicles lv ON lv.id=lr.vehicle_id
+            LEFT JOIN logistics_route_stops lrs ON lrs.route_id=lr.id
+            WHERE lr.group_id=$1 AND lr.route_date=$2
+            GROUP BY lr.id, ld.name, lv.name
+            ORDER BY lr.created_at DESC`, [req.params.groupId, d]);
+        res.json(routes.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/logistics/routes/:groupId/:routeId/stops', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT lrs.*, lo.customer_name, lo.delivery_address, lo.status AS order_status,
+                   lo.cod_amount, lo.package_count, lo.customer_phone
+            FROM logistics_route_stops lrs
+            LEFT JOIN logistics_orders lo ON lo.id=lrs.order_id
+            WHERE lrs.route_id=$1
+            ORDER BY lrs.stop_order`, [req.params.routeId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/routes', async (req, res) => {
+    try {
+        const { group_id, driver_id, vehicle_id, route_date, name, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_routes (group_id, driver_id, vehicle_id, route_date, name, notes)
+            VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [group_id, driver_id||null, vehicle_id||null, route_date, name, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/routes/:routeId/stops', async (req, res) => {
+    try {
+        const { order_id, stop_order, eta } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_route_stops (route_id, order_id, stop_order, eta)
+            VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.routeId, order_id, stop_order||0, eta||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/routes/:id/status', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_routes SET status=$1 WHERE id=$2', [req.body.status, req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/routes/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM logistics_routes WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Leave-at-door approval (from tracking page) ───────────────
+app.post('/api/logistics/track/:token/leave-at-door', async (req, res) => {
+    try {
+        await pool.query(`UPDATE logistics_orders SET leave_at_door=true, updated_at=NOW() WHERE tracking_token=$1`, [req.params.token]);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Logistics v2: Rate cards (advanced pricing rules) ────────────────────────
+app.get('/api/logistics/rate-cards/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM logistics_rate_cards WHERE group_id=$1 AND is_active=true ORDER BY name', [req.params.groupId]);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/logistics/rate-cards', async (req, res) => {
+    try {
+        const { group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes } = req.body;
+        const r = await pool.query(`INSERT INTO logistics_rate_cards (group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [group_id, name, rule_type, condition_key||null, condition_value||null, surcharge_amount||0, surcharge_pct||0, notes||null]);
+        res.json(r.rows[0]);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/logistics/rate-cards/:id', async (req, res) => {
+    try {
+        const fields = ['name','rule_type','condition_key','condition_value','surcharge_amount','surcharge_pct','notes','is_active'];
+        const sets = []; const params = [];
+        fields.forEach(f => { if (req.body[f] !== undefined) { params.push(req.body[f]); sets.push(`${f}=$${params.length}`); } });
+        params.push(req.params.id);
+        await pool.query(`UPDATE logistics_rate_cards SET ${sets.join(',')} WHERE id=$${params.length}`, params);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/logistics/rate-cards/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE logistics_rate_cards SET is_active=false WHERE id=$1', [req.params.id]);
+        res.json({ ok: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
