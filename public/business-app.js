@@ -1736,6 +1736,8 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) {
+    // עסקי יופי: הפנה מ-customers ל-beauty_clients
+    if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
     ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
@@ -26436,8 +26438,15 @@ window.scSearchCustomerInOneFlow = async function() {
             const addr = g.address || [g.street_address, g.city].filter(Boolean).join(' ') || '';
             const contactName = g.contact_name || '';
             const adminNickname = g.admin_nickname || '';
-            const displayPerson = adminNickname || contactName;
-            return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${adminNickname.replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(g.name||g.group_name)}${displayPerson ? ' · ' + safeStr(displayPerson) : ''} <span class="text-[9px] text-indigo-500 font-bold">OneFlow</span></div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
+            const matchedFirstName = g.matched_first_name || '';
+            const matchedLastName = g.matched_last_name || '';
+            const matchedUserName = g.matched_user_name || '';
+            const matchedFullName = (matchedFirstName && matchedLastName) ? `${matchedFirstName} ${matchedLastName}` : (matchedFirstName || matchedUserName);
+            const familyNickname = g.family_nickname || '';
+            const groupLabel = familyNickname || (g.name || g.group_name);
+            // בחיפוש לפי טלפון, הראה שם האיש הספציפי ואחריו שם המשפחה
+            const displayPerson = matchedFullName || adminNickname || contactName;
+            return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${(matchedFullName||adminNickname).replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${displayPerson ? safeStr(displayPerson) + ' · ' : ''}${safeStr(groupLabel)} <span class="text-[9px] text-indigo-500 font-bold">OneFlow</span></div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
         }).join('');
         if (resultsEl) {
             const combined = bizHtml + oneflowHtml;

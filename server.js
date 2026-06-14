@@ -1064,6 +1064,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_inv_biz ON beauty_inventory(business_group_id, inventory_type)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_rfq_biz ON beauty_rfq(business_group_id, status)`); } catch(e) {}
       try { await client.query(`ALTER TABLE beauty_client_records ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS family_nickname VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)`); } catch(e) {}
 
       // ── Beauty service catalog ──────────────────────────────────────────
       try { await client.query(`CREATE TABLE IF NOT EXISTS beauty_service_catalog (
@@ -2710,9 +2714,15 @@ app.post('/api/groups', async (req, res) => {
             if (cRes.rows.length > 0) commId = cRes.rows[0].id;
         }
         
-        const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id) VALUES ($1, $2, LOWER($3), $4, $5) RETURNING *`, 
-            [req.body.type, req.body.groupName, reqEmail, code, commId]
+        const firstName = (req.body.firstName || req.body.adminNickname || '').trim();
+        const lastName = (req.body.lastName || '').trim();
+        const familyNickname = (req.body.familyNickname || '').trim() || null;
+        const groupLastName = lastName || familyNickname || null;
+        const adminNickname = lastName ? `${firstName} ${lastName}`.trim() : firstName;
+
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name) VALUES ($1, $2, LOWER($3), $4, $5, $6, $7) RETURNING *`, 
+            [req.body.type, req.body.groupName, reqEmail, code, commId, familyNickname, groupLastName]
         );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;
@@ -2724,9 +2734,21 @@ app.post('/api/groups', async (req, res) => {
             return res.status(400).json({ error: 'מספר טלפון הוא שדה חובה מגיל 10' });
         }
 
+        // בדיקת ייחודיות טלפון: אותו טלפון לא יכול להרשם בשתי משפחות שונות
+        if (phone && req.body.type === 'FAMILY') {
+            const phoneCheck = await dbClient.query(
+                `SELECT u.id FROM users u JOIN family_groups fg ON fg.id = u.group_id WHERE u.phone = $1 AND fg.type = 'FAMILY' LIMIT 1`,
+                [phone]
+            );
+            if (phoneCheck.rows.length > 0) {
+                await dbClient.query('ROLLBACK');
+                return res.status(400).json({ error: 'מספר טלפון זה כבר משויך לסביבה משפחתית אחרת. ניתן להשתמש באותו טלפון רק בסביבה משפחתית אחת.' });
+            }
+        }
+
         const uRes = await dbClient.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5) RETURNING *`,
-            [group.id, req.body.adminNickname, birthYear, req.body.password, phone]
+            `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone) VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', 'active', $7) RETURNING *`,
+            [group.id, adminNickname, firstName, lastName || null, birthYear, req.body.password, phone]
         );
 
         const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
@@ -9669,13 +9691,19 @@ app.get('/api/groups/search-all', async (req, res) => {
         if (!q || q.length < 2) return res.json({ groups: [] });
         const phoneQ = q.replace(/\D/g,'');
         const result = await pool.query(
-            `SELECT DISTINCT fg.id, fg.name, fg.type, fg.business_type, u.phone,
-                    fg.street_address, fg.city, fg.contact_name, u.nickname as admin_nickname,
+            `SELECT DISTINCT ON (fg.id) fg.id, fg.name, fg.type, fg.business_type,
+                    COALESCE(mu.phone, au.phone) as phone,
+                    fg.street_address, fg.city, fg.contact_name, fg.family_nickname, fg.last_name as group_last_name,
+                    au.nickname as admin_nickname,
+                    mu.nickname as matched_user_name,
+                    mu.first_name as matched_first_name,
+                    mu.last_name as matched_last_name,
                     TRIM(CONCAT(COALESCE(fg.street_address,''), ' ', COALESCE(fg.city,''))) as address
              FROM family_groups fg
-             LEFT JOIN users u ON u.group_id = fg.id AND u.role = 'ADMIN'
+             LEFT JOIN users au ON au.group_id = fg.id AND au.role = 'ADMIN'
+             LEFT JOIN users mu ON mu.group_id = fg.id AND LENGTH($2) >= 7 AND mu.phone LIKE $3
              WHERE (LOWER(fg.name) LIKE LOWER($1)
-                OR (LENGTH($2) >= 7 AND u.phone LIKE $3)
+                OR (LENGTH($2) >= 7 AND (au.phone LIKE $3 OR mu.phone LIKE $3))
                 OR LOWER(COALESCE(fg.city,'')) LIKE LOWER($1)
                 OR LOWER(COALESCE(fg.street_address,'')) LIKE LOWER($1)
                 OR LOWER(COALESCE(fg.contact_name,'')) LIKE LOWER($1))

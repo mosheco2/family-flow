@@ -227,8 +227,15 @@
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה / העסק" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
                     <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="שם מנהל" class="modern-input">
-                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                        <input type="text" id="create-first-name" required placeholder="שם פרטי" class="modern-input">
+                        <input type="text" id="create-last-name" required placeholder="שם משפחה" class="modern-input">
+                    </div>
+                    <div id="create-family-nickname-row" class="flex gap-3">
+                        <input type="text" id="create-family-nickname" placeholder="כינוי משפחה (אופציונלי, לדוג׳: כהן)" class="modern-input flex-1">
+                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input w-36">
+                    </div>
+                    <div id="create-business-year-row" class="hidden">
+                        <input type="number" id="create-year-biz" placeholder="שנת לידה" class="modern-input">
                     </div>
                     <input type="tel" id="create-phone" placeholder="מספר טלפון (חובה מגיל 10)" class="modern-input" dir="ltr">
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
@@ -1968,16 +1975,28 @@
     <script>
         window.handleTypeSelection = function(t) {
             document.getElementById('create-type').value = t;
-            
+
             const familyBtn = document.getElementById('type-family');
             const businessBtn = document.getElementById('type-business');
-            
+            const familyNicknameRow = document.getElementById('create-family-nickname-row');
+            const businessYearRow = document.getElementById('create-business-year-row');
+            const yearField = document.getElementById('create-year');
+            const yearBizField = document.getElementById('create-year-biz');
+
             if (t === 'FAMILY') {
                 familyBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition';
                 businessBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50';
+                if (familyNicknameRow) familyNicknameRow.classList.remove('hidden');
+                if (businessYearRow) businessYearRow.classList.add('hidden');
+                if (yearField) yearField.required = true;
+                if (yearBizField) yearBizField.required = false;
             } else {
                 businessBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition';
                 familyBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50';
+                if (familyNicknameRow) familyNicknameRow.classList.add('hidden');
+                if (businessYearRow) businessYearRow.classList.remove('hidden');
+                if (yearField) yearField.required = false;
+                if (yearBizField) yearBizField.required = true;
             }
         };
 

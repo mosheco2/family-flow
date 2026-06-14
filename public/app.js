@@ -282,8 +282,14 @@ async function handleCreate(e) {
     forceTourStart = true; toggleLoader('login', true); 
     try { 
         const _cPhone = val('create-phone');
-        if (_requiresPhone(val('create-year')) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password'), phone: _cPhone }) }); 
+        const _cType = val('create-type');
+        const _birthYear = _cType === 'FAMILY' ? val('create-year') : (val('create-year-biz') || val('create-year'));
+        if (_requiresPhone(_birthYear) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
+        const _firstName = val('create-first-name') || '';
+        const _lastName = val('create-last-name') || '';
+        const _familyNickname = val('create-family-nickname') || '';
+        const _adminNickname = _lastName ? `${_firstName} ${_lastName}`.trim() : _firstName;
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone }) });
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; 
@@ -1034,7 +1040,8 @@ async function loadDashboard() {
     // -----------------------------------------------------------
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
+    const _groupDisplayName = currentGroup.family_nickname || currentGroup.name;
+    getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.first_name || currentUser.nickname;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
