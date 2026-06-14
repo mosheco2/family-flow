@@ -10275,6 +10275,15 @@ app.get('/api/groups/:id/settings', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.patch('/api/users/:id/profile', async (req, res) => {
+    try {
+        const { nickname } = req.body;
+        if (!nickname || !nickname.trim()) return res.status(400).json({ error: 'nickname required' });
+        await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname.trim(), req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.patch('/api/users/:id/role-type', async (req, res) => {
     try {
         const { employee_role_type } = req.body;

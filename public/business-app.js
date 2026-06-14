@@ -5971,6 +5971,12 @@ window.openProfileModal = function() {
                 <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
                 <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3"><i class="fa-solid fa-gear text-slate-500 mr-2"></i> הגדרות ופרופיל</h3>
                 
+                <div class="bg-pink-50 p-4 rounded-2xl border border-pink-100 shadow-sm mb-4">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3 border-b border-pink-200 pb-2"><i class="fa-solid fa-user text-pink-400 mr-1"></i> פרטי פרופיל</h4>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם תצוגה:</label>
+                    <input type="text" id="profile-nickname" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-pink-400 focus:outline-none" placeholder="שם מלא"/>
+                    <button onclick="window.saveProfileNickname()" class="w-full mt-2 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition shadow-sm">שמור שם</button>
+                </div>
                 <div class="space-y-3 mb-6">
                     <a href="${_getGuideUrl(currentGroup?.business_type)}" target="_blank" class="w-full bg-cyan-50 text-cyan-700 py-3 rounded-xl font-bold hover:bg-cyan-100 transition shadow-sm text-sm flex items-center justify-between px-4 cursor-pointer">
                         <span>מדריך למערכת העסקית</span>
@@ -6060,6 +6066,26 @@ window.openProfileModal = function() {
     document.getElementById('profile-modal').classList.remove('hidden');
     const vatEl = document.getElementById('doc-vat-number'); if (vatEl) vatEl.value = currentGroup.vat_number || '';
     const cntEl = document.getElementById('doc-contact-name'); if (cntEl) cntEl.value = currentGroup.contact_name || '';
+    const nickEl = document.getElementById('profile-nickname'); if (nickEl) nickEl.value = currentUser.nickname || '';
+};
+
+window.saveProfileNickname = async function() {
+    const nickEl = document.getElementById('profile-nickname');
+    const nick = nickEl?.value?.trim();
+    if (!nick) { showToast('error', 'נא להזין שם'); return; }
+    try {
+        const r = await fetch(`${API}/users/${currentUser.id}/profile`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname: nick })
+        });
+        const data = await r.json();
+        if (data.success) {
+            currentUser.nickname = nick;
+            localStorage.setItem('ofl_session', JSON.stringify({ user: currentUser, group: currentGroup }));
+            const dashNick = document.getElementById('dash-nickname'); if (dashNick) dashNick.innerText = nick;
+            showToast('success', 'השם עודכן בהצלחה ✅');
+        } else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.saveDocSettings = async function() {
@@ -32511,8 +32537,8 @@ async function loadBeautyCalendar() {
             fetch(`${API}/beauty/${biz}/practitioners`).then(r=>r.json()),
             fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`).then(r=>r.json())
         ]);
-        window._beautyState.practitioners = (prRes.practitioners || []).filter(p => p.is_active);
-        window._beautyState.appointments = apRes.appointments || [];
+        window._beautyState.practitioners = Array.isArray(prRes) ? prRes : (prRes.practitioners || []);
+        window._beautyState.appointments = Array.isArray(apRes) ? apRes : (apRes.appointments || []);
         window._beautyState.calFromDate = fromDate;
         window._beautyState.calToDate = toDate;
     } catch(e) {
@@ -32691,7 +32717,7 @@ function _renderBeautyCalendar() {
         </div>
         <div class="flex items-center gap-2">${viewBtns}
             <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> תור חדש</button>
-            <button onclick="window._beautyManagePractitioners()" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">ניהול מטפלות</button>
+            <button onclick="switchTab('beauty_practitioners')" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-people-group text-pink-400"></i> מטפלות</button>
         </div>
     </div>
 
@@ -32790,11 +32816,20 @@ window._beautyNoShowAp = async function(apId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window._beautyNewApModal = function() {
-    const practitioners = window._beautyState.practitioners;
+window._beautyNewApModal = async function() {
     const biz = _beautyBizId(); if (!biz) return;
+    const practitioners = window._beautyState.practitioners;
     const dateStr = _beautyDateStr(window._beautyState.calDate);
     const pracOpts = practitioners.map(p => `<option value="${p.id}">${p.display_name}</option>`).join('');
+
+    // טעינת שירותים לרשימה
+    let services = [];
+    try {
+        const sr = await fetch(`${API}/beauty/${biz}/services`).then(r => r.json());
+        services = Array.isArray(sr) ? sr.filter(s => s.is_active !== false) : [];
+    } catch(e) {}
+    const svcOpts = services.map(s => `<option value="${s.id}" data-dur="${s.duration_minutes||60}" data-price="${s.price||0}">${s.name}</option>`).join('');
+
     const html = `
 <div id="beauty-new-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -32807,7 +32842,7 @@ window._beautyNewApModal = function() {
                 <input id="bnap-client" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
                 <input id="bnap-phone" type="tel" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
-            <div><label class="text-xs font-bold text-slate-600 block mb-1">מטפלת</label>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מטפלת <a onclick="switchTab('beauty_practitioners')" class="text-pink-500 underline cursor-pointer text-[10px] mr-1">+ הוסף מטפלת</a></label>
                 <select id="bnap-prac" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
                     <option value="">בחר מטפלת</option>${pracOpts}
                 </select></div>
@@ -32817,8 +32852,15 @@ window._beautyNewApModal = function() {
                 <div><label class="text-xs font-bold text-slate-600 block mb-1">שעת התחלה *</label>
                     <input id="bnap-time" type="time" value="10:00" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             </div>
-            <div><label class="text-xs font-bold text-slate-600 block mb-1">שירות</label>
-                <input id="bnap-service" type="text" placeholder="פדיקור, צביעת שיער..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1">שירות</label>
+                <select id="bnap-svc-select" onchange="window._beautyApSvcChange(this)" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                    <option value="">בחר שירות...</option>
+                    ${svcOpts}
+                    <option value="__other__">אחר (הזן ידנית)</option>
+                </select>
+                <input id="bnap-service" type="text" placeholder="שם השירות..." class="hidden w-full border border-pink-200 rounded-xl px-4 py-3 text-sm mt-2 focus:border-pink-400"/>
+            </div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="text-xs font-bold text-slate-600 block mb-1">משך (דקות)</label>
                     <input id="bnap-dur" type="number" value="60" min="5" step="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
@@ -32836,6 +32878,20 @@ window._beautyNewApModal = function() {
     document.body.insertAdjacentHTML('beforeend', html);
 };
 
+window._beautyApSvcChange = function(sel) {
+    const freeInput = document.getElementById('bnap-service');
+    if (sel.value === '__other__') {
+        freeInput.classList.remove('hidden');
+        freeInput.focus();
+    } else {
+        freeInput.classList.add('hidden');
+        freeInput.value = '';
+        const opt = sel.options[sel.selectedIndex];
+        if (opt && opt.dataset.dur) document.getElementById('bnap-dur').value = opt.dataset.dur;
+        if (opt && opt.dataset.price) document.getElementById('bnap-price').value = opt.dataset.price;
+    }
+};
+
 window._beautySubmitNewAp = async function() {
     const biz = _beautyBizId(); if (!biz) return;
     const clientName = document.getElementById('bnap-client')?.value?.trim();
@@ -32843,7 +32899,11 @@ window._beautySubmitNewAp = async function() {
     const pracId = document.getElementById('bnap-prac')?.value;
     const date = document.getElementById('bnap-date')?.value;
     const time = document.getElementById('bnap-time')?.value;
-    const service = document.getElementById('bnap-service')?.value?.trim();
+    const svcSel = document.getElementById('bnap-svc-select');
+    const svcSelVal = svcSel?.value;
+    const service = (svcSelVal === '__other__' || !svcSelVal)
+        ? document.getElementById('bnap-service')?.value?.trim()
+        : svcSel?.options[svcSel?.selectedIndex]?.text?.trim();
     const dur = parseInt(document.getElementById('bnap-dur')?.value) || 60;
     const price = parseFloat(document.getElementById('bnap-price')?.value) || 0;
     const notes = document.getElementById('bnap-notes')?.value?.trim();
