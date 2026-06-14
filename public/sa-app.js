@@ -1570,15 +1570,20 @@ function renderSAGroups() {
     if (filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
 
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => {
+            const phoneBadge = u.phone
+                ? `<span class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full mr-1">${safeStr(u.phone)}</span>`
+                : `<span class="text-[10px] text-red-400 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full mr-1">ללא טלפון</span>`;
+            const roleLabel = u.role === 'ADMIN' ? 'הורה/מנהל' : u.role === 'SENIOR' ? 'בכיר' : 'בן משפחה/עובד';
+            return `
             <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה/עובד'})</span></span>
+                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${roleLabel})</span> ${phoneBadge}</span>
                 <div class="flex gap-1">
-                    <button onclick="openSAEditUserModal(${u.id}, '${safeStr(u.nickname)}')" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="openSAEditUserModal(${u.id})" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
-        `).join('');
+        `;}).join('');
 
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
 
@@ -1889,26 +1894,56 @@ window.sendSABroadcastMessage = async function() {
     finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שגר לתיבת ההודעות'; } }
 };
 
-function openSAEditUserModal(id, nickname) {
+function openSAEditUserModal(id) {
+    const u = saAllUsers.find(u => u.id === id);
+    if (!u) return;
+    const group = saAllGroups.find(g => g.id === u.group_id);
     getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = nickname;
+    getEl('sa-edit-user-name').value = u.nickname || '';
+    getEl('sa-edit-user-phone').value = u.phone || '';
+    getEl('sa-edit-user-phone').className = `w-full border ${u.phone ? 'border-slate-200' : 'border-red-200 bg-red-50'} rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none`;
+    getEl('sa-edit-user-id-number').value = u.id_number || '';
+    getEl('sa-edit-user-email').value = u.email || '';
+    getEl('sa-edit-user-birth').value = u.birth_year || '';
     getEl('sa-edit-user-pass').value = '';
+    const roleEl = getEl('sa-edit-user-role');
+    if (roleEl) { Array.from(roleEl.options).forEach(o => o.selected = o.value === u.role); }
+    const statusEl = getEl('sa-edit-user-status');
+    if (statusEl) { Array.from(statusEl.options).forEach(o => o.selected = o.value === u.status); }
+    const infoEl = getEl('sa-edit-user-info');
+    if (infoEl) infoEl.innerHTML = `<div><strong>סביבה:</strong> ${safeStr(group?.name || '—')} (${group?.type === 'BUSINESS' ? 'עסק' : 'משפחה'})</div><div><strong>ID:</strong> ${u.id} | <strong>סטטוס:</strong> ${u.status || 'active'}</div>`;
     getEl('sa-edit-user-modal').classList.remove('hidden');
 }
 
 async function saveSAEditUser() {
-    const id = val('sa-edit-user-id');
-    const nickname = val('sa-edit-user-name');
-    const password = val('sa-edit-user-pass');
-    if (!nickname) return showToast('error', 'כינוי לא יכול להיות ריק');
+    const id = parseInt(val('sa-edit-user-id'));
+    const nickname = val('sa-edit-user-name')?.trim();
+    if (!nickname) return showToast('error', 'נא למלא שם תצוגה');
+    const body = {
+        nickname,
+        phone: val('sa-edit-user-phone')?.trim() || null,
+        id_number: val('sa-edit-user-id-number')?.trim() || null,
+        email: val('sa-edit-user-email')?.trim() || null,
+        birth_year: parseInt(val('sa-edit-user-birth')) || null,
+        role: val('sa-edit-user-role'),
+        status: val('sa-edit-user-status'),
+        new_password: val('sa-edit-user-pass')?.trim() || null
+    };
     try {
-        const res = await fetch(`${API}/sa/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname, password }) });
-        if ((await res.json()).success) {
-            showToast('success', 'המשתמש עודכן בהצלחה!');
+        const res = await fetch(`${API}/superadmin/users/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+            const idx = saAllUsers.findIndex(u => u.id === id);
+            if (idx >= 0) saAllUsers[idx] = { ...saAllUsers[idx], ...body, ...data.user };
+            showToast('success', 'פרטי המשתמש עודכנו ✅');
             getEl('sa-edit-user-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון משתמש');
-    } catch (e) { showToast('error', 'שגיאת רשת'); }
+            renderSAGroups();
+        } else showToast('error', data.error || 'שגיאה בשמירה');
+    } catch (e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 async function loadSACommunityData() {
