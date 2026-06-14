@@ -32809,7 +32809,8 @@ function _renderBeautyCalendar() {
     const apByPrac = {};
     practitioners.forEach(p => { apByPrac[p.id] = []; });
     appointments.forEach(ap => {
-        if (apByPrac[ap.practitioner_id] !== undefined) apByPrac[ap.practitioner_id].push(ap);
+        const pracId = ap.segments?.[0]?.practitioner_id;
+        if (pracId && apByPrac[pracId] !== undefined) apByPrac[pracId].push(ap);
         else { apByPrac['unassigned'] = apByPrac['unassigned'] || []; apByPrac['unassigned'].push(ap); }
     });
 
@@ -32817,22 +32818,38 @@ function _renderBeautyCalendar() {
 
     const hours = Array.from({length: 13}, (_,i) => i + 8); // 08:00–20:00
 
-    const pracCols = practitioners.length === 0
-        ? `<div class="text-center py-12 text-slate-400 text-sm">אין מטפלות פעילות — הוסף מטפלת תחילה</div>`
+    // פונקציה לבניית כרטיסי תור לעמודה
+    function _apCardHtml(ap, color) {
+        const seg0 = ap.segments?.[0];
+        const startH = new Date(seg0?.start_time || ap.created_at);
+        const endH   = new Date(seg0?.end_time   || startH.getTime() + 3600000);
+        const topPct = Math.max(0, ((startH.getHours() - 8) * 60 + startH.getMinutes()) / (13*60) * 100);
+        const heightPct = Math.max(((endH - startH) / (13*60*60*1000)) * 100, 3);
+        return `<div class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
+            style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
+            onclick="window._beautyOpenAp(${ap.id})">
+            <div class="truncate">${ap.client_name || 'לקוח'}</div>
+            <div class="opacity-80">${_beautyFmt(seg0?.start_time)}</div>
+        </div>`;
+    }
+
+    const unassignedAps = apByPrac['unassigned'] || [];
+    const unassignedCol = unassignedAps.length > 0 ? `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
+        <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 bg-slate-400">?</div>
+            <span class="text-xs font-bold text-slate-500 truncate">ללא מטפלת</span>
+        </div>
+        <div class="relative" style="height:${13*60}px">
+            ${hours.map(h=>`<div class="absolute w-full border-t border-slate-50" style="top:${(h-8)*60}px"></div>`).join('')}
+            ${unassignedAps.map(ap => _apCardHtml(ap, '#94a3b8')).join('')}
+        </div>
+    </div>` : '';
+
+    const pracCols = (practitioners.length === 0 && unassignedAps.length === 0)
+        ? `<div class="text-center py-12 text-slate-400 text-sm">אין תורים ביום זה</div>`
         : practitioners.map(p => {
             const color = p.color_hex || '#6366f1';
-            const apCards = (apByPrac[p.id]||[]).map(ap => {
-                const startH = new Date(ap.start_time);
-                const endH = new Date(ap.end_time);
-                const topPct = ((startH.getHours() - 8) * 60 + startH.getMinutes()) / (13*60) * 100;
-                const heightPct = Math.max(((endH - startH) / (13*60*60*1000)) * 100, 3);
-                return `<div class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
-                    style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
-                    onclick="window._beautyOpenAp(${ap.id})">
-                    <div class="truncate">${ap.client_name || 'לקוח'}</div>
-                    <div class="opacity-80">${_beautyFmt(ap.start_time)}</div>
-                </div>`;
-            }).join('');
+            const apCards = (apByPrac[p.id]||[]).map(ap => _apCardHtml(ap, color)).join('');
             return `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
                 <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${color}">${(p.display_name||'?').charAt(0)}</div>
@@ -33001,9 +33018,9 @@ function _renderBeautyCalendar() {
                     ${hours.map(h=>`<div class="absolute text-[9px] text-slate-400 font-bold" style="top:${(h-8)*60-6}px;right:4px">${h}:00</div>`).join('')}
                 </div>
             </div>
-            <!-- practitioner columns -->
+            <!-- practitioner columns + unassigned -->
             <div class="flex flex-1">
-                ${pracCols}
+                ${pracCols}${unassignedCol}
             </div>
         </div>
     </div>
