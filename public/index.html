@@ -460,7 +460,7 @@
                         <!-- טאבים: הזמנות / קריאות שירות -->
                         <div class="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-3">
                             <button id="myorders-tab-orders" ontouchend="event.preventDefault();switchMyOrdersTab('orders')" onclick="switchMyOrdersTab('orders')" class="flex-1 py-2 text-xs font-black rounded-xl bg-white text-slate-700 shadow-sm transition" style="touch-action:manipulation;">📦 הזמנות</button>
-                            <button id="myorders-tab-activities" ontouchend="event.preventDefault();switchMyOrdersTab('activities')" onclick="switchMyOrdersTab('activities')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🏢 הפעילות</button>
+                            <button id="myorders-tab-activities" ontouchend="event.preventDefault();switchMyOrdersTab('activities')" onclick="switchMyOrdersTab('activities')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🏢 הפעילות שלי</button>
                             <button id="myorders-tab-faults" ontouchend="event.preventDefault();switchMyOrdersTab('faults')" onclick="switchMyOrdersTab('faults')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">🔧 קריאות</button>
                             <button id="myorders-tab-quotes" ontouchend="event.preventDefault();switchMyOrdersTab('quotes')" onclick="switchMyOrdersTab('quotes')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 transition" style="touch-action:manipulation;">📋 הצעות</button>
                         </div>
@@ -2054,7 +2054,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=18" defer></script>
+    <script src="app.js?v=19" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

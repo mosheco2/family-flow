@@ -8911,91 +8911,164 @@ window.saSetMemberModules = async function(groupId) {
 // ============================================================
 // ===== הפעילות שלי — עסקים שקישרו את המשפחה =======================
 
+const _ACTIVITY_CAT = {
+    beauty:             { icon: '💅', label: 'יופי וטיפוח' },
+    gym:                { icon: '💪', label: 'כושר וספורט' },
+    sport:              { icon: '🏋️', label: 'ספורט' },
+    restaurant:         { icon: '🍽️', label: 'מסעדה' },
+    maintenance_repair: { icon: '🔧', label: 'תיקונים ואחזקה' },
+    construction:       { icon: '🏗️', label: 'בנייה ושיפוץ' },
+    services:           { icon: '🛎️', label: 'שירותים' },
+    healthcare:         { icon: '🏥', label: 'בריאות' },
+    events:             { icon: '🎉', label: 'אירועים' },
+    other:              { icon: '🏢', label: 'עסקים נוספים' },
+};
+
+let _activityAllBiz = [];
+
 async function loadMyActivities() {
     const el = document.getElementById('my-activities-list');
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
         await Promise.all([
-            fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json()).then(d => { el._bizData = d.businesses || []; }),
+            fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json()).then(d => { _activityAllBiz = d.businesses || []; }),
             _prefetchBeautyRfqs()
         ]);
-        const businesses = el._bizData || [];
 
-        const CAT = {
-            beauty:             { icon: '💅', label: 'יופי וטיפוח' },
-            gym:                { icon: '💪', label: 'כושר וספורט' },
-            sport:              { icon: '🏋️', label: 'ספורט' },
-            restaurant:         { icon: '🍽️', label: 'מסעדה' },
-            maintenance_repair: { icon: '🔧', label: 'תיקונים ואחזקה' },
-            construction:       { icon: '🏗️', label: 'בנייה ושיפוץ' },
-            services:           { icon: '🛎️', label: 'שירותים' },
-            healthcare:         { icon: '🏥', label: 'בריאות' },
-            events:             { icon: '🎉', label: 'אירועים' },
-        };
+        // Always include beauty category for RFQ discovery
+        const hasBeauty = _activityAllBiz.some(b => b.business_type === 'beauty');
+        if (!hasBeauty) _activityAllBiz.push({ __phantom: true, business_type: 'beauty' });
 
-        // Group by business type
-        const groups = {};
-        for (const b of businesses) {
-            const t = b.business_type || 'other';
-            if (!groups[t]) groups[t] = [];
-            groups[t].push(b);
-        }
+        const hasAny = _activityAllBiz.filter(b => !b.__phantom).length > 0
+            || window._beautyRfqState.businesses?.length > 0
+            || window._beautyRfqState.rfqs?.length > 0;
 
-        // Ensure beauty category exists (even if no linked businesses — beauty RFQ always shown)
-        if (!groups.beauty) groups.beauty = [];
-
-        const hasAny = businesses.length > 0 || window._beautyRfqState.businesses?.length > 0 || window._beautyRfqState.rfqs?.length > 0;
         if (!hasAny) {
-            el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">עדיין לא קושרת לעסקים. כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן.</p>';
+            el.innerHTML = `
+                <div class="text-center py-10 text-slate-400">
+                    <div class="text-3xl mb-2">🏢</div>
+                    <p class="text-sm font-bold text-slate-500">עדיין אין פעילות</p>
+                    <p class="text-xs mt-1">כאשר עסק יוסיף אותך כלקוח, הוא יופיע כאן</p>
+                </div>`;
             return;
         }
 
-        let html = '';
-        for (const [type, bizsOfType] of Object.entries(groups)) {
-            const cat = CAT[type] || { icon: '🏢', label: 'עסקים' };
-            html += `<div class="mb-5">
-                <div class="flex items-center gap-2 mb-2 px-1">
-                    <span class="text-base">${cat.icon}</span>
-                    <h3 class="text-xs font-black text-slate-600 uppercase tracking-wide">${cat.label}</h3>
+        // Build search + filter controls
+        const types = [...new Set(_activityAllBiz.filter(b => !b.__phantom).map(b => b.business_type || 'other'))];
+        const filterPills = ['all', ...types].map(t => {
+            const cat = _ACTIVITY_CAT[t] || { icon: '🏢', label: t };
+            return `<button class="act-filter-pill shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition ${t === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}" data-type="${t}" onclick="window._actFilter(this)">
+                ${t === 'all' ? 'הכל' : cat.icon + ' ' + cat.label}
+            </button>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div class="mb-3 space-y-2">
+                <div class="relative">
+                    <input id="act-search" type="search" placeholder="חפש עסק..." oninput="window._actSearch(this.value)"
+                        class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm pr-9 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-400" />
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                 </div>
-                <div class="space-y-2">`;
+                ${types.length > 1 ? `<div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">${filterPills}</div>` : ''}
+            </div>
+            <div id="act-biz-list"></div>`;
 
-            for (const b of bizsOfType) {
-                const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
-                const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-                const pendingBadge = b.status === 'pending' ? '<span class="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">ממתין לאישור</span>' : '';
-                html += `<div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <p class="font-black text-slate-800 text-sm">${safeStr(b.business_name)}</p>
-                            ${pendingBadge}
-                        </div>
-                        ${linkedDate ? `<p class="text-[10px] text-slate-400">לקוח מ-${linkedDate}</p>` : ''}
-                    </div>
-                    ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition text-center">
-                        <i class="fa-solid fa-store block mb-0.5"></i>חנות
-                    </a>` : ''}
-                </div>`;
-            }
+        _actRender('all', '');
 
-            // Beauty: append RFQ section (discovery + my requests)
-            if (type === 'beauty') {
-                html += `<div id="activities-beauty-rfq" class="mt-3 space-y-2">
-                    <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
-                </div>`;
-            }
-
-            html += `</div></div>`;
-        }
-
-        el.innerHTML = html;
         _renderFamilyBeautyRfqInline();
-
     } catch(e) {
         el.innerHTML = '<p class="text-xs text-red-500 text-center py-6">שגיאה בטעינת הנתונים</p>';
     }
+}
+
+window._actFilter = function(btn) {
+    document.querySelectorAll('.act-filter-pill').forEach(b => {
+        b.className = b.className.replace(/bg-indigo-600 text-white border-indigo-600/, 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300');
+    });
+    btn.className = btn.className.replace('bg-white text-slate-600 border-slate-200 hover:border-indigo-300', 'bg-indigo-600 text-white border-indigo-600');
+    const search = document.getElementById('act-search')?.value || '';
+    _actRender(btn.dataset.type, search);
+};
+
+window._actSearch = function(q) {
+    const active = document.querySelector('.act-filter-pill.bg-indigo-600')?.dataset.type || 'all';
+    _actRender(active, q);
+};
+
+function _actRender(filterType, searchQ) {
+    const listEl = document.getElementById('act-biz-list');
+    if (!listEl) return;
+    const q = (searchQ || '').trim().toLowerCase();
+
+    const visible = _activityAllBiz.filter(b => {
+        if (b.__phantom) return true; // phantom for beauty RFQ
+        if (filterType !== 'all' && (b.business_type || 'other') !== filterType) return false;
+        if (q && !b.business_name?.toLowerCase().includes(q)) return false;
+        return true;
+    });
+
+    // Group by type preserving order
+    const groups = {};
+    for (const b of visible) {
+        const t = b.business_type || 'other';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(b);
+    }
+
+    let html = '';
+    for (const [type, bizsOfType] of Object.entries(groups)) {
+        const cat = _ACTIVITY_CAT[type] || { icon: '🏢', label: 'עסקים נוספים' };
+        const realBizs = bizsOfType.filter(b => !b.__phantom);
+        const showHeader = filterType === 'all' || (Object.keys(groups).length > 1);
+
+        html += `<div class="mb-5" data-cat="${type}">`;
+        if (showHeader) {
+            html += `<div class="flex items-center gap-2 mb-2.5 px-1 border-b border-slate-100 pb-1.5">
+                <span class="text-lg">${cat.icon}</span>
+                <h3 class="text-sm font-black text-slate-700">${cat.label}</h3>
+                ${realBizs.length > 0 ? `<span class="text-[10px] font-bold text-slate-400 mr-auto">${realBizs.length} עסקים</span>` : ''}
+            </div>`;
+        }
+        html += `<div class="space-y-2">`;
+
+        for (const b of realBizs) {
+            const storeLink = b.group_code ? `${window.location.origin}/storefront.html?store=${b.group_code}${b.community_id ? '&communityId=' + b.community_id : ''}` : '';
+            const linkedDate = b.linked_at ? new Date(b.linked_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+            const pendingBadge = b.status === 'pending' ? '<span class="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">ממתין לאישור</span>' : '';
+            html += `<div class="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                        ${pendingBadge}
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · לקוח מ-' + linkedDate : ''}</p>
+                </div>
+                ${storeLink ? `<a href="${storeLink}" target="_blank" rel="noopener" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl px-2.5 py-2 text-[10px] font-bold hover:bg-indigo-100 transition flex flex-col items-center gap-0.5">
+                    <i class="fa-solid fa-store text-xs"></i><span>חנות</span>
+                </a>` : ''}
+            </div>`;
+        }
+
+        if (type === 'beauty') {
+            html += `<div id="activities-beauty-rfq" class="mt-3 space-y-2">
+                <p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
+            </div>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    if (!html) {
+        html = `<div class="text-center py-8 text-slate-400">
+            <div class="text-2xl mb-1">🔍</div>
+            <p class="text-sm">לא נמצאו עסקים תואמים</p>
+        </div>`;
+    }
+
+    listEl.innerHTML = html;
+    _renderFamilyBeautyRfqInline();
 }
 
 // ===== BEAUTY RFQ — FAMILY SIDE (P4) =======================
