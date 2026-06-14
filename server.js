@@ -12840,24 +12840,21 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
                             WHERE ba.business_group_id=$1
                               AND (
-                                ($2 IS NOT NULL AND REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g'))
-                                OR ba.client_family_id=$3
+                                ($2::text IS NOT NULL AND ba.client_phone=$2::text)
+                                OR ba.client_family_id=$3::integer
                                 OR EXISTS (
                                   SELECT 1 FROM beauty_client_records bcr2
-                                  WHERE bcr2.business_group_id=$1 AND bcr2.client_family_id=$3
-                                    AND ba.client_phone IS NOT NULL
-                                    AND REGEXP_REPLACE(bcr2.client_phone,'[^0-9]','','g')=REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')
+                                  WHERE bcr2.business_group_id=$1 AND bcr2.client_family_id=$3::integer
+                                    AND ba.client_phone IS NOT NULL AND ba.client_phone=bcr2.client_phone
                                 )
                                 OR EXISTS (
                                   SELECT 1 FROM users u2
-                                  WHERE u2.group_id=$3
-                                    AND ba.client_phone IS NOT NULL
-                                    AND u2.phone IS NOT NULL
-                                    AND REGEXP_REPLACE(u2.phone,'[^0-9]','','g')=REGEXP_REPLACE(ba.client_phone,'[^0-9]','','g')
+                                  WHERE u2.group_id=$3::integer
+                                    AND ba.client_phone IS NOT NULL AND ba.client_phone=u2.phone
                                 )
                               )
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                    [bizGroupId, familyPhone, familyGroupId]).catch(e => { console.error('[APPT-QUERY]', e.message); return { rows: [] }; }),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
                               AND (client_phone=$2 OR client_family_id=$3)
@@ -12870,18 +12867,7 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                             ORDER BY event_date DESC, start_time DESC LIMIT 20`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
-            // DEBUG: fetch recent raw appointments for this business to diagnose mismatches
-            const dbgR = await pool.query(
-                `SELECT ba.id, ba.status, ba.client_family_id, ba.client_phone, ba.business_group_id,
-                        COUNT(bas.id) AS seg_count
-                 FROM beauty_appointments ba
-                 LEFT JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
-                 WHERE ba.business_group_id=$1
-                 GROUP BY ba.id ORDER BY ba.created_at DESC LIMIT 5`,
-                [bizGroupId]
-            ).catch(() => ({ rows: [] }));
             result.activity = { appointments: apptR.rows, rfqs: rfqR.rows, calendarEvents: calR.rows };
-            result._debug = { familyGroupId, bizGroupId, familyPhone, recentAppts: dbgR.rows };
 
         } else if (bizType === 'sport' || bizType === 'gym') {
             const [memR, checkR] = await Promise.all([
