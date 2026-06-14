@@ -12502,6 +12502,27 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
             if (ur.rows[0]) resolvedFamilyId = ur.rows[0].group_id;
         }
 
+        // עדכון beauty_client_records עם client_family_id — כדי שהעסק יופיע ב"עסקים שלי" של הלקוח
+        if (resolvedFamilyId && client_phone) {
+            const existR = await client.query(
+                `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND client_phone=$2 LIMIT 1`,
+                [req.params.bizId, client_phone]
+            ).catch(() => ({ rows: [] }));
+            if (existR.rows[0]) {
+                if (!existR.rows[0].client_family_id) {
+                    await client.query(
+                        `UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2`,
+                        [resolvedFamilyId, existR.rows[0].id]
+                    ).catch(() => {});
+                }
+            } else if (client_name) {
+                await client.query(
+                    `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
+                    [req.params.bizId, client_name, client_phone, resolvedFamilyId]
+                ).catch(() => {});
+            }
+        }
+
         // When business creates appointment for a connected client → pending client approval
         const defaultStatus = (resolvedFamilyId && src === 'biz') ? 'pending_client' : 'confirmed';
         const appt = await client.query(

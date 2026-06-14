@@ -33050,14 +33050,19 @@ window._beautySetView = function(view) {
 window._beautyOpenAp = function(apId) {
     const ap = window._beautyState.appointments.find(a => a.id === apId);
     if (!ap) return;
-    const prac = window._beautyState.practitioners.find(p => p.id === ap.practitioner_id);
+    const seg0 = ap.segments?.[0];
+    const pracId = seg0?.practitioner_id || ap.practitioner_id;
+    const prac = window._beautyState.practitioners.find(p => p.id === pracId);
+    const startTs = seg0?.start_time || ap.start_time;
+    const endTs = seg0?.end_time || ap.end_time;
+    const serviceName = seg0?.service_name || '';
     const html = `
 <div id="beauty-ap-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
         <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
             <div>
                 <h3 class="font-black text-white text-base">${ap.client_name || 'לקוח'}</h3>
-                <p class="text-pink-100 text-xs">${_beautyFmtDate(ap.start_time)} · ${_beautyFmt(ap.start_time)}–${_beautyFmt(ap.end_time)}</p>
+                <p class="text-pink-100 text-xs">${serviceName ? serviceName + ' · ' : ''}${_beautyFmtDate(startTs)} · ${_beautyFmt(startTs)}–${_beautyFmt(endTs)}</p>
             </div>
             <button onclick="document.getElementById('beauty-ap-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
