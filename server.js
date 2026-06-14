@@ -12487,14 +12487,28 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
         }
 
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
-        // When business creates appointment for a connected client → pending client approval
         const src = booking_source || 'biz';
-        const defaultStatus = (client_family_id && src === 'biz') ? 'pending_client' : 'confirmed';
+
+        // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון
+        let resolvedFamilyId = client_family_id || null;
+        if (!resolvedFamilyId && client_phone && src === 'biz') {
+            const digits = (client_phone || '').replace(/\D/g, '');
+            const alt = digits.startsWith('972') ? '0' + digits.substring(3) : digits.startsWith('0') ? '972' + digits.substring(1) : digits;
+            const ur = await client.query(
+                `SELECT u.group_id FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE (u.phone=$1 OR u.phone=$2 OR u.phone=$3) AND fg.type='FAMILY' LIMIT 1`,
+                [digits, alt, client_phone]
+            ).catch(() => ({ rows: [] }));
+            if (ur.rows[0]) resolvedFamilyId = ur.rows[0].group_id;
+        }
+
+        // When business creates appointment for a connected client → pending client approval
+        const defaultStatus = (resolvedFamilyId && src === 'biz') ? 'pending_client' : 'confirmed';
         const appt = await client.query(
             `INSERT INTO beauty_appointments (business_group_id, client_family_id, client_name, client_phone, client_email,
              client_type, booking_source, status, deposit_amount, total_price, notes, internal_notes, rfq_id, group_booking_ref)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-            [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
+            [req.params.bizId, resolvedFamilyId||null, client_name||null, client_phone||null, client_email||null,
              client_type||'external', src, defaultStatus, deposit_amount||0, totalPrice,
              notes||null, internal_notes||null, rfq_id||null, group_booking_ref||null]
         );

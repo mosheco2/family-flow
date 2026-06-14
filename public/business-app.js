@@ -32829,6 +32829,7 @@ function _renderBeautyCalendar() {
             style="top:${topPct.toFixed(1)}%;height:${heightPct.toFixed(1)}%;background:${color};min-height:28px"
             onclick="window._beautyOpenAp(${ap.id})">
             <div class="truncate">${ap.client_name || 'לקוח'}</div>
+            ${seg0?.service_name ? `<div class="truncate opacity-90 text-[9px] font-medium">${seg0.service_name}</div>` : ''}
             <div class="opacity-80">${_beautyFmt(seg0?.start_time)}</div>
         </div>`;
     }
